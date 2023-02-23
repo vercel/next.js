@@ -1611,7 +1611,7 @@ export async function ncc_react(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source.replace(
         /require\(["']scheduler["']\)/g,
         'require("next/dist/compiled/scheduler")'

@@ -32,4 +32,4 @@ Sites take its content from markdown files in `/content`. Two of pages (`home` a
 
 Blog component loads all posts (during build!) and lists them out [How to load multiple md files](https://medium.com/@shawnstern/importing-multiple-markdown-files-into-a-react-component-with-webpack-7548559fce6f)
 
-Updated to take advantange of the new `getStaticPaths` and `getStaticProps` data-fetching functions.
+Updated to take advantage of the new `getStaticPaths` and `getStaticProps` data-fetching functions.

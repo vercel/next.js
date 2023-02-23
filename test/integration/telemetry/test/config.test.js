@@ -203,7 +203,7 @@ describe('config telemetry', () => {
     expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
   })
 
-  it('emits telemery for usage of optimizeFonts, image, script & dynamic', async () => {
+  it('emits telemetry for usage of optimizeFonts, image, script & dynamic', async () => {
     const { stderr } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },

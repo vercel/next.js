@@ -301,7 +301,7 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onLoad with sythetic event', async () => {
+  it('should callback native onLoad with synthetic event', async () => {
     let browser = await webdriver(appPort, '/on-load')
 
     await browser.eval(
@@ -393,14 +393,14 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onError when error occured while loading image', async () => {
+  it('should callback native onError when error occurred while loading image', async () => {
     let browser = await webdriver(appPort, '/on-error')
     await browser.eval(
       `document.getElementById("img1").scrollIntoView({behavior: "smooth"})`
     )
     await check(
       () => browser.eval(`document.getElementById("msg1").textContent`),
-      'no error occured for img1'
+      'no error occurred for img1'
     )
     await check(
       () => browser.eval(`document.getElementById("img1").style.color`),
@@ -411,7 +411,7 @@ function runTests(mode) {
     )
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'no error occured for img2'
+      'no error occurred for img2'
     )
     await check(
       () => browser.eval(`document.getElementById("img2").style.color`),
@@ -420,7 +420,7 @@ function runTests(mode) {
     await browser.eval(`document.getElementById("toggle").click()`)
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'error occured while loading img2'
+      'error occurred while loading img2'
     )
     await check(
       () => browser.eval(`document.getElementById("img2").style.color`),

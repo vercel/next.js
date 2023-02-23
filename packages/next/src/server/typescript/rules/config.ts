@@ -61,7 +61,7 @@ const API_DOCS: Record<
   },
   preferredRegion: {
     description:
-      'Specify the perferred region that this layout or page should be deployed to. If the region option is not specified, it inherits the option from the nearest parent layout. The root defaults to `"auto"`.',
+      'Specify the preferred region that this layout or page should be deployed to. If the region option is not specified, it inherits the option from the nearest parent layout. The root defaults to `"auto"`.',
     options: {
       '"auto"':
         'Next.js will first deploy to the `"home"` region. Then if it doesn’t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally to `"edge"`. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
@@ -117,7 +117,7 @@ const API_DOCS: Record<
 function visitEntryConfig(
   fileName: string,
   position: number,
-  callback: (entryEonfig: string, value: ts.VariableDeclaration) => void
+  callback: (entryConfig: string, value: ts.VariableDeclaration) => void
 ) {
   const source = getSource(fileName)
   if (source) {
@@ -227,7 +227,7 @@ const config = {
   getQuickInfoAtPosition(fileName: string, position: number) {
     const ts = getTs()
 
-    let overriden: ts.QuickInfo | undefined
+    let overridden: ts.QuickInfo | undefined
     visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) return
 
@@ -252,7 +252,7 @@ const config = {
           : !!API_DOCS[entryConfig].options?.[key]
 
         if (isValid) {
-          overriden = {
+          overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
@@ -273,7 +273,7 @@ const config = {
           }
         } else {
           // Wrong value, display the docs link
-          overriden = {
+          overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
@@ -286,7 +286,7 @@ const config = {
         }
       } else {
         // Hovers the name of the config
-        overriden = {
+        overridden = {
           kind: ts.ScriptElementKind.enumElement,
           kindModifiers: ts.ScriptElementKindModifier.none,
           textSpan: {
@@ -304,7 +304,7 @@ const config = {
         }
       }
     })
-    return overriden
+    return overridden
   },
 
   // Show details on the side when auto completing.

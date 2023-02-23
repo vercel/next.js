@@ -66,7 +66,7 @@ const Home = () => {
           </amp-story-grid-layer>
         </amp-story-page>
 
-        {/* <!-- Pre-defined entry animations make it possible to create dynamic pages without videos. The length and initial delay can be customized using the `animate-in-duration` and `animate-in-delay` properties. The [animations sample](/documentation/examples/visual-effects/amp_story_animations/) shows all available animantions in action. --> */}
+        {/* <!-- Pre-defined entry animations make it possible to create dynamic pages without videos. The length and initial delay can be customized using the `animate-in-duration` and `animate-in-delay` properties. The [animations sample](/documentation/examples/visual-effects/amp_story_animations/) shows all available animations in action. --> */}
         <amp-story-page id="animation-demo">
           <amp-story-grid-layer template="fill">
             <amp-img

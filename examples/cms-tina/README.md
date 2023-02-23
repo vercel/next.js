@@ -45,7 +45,7 @@ yarn create next-app --example cms-tina cms-tina-app
 pnpm create next-app --example cms-tina cms-tina-app
 ```
 
-### Setp 1. Run Next.js in development mode
+### Setup 1. Run Next.js in development mode
 
 To get started, no configuration is needed for local development and editing.
 

@@ -435,7 +435,7 @@ export class Head extends React.Component<HeadProps> {
 
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
-    let unmangedFiles: Set<string> = new Set([])
+    let unmanagedFiles: Set<string> = new Set([])
     let dynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
@@ -444,7 +444,7 @@ export class Head extends React.Component<HeadProps> {
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmangedFiles = new Set(dynamicCssFiles)
+      unmanagedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
@@ -467,7 +467,7 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmangedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}

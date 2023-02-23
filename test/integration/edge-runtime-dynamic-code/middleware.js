@@ -25,13 +25,13 @@ export async function middleware(request) {
     })
   }
 
-  if (request.nextUrl.pathname === `/${useCases.wasmInstanciate}`) {
+  if (request.nextUrl.pathname === `/${useCases.wasmInstantiate}`) {
     return new Response(null, {
       headers: { data: JSON.stringify(await usingWebAssemblyInstantiate(9)) },
     })
   }
 
-  if (request.nextUrl.pathname === `/${useCases.wasmBufferInstanciate}`) {
+  if (request.nextUrl.pathname === `/${useCases.wasmBufferInstantiate}`) {
     return new Response(null, {
       headers: {
         data: JSON.stringify(await usingWebAssemblyInstantiateWithBuffer(9)),

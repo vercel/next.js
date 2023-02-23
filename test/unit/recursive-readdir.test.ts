@@ -11,11 +11,11 @@ describe('recursiveReadDir', () => {
     const result = await recursiveReadDir(dirWithPages, /\.js/)
     const pages = [
       /^[\\/]index\.js/,
-      /^[\\/]prefered\.js/,
+      /^[\\/]preferred\.js/,
       /^[\\/]nav[\\/]about\.js/,
       /^[\\/]nav[\\/]index\.js/,
       /^[\\/]nested[\\/]index\.js/,
-      /^[\\/]prefered[\\/]index\.js/,
+      /^[\\/]preferred[\\/]index\.js/,
       /^[\\/]nav[\\/]products[\\/]product\.js/,
     ]
     expect(

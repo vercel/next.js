@@ -37,7 +37,7 @@ pub struct FontFunction {
 #[derive(Debug, Default)]
 pub struct State {
     font_functions: AHashMap<Id, FontFunction>,
-    removeable_module_items: FxHashSet<BytePos>,
+    removable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
     font_exports: Vec<ModuleItem>,
     font_functions_in_allowed_scope: FxHashSet<BytePos>,
@@ -59,7 +59,7 @@ impl VisitMut for NextFontLoaders {
         };
         items.visit_with(&mut functions_collector);
 
-        if !self.state.removeable_module_items.is_empty() {
+        if !self.state.removable_module_items.is_empty() {
             // Generate imports from font function calls
             let mut import_generator = font_imports_generator::FontImportsGenerator {
                 state: &mut self.state,
@@ -75,7 +75,7 @@ impl VisitMut for NextFontLoaders {
             items.visit_with(&mut wrong_scope);
 
             // Remove marked module items
-            items.retain(|item| !self.state.removeable_module_items.contains(&item.span_lo()));
+            items.retain(|item| !self.state.removable_module_items.contains(&item.span_lo()));
 
             // Add font imports and exports
             let mut new_items = Vec::new();

@@ -71,7 +71,7 @@ type ImageProps = {
   className?: string
   pictureClassName?: string
   fadeInDuration?: number
-  intersectionTreshold?: number
+  intersectionThreshold?: number
   intersectionThreshold?: number
   intersectionMargin?: string
   lazyLoad?: boolean
@@ -83,7 +83,7 @@ type ImageProps = {
 const Image = function ({
   className,
   fadeInDuration,
-  intersectionTreshold,
+  intersectionThreshold,
   intersectionMargin,
   pictureClassName,
   lazyLoad = true,
@@ -99,7 +99,7 @@ const Image = function ({
   }, [])
 
   const [ref, inView] = useInView({
-    threshold: intersectionTreshold || 0,
+    threshold: intersectionThreshold || 0,
     rootMargin: intersectionMargin || '0px 0px 0px 0px',
     triggerOnce: true,
   })

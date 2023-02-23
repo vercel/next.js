@@ -186,7 +186,7 @@ function extractValue(node: Node, path?: string[]): any {
     // Because when parsing TemplateLiteral, the parser yields the first quasi,
     // then the first expression, then the next quasi, then the next expression, etc.,
     // until the last quasi.
-    // Thus if there is no expression, the parser ends at the frst and also last quasis
+    // Thus if there is no expression, the parser ends at the first and also last quasis
     //
     // A "cooked" interpretation where backslashes have special meaning, while a
     // "raw" interpretation where backslashes do not have special meaning

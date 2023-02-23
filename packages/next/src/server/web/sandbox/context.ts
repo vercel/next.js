@@ -88,13 +88,13 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
   const env = buildEnvironmentVariablesFrom(options.env)
 
   const processPolyfill = { env }
-  const overridenValue: Record<string, any> = {}
+  const overriddenValue: Record<string, any> = {}
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key]) {
-          return overridenValue[key]
+        if (overriddenValue[key]) {
+          return overriddenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
           return () => throwUnsupportedAPIError(`process.${key}`)
@@ -102,7 +102,7 @@ function createProcessPolyfill(options: Pick<ModuleContextOptions, 'env'>) {
         return undefined
       },
       set(value) {
-        overridenValue[key] = value
+        overriddenValue[key] = value
       },
       enumerable: false,
     })

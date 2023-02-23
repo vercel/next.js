@@ -33,15 +33,15 @@ describe('findPageFile', () => {
     expect(result).toMatch(/^[\\/]nested[\\/]index\.js/)
   })
 
-  it('should prefer prefered.js before preferred/index.js', async () => {
-    const pagePath = normalizePagePath('/prefered')
+  it('should prefer preferred.js before preferred/index.js', async () => {
+    const pagePath = normalizePagePath('/preferred')
     const result = await findPageFile(
       dirWithPages,
       pagePath,
       ['jsx', 'js'],
       false
     )
-    expect(result).toMatch(/^[\\/]prefered\.js/)
+    expect(result).toMatch(/^[\\/]preferred\.js/)
   })
 })
 

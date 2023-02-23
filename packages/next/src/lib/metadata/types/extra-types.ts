@@ -87,7 +87,7 @@ export type ResolvedAppleWebApp = {
 
 // Format Detection
 // This is a poorly specified metadata export type that is supposed to
-// control whether the device attempts to conver text that matches
+// control whether the device attempts to convert text that matches
 // certain formats into links for action. The most supported example
 // is how mobile devices detect phone numbers and make them into links
 // that can initiate a phone call

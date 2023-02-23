@@ -15,9 +15,9 @@ export default async function handler(request) {
       ? await notUsingEval()
       : useCase === useCases.wasmCompile
       ? await usingWebAssemblyCompile(9)
-      : useCase === useCases.wasmInstanciate
+      : useCase === useCases.wasmInstantiate
       ? await usingWebAssemblyInstantiate(9)
-      : useCase === useCases.wasmBufferInstanciate
+      : useCase === useCases.wasmBufferInstantiate
       ? await usingWebAssemblyInstantiateWithBuffer(9)
       : { ok: true }
   )

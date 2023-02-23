@@ -27,7 +27,7 @@ const runTests = (isDev) => {
       app = await launchApp(appDir, appPort)
     } else {
       const { code } = await nextBuild(appDir)
-      if (code !== 0) throw new Error(`build faild, exit code: ${code}`)
+      if (code !== 0) throw new Error(`build failed, exit code: ${code}`)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     }

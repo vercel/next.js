@@ -148,14 +148,14 @@ impl<'a> Visit for FontImportsGenerator<'a> {
         match item {
             ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
                 if self.check_var_decl(var_decl).is_some() {
-                    self.state.removeable_module_items.insert(var_decl.span.lo);
+                    self.state.removable_module_items.insert(var_decl.span.lo);
                 }
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                 if let Decl::Var(var_decl) = &export_decl.decl {
                     if let Some(ident) = self.check_var_decl(var_decl) {
                         self.state
-                            .removeable_module_items
+                            .removable_module_items
                             .insert(export_decl.span.lo);
 
                         self.state.font_exports.push(ModuleItem::ModuleDecl(

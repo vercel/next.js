@@ -594,7 +594,7 @@ function getCssInlinedLinkTags(
         const modData = serverComponentManifest[mod]
         if (modData) {
           for (const chunk of modData.default.chunks) {
-            // If the current entry in the final tree-shaked bundle has that CSS
+            // If the current entry in the final tree-shaken bundle has that CSS
             // chunk, it means that it's actually used. We should include it.
             if (cssFilesForEntry.has(chunk)) {
               chunks.add(chunk)
@@ -1023,7 +1023,7 @@ export async function renderToHTMLOrFlight(
 
     // Collect all server CSS imports used by this specific entry (or entries, for parallel routes).
     // Not that we can't rely on the CSS manifest because it tracks CSS imports per module,
-    // which can be used by multiple entries and cannot be tree-shaked in the module graph.
+    // which can be used by multiple entries and cannot be tree-shaken in the module graph.
     // More info: https://github.com/vercel/next.js/issues/41018
     const serverCSSForEntries = getServerCSSForEntries(
       serverCSSManifest!,
@@ -1664,7 +1664,7 @@ export async function renderToHTMLOrFlight(
       return generateFlight()
     }
 
-    // For action requests, we handle them differently with a sepcial render result.
+    // For action requests, we handle them differently with a special render result.
     if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
       const workerName = 'app' + renderOpts.pathname
       const actionModId = serverActionsManifest[actionId].workers[workerName]

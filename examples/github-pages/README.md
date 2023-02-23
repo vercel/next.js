@@ -1,6 +1,6 @@
 # Deploying to GitHub Pages
 
-This example supports deloying a static Next.js application (using `next export`) to GitHub Pages.
+This example supports deploying a static Next.js application (using `next export`) to GitHub Pages.
 
 The `out` directory should not be ignored by version control.
 

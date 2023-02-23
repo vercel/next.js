@@ -215,8 +215,8 @@ async function loadWasm(importPath = '') {
       }
       Log.info('Using wasm build of next-swc')
 
-      // Note wasm binary does not support async intefaces yet, all async
-      // interface coereces to sync interfaces.
+      // Note wasm binary does not support async interfaces yet, all async
+      // interface coerces to sync interfaces.
       wasmBindings = {
         isWasm: true,
         transform(src: string, options: any) {
@@ -318,7 +318,7 @@ function loadNative(isCustomTurbopack = false) {
 
   if (bindings) {
     // Initialize crash reporter, as earliest as possible from any point of import.
-    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
+    // The first-time import to next-swc is not predictable in the import tree of next.js, which makes
     // we can't rely on explicit manual initialization as similar to trace reporter.
     if (!swcCrashReporterFlushGuard) {
       // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.

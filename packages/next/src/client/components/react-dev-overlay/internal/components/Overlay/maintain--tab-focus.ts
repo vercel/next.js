@@ -918,7 +918,7 @@ var focusSvgForeignobjectTabindex = {
     element.innerHTML = generate(
       '<foreignObject tabindex="-1"><input type="text" /></foreignObject>'
     )
-    // Safari 8's quersSelector() can't identify foreignObject, but getElementyByTagName() can
+    // Safari 8's querySelector() can't identify foreignObject, but getElementsByTagName() can
     return (
       element.querySelector('foreignObject') ||
       element.getElementsByTagName('foreignObject')[0]
@@ -1593,7 +1593,7 @@ function getFrameElement(element) {
 }
 
 // https://www.w3.org/TR/html5/rendering.html#being-rendered
-// <area> is not rendered, but we *consider* it visible to simplfiy this function's usage
+// <area> is not rendered, but we *consider* it visible to simplify this function's usage
 var notRenderedElementsPattern = /^(area)$/
 
 function computedStyle(element, property) {
@@ -1909,12 +1909,12 @@ function isDisabled(context) {
 
   var parents = getParents({ context: element })
   if (parents.some(isDisabledFieldset)) {
-    // a parental <fieldset> is disabld and inherits the state onto this element
+    // a parental <fieldset> is disabled and inherits the state onto this element
     return true
   }
 
   if (!supports$4.focusFormDisabled && parents.some(isDisabledForm)) {
-    // a parental <form> is disabld and inherits the state onto this element
+    // a parental <form> is disabled and inherits the state onto this element
     return true
   }
 
@@ -2013,7 +2013,7 @@ function isOnlyFocusRelevant(element) {
   var _tabindex = tabindexValue(element)
   if (element.shadowRoot && _tabindex === null) {
     // ShadowDOM host elements *may* receive focus
-    // even though they are not considered focuable
+    // even though they are not considered focusable
     return true
   }
 
@@ -2526,7 +2526,7 @@ function isTabbableRules() {
     if (nodeName === 'svg') {
       if (supports$7.focusSvg) {
         // older Internet Explorers consider <svg> keyboard focusable
-        // unless they have focsable="false", but then they wouldn't
+        // unless they have focusable="false", but then they wouldn't
         // be focusable and thus not even reach this filter
         return true
       }
@@ -3013,7 +3013,7 @@ var Shadows = (function () {
       },
 
       // inject hosts into the sequence, sort everything,
-      // and recoursively replace hosts by its descendants
+      // and recursively replace hosts by its descendants
     },
     {
       key: 'sort',
@@ -3081,7 +3081,7 @@ var Shadows = (function () {
     {
       key: '_cleanup',
       value: function _cleanup() {
-        // remove those identifers we put on the ShadowHost to avoid using Map()
+        // remove those identifiers we put on the ShadowHost to avoid using Map()
         Object.keys(this.hosts).forEach(function (key) {
           delete this.hosts[key]._sortingId
         }, this)
@@ -3178,7 +3178,7 @@ function moveContextToBeginning(elements, context) {
 function sortElements(elements, _context) {
   if (supports$8.tabsequenceAreaAtImgPosition) {
     // Some browsers sort <area> in DOM order, some place the <area>s
-    // where the <img> referecing them would've been in DOM order.
+    // where the <img> referencing them would've been in DOM order.
     // https://github.com/medialize/ally.js/issues/5
     elements = sortArea(elements, _context)
   }

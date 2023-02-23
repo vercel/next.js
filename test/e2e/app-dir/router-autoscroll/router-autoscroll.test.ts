@@ -57,7 +57,7 @@ createNextDescribe(
         await waitForScrollToComplete(browser, { x: 0, y: 1000 })
       })
 
-      it("should scroll down to the navigated page when it's below viewort", async () => {
+      it("should scroll down to the navigated page when it's below viewport", async () => {
         const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
         expect(await getTopScroll(browser)).toBe(0)
 

@@ -315,7 +315,7 @@ interface Metadata extends DeprecatedMetadataFields {
   appleWebApp?: null | boolean | AppleWebApp
 
   /**
-   * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controles
+   * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controls
    * if telephone numbers on mobile that can be clicked to dial or not.
    * @example
    * ```tsx
@@ -483,7 +483,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
 
   // meta name="abstract"
   // A brief description of what this web-page is about.
-  // Not recommended, superceded by description.
+  // Not recommended, superseded by description.
   // https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
   abstract: null | string
 

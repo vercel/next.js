@@ -1500,7 +1500,7 @@ export default async function getBaseWebpackConfig(
         }
 
         return {
-          // Keep main and _app chunks unsplitted in webpack 5
+          // Keep main and _app chunks unsplit in webpack 5
           // as we don't need a separate vendor chunk from that
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.

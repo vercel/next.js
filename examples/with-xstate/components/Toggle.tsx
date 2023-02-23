@@ -6,7 +6,7 @@ export default function Toggle() {
   return (
     <div>
       <h2>
-        Toogle status: <span>{current.matches('active') ? 'On' : 'Off'}</span>
+        Toggle status: <span>{current.matches('active') ? 'On' : 'Off'}</span>
       </h2>
       <button onClick={() => send('TOGGLE')}>Toggle</button>
     </div>

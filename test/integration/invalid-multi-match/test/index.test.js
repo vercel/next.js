@@ -16,7 +16,7 @@ let appPort
 let app
 
 const runTests = () => {
-  it('should show error for invalid mulit-match', async () => {
+  it('should show error for invalid multi-match', async () => {
     await renderViaHTTP(appPort, '/random')
     expect(stderr).toContain(
       'To use a multi-match in the destination you must add'

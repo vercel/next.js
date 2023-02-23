@@ -17,7 +17,7 @@ const ParticlesComponent = () => {
     // for example
     // await loadHeartShape(engine); // it requires "tsparticles-shape-heart" dependency
     // INTERACTIONS
-    // https://github.com/matteobruni/tsparticles/tree/main/interactions all offciail tsParticles additional interactions
+    // https://github.com/matteobruni/tsparticles/tree/main/interactions all official tsParticles additional interactions
     // for example
     // await loadLightInteraction(engine); // it requires "tsparticles-interaction-light" dependency
     // UPDATERS

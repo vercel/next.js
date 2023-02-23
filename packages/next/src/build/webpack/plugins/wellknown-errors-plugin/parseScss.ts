@@ -16,8 +16,8 @@ export function getScssError(
 
   const res = regexScssError.exec(err.message)
   if (res) {
-    const [, reason, _lineNumer, backupFrame, columnString] = res
-    const lineNumber = Math.max(1, parseInt(_lineNumer, 10))
+    const [, reason, _lineNumber, backupFrame, columnString] = res
+    const lineNumber = Math.max(1, parseInt(_lineNumber, 10))
     const column = columnString?.length ?? 1
 
     let frame: string | undefined

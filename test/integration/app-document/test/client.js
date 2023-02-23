@@ -75,14 +75,14 @@ export default (context, render) => {
 
       const randomNumber = await browser.elementByCss('#random-number').text()
 
-      const switchedRandomNumer = await browser
+      const switchedRandomNumber = await browser
         .elementByCss('#about-link')
         .click()
         .waitForElementByCss('.page-about')
         .elementByCss('#random-number')
         .text()
 
-      expect(switchedRandomNumer).toBe(randomNumber)
+      expect(switchedRandomNumber).toBe(randomNumber)
       await browser.close()
     })
 

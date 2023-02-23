@@ -17,11 +17,11 @@ import { PaymentIntent } from '@stripe/stripe-js'
 const ElementsForm: FC<{
   paymentIntent?: PaymentIntent | null
 }> = ({ paymentIntent = null }) => {
-  const defaultAmout = paymentIntent
+  const defaultAmount = paymentIntent
     ? formatAmountFromStripe(paymentIntent.amount, paymentIntent.currency)
     : Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP)
   const [input, setInput] = useState({
-    customDonation: defaultAmout,
+    customDonation: defaultAmount,
     cardholderName: '',
   })
   const [paymentType, setPaymentType] = useState('')

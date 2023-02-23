@@ -117,8 +117,8 @@ pub fn init_crash_reporter() -> External<RefCell<Option<ClientInitGuard>>> {
     use std::{borrow::Cow, str::FromStr};
 
     // Attempts to follow https://nextjs.org/telemetry's debug behavior.
-    // However, this is techinically not identical to the behavior of the telemetry
-    // itself as sentry's debug option does not provides full payuload output.
+    // However, this is technically not identical to the behavior of the telemetry
+    // itself as sentry's debug option does not provides full payload output.
     let debug = env::var("NEXT_TELEMETRY_DEBUG").map_or_else(|_| false, |v| v == "1");
 
     let guard = {

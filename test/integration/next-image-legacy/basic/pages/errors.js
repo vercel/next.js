@@ -6,7 +6,7 @@ const Errors = () => {
     <div>
       <p id="stubtext">This is a page with errors</p>
       <Image
-        id="nonexistant-host"
+        id="nonexistent-host"
         host="nope"
         src="wronghost.jpg"
         width={300}

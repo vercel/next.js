@@ -18,10 +18,10 @@ export async function getServerSideProps() {
   }
 }
 
-async function saveEditorState(edtorState: Descendant[]) {
+async function saveEditorState(editorState: Descendant[]) {
   const response = await fetch('/api/editor-state', {
     method: 'POST',
-    body: JSON.stringify(edtorState),
+    body: JSON.stringify(editorState),
   })
   return response.json()
 }

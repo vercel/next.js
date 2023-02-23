@@ -2,8 +2,8 @@ export const useCases = {
   eval: 'using-eval',
   noEval: 'not-using-eval',
   wasmCompile: 'using-webassembly-compile',
-  wasmInstanciate: 'using-webassembly-instantiate',
-  wasmBufferInstanciate: 'using-webassembly-instantiate-with-buffer',
+  wasmInstantiate: 'using-webassembly-instantiate',
+  wasmBufferInstantiate: 'using-webassembly-instantiate-with-buffer',
 }
 
 export async function usingEval() {

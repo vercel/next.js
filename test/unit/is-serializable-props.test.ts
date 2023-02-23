@@ -138,7 +138,7 @@ describe('isSerializableProps', () => {
     `)
   })
 
-  it('diallows nested non-serializable types', () => {
+  it('disallows nested non-serializable types', () => {
     expect(() =>
       isSerializableProps('/', 'test', { k: { a: [1, { n: new Date() }] } })
     ).toThrowErrorMatchingInlineSnapshot(`
@@ -209,23 +209,23 @@ describe('isSerializableProps', () => {
   })
 
   it('can handle deep obj circular refs', () => {
-    const obj: any = { foo: 'bar', test: true, leve1: { level2: {} } }
-    obj.leve1.level2.child = obj
+    const obj: any = { foo: 'bar', test: true, level1: { level2: {} } }
+    obj.level1.level2.child = obj
 
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing \`.leve1.level2.child\` returned from \`test\` in \\"/\\".
+      "Error serializing \`.level1.level2.child\` returned from \`test\` in \\"/\\".
       Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
     `)
   })
 
   it('can handle deep obj circular refs (with arrays)', () => {
-    const obj: any = { foo: 'bar', test: true, leve1: { level2: {} } }
-    obj.leve1.level2.child = [{ another: [obj] }]
+    const obj: any = { foo: 'bar', test: true, level1: { level2: {} } }
+    obj.level1.level2.child = [{ another: [obj] }]
 
     expect(() => isSerializableProps('/', 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
+      "Error serializing \`.level1.level2.child[0].another[0]\` returned from \`test\` in \\"/\\".
       Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
     `)
   })

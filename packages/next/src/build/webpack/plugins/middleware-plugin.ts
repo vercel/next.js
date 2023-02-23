@@ -426,7 +426,7 @@ function getCodeAnalyzer(params: {
     }
 
     /**
-     * This expression handler allows to wrap a WebAssembly.instatiate invocation with a
+     * This expression handler allows to wrap a WebAssembly.instantiate invocation with a
      * function call where we can warn about WASM code generation not being allowed
      * but actually execute the expression.
      *

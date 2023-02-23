@@ -28,7 +28,7 @@ const postcssNextFontPlugin = ({
       }
 
       const formatFamily = (family: string) => {
-        // Turn the font family unguessable to make it localy scoped
+        // Turn the font family unguessable to make it locally scoped
         return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
       }
 
@@ -147,14 +147,14 @@ const postcssNextFontPlugin = ({
 
       // Add class that defines a variable with the font family
       if (variable) {
-        const varialbeRule = new postcss.Rule({ selector: '.variable' })
-        varialbeRule.nodes = [
+        const variableRule = new postcss.Rule({ selector: '.variable' })
+        variableRule.nodes = [
           new postcss.Declaration({
             prop: variable,
             value: formattedFontFamilies,
           }),
         ]
-        root.nodes.push(varialbeRule)
+        root.nodes.push(variableRule)
       }
 
       // Export @font-face values as is

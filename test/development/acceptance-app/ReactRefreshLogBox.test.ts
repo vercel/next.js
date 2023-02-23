@@ -681,7 +681,7 @@ for (const variant of ['default', 'turbo']) {
         throw new Error('Unhandled error')
       }, 0)
       setTimeout(() => {
-        Promise.reject(new Error('Undhandled rejection'))
+        Promise.reject(new Error('Unhandled rejection'))
       }, 0)
       return (
         <>
@@ -696,7 +696,7 @@ for (const variant of ['default', 'turbo']) {
           <button
             id="unhandled-rejection"
             onClick={() => {
-              Promise.reject(new Error('Undhandled rejection'))
+              Promise.reject(new Error('Unhandled rejection'))
             }}
           >
             Unhandled rejection

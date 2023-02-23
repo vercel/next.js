@@ -184,7 +184,7 @@ function formatMessage(
 export default function formatWebpackMessages(json: any, verbose?: boolean) {
   const formattedErrors = json.errors.map((message: any) => {
     const isUnknownNextFontError = message.message.includes(
-      'An error occured in `next/font`.'
+      'An error occurred in `next/font`.'
     )
     return formatMessage(message, isUnknownNextFontError || verbose)
   })

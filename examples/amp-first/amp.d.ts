@@ -56,7 +56,7 @@ declare namespace JSX {
       | 'flex-item'
       | 'nodisplay'
       | 'responsive'
-    temlate?: string
+    template?: string
     width?: string
     height?: string
     credentials?: 'omit' | 'include'

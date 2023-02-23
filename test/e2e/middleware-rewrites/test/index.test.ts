@@ -764,7 +764,7 @@ describe('Middleware Rewrite', () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-me-to-vercel`)
       const html = await res.text()
       // const browser = await webdriver(next.url, '/rewrite-me-to-vercel')
-      // TODO: running this to chech the window.location.pathname hangs for some reason;
+      // TODO: running this to check the window.location.pathname hangs for some reason;
       expect(html).toContain('Example Domain')
     })
 

@@ -830,7 +830,7 @@ createNextDescribe(
             )
             const html = await res.text()
 
-            // Shouild not bail out to client rendering
+            // Should not bail out to client rendering
             expect(html).not.toInclude('<p>search params suspense</p>')
 
             // Use empty search params instead

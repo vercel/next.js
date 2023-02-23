@@ -49,7 +49,7 @@ describe('Middleware Production Prefetch', () => {
     })
   })
 
-  it(`prefetch correctly for unexistent routes`, async () => {
+  it(`prefetch correctly for nonexistent routes`, async () => {
     const browser = await webdriver(context.appPort, `/`)
     await browser.elementByCss('#made-up-link').moveTo()
     await check(async () => {

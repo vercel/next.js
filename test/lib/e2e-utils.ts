@@ -126,7 +126,7 @@ const setupTracing = () => {
 
   setGlobal('distDir', './test/.trace')
   // This is a hacky way to use tracing utils even for tracing test utils.
-  // We want the same treatment as DEVELOPMENT_SERVER - adds a reasonable treshold for logs size.
+  // We want the same treatment as DEVELOPMENT_SERVER - adds a reasonable threshold for logs size.
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 }
 

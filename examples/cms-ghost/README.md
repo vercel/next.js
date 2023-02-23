@@ -47,7 +47,7 @@ yarn create next-app --example cms-ghost cms-ghost-app
 pnpm create next-app --example cms-ghost cms-ghost-app
 ```
 
-### Setp 1. Run Next.js in development mode
+### Setup 1. Run Next.js in development mode
 
 To get started, no configuration is needed as this example sources the content from a demo Ghost CMS.
 

@@ -202,7 +202,7 @@ createNextDescribe(
         }
 
         expect(next.cliOutput).toInclude(
-          `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+          `It's currently unsupported to use "export *" in a client boundary. Please use named exports instead.`
         )
       })
     }

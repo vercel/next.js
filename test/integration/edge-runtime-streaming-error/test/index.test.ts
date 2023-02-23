@@ -19,11 +19,11 @@ function test(context: ReturnType<typeof createContext>) {
     expect(await res.text()).toEqual('hello')
     expect(res.status).toBe(200)
     await waitFor(200)
-    const santizedOutput = stripAnsi(context.output)
-    expect(santizedOutput).toMatch(
+    const sanitizedOutput = stripAnsi(context.output)
+    expect(sanitizedOutput).toMatch(
       new RegExp(`TypeError: This ReadableStream did not return bytes.`, 'm')
     )
-    expect(santizedOutput).not.toContain('webpack-internal:')
+    expect(sanitizedOutput).not.toContain('webpack-internal:')
   }
 }
 

@@ -17,7 +17,7 @@ createNextDescribe(
     it('should show error exporting AMP config in app dir', async () => {
       const { session, cleanup } = await sandbox(next)
 
-      // Add AMP exprot
+      // Add AMP export
       await session.patch(
         'app/page.js',
         `
