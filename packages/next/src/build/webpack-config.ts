@@ -179,6 +179,7 @@ export function getDefineEnv({
   isNodeServer,
   isEdgeServer,
   middlewareMatchers,
+  clientRouterFilters,
 }: {
   dev?: boolean
   distDir: string
@@ -188,6 +189,9 @@ export function getDefineEnv({
   isEdgeServer?: boolean
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
+  clientRouterFilters: Parameters<
+    typeof getBaseWebpackConfig
+  >[1]['clientRouterFilters']
 }) {
   return {
     // internal field to identify the plugin config
@@ -235,6 +239,15 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_NEW_LINK_BEHAVIOR': JSON.stringify(
       config.experimental.newNextLinkBehavior
+    ),
+    'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED': JSON.stringify(
+      config.experimental.clientRouterFilter
+    ),
+    'process.env.__NEXT_CLIENT_ROUTER_S_FILTER': JSON.stringify(
+      clientRouterFilters?.staticFilter
+    ),
+    'process.env.__NEXT_CLIENT_ROUTER_D_FILTER': JSON.stringify(
+      clientRouterFilters?.dynamicFilter
     ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE': JSON.stringify(
       config.experimental.optimisticClientCache
@@ -617,6 +630,7 @@ export default async function getBaseWebpackConfig(
     jsConfig,
     resolvedBaseUrl,
     supportedBrowsers,
+    clientRouterFilters,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -635,6 +649,14 @@ export default async function getBaseWebpackConfig(
     jsConfig: any
     resolvedBaseUrl: string | undefined
     supportedBrowsers: string[] | undefined
+    clientRouterFilters?: {
+      staticFilter: ReturnType<
+        import('../shared/lib/bloom-filter').BloomFilter['export']
+      >
+      dynamicFilter: ReturnType<
+        import('../shared/lib/bloom-filter').BloomFilter['export']
+      >
+    }
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -2063,6 +2085,7 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           isEdgeServer,
           middlewareMatchers,
+          clientRouterFilters,
         })
       ),
       isClient &&

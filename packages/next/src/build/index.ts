@@ -131,6 +131,7 @@ import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { createClientRouterFilter } from '../lib/create-router-client-filter'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -839,6 +840,18 @@ export default async function build(
         ...rewrites.afterFiles,
         ...rewrites.fallback,
       ]
+
+      if (config.experimental.clientRouterFilter) {
+        const nonInternalRedirects = redirects.filter(
+          (redir) => !(redir as any).internal
+        )
+        const clientRouterFilters = createClientRouterFilter(
+          appPageKeys,
+          nonInternalRedirects
+        )
+
+        NextBuildContext.clientRouterFilters = clientRouterFilters
+      }
 
       const distDirCreated = await nextBuildSpan
         .traceChild('create-dist-dir')

@@ -96,6 +96,7 @@ import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
+import { createClientRouterFilter } from '../../lib/create-router-client-filter'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -411,6 +412,7 @@ export default class DevServer extends Server {
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
+      let previousClientRouterFilters: any
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -578,6 +580,23 @@ export default class DevServer extends Server {
             Log.error(`  "${pagesPath}" - "${appPath}"`)
           }
         }
+        let clientRouterFilters: any
+
+        if (this.nextConfig.experimental.clientRouterFilter) {
+          clientRouterFilters = createClientRouterFilter(
+            Object.keys(appPaths),
+            this.customRoutes.redirects.filter((r) => !(r as any).internal)
+          )
+
+          if (
+            !previousClientRouterFilters ||
+            JSON.stringify(previousClientRouterFilters) !==
+              JSON.stringify(clientRouterFilters)
+          ) {
+            envChange = true
+            previousClientRouterFilters = clientRouterFilters
+          }
+        }
 
         if (!this.usingTypeScript && enabledTypeScript) {
           // we tolerate the error here as this is best effort
@@ -664,6 +683,7 @@ export default class DevServer extends Server {
                     hasRewrites,
                     isNodeServer,
                     isEdgeServer,
+                    clientRouterFilters,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {

@@ -247,6 +247,9 @@ const configSchema = {
           },
           type: 'object',
         },
+        clientRouterFilter: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },
