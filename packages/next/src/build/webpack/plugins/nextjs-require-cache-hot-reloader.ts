@@ -11,7 +11,7 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client'),
+  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']

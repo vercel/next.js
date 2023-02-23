@@ -131,8 +131,14 @@ async function fetchWithDuration(
 }
 
 export function runTests(ctx) {
-  const { isDev, minimumCacheTTL = 60, nextConfigImages } = ctx
-  const { contentDispositionType = 'inline' } = nextConfigImages || {}
+  const { isDev, nextConfigImages } = ctx
+  const {
+    contentDispositionType = 'inline',
+    domains = [],
+    formats = [],
+    minimumCacheTTL = 60,
+  } = nextConfigImages || {}
+  const avifEnabled = formats[0] === 'image/avif'
   let slowImageServer: Awaited<ReturnType<typeof serveSlowImage>>
   beforeAll(async () => {
     slowImageServer = await serveSlowImage()
@@ -141,7 +147,7 @@ export function runTests(ctx) {
     slowImageServer.stop()
   })
 
-  if (ctx.domains?.length > 0) {
+  if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${
         slowImageServer.port
@@ -625,7 +631,7 @@ export function runTests(ctx) {
     await expectWidth(res, ctx.w)
   })
 
-  if (ctx.avifEnabled) {
+  if (avifEnabled) {
     it('should resize relative url and new Chrome accept header as avif', async () => {
       const query = { url: '/test.png', w: ctx.w, q: 80 }
       const opts = {
@@ -662,7 +668,7 @@ export function runTests(ctx) {
     })
   }
 
-  if (ctx.domains?.length > 0) {
+  if (domains.length > 0) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: 80 }
@@ -841,7 +847,7 @@ export function runTests(ctx) {
     )
   })
 
-  if (ctx.domains?.length > 0) {
+  if (domains.length > 0) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: 100 }
@@ -1198,7 +1204,7 @@ export function runTests(ctx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (ctx.domains?.length > 0) {
+  if (domains.length > 0) {
     it('should handle concurrent requests', async () => {
       await cleanImagesDir(ctx)
       const delay = 500
@@ -1265,7 +1271,7 @@ export function runTests(ctx) {
     })
   }
 
-  if (ctx.isSharp && ctx.isOutdatedSharp && ctx.avifEnabled) {
+  if (ctx.isSharp && ctx.isOutdatedSharp && avifEnabled) {
     it('should have sharp outdated warning', () => {
       expect(ctx.nextOutput).toContain(sharpOutdatedText)
     })
@@ -1279,15 +1285,6 @@ export function runTests(ctx) {
 export const setupTests = (ctx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
 
-  if (!ctx.domains) {
-    ctx.domains = [
-      'localhost',
-      'example.com',
-      'assets.vercel.com',
-      'image-optimization-test.vercel.app',
-    ]
-  }
-
   // only run one server config with outdated sharp
   if (!ctx.isOutdatedSharp) {
     describe('dev support w/o next.config.js', () => {
@@ -1300,8 +1297,6 @@ export const setupTests = (ctx) => {
         ...ctx,
         w: size,
         isDev: true,
-        domains: [],
-        avifEnabled: false,
       }
 
       beforeAll(async () => {
@@ -1333,17 +1328,22 @@ export const setupTests = (ctx) => {
         ...ctx,
         w: size,
         isDev: true,
-        avifEnabled: true,
+        nextConfigImages: {
+          domains: [
+            'localhost',
+            'example.com',
+            'assets.vercel.com',
+            'image-optimization-test.vercel.app',
+          ],
+          formats: ['image/avif', 'image/webp'],
+          deviceSizes: [largeSize],
+          imageSizes: [size],
+          ...ctx.nextConfigImages,
+        },
       }
       beforeAll(async () => {
         const json = JSON.stringify({
-          images: {
-            deviceSizes: [largeSize],
-            imageSizes: [size],
-            domains: curCtx.domains,
-            formats: ['image/avif', 'image/webp'],
-            ...ctx.nextConfigImages,
-          },
+          images: curCtx.nextConfigImages,
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
@@ -1379,7 +1379,6 @@ export const setupTests = (ctx) => {
         ...ctx,
         w: size,
         isDev: false,
-        domains: [],
       }
       beforeAll(async () => {
         curCtx.nextOutput = ''
@@ -1412,16 +1411,21 @@ export const setupTests = (ctx) => {
       ...ctx,
       w: size,
       isDev: false,
-      avifEnabled: true,
+      nextConfigImages: {
+        domains: [
+          'localhost',
+          'example.com',
+          'assets.vercel.com',
+          'image-optimization-test.vercel.app',
+        ],
+        formats: ['image/avif', 'image/webp'],
+        deviceSizes: [size, largeSize],
+        ...ctx.nextConfigImages,
+      },
     }
     beforeAll(async () => {
       const json = JSON.stringify({
-        images: {
-          formats: ['image/avif', 'image/webp'],
-          deviceSizes: [size, largeSize],
-          domains: ctx.domains,
-          ...ctx.nextConfigImages,
-        },
+        images: curCtx.nextConfigImages,
       })
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)

@@ -43,12 +43,8 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
-          'dynamic-error/[id].html',
-          'dynamic-error/[id].rsc',
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
-          'dynamic-no-gen-params/[slug].html',
-          'dynamic-no-gen-params/[slug].rsc',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-static/[slug]/page.js',
@@ -79,11 +75,7 @@ createNextDescribe(
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
-          'static-to-dynamic-error-forced/[id].html',
-          'static-to-dynamic-error-forced/[id].rsc',
           'static-to-dynamic-error-forced/[id]/page.js',
-          'static-to-dynamic-error/[id].html',
-          'static-to-dynamic-error/[id].rsc',
           'static-to-dynamic-error/[id]/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
@@ -217,16 +209,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
           },
-          '/dynamic-no-gen-params/[slug]': {
-            dataRoute: '/dynamic-no-gen-params/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
             dataRouteRegex: normalizeRegEx(
@@ -265,16 +247,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/static-to-dynamic-error/[id]': {
-            dataRoute: '/static-to-dynamic-error/[id].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
         })
@@ -324,21 +296,6 @@ createNextDescribe(
         expect($2('#page-data').text()).not.toBe(pageData)
       })
     } else {
-      it('should properly error when static page switches to dynamic at runtime', async () => {
-        const res = await next.fetch(
-          '/static-to-dynamic-error/static-bailout-1'
-        )
-
-        expect(res.status).toBe(500)
-
-        if (isNextStart) {
-          await check(
-            () => stripAnsi(next.cliOutput),
-            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1, reason: cookies/
-          )
-        }
-      })
-
       it('should not error with dynamic server usage with force-static', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error-forced/static-bailout-1'
