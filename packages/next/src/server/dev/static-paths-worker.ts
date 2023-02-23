@@ -5,6 +5,7 @@ import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
+  GenerateParams,
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
@@ -84,9 +85,21 @@ export async function loadStaticPaths({
   workerWasUsed = true
 
   if (isAppPath) {
-    const generateParams = await collectGenerateParams(
-      components.ComponentMod.tree
-    )
+    const handlers = components.ComponentMod.handlers
+    const generateParams: GenerateParams = handlers
+      ? [
+          {
+            config: {
+              revalidate: handlers.revalidate,
+              dynamic: handlers.dynamic,
+              dynamicParams: handlers.dynamicParams,
+            },
+            generateStaticParams: handlers.generateStaticParams,
+            segmentPath: pathname,
+          },
+        ]
+      : await collectGenerateParams(components.ComponentMod.tree)
+    console.log('idk', generateParams)
     return buildAppStaticPaths({
       page: pathname,
       generateParams,

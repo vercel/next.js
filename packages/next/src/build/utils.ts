@@ -1061,7 +1061,7 @@ export type AppConfig = {
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
-type GenerateParams = Array<{
+export type GenerateParams = Array<{
   config?: AppConfig
   segmentPath: string
   getStaticPaths?: GetStaticPaths
@@ -1330,7 +1330,21 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-        const generateParams = await collectGenerateParams(tree)
+        const handlers = componentsResult.ComponentMod.handlers
+
+        const generateParams: GenerateParams = handlers
+          ? [
+              {
+                config: {
+                  revalidate: handlers.revalidate,
+                  dynamic: handlers.dynamic,
+                  dynamicParams: handlers.dynamicParams,
+                },
+                generateStaticParams: handlers.generateStaticParams,
+                segmentPath: page,
+              },
+            ]
+          : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {

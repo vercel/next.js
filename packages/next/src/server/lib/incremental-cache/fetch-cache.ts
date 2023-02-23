@@ -71,6 +71,8 @@ export default class FetchCache implements CacheHandler {
           {
             method: 'GET',
             headers: this.headers,
+            // @ts-expect-error
+            next: { internal: true },
           }
         )
 
@@ -155,6 +157,8 @@ export default class FetchCache implements CacheHandler {
             method: 'POST',
             headers: this.headers,
             body: body,
+            // @ts-expect-error
+            next: { internal: true },
           }
         )
 
