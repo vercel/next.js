@@ -26,4 +26,34 @@ module.exports = {
       ],
     }
   },
+
+  redirects: async () => {
+    return [
+      {
+        source: '/redirect-1',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/redirect-2',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/blog/old-post',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/redirect-3/some/:path*',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/redirect-4/:path*',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+    ]
+  },
 }

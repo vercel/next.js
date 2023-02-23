@@ -21,6 +21,7 @@ export interface CacheHandlerContext {
   maxMemoryCacheSize?: number
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
+  fetchCacheKeyPrefix?: string
 }
 
 export interface CacheHandlerValue {
@@ -66,7 +67,8 @@ export class IncrementalCache {
     requestHeaders,
     maxMemoryCacheSize,
     getPrerenderManifest,
-    incrementalCacheHandlerPath,
+    fetchCacheKeyPrefix,
+    CurCacheHandler,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -77,22 +79,18 @@ export class IncrementalCache {
     flushToDisk?: boolean
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
-    incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
+    fetchCacheKeyPrefix?: string
+    CurCacheHandler?: typeof CacheHandler
   }) {
-    let cacheHandlerMod: any
+    if (!CurCacheHandler) {
+      if (fs && serverDistDir) {
+        CurCacheHandler = FileSystemCache
+      }
 
-    if (fs && serverDistDir) {
-      cacheHandlerMod = FileSystemCache
-    }
-
-    if (process.env.NEXT_RUNTIME !== 'edge' && incrementalCacheHandlerPath) {
-      cacheHandlerMod = require(incrementalCacheHandlerPath)
-      cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
-    }
-
-    if (!incrementalCacheHandlerPath && minimalMode && fetchCache) {
-      cacheHandlerMod = FetchCache
+      if (minimalMode && fetchCache) {
+        CurCacheHandler = FetchCache
+      }
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -104,15 +102,16 @@ export class IncrementalCache {
     this.requestHeaders = requestHeaders
     this.prerenderManifest = getPrerenderManifest()
 
-    if (cacheHandlerMod) {
-      this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
+    if (CurCacheHandler) {
+      this.cacheHandler = new CurCacheHandler({
         dev,
         fs,
-        flushToDisk: flushToDisk && !dev,
+        flushToDisk,
         serverDistDir,
         maxMemoryCacheSize,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
+        fetchCacheKeyPrefix,
       })
     }
   }
@@ -148,6 +147,7 @@ export class IncrementalCache {
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
     const cacheString = JSON.stringify([
+      this.fetchCacheKey || '',
       url,
       init.method,
       init.headers,
