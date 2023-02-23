@@ -113,6 +113,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  clientRouterFilter?: boolean
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
@@ -619,6 +620,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    clientRouterFilter: false,
     preCompiledNextServer: false,
     fetchCache: false,
     middlewarePrefetch: 'flexible',
