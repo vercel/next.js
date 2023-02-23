@@ -44,7 +44,8 @@ use crate::{
 pub fn next_client_defines() -> CompileTimeDefinesVc {
     compile_time_defines!(
         process.turbopack = true,
-        process.env.NODE_ENV = "development"
+        process.env.NODE_ENV = "development",
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false
     )
     .cell()
 }
