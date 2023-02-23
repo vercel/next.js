@@ -48,6 +48,32 @@ createNextDescribe(
       })
     })
 
+    describe('works with generateStaticParams correctly', () => {
+      describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
+        'made via a %s request',
+        (method) => {
+          it.each([
+            '/static/first/data.json',
+            '/static/second/data.json',
+            '/static/three/data.json',
+          ])('responds correctly on %s', async (path) => {
+            if (isNextStart) {
+              expect(
+                await next.readFile(`.next/server/app/${path}.body`)
+              ).toBeTruthy()
+              expect(
+                await next.readFile(`.next/server/app/${path}.meta`)
+              ).toBeTruthy()
+            }
+            expect(JSON.parse(await next.render(path))).toEqual({
+              params: { slug: path.split('/')[2] },
+              now: expect.any(Number),
+            })
+          })
+        }
+      )
+    })
+
     describe('basic fetch request with a response', () => {
       describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
         'made via a %s request',
