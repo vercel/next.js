@@ -16,6 +16,27 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    it.each([
+      { pathname: '/redirect-1' },
+      { pathname: '/redirect-2' },
+      { pathname: '/blog/old-post' },
+      { pathname: '/redirect-3/some/value' },
+      { pathname: '/redirect-3/some' },
+      { pathname: '/redirect-4' },
+      { pathname: '/redirect-4/another' },
+    ])(
+      'should match redirects in pages correctly $path',
+      async ({ pathname }) => {
+        const browser = await next.browser('/')
+
+        await browser.eval(`next.router.push("${pathname}")`)
+        await check(async () => {
+          const href = await browser.eval('location.href')
+          return href.includes('example.vercel.sh') ? 'yes' : href
+        }, 'yes')
+      }
+    )
+
     if (isDev) {
       it('should not have duplicate config warnings', async () => {
         await next.fetch('/')
@@ -591,8 +612,8 @@ createNextDescribe(
         try {
           // Click the link.
           await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#pages-text').text()).toBe(
-            'hello from pages/dynamic-pages-route-app-overlap/[slug]'
+          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
           )
 
           // When refreshing the browser, the app page should be rendered
