@@ -25,8 +25,8 @@ pub fn create_node_api_source(
     cwd: FileSystemPathVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
-    pathname: StringVc,
     route_match: RouteMatcherVc,
+    pathname: StringVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
 ) -> ContentSourceVc {

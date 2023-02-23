@@ -38,6 +38,7 @@ pub enum ServerContextType {
     PagesData { pages_dir: FileSystemPathVc },
     AppSSR { app_dir: FileSystemPathVc },
     AppRSC { app_dir: FileSystemPathVc },
+    AppRoute { app_dir: FileSystemPathVc },
     Middleware,
 }
 
@@ -117,6 +118,24 @@ pub async fn get_server_resolve_options_context(
                 ..resolve_options_context
             }
         }
+        ServerContextType::AppRoute { .. } => {
+            let resolve_options_context = ResolveOptionsContext {
+                enable_node_modules: true,
+                module: true,
+                custom_conditions: vec!["development".to_string()],
+                import_map: Some(next_server_import_map),
+                ..Default::default()
+            };
+            ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                rules: vec![(
+                    foreign_code_context_condition,
+                    resolve_options_context.clone().cell(),
+                )],
+                ..resolve_options_context
+            }
+        }
         ServerContextType::Middleware => {
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: true,
@@ -166,6 +185,7 @@ pub fn get_server_compile_time_info(
                 ServerContextType::AppRSC { .. } => {
                     Value::new(EnvironmentIntention::ServerRendering)
                 }
+                ServerContextType::AppRoute { .. } => Value::new(EnvironmentIntention::Api),
                 ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
             },
         ),
@@ -253,6 +273,23 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: true,
+                enable_postcss_transform,
+                enable_webpack_loaders,
+                enable_typescript_transform: true,
+                rules: vec![(
+                    foreign_code_context_condition,
+                    module_options_context.clone().cell(),
+                )],
+                custom_rules,
+                ..module_options_context
+            }
+        }
+        ServerContextType::AppRoute { .. } => {
+            let module_options_context = ModuleOptionsContext {
+                execution_context: Some(execution_context),
+                ..Default::default()
+            };
+            ModuleOptionsContext {
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: true,

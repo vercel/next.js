@@ -7,8 +7,7 @@ import { join } from "path";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
-("TURBOPACK { transition: next-edge }");
-import chunkGroup from ".";
+import chunkGroup from "ROUTE_CHUNK_GROUP";
 
 import {
   NodeNextRequest,
@@ -19,7 +18,7 @@ startHandler(async ({ request, response, query, params, path }) => {
   const edgeInfo = {
     name: "edge",
     paths: chunkGroup.map((chunk: string) =>
-      join(process.cwd(), ".next/server/pages", chunk)
+      join(process.cwd(), ".next/server/app", chunk)
     ),
     wasm: [],
     env: [],
@@ -27,7 +26,7 @@ startHandler(async ({ request, response, query, params, path }) => {
   };
   await runEdgeFunction({
     edgeInfo,
-    outputDir: "pages",
+    outputDir: "app",
     req: new NodeNextRequest(request),
     res: new NodeNextResponse(response),
     query,
