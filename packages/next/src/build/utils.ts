@@ -768,21 +768,6 @@ export async function getJsPageSizeInKb(
   gzipSize: boolean = true,
   cachedStats?: ComputeFilesManifestResult
 ): Promise<[number, number]> {
-  console.log(
-    JSON.stringify(
-      {
-        routerType,
-        page,
-        distPath,
-        buildManifest,
-        appBuildManifest,
-        gzipSize,
-        cachedStats,
-      },
-      null,
-      2
-    )
-  )
   const pageManifest = routerType === 'pages' ? buildManifest : appBuildManifest
   if (!pageManifest) {
     throw new Error('expected appBuildManifest with an "app" pageType')
@@ -813,11 +798,6 @@ export async function getJsPageSizeInKb(
   const pageFiles = (pageManifest.pages[pagePath] ?? []).filter(fnFilterJs)
   const appFiles = (pageManifest.pages['/_app'] ?? []).filter(fnFilterJs)
 
-  console.log(
-    'files \n',
-    page,
-    JSON.stringify({ appFiles, pageFiles }, null, 2)
-  )
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
 
   const allFilesReal = unique(pageFiles, appFiles).map(fnMapRealPath)
