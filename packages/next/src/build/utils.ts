@@ -111,7 +111,7 @@ function sum(a: ReadonlyArray<number>): number {
 }
 
 function denormalizeAppPagePath(page: string): string {
-  // `/` is normalized to `/index`
+  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
   if (page.endsWith('/index')) {
     page = page.replace(/\/index$/, '')
   }
