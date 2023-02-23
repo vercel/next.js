@@ -1432,9 +1432,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         requestHeaders: Object.assign({}, req.headers),
       })
 
-    if (this.nextConfig.experimental.appDir) {
-      delete req.headers[FETCH_CACHE_HEADER]
-    }
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {

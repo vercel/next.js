@@ -79,6 +79,14 @@ createNextDescribe(
           'static-to-dynamic-error/[id]/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
+          'variable-revalidate/authorization-cached.html',
+          'variable-revalidate/authorization-cached.rsc',
+          'variable-revalidate/authorization-cached/page.js',
+          'variable-revalidate/authorization/page.js',
+          'variable-revalidate/cookie-cached.html',
+          'variable-revalidate/cookie-cached.rsc',
+          'variable-revalidate/cookie-cached/page.js',
+          'variable-revalidate/cookie/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -183,6 +191,16 @@ createNextDescribe(
             dataRoute: '/ssg-preview/test-2.rsc',
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
+          },
+          '/variable-revalidate/authorization-cached': {
+            dataRoute: '/variable-revalidate/authorization-cached.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/authorization-cached',
+          },
+          '/variable-revalidate/cookie-cached': {
+            dataRoute: '/variable-revalidate/cookie-cached.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/cookie-cached',
           },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
@@ -329,20 +347,18 @@ createNextDescribe(
     }
 
     it('should honor fetch cache correctly', async () => {
-      await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/revalidate-3'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
 
-      const layoutData = $('#layout-data').text()
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate/revalidate-3'
@@ -353,24 +369,23 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
-      }
+        return 'success'
+      }, 'success')
     })
 
     it('should honor fetch cache correctly (edge)', async () => {
-      await fetchViaHTTP(next.url, '/variable-revalidate-edge/revalidate-3')
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/revalidate-3'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate-edge/revalidate-3'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
 
-      const layoutData = $('#layout-data').text()
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate-edge/revalidate-3'
@@ -381,7 +396,104 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not cache correctly with authorization header', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/authorization'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/authorization'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
       }
+    })
+
+    it('should cache correctly with authorization header and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/authorization-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/authorization-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not cache correctly with cookie header', async () => {
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
+    it('should cache correctly with cookie header and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/cookie-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/cookie-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
     })
 
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {

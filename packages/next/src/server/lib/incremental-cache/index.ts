@@ -111,7 +111,7 @@ export class IncrementalCache {
       this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
         dev,
         fs,
-        flushToDisk: flushToDisk && !dev,
+        flushToDisk,
         serverDistDir,
         maxMemoryCacheSize,
         _appDir: !!appDir,
