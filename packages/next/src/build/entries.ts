@@ -225,6 +225,8 @@ export function getEdgeServerEntry(opts: {
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
+    incrementalCacheHandlerPath:
+      opts.config.experimental.incrementalCacheHandlerPath,
   }
 
   return {

@@ -1,4 +1,4 @@
-export default function Header({ title }) {
+export default function Header({ title }: { title?: string | string[] }) {
   return (
     <header>
       <h1 className="title">

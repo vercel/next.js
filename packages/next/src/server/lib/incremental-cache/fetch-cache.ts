@@ -43,6 +43,7 @@ export default class FetchCache implements CacheHandler {
       for (const k in newHeaders) {
         this.headers[k] = newHeaders[k]
       }
+      delete ctx._requestHeaders[FETCH_CACHE_HEADER]
     }
     if (ctx._requestHeaders['x-vercel-sc-host']) {
       this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${

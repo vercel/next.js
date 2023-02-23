@@ -1078,7 +1078,6 @@ export default class Router implements BaseRouter {
       // it should be hard navigated
       for (let i = 0; i < asNoSlashParts.length + 1; i++) {
         const currentPart = asNoSlashParts.slice(0, i).join('/')
-        console.log('checking for', currentPart)
         if (this._bfl_d?.has(currentPart)) {
           matchesBflDynamic = true
           break

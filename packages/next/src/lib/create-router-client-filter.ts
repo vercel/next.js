@@ -20,6 +20,8 @@ export function createClientRouterFilter(
       let subPath = ''
       const pathParts = path.split('/')
 
+      // start at 1 since we split on '/' and the path starts
+      // with this so the first entry is an empty string
       for (let i = 1; i < pathParts.length + 1; i++) {
         const curPart = pathParts[i]
 

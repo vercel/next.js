@@ -38,6 +38,7 @@ interface WebServerOptions extends Options {
       Pick<BaseServer['renderOpts'], 'buildId'>
     pagesRenderToHTML?: typeof import('./render').renderToHTML
     appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
+    incrementalCacheHandler?: any
   }
 }
 
@@ -67,11 +68,12 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       requestHeaders,
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
-      fetchCache: this.nextConfig.experimental.fetchCache,
+      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: false,
-      incrementalCacheHandlerPath:
-        this.nextConfig.experimental?.incrementalCacheHandlerPath,
+      CurCacheHandler:
+        this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => {
         if (dev) {
           return {

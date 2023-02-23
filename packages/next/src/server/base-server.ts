@@ -78,7 +78,6 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
-  FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -1432,9 +1431,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         requestHeaders: Object.assign({}, req.headers),
       })
 
-    if (this.nextConfig.experimental.fetchCache) {
-      delete req.headers[FETCH_CACHE_HEADER]
-    }
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
@@ -1510,7 +1506,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
-        ...(isAppPath && this.nextConfig.experimental.fetchCache
+        ...(isAppPath && this.nextConfig.experimental.appDir
           ? {
               incrementalCache,
               isRevalidate: this.minimalMode || isRevalidate,

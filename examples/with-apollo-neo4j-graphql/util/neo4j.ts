@@ -1,6 +1,7 @@
 import neo4j from 'neo4j-driver'
+import type { Driver } from 'neo4j-driver'
 
-let driver
+let driver: Driver
 
 const defaultOptions = {
   uri: process.env.NEO4J_URI,

@@ -4,10 +4,11 @@ import { useRouter } from 'next/router'
 import { gql, useQuery } from '@apollo/client'
 import Header from '../../components/header'
 import Footer from '../../components/footer'
+import { Actors } from '../../types'
 
 const GET_ACTOR = gql`
   query GetActor($actorName: String) {
-    getActor(filter: { name: $actorName }) {
+    people(where: { name: $actorName }) {
       name
       born
       movies {
@@ -20,8 +21,8 @@ const GET_ACTOR = gql`
 export default function Actor() {
   const router = useRouter()
   const { name } = router.query
-  const { loading, error, data } = useQuery(GET_ACTOR, {
-    actorName: name,
+  const { loading, error, data } = useQuery<{ people: Actors }>(GET_ACTOR, {
+    variables: { actorName: name },
   })
 
   if (loading) return 'Loading...'
@@ -42,12 +43,12 @@ export default function Actor() {
             <h2>Information</h2>
             <div>
               <strong>Born: </strong>
-              {data.getActor.born}
+              {data.people[0].born}
             </div>
           </div>
           <div className="movies">
             <h2>Movies</h2>
-            {data.getActor.movies.map((movie) => (
+            {data.people[0].movies.map((movie) => (
               <div key={movie.title}>
                 <Link
                   href="/movie/[title]"
