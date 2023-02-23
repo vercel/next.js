@@ -595,8 +595,8 @@ export class FlightClientEntryPlugin {
       modules: this.isEdgeServer
         ? clientImports.map((importPath) =>
             importPath.replace(
-              /next[\\/]dist[\\/]esm[\\/]/,
-              'next/dist/'.replace(/\//g, path.sep)
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
             )
           )
         : clientImports,
