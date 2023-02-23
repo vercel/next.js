@@ -59,12 +59,15 @@ createNextDescribe(
           now: expect.any(Number),
         })
         if (isNextStart) {
-          expect(
-            await next.readFile(`.next/server/app/${path}.body`)
-          ).toBeTruthy()
-          expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
-          ).toBeTruthy()
+          await check(async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+            return 'success'
+          }, 'success')
         }
       })
 
@@ -85,12 +88,15 @@ createNextDescribe(
         }, 'success')
 
         if (isNextStart) {
-          expect(
-            await next.readFile(`.next/server/app/${path}.body`)
-          ).toBeTruthy()
-          expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
-          ).toBeTruthy()
+          await check(async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+            return 'success'
+          }, 'success')
         }
       })
     })
