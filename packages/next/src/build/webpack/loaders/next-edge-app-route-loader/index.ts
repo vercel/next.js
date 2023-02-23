@@ -50,6 +50,8 @@ export default async function edgeAppRouteLoader(this: any) {
       page: ${JSON.stringify(page)},
     })
 
+    export const ComponentMod = mod
+
     export default function(opts) {
       return adapter({
         ...opts,

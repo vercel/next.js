@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
   then
