@@ -638,7 +638,8 @@ function getPreloadedFontFilesInlineLinkTags(
   serverCSSManifest: FlightCSSManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
-  filePath?: string
+  filePath: string | undefined,
+  injectedFontPreloadTags: Set<string>
 ): string[] | null {
   if (!fontLoaderManifest || !filePath) {
     return null
@@ -652,7 +653,6 @@ function getPreloadedFontFilesInlineLinkTags(
   }
 
   const fontFiles = new Set<string>()
-  // If we find an entry in the manifest but it's empty, add a preconnect tag
   let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
@@ -662,13 +662,21 @@ function getPreloadedFontFilesInlineLinkTags(
       if (preloadedFontFiles) {
         foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
-          fontFiles.add(fontFile)
+          if (!injectedFontPreloadTags.has(fontFile)) {
+            fontFiles.add(fontFile)
+            injectedFontPreloadTags.add(fontFile)
+          }
         }
       }
     }
   }
 
-  if (!foundFontUsage) {
+  // If we find an entry in the manifest but it's empty, add a preconnect tag by returning null.
+  // Only render a preconnect tag if we previously didn't preload any fonts.
+  if (
+    !foundFontUsage ||
+    (fontFiles.size === 0 && injectedFontPreloadTags.size > 0)
+  ) {
     return null
   }
 
@@ -1083,6 +1091,7 @@ export async function renderToHTMLOrFlight(
       firstItem,
       rootLayoutIncluded,
       injectedCSS,
+      injectedFontPreloadTags,
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
@@ -1090,6 +1099,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded: boolean
       firstItem?: boolean
       injectedCSS: Set<string>
+      injectedFontPreloadTags: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
       const [segment, parallelRoutes, components] = tree
       const {
@@ -1114,13 +1124,17 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
+      const injectedFontPreloadTagsWithCurrentLayout = new Set(
+        injectedFontPreloadTags
+      )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
-            layoutOrPagePath
+            layoutOrPagePath,
+            injectedFontPreloadTagsWithCurrentLayout
           )
         : []
 
@@ -1322,6 +1336,7 @@ export async function renderToHTMLOrFlight(
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             })
 
             const childProp: ChildProp = {
@@ -1483,6 +1498,7 @@ export async function renderToHTMLOrFlight(
         parentRendered,
         rscPayloadHead,
         injectedCSS,
+        injectedFontPreloadTags,
         rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
@@ -1493,6 +1509,7 @@ export async function renderToHTMLOrFlight(
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
         injectedCSS: Set<string>
+        injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
@@ -1558,6 +1575,7 @@ export async function renderToHTMLOrFlight(
                       parentParams: currentParams,
                       firstItem: isFirst,
                       injectedCSS,
+                      injectedFontPreloadTags,
                       // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                       rootLayoutIncluded: rootLayoutIncluded,
                     }
@@ -1574,6 +1592,9 @@ export async function renderToHTMLOrFlight(
         // the result consistent.
         const layoutPath = layout?.[1]
         const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+        const injectedFontPreloadTagsWithCurrentLayout = new Set(
+          injectedFontPreloadTags
+        )
         if (layoutPath) {
           getCssInlinedLinkTags(
             serverComponentManifest,
@@ -1582,6 +1603,14 @@ export async function renderToHTMLOrFlight(
             serverCSSForEntries,
             injectedCSSWithCurrentLayout,
             true
+          )
+          getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layoutPath,
+            injectedFontPreloadTagsWithCurrentLayout
           )
         }
 
@@ -1605,6 +1634,7 @@ export async function renderToHTMLOrFlight(
             isFirst: false,
             rscPayloadHead,
             injectedCSS: injectedCSSWithCurrentLayout,
+            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
@@ -1641,6 +1671,7 @@ export async function renderToHTMLOrFlight(
               </>
             ),
             injectedCSS: new Set(),
+            injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
           })
         ).slice(1),
@@ -1738,6 +1769,7 @@ export async function renderToHTMLOrFlight(
           parentParams: {},
           firstItem: true,
           injectedCSS: new Set(),
+          injectedFontPreloadTags: new Set(),
           rootLayoutIncluded: false,
         })
 
