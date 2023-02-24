@@ -25,11 +25,7 @@ import {
   NextConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import {
-  ImageConfig,
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../shared/lib/image-config'
+import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
 
