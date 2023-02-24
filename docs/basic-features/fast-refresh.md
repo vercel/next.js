@@ -1,7 +1,5 @@
 ---
 description:
-  Next.js' Fast Refresh is a new hot reloading experience that gives you
-  instantaneous feedback on edits made to your React components.
 ---
 
 # Fast Refresh
