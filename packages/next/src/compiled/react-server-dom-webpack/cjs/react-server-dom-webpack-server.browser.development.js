@@ -200,21 +200,25 @@ function processReferenceChunk(request, id, reference) {
   var row = id.toString(16) + ':' + json + '\n';
   return stringToChunk(row);
 }
-function processModuleChunk(request, id, moduleMetaData) {
-  var json = stringify(moduleMetaData);
+function processImportChunk(request, id, clientReferenceMetadata) {
+  var json = stringify(clientReferenceMetadata);
   var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
 }
 
 // eslint-disable-next-line no-unused-vars
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
 function getClientReferenceKey(reference) {
   return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
 }
 function isClientReference(reference) {
   return reference.$$typeof === CLIENT_REFERENCE_TAG;
 }
-function resolveModuleMetaData(config, clientReference) {
+function isServerReference(reference) {
+  return reference.$$typeof === SERVER_REFERENCE_TAG;
+}
+function resolveClientReferenceMetadata(config, clientReference) {
   var resolvedModuleData = config[clientReference.filepath][clientReference.name];
 
   if (clientReference.async) {
@@ -227,6 +231,13 @@ function resolveModuleMetaData(config, clientReference) {
   } else {
     return resolvedModuleData;
   }
+}
+function resolveServerReferenceMetadata(config, serverReference) {
+  return {
+    id: serverReference.$$filepath,
+    name: serverReference.$$name,
+    bound: Promise.resolve(serverReference.$$bound)
+  };
 }
 
 // ATTENTION
@@ -503,6 +514,7 @@ var isUnitlessNumber = {
   opacity: true,
   order: true,
   orphans: true,
+  scale: true,
   tabSize: true,
   widows: true,
   zIndex: true,
@@ -552,7 +564,7 @@ function isArray(a) {
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(p,q,v){function r(l){this.s=l}for(var t=$RC,u=$RM,m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-precedence],style[data-precedence]"),d=0;e=f[d++];)m.set(e.dataset.precedence,g=e);e=0;f=[];for(var c,h,b,a;c=v[e++];){var k=0;h=c[k++];if(b=u.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.precedence=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,w){a.onload=l;a.onerror=w});b.then(r.bind(b,\n"l"),r.bind(b,"e"));u.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};';
+var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(p,q,w){function r(l){this.s=l}for(var t=$RC,m=$RM,u=new Map,n=new Map,g=document,h,e,f=g.querySelectorAll("template[data-precedence]"),c=0;e=f[c++];){for(var b=e.content.firstChild;b;b=b.nextSibling)u.set(b.getAttribute("data-href"),b);e.parentNode.removeChild(e)}f=g.querySelectorAll("link[data-precedence],style[data-precedence]");for(c=0;e=f[c++];)m.set(e.getAttribute("STYLE"===e.nodeName?"data-href":"href"),e),n.set(e.dataset.precedence,h=e);e=0;f=[];for(var d,\nv,a;d=w[e++];){var k=0;b=d[k++];if(!(a=m.get(b))){if(a=u.get(b))c=a.getAttribute("data-precedence");else{a=g.createElement("link");a.href=b;a.rel="stylesheet";for(a.dataset.precedence=c=d[k++];v=d[k++];)a.setAttribute(v,d[k++]);d=a._p=new Promise(function(l,x){a.onload=l;a.onerror=x});d.then(r.bind(d,"l"),r.bind(d,"e"))}m.set(b,a);b=n.get(c)||h;b===h&&(h=a);n.set(c,a);b?b.parentNode.insertBefore(a,b.nextSibling):(c=g.head,c.insertBefore(a,c.firstChild))}d=a._p;c=a.getAttribute("media");!d||"l"===\nd.s||c&&!matchMedia(c).matches||f.push(d)}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
 
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -633,10 +645,10 @@ var completeSegmentScript2 = stringToPrecomputedChunk('","');
 var completeSegmentScriptEnd = stringToPrecomputedChunk('")</script>');
 var completeSegmentData1 = stringToPrecomputedChunk('<template data-rsi="" data-sid="');
 var completeSegmentData2 = stringToPrecomputedChunk('" data-pid="');
-var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + ';$RC("');
+var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + '$RC("');
 var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
-var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundary + ';' + completeBoundaryWithStyles + ';$RR("');
-var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + ';$RR("');
+var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
+var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
 var completeBoundaryWithStylesScript1Partial = stringToPrecomputedChunk('$RR("');
 var completeBoundaryScript2 = stringToPrecomputedChunk('","');
 var completeBoundaryScript3a = stringToPrecomputedChunk('",');
@@ -656,6 +668,8 @@ var clientRenderData2 = stringToPrecomputedChunk('" data-dgst="');
 var clientRenderData3 = stringToPrecomputedChunk('" data-msg="');
 var clientRenderData4 = stringToPrecomputedChunk('" data-stck="');
 
+var styleTagTemplateOpen = stringToPrecomputedChunk('<template data-precedence="">');
+var styleTagTemplateClose = stringToPrecomputedChunk('</template>'); // Tracks whether we wrote any late style tags. We use this to determine
 var precedencePlaceholderStart = stringToPrecomputedChunk('<style data-precedence="');
 var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
 
@@ -1182,11 +1196,12 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     pendingChunks: 0,
     abortableTasks: abortSet,
     pingedTasks: pingedTasks,
-    completedModuleChunks: [],
+    completedImportChunks: [],
     completedJSONChunks: [],
     completedErrorChunks: [],
     writtenSymbols: new Map(),
-    writtenModules: new Map(),
+    writtenClientReferences: new Map(),
+    writtenServerReferences: new Map(),
     writtenProviders: new Map(),
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
@@ -1497,6 +1512,10 @@ function serializePromiseID(id) {
   return '$@' + id.toString(16);
 }
 
+function serializeServerReferenceID(id) {
+  return '$F' + id.toString(16);
+}
+
 function serializeSymbolReference(name) {
   return '$S' + name;
 }
@@ -1505,10 +1524,10 @@ function serializeProviderReference(name) {
   return '$P' + name;
 }
 
-function serializeClientReference(request, parent, key, moduleReference) {
-  var moduleKey = getClientReferenceKey(moduleReference);
-  var writtenModules = request.writtenModules;
-  var existingId = writtenModules.get(moduleKey);
+function serializeClientReference(request, parent, key, clientReference) {
+  var clientReferenceKey = getClientReferenceKey(clientReference);
+  var writtenClientReferences = request.writtenClientReferences;
+  var existingId = writtenClientReferences.get(clientReferenceKey);
 
   if (existingId !== undefined) {
     if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
@@ -1524,11 +1543,11 @@ function serializeClientReference(request, parent, key, moduleReference) {
   }
 
   try {
-    var moduleMetaData = resolveModuleMetaData(request.bundlerConfig, moduleReference);
+    var clientReferenceMetadata = resolveClientReferenceMetadata(request.bundlerConfig, clientReference);
     request.pendingChunks++;
-    var moduleId = request.nextChunkId++;
-    emitModuleChunk(request, moduleId, moduleMetaData);
-    writtenModules.set(moduleKey, moduleId);
+    var importId = request.nextChunkId++;
+    emitImportChunk(request, importId, clientReferenceMetadata);
+    writtenClientReferences.set(clientReferenceKey, importId);
 
     if (parent[0] === REACT_ELEMENT_TYPE && key === '1') {
       // If we're encoding the "type" of an element, we can refer
@@ -1536,10 +1555,10 @@ function serializeClientReference(request, parent, key, moduleReference) {
       // knows how to deal with lazy values. This lets us suspend
       // on this component rather than its parent until the code has
       // loaded.
-      return serializeLazyID(moduleId);
+      return serializeLazyID(importId);
     }
 
-    return serializeByValueID(moduleId);
+    return serializeByValueID(importId);
   } catch (x) {
     request.pendingChunks++;
     var errorId = request.nextChunkId++;
@@ -1555,6 +1574,24 @@ function serializeClientReference(request, parent, key, moduleReference) {
 
     return serializeByValueID(errorId);
   }
+}
+
+function serializeServerReference(request, parent, key, serverReference) {
+  var writtenServerReferences = request.writtenServerReferences;
+  var existingId = writtenServerReferences.get(serverReference);
+
+  if (existingId !== undefined) {
+    return serializeServerReferenceID(existingId);
+  }
+
+  var serverReferenceMetadata = resolveServerReferenceMetadata(request.bundlerConfig, serverReference);
+  request.pendingChunks++;
+  var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
+
+  var processedChunk = processModelChunk(request, metadataId, serverReferenceMetadata);
+  request.completedJSONChunks.push(processedChunk);
+  writtenServerReferences.set(serverReference, metadataId);
+  return serializeServerReferenceID(metadataId);
 }
 
 function escapeStringValue(value) {
@@ -1985,7 +2022,7 @@ function resolveModelToJSON(request, parent, key, value) {
 
   if (typeof value === 'object') {
     if (isClientReference(value)) {
-      return serializeClientReference(request, parent, key, value);
+      return serializeClientReference(request, parent, key, value); // $FlowFixMe[method-unbinding]
     } else if (typeof value.then === 'function') {
       // We assume that any object with a .then property is a "Thenable" type,
       // or a Promise type. Either of which can be represented by a Promise.
@@ -2049,10 +2086,14 @@ function resolveModelToJSON(request, parent, key, value) {
       return serializeClientReference(request, parent, key, value);
     }
 
+    if (isServerReference(value)) {
+      return serializeServerReference(request, parent, key, value);
+    }
+
     if (/^on[A-Z]/.test(key)) {
       throw new Error('Event handlers cannot be passed to Client Component props.' + describeObjectForErrorMessage(parent, key) + '\nIf you need interactivity, consider converting part of this to a Client Component.');
     } else {
-      throw new Error('Functions cannot be passed directly to Client Components ' + "because they're not serializable." + describeObjectForErrorMessage(parent, key));
+      throw new Error('Functions cannot be passed directly to Client Components ' + 'unless you explicitly expose it by marking it with "use server".' + describeObjectForErrorMessage(parent, key));
     }
   }
 
@@ -2144,15 +2185,15 @@ function emitErrorChunkDev(request, id, digest, message, stack) {
   request.completedErrorChunks.push(processedChunk);
 }
 
-function emitModuleChunk(request, id, moduleMetaData) {
-  var processedChunk = processModuleChunk(request, id, moduleMetaData);
-  request.completedModuleChunks.push(processedChunk);
+function emitImportChunk(request, id, clientReferenceMetadata) {
+  var processedChunk = processImportChunk(request, id, clientReferenceMetadata);
+  request.completedImportChunks.push(processedChunk);
 }
 
 function emitSymbolChunk(request, id, name) {
   var symbolReference = serializeSymbolReference(name);
   var processedChunk = processReferenceChunk(request, id, symbolReference);
-  request.completedModuleChunks.push(processedChunk);
+  request.completedImportChunks.push(processedChunk);
 }
 
 function emitProviderChunk(request, id, contextName) {
@@ -2275,12 +2316,12 @@ function flushCompletedChunks(request, destination) {
   try {
     // We emit module chunks first in the stream so that
     // they can be preloaded as early as possible.
-    var moduleChunks = request.completedModuleChunks;
+    var importsChunks = request.completedImportChunks;
     var i = 0;
 
-    for (; i < moduleChunks.length; i++) {
+    for (; i < importsChunks.length; i++) {
       request.pendingChunks--;
-      var chunk = moduleChunks[i];
+      var chunk = importsChunks[i];
       var keepWriting = writeChunkAndReturn(destination, chunk);
 
       if (!keepWriting) {
@@ -2290,7 +2331,7 @@ function flushCompletedChunks(request, destination) {
       }
     }
 
-    moduleChunks.splice(0, i); // Next comes model data.
+    importsChunks.splice(0, i); // Next comes model data.
 
     var jsonChunks = request.completedJSONChunks;
     i = 0;

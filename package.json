@@ -193,7 +193,7 @@
     "react-dom": "18.2.0",
     "react-dom-17": "npm:react-dom@17.0.2",
     "react-dom-builtin": "npm:react-dom@18.3.0-next-6ddcbd4f9-20230209",
-    "react-server-dom-webpack": "18.3.0-next-6ddcbd4f9-20230209",
+    "react-server-dom-webpack": "18.3.0-next-4fcc9184a-20230217",
     "react-ssr-prepass": "1.0.8",
     "react-virtualized": "9.22.3",
     "relay-compiler": "13.0.2",

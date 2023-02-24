@@ -154,7 +154,7 @@ importers:
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
       react-dom-builtin: npm:react-dom@18.3.0-next-6ddcbd4f9-20230209
-      react-server-dom-webpack: 18.3.0-next-6ddcbd4f9-20230209
+      react-server-dom-webpack: 18.3.0-next-4fcc9184a-20230217
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -329,7 +329,7 @@ importers:
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
       react-dom-builtin: /react-dom/18.3.0-next-6ddcbd4f9-20230209_react@18.2.0
-      react-server-dom-webpack: 18.3.0-next-6ddcbd4f9-20230209_4ifzx734of5j5ymg4ksx54vtqi
+      react-server-dom-webpack: 18.3.0-next-4fcc9184a-20230217_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -5850,7 +5850,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0
+      webpack: 5.74.0_@swc+core@1.2.203
     transitivePeerDependencies:
       - supports-color
 
@@ -6506,7 +6506,6 @@ packages:
     cpu: [arm]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-android-arm64/1.2.203:
@@ -6515,7 +6514,6 @@ packages:
     cpu: [arm64]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-arm64/1.2.203:
@@ -6524,7 +6522,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.2.203:
@@ -6533,7 +6530,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-freebsd-x64/1.2.203:
@@ -6542,7 +6538,6 @@ packages:
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.2.203:
@@ -6551,7 +6546,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.2.203:
@@ -6560,7 +6554,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.2.203:
@@ -6569,7 +6562,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.2.203:
@@ -6578,7 +6570,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.2.203:
@@ -6587,7 +6578,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.2.203:
@@ -6596,7 +6586,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.2.203:
@@ -6605,7 +6594,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.2.203:
@@ -6614,7 +6602,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core/1.2.203:
@@ -6635,7 +6622,6 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.2.203
       '@swc/core-win32-ia32-msvc': 1.2.203
       '@swc/core-win32-x64-msvc': 1.2.203
-    dev: true
 
   /@swc/helpers/0.4.11:
     resolution: {integrity: sha512-rEUrBSGIoSFuYxwBYtlUFMlE2CwGhmW+w9355/5oduSw8e5h2+Tj4UrAGNNgP9915++wj5vkQo0UuOBqOAq4nw==}
@@ -20349,12 +20335,12 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /react-server-dom-webpack/18.3.0-next-6ddcbd4f9-20230209_4ifzx734of5j5ymg4ksx54vtqi:
-    resolution: {integrity: sha512-S9oHclrIFDsXhxjGRcDtudv8Y5C2CFGgmJqYo9OPo+e0BmOHum7LlP7zAmb+xGX+q0mk0OSKAns8yHRNKp6dXA==}
+  /react-server-dom-webpack/18.3.0-next-4fcc9184a-20230217_4ifzx734of5j5ymg4ksx54vtqi:
+    resolution: {integrity: sha512-sUI6sztAwjfSpLYpj8xf/Vv77T7CWbowXoV6z/PPFigo3E+AFCgQa8V9SUoYxSyvH1pYnNeMTAS4mvfX8wBa5w==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-next-6ddcbd4f9-20230209
-      react-dom: 18.3.0-next-6ddcbd4f9-20230209
+      react: 18.3.0-next-4fcc9184a-20230217
+      react-dom: 18.3.0-next-4fcc9184a-20230217
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
@@ -22709,7 +22695,6 @@ packages:
       source-map: 0.6.1
       terser: 5.14.1
       webpack: 5.74.0_@swc+core@1.2.203
-    dev: true
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -24107,7 +24092,6 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
-    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
