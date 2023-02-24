@@ -1,9 +1,9 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import { AppRenderSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
+import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-const CACHE_ONE_YEAR = 31536000
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not

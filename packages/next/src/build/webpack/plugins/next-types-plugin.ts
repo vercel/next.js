@@ -156,7 +156,7 @@ function routeToRouteType(route: string) {
   return `\`${route}\``
 }
 
-function createRouteDefinitions(rewrites: Rewrites, redirects: Redirect[]) {
+function createRouteDefinitions(originalNextModule: string, rewrites: Rewrites, redirects: Redirect[]) {
   const extraRoutes: string[] = []
   function addExtraRoute(route: string) {
     // TODO: For now, we only handle absolute rewrite sources strictly, and ignore
@@ -235,6 +235,7 @@ declare module 'next/link' {
 }
 
 declare module 'next' {
+${originalNextModule.replaceAll('../dist', 'next/dist')}
   export { Route }
 }`
 }
@@ -418,11 +419,16 @@ export class NextTypesPlugin {
               devPageFiles.forEach((file) => this.collectPage(file))
             }
 
+            const originalNextModule = await fs.readFile(
+              path.join(__dirname, '../../../../types/index.d.ts'),
+              'utf-8'
+            )
+
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(this.rewrites, this.redirects)
+              createRouteDefinitions(originalNextModule, this.rewrites, this.redirects)
             ) as unknown as webpack.sources.RawSource
           }
 
