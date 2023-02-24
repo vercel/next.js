@@ -1884,7 +1884,9 @@ export default async function getBaseWebpackConfig(
                 url: true,
               },
               resolve: {
-                conditionNames: serverCondition,
+                alias: {
+                  'server-only': 'next/dist/compiled/server-only/empty',
+                },
               },
               use: loaderForAPI,
             },
