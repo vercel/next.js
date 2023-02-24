@@ -28,6 +28,7 @@ import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
+import { flushAndExit } from '../telemetry/flush-and-exit'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -787,7 +788,7 @@ export default async function loadConfig(
         for (const message of messages) {
           curLog.error(message)
         }
-        process.exit(1)
+        await flushAndExit(1)
       } else {
         for (const message of messages) {
           curLog.warn(message)
