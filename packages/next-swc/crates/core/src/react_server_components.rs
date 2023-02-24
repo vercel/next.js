@@ -470,8 +470,11 @@ impl<C: Comments> ReactServerComponents<C> {
                         handler
                             .struct_span_err(
                                 span,
-                                format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name)
-                                    .as_str(),
+                                format!(
+                                    "NEXT_RSC_ERR_CLIENT_METADATA_EXPORT: {}",
+                                    invalid_export_name
+                                )
+                                .as_str(),
                             )
                             .emit()
                     })
