@@ -44,7 +44,7 @@ Next.js will automatically determine the `width` and `height` of your image base
 
 ```js
 import Image from 'next/image'
-import profilePic from '../public/me.png'
+import profilePic from 'public/me.png'
 
 function Home() {
   return (
