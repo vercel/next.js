@@ -350,73 +350,10 @@ function assignDefaults(
       if (config.assetPrefix?.startsWith('http')) {
         images.domains.push(new URL(config.assetPrefix).hostname)
       }
-
-      if (images.domains.length > 50) {
-        throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = images.domains.filter(
-        (d: unknown) => typeof d !== 'string'
-      )
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    const remotePatterns = result?.images?.remotePatterns
-    if (remotePatterns) {
-      if (!Array.isArray(remotePatterns)) {
-        throw new Error(
-          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (remotePatterns.length > 50) {
-        throw new Error(
-          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
-      const requiredProps = ['hostname']
-      const invalidPatterns = remotePatterns.filter(
-        (d: unknown) =>
-          !d ||
-          typeof d !== 'object' ||
-          Object.entries(d).some(
-            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
-          ) ||
-          requiredProps.some((k) => !(k in d))
-      )
-      if (invalidPatterns.length > 0) {
-        throw new Error(
-          `Invalid images.remotePatterns values:\n${invalidPatterns
-            .map((item) => JSON.stringify(item))
-            .join(
-              '\n'
-            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
     }
 
     if (!images.loader) {
       images.loader = 'default'
-    }
-
-    if (!VALID_LOADERS.includes(images.loader)) {
-      throw new Error(
-        `Specified images.loader should be one of (${VALID_LOADERS.join(
-          ', '
-        )}), received invalid value (${
-          images.loader
-        }).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
     }
 
     if (
@@ -458,69 +395,6 @@ function assignDefaults(
       }
       images.loader = 'custom'
       images.loaderFile = absolutePath
-    }
-
-    if (
-      images.minimumCacheTTL &&
-      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
-    ) {
-      throw new Error(
-        `Specified images.minimumCacheTTL should be an integer 0 or more received (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    if (images.formats) {
-      const { formats } = images
-      if (!Array.isArray(formats)) {
-        throw new Error(
-          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-      if (formats.length < 1 || formats.length > 2) {
-        throw new Error(
-          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = formats.filter((f) => {
-        return f !== 'image/avif' && f !== 'image/webp'
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    if (
-      typeof images.dangerouslyAllowSVG !== 'undefined' &&
-      typeof images.dangerouslyAllowSVG !== 'boolean'
-    ) {
-      throw new Error(
-        `Specified images.dangerouslyAllowSVG should be a boolean received (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    if (
-      typeof images.contentSecurityPolicy !== 'undefined' &&
-      typeof images.contentSecurityPolicy !== 'string'
-    ) {
-      throw new Error(
-        `Specified images.contentSecurityPolicy should be a string received (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    const unoptimized = result?.images?.unoptimized
-    if (
-      typeof unoptimized !== 'undefined' &&
-      typeof unoptimized !== 'boolean'
-    ) {
-      throw new Error(
-        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
     }
   }
 

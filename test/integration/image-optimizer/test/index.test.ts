@@ -43,7 +43,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.domains exceeds length of 50, received length (51), please reduce the length of the array to continue'
+        'The value at .images.domains must have 50 or fewer items but it has 51.'
       )
     })
 
@@ -70,7 +70,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.remotePatterns exceeds length of 50, received length (51), please reduce the length of the array to continue'
+        'The value at .images.remotePatterns must have 50 or fewer items but it has 51.'
       )
     })
 
@@ -120,7 +120,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Invalid images.remotePatterns values:\n{"protocol":"https"}'
+        "The value at .images.remotePatterns[0] is missing the required field 'hostname'."
       )
     })
 
@@ -377,6 +377,81 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         `The value at .images.contentSecurityPolicy must be a string but it was a number.`
+      )
+    })
+
+    it('should error when images.contentDispositionType is not valid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            contentDispositionType: 'nope',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `The value at .images.contentDispositionType must be one of: "inline" or "attachment".`
+      )
+    })
+
+    it('should error when images.minimumCacheTTL is not valid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            minimumCacheTTL: -1,
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `The value at .images.minimumCacheTTL must be equal to or greater than 0.`
+      )
+    })
+
+    it('should error when images.unoptimized is not a boolean', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            unoptimized: 'yup',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `The value at .images.unoptimized must be a boolean but it was a string.`
       )
     })
   })

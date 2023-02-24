@@ -582,6 +582,7 @@ const configSchema = {
                 type: 'string',
               },
               port: {
+                maxLength: 5,
                 type: 'string',
               },
               protocol: {
@@ -590,8 +591,10 @@ const configSchema = {
                 type: 'string',
               },
             },
+            required: ['hostname'] as any,
             type: 'object',
           },
+          maxItems: 50,
           type: 'array',
         },
         unoptimized: {
@@ -625,6 +628,7 @@ const configSchema = {
           items: {
             type: 'string',
           },
+          maxItems: 50,
           type: 'array',
         },
         formats: {
@@ -632,6 +636,7 @@ const configSchema = {
             enum: ['image/avif', 'image/webp'], // automatic typing does not like enum
             type: 'string',
           } as any,
+          maxItems: 4,
           type: 'array',
         },
         imageSizes: {
@@ -654,7 +659,8 @@ const configSchema = {
           type: 'string',
         },
         minimumCacheTTL: {
-          type: 'number',
+          type: 'integer',
+          minimum: 0,
         },
         path: {
           minLength: 1,
