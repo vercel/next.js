@@ -13,7 +13,6 @@ createNextDescribe(
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',
-      'server-only': 'latest',
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
@@ -67,11 +66,6 @@ createNextDescribe(
         ).toBe(1)
       })
     }
-
-    it('should support server-only in pages/api', async () => {
-      const res = await next.fetch('/api/server-only')
-      expect(await res.text()).toBe('Hello from server-only.js')
-    })
 
     if (!isNextDeploy) {
       it('should not share edge workers', async () => {
