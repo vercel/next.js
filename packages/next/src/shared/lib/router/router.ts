@@ -1070,16 +1070,25 @@ export default class Router implements BaseRouter {
             asNoSlash !==
             removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
           ) {
-            matchesBflStatic = matchesBflStatic || !!this._bfl_s?.has(asNoSlash)
+            matchesBflStatic =
+              matchesBflStatic ||
+              !!this._bfl_s?.has(asNoSlash) ||
+              !!this._bfl_s?.has(asNoSlashLocale)
 
-            // if any sub-path of as matches a dynamic filter path
-            // it should be hard navigated
-            const curAsParts = curAs.split('/')
-            for (let i = 0; !matchesBflDynamic && i < curAs.length + 1; i++) {
-              const currentPart = curAsParts.slice(0, i).join('/')
-              if (currentPart && this._bfl_d?.has(currentPart)) {
-                matchesBflDynamic = true
-                break
+            for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
+              // if any sub-path of as matches a dynamic filter path
+              // it should be hard navigated
+              const curAsParts = normalizedAS.split('/')
+              for (
+                let i = 0;
+                !matchesBflDynamic && i < curAsParts.length + 1;
+                i++
+              ) {
+                const currentPart = curAsParts.slice(0, i).join('/')
+                if (currentPart && this._bfl_d?.has(currentPart)) {
+                  matchesBflDynamic = true
+                  break
+                }
               }
             }
 
