@@ -1,5 +1,6 @@
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { FETCH_CACHE_HEADER } from '../../../client/components/app-router-headers'
+import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
@@ -103,9 +104,13 @@ export default class FetchCache implements CacheHandler {
         const age = res.headers.get('age')
 
         data = {
-          age: age === null ? undefined : parseInt(age, 10),
-          cacheState: cacheState || undefined,
           value: cached,
+          // if it's already stale set it to a year in the future
+          // if not derive last modified from age
+          lastModified:
+            cacheState === 'stale'
+              ? Date.now() + CACHE_ONE_YEAR
+              : Date.now() - parseInt(age || '0', 10) * 1000,
         }
         if (this.debug) {
           console.log(
@@ -146,7 +151,11 @@ export default class FetchCache implements CacheHandler {
         if (data !== null && 'revalidate' in data) {
           this.headers['x-vercel-revalidate'] = data.revalidate.toString()
         }
-        if (data !== null && 'data' in data) {
+        if (
+          !this.headers['x-vercel-revalidate'] &&
+          data !== null &&
+          'data' in data
+        ) {
           this.headers['x-vercel-cache-control'] =
             data.data.headers['cache-control']
         }
