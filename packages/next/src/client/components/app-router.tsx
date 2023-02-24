@@ -74,6 +74,36 @@ function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
 }
 
+const routingEventHandlers = {
+  routeChangeStart: new Set<(url: string) => void>(),
+  // TODO: Extend with events like 'beforeHistoryChange', maybe also something like 'beforeRefresh'
+}
+
+function registerRoutingEventHandler(
+  event: 'routeChangeStart',
+  handler: (url: string) => void
+): void {
+  routingEventHandlers[event].add(handler)
+}
+
+function deregisterRoutingEventHandler(
+  event: 'routeChangeStart',
+  handler: (url: string) => void
+): void {
+  routingEventHandlers[event].delete(handler)
+}
+
+function emitRouterEvent(event: 'routeChangeStart', url: string) {
+  routingEventHandlers[event].forEach((handler) => {
+    handler(url)
+  })
+}
+
+export const RouterEvents = {
+  on: registerRoutingEventHandler,
+  off: deregisterRoutingEventHandler,
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -159,6 +189,8 @@ function Router({
     ) => {
       const url = new URL(addBasePath(href), location.origin)
 
+      emitRouterEvent('routeChangeStart', url.toString())
+
       return dispatch({
         type: ACTION_NAVIGATE,
         url,
@@ -217,12 +249,14 @@ function Router({
         }
       },
       replace: (href, options = {}) => {
+        emitRouterEvent('routeChangeStart', href)
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
         })
       },
       push: (href, options = {}) => {
+        emitRouterEvent('routeChangeStart', href)
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))

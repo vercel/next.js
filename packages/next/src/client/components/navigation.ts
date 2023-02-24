@@ -192,5 +192,6 @@ export function useSelectedLayoutSegment(
   return selectedLayoutSegments[0]
 }
 
+export { RouterEvents } from './app-router'
 export { redirect } from './redirect'
 export { notFound } from './not-found'
