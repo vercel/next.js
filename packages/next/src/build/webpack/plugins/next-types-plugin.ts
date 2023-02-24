@@ -388,8 +388,6 @@ export class NextTypesPlugin {
               'utf-8'
             )
 
-            console.log(originalNextModule)
-
             pageFiles.forEach((file) => {
               this.collectPage(file)
             })
