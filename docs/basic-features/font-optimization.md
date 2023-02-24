@@ -68,6 +68,8 @@ const roboto = Roboto({
 })
 ```
 
+> **Note**: You can use `_` for fonts with spaces in the name. For example `Titillium Web` should be `Titillium_Web`.
+
 #### Apply the font in `<head>`
 
 You can also use the font without a wrapper and `className` by injecting it inside the `<head>` as follows:
