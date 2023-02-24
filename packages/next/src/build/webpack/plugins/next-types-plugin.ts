@@ -119,12 +119,25 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
-const routeTypes: string[] = []
+let edgeRouteTypes = new Set<string>()
+let nodeRouteTypes = new Set<string>()
 
 export const pageFiles = new Set<string>()
 
 function createRouteDefinitions(isTrailingSlashAllowed: boolean) {
-  const fallback = !routeTypes.length ? 'string' : ''
+  const fallback = !edgeRouteTypes.size && !nodeRouteTypes.size ? 'string' : ''
+
+  let routeTypes = ''
+
+  edgeRouteTypes.forEach((route) => {
+    routeTypes += ` | ${route}\n`
+  })
+
+  nodeRouteTypes.forEach((route) => {
+    if (!edgeRouteTypes.has(route)) {
+      routeTypes += ` | ${route}\n`
+    }
+  })
 
   return `declare module 'next' {
   export * from 'next/types/index.d.ts';
@@ -154,7 +167,7 @@ function createRouteDefinitions(isTrailingSlashAllowed: boolean) {
       : S
 
   export type Route<T extends string = string> = ${fallback}
-  ${routeTypes.map((route) => `  | ${route}`).join('\n')}
+  ${routeTypes}
 }
 
 declare module 'next/link' {
@@ -256,7 +269,9 @@ export class NextTypesPlugin {
         .join('/')
     }
 
-    routeTypes.push(`\`${route}\${Suffix}\``)
+    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).add(
+      `\`${route}\${Suffix}\``
+    )
   }
 
   apply(compiler: webpack.Compiler) {
@@ -340,7 +355,11 @@ export class NextTypesPlugin {
           const promises: Promise<any>[] = []
 
           // Clear routes
-          routeTypes.length = 0
+          if (this.isEdgeServer) {
+            edgeRouteTypes = new Set<string>()
+          } else {
+            nodeRouteTypes = new Set<string>()
+          }
 
           compilation.chunkGroups.forEach((chunkGroup: any) => {
             chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
