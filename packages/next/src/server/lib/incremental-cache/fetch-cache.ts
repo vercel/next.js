@@ -99,13 +99,11 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid cache value`)
         }
 
-        const cacheState = res.headers.get('x-vercel-cache-state')
         const age = res.headers.get('age')
 
         data = {
-          age: age === null ? undefined : parseInt(age, 10),
-          cacheState: cacheState || undefined,
           value: cached,
+          lastModified: Date.now() - parseInt(age || '0', 10) * 1000,
         }
         if (this.debug) {
           console.log(
@@ -146,7 +144,11 @@ export default class FetchCache implements CacheHandler {
         if (data !== null && 'revalidate' in data) {
           this.headers['x-vercel-revalidate'] = data.revalidate.toString()
         }
-        if (data !== null && 'data' in data) {
+        if (
+          !this.headers['x-vercel-revalidate'] &&
+          data !== null &&
+          'data' in data
+        ) {
           this.headers['x-vercel-cache-control'] =
             data.data.headers['cache-control']
         }
