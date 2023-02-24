@@ -14,6 +14,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
+  isTrailingSlashAllowed: boolean
   typedRoutes: boolean
 }
 
@@ -118,51 +119,51 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
-const nodeRouteTypes: string[] = []
-const edgeRouteTypes: string[] = []
+const routeTypes: string[] = []
 
 export const pageFiles = new Set<string>()
 
-function createRouteDefinitions(originalNextModule: string) {
-  const fallback =
-    !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
+function createRouteDefinitions(isTrailingSlashAllowed: boolean) {
+  const fallback = !routeTypes.length ? 'string' : ''
 
-  return `type SearchOrHash = \`?\${string}\` | \`#\${string}\`
-type Suffix = '' | SearchOrHash
+  return `declare module 'next' {
+  export * from 'next/types/index.d.ts';
+  type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 
-type SafeSlug<S extends string> = 
-  S extends \`\${string}/\${string}\`
-    ? never
-    : S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S extends ''
-    ? never
-    : S
+  type Suffix = ${isTrailingSlashAllowed ? `"" | "/"` : `""`} | SearchOrHash
 
-type CatchAllSlug<S extends string> = 
-  S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S extends ''
-    ? never
-    : S
+  type SafeSlug<S extends string> = 
+    S extends \`\${string}/\${string}\`
+      ? never
+      : S extends \`\${string}\${SearchOrHash}\`
+      ? never
+      : S extends ''
+      ? never
+      : S
 
-type OptionalCatchAllSlug<S extends string> = 
-  S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S
+  type CatchAllSlug<S extends string> = 
+    S extends \`\${string}\${SearchOrHash}\`
+      ? never
+      : S extends ''
+      ? never
+      : S
 
-type Route<T extends string = string> = ${fallback}
-${
-  edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
-  nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
+  type OptionalCatchAllSlug<S extends string> = 
+    S extends \`\${string}\${SearchOrHash}\`
+      ? never
+      : S
+
+  export type Route<T extends string = string> = ${fallback}
+  ${routeTypes.map((route) => `  | ${route}`).join('\n')}
 }
 
 declare module 'next/link' {
-  import React from 'react'
-  import { UrlObject } from 'url'
-  import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
-
-  type LinkRestProps = Omit<Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
+  import type { Route } from 'next'
+  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+  import type { AnchorHTMLAttributes } from 'react'
+  import type { UrlObject } from 'url'
+  
+  type LinkRestProps = Omit<Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
 
   // If the href prop can be a Route type with an infer-able S, it's valid.
   type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
@@ -183,11 +184,6 @@ declare module 'next/link' {
 
   export type LinkProps<T> = LinkRestProps & HrefProp<T>
   export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
-}
-
-declare module 'next' {
-${originalNextModule.replaceAll('../dist', 'next/dist')}
-  export { Route }
 }`
 }
 
@@ -195,9 +191,10 @@ export class NextTypesPlugin {
   dir: string
   distDir: string
   appDir: string
-  pagesDir: string
   dev: boolean
   isEdgeServer: boolean
+  isTrailingSlashAllowed: boolean
+  pagesDir: string
   typedRoutes: boolean
 
   constructor(options: Options) {
@@ -206,6 +203,7 @@ export class NextTypesPlugin {
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.isTrailingSlashAllowed = options.isTrailingSlashAllowed
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
   }
@@ -258,9 +256,7 @@ export class NextTypesPlugin {
         .join('/')
     }
 
-    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
-      `\`${route}\${Suffix}\``
-    )
+    routeTypes.push(`\`${route}\${Suffix}\``)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -344,11 +340,7 @@ export class NextTypesPlugin {
           const promises: Promise<any>[] = []
 
           // Clear routes
-          if (this.isEdgeServer) {
-            edgeRouteTypes.length = 0
-          } else {
-            nodeRouteTypes.length = 0
-          }
+          routeTypes.length = 0
 
           compilation.chunkGroups.forEach((chunkGroup: any) => {
             chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
@@ -383,11 +375,6 @@ export class NextTypesPlugin {
           await Promise.all(promises)
 
           if (this.typedRoutes) {
-            const originalNextModule = await fs.readFile(
-              path.join(__dirname, '../../../../types/index.d.ts'),
-              'utf-8'
-            )
-
             pageFiles.forEach((file) => {
               this.collectPage(file)
             })
@@ -396,7 +383,7 @@ export class NextTypesPlugin {
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(originalNextModule)
+              createRouteDefinitions(this.isTrailingSlashAllowed)
             ) as unknown as webpack.sources.RawSource
           }
 

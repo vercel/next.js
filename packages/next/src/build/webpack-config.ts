@@ -2211,6 +2211,7 @@ export default async function getBaseWebpackConfig(
           appDir,
           dev,
           isEdgeServer,
+          isTrailingSlashAllowed: config.trailingSlash,
           typedRoutes: enableTypedRoutes,
         }),
       !dev &&
