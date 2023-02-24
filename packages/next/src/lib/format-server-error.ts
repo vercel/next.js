@@ -12,6 +12,7 @@ const invalidServerComponentReactHooks = [
 ]
 
 function setMessage(error: Error, message: string): void {
+  if (error.message === message) return
   error.message = message
   if (error.stack) {
     const lines = error.stack.split('\n')
