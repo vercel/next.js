@@ -64,6 +64,14 @@ async function createAppRouteCode({
     export * as handlers from ${JSON.stringify(resolvedPagePath)}
     export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
 
+    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+  
+    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
+    
+    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+    
+    export * as headerHooks from 'next/dist/client/components/headers'
+  
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
   `
 }
@@ -402,11 +410,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+    
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.browser'
+    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

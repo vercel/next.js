@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "start:otel-verbose": "NEXT_OTEL_VERBOSE=1 next start"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "1.4.0",
+    "@opentelemetry/auto-instrumentations-node": "0.36.3",
+    "@opentelemetry/exporter-trace-otlp-grpc": "0.35.1",
+    "@opentelemetry/exporter-trace-otlp-http": "0.35.1",
+    "@opentelemetry/instrumentation-fetch": "0.35.1",
+    "@opentelemetry/resources": "1.9.1",
+    "@opentelemetry/sdk-node": "0.35.1",
+    "@opentelemetry/sdk-trace-base": "1.9.1",
+    "@opentelemetry/semantic-conventions": "1.9.1",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.11",
+    "@types/react": "18.0.17",
+    "typescript": "4.7.4"
+  }
+}

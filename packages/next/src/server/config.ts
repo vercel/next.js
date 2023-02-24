@@ -167,14 +167,20 @@ function assignDefaults(
             value
           ) as (keyof ExperimentalConfig)[]) {
             const featureValue = value[featureName]
-            if (
-              featureName === 'appDir' &&
-              featureValue === true &&
-              !isAboveNodejs16
-            ) {
-              throw new Error(
-                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-              )
+            if (featureName === 'appDir' && featureValue === true) {
+              if (!isAboveNodejs16) {
+                throw new Error(
+                  `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
+                )
+              }
+              // auto enable clientRouterFilter if not manually set
+              // when appDir is enabled
+              if (
+                typeof userConfig.experimental.clientRouterFilter ===
+                'undefined'
+              ) {
+                userConfig.experimental.clientRouterFilter = true
+              }
             }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]

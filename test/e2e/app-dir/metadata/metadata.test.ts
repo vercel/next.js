@@ -330,6 +330,17 @@ createNextDescribe(
         )
       })
 
+      it('should support notFound and redirect in generateMetadata', async () => {
+        const resNotFound = await next.fetch('/async/not-found')
+        expect(resNotFound.status).toBe(404)
+        const notFoundHtml = await resNotFound.text()
+        expect(notFoundHtml).not.toBe('not-found-text')
+        expect(notFoundHtml).toContain('This page could not be found.')
+
+        const resRedirect = await next.fetch('/async/redirect')
+        expect(resRedirect.status).toBe(307)
+      })
+
       if (isNextDev) {
         it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
           const pagePath = 'app/mutate/page.tsx'
@@ -450,7 +461,7 @@ createNextDescribe(
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
         expect($('[property="og:image:url"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -459,7 +470,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/twitter-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.\w+.png/
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
@@ -480,11 +491,7 @@ createNextDescribe(
         await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
         await checkLink(browser, 'icon', '/icon.png')
         await checkLink(browser, 'apple-touch-icon', '/apple-icon.png')
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
       })
 
       it('should support basic string icons field', async () => {
@@ -505,11 +512,7 @@ createNextDescribe(
           '/apple-icon-x3.png',
         ])
 
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
 
         expect(
           await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [

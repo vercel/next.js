@@ -14,9 +14,14 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
+      ...(process.env.CUSTOM_CACHE_HANDLER
+        ? {
+            CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
+          }
+        : {}),
     },
   },
-  ({ next, isNextDev: isDev, isNextStart }) => {
+  ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (isNextStart) {
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
@@ -43,12 +48,8 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
-          'dynamic-error/[id].html',
-          'dynamic-error/[id].rsc',
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
-          'dynamic-no-gen-params/[slug].html',
-          'dynamic-no-gen-params/[slug].rsc',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-static/[slug]/page.js',
@@ -79,12 +80,18 @@ createNextDescribe(
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
-          'static-to-dynamic-error-forced/[id].html',
-          'static-to-dynamic-error-forced/[id].rsc',
           'static-to-dynamic-error-forced/[id]/page.js',
-          'static-to-dynamic-error/[id].html',
-          'static-to-dynamic-error/[id].rsc',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-revalidate-edge/no-store/page.js',
+          'variable-revalidate-edge/revalidate-3/page.js',
+          'variable-revalidate/authorization-cached.html',
+          'variable-revalidate/authorization-cached.rsc',
+          'variable-revalidate/authorization-cached/page.js',
+          'variable-revalidate/authorization/page.js',
+          'variable-revalidate/cookie-cached.html',
+          'variable-revalidate/cookie-cached.rsc',
+          'variable-revalidate/cookie-cached/page.js',
+          'variable-revalidate/cookie/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -108,7 +115,7 @@ createNextDescribe(
           }
         })
 
-        expect(manifest.version).toBe(3)
+        expect(manifest.version).toBe(4)
         expect(manifest.routes).toEqual({
           '/blog/tim': {
             initialRevalidateSeconds: 10,
@@ -190,6 +197,16 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
           },
+          '/variable-revalidate/authorization-cached': {
+            dataRoute: '/variable-revalidate/authorization-cached.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/authorization-cached',
+          },
+          '/variable-revalidate/cookie-cached': {
+            dataRoute: '/variable-revalidate/cookie-cached.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/cookie-cached',
+          },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
@@ -214,16 +231,6 @@ createNextDescribe(
             dataRouteRegex: '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$',
             fallback: null,
             routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
-          },
-          '/dynamic-no-gen-params/[slug]': {
-            dataRoute: '/dynamic-no-gen-params/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$'
-            ),
           },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
@@ -263,16 +270,6 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/static-to-dynamic-error/[id]': {
-            dataRoute: '/static-to-dynamic-error/[id].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
         })
@@ -322,21 +319,6 @@ createNextDescribe(
         expect($2('#page-data').text()).not.toBe(pageData)
       })
     } else {
-      it('should properly error when static page switches to dynamic at runtime', async () => {
-        const res = await next.fetch(
-          '/static-to-dynamic-error/static-bailout-1'
-        )
-
-        expect(res.status).toBe(500)
-
-        if (isNextStart) {
-          await check(
-            () => stripAnsi(next.cliOutput),
-            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1, reason: cookies/
-          )
-        }
-      })
-
       it('should not error with dynamic server usage with force-static', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error-forced/static-bailout-1'
@@ -370,20 +352,18 @@ createNextDescribe(
     }
 
     it('should honor fetch cache correctly', async () => {
-      await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/revalidate-3'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
 
-      const layoutData = $('#layout-data').text()
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate/revalidate-3'
@@ -394,7 +374,135 @@ createNextDescribe(
 
         expect($2('#layout-data').text()).toBe(layoutData)
         expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should honor fetch cache correctly (edge)', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/revalidate-3'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        // the test cache handler is simple and doesn't share
+        // state across workers so not guaranteed to have cache hit
+        if (!(isNextDeploy && process.env.CUSTOM_CACHE_HANDLER)) {
+          const layoutData = $('#layout-data').text()
+          const pageData = $('#page-data').text()
+
+          const res2 = await fetchViaHTTP(
+            next.url,
+            '/variable-revalidate-edge/revalidate-3'
+          )
+          expect(res2.status).toBe(200)
+          const html2 = await res2.text()
+          const $2 = cheerio.load(html2)
+
+          expect($2('#layout-data').text()).toBe(layoutData)
+          expect($2('#page-data').text()).toBe(pageData)
+        }
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not cache correctly with authorization header', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/authorization'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/authorization'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
       }
+    })
+
+    it('should cache correctly with authorization header and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/authorization-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/authorization-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should not cache correctly with cookie header', async () => {
+      const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
+    it('should cache correctly with cookie header and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/cookie-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/cookie-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
     })
 
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
@@ -485,32 +593,36 @@ createNextDescribe(
       }
     })
 
-    it('should handle dynamicParams: false correctly', async () => {
-      const validParams = ['tim', 'seb', 'styfle']
+    // since we aren't leveraging fs cache with custom handler
+    // then these will 404 as they are cache misses
+    if (!(isNextStart && process.env.CUSTOM_CACHE_HANDLER)) {
+      it('should handle dynamicParams: false correctly', async () => {
+        const validParams = ['tim', 'seb', 'styfle']
 
-      for (const param of validParams) {
-        const res = await next.fetch(`/blog/${param}`, {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(200)
-        const html = await res.text()
-        const $ = cheerio.load(html)
+        for (const param of validParams) {
+          const res = await next.fetch(`/blog/${param}`, {
+            redirect: 'manual',
+          })
+          expect(res.status).toBe(200)
+          const html = await res.text()
+          const $ = cheerio.load(html)
 
-        expect(JSON.parse($('#params').text())).toEqual({
-          author: param,
-        })
-        expect($('#page').text()).toBe('/blog/[author]')
-      }
-      const invalidParams = ['timm', 'non-existent']
+          expect(JSON.parse($('#params').text())).toEqual({
+            author: param,
+          })
+          expect($('#page').text()).toBe('/blog/[author]')
+        }
+        const invalidParams = ['timm', 'non-existent']
 
-      for (const param of invalidParams) {
-        const invalidRes = await next.fetch(`/blog/${param}`, {
-          redirect: 'manual',
-        })
-        expect(invalidRes.status).toBe(404)
-        expect(await invalidRes.text()).toContain('page could not be found')
-      }
-    })
+        for (const param of invalidParams) {
+          const invalidRes = await next.fetch(`/blog/${param}`, {
+            redirect: 'manual',
+          })
+          expect(invalidRes.status).toBe(404)
+          expect(await invalidRes.text()).toContain('page could not be found')
+        }
+      })
+    }
 
     it('should work with forced dynamic path', async () => {
       for (const slug of ['first', 'second']) {
@@ -565,40 +677,50 @@ createNextDescribe(
       }
     })
 
-    it('should navigate to static path correctly', async () => {
-      const browser = await next.browser('/blog/tim')
-      await browser.eval('window.beforeNav = 1')
+    // since we aren't leveraging fs cache with custom handler
+    // then these will 404 as they are cache misses
+    if (!(isNextStart && process.env.CUSTOM_CACHE_HANDLER)) {
+      it('should navigate to static path correctly', async () => {
+        const browser = await next.browser('/blog/tim')
+        await browser.eval('window.beforeNav = 1')
 
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('/blog/[author]')
-      await browser.elementByCss('#author-2').click()
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('/blog/[author]')
+        await browser.elementByCss('#author-2').click()
 
-      await check(async () => {
-        const params = JSON.parse(await browser.elementByCss('#params').text())
-        return params.author === 'seb' ? 'found' : params
-      }, 'found')
+        await check(async () => {
+          const params = JSON.parse(
+            await browser.elementByCss('#params').text()
+          )
+          return params.author === 'seb' ? 'found' : params
+        }, 'found')
 
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-      await browser.elementByCss('#author-1-post-1').click()
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+        await browser.elementByCss('#author-1-post-1').click()
 
-      await check(async () => {
-        const params = JSON.parse(await browser.elementByCss('#params').text())
-        return params.author === 'tim' && params.slug === 'first-post'
-          ? 'found'
-          : params
-      }, 'found')
+        await check(async () => {
+          const params = JSON.parse(
+            await browser.elementByCss('#params').text()
+          )
+          return params.author === 'tim' && params.slug === 'first-post'
+            ? 'found'
+            : params
+        }, 'found')
 
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-      await browser.back()
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+        await browser.back()
 
-      await check(async () => {
-        const params = JSON.parse(await browser.elementByCss('#params').text())
-        return params.author === 'seb' ? 'found' : params
-      }, 'found')
+        await check(async () => {
+          const params = JSON.parse(
+            await browser.elementByCss('#params').text()
+          )
+          return params.author === 'seb' ? 'found' : params
+        }, 'found')
 
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-    })
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+      })
+    }
 
     it('should ssr dynamically when detected automatically with fetch cache option', async () => {
       const pathname = '/ssr-auto/cache-no-store'
@@ -860,5 +982,13 @@ createNextDescribe(
       await waitFor(1000)
       checkUrl()
     })
+
+    if (process.env.CUSTOM_CACHE_HANDLER && !isNextDeploy) {
+      it('should have logs from cache-handler', () => {
+        expect(next.cliOutput).toContain('initialized custom cache-handler')
+        expect(next.cliOutput).toContain('cache-handler get')
+        expect(next.cliOutput).toContain('cache-handler set')
+      })
+    }
   }
 )

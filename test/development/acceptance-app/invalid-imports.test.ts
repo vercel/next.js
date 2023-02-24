@@ -188,6 +188,7 @@ createNextDescribe(
           [
             'app/comp2.js',
             `
+            import 'server-only-package'
             export function Comp2() {
               return (
                 <div>Hello world</div>
@@ -198,8 +199,7 @@ createNextDescribe(
           ],
           [
             'app/page.js',
-            `'use client'
-          import { Comp1 } from './comp1'
+            `import { Comp1 } from './comp1'
           
           export default function Page() {
             return <Comp1 />
@@ -209,9 +209,9 @@ createNextDescribe(
         ])
       )
 
-      const file = 'app/comp2.js'
+      const file = 'app/page.js'
       const content = await next.readFile(file)
-      await session.patch(file, 'import "server-only-package"\n' + content)
+      await session.patch(file, "'use client'\n" + content)
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`

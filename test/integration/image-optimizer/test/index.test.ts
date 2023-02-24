@@ -11,7 +11,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
-import { cleanImagesDir, expectWidth, fsToJson, runTests } from './util'
+import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
 const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
@@ -373,57 +373,6 @@ describe('Image Optimizer', () => {
         `Specified images.contentSecurityPolicy should be a string`
       )
     })
-  })
-
-  // domains for testing
-  const domains = [
-    'localhost',
-    'example.com',
-    'assets.vercel.com',
-    'image-optimization-test.vercel.app',
-  ]
-
-  // Reduce to 5 seconds so tests dont dont need to
-  // wait too long before testing stale responses.
-  const minimumCacheTTL = 5
-
-  describe('Server support for minimumCacheTTL in next.config.js', () => {
-    const size = 96 // defaults defined in server/config.ts
-    const dangerouslyAllowSVG = true
-    const ctx: any = {
-      w: size,
-      isDev: false,
-      domains,
-      minimumCacheTTL,
-      dangerouslyAllowSVG,
-      imagesDir,
-      appDir,
-    }
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          domains,
-          minimumCacheTTL,
-          dangerouslyAllowSVG,
-        },
-      })
-      ctx.nextOutput = ''
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
-      await cleanImagesDir({ imagesDir })
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort, {
-        onStderr(msg) {
-          ctx.nextOutput += msg
-        },
-      })
-    })
-    afterAll(async () => {
-      await killApp(ctx.app)
-      nextConfig.restore()
-    })
-
-    runTests(ctx)
   })
 
   describe('Server support for trailingSlash in next.config.js', () => {

@@ -75,7 +75,7 @@ export interface PageProps {
   searchParams?: any
 }
 export interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 ${
   options.slots
     ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
@@ -123,12 +123,11 @@ const edgeRouteTypes: string[] = []
 
 export const pageFiles = new Set<string>()
 
-function createRouteDefinitions() {
+function createRouteDefinitions(originalNextModule: string) {
   const fallback =
     !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
-  return `
-type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+  return `type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 type Suffix = '' | SearchOrHash
 
 type SafeSlug<S extends string> = 
@@ -187,6 +186,7 @@ declare module 'next/link' {
 }
 
 declare module 'next' {
+${originalNextModule.replaceAll('../dist', 'next/dist')}
   export { Route }
 }`
 }
@@ -383,6 +383,11 @@ export class NextTypesPlugin {
           await Promise.all(promises)
 
           if (this.typedRoutes) {
+            const originalNextModule = await fs.readFile(
+              path.join(__dirname, '../../../../types/index.d.ts'),
+              'utf-8'
+            )
+
             pageFiles.forEach((file) => {
               this.collectPage(file)
             })
@@ -391,7 +396,7 @@ export class NextTypesPlugin {
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions()
+              createRouteDefinitions(originalNextModule)
             ) as unknown as webpack.sources.RawSource
           }
 

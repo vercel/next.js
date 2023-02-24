@@ -11,10 +11,96 @@ createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
-    // TODO-APP: enable after deploy support is added
-    skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    describe('works with api prefix correctly', () => {
+      it('statically generates correctly with no dynamic usage', async () => {
+        if (isNextStart) {
+          expect(
+            await next.readFile('.next/server/app/api/hello.json.body')
+          ).toBeTruthy()
+          expect(
+            await next.readFile('.next/server/app/api/hello.json.meta')
+          ).toBeTruthy()
+        }
+        expect(JSON.parse(await next.render('/api/hello.json'))).toEqual({
+          pathname: '/api/hello.json',
+        })
+      })
+
+      it('does not statically generate with dynamic usage', async () => {
+        if (isNextStart) {
+          expect(
+            await next
+              .readFile('.next/server/app/api/dynamic.body')
+              .catch(() => '')
+          ).toBeFalsy()
+          expect(
+            await next
+              .readFile('.next/server/app/api/dynamic.meta')
+              .catch(() => '')
+          ).toBeFalsy()
+        }
+        expect(JSON.parse(await next.render('/api/dynamic'))).toEqual({
+          pathname: '/api/dynamic',
+          query: {},
+        })
+      })
+    })
+
+    describe('works with generateStaticParams correctly', () => {
+      it.each([
+        '/static/first/data.json',
+        '/static/second/data.json',
+        '/static/three/data.json',
+      ])('responds correctly on %s', async (path) => {
+        expect(JSON.parse(await next.render(path))).toEqual({
+          params: { slug: path.split('/')[2] },
+          now: expect.any(Number),
+        })
+        if (isNextStart) {
+          await check(async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+            return 'success'
+          }, 'success')
+        }
+      })
+
+      it.each([
+        '/revalidate-1/first/data.json',
+        '/revalidate-1/second/data.json',
+        '/revalidate-1/three/data.json',
+      ])('revalidates correctly on %s', async (path) => {
+        const data = JSON.parse(await next.render(path))
+        expect(data).toEqual({
+          params: { slug: path.split('/')[2] },
+          now: expect.any(Number),
+        })
+
+        await check(async () => {
+          expect(data).not.toEqual(JSON.parse(await next.render(path)))
+          return 'success'
+        }, 'success')
+
+        if (isNextStart) {
+          await check(async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+            return 'success'
+          }, 'success')
+        }
+      })
+    })
+
     describe('basic fetch request with a response', () => {
       describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
         'made via a %s request',

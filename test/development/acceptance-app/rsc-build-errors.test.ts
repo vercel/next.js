@@ -46,23 +46,28 @@ createNextDescribe(
 
       const pageFile = 'app/client-with-errors/metadata-export/page.js'
       const content = await next.readFile(pageFile)
+
+      // Add `metadata` error
       let uncomment = content.replace(
         '// export const metadata',
         'export const metadata'
       )
       await session.patch(pageFile, uncomment)
-
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
         '"metadata" is not supported in app/'
       )
 
+      // Restore file
+      await session.patch(pageFile, content)
+      expect(await session.hasRedbox(false)).toBe(false)
+
+      // Add `generateMetadata` error
       uncomment = content.replace(
         '// export async function generateMetadata',
         'export async function generateMetadata'
       )
       await session.patch(pageFile, uncomment)
-
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
         '"generateMetadata" is not supported in app/'

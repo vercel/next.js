@@ -12,6 +12,7 @@ import type {
   Viewport,
 } from './extra-types'
 import type {
+  DeprecatedMetadataFields,
   AbsoluteTemplateString,
   Author,
   ColorSchemeEnum,
@@ -33,7 +34,7 @@ import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
  * Metadata interface to describe all the metadata fields that can be set in a document.
  * @interface
  */
-interface Metadata {
+interface Metadata extends DeprecatedMetadataFields {
   /**
    * The base path and origin for absolute urls for various metadata links such as OpenGraph images.
    */
@@ -421,26 +422,10 @@ interface Metadata {
    */
   other?: {
     [name: string]: string | number | Array<string | number>
-  }
-
-  /**
-   * Deprecated options that have a preferred method.
-   * Use appWebApp to configure apple-mobile-web-app-capable which provides
-   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
-   * @deprecated
-   */
-  'apple-touch-fullscreen'?: never
-
-  /**
-   * Deprecated options that have a preferred method.
-   * Obsolete since iOS 7. use icons.apple or "app-touch-icon" instead
-   * @see https://web.dev/apple-touch-icon/
-   * @deprecated
-   */
-  'apple-touch-icon-precomposed'?: never
+  } & DeprecatedMetadataFields
 }
 
-interface ResolvedMetadata {
+interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: null | URL
@@ -515,20 +500,11 @@ interface ResolvedMetadata {
   classification: null | string
 
   // Arbitrary name/value pairs
-  other: null | {
-    [name: string]: string | number | Array<string | number>
-  }
-
-  /**
-   *  Deprecated options that have a preferred method
-   * */
-  // Use appWebApp to configure apple-mobile-web-app-capable which provides
-  // https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
-  'apple-touch-fullscreen'?: never
-
-  // Obsolete since iOS 7. use icons.apple or "app-touch-icon" instead
-  // https://web.dev/apple-touch-icon/
-  'apple-touch-icon-precomposed'?: never
+  other:
+    | null
+    | ({
+        [name: string]: string | number | Array<string | number>
+      } & DeprecatedMetadataFields)
 }
 
 export type ResolvingMetadata = Promise<ResolvedMetadata>

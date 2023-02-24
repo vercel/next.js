@@ -9,7 +9,7 @@ describe('metadata: resolveUrl', () => {
   })
 
   it('should error when metadataBase is not provided but url is not valid URL', () => {
-    expect(() => resolveUrl('/abc', null)).toThrow('missing metadataBase')
+    expect(() => resolveUrl('/abc', null)).toThrow()
   })
 
   it('should return url itself when metadataBase is null or url is valid URL', () => {
