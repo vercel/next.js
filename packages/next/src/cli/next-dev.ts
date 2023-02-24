@@ -459,7 +459,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
 
-    await telemetry.flush()
+    if (!isCustomTurbopack) {
+      await telemetry.flush()
+    }
     return server
   } else {
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
