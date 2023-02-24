@@ -10,6 +10,7 @@ import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -226,6 +227,11 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
   ): RouteMatch | null {
     if (matcher instanceof LocaleRouteMatcher) {
       return matcher.match(pathname, options)
+    }
+
+    // For app page routes, we just ignore the locale if it's present.
+    if (matcher instanceof AppPageRouteMatcher) {
+      return matcher.match(options.i18n?.pathname || pathname)
     }
 
     return matcher.match(pathname)

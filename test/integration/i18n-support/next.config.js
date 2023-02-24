@@ -1,6 +1,9 @@
 module.exports = {
   // basePath: '/docs',
   // trailingSlash: true,
+  experimental: {
+    appDir: true,
+  },
   i18n: {
     // localeDetection: false,
     locales: [

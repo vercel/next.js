@@ -3171,4 +3171,9 @@ export function runTests(ctx) {
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
   })
+
+  it('should not affect app dynamic routes', async () => {
+    const res = await fetchViaHTTP(ctx.appPort, '/app-dynamic/foo')
+    expect(await res.text()).toContain('slug = foo')
+  })
 }
