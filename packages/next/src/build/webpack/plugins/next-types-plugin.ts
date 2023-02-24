@@ -128,6 +128,8 @@ function createRouteDefinitions() {
     !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
   return `
+import "next"
+
 type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 type Suffix = '' | SearchOrHash
 
