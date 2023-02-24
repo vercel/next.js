@@ -311,6 +311,9 @@ const configSchema = {
         largePageDataBytes: {
           type: 'number',
         },
+        modularizeImports: {
+          type: 'object',
+        },
         legacyBrowsers: {
           type: 'boolean',
         },
