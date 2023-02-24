@@ -786,6 +786,11 @@ export default async function getBaseWebpackConfig(
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
     : []
 
+  const loaderForAPI =
+    hasServerComponents && useSWCLoader
+      ? getSwcLoader({ isServerLayer: true })
+      : defaultLoaders.babel
+
   const pageExtensions = config.pageExtensions
 
   const outputPath =
@@ -1409,6 +1414,16 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const serverCondition = [
+    'react-server',
+    ...mainFieldsPerCompiler[
+      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
+    ],
+    'node',
+    'import',
+    'require',
+  ]
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
@@ -1707,33 +1722,21 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
-                  ) {
-                    return false
-                  }
-
-                  return true
+                test: {
+                  // Resolve it if it is a source code file, and it has NOT been
+                  // opted out of bundling.
+                  and: [
+                    codeCondition.test,
+                    {
+                      not: [
+                        optOutBundlingPackageRegex,
+                        staticGenerationAsyncStorageRegex,
+                      ],
+                    },
+                  ],
                 },
                 resolve: {
-                  conditionNames: [
-                    'react-server',
-                    ...mainFieldsPerCompiler[
-                      isEdgeServer
-                        ? COMPILER_NAMES.edgeServer
-                        : COMPILER_NAMES.server
-                    ],
-                    'node',
-                    'import',
-                    'require',
-                  ],
+                  conditionNames: serverCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1743,15 +1746,18 @@ export default async function getBaseWebpackConfig(
                       'next/dist/compiled/react-dom/server-rendering-stub',
                   },
                 },
+                use: {
+                  loader: 'next-flight-loader',
+                },
+              },
+              {
+                // Make sure that AsyncLocalStorage module instance is shared between server and client
+                // layers.
+                layer: WEBPACK_LAYERS.shared,
+                test: staticGenerationAsyncStorageRegex,
               },
             ]
           : []),
-        ...[
-          {
-            layer: WEBPACK_LAYERS.shared,
-            test: staticGenerationAsyncStorageRegex,
-          },
-        ],
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1772,19 +1778,6 @@ export default async function getBaseWebpackConfig(
               {
                 resourceQuery: /__edge_ssr_entry__/,
                 layer: WEBPACK_LAYERS.server,
-              },
-            ]
-          : []),
-        ...(hasServerComponents && !isClient
-          ? [
-              // RSC server compilation loaders
-              {
-                test: codeCondition.test,
-                exclude: [staticGenerationAsyncStorageRegex],
-                issuerLayer: WEBPACK_LAYERS.server,
-                use: {
-                  loader: 'next-flight-loader',
-                },
               },
             ]
           : []),
@@ -1870,14 +1863,6 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /\.(js|cjs|mjs)$/,
-          issuerLayer: WEBPACK_LAYERS.api,
-          parser: {
-            // Switch back to normal URL handling
-            url: true,
-          },
-        },
-        {
           oneOf: [
             {
               ...codeCondition,
@@ -1886,7 +1871,12 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: defaultLoaders.babel,
+              resolve: {
+                alias: {
+                  'server-only': 'next/dist/compiled/server-only/empty',
+                },
+              },
+              use: loaderForAPI,
             },
             {
               ...codeCondition,
