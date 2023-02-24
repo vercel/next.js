@@ -904,7 +904,7 @@ export default async function loadConfig(
 
       for (const error of aggregatedAjvErrors) {
         messages.push(`    ${error.message}`)
-        if (/^The value at \.images(\.| )/.test(error.message)) {
+        if (error.message.startsWith('The value at .images.')) {
           shouldExit = true
         }
       }

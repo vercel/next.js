@@ -640,7 +640,7 @@ const configSchema = {
             minimum: 1,
             maximum: 10000,
           },
-          minItems: 1,
+          minItems: 0,
           maxItems: 25,
           type: 'array',
         },
