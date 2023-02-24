@@ -786,6 +786,11 @@ export default async function getBaseWebpackConfig(
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
     : []
 
+  const loaderForAPI =
+    hasServerComponents && useSWCLoader
+      ? getSwcLoader({ isServerLayer: true })
+      : defaultLoaders.babel
+
   const pageExtensions = config.pageExtensions
 
   const outputPath =
@@ -1409,6 +1414,16 @@ export default async function getBaseWebpackConfig(
     },
   }
 
+  const serverCondition = [
+    'react-server',
+    ...mainFieldsPerCompiler[
+      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
+    ],
+    'node',
+    'import',
+    'require',
+  ]
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
@@ -1721,17 +1736,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  conditionNames: [
-                    'react-server',
-                    ...mainFieldsPerCompiler[
-                      isEdgeServer
-                        ? COMPILER_NAMES.edgeServer
-                        : COMPILER_NAMES.server
-                    ],
-                    'node',
-                    'import',
-                    'require',
-                  ],
+                  conditionNames: serverCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1858,14 +1863,6 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /\.(js|cjs|mjs)$/,
-          issuerLayer: WEBPACK_LAYERS.api,
-          parser: {
-            // Switch back to normal URL handling
-            url: true,
-          },
-        },
-        {
           oneOf: [
             {
               ...codeCondition,
@@ -1874,7 +1871,12 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: defaultLoaders.babel,
+              resolve: {
+                alias: {
+                  'server-only': 'next/dist/compiled/server-only/empty',
+                },
+              },
+              use: loaderForAPI,
             },
             {
               ...codeCondition,
