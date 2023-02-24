@@ -156,7 +156,11 @@ function routeToRouteType(route: string) {
   return `\`${route}\``
 }
 
-function createRouteDefinitions(originalNextModule: string, rewrites: Rewrites, redirects: Redirect[]) {
+function createRouteDefinitions(
+  originalNextModule: string,
+  rewrites: Rewrites,
+  redirects: Redirect[]
+) {
   const extraRoutes: string[] = []
   function addExtraRoute(route: string) {
     // TODO: For now, we only handle absolute rewrite sources strictly, and ignore
@@ -428,7 +432,11 @@ export class NextTypesPlugin {
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(originalNextModule, this.rewrites, this.redirects)
+              createRouteDefinitions(
+                originalNextModule,
+                this.rewrites,
+                this.redirects
+              )
             ) as unknown as webpack.sources.RawSource
           }
 
