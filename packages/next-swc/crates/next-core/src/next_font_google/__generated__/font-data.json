@@ -3345,6 +3345,23 @@
       "normal"
     ]
   },
+  "Climate Crisis": {
+    "weights": [
+      "400",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "YEAR",
+        "min": 1979,
+        "max": 2050,
+        "defaultValue": 1979
+      }
+    ]
+  },
   "Coda": {
     "weights": [
       "400",
@@ -5717,6 +5734,28 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Golos Text": {
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
     ]
   },
   "Gorditas": {
@@ -14969,7 +15008,8 @@
       "variable"
     ],
     "styles": [
-      "normal"
+      "normal",
+      "italic"
     ],
     "axes": [
       {
