@@ -97,7 +97,7 @@ function formatRSCErrorMessage(
     formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_CLIENT_METADATA_EXPORT.test(message)) {
     formattedMessage = message.replace(
-      NEXT_RSC_ERR_INVALID_API,
+      NEXT_RSC_ERR_CLIENT_METADATA_EXPORT,
       `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
     )
 
