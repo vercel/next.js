@@ -296,7 +296,7 @@ jobs:
   testDevE2ELTS:
     name: Test Development (E2E) Node.js LTS
     runs-on: ubuntu-latest
-    needs: [build, build-native-test]
+    needs: [build]
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -344,7 +344,7 @@ jobs:
   testDevE2EMaintenance:
     name: Test Development (E2E) Node.js Maintenance
     runs-on: ubuntu-latest
-    needs: [build, build-native-test]
+    needs: [build]
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -425,7 +425,7 @@ jobs:
   testProdMaintenance:
     name: Test Production Node.js Maintenance
     runs-on: ubuntu-latest
-    needs: [build, build-native-test]
+    needs: [build]
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -496,7 +496,7 @@ jobs:
   testProdE2EMaintenance:
     name: Test Production (E2E) Node.js Maintenance
     runs-on: ubuntu-latest
-    needs: [build, build-native-test]
+    needs: [build]
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -768,7 +768,7 @@ jobs:
   testFirefoxNodeLTS:
     name: Test Firefox Node.js LTS
     runs-on: ubuntu-latest
-    needs: [build, testFirefox, build-native-test]
+    needs: [build, testFirefox]
     timeout-minutes: 10
     env:
       NEXT_TELEMETRY_DISABLED: 1
