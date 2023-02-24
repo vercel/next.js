@@ -9,7 +9,7 @@ const getAttrs = (elems: Cheerio) =>
     // My machine behaves differently to CI
     .sort((a, b) => (a.href < b.href ? -1 : 1))
 
-describe.each([['app']])('%s', (fixture: string) => {
+describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
   createNextDescribe(
     'app dir next-font',
     {
