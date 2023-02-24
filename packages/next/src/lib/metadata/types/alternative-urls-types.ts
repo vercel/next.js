@@ -16,6 +16,7 @@ type LangCode =
   | 'ba'
   | 'be'
   | 'bg'
+  | 'bh'
   | 'bi'
   | 'bm'
   | 'bn'
