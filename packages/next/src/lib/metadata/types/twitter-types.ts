@@ -64,8 +64,12 @@ type TwitterPlayerDescriptor = {
 }
 
 type ResolvedTwitterImage = {
-  url: null | URL | string
+  url: string | URL
   alt?: string
+  secureUrl?: string | URL
+  type?: string
+  width?: string | number
+  height?: string | number
 }
 type ResolvedTwitterSummary = {
   site: string | null

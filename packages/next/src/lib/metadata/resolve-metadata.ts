@@ -52,7 +52,7 @@ function mergeStaticMetadata(
         card: 'summary_large_image',
         images: twitter,
       },
-      null
+      metadata.metadataBase
     )
     metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
   }
@@ -62,7 +62,7 @@ function mergeStaticMetadata(
       {
         images: opengraph,
       },
-      null
+      metadata.metadataBase
     )
     metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
   }
@@ -81,7 +81,7 @@ function merge(
     openGraph: string | null
   }
 ) {
-  const metadataBase = source?.metadataBase || null
+  const metadataBase = source?.metadataBase || target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
@@ -179,19 +179,11 @@ async function getDefinedMetadata(
   mod: any,
   props: any
 ): Promise<Metadata | MetadataResolver | null> {
-  // Layer is a client component, we just skip it. It can't have metadata
-  // exported. Note that during our SWC transpilation, it should check if
-  // the exports are valid and give specific error messages.
+  // Layer is a client component, we just skip it. It can't have metadata exported.
+  // Return early to avoid accessing properties error for client references.
   if (isClientReference(mod)) {
     return null
   }
-
-  if (mod.metadata && mod.generateMetadata) {
-    throw new Error(
-      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
-    )
-  }
-
   return (
     (mod.generateMetadata
       ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)

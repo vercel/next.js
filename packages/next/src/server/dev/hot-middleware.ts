@@ -24,7 +24,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'ws'
 import { isMiddlewareFilename } from '../../build/utils'
-import { nonNullable } from '../../lib/non-nullable'
 import type { VersionInfo } from './parse-version-info'
 
 function isMiddlewareStats(stats: webpack.Stats) {
@@ -45,6 +44,24 @@ function statsToJson(stats?: webpack.Stats | null) {
     hash: true,
     warnings: true,
   })
+}
+
+function getStatsForSyncEvent(
+  clientStats: { ts: number; stats: webpack.Stats } | null,
+  serverStats: { ts: number; stats: webpack.Stats } | null
+) {
+  if (!clientStats) return serverStats?.stats
+  if (!serverStats) return clientStats?.stats
+
+  // Prefer the server compiler stats if it has errors.
+  // Otherwise we may end up in a state where the client compilation is the latest but without errors.
+  // This causes the error overlay to not display the build error.
+  if (serverStats.stats.hasErrors()) {
+    return serverStats.stats
+  }
+
+  // Return the latest stats
+  return serverStats.ts > clientStats.ts ? serverStats.stats : clientStats.stats
 }
 
 class EventStream {
@@ -170,12 +187,13 @@ export class WebpackHotMiddleware {
     if (this.closed) return
     this.eventStream.handler(client)
 
-    const [latestStats] = [this.clientLatestStats, this.serverLatestStats]
-      .filter(nonNullable)
-      .sort((statsA, statsB) => statsB.ts - statsA.ts)
+    const syncStats = getStatsForSyncEvent(
+      this.clientLatestStats,
+      this.serverLatestStats
+    )
 
-    if (latestStats?.stats) {
-      const stats = statsToJson(latestStats.stats)
+    if (syncStats) {
+      const stats = statsToJson(syncStats)
       const middlewareStats = statsToJson(this.middlewareLatestStats?.stats)
       this.eventStream.publish({
         action: 'sync',

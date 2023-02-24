@@ -10,6 +10,7 @@ import { UrlObject } from 'url'
 import { resolveHref } from '../shared/lib/router/utils/resolve-href'
 import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
+import { isAbsoluteUrl } from '../shared/lib/utils'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
 import {
@@ -679,8 +680,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-    // defined, we specify the current 'href', so that repetition is not needed by the user
-    if (
+    // defined, we specify the current 'href', so that repetition is not needed by the user.
+    // If the url is absolute, we can bypass the logic to prepend the domain and locale.
+    if (isAbsoluteUrl(as)) {
+      childProps.href = as
+    } else if (
       !legacyBehavior ||
       passHref ||
       (child.type === 'a' && !('href' in child.props))

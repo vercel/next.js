@@ -26,7 +26,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
 
     // Match any route file that ends with `/route.${extension}` under the app
     // directory.
-    this.expression = new RegExp(`\\/route\\.(?:${extensions.join('|')})$`)
+    this.expression = new RegExp(`[/\\\\]route\\.(?:${extensions.join('|')})$`)
 
     const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
 
