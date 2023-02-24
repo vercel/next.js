@@ -1,9 +1,9 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import { AppRenderSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
+import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-const CACHE_ONE_YEAR = 31536000
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
@@ -33,7 +33,7 @@ export function patchFetch({
       // If the staticGenerationStore is not available, we can't do any
       // special treatment of fetch, therefore fallback to the original
       // fetch implementation.
-      if (!staticGenerationStore) {
+      if (!staticGenerationStore || (init?.next as any)?.internal) {
         return originFetch(input, init)
       }
 
@@ -109,19 +109,23 @@ export function patchFetch({
               )
             }
 
-            await staticGenerationStore.incrementalCache.set(
-              cacheKey,
-              {
-                kind: 'FETCH',
-                data: {
-                  headers: Object.fromEntries(clonedRes.headers.entries()),
-                  body: base64Body,
+            try {
+              await staticGenerationStore.incrementalCache.set(
+                cacheKey,
+                {
+                  kind: 'FETCH',
+                  data: {
+                    headers: Object.fromEntries(clonedRes.headers.entries()),
+                    body: base64Body,
+                  },
+                  revalidate,
                 },
                 revalidate,
-              },
-              revalidate,
-              true
-            )
+                true
+              )
+            } catch (err) {
+              console.warn(`Failed to set fetch cache`, input, err)
+            }
           }
           return res
         })

@@ -1069,26 +1069,34 @@ export default class Router implements BaseRouter {
     const isQueryUpdating = (options as any)._h === 1
 
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const asNoSlash = removeTrailingSlash(as)
-      const matchesBflStatic = this._bfl_s?.has(asNoSlash)
-      let matchesBflDynamic = false
-      const asNoSlashParts = asNoSlash.split('/')
+      const asNoSlash = removeTrailingSlash(new URL(as, 'http://n').pathname)
 
-      // if any sub-path of as matches a dynamic filter path
-      // it should be hard navigated
-      for (let i = 0; i < asNoSlashParts.length + 1; i++) {
-        const currentPart = asNoSlashParts.slice(0, i).join('/')
-        if (this._bfl_d?.has(currentPart)) {
-          matchesBflDynamic = true
-          break
+      if (
+        asNoSlash !==
+        removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+      ) {
+        const matchesBflStatic = this._bfl_s?.has(asNoSlash)
+        let matchesBflDynamic = false
+        const asNoSlashParts = asNoSlash.split('/')
+
+        // if any sub-path of as matches a dynamic filter path
+        // it should be hard navigated
+        for (let i = 0; i < asNoSlashParts.length + 1; i++) {
+          const currentPart = asNoSlashParts.slice(0, i).join('/')
+          if (currentPart && this._bfl_d?.has(currentPart)) {
+            matchesBflDynamic = true
+            break
+          }
         }
-      }
-
-      // if the client router filter is matched then we trigger
-      // a hard navigation
-      if (!isQueryUpdating && (matchesBflStatic || matchesBflDynamic)) {
-        handleHardNavigation({ url: as, router: this })
-        return false
+        // if the client router filter is matched then we trigger
+        // a hard navigation
+        if (!isQueryUpdating && (matchesBflStatic || matchesBflDynamic)) {
+          handleHardNavigation({
+            url: addBasePath(addLocale(as, options.locale || this.locale)),
+            router: this,
+          })
+          return false
+        }
       }
     }
 
@@ -1456,6 +1464,8 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as, routeProps)
     }
 
+    const isErrorRoute = this.pathname === '/404' || this.pathname === '/_error'
+
     try {
       let routeInfo = await this.getRouteInfo({
         route,
@@ -1645,10 +1655,7 @@ export default class Router implements BaseRouter {
       // wasn't originally present. This is also why this block is before the
       // below `changeState` call which updates the browser's history (changing
       // the URL).
-      if (
-        isQueryUpdating &&
-        (this.pathname === '/404' || this.pathname === '/_error')
-      ) {
+      if (isQueryUpdating && isErrorRoute) {
         routeInfo = await this.getRouteInfo({
           route: this.pathname,
           pathname: this.pathname,
@@ -1658,6 +1665,7 @@ export default class Router implements BaseRouter {
           routeProps: { shallow: false },
           locale: nextState.locale,
           isPreview: nextState.isPreview,
+          isQueryUpdating: isQueryUpdating && !this.isFallback,
         })
 
         if ('type' in routeInfo) {
