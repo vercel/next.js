@@ -321,6 +321,8 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
+    // not in a monorepo so relative app dir is empty string
+    expect(requiredFilesManifest.relativeAppDir).toBe('')
   })
 
   it('should de-dupe HTML/data requests', async () => {
