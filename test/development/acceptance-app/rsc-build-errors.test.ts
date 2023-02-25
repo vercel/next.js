@@ -55,7 +55,7 @@ createNextDescribe(
       await session.patch(pageFile, uncomment)
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        '"metadata" is not supported in app/'
+        'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
       )
 
       // Restore file
@@ -70,7 +70,7 @@ createNextDescribe(
       await session.patch(pageFile, uncomment)
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        '"generateMetadata" is not supported in app/'
+        'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
       )
 
       await cleanup()
