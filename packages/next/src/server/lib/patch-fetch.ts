@@ -149,10 +149,8 @@ export function patchFetch({
         revalidate > 0
       ) {
         cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-          input && typeof input === 'object'
-            ? (input as Request).url
-            : input.toString(),
-          init
+          isRequestInput ? (input as Request).url : input.toString(),
+          isRequestInput ? (input as RequestInit) : init
         )
         const entry = await staticGenerationStore.incrementalCache.get(
           cacheKey,
