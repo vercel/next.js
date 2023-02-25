@@ -5,3 +5,4 @@
 myAction.$$typeof = Symbol.for("react.server.reference");
 myAction.$$filepath = "/app/item.js";
 myAction.$$name = "myAction";
+myAction.$$bound = [];
