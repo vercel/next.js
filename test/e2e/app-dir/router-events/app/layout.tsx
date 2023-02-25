@@ -9,10 +9,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // @ts-ignore
     window.navigations = []
 
-    RouterEvents.on('routeChangeStart', (url) => {
+    const handler = (url: string) => {
+      console.log('AAA', url)
       // @ts-ignore
       window.navigations.push(url)
-    })
+    }
+
+    RouterEvents.on('routeChangeStart', handler)
+
+    return () => {
+      RouterEvents.off('routeChangeStart', handler)
+    }
   }, [])
 
   return (

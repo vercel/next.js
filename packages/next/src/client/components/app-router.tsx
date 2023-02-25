@@ -249,14 +249,12 @@ function Router({
         }
       },
       replace: (href, options = {}) => {
-        emitRouterEvent('routeChangeStart', href)
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
         })
       },
       push: (href, options = {}) => {
-        emitRouterEvent('routeChangeStart', href)
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           navigate(href, 'push', Boolean(options.forceOptimisticNavigation))

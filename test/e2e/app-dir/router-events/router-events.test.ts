@@ -1,5 +1,6 @@
 import webdriver from 'next-webdriver'
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'router emitting navigation events',
@@ -12,12 +13,20 @@ createNextDescribe(
         const browser = await webdriver(next.url, '/from')
 
         await browser
-          .elementByCss('#navigation-link')
+          .elementById('to-navigation-link')
           .click()
           .waitForElementByCss('#to-page')
 
+        await browser
+          .elementById('user-navigation-link')
+          .click()
+          .waitForElementByCss('#user-page')
+
         const navigations = await browser.eval(`window.navigations`)
-        expect(navigations).toBe(1000)
+        expect(navigations).toStrictEqual([
+          expect.stringMatching(/http:\/\/localhost:[0-9]+\/to/),
+          expect.stringMatching(/http:\/\/localhost:[0-9]+\/to\/4/),
+        ])
       })
     })
   }
