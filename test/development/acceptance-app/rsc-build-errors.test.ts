@@ -93,7 +93,7 @@ createNextDescribe(
       await session.patch(pageFile, uncomment)
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        'export generateMetadata and metadata together'
+        '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
       )
 
       await cleanup()
