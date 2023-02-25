@@ -1707,20 +1707,18 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
-                  ) {
-                    return false
-                  }
-
-                  return true
+                test: {
+                  // Resolve it if it is a source code file, and it has NOT been
+                  // opted out of bundling.
+                  and: [
+                    codeCondition.test,
+                    {
+                      not: [
+                        optOutBundlingPackageRegex,
+                        staticGenerationAsyncStorageRegex,
+                      ],
+                    },
+                  ],
                 },
                 resolve: {
                   conditionNames: [
@@ -1743,15 +1741,18 @@ export default async function getBaseWebpackConfig(
                       'next/dist/compiled/react-dom/server-rendering-stub',
                   },
                 },
+                use: {
+                  loader: 'next-flight-loader',
+                },
+              },
+              {
+                // Make sure that AsyncLocalStorage module instance is shared between server and client
+                // layers.
+                layer: WEBPACK_LAYERS.shared,
+                test: staticGenerationAsyncStorageRegex,
               },
             ]
           : []),
-        ...[
-          {
-            layer: WEBPACK_LAYERS.shared,
-            test: staticGenerationAsyncStorageRegex,
-          },
-        ],
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -1772,19 +1773,6 @@ export default async function getBaseWebpackConfig(
               {
                 resourceQuery: /__edge_ssr_entry__/,
                 layer: WEBPACK_LAYERS.server,
-              },
-            ]
-          : []),
-        ...(hasServerComponents && !isClient
-          ? [
-              // RSC server compilation loaders
-              {
-                test: codeCondition.test,
-                exclude: [staticGenerationAsyncStorageRegex],
-                issuerLayer: WEBPACK_LAYERS.server,
-                use: {
-                  loader: 'next-flight-loader',
-                },
               },
             ]
           : []),
@@ -2211,6 +2199,7 @@ export default async function getBaseWebpackConfig(
           appDir,
           dev,
           isEdgeServer,
+          pageExtensions: config.pageExtensions,
           typedRoutes: enableTypedRoutes,
         }),
       !dev &&

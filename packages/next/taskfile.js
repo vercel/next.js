@@ -61,7 +61,6 @@ const externals = {
   postcss: 'postcss',
   // Ensure latest version is used
   'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
-  'cssnano-simple': 'next/dist/build/cssnano-simple',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -689,15 +688,6 @@ export async function ncc_napirs_triples(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('src/compiled/cssnano-simple')
-}
-
-// eslint-disable-next-line camelcase
 externals['p-limit'] = 'next/dist/compiled/p-limit'
 export async function ncc_p_limit(task, opts) {
   await task
@@ -1106,6 +1096,18 @@ export async function ncc_segment_ajv_human_errors(task, opts) {
     .target('src/compiled/@segment/ajv-human-errors')
 }
 
+externals['postcss-plugin-stub-for-cssnano-simple'] =
+  'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple'
+// eslint-disable-next-line camelcase
+export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
+  await task
+    .source('src/bundles/postcss-plugin-stub/index.js')
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/postcss-plugin-stub-for-cssnano-simple')
+}
+
 const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
@@ -1174,6 +1176,22 @@ export async function ncc_babel_bundle_packages(task, opts) {
   )
 
   await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
+}
+
+externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+// eslint-disable-next-line camelcase
+export async function ncc_cssnano_simple_bundle(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'postcss-svgo': 'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple',
+  }
+
+  await task
+    .source('src/bundles/cssnano-simple/index.js')
+    .ncc({
+      externals: bundleExternals,
+    })
+    .target('src/compiled/cssnano-simple')
 }
 
 // eslint-disable-next-line camelcase
@@ -2035,7 +2053,6 @@ export async function ncc(task, opts) {
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_raw_body',
-        'ncc_cssnano_simple',
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
@@ -2053,6 +2070,7 @@ export async function ncc(task, opts) {
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_segment_ajv_human_errors',
+        'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_assert',
         'ncc_browser_zlib',
         'ncc_buffer',
@@ -2147,6 +2165,7 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_browserslist',
+      'ncc_cssnano_simple_bundle',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',

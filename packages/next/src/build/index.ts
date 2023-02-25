@@ -68,6 +68,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
   TRACE_OUTPUT_VERSION,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -896,6 +897,9 @@ export default async function build(
           )
         )
 
+      const outputFileTracingRoot =
+        config.experimental.outputFileTracingRoot || dir
+
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
       const requiredServerFiles = nextBuildSpan
@@ -923,6 +927,7 @@ export default async function build(
             },
           },
           appDir: dir,
+          relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
             path.relative(distDir, manifestPath),
@@ -965,6 +970,14 @@ export default async function build(
                   path.join(
                     SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.json'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.js'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.json'
                   ),
                 ]
               : []),
@@ -1926,8 +1939,8 @@ export default async function build(
 
             const root =
               config.experimental?.turbotrace?.contextDirectory ??
-              config.experimental?.outputFileTracingRoot ??
-              dir
+              outputFileTracingRoot
+
             const nextServerEntry = require.resolve(
               'next/dist/server/next-server'
             )
@@ -2171,9 +2184,6 @@ export default async function build(
           'utf8'
         )
       )
-
-      const outputFileTracingRoot =
-        config.experimental.outputFileTracingRoot || dir
 
       if (config.output === 'standalone') {
         await nextBuildSpan

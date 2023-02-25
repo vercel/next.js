@@ -1052,6 +1052,61 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
+  async _bfl(as: string, resolvedAs?: string, locale?: string | false) {
+    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      let matchesBflStatic = false
+      let matchesBflDynamic = false
+
+      for (const curAs of [as, resolvedAs]) {
+        if (curAs) {
+          const asNoSlash = removeTrailingSlash(
+            new URL(curAs, 'http://n').pathname
+          )
+          const asNoSlashLocale = addBasePath(
+            addLocale(curAs, locale || this.locale)
+          )
+
+          if (
+            asNoSlash !==
+            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+          ) {
+            matchesBflStatic =
+              matchesBflStatic ||
+              !!this._bfl_s?.has(asNoSlash) ||
+              !!this._bfl_s?.has(asNoSlashLocale)
+
+            for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
+              // if any sub-path of as matches a dynamic filter path
+              // it should be hard navigated
+              const curAsParts = normalizedAS.split('/')
+              for (
+                let i = 0;
+                !matchesBflDynamic && i < curAsParts.length + 1;
+                i++
+              ) {
+                const currentPart = curAsParts.slice(0, i).join('/')
+                if (currentPart && this._bfl_d?.has(currentPart)) {
+                  matchesBflDynamic = true
+                  break
+                }
+              }
+            }
+
+            // if the client router filter is matched then we trigger
+            // a hard navigation
+            if (matchesBflStatic || matchesBflDynamic) {
+              handleHardNavigation({
+                url: addBasePath(addLocale(as, locale || this.locale)),
+                router: this,
+              })
+              return new Promise(() => {})
+            }
+          }
+        }
+      }
+    }
+  }
+
   private async change(
     method: HistoryMethod,
     url: string,
@@ -1068,36 +1123,8 @@ export default class Router implements BaseRouter {
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
 
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const asNoSlash = removeTrailingSlash(new URL(as, 'http://n').pathname)
-
-      if (
-        asNoSlash !==
-        removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
-      ) {
-        const matchesBflStatic = this._bfl_s?.has(asNoSlash)
-        let matchesBflDynamic = false
-        const asNoSlashParts = asNoSlash.split('/')
-
-        // if any sub-path of as matches a dynamic filter path
-        // it should be hard navigated
-        for (let i = 0; i < asNoSlashParts.length + 1; i++) {
-          const currentPart = asNoSlashParts.slice(0, i).join('/')
-          if (currentPart && this._bfl_d?.has(currentPart)) {
-            matchesBflDynamic = true
-            break
-          }
-        }
-        // if the client router filter is matched then we trigger
-        // a hard navigation
-        if (!isQueryUpdating && (matchesBflStatic || matchesBflDynamic)) {
-          handleHardNavigation({
-            url: addBasePath(addLocale(as, options.locale || this.locale)),
-            router: this,
-          })
-          return false
-        }
-      }
+    if (!isQueryUpdating) {
+      await this._bfl(as, undefined, options.locale)
     }
 
     let shouldResolveHref =
@@ -1481,6 +1508,14 @@ export default class Router implements BaseRouter {
         isQueryUpdating: isQueryUpdating && !this.isFallback,
         isMiddlewareRewrite,
       })
+
+      if (!isQueryUpdating) {
+        await this._bfl(
+          as,
+          'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,
+          nextState.locale
+        )
+      }
 
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
