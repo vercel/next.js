@@ -1,4 +1,4 @@
-import { FormData, Blob } from 'next/dist/compiled/@edge-runtime/primitives'
+export const runtime = 'experimental-edge'
 
 export default async function Page() {
   const data = await fetch(
