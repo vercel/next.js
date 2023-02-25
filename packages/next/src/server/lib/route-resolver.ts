@@ -5,7 +5,14 @@ import { RouteKind } from '../future/route-kind'
 import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { PageChecker, Route } from '../router'
+import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
+import { join } from 'path'
 
+type MiddlewareConfig = {
+  matcher: string[]
+  files: string[]
+}
 type RouteResult =
   | {
       type: 'rewrite'
@@ -48,7 +55,11 @@ class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   }
 }
 
-export async function makeResolver(dir: string, nextConfig: NextConfig) {
+export async function makeResolver(
+  dir: string,
+  nextConfig: NextConfig,
+  middleware: MiddlewareConfig
+) {
   const url = require('url') as typeof import('url')
   const { default: Router } = require('../router') as typeof import('../router')
   const { getPathMatch } =
@@ -65,14 +76,52 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
   const devServer = new DevServer({
     dir,
     conf: nextConfig,
+    hostname: 'localhost',
+    port: 3000,
   })
+
   await devServer.matchers.reload()
 
   // @ts-expect-error
   devServer.customRoutes = await loadCustomRoutes(nextConfig)
+  const matchers = getMiddlewareMatchers(middleware.matcher, nextConfig)
+  // @ts-expect-error
+  devServer.middleware = {
+    page: '/',
+    match: getMiddlewareRouteMatcher(matchers),
+    matchers,
+  }
+
+  type GetEdgeFunctionInfo =
+    typeof DevServer['prototype']['getEdgeFunctionInfo']
+  const getEdgeFunctionInfo = (
+    original: GetEdgeFunctionInfo
+  ): GetEdgeFunctionInfo => {
+    return (params: { page: string; middleware: boolean }) => {
+      if (params.middleware) {
+        return {
+          name: 'middleware',
+          paths: middleware.files.map((file) => join(process.cwd(), file)),
+          env: [],
+          wasm: [],
+          assets: [],
+        }
+      }
+      return original(params)
+    }
+  }
+  // @ts-expect-error protected
+  devServer.getEdgeFunctionInfo = getEdgeFunctionInfo(
+    // @ts-expect-error protected
+    devServer.getEdgeFunctionInfo.bind(devServer)
+  )
+  // @ts-expect-error protected
+  devServer.hasMiddleware = () => true
 
   const routeResults = new WeakMap<any, string>()
-  const routes = devServer.generateRoutes.bind(devServer)()
+  const routes = devServer.generateRoutes()
+  // @ts-expect-error protected
+  const catchAllMiddleware = devServer.generateCatchAllMiddlewareRoute(true)
 
   routes.matchers = new DevRouteMatcherManager(
     // @ts-expect-error internal method
@@ -81,6 +130,7 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
 
   const router = new Router({
     ...routes,
+    catchAllMiddleware,
     catchAllRoute: {
       match: getPathMatch('/:path*'),
       name: 'catchall route',
@@ -112,6 +162,7 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
       route.type === 'redirect' ||
       route.type === 'header' ||
       route.name === 'catchall route' ||
+      route.name === 'middleware catchall' ||
       route.name?.includes('check')
     return matches
   })
@@ -122,9 +173,12 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
   ) {
     const req = new NodeNextRequest(_req)
     const res = new NodeNextResponse(_res)
+    const parsedUrl = url.parse(req.url!, true)
+    // @ts-expect-error protected
+    devServer.attachRequestMeta(req, parsedUrl)
     ;(req as any)._initUrl = req.url
 
-    await router.execute.bind(router)(req, res, url.parse(req.url!, true))
+    await router.execute(req, res, parsedUrl)
 
     if (!res.originalResponse.headersSent) {
       res.setHeader('x-nextjs-route-result', '1')
