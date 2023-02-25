@@ -896,6 +896,9 @@ export default async function build(
           )
         )
 
+      const outputFileTracingRoot =
+        config.experimental.outputFileTracingRoot || dir
+
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
       const requiredServerFiles = nextBuildSpan
@@ -923,6 +926,7 @@ export default async function build(
             },
           },
           appDir: dir,
+          relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
             path.relative(distDir, manifestPath),
@@ -1926,8 +1930,8 @@ export default async function build(
 
             const root =
               config.experimental?.turbotrace?.contextDirectory ??
-              config.experimental?.outputFileTracingRoot ??
-              dir
+              outputFileTracingRoot
+
             const nextServerEntry = require.resolve(
               'next/dist/server/next-server'
             )
@@ -2171,9 +2175,6 @@ export default async function build(
           'utf8'
         )
       )
-
-      const outputFileTracingRoot =
-        config.experimental.outputFileTracingRoot || dir
 
       if (config.output === 'standalone') {
         await nextBuildSpan
