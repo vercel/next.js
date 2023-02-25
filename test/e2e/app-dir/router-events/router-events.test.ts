@@ -1,6 +1,5 @@
 import webdriver from 'next-webdriver'
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
 
 createNextDescribe(
   'router emitting navigation events',
