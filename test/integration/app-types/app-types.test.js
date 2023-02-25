@@ -23,6 +23,11 @@ describe('app type checking', () => {
         await fs.readFile(path.join(appDir, '.next', 'types', 'link.d.ts'))
       ).toString()
       expect(dts.includes('`/dashboard/user/')).toBeTruthy()
+      expect(dts.includes('`/dashboard/another')).toBeTruthy()
+
+      expect(errors).toContain(
+        'Type error: "/(newroot)/dashboard/another" is not an existing route. If it is intentional, please type it explicitly with `as Route`.'
+      )
 
       // Check type checking errors
       expect(errors).toContain(

@@ -3,8 +3,11 @@ import { promises as fs } from 'fs'
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import { getPageFromPath } from '../../entries'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -14,7 +17,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
-  isTrailingSlashAllowed: boolean
+  pageExtensions: string[]
   typedRoutes: boolean
 }
 
@@ -124,7 +127,7 @@ let nodeRouteTypes = new Set<string>()
 
 export const pageFiles = new Set<string>()
 
-function createRouteDefinitions(isTrailingSlashAllowed: boolean) {
+function createRouteDefinitions() {
   const fallback = !edgeRouteTypes.size && !nodeRouteTypes.size ? 'string' : ''
 
   let routeTypes = ''
@@ -143,7 +146,7 @@ function createRouteDefinitions(isTrailingSlashAllowed: boolean) {
   export * from 'next/types/index.d.ts';
   type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 
-  type Suffix = ${isTrailingSlashAllowed ? `"" | "/"` : `""`} | SearchOrHash
+  type Suffix = "" | SearchOrHash
 
   type SafeSlug<S extends string> = 
     S extends \`\${string}/\${string}\`
@@ -206,7 +209,7 @@ export class NextTypesPlugin {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
-  isTrailingSlashAllowed: boolean
+  pageExtensions: string[]
   pagesDir: string
   typedRoutes: boolean
 
@@ -216,7 +219,7 @@ export class NextTypesPlugin {
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
-    this.isTrailingSlashAllowed = options.isTrailingSlashAllowed
+    this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
   }
@@ -239,15 +242,14 @@ export class NextTypesPlugin {
       return
     }
 
-    const page = isApp
-      ? normalizeAppPath(path.relative(this.appDir, filePath))
-      : '/' + path.relative(this.pagesDir, filePath)
-
-    let route =
-      (isApp
-        ? page.replace(/[/\\]page\.[^./]+$/, '')
-        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')
-      ).replace(/\\/g, '/') || '/'
+    let route = (isApp ? normalizeAppPath : denormalizePagePath)(
+      ensureLeadingSlash(
+        getPageFromPath(
+          path.relative(isApp ? this.appDir : this.pagesDir, filePath),
+          this.pageExtensions
+        )
+      )
+    )
 
     if (isDynamicRoute(route)) {
       route = route
@@ -402,7 +404,7 @@ export class NextTypesPlugin {
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(this.isTrailingSlashAllowed)
+              createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource
           }
 
