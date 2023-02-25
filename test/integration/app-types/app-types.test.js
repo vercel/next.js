@@ -43,7 +43,7 @@ describe('app type checking', () => {
           /\.\/src\/app\/type-checks\/link\/page\.tsx:(\d+):/g
         ),
       ].map(([, line]) => +line)
-      expect(errorLines).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25])
+      expect(errorLines).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27])
     })
 
     it('should type check invalid entry exports', () => {
