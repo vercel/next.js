@@ -484,11 +484,7 @@ impl<C: Comments> ReactServerComponents<C> {
                 if has_gm_export && has_metadata_export {
                     HANDLER.with(|handler| {
                         handler
-                            .struct_span_err(
-                                span,
-                                "NEXT_RSC_ERR_INVALID_API: export generateMetadata and metadata \
-                                 together",
-                            )
+                            .struct_span_err(span, "NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT")
                             .emit()
                     })
                 }
