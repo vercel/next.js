@@ -6,6 +6,7 @@
 myAction.$$typeof = Symbol.for("react.server.reference");
 myAction.$$filepath = "/app/item.js";
 myAction.$$name = "$ACTION_myAction";
+myAction.$$bound = [];
 export const $ACTION_myAction = myAction;
 export default function Page() {
     return <Button action={myAction}>Delete</Button>;
