@@ -100,6 +100,7 @@ createNextDescribe(
           'variable-revalidate/post-method-cached.html',
           'variable-revalidate/post-method-cached.rsc',
           'variable-revalidate/post-method-cached/page.js',
+          'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
