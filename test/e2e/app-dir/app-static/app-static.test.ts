@@ -624,7 +624,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/encoding'
+          '/variable-revalidate-edge/encoding'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
