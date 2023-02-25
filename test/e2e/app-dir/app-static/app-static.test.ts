@@ -502,6 +502,30 @@ createNextDescribe(
       }
     })
 
+    it('should not cache correctly with POST method request init', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/post-method-request'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-request'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
     it('should cache correctly with POST method and revalidate', async () => {
       await check(async () => {
         const res = await fetchViaHTTP(

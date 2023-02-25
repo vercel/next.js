@@ -29,6 +29,11 @@ export function patchFetch({
     },
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+      const isRequestInput = input && typeof input === 'object'
+      const getRequestMeta = (field: string) => {
+        let value = isRequestInput ? (input as any)[field] : null
+        return value || (init as any)?.[field]
+      }
 
       // If the staticGenerationStore is not available, we can't do any
       // special treatment of fetch, therefore fallback to the original
@@ -38,12 +43,15 @@ export function patchFetch({
       }
 
       let revalidate: number | undefined | false = undefined
+      // RequestInit doesn't keep extra fields e.g. next so it's
+      // only available if init is used separate
       let curRevalidate = init?.next?.revalidate
+      const _cache = getRequestMeta('cache')
 
-      if (init?.cache === 'force-cache') {
+      if (_cache === 'force-cache') {
         curRevalidate = false
       }
-      if (['no-cache', 'no-store'].includes(init?.cache || '')) {
+      if (['no-cache', 'no-store'].includes(_cache || '')) {
         curRevalidate = 0
       }
       if (typeof curRevalidate === 'number') {
@@ -53,16 +61,18 @@ export function patchFetch({
       if (curRevalidate === false) {
         revalidate = CACHE_ONE_YEAR
       }
+
+      const _headers = getRequestMeta('headers')
       const initHeaders: Headers =
-        typeof (init?.headers as Headers)?.get === 'function'
-          ? (init?.headers as Headers)
-          : new Headers(init?.headers || {})
+        typeof _headers?.get === 'function'
+          ? _headers
+          : new Headers(_headers || {})
 
       const hasUnCacheableHeader =
         initHeaders.get('authorization') || initHeaders.get('cookie')
 
       const isUnCacheableMethod = !['get', 'head'].includes(
-        init?.method?.toLowerCase() || 'get'
+        getRequestMeta('method')?.toLowerCase() || 'get'
       )
 
       if (typeof revalidate === 'undefined') {
