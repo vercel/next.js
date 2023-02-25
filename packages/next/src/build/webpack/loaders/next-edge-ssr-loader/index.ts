@@ -130,6 +130,7 @@ export default async function edgeSSRLoader(this: any) {
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
     const rscCssManifest = self.__RSC_CSS_MANIFEST
+    const rscServerManifest = self.__RSC_SERVER_MANIFEST
     const subresourceIntegrityManifest = ${
       sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
     }
@@ -150,6 +151,7 @@ export default async function edgeSSRLoader(this: any) {
       reactLoadableManifest,
       serverComponentManifest: ${isServerComponent} ? rscManifest : null,
       serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
+      serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},

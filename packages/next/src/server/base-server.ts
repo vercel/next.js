@@ -228,6 +228,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
+    serverActionsManifest?: any
     fontLoaderManifest?: FontLoaderManifest
     renderServerComponentData?: boolean
     serverComponentProps?: any
