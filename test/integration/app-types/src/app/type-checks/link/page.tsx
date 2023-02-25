@@ -14,6 +14,7 @@ export default function page() {
 
   const shouldFail = (
     <>
+      <Card href="/(newroot)/dashboard/another" />
       <Card href="/dashboard" />
       <Card href="/blog/a/b/c/d" />
       <Link href="/typing">test</Link>
@@ -21,6 +22,7 @@ export default function page() {
       <Link href="/buttooon">test</Link>
       <Link href="/blog/">test</Link>
       <Link href="/blog/v/w/z">test</Link>
+      <Link href="/(newroot)/dashboard/another" />
       <Link href="/dashboard/">test</Link>
       <Link href={`/blog/a/${test}`}>test</Link>
     </>
@@ -28,12 +30,14 @@ export default function page() {
 
   const shouldPass = (
     <>
+      <Card href="/dashboard/another" />
       <Card href="/aaa" />
       <Link href="/about">test</Link>
       <Link href="/aaa#aaa">test</Link>
       <Link href="/aaa?q=1">test</Link>
       <Link href="/blog/a/b">test</Link>
       <Link href="/blog/v/w">test</Link>
+      <Link href="/dashboard/another" />
       <Link href="/dashboard/123">test</Link>
       <Link href="/dashboard/user">test</Link>
       <Link href="/dashboard/user/">test</Link>
