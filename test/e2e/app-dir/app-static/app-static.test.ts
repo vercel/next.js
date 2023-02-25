@@ -82,6 +82,7 @@ createNextDescribe(
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
           'variable-revalidate/authorization-cached.html',
@@ -92,7 +93,14 @@ createNextDescribe(
           'variable-revalidate/cookie-cached.rsc',
           'variable-revalidate/cookie-cached/page.js',
           'variable-revalidate/cookie/page.js',
+          'variable-revalidate/encoding.html',
+          'variable-revalidate/encoding.rsc',
+          'variable-revalidate/encoding/page.js',
           'variable-revalidate/no-store/page.js',
+          'variable-revalidate/post-method-cached.html',
+          'variable-revalidate/post-method-cached.rsc',
+          'variable-revalidate/post-method-cached/page.js',
+          'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
@@ -206,6 +214,16 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/cookie-cached.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/cookie-cached',
+          },
+          '/variable-revalidate/encoding': {
+            dataRoute: '/variable-revalidate/encoding.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/encoding',
+          },
+          '/variable-revalidate/post-method-cached': {
+            dataRoute: '/variable-revalidate/post-method-cached.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/post-method-cached',
           },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
@@ -460,6 +478,57 @@ createNextDescribe(
       }, 'success')
     })
 
+    it('should not cache correctly with POST method', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/post-method'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
+    it('should cache correctly with POST method and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
     it('should not cache correctly with cookie header', async () => {
       const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
       expect(res.status).toBe(200)
@@ -494,6 +563,68 @@ createNextDescribe(
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate/cookie-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with utf8 encoding', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/encoding'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(JSON.parse(pageData).jp).toBe(
+          '超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump'
+        )
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/encoding'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with utf8 encoding edge', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/encoding'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(JSON.parse(pageData).jp).toBe(
+          '超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump'
+        )
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/encoding'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
