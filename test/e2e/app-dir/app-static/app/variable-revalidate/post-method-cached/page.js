@@ -1,7 +1,20 @@
 import { FormData, Blob } from 'next/dist/compiled/@edge-runtime/primitives'
 
+const fetchRetry = async (url, init) => {
+  for (let i = 0; i < 5; i++) {
+    try {
+      return await fetch(url, init)
+    } catch (err) {
+      if (i === 4) {
+        throw err
+      }
+      console.log(`Failed to fetch`, err, `retrying...`)
+    }
+  }
+}
+
 export default async function Page() {
-  const data = await fetch(
+  const data = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',
@@ -11,7 +24,7 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
-  const dataWithBody1 = await fetch(
+  const dataWithBody1 = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',
@@ -22,7 +35,7 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
-  const dataWithBody2 = await fetch(
+  const dataWithBody2 = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',
@@ -44,7 +57,7 @@ export default async function Page() {
   formData.append('another', new Blob(['some text'], { type: 'text/plain' }))
   formData.append('another', 'text')
 
-  const dataWithBody3 = await fetch(
+  const dataWithBody3 = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',
@@ -55,7 +68,7 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
-  const dataWithBody4 = await fetch(
+  const dataWithBody4 = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',

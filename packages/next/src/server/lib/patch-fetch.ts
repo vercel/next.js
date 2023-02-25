@@ -107,18 +107,15 @@ export function patchFetch({
             typeof revalidate === 'number' &&
             revalidate > 0
           ) {
-            const clonedRes = res.clone()
-
             let base64Body = ''
+            const arrayBuffer = await res.arrayBuffer()
 
             if (process.env.NEXT_RUNTIME === 'edge') {
               const { encode } =
                 require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
-              base64Body = encode(await clonedRes.arrayBuffer())
+              base64Body = encode(arrayBuffer)
             } else {
-              base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
-                'base64'
-              )
+              base64Body = Buffer.from(arrayBuffer).toString('base64')
             }
 
             try {
@@ -127,7 +124,7 @@ export function patchFetch({
                 {
                   kind: 'FETCH',
                   data: {
-                    headers: Object.fromEntries(clonedRes.headers.entries()),
+                    headers: Object.fromEntries(res.headers.entries()),
                     body: base64Body,
                   },
                   revalidate,
@@ -138,6 +135,10 @@ export function patchFetch({
             } catch (err) {
               console.warn(`Failed to set fetch cache`, input, err)
             }
+            return new Response(arrayBuffer, {
+              headers: res.headers,
+              status: res.status,
+            })
           }
           return res
         })
