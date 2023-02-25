@@ -122,24 +122,22 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
-let edgeRouteTypes = new Set<string>()
-let nodeRouteTypes = new Set<string>()
+const edgeRouteTypes: string[] = []
+const nodeRouteTypes: string[] = []
 
 export const pageFiles = new Set<string>()
 
 function createRouteDefinitions() {
-  const fallback = !edgeRouteTypes.size && !nodeRouteTypes.size ? 'string' : ''
+  const fallback =
+    !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
   let routeTypes = ''
 
   edgeRouteTypes.forEach((route) => {
     routeTypes += ` | ${route}\n`
   })
-
   nodeRouteTypes.forEach((route) => {
-    if (!edgeRouteTypes.has(route)) {
-      routeTypes += ` | ${route}\n`
-    }
+    routeTypes += ` | ${route}\n`
   })
 
   return `declare module 'next' {
@@ -271,7 +269,7 @@ export class NextTypesPlugin {
         .join('/')
     }
 
-    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).add(
+    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
       `\`${route}\${Suffix}\``
     )
   }
@@ -358,9 +356,9 @@ export class NextTypesPlugin {
 
           // Clear routes
           if (this.isEdgeServer) {
-            edgeRouteTypes = new Set<string>()
+            edgeRouteTypes.length = 0
           } else {
-            nodeRouteTypes = new Set<string>()
+            nodeRouteTypes.length = 0
           }
 
           compilation.chunkGroups.forEach((chunkGroup: any) => {
@@ -396,9 +394,11 @@ export class NextTypesPlugin {
           await Promise.all(promises)
 
           if (this.typedRoutes) {
-            pageFiles.forEach((file) => {
-              this.collectPage(file)
-            })
+            if (this.dev && !this.isEdgeServer) {
+              pageFiles.forEach((file) => {
+                this.collectPage(file)
+              })
+            }
 
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =
