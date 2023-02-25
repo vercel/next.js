@@ -1,4 +1,4 @@
-import { FormData, Blob } from 'next/dist/compiled/@edge-runtime/primitives'
+export const runtime = 'experimental-edge'
 
 const fetchRetry = async (url, init) => {
   for (let i = 0; i < 5; i++) {
