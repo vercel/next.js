@@ -85,6 +85,7 @@ createNextDescribe(
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-cached/page.js',
+          'variable-revalidate-edge/post-method-request/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
           'variable-revalidate/authorization-cached.html',
           'variable-revalidate/authorization-cached.rsc',
@@ -101,7 +102,6 @@ createNextDescribe(
           'variable-revalidate/post-method-cached.html',
           'variable-revalidate/post-method-cached.rsc',
           'variable-revalidate/post-method-cached/page.js',
-          'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -507,7 +507,7 @@ createNextDescribe(
     it('should not cache correctly with POST method request init', async () => {
       const res = await fetchViaHTTP(
         next.url,
-        '/variable-revalidate/post-method-request'
+        '/variable-revalidate-edge/post-method-request'
       )
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -518,7 +518,7 @@ createNextDescribe(
       for (let i = 0; i < 3; i++) {
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-request'
+          '/variable-revalidate-edge/post-method-request'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -544,6 +544,10 @@ createNextDescribe(
         const dataBody2 = $('#data-body2').text()
         const dataBody3 = $('#data-body3').text()
         const dataBody4 = $('#data-body4').text()
+
+        expect(dataBody1).not.toBe(dataBody2)
+        expect(dataBody2).not.toBe(dataBody3)
+        expect(dataBody3).not.toBe(dataBody4)
 
         const res2 = await fetchViaHTTP(
           next.url,

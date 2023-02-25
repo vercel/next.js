@@ -98,6 +98,16 @@ export function patchFetch({
       }
 
       let cacheKey: string | undefined
+      if (
+        staticGenerationStore.incrementalCache &&
+        typeof revalidate === 'number' &&
+        revalidate > 0
+      ) {
+        cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+          isRequestInput ? (input as Request).url : input.toString(),
+          isRequestInput ? (input as RequestInit) : init
+        )
+      }
 
       const doOriginalFetch = async () => {
         return originFetch(input, init).then(async (res) => {
@@ -144,15 +154,7 @@ export function patchFetch({
         })
       }
 
-      if (
-        staticGenerationStore.incrementalCache &&
-        typeof revalidate === 'number' &&
-        revalidate > 0
-      ) {
-        cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-          isRequestInput ? (input as Request).url : input.toString(),
-          isRequestInput ? (input as RequestInit) : init
-        )
+      if (cacheKey && staticGenerationStore?.incrementalCache) {
         const entry = await staticGenerationStore.incrementalCache.get(
           cacheKey,
           true

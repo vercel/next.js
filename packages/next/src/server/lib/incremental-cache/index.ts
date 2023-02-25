@@ -9,6 +9,7 @@ import {
   IncrementalCacheEntry,
 } from '../../response-cache'
 import { encode } from '../../../shared/lib/bloom-filter/base64-arraybuffer'
+import { encodeText } from '../../node-web-streams-helper'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
@@ -157,9 +158,7 @@ export class IncrementalCache {
           const readableBody = init.body as ReadableStream
           const [origBody, newBody] = readableBody.tee()
           init.body = origBody
-
           const reader = newBody.getReader()
-
           function processValue({
             done,
             value,
@@ -182,8 +181,8 @@ export class IncrementalCache {
             return reader.read().then(processValue)
           }
           await reader.read().then(processValue)
-          // handle FormData or URLSearchParams bodies
-        } else if (typeof (init.body as any).keys === 'function') {
+        } // handle FormData or URLSearchParams bodies
+        else if (typeof (init.body as any).keys === 'function') {
           const formData = init.body as FormData
           for (const key of new Set([...formData.keys()])) {
             const values = formData.getAll(key)
@@ -210,6 +209,7 @@ export class IncrementalCache {
         } else if (typeof init.body === 'string') {
           bodyChunks.push(init.body)
         }
+        // TODO: handle ReadableStream body?
       }
     } catch (err) {
       console.error(err)
@@ -237,7 +237,7 @@ export class IncrementalCache {
           .call(new Uint8Array(buffer), (b) => b.toString(16).padStart(2, '0'))
           .join('')
       }
-      const buffer = new TextEncoder().encode(cacheString)
+      const buffer = encodeText(cacheString)
       cacheKey = bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
     } else {
       const crypto = require('crypto') as typeof import('crypto')
