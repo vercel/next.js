@@ -61,10 +61,14 @@ export function patchFetch({
       const hasUnCacheableHeader =
         initHeaders.get('authorization') || initHeaders.get('cookie')
 
+      const isUnCacheableMethod = !['get', 'head'].includes(
+        init?.method?.toLowerCase() || 'get'
+      )
+
       if (typeof revalidate === 'undefined') {
         // if there are uncacheable headers and the cache value
         // wasn't overridden then we must bail static generation
-        if (hasUnCacheableHeader) {
+        if (hasUnCacheableHeader || isUnCacheableMethod) {
           revalidate = 0
         } else {
           revalidate =
@@ -98,11 +102,9 @@ export function patchFetch({
             let base64Body = ''
 
             if (process.env.NEXT_RUNTIME === 'edge') {
-              let string = ''
-              new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
-                string += String.fromCharCode(byte)
-              })
-              base64Body = btoa(string)
+              const { encode } =
+                require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
+              base64Body = encode(await clonedRes.arrayBuffer())
             } else {
               base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
                 'base64'
@@ -137,7 +139,9 @@ export function patchFetch({
         revalidate > 0
       ) {
         cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-          input.toString(),
+          input && typeof input === 'object'
+            ? (input as Request).url
+            : input.toString(),
           init
         )
         const entry = await staticGenerationStore.incrementalCache.get(
@@ -159,13 +163,14 @@ export function patchFetch({
             }
 
             const resData = entry.value.data
-            let decodedBody = ''
+            let decodedBody: ArrayBuffer
 
-            // TODO: handle non-text response bodies
             if (process.env.NEXT_RUNTIME === 'edge') {
-              decodedBody = atob(resData.body)
+              const { decode } =
+                require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
+              decodedBody = decode(resData.body)
             } else {
-              decodedBody = Buffer.from(resData.body, 'base64').toString()
+              decodedBody = Buffer.from(resData.body, 'base64').subarray()
             }
 
             return new Response(decodedBody, {
