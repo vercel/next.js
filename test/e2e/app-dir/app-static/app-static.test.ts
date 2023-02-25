@@ -84,6 +84,8 @@ createNextDescribe(
           'static-to-dynamic-error/[id]/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
+          'variable-revalidate-edge/post-method-cached/page.js',
+          'variable-revalidate-edge/post-method-request/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
           'variable-revalidate/authorization-cached.html',
           'variable-revalidate/authorization-cached.rsc',
@@ -222,7 +224,7 @@ createNextDescribe(
           },
           '/variable-revalidate/post-method-cached': {
             dataRoute: '/variable-revalidate/post-method-cached.rsc',
-            initialRevalidateSeconds: 3,
+            initialRevalidateSeconds: 10,
             srcRoute: '/variable-revalidate/post-method-cached',
           },
           '/variable-revalidate/revalidate-3': {
@@ -500,6 +502,104 @@ createNextDescribe(
 
         expect($2('#page-data').text()).not.toBe(pageData)
       }
+    })
+
+    it('should not cache correctly with POST method request init', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate-edge/post-method-request'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/post-method-request'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
+    it('should cache correctly with post method and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+        const dataBody1 = $('#data-body1').text()
+        const dataBody2 = $('#data-body2').text()
+        const dataBody3 = $('#data-body3').text()
+        const dataBody4 = $('#data-body4').text()
+
+        expect(dataBody1).not.toBe(dataBody2)
+        expect(dataBody2).not.toBe(dataBody3)
+        expect(dataBody3).not.toBe(dataBody4)
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#data-body1').text()).toBe(dataBody1)
+        expect($2('#data-body2').text()).toBe(dataBody2)
+        expect($2('#data-body3').text()).toBe(dataBody3)
+        expect($2('#data-body4').text()).toBe(dataBody4)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with post method and revalidate edge', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/post-method-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+        const dataBody1 = $('#data-body1').text()
+        const dataBody2 = $('#data-body2').text()
+        const dataBody3 = $('#data-body3').text()
+        const dataBody4 = $('#data-body4').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/post-method-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#data-body1').text()).toBe(dataBody1)
+        expect($2('#data-body2').text()).toBe(dataBody2)
+        expect($2('#data-body3').text()).toBe(dataBody3)
+        expect($2('#data-body4').text()).toBe(dataBody4)
+        return 'success'
+      }, 'success')
     })
 
     it('should cache correctly with POST method and revalidate', async () => {

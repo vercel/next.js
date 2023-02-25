@@ -28,6 +28,7 @@ export function getRender({
   serverComponentManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
+  serverActionsManifest,
   config,
   buildId,
   fontLoaderManifest,
@@ -48,6 +49,7 @@ export function getRender({
   subresourceIntegrityManifest?: Record<string, string>
   serverComponentManifest: any
   serverCSSManifest: any
+  serverActionsManifest: any
   appServerMod: any
   config: NextConfigComplete
   buildId: string
@@ -79,6 +81,7 @@ export function getRender({
         disableOptimizedLoading: true,
         serverComponentManifest,
         serverCSSManifest,
+        serverActionsManifest,
       },
       appRenderToHTML,
       pagesRenderToHTML,
