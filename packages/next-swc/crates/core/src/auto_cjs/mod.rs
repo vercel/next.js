@@ -21,10 +21,9 @@ impl Visit for CjsFinder {
         if let Expr::Ident(obj) = &*e.obj {
             if let MemberProp::Ident(prop) = &e.prop {
                 // Detect `module.exports` and `exports.__esModule`
-                if &*obj.sym == "module" && &*prop.sym == "exports" {
-                    self.found = true;
-                    return;
-                } else if &*obj.sym == "exports" && &*prop.sym == "__esModule" {
+                if (&*obj.sym == "module" && &*prop.sym == "exports")
+                    || (&*obj.sym == "exports" && &*prop.sym == "__esModule")
+                {
                     self.found = true;
                     return;
                 }
