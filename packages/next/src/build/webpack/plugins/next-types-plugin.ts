@@ -140,7 +140,9 @@ function createRouteDefinitions() {
     routeTypes += ` | ${route}\n`
   })
 
-  return `declare module 'next' {
+  return `import 'next'
+  
+  declare module 'next' {
   export * from 'next/types/index.d.ts';
   type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 
