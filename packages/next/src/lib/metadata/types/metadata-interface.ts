@@ -223,7 +223,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    *
-   * [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }]
+   * [{ rel: "icon", url: "https://example.com/icon.png" }, { rel: "apple-touch-icon", url: "https://example.com/apple-icon.png" }]
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    * ```
