@@ -68,6 +68,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
   TRACE_OUTPUT_VERSION,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -131,6 +132,7 @@ import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { createClientRouterFilter } from '../lib/create-router-client-filter'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -840,6 +842,18 @@ export default async function build(
         ...rewrites.fallback,
       ]
 
+      if (config.experimental.clientRouterFilter) {
+        const nonInternalRedirects = (config._originalRedirects || []).filter(
+          (r: any) => !r.internal
+        )
+        const clientRouterFilters = createClientRouterFilter(
+          appPageKeys,
+          nonInternalRedirects
+        )
+
+        NextBuildContext.clientRouterFilters = clientRouterFilters
+      }
+
       const distDirCreated = await nextBuildSpan
         .traceChild('create-dist-dir')
         .traceAsyncFn(async () => {
@@ -883,6 +897,9 @@ export default async function build(
           )
         )
 
+      const outputFileTracingRoot =
+        config.experimental.outputFileTracingRoot || dir
+
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
       const requiredServerFiles = nextBuildSpan
@@ -900,9 +917,17 @@ export default async function build(
             experimental: {
               ...config.experimental,
               trustHostHeader: ciEnvironment.hasNextSupport,
+              incrementalCacheHandlerPath: config.experimental
+                .incrementalCacheHandlerPath
+                ? path.relative(
+                    distDir,
+                    config.experimental.incrementalCacheHandlerPath
+                  )
+                : undefined,
             },
           },
           appDir: dir,
+          relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
             path.relative(distDir, manifestPath),
@@ -946,6 +971,14 @@ export default async function build(
                     SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.json'
                   ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.js'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.json'
+                  ),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
@@ -956,6 +989,18 @@ export default async function build(
             appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
             path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
             path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+            ...(hasInstrumentationHook
+              ? [
+                  path.join(
+                    SERVER_DIRECTORY,
+                    `${INSTRUMENTATION_HOOK_FILENAME}.js`
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+                  ),
+                ]
+              : []),
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),
@@ -1422,24 +1467,41 @@ export default async function build(
                           ssgPageRoutes = workerResult.prerenderRoutes
                           isSsg = true
                         }
-                        if (
-                          (!isDynamicRoute(page) ||
-                            !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0
-                        ) {
-                          appStaticPaths.set(originalAppPath, [page])
-                          appStaticPathsEncoded.set(originalAppPath, [page])
-                          isStatic = true
+
+                        const appConfig = workerResult.appConfig || {}
+                        if (workerResult.appConfig?.revalidate !== 0) {
+                          const isDynamic = isDynamicRoute(page)
+                          const hasGenerateStaticParams =
+                            !!workerResult.prerenderRoutes?.length
+
+                          if (
+                            // Mark the app as static if:
+                            // - It has no dynamic param
+                            // - It doesn't have generateStaticParams but `dynamic` is set to
+                            //   `error` or `force-static`
+                            !isDynamic
+                          ) {
+                            appStaticPaths.set(originalAppPath, [page])
+                            appStaticPathsEncoded.set(originalAppPath, [page])
+                            isStatic = true
+                          } else if (
+                            isDynamic &&
+                            !hasGenerateStaticParams &&
+                            (appConfig.dynamic === 'error' ||
+                              appConfig.dynamic === 'force-static')
+                          ) {
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
+                            isStatic = true
+                          }
                         }
+
                         if (workerResult.prerenderFallback) {
                           // whether or not to allow requests for paths not
                           // returned from generateStaticParams
                           appDynamicParamPaths.add(originalAppPath)
                         }
-                        appDefaultConfigs.set(
-                          originalAppPath,
-                          workerResult.appConfig || {}
-                        )
+                        appDefaultConfigs.set(originalAppPath, appConfig)
                       }
                     } else {
                       if (isEdgeRuntime(pageRuntime)) {
@@ -1838,7 +1900,13 @@ export default async function build(
               'cache/next-server.js.nft.json'
             )
 
-            if (lockFiles.length > 0) {
+            if (
+              lockFiles.length > 0 &&
+              // we can't leverage trace cache if this is configured
+              // currently unless we break this to a separate trace
+              // file
+              !config.experimental.incrementalCacheHandlerPath
+            ) {
               const cacheHash = (
                 require('crypto') as typeof import('crypto')
               ).createHash('sha256')
@@ -1871,8 +1939,8 @@ export default async function build(
 
             const root =
               config.experimental?.turbotrace?.contextDirectory ??
-              config.experimental?.outputFileTracingRoot ??
-              dir
+              outputFileTracingRoot
+
             const nextServerEntry = require.resolve(
               'next/dist/server/next-server'
             )
@@ -2116,9 +2184,6 @@ export default async function build(
           'utf8'
         )
       )
-
-      const outputFileTracingRoot =
-        config.experimental.outputFileTracingRoot || dir
 
       if (config.output === 'standalone') {
         await nextBuildSpan

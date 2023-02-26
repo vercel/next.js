@@ -84,6 +84,7 @@ interface ExportPageInput {
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
+  incrementalCacheHandlerPath?: string
 }
 
 interface ExportPageResults {
@@ -141,6 +142,7 @@ export default async function exportPage({
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
+  incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -329,6 +331,13 @@ export default async function exportPage({
       // only fully static paths are fully generated here
       if (isAppDir) {
         if (fetchCache) {
+          let CacheHandler: any
+
+          if (incrementalCacheHandlerPath) {
+            CacheHandler = require(incrementalCacheHandlerPath)
+            CacheHandler = CacheHandler.default || CacheHandler
+          }
+
           curRenderOpts.incrementalCache = new IncrementalCache({
             dev: false,
             requestHeaders: {},
@@ -353,6 +362,7 @@ export default async function exportPage({
               stat: (f) => fs.promises.stat(f),
             },
             serverDistDir: join(distDir, 'server'),
+            CurCacheHandler: CacheHandler,
           })
         }
 
@@ -406,8 +416,8 @@ export default async function exportPage({
             if (isValidStatus) {
               const body = await response.blob()
               const revalidate =
-                (staticContext as any as { revalidate?: number }).revalidate ||
-                false
+                ((staticContext as any).store as any as { revalidate?: number })
+                  .revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
               const headers = Object.fromEntries(response.headers)

@@ -56,6 +56,8 @@ import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { patchFetch } from './lib/patch-fetch'
+import { AppRenderSpan } from './lib/trace/constants'
+import { getTracer } from './lib/trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -636,7 +638,8 @@ function getPreloadedFontFilesInlineLinkTags(
   serverCSSManifest: FlightCSSManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
-  filePath?: string
+  filePath: string | undefined,
+  injectedFontPreloadTags: Set<string>
 ): string[] | null {
   if (!fontLoaderManifest || !filePath) {
     return null
@@ -650,7 +653,6 @@ function getPreloadedFontFilesInlineLinkTags(
   }
 
   const fontFiles = new Set<string>()
-  // If we find an entry in the manifest but it's empty, add a preconnect tag
   let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
@@ -660,13 +662,21 @@ function getPreloadedFontFilesInlineLinkTags(
       if (preloadedFontFiles) {
         foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
-          fontFiles.add(fontFile)
+          if (!injectedFontPreloadTags.has(fontFile)) {
+            fontFiles.add(fontFile)
+            injectedFontPreloadTags.add(fontFile)
+          }
         }
       }
     }
   }
 
-  if (!foundFontUsage) {
+  // If we find an entry in the manifest but it's empty, add a preconnect tag by returning null.
+  // Only render a preconnect tag if we previously didn't preload any fonts.
+  if (
+    !foundFontUsage ||
+    (fontFiles.size === 0 && injectedFontPreloadTags.size > 0)
+  ) {
     return null
   }
 
@@ -725,9 +735,11 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
-  await renderStream.allReady
-  return streamToString(renderStream)
+  return getTracer().trace(AppRenderSpan.renderToString, async () => {
+    const renderStream = await ReactDOMServer.renderToReadableStream(element)
+    await renderStream.allReady
+    return streamToString(renderStream)
+  })
 }
 
 export async function renderToHTMLOrFlight(
@@ -1087,6 +1099,7 @@ export async function renderToHTMLOrFlight(
       firstItem,
       rootLayoutIncluded,
       injectedCSS,
+      injectedFontPreloadTags,
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
@@ -1094,6 +1107,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded: boolean
       firstItem?: boolean
       injectedCSS: Set<string>
+      injectedFontPreloadTags: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
       const [segment, parallelRoutes, components] = tree
       const {
@@ -1118,13 +1132,17 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
+      const injectedFontPreloadTagsWithCurrentLayout = new Set(
+        injectedFontPreloadTags
+      )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
-            layoutOrPagePath
+            layoutOrPagePath,
+            injectedFontPreloadTagsWithCurrentLayout
           )
         : []
 
@@ -1326,6 +1344,7 @@ export async function renderToHTMLOrFlight(
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             })
 
             const childProp: ChildProp = {
@@ -1487,6 +1506,7 @@ export async function renderToHTMLOrFlight(
         parentRendered,
         rscPayloadHead,
         injectedCSS,
+        injectedFontPreloadTags,
         rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
@@ -1497,6 +1517,7 @@ export async function renderToHTMLOrFlight(
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
         injectedCSS: Set<string>
+        injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
@@ -1562,6 +1583,7 @@ export async function renderToHTMLOrFlight(
                       parentParams: currentParams,
                       firstItem: isFirst,
                       injectedCSS,
+                      injectedFontPreloadTags,
                       // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                       rootLayoutIncluded: rootLayoutIncluded,
                     }
@@ -1578,6 +1600,9 @@ export async function renderToHTMLOrFlight(
         // the result consistent.
         const layoutPath = layout?.[1]
         const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+        const injectedFontPreloadTagsWithCurrentLayout = new Set(
+          injectedFontPreloadTags
+        )
         if (layoutPath) {
           getCssInlinedLinkTags(
             serverComponentManifest,
@@ -1586,6 +1611,14 @@ export async function renderToHTMLOrFlight(
             serverCSSForEntries,
             injectedCSSWithCurrentLayout,
             true
+          )
+          getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layoutPath,
+            injectedFontPreloadTagsWithCurrentLayout
           )
         }
 
@@ -1609,6 +1642,7 @@ export async function renderToHTMLOrFlight(
             isFirst: false,
             rscPayloadHead,
             injectedCSS: injectedCSSWithCurrentLayout,
+            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
@@ -1645,6 +1679,7 @@ export async function renderToHTMLOrFlight(
               </>
             ),
             injectedCSS: new Set(),
+            injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
           })
         ).slice(1),
@@ -1742,6 +1777,7 @@ export async function renderToHTMLOrFlight(
           parentParams: {},
           firstItem: true,
           injectedCSS: new Set(),
+          injectedFontPreloadTags: new Set(),
           rootLayoutIncluded: false,
         })
 
@@ -1799,124 +1835,127 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    const bodyResult = async () => {
-      const polyfills = buildManifest.polyfillFiles
-        .filter(
-          (polyfill) =>
-            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+    const bodyResult = getTracer().wrap(
+      AppRenderSpan.getBodyResult,
+      async () => {
+        const polyfills = buildManifest.polyfillFiles
+          .filter(
+            (polyfill) =>
+              polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+          )
+          .map((polyfill) => ({
+            src: `${assetPrefix}/_next/${polyfill}`,
+            integrity: subresourceIntegrityManifest?.[polyfill],
+          }))
+
+        const content = (
+          <InsertedHTML>
+            <ServerComponentsRenderer />
+          </InsertedHTML>
         )
-        .map((polyfill) => ({
-          src: `${assetPrefix}/_next/${polyfill}`,
-          integrity: subresourceIntegrityManifest?.[polyfill],
-        }))
 
-      const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
-      )
+        let polyfillsFlushed = false
+        const getServerInsertedHTML = (): Promise<string> => {
+          const flushed = renderToString(
+            <>
+              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                callback()
+              )}
+              {polyfillsFlushed
+                ? null
+                : polyfills?.map((polyfill) => {
+                    return (
+                      <script
+                        key={polyfill.src}
+                        src={polyfill.src}
+                        integrity={polyfill.integrity}
+                        noModule={true}
+                        nonce={nonce}
+                      />
+                    )
+                  })}
+            </>
+          )
+          polyfillsFlushed = true
+          return flushed
+        }
 
-      let polyfillsFlushed = false
-      const getServerInsertedHTML = (): Promise<string> => {
-        const flushed = renderToString(
-          <>
-            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-              callback()
-            )}
-            {polyfillsFlushed
-              ? null
-              : polyfills?.map((polyfill) => {
-                  return (
-                    <script
-                      key={polyfill.src}
-                      src={polyfill.src}
-                      integrity={polyfill.integrity}
-                      noModule={true}
-                      nonce={nonce}
-                    />
-                  )
-                })}
-          </>
-        )
-        polyfillsFlushed = true
-        return flushed
-      }
+        try {
+          const renderStream = await renderToInitialStream({
+            ReactDOMServer,
+            element: content,
+            streamOptions: {
+              onError: htmlRendererErrorHandler,
+              nonce,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: [
+                ...(subresourceIntegrityManifest
+                  ? buildManifest.rootMainFiles.map((src) => ({
+                      src: `${assetPrefix}/_next/` + src,
+                      integrity: subresourceIntegrityManifest[src],
+                    }))
+                  : buildManifest.rootMainFiles.map(
+                      (src) => `${assetPrefix}/_next/` + src
+                    )),
+              ],
+            },
+          })
 
-      try {
-        const renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: content,
-          streamOptions: {
-            onError: htmlRendererErrorHandler,
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: [
-              ...(subresourceIntegrityManifest
+          const result = await continueFromInitialStream(renderStream, {
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML:
+              staticGenerationStore.isStaticGeneration || generateStaticHTML,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            ...validateRootLayout,
+          })
+
+          return result
+        } catch (err: any) {
+          const shouldNotIndex = isNotFoundError(err)
+          if (isNotFoundError(err)) {
+            res.statusCode = 404
+          }
+          if (isRedirectError(err)) {
+            res.statusCode = 307
+          }
+
+          const renderStream = await renderToInitialStream({
+            ReactDOMServer,
+            element: (
+              <html id="__next_error__">
+                <head>
+                  {shouldNotIndex ? (
+                    <meta name="robots" content="noindex" />
+                  ) : null}
+                </head>
+                <body></body>
+              </html>
+            ),
+            streamOptions: {
+              nonce,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
                     src: `${assetPrefix}/_next/` + src,
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
                     (src) => `${assetPrefix}/_next/` + src
-                  )),
-            ],
-          },
-        })
+                  ),
+            },
+          })
 
-        const result = await continueFromInitialStream(renderStream, {
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML:
-            staticGenerationStore.isStaticGeneration || generateStaticHTML,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
-          ...validateRootLayout,
-        })
-
-        return result
-      } catch (err: any) {
-        const shouldNotIndex = isNotFoundError(err)
-        if (isNotFoundError(err)) {
-          res.statusCode = 404
+          return await continueFromInitialStream(renderStream, {
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML: staticGenerationStore.isStaticGeneration,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            ...validateRootLayout,
+          })
         }
-        if (isRedirectError(err)) {
-          res.statusCode = 307
-        }
-
-        const renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: (
-            <html id="__next_error__">
-              <head>
-                {shouldNotIndex ? (
-                  <meta name="robots" content="noindex" />
-                ) : null}
-              </head>
-              <body></body>
-            </html>
-          ),
-          streamOptions: {
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${assetPrefix}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${assetPrefix}/_next/` + src
-                ),
-          },
-        })
-
-        return await continueFromInitialStream(renderStream, {
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: staticGenerationStore.isStaticGeneration,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
-          ...validateRootLayout,
-        })
       }
-    }
+    )
     const renderResult = new RenderResult(await bodyResult())
 
     if (staticGenerationStore.pendingRevalidates) {
