@@ -865,10 +865,15 @@ export async function renderToHTMLOrFlight(
 
     const providedSearchParams = new Proxy(query, {
       get(target, prop) {
-        staticGenerationBailout(`searchParams.${prop as string}`)
-        return (target as any)[prop]
+        const targetValue = (target as any)[prop]
+        // React adds some properties on the object when serializing for client components
+        if (typeof prop === 'string' && typeof targetValue === 'string') {
+          staticGenerationBailout(`searchParams.${prop}`)
+        }
+        return targetValue
       },
     })
+
     const searchParamsProps = { searchParams: providedSearchParams }
 
     const LayoutRouter =
