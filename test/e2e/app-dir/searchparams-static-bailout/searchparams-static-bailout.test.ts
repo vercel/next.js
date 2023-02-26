@@ -26,6 +26,13 @@ createNextDescribe(
     it('should work using browser', async () => {
       const browser = await next.browser('/?search=hello')
       expect(await browser.elementByCss('h1').text()).toBe('Parameter: hello')
+      // Check if the page is not statically generated.
+      if (isNextStart) {
+        const id = await browser.elementByCss('#nanoid').text()
+        const browser2 = await next.browser('/?search=hello')
+        const id2 = browser2.elementByCss('#nanoid').text()
+        expect(id).not.toBe(id2)
+      }
     })
   }
 )

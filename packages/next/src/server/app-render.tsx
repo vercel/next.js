@@ -867,7 +867,13 @@ export async function renderToHTMLOrFlight(
       get(target, prop) {
         const targetValue = (target as any)[prop]
         // React adds some properties on the object when serializing for client components
-        if (typeof prop === 'string' && typeof targetValue === 'string') {
+        if (
+          typeof prop === 'string' &&
+          prop !== 'toJSON' &&
+          prop !== 'toString' &&
+          prop !== '$$typeof' &&
+          prop !== 'then'
+        ) {
           staticGenerationBailout(`searchParams.${prop}`)
         }
         return targetValue
