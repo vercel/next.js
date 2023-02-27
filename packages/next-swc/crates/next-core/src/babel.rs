@@ -3,7 +3,7 @@ use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     Value,
 };
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPathVc};
 use turbopack::{
     module_options::WebpackLoadersOptionsVc, resolve_options,
     resolve_options_context::ResolveOptionsContext,
@@ -37,8 +37,8 @@ pub async fn maybe_add_babel_loader(
     let has_babel_config = {
         let mut has_babel_config = false;
         for filename in BABEL_CONFIG_FILES {
-            let metadata = project_root.join(filename).metadata().await;
-            if metadata.is_ok() {
+            let filetype = *project_root.join(filename).get_type().await?;
+            if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;
             }
@@ -48,6 +48,7 @@ pub async fn maybe_add_babel_loader(
 
     if has_babel_config {
         let mut options = (*webpack_options.await?).clone();
+        let mut has_emitted_babel_resolve_issue = false;
         for ext in [".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs"] {
             let configs = options.extension_to_loaders.get(ext);
             let has_babel_loader = match configs {
@@ -73,7 +74,9 @@ pub async fn maybe_add_babel_loader(
             };
 
             if !has_babel_loader {
-                if !*(is_babel_loader_available(project_root).await?) {
+                if !has_emitted_babel_resolve_issue
+                    && !*is_babel_loader_available(project_root).await?
+                {
                     BabelIssue {
                         path: project_root,
                         title: StringVc::cell(
@@ -88,7 +91,9 @@ pub async fn maybe_add_babel_loader(
                     }
                     .cell()
                     .as_issue()
-                    .emit()
+                    .emit();
+
+                    has_emitted_babel_resolve_issue = true;
                 }
 
                 let loader = WebpackLoaderConfigItem::LoaderName("babel-loader".to_owned());
