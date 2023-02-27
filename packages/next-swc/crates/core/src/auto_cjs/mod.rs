@@ -44,12 +44,16 @@ impl Visit for CjsFinder {
                     (&*member_expr.obj, &member_expr.prop)
                 {
                     if &*obj.sym == "Object" && &*prop.sym == "defineProperty" {
-                        if let Expr::Ident(arg1) = &*e.args[0].expr {
-                            if &*arg1.sym == "exports" {
-                                if let Expr::Lit(Lit::Str(arg2)) = &*e.args[1].expr {
-                                    if &*arg2.value == "__esModule" {
-                                        self.found = true;
-                                        return;
+                        if let Some(ExprOrSpread { expr: expr0, .. }) = e.args.get(0) {
+                            if let Expr::Ident(arg0) = &**expr0 {
+                                if &*arg0.sym == "exports" {
+                                    if let Some(ExprOrSpread { expr: expr1, .. }) = e.args.get(1) {
+                                        if let Expr::Lit(Lit::Str(arg1)) = &**expr1 {
+                                            if &*arg1.value == "__esModule" {
+                                                self.found = true;
+                                                return;
+                                            }
+                                        }
                                     }
                                 }
                             }
