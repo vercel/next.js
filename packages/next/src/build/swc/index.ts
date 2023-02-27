@@ -424,13 +424,17 @@ function loadNative(isCustomTurbopack = false) {
 
               let child = spawn(__INTERNAL_CUSTOM_TURBOPACK_BINARY, args, {
                 stdio: 'pipe',
-                env: {
-                  ...process.env,
-                },
               })
               child.on('message', (message: any) => {
-                console.log(message)
+                require('console').log(message)
               })
+              child.stdout.on('data', (data: any) => {
+                require('console').log(data.toString())
+              })
+              child.stderr.on('data', (data: any) => {
+                require('console').log(data.toString())
+              })
+
               child.on('close', (code: any) => {
                 if (code !== 0) {
                   reject({

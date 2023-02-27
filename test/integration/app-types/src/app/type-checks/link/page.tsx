@@ -14,6 +14,7 @@ export default function page() {
 
   const shouldFail = (
     <>
+      <Card href="/(newroot)/dashboard/another" />
       <Card href="/dashboard" />
       <Card href="/blog/a/b/c/d" />
       <Link href="/typing">test</Link>
@@ -23,13 +24,19 @@ export default function page() {
       <Link href="/blog/a?1/b">test</Link>
       <Link href="/blog/a#1/b">test</Link>
       <Link href="/blog/v/w/z">test</Link>
+      <Link href="/(newroot)/dashboard/another" />
       <Link href="/dashboard/">test</Link>
       <Link href={`/blog/a/${test}`}>test</Link>
+      <Link href="/rewrite-any">test</Link>
+      <Link href="/rewrite-one-or-more/">test</Link>
+      <Link href="/rewrite-param/page">test</Link>
+      <Link href="/rewrite-param/x/page1">test</Link>
     </>
   )
 
   const shouldPass = (
     <>
+      <Card href="/dashboard/another" />
       <Card href="/aaa" />
       <Card href="/blog/a/b?1" />
       <Link href="/about">test</Link>
@@ -37,6 +44,7 @@ export default function page() {
       <Link href="/aaa?q=1">test</Link>
       <Link href="/blog/a/b">test</Link>
       <Link href="/blog/v/w">test</Link>
+      <Link href="/dashboard/another" />
       <Link href="/dashboard/123">test</Link>
       <Link href="/dashboard/user">test</Link>
       <Link href="/dashboard/user/">test</Link>
@@ -45,6 +53,10 @@ export default function page() {
       <Link href={`/blog/${test}`}>test</Link>
       <Link href={('/blog/' + test) as Route}>test</Link>
       <Link href="/rewrite">test</Link>
+      <Link href="/rewrite-any/x">test</Link>
+      <Link href="/rewrite-one-or-more/x/y">test</Link>
+      <Link href="/rewrite-all/x/y/z">test</Link>
+      <Link href="/rewrite-param/x/page?1">test</Link>
       <Link href="/redirect">test</Link>
       <Link href={new URL('/about')}>test</Link>
     </>

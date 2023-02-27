@@ -3,3 +3,4 @@ export function bar() {}
 bar.$$typeof = Symbol.for("react.server.reference");
 bar.$$filepath = "/app/item.js";
 bar.$$name = "bar";
+bar.$$bound = [];

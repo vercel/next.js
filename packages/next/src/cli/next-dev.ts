@@ -202,7 +202,7 @@ const nextDev: CliCommand = async (argv) => {
       Log.warn(
         'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
           'The `@next/font` package will be removed in Next.js 14. ' +
-          `You can migrate by running \`${command} @next/codemod built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
+          `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
       )
     }
   }
@@ -461,7 +461,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
 
-    await telemetry.flush()
+    if (!isCustomTurbopack) {
+      await telemetry.flush()
+    }
     return server
   } else {
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
