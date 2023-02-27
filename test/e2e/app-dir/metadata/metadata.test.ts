@@ -126,7 +126,17 @@ createNextDescribe(
         )
         await checkMetaNameContentPair(browser, 'author', ['huozhi', 'tree'])
         await checkLink(browser, 'author', 'https://tree.com')
-        await checkMetaNameContentPair(browser, 'theme-color', 'cyan')
+
+        await checkMeta(browser, 'theme-color', 'cyan', 'name')
+        await checkMeta(
+          browser,
+          'theme-color',
+          '(prefers-color-scheme: dark)',
+          'name',
+          'meta',
+          'media'
+        )
+
         await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
         await checkMetaNameContentPair(
           browser,

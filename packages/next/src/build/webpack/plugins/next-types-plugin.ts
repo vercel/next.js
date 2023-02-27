@@ -269,8 +269,8 @@ declare namespace __next_route_internal_types__ {
 }
 
 declare module 'next' {
-  export { default } from 'next/types/index.d.ts'
-  export * from 'next/types/index.d.ts'
+  export { default } from 'next/types'
+  export * from 'next/types'
 
   export type Route<T = any> = __next_route_internal_types__.RouteImpl<T>
 }

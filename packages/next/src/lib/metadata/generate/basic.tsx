@@ -26,7 +26,16 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
       <Meta name="generator" content={metadata.generator} />
       <Meta name="keywords" content={metadata.keywords?.join(',')} />
       <Meta name="referrer" content={metadata.referrer} />
-      <Meta name="theme-color" content={metadata.themeColor} />
+      {metadata.themeColor
+        ? metadata.themeColor.map((themeColor, index) => (
+            <Meta
+              key={index}
+              name="theme-color"
+              content={themeColor.color}
+              media={themeColor.media}
+            />
+          ))
+        : null}
       <Meta name="color-scheme" content={metadata.colorScheme} />
       <Meta name="viewport" content={metadata.viewport} />
       <Meta name="creator" content={metadata.creator} />
