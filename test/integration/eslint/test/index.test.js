@@ -325,6 +325,17 @@ describe('ESLint', () => {
         expect(files).toContain('next-env.d.ts')
       })
 
+      test('should not generate next-env.d.ts without typescript config', async () => {
+        await nextLint(dirEmptyDirectory, [], {
+          stdout: true,
+          stderr: true,
+        })
+
+        const files = await fs.readdir(dirEmptyDirectory)
+
+        expect(files).not.toContain('next-env.d.ts')
+      })
+
       for (const { packageManger, lockFile } of [
         { packageManger: 'yarn', lockFile: 'yarn.lock' },
         { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
