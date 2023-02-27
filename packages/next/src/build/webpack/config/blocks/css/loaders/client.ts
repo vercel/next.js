@@ -7,7 +7,7 @@ export function getClientStyleLoader({
   assetPrefix,
 }: {
   hasAppDir: boolean
-  isAppDir: boolean
+  isAppDir?: boolean
   isDevelopment: boolean
   assetPrefix: string
 }): webpack.RuleSetUseItem {
