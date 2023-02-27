@@ -57,6 +57,7 @@ export class IncrementalCache {
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   minimalMode?: boolean
+  fetchCacheKeyPrefix?: string
 
   constructor({
     fs,
@@ -103,6 +104,7 @@ export class IncrementalCache {
     this.minimalMode = minimalMode
     this.requestHeaders = requestHeaders
     this.prerenderManifest = getPrerenderManifest()
+    this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
 
     if (CurCacheHandler) {
       this.cacheHandler = new CurCacheHandler({
@@ -148,6 +150,10 @@ export class IncrementalCache {
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
+    // this should be bumped anytime a fix is made to cache entries
+    // that should bust the cache
+    const MAIN_KEY_PREFIX = 'v1'
+
     let cacheKey: string
     const bodyChunks: string[] = []
 
@@ -216,7 +222,8 @@ export class IncrementalCache {
     }
 
     const cacheString = JSON.stringify([
-      this.fetchCacheKey || '',
+      MAIN_KEY_PREFIX,
+      this.fetchCacheKeyPrefix || '',
       url,
       init.method,
       init.headers,
