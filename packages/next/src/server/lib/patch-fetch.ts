@@ -103,10 +103,51 @@ export function patchFetch({
         typeof revalidate === 'number' &&
         revalidate > 0
       ) {
-        cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-          isRequestInput ? (input as Request).url : input.toString(),
-          isRequestInput ? (input as RequestInit) : init
-        )
+        try {
+          cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+            isRequestInput ? (input as Request).url : input.toString(),
+            isRequestInput ? (input as RequestInit) : init
+          )
+        } catch (err) {
+          console.error(`Failed to generate cache key for`, input)
+        }
+      }
+      const requestInputFields = [
+        'cache',
+        'credentials',
+        'headers',
+        'integrity',
+        'keepalive',
+        'method',
+        'mode',
+        'redirect',
+        'referrer',
+        'referrerPolicy',
+        'signal',
+        'window',
+        'duplex',
+      ]
+
+      if (isRequestInput) {
+        const reqInput: Request = input as any
+        const reqOptions: RequestInit = {
+          body: (reqInput as any)._ogBody || reqInput.body,
+        }
+
+        for (const field of requestInputFields) {
+          // @ts-expect-error custom fields
+          reqOptions[field] = reqInput[field]
+        }
+        input = new Request(reqInput.url, reqOptions)
+      } else if (init) {
+        const initialInit = init
+        init = {
+          body: (init as any)._ogBody || init.body,
+        }
+        for (const field of requestInputFields) {
+          // @ts-expect-error custom fields
+          init[field] = initialInit[field]
+        }
       }
 
       const doOriginalFetch = async () => {

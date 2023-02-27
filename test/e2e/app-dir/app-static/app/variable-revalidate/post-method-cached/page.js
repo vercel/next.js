@@ -79,6 +79,14 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
+  const dataWithBody5 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new URLSearchParams('myParam=myValue&myParam=anotherValue'),
+    }
+  ).then((res) => res.text())
+
   return (
     <>
       <p id="page">/variable-revalidate/post-method-cached</p>
@@ -87,6 +95,7 @@ export default async function Page() {
       <p id="data-body2">{dataWithBody2}</p>
       <p id="data-body3">{dataWithBody3}</p>
       <p id="data-body4">{dataWithBody4}</p>
+      <p id="data-body5">{dataWithBody5}</p>
     </>
   )
 }
