@@ -29,7 +29,7 @@ export default function Home() {
         {todos &&
           todos.map((todo) => {
             return (
-              <p className="todos-item">
+              <p className="todos-item" key={todo.id}>
                 {todo.text} {todo.done && '(complete)'}
               </p>
             )

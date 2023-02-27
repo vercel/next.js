@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.1.7-canary.21",
+  "version": "13.2.2-canary.1",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -80,13 +80,14 @@
     ]
   },
   "dependencies": {
-    "@next/env": "13.1.7-canary.21",
+    "@next/env": "13.2.2-canary.1",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
     "styled-jsx": "5.1.1"
   },
   "peerDependencies": {
+    "@opentelemetry/api": "^1.4.0",
     "fibers": ">= 3.1.0",
     "node-sass": "^6.0.0 || ^7.0.0",
     "react": "^18.2.0",
@@ -101,6 +102,9 @@
       "optional": true
     },
     "fibers": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
       "optional": true
     }
   },
@@ -131,11 +135,12 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.14.7",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.1.7-canary.21",
-    "@next/polyfill-nomodule": "13.1.7-canary.21",
-    "@next/react-dev-overlay": "13.1.7-canary.21",
-    "@next/react-refresh-utils": "13.1.7-canary.21",
-    "@next/swc": "13.1.7-canary.21",
+    "@next/polyfill-module": "13.2.2-canary.1",
+    "@next/polyfill-nomodule": "13.2.2-canary.1",
+    "@next/react-dev-overlay": "13.2.2-canary.1",
+    "@next/react-refresh-utils": "13.2.2-canary.1",
+    "@next/swc": "13.2.2-canary.1",
+    "@opentelemetry/api": "1.4.0",
     "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -153,6 +158,7 @@
     "@types/cookie": "0.3.3",
     "@types/cross-spawn": "6.0.0",
     "@types/debug": "4.1.5",
+    "@types/express-serve-static-core": "4.17.33",
     "@types/fresh": "0.5.0",
     "@types/glob": "7.1.1",
     "@types/jsonwebtoken": "9.0.0",
@@ -205,7 +211,7 @@
     "cross-spawn": "7.0.3",
     "crypto-browserify": "3.12.0",
     "css.escape": "1.5.1",
-    "cssnano-simple": "3.0.1",
+    "cssnano-preset-default": "5.2.14",
     "data-uri-to-buffer": "3.0.1",
     "debug": "4.1.1",
     "devalue": "2.0.1",

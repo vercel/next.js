@@ -20,6 +20,7 @@ import {
   resolveAppleWebApp,
   resolveAppLinks,
   resolveRobots,
+  resolveThemeColor,
   resolveVerification,
   resolveViewport,
 } from './resolvers/resolve-basics'
@@ -52,7 +53,7 @@ function mergeStaticMetadata(
         card: 'summary_large_image',
         images: twitter,
       },
-      null
+      metadata.metadataBase
     )
     metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
   }
@@ -62,7 +63,7 @@ function mergeStaticMetadata(
       {
         images: opengraph,
       },
-      null
+      metadata.metadataBase
     )
     metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
   }
@@ -81,7 +82,7 @@ function merge(
     openGraph: string | null
   }
 ) {
-  const metadataBase = source?.metadataBase || null
+  const metadataBase = source?.metadataBase || target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
@@ -135,6 +136,10 @@ function merge(
         target.robots = resolveRobots(source.robots)
         break
       }
+      case 'themeColor': {
+        target.themeColor = resolveThemeColor(source.themeColor)
+        break
+      }
       case 'archives':
       case 'assets':
       case 'bookmarks':
@@ -149,7 +154,6 @@ function merge(
       case 'applicationName':
       case 'description':
       case 'generator':
-      case 'themeColor':
       case 'creator':
       case 'publisher':
       case 'category':

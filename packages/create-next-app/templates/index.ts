@@ -88,6 +88,8 @@ export const installTemplate = async ({
     const writeSema = new Sema(8, { capacity: files.length })
     await Promise.all(
       files.map(async (file) => {
+        // We don't want to modify compiler options in [ts/js]config.json
+        if (file === 'tsconfig.json' || file === 'jsconfig.json') return
         await writeSema.acquire()
         const filePath = path.join(root, file)
         if ((await fs.promises.stat(filePath)).isFile()) {

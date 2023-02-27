@@ -284,14 +284,8 @@ export default function transformer(
         (node) => node.type === 'ImportDefaultSpecifier'
       ) as ImportDefaultSpecifier | undefined
       const tagName = defaultSpecifier?.local?.name
-
+      imageImport.node.source = j.stringLiteral('next/image')
       if (tagName) {
-        j(imageImport).replaceWith(
-          j.importDeclaration(
-            imageImport.node.specifiers,
-            j.stringLiteral('next/image')
-          )
-        )
         findAndReplaceProps(j, root, tagName)
       }
     })

@@ -334,8 +334,8 @@ export default class HotReloader {
             case 'client-hmr-latency': {
               traceChild = {
                 name: payload.event,
-                startTime: BigInt(payload.startTime * 1000 * 1000),
-                endTime: BigInt(payload.endTime * 1000 * 1000),
+                startTime: BigInt(payload.startTime) * BigInt(1000 * 1000),
+                endTime: BigInt(payload.endTime) * BigInt(1000 * 1000),
               }
               break
             }
@@ -679,9 +679,15 @@ export default class HotReloader {
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+            const pageType = entryData.bundlePath.startsWith('pages/')
+              ? 'pages'
+              : entryData.bundlePath.startsWith('app/')
+              ? 'app'
+              : 'root'
             await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
+              pageType,
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return

@@ -12,6 +12,7 @@ import type {
   Viewport,
 } from './extra-types'
 import type {
+  DeprecatedMetadataFields,
   AbsoluteTemplateString,
   Author,
   ColorSchemeEnum,
@@ -25,6 +26,7 @@ import type {
   ResolvedRobots,
   TemplateString,
   Verification,
+  ThemeColorDescriptor,
 } from './metadata-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
@@ -33,7 +35,7 @@ import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
  * Metadata interface to describe all the metadata fields that can be set in a document.
  * @interface
  */
-interface Metadata {
+interface Metadata extends DeprecatedMetadataFields {
   /**
    * The base path and origin for absolute urls for various metadata links such as OpenGraph images.
    */
@@ -130,9 +132,19 @@ interface Metadata {
    * ```tsx
    * "#000000"
    * <meta name="theme-color" content="#000000" />
+   *
+   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   *
+   * [
+   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
+   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+   * ]
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
 
   /**
    * The color scheme for the document.
@@ -218,11 +230,11 @@ interface Metadata {
    * "https://example.com/icon.png"
    * <link rel="icon" href="https://example.com/icon.png" />
    *
-   * { icon: "https://example.com/icon.png", appleIcon: "https://example.com/apple-icon.png" }
+   * { icon: "https://example.com/icon.png", apple: "https://example.com/apple-icon.png" }
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    *
-   * [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }]
+   * [{ rel: "icon", url: "https://example.com/icon.png" }, { rel: "apple-touch-icon", url: "https://example.com/apple-icon.png" }]
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    * ```
@@ -421,26 +433,10 @@ interface Metadata {
    */
   other?: {
     [name: string]: string | number | Array<string | number>
-  }
-
-  /**
-   * Deprecated options that have a preferred method.
-   * Use appWebApp to configure apple-mobile-web-app-capable which provides
-   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
-   * @deprecated
-   */
-  'apple-touch-fullscreen'?: never
-
-  /**
-   * Deprecated options that have a preferred method.
-   * Obsolete since iOS 7. use icons.apple or "app-touch-icon" instead
-   * @see https://web.dev/apple-touch-icon/
-   * @deprecated
-   */
-  'apple-touch-icon-precomposed'?: never
+  } & DeprecatedMetadataFields
 }
 
-interface ResolvedMetadata {
+interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: null | URL
@@ -459,7 +455,7 @@ interface ResolvedMetadata {
   // if you provide an array it will be flattened into a single tag with comma separation
   keywords: null | Array<string>
   referrer: null | ReferrerEnum
-  themeColor: null | string
+  themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
   viewport: null | string
   creator: null | string
@@ -515,20 +511,11 @@ interface ResolvedMetadata {
   classification: null | string
 
   // Arbitrary name/value pairs
-  other: null | {
-    [name: string]: string | number | Array<string | number>
-  }
-
-  /**
-   *  Deprecated options that have a preferred method
-   * */
-  // Use appWebApp to configure apple-mobile-web-app-capable which provides
-  // https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
-  'apple-touch-fullscreen'?: never
-
-  // Obsolete since iOS 7. use icons.apple or "app-touch-icon" instead
-  // https://web.dev/apple-touch-icon/
-  'apple-touch-icon-precomposed'?: never
+  other:
+    | null
+    | ({
+        [name: string]: string | number | Array<string | number>
+      } & DeprecatedMetadataFields)
 }
 
 export type ResolvingMetadata = Promise<ResolvedMetadata>

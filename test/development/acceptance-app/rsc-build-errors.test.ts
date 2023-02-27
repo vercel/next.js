@@ -46,26 +46,31 @@ createNextDescribe(
 
       const pageFile = 'app/client-with-errors/metadata-export/page.js'
       const content = await next.readFile(pageFile)
+
+      // Add `metadata` error
       let uncomment = content.replace(
         '// export const metadata',
         'export const metadata'
       )
       await session.patch(pageFile, uncomment)
-
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        '"metadata" is not supported in app/'
+        'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
       )
 
+      // Restore file
+      await session.patch(pageFile, content)
+      expect(await session.hasRedbox(false)).toBe(false)
+
+      // Add `generateMetadata` error
       uncomment = content.replace(
         '// export async function generateMetadata',
         'export async function generateMetadata'
       )
       await session.patch(pageFile, uncomment)
-
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        '"generateMetadata" is not supported in app/'
+        'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
       )
 
       await cleanup()
@@ -88,7 +93,7 @@ createNextDescribe(
       await session.patch(pageFile, uncomment)
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        'export generateMetadata and metadata together'
+        '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
       )
 
       await cleanup()

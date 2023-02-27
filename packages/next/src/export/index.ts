@@ -30,6 +30,7 @@ import {
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -443,13 +444,19 @@ export default async function exportApp(
       renderOpts.serverComponentManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
-        `${CLIENT_REFERENCE_MANIFEST}.json`
+        CLIENT_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
       // @ts-expect-error untyped
       renderOpts.serverCSSManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
         FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverActionsManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        SERVER_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
     }
 
@@ -481,7 +488,9 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) => !isAPIRoute(exportPathMap[route].page)
+      (route) =>
+        (exportPathMap[route] as any)._isAppDir ||
+        !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -649,6 +658,10 @@ export default async function exportApp(
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
+            isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+            fetchCache: nextConfig.experimental.appDir,
+            incrementalCacheHandlerPath:
+              nextConfig.experimental.incrementalCacheHandlerPath,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -669,6 +682,11 @@ export default async function exportApp(
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
               configuration.initialPageRevalidationMap[path] =
                 result.fromBuildExportRevalidate
+            }
+
+            if (typeof result.fromBuildExportMeta !== 'undefined') {
+              configuration.initialPageMetaMap[path] =
+                result.fromBuildExportMeta
             }
 
             if (result.ssgNotFound === true) {

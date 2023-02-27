@@ -75,10 +75,37 @@ async function getSourceFrame(
   }
 }
 
+function getFormattedFileName(
+  fileName: string,
+  module: any,
+  lineNumber?: string,
+  column?: string
+): string {
+  if (
+    module.loaders?.find((loader: any) =>
+      /next-font-loader[/\\]index.js/.test(loader.loader)
+    )
+  ) {
+    // Parse the query and get the path of the file where the font function was called.
+    // provided by next-swc next_font_loaders
+    return JSON.parse(module.resourceResolveData.query.slice(1)).path
+  } else {
+    let formattedFileName: string = chalk.cyan(fileName)
+    if (lineNumber && column) {
+      formattedFileName += `:${chalk.yellow(lineNumber)}:${chalk.yellow(
+        column
+      )}`
+    }
+
+    return formattedFileName
+  }
+}
+
 export async function getNotFoundError(
   compilation: webpack.Compilation,
   input: any,
-  fileName: string
+  fileName: string,
+  module: any
 ) {
   if (
     input.name !== 'ModuleNotFoundError' &&
@@ -128,12 +155,12 @@ export async function getNotFoundError(
       '\nhttps://nextjs.org/docs/messages/module-not-found\n' +
       importTrace()
 
-    let formattedFileName: string = chalk.cyan(fileName)
-    if (lineNumber && column) {
-      formattedFileName += `:${chalk.yellow(lineNumber)}:${chalk.yellow(
-        column
-      )}`
-    }
+    const formattedFileName = getFormattedFileName(
+      fileName,
+      module,
+      lineNumber,
+      column
+    )
 
     return new SimpleWebpackError(formattedFileName, message)
   } catch (err) {
