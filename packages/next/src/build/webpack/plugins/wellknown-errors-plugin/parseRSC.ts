@@ -16,6 +16,10 @@ function formatRSCErrorMessage(
   const NEXT_RSC_ERR_REACT_API = /.+NEXT_RSC_ERR_REACT_API: (.*?)\n/s
   const NEXT_RSC_ERR_SERVER_IMPORT = /.+NEXT_RSC_ERR_SERVER_IMPORT: (.*?)\n/s
   const NEXT_RSC_ERR_CLIENT_IMPORT = /.+NEXT_RSC_ERR_CLIENT_IMPORT: (.*?)\n/s
+  const NEXT_RSC_ERR_CLIENT_METADATA_EXPORT =
+    /.+NEXT_RSC_ERR_CLIENT_METADATA_EXPORT: (.*?)\n/s
+  const NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT =
+    /NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT/s
   const NEXT_RSC_ERR_CLIENT_DIRECTIVE = /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE\n/s
   const NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN =
     /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN\n/s
@@ -93,6 +97,20 @@ function formatRSCErrorMessage(
       `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\n\n`
     )
     formattedVerboseMessage = '\n\nImport path:\n'
+  } else if (NEXT_RSC_ERR_CLIENT_METADATA_EXPORT.test(message)) {
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_CLIENT_METADATA_EXPORT,
+      `\n\nYou are attempting to export "$1" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
+    )
+
+    formattedVerboseMessage = '\n\nFile path:\n'
+  } else if (NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT.test(message)) {
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_CONFLICT_METADATA_EXPORT,
+      `\n\n"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them. Read more: https://beta.nextjs.org/docs/api-reference/metadata\n\n`
+    )
+
+    formattedVerboseMessage = '\n\nFile path:\n'
   }
 
   return [formattedMessage, formattedVerboseMessage]

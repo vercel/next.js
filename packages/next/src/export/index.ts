@@ -30,6 +30,7 @@ import {
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -443,13 +444,19 @@ export default async function exportApp(
       renderOpts.serverComponentManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
-        `${CLIENT_REFERENCE_MANIFEST}.json`
+        CLIENT_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
       // @ts-expect-error untyped
       renderOpts.serverCSSManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
         FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverActionsManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        SERVER_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
     }
 
