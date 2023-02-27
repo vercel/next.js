@@ -30,7 +30,6 @@ lazy_static = "1.4.0"
 mime = "0.3.16"
 next-core = { path = "../next-core" }
 next-dev = { path = "../next-dev" }
-once_cell = "1.13.0"
 owo-colors = "3"
 parking_lot = "0.12.1"
 rand = "0.8.5"
@@ -53,6 +52,7 @@ turbopack-cli-utils = { path = "../turbopack-cli-utils" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-dev-server = { path = "../turbopack-dev-server" }
 turbopack-node = { path = "../turbopack-node" }
+turbopack-test-utils = { path = "../turbopack-test-utils" }
 url = "2.2.2"
 webbrowser = "0.7.1"
 

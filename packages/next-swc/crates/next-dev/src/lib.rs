@@ -247,12 +247,12 @@ async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
         .strongly_consistent()
         .await?;
 
-    issue_reporter.report_issues(
+    let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues.clone()),
         TransientValue::new(source.into()),
     );
 
-    if issues.has_fatal().await? {
+    if *has_fatal.await? {
         Err(anyhow!("Fatal issue(s) occurred"))
     } else {
         Ok(())
