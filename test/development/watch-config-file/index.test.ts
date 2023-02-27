@@ -53,6 +53,6 @@ describe('watch-config-file', () => {
       /Found a change in next\.config\.js\. Restarting the server to apply changes\./
     )
 
-    await check(() => next.fetch('/about').then((res) => res.status), '200')
+    await check(() => next.fetch('/about').then((res) => res.status), 200)
   })
 })
