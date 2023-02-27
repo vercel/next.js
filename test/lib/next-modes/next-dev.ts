@@ -84,7 +84,6 @@ export class NextDevInstance extends NextInstance {
               .pop()
               .trim()
               .split(require('os').EOL)[0]
-            console.log('found new url', this._url)
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
