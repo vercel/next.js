@@ -349,21 +349,22 @@ createNextDescribe(
       })
 
       it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        await next.render('/dashboard')
         const browser = await next.browser('/link-to-rewritten-path')
 
         try {
           // Click the link.
           await browser.elementById('link-to-rewritten-path').click()
-          await browser.waitForElementByCss('#from-dashboard', 5000)
+          await browser.waitForElementByCss('#from-dashboard')
 
           // Check to see that we were rewritten and not redirected.
           // TODO-APP: rewrite url is broken
           // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
 
           // Check to see that the page we navigated to is in fact the dashboard.
-          expect(
-            await browser.elementByCss('#from-dashboard', 5000).text()
-          ).toBe('hello from app/dashboard')
+          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+            'hello from app/dashboard'
+          )
         } finally {
           await browser.close()
         }
