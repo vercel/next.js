@@ -27,7 +27,9 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <Link href="/about">
+    <Link href="/about">To About</Link>
+    // or
+    <Link href="/about" legacyBehavior>
       <a>To About</a>
     </Link>
   )
