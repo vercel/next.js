@@ -624,7 +624,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         ?.instrumentationHook
         ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
         : []
-
       const wp = new Watchpack({
         ignored: (entry: string) => {
           return (
