@@ -269,7 +269,10 @@ export const css = curry(async function css(
               issuerLayer: APP_LAYER_RULE,
               use: [
                 require.resolve('../../../loaders/next-flight-css-loader'),
-                ...getCssModuleLoader(ctx, true, lazyPostCSSInitializer),
+                ...getCssModuleLoader(
+                  { ...ctx, isAppDir: true },
+                  lazyPostCSSInitializer
+                ),
               ],
             })
           : null,
@@ -277,7 +280,10 @@ export const css = curry(async function css(
           sideEffects: false,
           test: regexCssModules,
           issuerLayer: PAGES_LAYER_RULE,
-          use: getCssModuleLoader(ctx, false, lazyPostCSSInitializer),
+          use: getCssModuleLoader(
+            { ...ctx, isAppDir: false },
+            lazyPostCSSInitializer
+          ),
         }),
       ].filter(nonNullable),
     }),
@@ -297,8 +303,7 @@ export const css = curry(async function css(
               use: [
                 require.resolve('../../../loaders/next-flight-css-loader'),
                 ...getCssModuleLoader(
-                  ctx,
-                  true,
+                  { ...ctx, isAppDir: true },
                   lazyPostCSSInitializer,
                   sassPreprocessors
                 ),
@@ -310,8 +315,7 @@ export const css = curry(async function css(
           test: regexSassModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
-            ctx,
-            false,
+            { ...ctx, isAppDir: false },
             lazyPostCSSInitializer,
             sassPreprocessors
           ),
@@ -396,7 +400,10 @@ export const css = curry(async function css(
                   issuerLayer: APP_LAYER_RULE,
                   use: [
                     require.resolve('../../../loaders/next-flight-css-loader'),
-                    ...getGlobalCssLoader(ctx, true, lazyPostCSSInitializer),
+                    ...getGlobalCssLoader(
+                      { ...ctx, isAppDir: true },
+                      lazyPostCSSInitializer
+                    ),
                   ],
                 }),
                 markRemovable({
@@ -406,8 +413,7 @@ export const css = curry(async function css(
                   use: [
                     require.resolve('../../../loaders/next-flight-css-loader'),
                     ...getGlobalCssLoader(
-                      ctx,
-                      true,
+                      { ...ctx, isAppDir: true },
                       lazyPostCSSInitializer,
                       sassPreprocessors
                     ),
@@ -421,7 +427,10 @@ export const css = curry(async function css(
             include: allowedPagesGlobalCSSPath,
             issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
-            use: getGlobalCssLoader(ctx, false, lazyPostCSSInitializer),
+            use: getGlobalCssLoader(
+              { ...ctx, isAppDir: false },
+              lazyPostCSSInitializer
+            ),
           }),
           markRemovable({
             sideEffects: true,
@@ -430,8 +439,7 @@ export const css = curry(async function css(
             issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
             use: getGlobalCssLoader(
-              ctx,
-              false,
+              { ...ctx, isAppDir: false },
               lazyPostCSSInitializer,
               sassPreprocessors
             ),
@@ -448,7 +456,10 @@ export const css = curry(async function css(
               sideEffects: true,
               test: regexCssGlobal,
               issuer: { and: [ctx.customAppFile] },
-              use: getGlobalCssLoader(ctx, false, lazyPostCSSInitializer),
+              use: getGlobalCssLoader(
+                { ...ctx, isAppDir: false },
+                lazyPostCSSInitializer
+              ),
             }),
           ],
         }),
@@ -459,8 +470,7 @@ export const css = curry(async function css(
               test: regexSassGlobal,
               issuer: { and: [ctx.customAppFile] },
               use: getGlobalCssLoader(
-                ctx,
-                false,
+                { ...ctx, isAppDir: false },
                 lazyPostCSSInitializer,
                 sassPreprocessors
               ),
