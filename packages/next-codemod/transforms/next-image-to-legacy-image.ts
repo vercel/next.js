@@ -38,12 +38,7 @@ export default function transformer(
       source: { value: 'next/future/image' },
     })
     .forEach((imageFutureImport) => {
-      j(imageFutureImport).replaceWith(
-        j.importDeclaration(
-          imageFutureImport.node.specifiers,
-          j.stringLiteral('next/image')
-        )
-      )
+      imageFutureImport.node.source = j.stringLiteral('next/image')
     })
 
   // Before: const Image = await import("next/future/image")
