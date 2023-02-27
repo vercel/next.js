@@ -425,7 +425,7 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
-          "title": "@next/font",
+          "title": "next/font",
           "path": "/docs/api-reference/next/font.md"
         },
         {
