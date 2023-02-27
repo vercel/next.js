@@ -228,6 +228,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
+    serverActionsManifest?: any
     fontLoaderManifest?: FontLoaderManifest
     renderServerComponentData?: boolean
     serverComponentProps?: any
@@ -1469,7 +1470,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 headers,
               },
               revalidate:
-                (context as any as { revalidate?: number }).revalidate || false,
+                ((context as any).store as any as { revalidate?: number })
+                  .revalidate || false,
             }
             return cacheEntry
           }

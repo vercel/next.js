@@ -30,7 +30,10 @@ export function createClientRouterFilter(
         }
         subPath = `${subPath}/${curPart}`
       }
-      dynamicPaths.add(subPath)
+
+      if (subPath) {
+        dynamicPaths.add(subPath)
+      }
     } else {
       staticPaths.add(path)
     }
@@ -53,7 +56,11 @@ export function createClientRouterFilter(
         subPath = `${subPath}/${curPart}`
       }
 
-      dynamicPaths.add(subPath)
+      // if redirect has matcher at top-level we don't include this
+      // as it would match everything
+      if (subPath) {
+        dynamicPaths.add(subPath)
+      }
     } else {
       staticPaths.add(path)
     }

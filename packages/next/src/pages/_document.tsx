@@ -41,6 +41,9 @@ type HeadHTMLProps = React.DetailedHTMLProps<
 
 type HeadProps = OriginProps & HeadHTMLProps
 
+/** Set of pages that have triggered a large data warning on production mode. */
+const largePageDataWarnings = new Set<string>()
+
 function getDocumentFiles(
   buildManifest: BuildManifest,
   pathname: string,
@@ -998,6 +1001,11 @@ export class NextScript extends React.Component<OriginProps> {
     const { __NEXT_DATA__, largePageDataBytes } = context
     try {
       const data = JSON.stringify(__NEXT_DATA__)
+
+      if (largePageDataWarnings.has(__NEXT_DATA__.page)) {
+        return htmlEscapeJsonString(data)
+      }
+
       const bytes =
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
@@ -1005,6 +1013,10 @@ export class NextScript extends React.Component<OriginProps> {
       const prettyBytes = require('../lib/pretty-bytes').default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
+        if (process.env.NODE_ENV === 'production') {
+          largePageDataWarnings.add(__NEXT_DATA__.page)
+        }
+
         console.warn(
           `Warning: data for page "${__NEXT_DATA__.page}"${
             __NEXT_DATA__.page === context.dangerousAsPath
