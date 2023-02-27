@@ -4,15 +4,18 @@ export function Meta({
   name,
   property,
   content,
+  media,
 }: {
   name?: string
   property?: string
+  media?: string
   content: string | number | URL | null | undefined
 }): React.ReactElement | null {
   if (typeof content !== 'undefined' && content !== null && content !== '') {
     return (
       <meta
         {...(name ? { name } : { property })}
+        {...(media ? { media } : undefined)}
         content={typeof content === 'string' ? content : content.toString()}
       />
     )
