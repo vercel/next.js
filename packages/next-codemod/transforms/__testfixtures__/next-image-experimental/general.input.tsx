@@ -1,5 +1,9 @@
+// @ts-nocheck
+/* eslint-disable */
 import Image from "next/legacy/image";
 import Named, { Blarg } from "next/legacy/image";
+import type { ImageProps } from "next/legacy/image";
+import { type ImageLoaderProps } from "next/legacy/image";
 import Foo from "foo";
 import img from "../public/img.jpg";
 
