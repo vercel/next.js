@@ -8,6 +8,12 @@ export function staticGenerationBailout(reason: string): boolean | never {
     return true
   }
 
+  if (staticGenerationStore?.dynamicShouldError) {
+    throw new Error(
+      `Page with \`dynamic = "error"\` couldn't be rendered statically because it used \`${reason}\``
+    )
+  }
+
   if (staticGenerationStore?.isStaticGeneration) {
     staticGenerationStore.revalidate = 0
     const err = new DynamicServerError(reason)
