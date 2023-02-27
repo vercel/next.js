@@ -264,7 +264,10 @@ impl ModuleOptionsVc {
             };
             for (ext, loaders) in webpack_loaders_options.extension_to_loaders.iter() {
                 rules.push(ModuleRule::new(
-                    ModuleRuleCondition::ResourcePathEndsWith(ext.to_string()),
+                    ModuleRuleCondition::All(vec![
+                        ModuleRuleCondition::ResourcePathEndsWith(ext.to_string()),
+                        ModuleRuleCondition::not(ModuleRuleCondition::ResourceIsVirtualAsset),
+                    ]),
                     vec![
                         ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)),
                         ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![

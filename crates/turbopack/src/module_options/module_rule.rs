@@ -2,7 +2,9 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{reference_type::ReferenceType, source_transform::SourceTransformsVc};
+use turbopack_core::{
+    asset::AssetVc, reference_type::ReferenceType, source_transform::SourceTransformsVc,
+};
 use turbopack_css::CssInputTransformsVc;
 use turbopack_ecmascript::EcmascriptInputTransformsVc;
 
@@ -23,8 +25,13 @@ impl ModuleRule {
         self.effects.iter()
     }
 
-    pub fn matches(&self, path: &FileSystemPath, reference_type: &ReferenceType) -> bool {
-        self.condition.matches(path, reference_type)
+    pub async fn matches(
+        &self,
+        source: AssetVc,
+        path: &FileSystemPath,
+        reference_type: &ReferenceType,
+    ) -> Result<bool> {
+        self.condition.matches(source, path, reference_type).await
     }
 }
 

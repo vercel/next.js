@@ -1,7 +1,11 @@
+use anyhow::Result;
+use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileSystemPath, FileSystemPathReadRef};
-use turbopack_core::reference_type::ReferenceType;
+use turbopack_core::{
+    asset::AssetVc, reference_type::ReferenceType, virtual_asset::VirtualAssetVc,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub enum ModuleRuleCondition {
@@ -9,6 +13,7 @@ pub enum ModuleRuleCondition {
     Any(Vec<ModuleRuleCondition>),
     Not(Box<ModuleRuleCondition>),
     ReferenceType(ReferenceType),
+    ResourceIsVirtualAsset,
     ResourcePathEquals(FileSystemPathReadRef),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
@@ -33,15 +38,33 @@ impl ModuleRuleCondition {
 }
 
 impl ModuleRuleCondition {
-    pub fn matches(&self, path: &FileSystemPath, reference_type: &ReferenceType) -> bool {
-        match self {
+    #[async_recursion]
+    pub async fn matches(
+        &self,
+        source: AssetVc,
+        path: &FileSystemPath,
+        reference_type: &ReferenceType,
+    ) -> Result<bool> {
+        Ok(match self {
             ModuleRuleCondition::All(conditions) => {
-                conditions.iter().all(|c| c.matches(path, reference_type))
+                for condition in conditions {
+                    if !condition.matches(source, path, reference_type).await? {
+                        return Ok(false);
+                    }
+                }
+                true
             }
             ModuleRuleCondition::Any(conditions) => {
-                conditions.iter().any(|c| c.matches(path, reference_type))
+                for condition in conditions {
+                    if condition.matches(source, path, reference_type).await? {
+                        return Ok(true);
+                    }
+                }
+                false
             }
-            ModuleRuleCondition::Not(condition) => !condition.matches(path, reference_type),
+            ModuleRuleCondition::Not(condition) => {
+                !condition.matches(source, path, reference_type).await?
+            }
             ModuleRuleCondition::ResourcePathEquals(other) => path == &**other,
             ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
             ModuleRuleCondition::ResourcePathHasNoExtension => {
@@ -64,7 +87,10 @@ impl ModuleRuleCondition {
             ModuleRuleCondition::ReferenceType(condition_ty) => {
                 condition_ty.includes(reference_type)
             }
+            ModuleRuleCondition::ResourceIsVirtualAsset => {
+                VirtualAssetVc::resolve_from(source).await?.is_some()
+            }
             _ => todo!("not implemented yet"),
-        }
+        })
     }
 }
