@@ -172,7 +172,7 @@ async fn module(
     let mut current_source = source;
     let mut current_module_type = None;
     for rule in options.await?.rules.iter() {
-        if rule.matches(&*path.await?, &reference_type) {
+        if rule.matches(source, &*path.await?, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::SourceTransforms(transforms) => {
