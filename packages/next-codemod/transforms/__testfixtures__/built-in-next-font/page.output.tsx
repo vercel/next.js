@@ -1,5 +1,8 @@
+// @ts-nocheck
+/* eslint-disable */
 import { Oswald } from "next/font/google";
 import localFont1 from "next/font/local";
+import type { AdjustFontFallback } from "next/font"
 
 const oswald = Oswald({ subsets: ["latin"] });
 const myFont = localFont1({
