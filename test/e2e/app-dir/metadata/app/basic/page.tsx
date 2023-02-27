@@ -24,7 +24,12 @@ export const metadata: Metadata = {
   themeColor: { color: 'cyan', media: '(prefers-color-scheme: dark)' },
   colorScheme: 'dark',
   manifest: 'https://github.com/manifest.json',
-  viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    interactiveWidget: 'resizes-visual',
+  },
   creator: 'shu',
   publisher: 'vercel',
   robots: 'index, follow',
