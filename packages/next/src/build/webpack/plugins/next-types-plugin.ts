@@ -134,38 +134,36 @@ function createRouteDefinitions() {
   let routeTypes = ''
 
   edgeRouteTypes.forEach((route) => {
-    routeTypes += ` | ${route}\n`
+    routeTypes += `  | ${route}\n  `
   })
   nodeRouteTypes.forEach((route) => {
-    routeTypes += ` | ${route}\n`
+    routeTypes += `  | ${route}\n  `
   })
 
   return `declare module 'next' {
-  export * from 'next/types/index.d.ts';
+  export { default } from 'next/types'
+  export * from 'next/types'
+  
   type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 
-  type Suffix = "" | SearchOrHash
+  type Suffix = '' | SearchOrHash
 
-  type SafeSlug<S extends string> = 
-    S extends \`\${string}/\${string}\`
-      ? never
-      : S extends \`\${string}\${SearchOrHash}\`
-      ? never
-      : S extends ''
-      ? never
-      : S
+  type SafeSlug<S extends string> = S extends \`\${string}/\${string}\`
+    ? never
+    : S extends \`\${string}\${SearchOrHash}\`
+    ? never
+    : S extends ''
+    ? never
+    : S
 
-  type CatchAllSlug<S extends string> = 
-    S extends \`\${string}\${SearchOrHash}\`
-      ? never
-      : S extends ''
-      ? never
-      : S
+  type CatchAllSlug<S extends string> = S extends \`\${string}\${SearchOrHash}\`
+    ? never
+    : S extends ''
+    ? never
+    : S
 
-  type OptionalCatchAllSlug<S extends string> = 
-    S extends \`\${string}\${SearchOrHash}\`
-      ? never
-      : S
+  type OptionalCatchAllSlug<S extends string> =
+    S extends \`\${string}\${SearchOrHash}\` ? never : S
 
   export type Route<T extends string = string> = ${fallback}
   ${routeTypes}
