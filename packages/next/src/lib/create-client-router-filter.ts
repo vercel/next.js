@@ -50,10 +50,9 @@ export function createClientRouterFilter(
       tokens = tryToParsePath(source).tokens || []
     } catch (_) {}
 
-    if (!tokens.every((token) => typeof token === 'string')) {
+    if (tokens.every((token) => typeof token === 'string')) {
       // only include static redirects initially
       staticPaths.add(path)
-    } else {
     }
   }
 
