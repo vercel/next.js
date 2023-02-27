@@ -270,13 +270,15 @@ export function enhanceGlobals() {
     configurable: false,
   })
 
-  if (
-    '_ENTRIES' in globalThis &&
-    _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
+  if ('_ENTRIES' in globalThis) {
     try {
-      _ENTRIES.middleware_instrumentation.register()
+      const register =
+        (_ENTRIES.middleware_instrumentation &&
+          _ENTRIES.middleware_instrumentation.register) ||
+        // we want to support /src as well
+        (_ENTRIES['middleware_src/instrumentation'] &&
+          _ENTRIES['middleware_src/instrumentation'].register)
+      register?.()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err

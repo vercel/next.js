@@ -209,19 +209,32 @@ export default class NextNodeServer extends BaseServer {
     }
 
     if (!options.dev && this.nextConfig.experimental.instrumentationHook) {
-      try {
-        const instrumentationHook = require(join(
+      const possiblePaths = [
+        join(
           options.dir || '.',
           options.conf.distDir!,
           'server',
           INSTRUMENTATION_HOOK_FILENAME
-        ))
+        ),
+        join(
+          options.dir || '.',
+          options.conf.distDir!,
+          'server',
+          'src',
+          INSTRUMENTATION_HOOK_FILENAME
+        ),
+      ]
 
-        instrumentationHook.register?.()
-      } catch (err: any) {
-        if (err.code !== 'MODULE_NOT_FOUND') {
-          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-          throw err
+      for (const possiblePath of possiblePaths) {
+        try {
+          const instrumentationHook = require(possiblePath)
+          instrumentationHook.register?.()
+          break
+        } catch (err: any) {
+          if (err.code !== 'MODULE_NOT_FOUND') {
+            err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+            throw err
+          }
         }
       }
     }

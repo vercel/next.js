@@ -1355,8 +1355,16 @@ export default class DevServer extends Server {
         page: this.actualInstrumentationHookFile!,
         clientOnly: false,
       })
+      const isSrc = this.actualInstrumentationHookFile.includes('src')
       try {
-        require(pathJoin(this.distDir, 'server', 'instrumentation')).register()
+        require(pathJoin(
+          ...([
+            this.distDir,
+            'server',
+            isSrc ? 'src' : null,
+            'instrumentation',
+          ].filter(Boolean) as string[])
+        )).register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
