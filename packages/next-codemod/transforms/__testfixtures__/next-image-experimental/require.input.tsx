@@ -1,3 +1,5 @@
+// @ts-nocheck
+/* eslint-disable */
 const Image = require("next/legacy/image");
 const Named = require("next/legacy/image");
 const Foo = require("foo");
