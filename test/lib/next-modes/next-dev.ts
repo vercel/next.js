@@ -84,6 +84,7 @@ export class NextDevInstance extends NextInstance {
               .pop()
               .trim()
               .split(require('os').EOL)[0]
+            console.log('found new url', this._url)
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -92,7 +93,8 @@ export class NextDevInstance extends NextInstance {
                 msg,
               })
             }
-            this.off('stdout', readyCb)
+            // dev server can reload on next.config.js change and that gets a new port so we want to keep listening and update if needed
+            // this.off('stdout', readyCb)
             resolve()
           }
         }
