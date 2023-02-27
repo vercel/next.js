@@ -253,6 +253,18 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
 })
 
 describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script', () => {
+  let next: NextInstance
+
+  // Note: previously we were using `finally` cluase inside of test assertion. However, if the test times out
+  // exceeding jest.setTimeout() value, the finally clause is not executed and subsequent tests will fail due to
+  // hanging next instance.
+  afterEach(async () => {
+    if (next) {
+      await next.destroy()
+      next = undefined
+    }
+  })
+
   const createNextApp = async (script) =>
     await createNext({
       nextConfig: {
@@ -282,7 +294,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
     })
 
   it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-    let next: NextInstance
     let browser: BrowserInterface
 
     next = await createNextApp(
@@ -304,12 +315,10 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       expect(text).toBe('abc')
     } finally {
       if (browser) await browser.close()
-      await next.destroy()
     }
   })
 
   it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-    let next: NextInstance
     let browser: BrowserInterface
 
     next = await createNextApp(
@@ -331,7 +340,6 @@ describe('experimental.nextScriptWorkers: true with required Partytown dependenc
       expect(text).toBe('abcd')
     } finally {
       if (browser) await browser.close()
-      await next.destroy()
     }
   })
 })

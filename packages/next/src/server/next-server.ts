@@ -97,6 +97,8 @@ import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-ha
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
+import { getTracer } from './lib/trace/tracer'
+import { NextNodeServerSpan } from './lib/trace/constants'
 
 export * from './base-server'
 
@@ -275,6 +277,15 @@ export default class NextNodeServer extends BaseServer {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
     const dev = !!this.renderOpts.dev
+    let CacheHandler: any
+    const { incrementalCacheHandlerPath } = this.nextConfig.experimental
+
+    if (incrementalCacheHandlerPath) {
+      CacheHandler = require(this.minimalMode
+        ? join(this.distDir, incrementalCacheHandlerPath)
+        : incrementalCacheHandlerPath)
+      CacheHandler = CacheHandler.default || CacheHandler
+    }
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -285,12 +296,11 @@ export default class NextNodeServer extends BaseServer {
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
-      fetchCache: this.nextConfig.experimental.fetchCache,
+      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      incrementalCacheHandlerPath:
-        this.nextConfig.experimental?.incrementalCacheHandlerPath,
       getPrerenderManifest: () => {
         if (dev) {
           return {
@@ -304,6 +314,7 @@ export default class NextNodeServer extends BaseServer {
           return this.getPrerenderManifest()
         }
       },
+      CurCacheHandler: CacheHandler,
     })
   }
 
@@ -464,7 +475,7 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.value.buffer,
               paramsResult.isStatic,
               cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
-              imagesConfig.contentSecurityPolicy,
+              imagesConfig,
               cacheEntry.revalidate || 0,
               Boolean(this.renderOpts.dev)
             )
@@ -827,6 +838,18 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
+      this.renderHTMLImpl(req, res, pathname, query, renderOpts)
+    )
+  }
+
+  private async renderHTMLImpl(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult | null> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
     // object here but only updating its `serverComponentManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
@@ -924,6 +947,22 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async findPageComponents({
+    pathname,
+    query,
+    params,
+    isAppPath,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }): Promise<FindComponentsResult | null> {
+    return getTracer().trace(NextNodeServerSpan.findPageComponents, () =>
+      this.findPageComponentsImpl({ pathname, query, params, isAppPath })
+    )
+  }
+
+  private async findPageComponentsImpl({
     pathname,
     query,
     params,
@@ -2045,7 +2084,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getRoutesManifest() {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () =>
+      require(join(this.distDir, ROUTES_MANIFEST))
+    )
   }
 
   protected attachRequestMeta(

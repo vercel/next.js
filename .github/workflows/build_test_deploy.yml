@@ -90,7 +90,6 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - run: pnpm run build
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - id: check-release
         run: |
@@ -1072,19 +1071,6 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: node scripts/normalize-version-bump.js
 
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      # - name: Cache built files
-      #   uses: actions/cache@v3
-      #   timeout-minutes: 5
-      #   with:
-      #     path: ./packages/next-swc/target
-      #     key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
-      #     restore-keys: |
-      #       next-swc-cargo-cache-dev-ubuntu-latest
-
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -1327,18 +1313,6 @@ jobs:
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
       - uses: actions/checkout@v3
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-${{ matrix.settings.target }}
 
       - name: Setup node
         uses: actions/setup-node@v3

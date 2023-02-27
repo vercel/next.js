@@ -594,7 +594,10 @@ export class FlightClientEntryPlugin {
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: this.isEdgeServer
         ? clientImports.map((importPath) =>
-            importPath.replace('next/dist/esm/', 'next/dist/')
+            importPath.replace(
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
+            )
           )
         : clientImports,
       server: false,
@@ -764,6 +767,9 @@ export class FlightClientEntryPlugin {
     }
 
     const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
+    assets[SERVER_REFERENCE_MANIFEST + '.js'] = new sources.RawSource(
+      'self.__RSC_SERVER_MANIFEST=' + json
+    ) as unknown as webpack.sources.RawSource
     assets[SERVER_REFERENCE_MANIFEST + '.json'] = new sources.RawSource(
       json
     ) as unknown as webpack.sources.RawSource

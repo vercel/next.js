@@ -415,7 +415,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.browser'
+    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

@@ -7,6 +7,10 @@ import Post from '../../components/post'
 const PostPreview = lazy(() => import('../../components/post-preview'))
 
 export default function PostPage({ preview, data }) {
+  if (!router.isFallback && !slug) {
+    return <ErrorPage statusCode={404} />
+  }
+
   if (preview) {
     return (
       <PreviewSuspense fallback="Loading...">
