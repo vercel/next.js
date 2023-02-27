@@ -7,6 +7,8 @@ import { type ImageLoaderProps } from "next/legacy/image";
 import Foo from "foo";
 import Future1 from "next/image";
 import Future2 from "next/image";
+import type { ImageProps as ImageFutureProps } from "next/image";
+import { type ImageLoaderProps as ImageFutureLoaderProps } from "next/image";
 
 export default function Home() {
   return (<div>
