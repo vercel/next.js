@@ -72,16 +72,16 @@ const testedExamples = [
   'with-vercel-fetch',
 ]
 
-const testExample = (example) => {
-  const exampleFiles = path.join(__dirname, '..', '..', 'examples', example)
-
-  const packageJson = fs.readJsonSync(path.join(exampleFiles, 'package.json'))
-  describe(`example '${example}'`, () => {
+const testExamples = (examples) => {
+  describe.each(examples)(`example '%s'`, (example) => {
     // If there is an issue during a build, jest won't tell us which example caused it
     // we need to log it ourselfs
     beforeAll(() => {
       require('console').log(`Running example '${example}'`)
     })
+
+    const exampleFiles = path.join(__dirname, '..', '..', 'examples', example)
+    const packageJson = fs.readJsonSync(path.join(exampleFiles, 'package.json'))
     createNextDescribe(
       `example '${example}'`,
       {
@@ -106,4 +106,4 @@ const testExample = (example) => {
   })
 }
 
-testedExamples.forEach(testExample)
+testExamples(testedExamples)
