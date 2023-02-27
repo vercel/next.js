@@ -15,7 +15,6 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require('react');
-var ReactDOM = require('react-dom');
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -138,7 +137,7 @@ var textEncoder = new TextEncoder();
 function stringToChunk(content) {
   return textEncoder.encode(content);
 }
-var precomputedChunkSet =  new Set() ;
+var precomputedChunkSet = new Set() ;
 function stringToPrecomputedChunk(content) {
   var precomputedChunk = textEncoder.encode(content);
 
@@ -177,11 +176,6 @@ function processErrorChunkProd(request, id, digest) {
     // eslint-disable-next-line react-internal/prod-error-codes
     throw new Error('processErrorChunkProd should never be called while in development mode. Use processErrorChunkDev instead. This is a bug in React.');
   }
-
-  var errorInfo = {
-    digest: digest
-  };
-  var row = serializeRowHeader('E', id) + stringify(errorInfo) + '\n';
 }
 function processErrorChunkDev(request, id, digest, message, stack) {
 
@@ -296,11 +290,6 @@ function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attribut
   this.sanitizeURL = sanitizeURL;
   this.removeEmptyString = removeEmptyString;
 } // When adding attributes to this list, be sure to also add them to
-// the `possibleStandardNames` module to ensure casing and incorrect
-// name warnings.
-
-
-var properties = {}; // These props are reserved by React. They shouldn't be written to the DOM.
 
 var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This prevents the assignment of defaultValue to regular
 // elements (not just inputs). Now that ReactDOMInput assigns to the
@@ -309,7 +298,7 @@ var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This preven
 
 reservedProps.forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
+  new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -321,7 +310,7 @@ reservedProps.forEach(function (name) {
   var name = _ref[0],
       attributeName = _ref[1];
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -332,7 +321,7 @@ reservedProps.forEach(function (name) {
 
 ['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -344,7 +333,7 @@ reservedProps.forEach(function (name) {
 
 ['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -356,7 +345,7 @@ reservedProps.forEach(function (name) {
 'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
 'itemScope'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
+  new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -371,7 +360,7 @@ reservedProps.forEach(function (name) {
 // instead in the assignment below.
 ].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
+  new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -384,7 +373,7 @@ reservedProps.forEach(function (name) {
 // instead in the assignment below.
 ].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
+  new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -396,7 +385,7 @@ reservedProps.forEach(function (name) {
 // instead in the assignment below.
 ].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
+  new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
   name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -405,7 +394,7 @@ reservedProps.forEach(function (name) {
 
 ['rowSpan', 'start'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
+  new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
   name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
@@ -428,7 +417,7 @@ var capitalize = function (token) {
 ].forEach(function (attributeName) {
   var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -440,7 +429,7 @@ var capitalize = function (token) {
 ].forEach(function (attributeName) {
   var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
   false);
 }); // String SVG attributes with the xml namespace.
@@ -451,7 +440,7 @@ var capitalize = function (token) {
 ].forEach(function (attributeName) {
   var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
   attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
   false);
 }); // These attribute exists both in HTML and SVG.
@@ -460,22 +449,19 @@ var capitalize = function (token) {
 
 ['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
 }); // These attributes accept URLs. These must not allow javascript: URLS.
-// These will also need to accept Trusted Types object in the future.
 
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
+new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
 false);
 ['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
   true, // sanitizeURL
@@ -570,116 +556,112 @@ var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.paren
 var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(p,q,w){function r(l){this.s=l}for(var t=$RC,m=$RM,u=new Map,n=new Map,g=document,h,e,f=g.querySelectorAll("template[data-precedence]"),c=0;e=f[c++];){for(var b=e.content.firstChild;b;b=b.nextSibling)u.set(b.getAttribute("data-href"),b);e.parentNode.removeChild(e)}f=g.querySelectorAll("link[data-precedence],style[data-precedence]");for(c=0;e=f[c++];)m.set(e.getAttribute("STYLE"===e.nodeName?"data-href":"href"),e),n.set(e.dataset.precedence,h=e);e=0;f=[];for(var d,\nv,a;d=w[e++];){var k=0;b=d[k++];if(!(a=m.get(b))){if(a=u.get(b))c=a.getAttribute("data-precedence");else{a=g.createElement("link");a.href=b;a.rel="stylesheet";for(a.dataset.precedence=c=d[k++];v=d[k++];)a.setAttribute(v,d[k++]);d=a._p=new Promise(function(l,x){a.onload=l;a.onerror=x});d.then(r.bind(d,"l"),r.bind(d,"e"))}m.set(b,a);b=n.get(c)||h;b===h&&(h=a);n.set(c,a);b?b.parentNode.insertBefore(a,b.nextSibling):(c=g.head,c.insertBefore(a,c.firstChild))}d=a._p;c=a.getAttribute("media");!d||"l"===\nd.s||c&&!matchMedia(c).matches||f.push(d)}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
 
-var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+stringToPrecomputedChunk('"></template>');
+stringToPrecomputedChunk('<script>');
+stringToPrecomputedChunk('</script>');
+stringToPrecomputedChunk('<script src="');
+stringToPrecomputedChunk('<script type="module" src="');
+stringToPrecomputedChunk('" integrity="');
+stringToPrecomputedChunk('" async=""></script>');
 
-var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+stringToPrecomputedChunk('<!-- -->');
 
-var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>');
-var startInlineScript = stringToPrecomputedChunk('<script>');
-var endInlineScript = stringToPrecomputedChunk('</script>');
-var startScriptSrc = stringToPrecomputedChunk('<script src="');
-var startModuleSrc = stringToPrecomputedChunk('<script type="module" src="');
-var scriptIntegirty = stringToPrecomputedChunk('" integrity="');
-var endAsyncScript = stringToPrecomputedChunk('" async=""></script>');
+stringToPrecomputedChunk(' style="');
+stringToPrecomputedChunk(':');
+stringToPrecomputedChunk(';');
 
-var textSeparator = stringToPrecomputedChunk('<!-- -->');
+stringToPrecomputedChunk(' ');
+stringToPrecomputedChunk('="');
+stringToPrecomputedChunk('"');
+stringToPrecomputedChunk('=""');
 
-var styleAttributeStart = stringToPrecomputedChunk(' style="');
-var styleAssign = stringToPrecomputedChunk(':');
-var styleSeparator = stringToPrecomputedChunk(';');
+stringToPrecomputedChunk('>');
+stringToPrecomputedChunk('/>');
 
-var attributeSeparator = stringToPrecomputedChunk(' ');
-var attributeAssign = stringToPrecomputedChunk('="');
-var attributeEnd = stringToPrecomputedChunk('"');
-var attributeEmptyString = stringToPrecomputedChunk('=""');
+stringToPrecomputedChunk(' selected=""');
 
-var endOfStartTag = stringToPrecomputedChunk('>');
-var endOfStartTagSelfClosing = stringToPrecomputedChunk('/>');
+stringToPrecomputedChunk('\n');
 
-var selectedMarkerAttribute = stringToPrecomputedChunk(' selected=""');
-
-var leadingNewline = stringToPrecomputedChunk('\n');
-
-var DOCTYPE = stringToPrecomputedChunk('<!DOCTYPE html>');
-var endTag1 = stringToPrecomputedChunk('</');
-var endTag2 = stringToPrecomputedChunk('>');
+stringToPrecomputedChunk('<!DOCTYPE html>');
+stringToPrecomputedChunk('</');
+stringToPrecomputedChunk('>');
 // A placeholder is a node inside a hidden partial tree that can be filled in later, but before
 // display. It's never visible to users. We use the template tag because it can be used in every
 // type of parent. <script> tags also work in every other tag except <colgroup>.
 
-var placeholder1 = stringToPrecomputedChunk('<template id="');
-var placeholder2 = stringToPrecomputedChunk('"></template>');
+stringToPrecomputedChunk('<template id="');
+stringToPrecomputedChunk('"></template>');
 
-var startCompletedSuspenseBoundary = stringToPrecomputedChunk('<!--$-->');
-var startPendingSuspenseBoundary1 = stringToPrecomputedChunk('<!--$?--><template id="');
-var startPendingSuspenseBoundary2 = stringToPrecomputedChunk('"></template>');
-var startClientRenderedSuspenseBoundary = stringToPrecomputedChunk('<!--$!-->');
-var endSuspenseBoundary = stringToPrecomputedChunk('<!--/$-->');
-var clientRenderedSuspenseBoundaryError1 = stringToPrecomputedChunk('<template');
-var clientRenderedSuspenseBoundaryErrorAttrInterstitial = stringToPrecomputedChunk('"');
-var clientRenderedSuspenseBoundaryError1A = stringToPrecomputedChunk(' data-dgst="');
-var clientRenderedSuspenseBoundaryError1B = stringToPrecomputedChunk(' data-msg="');
-var clientRenderedSuspenseBoundaryError1C = stringToPrecomputedChunk(' data-stck="');
-var clientRenderedSuspenseBoundaryError2 = stringToPrecomputedChunk('></template>');
-var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="');
-var startSegmentHTML2 = stringToPrecomputedChunk('">');
-var endSegmentHTML = stringToPrecomputedChunk('</div>');
-var startSegmentSVG = stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
-var startSegmentSVG2 = stringToPrecomputedChunk('">');
-var endSegmentSVG = stringToPrecomputedChunk('</svg>');
-var startSegmentMathML = stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
-var startSegmentMathML2 = stringToPrecomputedChunk('">');
-var endSegmentMathML = stringToPrecomputedChunk('</math>');
-var startSegmentTable = stringToPrecomputedChunk('<table hidden id="');
-var startSegmentTable2 = stringToPrecomputedChunk('">');
-var endSegmentTable = stringToPrecomputedChunk('</table>');
-var startSegmentTableBody = stringToPrecomputedChunk('<table hidden><tbody id="');
-var startSegmentTableBody2 = stringToPrecomputedChunk('">');
-var endSegmentTableBody = stringToPrecomputedChunk('</tbody></table>');
-var startSegmentTableRow = stringToPrecomputedChunk('<table hidden><tr id="');
-var startSegmentTableRow2 = stringToPrecomputedChunk('">');
-var endSegmentTableRow = stringToPrecomputedChunk('</tr></table>');
-var startSegmentColGroup = stringToPrecomputedChunk('<table hidden><colgroup id="');
-var startSegmentColGroup2 = stringToPrecomputedChunk('">');
-var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
-var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegment + ';$RS("');
-var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
-var completeSegmentScript2 = stringToPrecomputedChunk('","');
-var completeSegmentScriptEnd = stringToPrecomputedChunk('")</script>');
-var completeSegmentData1 = stringToPrecomputedChunk('<template data-rsi="" data-sid="');
-var completeSegmentData2 = stringToPrecomputedChunk('" data-pid="');
-var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + '$RC("');
-var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
-var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
-var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
-var completeBoundaryWithStylesScript1Partial = stringToPrecomputedChunk('$RR("');
-var completeBoundaryScript2 = stringToPrecomputedChunk('","');
-var completeBoundaryScript3a = stringToPrecomputedChunk('",');
-var completeBoundaryScript3b = stringToPrecomputedChunk('"');
-var completeBoundaryScriptEnd = stringToPrecomputedChunk(')</script>');
-var completeBoundaryData1 = stringToPrecomputedChunk('<template data-rci="" data-bid="');
-var completeBoundaryWithStylesData1 = stringToPrecomputedChunk('<template data-rri="" data-bid="');
-var completeBoundaryData2 = stringToPrecomputedChunk('" data-sid="');
-var completeBoundaryData3a = stringToPrecomputedChunk('" data-sty="');
-var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
-var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
-var clientRenderScript1A = stringToPrecomputedChunk('"');
-var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
-var clientRenderScriptEnd = stringToPrecomputedChunk(')</script>');
-var clientRenderData1 = stringToPrecomputedChunk('<template data-rxi="" data-bid="');
-var clientRenderData2 = stringToPrecomputedChunk('" data-dgst="');
-var clientRenderData3 = stringToPrecomputedChunk('" data-msg="');
-var clientRenderData4 = stringToPrecomputedChunk('" data-stck="');
+stringToPrecomputedChunk('<!--$-->');
+stringToPrecomputedChunk('<!--$?--><template id="');
+stringToPrecomputedChunk('"></template>');
+stringToPrecomputedChunk('<!--$!-->');
+stringToPrecomputedChunk('<!--/$-->');
+stringToPrecomputedChunk('<template');
+stringToPrecomputedChunk('"');
+stringToPrecomputedChunk(' data-dgst="');
+stringToPrecomputedChunk(' data-msg="');
+stringToPrecomputedChunk(' data-stck="');
+stringToPrecomputedChunk('></template>');
+stringToPrecomputedChunk('<div hidden id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</div>');
+stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</svg>');
+stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</math>');
+stringToPrecomputedChunk('<table hidden id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</table>');
+stringToPrecomputedChunk('<table hidden><tbody id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</tbody></table>');
+stringToPrecomputedChunk('<table hidden><tr id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</tr></table>');
+stringToPrecomputedChunk('<table hidden><colgroup id="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</colgroup></table>');
+stringToPrecomputedChunk(completeSegment + ';$RS("');
+stringToPrecomputedChunk('$RS("');
+stringToPrecomputedChunk('","');
+stringToPrecomputedChunk('")</script>');
+stringToPrecomputedChunk('<template data-rsi="" data-sid="');
+stringToPrecomputedChunk('" data-pid="');
+stringToPrecomputedChunk(completeBoundary + '$RC("');
+stringToPrecomputedChunk('$RC("');
+stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
+stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
+stringToPrecomputedChunk('$RR("');
+stringToPrecomputedChunk('","');
+stringToPrecomputedChunk('",');
+stringToPrecomputedChunk('"');
+stringToPrecomputedChunk(')</script>');
+stringToPrecomputedChunk('<template data-rci="" data-bid="');
+stringToPrecomputedChunk('<template data-rri="" data-bid="');
+stringToPrecomputedChunk('" data-sid="');
+stringToPrecomputedChunk('" data-sty="');
+stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
+stringToPrecomputedChunk('$RX("');
+stringToPrecomputedChunk('"');
+stringToPrecomputedChunk(',');
+stringToPrecomputedChunk(')</script>');
+stringToPrecomputedChunk('<template data-rxi="" data-bid="');
+stringToPrecomputedChunk('" data-dgst="');
+stringToPrecomputedChunk('" data-msg="');
+stringToPrecomputedChunk('" data-stck="');
 
-var styleTagTemplateOpen = stringToPrecomputedChunk('<template data-precedence="">');
-var styleTagTemplateClose = stringToPrecomputedChunk('</template>'); // Tracks whether we wrote any late style tags. We use this to determine
-var precedencePlaceholderStart = stringToPrecomputedChunk('<style data-precedence="');
-var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
+stringToPrecomputedChunk('<template data-precedence="">');
+stringToPrecomputedChunk('</template>'); // Tracks whether we wrote any late style tags. We use this to determine
+stringToPrecomputedChunk('<style data-precedence="');
+stringToPrecomputedChunk('"></style>');
 
-var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
-var arraySubsequentOpenBracket = stringToPrecomputedChunk(',[');
-var arrayInterstitial = stringToPrecomputedChunk(',');
-var arrayCloseBracket = stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
+stringToPrecomputedChunk('[');
+stringToPrecomputedChunk(',[');
+stringToPrecomputedChunk(',');
+stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
 
 var rendererSigil;
 
@@ -868,8 +850,8 @@ function popProvider() {
 function getActiveContext() {
   return currentActiveSnapshot;
 }
-function readContext(context) {
-  var value =  context._currentValue ;
+function readContext$1(context) {
+  var value = context._currentValue ;
   return value;
 }
 
@@ -1006,7 +988,7 @@ function getThenableStateAfterSuspending() {
   return state;
 }
 
-function readContext$1(context) {
+function readContext(context) {
   {
     if (context.$$typeof !== REACT_SERVER_CONTEXT_TYPE) {
       if (isClientReference(context)) {
@@ -1021,7 +1003,7 @@ function readContext$1(context) {
     }
   }
 
-  return readContext(context);
+  return readContext$1(context);
 }
 
 var HooksDispatcher = {
@@ -1034,8 +1016,8 @@ var HooksDispatcher = {
   useDebugValue: function () {},
   useDeferredValue: unsupportedHook,
   useTransition: unsupportedHook,
-  readContext: readContext$1,
-  useContext: readContext$1,
+  readContext: readContext,
+  useContext: readContext,
   useReducer: unsupportedHook,
   useRef: unsupportedHook,
   useState: unsupportedHook,
@@ -1058,7 +1040,7 @@ var HooksDispatcher = {
 
     return data;
   },
-  use:  use 
+  use: use 
 };
 
 function unsupportedHook() {
@@ -1096,7 +1078,7 @@ function use(usable) {
       return trackUsedThenable(thenableState, thenable, index);
     } else if (usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
-      return readContext$1(context);
+      return readContext(context);
     }
   }
 
@@ -1763,7 +1745,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   var length = 0;
 
   if (isArray(objectOrArray)) {
-    if ( jsxChildrenParents.has(objectOrArray)) {
+    if (jsxChildrenParents.has(objectOrArray)) {
       // Print JSX Children
       var type = jsxChildrenParents.get(objectOrArray);
       str = '<' + describeElementType(type) + '>';
@@ -1831,7 +1813,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
-    } else if ( jsxPropsParents.has(objectOrArray)) {
+    } else if (jsxPropsParents.has(objectOrArray)) {
       // Print JSX
       var _type = jsxPropsParents.get(objectOrArray);
 
@@ -2184,7 +2166,7 @@ function fatalError(request, error) {
 }
 
 function emitErrorChunkProd(request, id, digest) {
-  var processedChunk = processErrorChunkProd(request, id, digest);
+  var processedChunk = processErrorChunkProd();
   request.completedErrorChunks.push(processedChunk);
 }
 
@@ -2443,8 +2425,6 @@ function abort(request, reason) {
             stack = _getErrorMessageAndSt6.stack;
 
         emitErrorChunkDev(request, errorId, digest, message, stack);
-      } else {
-        emitErrorChunkProd(request, errorId, digest);
       }
 
       abortableTasks.forEach(function (task) {
