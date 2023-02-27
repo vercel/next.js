@@ -18,6 +18,23 @@ const viewPortKeys = {
   viewportFit: 'viewport-fit',
 } as const
 
+export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
+  if (!themeColor) return null
+  const themeColorDescriptors: ResolvedMetadata['themeColor'] = []
+
+  resolveAsArrayOrUndefined(themeColor)?.forEach((descriptor) => {
+    if (typeof descriptor === 'string')
+      themeColorDescriptors.push({ color: descriptor })
+    else if (typeof descriptor === 'object')
+      themeColorDescriptors.push({
+        color: descriptor.color,
+        media: descriptor.media,
+      })
+  })
+
+  return themeColorDescriptors
+}
+
 export const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
   let resolved: ResolvedMetadata['viewport'] = null
 
@@ -133,14 +150,16 @@ export const resolveAppleWebApp: FieldResolver<'appleWebApp'> = (appWebApp) => {
     }
   }
 
-  const startupImages = resolveAsArrayOrUndefined(appWebApp.startupImage)?.map(
-    (item) => (typeof item === 'string' ? { url: item } : item)
-  )
+  const startupImages = appWebApp.startupImage
+    ? resolveAsArrayOrUndefined(appWebApp.startupImage)?.map((item) =>
+        typeof item === 'string' ? { url: item } : item
+      )
+    : null
 
   return {
     capable: 'capable' in appWebApp ? !!appWebApp.capable : true,
     title: appWebApp.title || null,
-    startupImage: startupImages || null,
+    startupImage: startupImages,
     statusBarStyle: appWebApp.statusBarStyle || 'default',
   }
 }
