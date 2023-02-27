@@ -30,7 +30,7 @@ interface Options {
   pageExtensions: string[]
   typedRoutes: boolean
   rewrites: Rewrites
-  redirects: Redirect[]
+  originalRedirects: Redirect[]
 }
 
 function createTypeGuardFile(
@@ -307,7 +307,7 @@ export class NextTypesPlugin {
   pagesDir: string
   typedRoutes: boolean
   rewrites: Rewrites
-  redirects: Redirect[]
+  originalRedirects: Redirect[]
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -319,7 +319,7 @@ export class NextTypesPlugin {
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
     this.rewrites = options.rewrites
-    this.redirects = options.redirects
+    this.originalRedirects = options.originalRedirects
   }
 
   collectPage(filePath: string) {
@@ -482,7 +482,7 @@ export class NextTypesPlugin {
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(this.rewrites, this.redirects)
+              createRouteDefinitions(this.rewrites, this.originalRedirects)
             ) as unknown as webpack.sources.RawSource
           }
 

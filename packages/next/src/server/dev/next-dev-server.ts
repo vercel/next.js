@@ -839,7 +839,6 @@ export default class DevServer extends Server {
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
-      redirects,
       appDir: this.appDir,
       telemetry,
     })

@@ -178,7 +178,6 @@ export default class HotReloader {
   private previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
-  private redirects: CustomRoutes['redirects']
   private fallbackWatcher: any
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
@@ -202,7 +201,6 @@ export default class HotReloader {
       buildId,
       previewProps,
       rewrites,
-      redirects,
       appDir,
       telemetry,
     }: {
@@ -212,7 +210,6 @@ export default class HotReloader {
       buildId: string
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
-      redirects: CustomRoutes['redirects']
       appDir?: string
       telemetry: Telemetry
     }
@@ -233,7 +230,6 @@ export default class HotReloader {
     this.hasServerComponents = !!this.appDir
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.redirects = redirects
     this.hotReloaderSpan = trace('hot-reloader', undefined, {
       version: process.env.__NEXT_VERSION as string,
     })
@@ -519,7 +515,7 @@ export default class HotReloader {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
-        redirects: this.redirects,
+        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
       }
@@ -577,7 +573,7 @@ export default class HotReloader {
         afterFiles: [],
         fallback: [],
       },
-      redirects: [],
+      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({

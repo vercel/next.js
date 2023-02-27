@@ -91,7 +91,7 @@ async function webpackBuildImpl(): Promise<{
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
-    redirects: NextBuildContext.redirects!,
+    originalRedirects: NextBuildContext.originalRedirects!,
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
