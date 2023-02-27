@@ -6,19 +6,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use similar::TextDiff;
 use test_generator::test_resources;
 use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value, ValueToString};
 use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
-    json::parse_json_with_source_context, util::sys_to_unix, DirectoryContent, DirectoryEntry,
-    DiskFileSystemVc, File, FileContent, FileSystem, FileSystemEntryType, FileSystemPathVc,
-    FileSystemVc,
+    json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystemVc, FileSystem,
+    FileSystemPathVc, FileSystemVc,
 };
-use turbo_tasks_hash::encode_hex;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     condition::ContextCondition,
@@ -29,7 +26,7 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    asset::{Asset, AssetVc},
     chunk::{dev::DevChunkingContextVc, ChunkableAsset, ChunkableAssetVc},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -41,15 +38,12 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 use turbopack_env::ProcessEnvAssetVc;
+use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
 fn register() {
     turbopack::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
 }
-
-// Updates the existing snapshot outputs with the actual outputs of this run.
-// `UPDATE=1 cargo test -p turbopack -- test_my_pattern`
-static UPDATE: Lazy<bool> = Lazy::new(|| env::var("UPDATE").unwrap_or_default() == "1");
 
 static WORKSPACE_ROOT: Lazy<String> = Lazy::new(|| {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -104,16 +98,35 @@ async fn run(resource: &'static str) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
         let out = run_test(resource.to_string());
-        handle_issues(out)
-            .await
-            .context("Unable to handle issues")?;
+        let captured_issues = IssueVc::peek_issues_with_path(out)
+            .await?
+            .strongly_consistent()
+            .await?;
+
+        let plain_issues = captured_issues
+            .iter()
+            .map(|issue_vc| async move {
+                Ok((
+                    issue_vc.into_plain().await?,
+                    issue_vc.into_plain().dbg().await?,
+                ))
+            })
+            .try_join()
+            .await?;
+
+        snapshot_issues(
+            plain_issues.into_iter(),
+            out.join("issues"),
+            &WORKSPACE_ROOT,
+        )
+        .await
+        .context("Unable to handle issues")?;
         Ok(NothingVc::new().into())
     });
     tt.wait_task_completion(task, true).await?;
 
     Ok(())
 }
-
 #[turbo_tasks::function]
 async fn run_test(resource: String) -> Result<FileSystemPathVc> {
     let test_path = Path::new(&resource)
@@ -269,16 +282,6 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
     Ok(path)
 }
 
-async fn remove_file(path: FileSystemPathVc) -> Result<()> {
-    let fs = DiskFileSystemVc::resolve_from(path.fs())
-        .await?
-        .context(anyhow!("unexpected fs type"))?
-        .await?;
-    let sys_path = fs.to_sys_path(path).await?;
-    fs::remove_file(&sys_path).context(format!("remove file {} error", sys_path.display()))?;
-    Ok(())
-}
-
 async fn walk_asset(
     asset: AssetVc,
     seen: &mut HashSet<FileSystemPathVc>,
@@ -292,65 +295,6 @@ async fn walk_asset(
 
     diff(path, asset.content()).await?;
     queue.extend(&*all_referenced_assets(asset).await?);
-
-    Ok(())
-}
-
-async fn get_contents(file: AssetContentVc, path: FileSystemPathVc) -> Result<Option<String>> {
-    Ok(
-        match &*file.await.context(format!(
-            "Unable to read AssetContent of {}",
-            path.to_string().await?
-        ))? {
-            AssetContent::File(file) => match &*file.await.context(format!(
-                "Unable to read FileContent of {}",
-                path.to_string().await?
-            ))? {
-                FileContent::NotFound => None,
-                FileContent::Content(expected) => {
-                    Some(expected.content().to_str()?.trim().to_string())
-                }
-            },
-            AssetContent::Redirect { target, link_type } => Some(format!(
-                "Redirect {{ target: {target}, link_type: {:?} }}",
-                link_type
-            )),
-        },
-    )
-}
-
-async fn diff(path: FileSystemPathVc, actual: AssetContentVc) -> Result<()> {
-    let path_str = &path.await?.path;
-    let expected = path.read().into();
-
-    let actual = match get_contents(actual, path).await? {
-        Some(s) => s,
-        None => bail!("could not generate {} contents", path_str),
-    };
-    let expected = get_contents(expected, path).await?;
-
-    if Some(&actual) != expected.as_ref() {
-        if *UPDATE {
-            let content = File::from(actual).into();
-            path.write(content).await?;
-            println!("updated contents of {}", path_str);
-        } else {
-            if expected.is_none() {
-                eprintln!("new file {path_str} detected:");
-            } else {
-                eprintln!("contents of {path_str} did not match:");
-            }
-            let expected = expected.unwrap_or_default();
-            let diff = TextDiff::from_lines(&expected, &actual);
-            eprintln!(
-                "{}",
-                diff.unified_diff()
-                    .context_radius(3)
-                    .header("expected", "actual")
-            );
-            bail!("contents of {path_str} did not match");
-        }
-    }
 
     Ok(())
 }
@@ -372,96 +316,4 @@ async fn maybe_load_env(
     Ok(Some(EcmascriptChunkPlaceablesVc::cell(vec![
         asset.as_ecmascript_chunk_placeable()
     ])))
-}
-
-async fn expected(dir: FileSystemPathVc) -> Result<HashSet<FileSystemPathVc>> {
-    let mut expected = HashSet::new();
-    let entries = dir.read_dir().await?;
-    if let DirectoryContent::Entries(entries) = &*entries {
-        for (file, entry) in entries {
-            match entry {
-                DirectoryEntry::File(file) => {
-                    expected.insert(*file);
-                }
-                _ => bail!(
-                    "expected file at {}, found {:?}",
-                    file,
-                    FileSystemEntryType::from(entry)
-                ),
-            }
-        }
-    }
-    Ok(expected)
-}
-
-/// Values in left that are not in right.
-/// FileSystemPathVc hashes as a Vc, not as the file path, so we need to get the
-/// path to properly diff.
-async fn diff_paths(
-    left: &HashSet<FileSystemPathVc>,
-    right: &HashSet<FileSystemPathVc>,
-) -> Result<HashSet<FileSystemPathVc>> {
-    let mut map = left
-        .iter()
-        .map(|p| async move { Ok((p.await?.path.clone(), *p)) })
-        .try_join()
-        .await?
-        .iter()
-        .cloned()
-        .collect::<HashMap<_, _>>();
-    for p in right {
-        map.remove(&p.await?.path);
-    }
-    Ok(map.values().copied().collect())
-}
-
-async fn matches_expected(
-    expected: HashSet<FileSystemPathVc>,
-    seen: HashSet<FileSystemPathVc>,
-) -> Result<()> {
-    for path in diff_paths(&expected, &seen).await? {
-        let p = &path.await?.path;
-        if *UPDATE {
-            remove_file(path).await?;
-            println!("removed file {}", p);
-        } else {
-            bail!("expected file {}, but it was not emitted", p);
-        }
-    }
-    Ok(())
-}
-
-async fn handle_issues(source: FileSystemPathVc) -> Result<()> {
-    let issues_path = source.join("issues");
-    let expected_issues = expected(issues_path).await?;
-
-    let mut seen = HashSet::new();
-    let issues = IssueVc::peek_issues_with_path(source)
-        .await?
-        .strongly_consistent()
-        .await?;
-
-    for issue in issues.iter() {
-        let plain_issue = issue.into_plain();
-        let hash = encode_hex(*plain_issue.internal_hash().await?);
-
-        // We replace "*" because it's not allowed for filename on Windows.
-        let path = issues_path.join(&format!(
-            "{}-{}.txt",
-            plain_issue.await?.title.replace('*', "__star__"),
-            &hash[0..6]
-        ));
-        seen.insert(path);
-
-        // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
-        // PlainAsset.path -> FileSystemPath.fs -> DiskFileSystem.root changes
-        // for everyone.
-        let content =
-            format!("{}", plain_issue.dbg().await?).replace(&*WORKSPACE_ROOT, "WORKSPACE_ROOT");
-        let asset = File::from(content).into();
-
-        diff(path, asset).await?;
-    }
-
-    matches_expected(expected_issues, seen).await
 }

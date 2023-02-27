@@ -264,18 +264,17 @@ pub struct StructuredError {
 }
 
 impl StructuredError {
-    async fn print(
-        &self,
-        assets: HashMap<String, SourceMapVc>,
-        root: Option<String>,
-    ) -> Result<String> {
+    async fn print(&self, assets: HashMap<String, SourceMapVc>, root: &str) -> Result<String> {
         let mut message = String::new();
 
         writeln!(message, "{}: {}", self.name, self.message)?;
 
         for frame in &self.stack {
             if let Some((line, column)) = frame.get_pos() {
-                if let Some(path) = root.as_ref().and_then(|r| frame.file.strip_prefix(r)) {
+                if let Some(path) = frame.file.strip_prefix(
+                    // Add a trailing slash so paths don't lead with `/`.
+                    &format!("{}{}", root, std::path::MAIN_SEPARATOR),
+                ) {
                     if let Some(map) = assets.get(path) {
                         let trace = SourceMapTraceVc::new(*map, line, column, frame.name.clone())
                             .trace()
@@ -333,7 +332,7 @@ pub async fn trace_stack(
         .flatten()
         .collect::<HashMap<_, _>>();
 
-    error.print(assets, Some(root)).await
+    error.print(assets, &root).await
 }
 
 pub fn register() {

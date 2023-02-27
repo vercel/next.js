@@ -1,3 +1,4 @@
+#![feature(min_specialization)]
 #![cfg(test)]
 extern crate test_generator;
 
@@ -25,16 +26,31 @@ use chromiumoxide::{
 };
 use futures::StreamExt;
 use lazy_static::lazy_static;
-use next_dev::{register, EntryRequest, NextDevServerBuilder};
+use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use serde::Deserialize;
 use test_generator::test_resources;
-use tokio::{net::TcpSocket, task::JoinSet};
+use tokio::{
+    net::TcpSocket,
+    sync::mpsc::{channel, Sender},
+    task::JoinSet,
+};
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::TurboTasks;
-use turbo_tasks_fs::util::sys_to_unix;
+use turbo_tasks::{
+    debug::{ValueDebug, ValueDebugStringReadRef},
+    primitives::BoolVc,
+    NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbo_tasks_testing::retry::retry_async;
+use turbopack_core::issue::{CapturedIssues, IssueReporter, IssueReporterVc, PlainIssueReadRef};
+use turbopack_test_utils::snapshot::snapshot_issues;
+
+fn register() {
+    next_dev::register();
+    include!(concat!(env!("OUT_DIR"), "/register_test_integration.rs"));
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -155,18 +171,27 @@ async fn run_test(resource: &str) -> JestRunResult {
     );
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = package_root.parent().unwrap().parent().unwrap();
-    let project_dir = workspace_root.join(resource).join("input");
+    let workspace_root = package_root
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let test_dir = workspace_root.join(resource);
+    let project_dir = test_dir.join("input");
     let requested_addr = get_free_local_addr().unwrap();
 
     let mock_dir = path.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
 
-    let turbo_tasks = TurboTasks::new(MemoryBackend::default());
+    let (issue_tx, mut issue_rx) = channel(u16::MAX as usize);
+    let issue_tx = TransientInstance::new(issue_tx);
+
+    let tt = TurboTasks::new(MemoryBackend::default());
     let server = NextDevServerBuilder::new(
-        turbo_tasks,
-        sys_to_unix(&project_dir.to_string_lossy()).to_string(),
-        sys_to_unix(&workspace_root.to_string_lossy()).to_string(),
+        tt.clone(),
+        project_dir.to_string_lossy().to_string(),
+        workspace_root.to_string_lossy().to_string(),
     )
     .entry_request(EntryRequest::Module(
         "@turbo/pack-test-harness".to_string(),
@@ -178,6 +203,9 @@ async fn run_test(resource: &str) -> JestRunResult {
     .port(requested_addr.port())
     .log_level(turbopack_core::issue::IssueSeverity::Warning)
     .log_detail(true)
+    .issue_reporter(Box::new(move || {
+        TestIssueReporterVc::new(issue_tx.clone()).into()
+    }))
     .show_all(true)
     .build()
     .await
@@ -197,6 +225,29 @@ async fn run_test(resource: &str) -> JestRunResult {
     };
 
     env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
+
+    let task = tt.spawn_once_task(async move {
+        let issues_fs = DiskFileSystemVc::new(
+            "issues".to_string(),
+            test_dir.join("issues").to_string_lossy().to_string(),
+        )
+        .as_file_system();
+
+        let mut issues = vec![];
+        while let Ok(issue) = issue_rx.try_recv() {
+            issues.push(issue);
+        }
+
+        snapshot_issues(
+            issues.iter().cloned(),
+            issues_fs.root(),
+            &workspace_root.to_string_lossy(),
+        )
+        .await?;
+
+        Ok(NothingVc::new().into())
+    });
+    tt.wait_task_completion(task, true).await.unwrap();
 
     result
 }
@@ -412,5 +463,42 @@ async fn get_mock_server_future(mock_dir: &Path) -> Result<(), String> {
         .await
     } else {
         std::future::pending::<Result<(), String>>().await
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct TestIssueReporter {
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    pub issue_tx: State<Sender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
+}
+
+#[turbo_tasks::value_impl]
+impl TestIssueReporterVc {
+    #[turbo_tasks::function]
+    fn new(
+        issue_tx: TransientInstance<Sender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
+    ) -> Self {
+        TestIssueReporter {
+            issue_tx: State::new((*issue_tx).clone()),
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl IssueReporter for TestIssueReporter {
+    #[turbo_tasks::function]
+    async fn report_issues(
+        &self,
+        captured_issues: TransientInstance<ReadRef<CapturedIssues>>,
+        _source: TransientValue<RawVc>,
+    ) -> Result<BoolVc> {
+        let issue_tx = self.issue_tx.get_untracked().clone();
+        for issue in captured_issues.iter() {
+            let plain = issue.into_plain();
+            issue_tx.send((plain.await?, plain.dbg().await?)).await?;
+        }
+
+        Ok(BoolVc::cell(false))
     }
 }
