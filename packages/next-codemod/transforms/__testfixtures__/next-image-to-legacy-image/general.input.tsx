@@ -1,5 +1,9 @@
+// @ts-nocheck
+/* eslint-disable */
 import Image from "next/image";
 import Named from "next/image";
+import type { ImageProps } from "next/image";
+import { type ImageLoaderProps } from "next/image";
 import Foo from "foo";
 import Future1 from "next/future/image";
 import Future2 from "next/future/image";

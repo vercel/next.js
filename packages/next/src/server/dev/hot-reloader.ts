@@ -334,8 +334,8 @@ export default class HotReloader {
             case 'client-hmr-latency': {
               traceChild = {
                 name: payload.event,
-                startTime: BigInt(payload.startTime * 1000 * 1000),
-                endTime: BigInt(payload.endTime * 1000 * 1000),
+                startTime: BigInt(payload.startTime) * BigInt(1000 * 1000),
+                endTime: BigInt(payload.endTime) * BigInt(1000 * 1000),
               }
               break
             }

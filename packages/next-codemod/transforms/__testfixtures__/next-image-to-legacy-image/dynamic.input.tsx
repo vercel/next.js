@@ -1,9 +1,11 @@
+// @ts-nocheck
+/* eslint-disable */
 export async function Home() {
-  const Image = require("next/image");
-  const Named = require("next/image");
-  const Foo = require("foo");
-  const Future1 = require("next/future/image");
-  const Future2 = require("next/future/image");
+  const Image = await import("next/image");
+  const Named = await import("next/image");
+  const Foo = await import("foo");
+  const Future1 = await import("next/future/image");
+  const Future2 = await import("next/future/image");
   return (<div>
     <h1>Both</h1>
     <Image src="/test.jpg" width="200" height="300" />
