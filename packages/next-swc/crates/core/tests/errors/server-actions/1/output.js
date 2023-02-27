@@ -2,3 +2,4 @@
 foo.$$typeof = Symbol.for("react.server.reference");
 foo.$$filepath = "/app/item.js";
 foo.$$name = "foo";
+foo.$$bound = [];

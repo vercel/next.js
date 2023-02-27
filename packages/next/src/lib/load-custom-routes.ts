@@ -567,6 +567,10 @@ async function loadRedirects(config: NextConfig) {
   // they are still valid
   checkCustomRoutes(redirects, 'redirect')
 
+  // save original redirects before transforms
+  if (Array.isArray(redirects)) {
+    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+  }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
   return redirects

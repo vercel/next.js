@@ -1,5 +1,8 @@
 import type { ServerRuntime } from '../../types'
 
+// in seconds
+export const CACHE_ONE_YEAR = 31536000
+
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`

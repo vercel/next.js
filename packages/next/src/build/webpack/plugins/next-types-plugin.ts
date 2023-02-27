@@ -3,8 +3,11 @@ import { promises as fs } from 'fs'
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import { getPageFromPath } from '../../entries'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -14,6 +17,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
+  pageExtensions: string[]
   typedRoutes: boolean
 }
 
@@ -75,7 +79,7 @@ export interface PageProps {
   searchParams?: any
 }
 export interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 ${
   options.slots
     ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
@@ -118,8 +122,8 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
-const nodeRouteTypes: string[] = []
 const edgeRouteTypes: string[] = []
+const nodeRouteTypes: string[] = []
 
 export const pageFiles = new Set<string>()
 
@@ -127,12 +131,24 @@ function createRouteDefinitions() {
   const fallback =
     !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
-  return `
-type SearchOrHash = \`?\${string}\` | \`#\${string}\`
-type Suffix = '' | SearchOrHash
+  let routeTypes = ''
 
-type SafeSlug<S extends string> = 
-  S extends \`\${string}/\${string}\`
+  edgeRouteTypes.forEach((route) => {
+    routeTypes += `  | ${route}\n  `
+  })
+  nodeRouteTypes.forEach((route) => {
+    routeTypes += `  | ${route}\n  `
+  })
+
+  return `declare module 'next' {
+  export { default } from 'next/types/index.d.ts'
+  export * from 'next/types/index.d.ts'
+  
+  type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+
+  type Suffix = '' | SearchOrHash
+
+  type SafeSlug<S extends string> = S extends \`\${string}/\${string}\`
     ? never
     : S extends \`\${string}\${SearchOrHash}\`
     ? never
@@ -140,30 +156,26 @@ type SafeSlug<S extends string> =
     ? never
     : S
 
-type CatchAllSlug<S extends string> = 
-  S extends \`\${string}\${SearchOrHash}\`
+  type CatchAllSlug<S extends string> = S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S extends ''
     ? never
     : S
 
-type OptionalCatchAllSlug<S extends string> = 
-  S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S
+  type OptionalCatchAllSlug<S extends string> =
+    S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-type Route<T extends string = string> = ${fallback}
-${
-  edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
-  nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
+  export type Route<T extends string = string> = ${fallback}
+  ${routeTypes}
 }
 
 declare module 'next/link' {
-  import React from 'react'
-  import { UrlObject } from 'url'
-  import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
-
-  type LinkRestProps = Omit<Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
+  import type { Route } from 'next'
+  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+  import type { AnchorHTMLAttributes } from 'react'
+  import type { UrlObject } from 'url'
+  
+  type LinkRestProps = Omit<Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
 
   // If the href prop can be a Route type with an infer-able S, it's valid.
   type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
@@ -184,10 +196,6 @@ declare module 'next/link' {
 
   export type LinkProps<T> = LinkRestProps & HrefProp<T>
   export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
-}
-
-declare module 'next' {
-  export { Route }
 }`
 }
 
@@ -195,9 +203,10 @@ export class NextTypesPlugin {
   dir: string
   distDir: string
   appDir: string
-  pagesDir: string
   dev: boolean
   isEdgeServer: boolean
+  pageExtensions: string[]
+  pagesDir: string
   typedRoutes: boolean
 
   constructor(options: Options) {
@@ -206,6 +215,7 @@ export class NextTypesPlugin {
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
   }
@@ -228,15 +238,14 @@ export class NextTypesPlugin {
       return
     }
 
-    const page = isApp
-      ? normalizeAppPath(path.relative(this.appDir, filePath))
-      : '/' + path.relative(this.pagesDir, filePath)
-
-    let route =
-      (isApp
-        ? page.replace(/[/\\]page\.[^./]+$/, '')
-        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')
-      ).replace(/\\/g, '/') || '/'
+    let route = (isApp ? normalizeAppPath : denormalizePagePath)(
+      ensureLeadingSlash(
+        getPageFromPath(
+          path.relative(isApp ? this.appDir : this.pagesDir, filePath),
+          this.pageExtensions
+        )
+      )
+    )
 
     if (isDynamicRoute(route)) {
       route = route
@@ -383,9 +392,11 @@ export class NextTypesPlugin {
           await Promise.all(promises)
 
           if (this.typedRoutes) {
-            pageFiles.forEach((file) => {
-              this.collectPage(file)
-            })
+            if (this.dev && !this.isEdgeServer) {
+              pageFiles.forEach((file) => {
+                this.collectPage(file)
+              })
+            }
 
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =

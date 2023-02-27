@@ -35,7 +35,6 @@ export class ReadonlyURLSearchParams {
   toString: URLSearchParams['toString']
 
   constructor(urlSearchParams: URLSearchParams) {
-    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
 
     this.entries = urlSearchParams.entries.bind(urlSearchParams)

@@ -9,7 +9,7 @@ import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { isStringOrURL, resolveUrl } from './resolve-url'
 
-const OgTypFields = {
+const OgTypeFields = {
   article: ['authors', 'tags'],
   song: ['albums', 'musicians'],
   playlist: ['albums', 'musicians'],
@@ -57,19 +57,19 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   switch (ogType) {
     case 'article':
     case 'book':
-      return OgTypFields.article
+      return OgTypeFields.article
     case 'music.song':
     case 'music.album':
-      return OgTypFields.song
+      return OgTypeFields.song
     case 'music.playlist':
-      return OgTypFields.playlist
+      return OgTypeFields.playlist
     case 'music.radio_station':
-      return OgTypFields.radio
+      return OgTypeFields.radio
     case 'video.movie':
     case 'video.episode':
-      return OgTypFields.video
+      return OgTypeFields.video
     default:
-      return OgTypFields.basic
+      return OgTypeFields.basic
   }
 }
 
