@@ -15,6 +15,7 @@ const viewPortKeys = {
   initialScale: 'initial-scale',
   minimumScale: 'minimum-scale',
   maximumScale: 'maximum-scale',
+  interactiveWidget: 'interactive-widget',
   viewportFit: 'viewport-fit',
 } as const
 
