@@ -2379,7 +2379,9 @@ export default class Router implements BaseRouter {
               dataHref: data?.json
                 ? data?.dataHref
                 : this.pageLoader.getDataHref({
-                    href: url,
+                    href: isSsg
+                      ? url
+                      : formatWithValidation({ pathname: route, query }),
                     asPath: resolvedAs,
                     locale: locale,
                   }),
