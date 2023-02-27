@@ -230,5 +230,67 @@ createNextDescribe(
         }
       })
     })
+
+    describe('browser logs', () => {
+      async function getErrorLogs(browser: any) {
+        const browserLogs = await browser.log('browser')
+        const errorLogs = browserLogs.filter(
+          (log: any) => log.source === 'error'
+        )
+        return errorLogs
+      }
+
+      it('should not log a browser error on redirect in client component', async () => {
+        const browser = await next.browser('/')
+        const logsCountBefore = (await getErrorLogs(browser)).length
+
+        await browser.waitForElementByCss('#to-client-redirect').click()
+        await browser.waitForElementByCss('#result-page')
+
+        const logsCountAfter = (await getErrorLogs(browser)).length
+        console.log(await getErrorLogs(browser))
+
+        expect(logsCountBefore).toEqual(logsCountAfter)
+      })
+
+      it('should not log a browser error on redirect in server component', async () => {
+        const browser = await next.browser('/')
+        const logsCountBefore = (await getErrorLogs(browser)).length
+
+        await browser.waitForElementByCss('#to-server-redirect').click()
+        await browser.waitForElementByCss('#result-page')
+
+        const logsCountAfter = (await getErrorLogs(browser)).length
+        console.log(await getErrorLogs(browser))
+
+        expect(logsCountBefore).toEqual(logsCountAfter)
+      })
+
+      it('should not log a browser error on not found in client component', async () => {
+        const browser = await next.browser('/')
+        const logsCountBefore = (await getErrorLogs(browser)).length
+
+        await browser.waitForElementByCss('#to-client-not-found').click()
+        await browser.waitForElementByCss('#not-found-component')
+
+        const logsCountAfter = (await getErrorLogs(browser)).length
+        console.log(await getErrorLogs(browser))
+
+        expect(logsCountBefore).toEqual(logsCountAfter)
+      })
+
+      it('should not log a browser error on not found in server component', async () => {
+        const browser = await next.browser('/')
+        const logsCountBefore = (await getErrorLogs(browser)).length
+
+        await browser.waitForElementByCss('#to-server-not-found').click()
+        await browser.waitForElementByCss('#not-found-component')
+
+        const logsCountAfter = (await getErrorLogs(browser)).length
+        console.log(await getErrorLogs(browser))
+
+        expect(logsCountBefore).toEqual(logsCountAfter)
+      })
+    })
   }
 )
