@@ -1,4 +1,8 @@
-use std::{fmt::Debug, mem::take};
+use std::{
+    fmt::Debug,
+    mem::take,
+    ops::{Deref, DerefMut},
+};
 
 use auto_hash_map::AutoSet;
 use parking_lot::{Mutex, MutexGuard};
@@ -17,6 +21,7 @@ struct StateInner<T> {
 
 pub struct StateRef<'a, T> {
     inner: MutexGuard<'a, StateInner<T>>,
+    mutated: bool,
 }
 
 impl<T: Debug> Debug for State<T> {
@@ -47,7 +52,7 @@ impl<T> PartialEq for State<T> {
 }
 impl<T> Eq for State<T> {}
 
-impl<T: Serialize> Serialize for State<T> {
+impl<T> Serialize for State<T> {
     fn serialize<S: serde::Serializer>(&self, _serializer: S) -> Result<S::Ok, S::Error> {
         // For this to work at all we need to do more. Changing the the state need to
         // invalidate the serialization of the task that contains the state. So we
@@ -57,7 +62,7 @@ impl<T: Serialize> Serialize for State<T> {
     }
 }
 
-impl<'de, T: Deserialize<'de>> Deserialize<'de> for State<T> {
+impl<'de, T> Deserialize<'de> for State<T> {
     fn deserialize<D: Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
         panic!("State serialization is not implemented yet");
     }
@@ -90,7 +95,19 @@ impl<T> State<T> {
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
         inner.invalidators.insert(invalidator);
-        StateRef { inner }
+        StateRef {
+            inner,
+            mutated: false,
+        }
+    }
+
+    /// Gets the current value of the state. Untracked.
+    pub fn get_untracked(&self) -> StateRef<'_, T> {
+        let inner = self.inner.lock();
+        StateRef {
+            inner,
+            mutated: false,
+        }
     }
 
     /// Sets the current state without comparing it with the old value. This
@@ -133,10 +150,27 @@ impl<T: PartialEq> State<T> {
     }
 }
 
-impl<'a, T> std::ops::Deref for StateRef<'a, T> {
+impl<'a, T> Deref for StateRef<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.inner.value
+    }
+}
+
+impl<'a, T> DerefMut for StateRef<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.mutated = true;
+        &mut self.inner.value
+    }
+}
+
+impl<'a, T> Drop for StateRef<'a, T> {
+    fn drop(&mut self) {
+        if self.mutated {
+            for invalidator in take(&mut self.inner.invalidators) {
+                invalidator.invalidate();
+            }
+        }
     }
 }

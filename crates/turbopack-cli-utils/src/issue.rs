@@ -11,7 +11,8 @@ use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use turbo_tasks::{
-    RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, ValueToString,
+    primitives::BoolVc, RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt,
+    ValueToString,
 };
 use turbo_tasks_fs::{
     attach::AttachedFileSystemVc,
@@ -433,7 +434,7 @@ impl IssueReporter for ConsoleUi {
         &self,
         issues: TransientInstance<ReadRef<CapturedIssues>>,
         source: TransientValue<RawVc>,
-    ) -> Result<()> {
+    ) -> Result<BoolVc> {
         let issues = &*issues;
         let LogOptions {
             ref current_dir,
@@ -465,12 +466,17 @@ impl IssueReporter for ConsoleUi {
             .unwrap()
             .new_ids(source.into_value(), issue_ids);
 
+        let mut has_fatal = false;
         for (plain_issue, path, context, id) in issues {
             if !new_ids.remove(&id) {
                 continue;
             }
 
             let severity = plain_issue.severity;
+            if severity == IssueSeverity::Fatal {
+                has_fatal = true;
+            }
+
             let context_path = make_relative_to_cwd(context, current_dir).await?;
             let category = &plain_issue.category;
             let title = &plain_issue.title;
@@ -606,7 +612,7 @@ impl IssueReporter for ConsoleUi {
             }
         }
 
-        Ok(())
+        Ok(BoolVc::cell(has_fatal))
     }
 }
 

@@ -12,7 +12,7 @@ use turbopack_dev_server::source::{
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::{
-    next_config::NextConfigVc,
+    next_config::{has_next_config, NextConfigVc},
     router::{route, RouterRequest, RouterResult},
 };
 
@@ -73,6 +73,16 @@ impl ContentSource for NextRouterContentSource {
         data: Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
         let this = self_vc.await?;
+
+        // The next-dev server can currently run against projects as simple as
+        // `index.js`. If this isn't a Next.js project, don't try to use the Next.js
+        // router.
+        let project_root = this.execution_context.await?.project_root;
+        if !(*has_next_config(project_root).await?) {
+            return Ok(this
+                .inner
+                .get(path, Value::new(ContentSourceData::default())));
+        }
 
         let ContentSourceData {
             method: Some(method),

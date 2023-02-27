@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, thread::available_parallelism, time::Duration};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures_retry::{FutureRetry, RetryPolicy};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringVc},
@@ -226,6 +226,7 @@ pub async fn evaluate(
                 EvaluationIssue {
                     error,
                     context_path: context_path_for_issue,
+                    cwd,
                 }
                 .cell()
                 .as_issue()
@@ -279,6 +280,7 @@ pub async fn evaluate(
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {
     pub context_path: FileSystemPathVc,
+    pub cwd: FileSystemPathVc,
     pub error: StructuredError,
 }
 
@@ -301,8 +303,14 @@ impl Issue for EvaluationIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
+        let cwd = to_sys_path(self.cwd.root())
+            .await?
+            .context("Must have path on disk")?;
+
         Ok(StringVc::cell(
-            self.error.print(Default::default(), None).await?,
+            self.error
+                .print(Default::default(), &cwd.to_string_lossy())
+                .await?,
         ))
     }
 }

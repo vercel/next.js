@@ -14,6 +14,7 @@ use internal::PassthroughDebug;
 ///
 /// We don't use `StringVc` directly because we don't want the `Debug`/`Display`
 /// representations to be escaped.
+#[derive(Clone)]
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);
 
