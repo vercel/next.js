@@ -141,8 +141,8 @@ function createRouteDefinitions() {
   })
 
   return `declare module 'next' {
-  export { default } from 'next/types/index.d.ts'
-  export * from 'next/types/index.d.ts'
+  export { default } from 'next/types'
+  export * from 'next/types'
   
   type SearchOrHash = \`?\${string}\` | \`#\${string}\`
 
