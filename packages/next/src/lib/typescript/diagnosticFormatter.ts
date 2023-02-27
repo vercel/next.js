@@ -18,10 +18,10 @@ function getFormattedLinkDiagnosticMessageText(
   if (typeof message === 'string' && diagnostic.code === 2322) {
     const match =
       message.match(
-        /Type '"(.+)"' is not assignable to type 'Route<string> | URL'\./
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./
       ) ||
       message.match(
-        /Type '"(.+)"' is not assignable to type 'URL | Route<string>'\./
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./
       )
 
     if (match) {
@@ -41,6 +41,23 @@ function getFormattedLinkDiagnosticMessageText(
       ) {
         return `Invalid \`href\` property of \`Link\`: the route does not exist. If it is intentional, please type it explicitly with \`as Route\`.`
       }
+    }
+  } else if (typeof message === 'string' && diagnostic.code === 2820) {
+    const match =
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\. Did you mean '"(.+)"'?/
+      ) ||
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\. Did you mean '"(.+)"'?/
+      )
+
+    if (match) {
+      const [, href, suggestion] = match
+      return `"${chalk.bold(
+        href
+      )}" is not an existing route. Did you mean "${chalk.bold(
+        suggestion
+      )}" instead? If it is intentional, please type it explicitly with \`as Route\`.`
     }
   }
 }

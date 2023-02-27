@@ -1,4 +1,4 @@
-import type { Route } from 'next'
+import type { Route, Metadata } from 'next'
 import Link from 'next/link'
 
 export function Card<T>({ href }: { href: Route<T> | URL }) {
@@ -68,4 +68,8 @@ export default function page() {
       {shouldPass}
     </>
   )
+}
+
+export const metadata: Metadata = {
+  title: 'test',
 }

@@ -25,13 +25,9 @@ describe('app type checking', () => {
       expect(dts.includes('`/dashboard/user/')).toBeTruthy()
       expect(dts.includes('`/dashboard/another')).toBeTruthy()
 
-      expect(errors).toContain(
-        'Type error: "/(newroot)/dashboard/another" is not an existing route. If it is intentional, please type it explicitly with `as Route`.'
-      )
-
       // Check type checking errors
       expect(errors).toContain(
-        'Invalid `href` property of `Link`: the route does not exist. If it is intentional, please type it explicitly with `as Route`.'
+        'Type error: "/(newroot)/dashboard/another" is not an existing route. If it is intentional, please type it explicitly with `as Route`.'
       )
 
       // Make sure all errors were reported and other links passed type checking
