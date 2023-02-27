@@ -4,7 +4,7 @@ import os from 'os'
 import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
-import { nextBuild, nextLint, File } from 'next-test-utils'
+import { File, nextBuild, nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
@@ -37,6 +37,7 @@ const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
+const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -314,28 +315,6 @@ describe('ESLint', () => {
         expect(output).toContain('Cancel')
       })
 
-      test('should generate next-env.d.ts before lint command', async () => {
-        await nextLint(dirBaseDirectories, [], {
-          stdout: true,
-          stderr: true,
-        })
-
-        const files = await fs.readdir(dirBaseDirectories)
-
-        expect(files).toContain('next-env.d.ts')
-      })
-
-      test('should not generate next-env.d.ts without typescript config', async () => {
-        await nextLint(dirEmptyDirectory, [], {
-          stdout: true,
-          stderr: true,
-        })
-
-        const files = await fs.readdir(dirEmptyDirectory)
-
-        expect(files).not.toContain('next-env.d.ts')
-      })
-
       for (const { packageManger, lockFile } of [
         { packageManger: 'yarn', lockFile: 'yarn.lock' },
         { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
@@ -374,6 +353,35 @@ describe('ESLint', () => {
         )
       })
     })
+
+    test('should generate next-env.d.ts before lint command', async () => {
+      await nextLint(dirTypescript, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const files = await fs.readdir(dirTypescript)
+
+      expect(files).toContain('next-env.d.ts')
+    })
+
+    for (const { dir } of [
+      { dir: dirEmptyDirectory },
+      { dir: dirIgnoreDuringBuilds },
+      { dir: dirCustomDirectories },
+      { dir: dirConfigInPackageJson },
+    ]) {
+      test('should not generate next-env.d.ts without typescript', async () => {
+        await nextLint(dir, [], {
+          stdout: true,
+          stderr: true,
+        })
+
+        const files = await fs.readdir(dir)
+
+        expect(files).not.toContain('next-env.d.ts')
+      })
+    }
 
     test('shows warnings and errors', async () => {
       const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
