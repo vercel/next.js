@@ -202,7 +202,7 @@ const nextDev: CliCommand = async (argv) => {
       Log.warn(
         'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
           'The `@next/font` package will be removed in Next.js 14. ' +
-          `You can migrate by running \`${command} @next/codemod built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
+          `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
       )
     }
   }

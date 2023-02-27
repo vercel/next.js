@@ -20,6 +20,7 @@ import {
   resolveAppleWebApp,
   resolveAppLinks,
   resolveRobots,
+  resolveThemeColor,
   resolveVerification,
   resolveViewport,
 } from './resolvers/resolve-basics'
@@ -135,6 +136,10 @@ function merge(
         target.robots = resolveRobots(source.robots)
         break
       }
+      case 'themeColor': {
+        target.themeColor = resolveThemeColor(source.themeColor)
+        break
+      }
       case 'archives':
       case 'assets':
       case 'bookmarks':
@@ -149,7 +154,6 @@ function merge(
       case 'applicationName':
       case 'description':
       case 'generator':
-      case 'themeColor':
       case 'creator':
       case 'publisher':
       case 'category':
