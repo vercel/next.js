@@ -22,7 +22,7 @@ export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
   if (!themeColor) return null
   const themeColorDescriptors: ResolvedMetadata['themeColor'] = []
 
-  resolveAsArrayOrUndefined(themeColor).map((descriptor) => {
+  resolveAsArrayOrUndefined(themeColor)?.forEach((descriptor) => {
     if (typeof descriptor === 'string')
       themeColorDescriptors.push({ color: descriptor })
     else if (typeof descriptor === 'object')
