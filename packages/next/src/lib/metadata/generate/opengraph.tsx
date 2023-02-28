@@ -202,7 +202,11 @@ export function OpenGraphMetadata({
       <Meta property="og:locale" content={openGraph.locale} />
       <Meta property="og:country_name" content={openGraph.countryName} />
       <Meta property="og:ttl" content={openGraph.ttl?.toString()} />
-      <MultiMeta propertyPrefix="og:image" contents={openGraph.images} />
+      <MultiMeta
+        propertyPrefix="og:image"
+        mapKey={(key) => (key === 'og:image:url' ? 'og:image' : key)}
+        contents={openGraph.images}
+      />
       <MultiMeta propertyPrefix="og:video" contents={openGraph.videos} />
       <MultiMeta propertyPrefix="og:audio" contents={openGraph.audio} />
       <MultiMeta propertyPrefix="og:email" contents={openGraph.emails} />
