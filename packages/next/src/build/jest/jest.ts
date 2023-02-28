@@ -59,7 +59,6 @@ export default function nextJest(options: { dir?: string } = {}) {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
     return async () => {
-      let resolvedDir
       let nextConfig
       let jsConfig
       let resolvedBaseUrl
@@ -68,7 +67,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       let hasServerComponents: boolean | undefined
 
       if (options.dir) {
-        resolvedDir = resolve(options.dir)
+        const resolvedDir = resolve(options.dir)
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
