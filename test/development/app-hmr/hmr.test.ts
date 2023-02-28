@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   `app-dir-hmr`,
@@ -18,9 +19,11 @@ createNextDescribe(
 
         try {
           // Should be 404 in a few seconds
-          await new Promise((resolve) => setTimeout(resolve, 5000))
-          const body = await browser.elementByCss('body').text()
-          expect(body).toContain('404')
+          await check(async () => {
+            const body = await browser.elementByCss('body').text()
+            expect(body).toContain('404')
+            return 'success'
+          }, 'success')
 
           // The new page should be rendered
           const newHTML = await next.render('/folder-renamed')

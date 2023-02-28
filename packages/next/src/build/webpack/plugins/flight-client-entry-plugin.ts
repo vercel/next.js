@@ -257,7 +257,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientImports,
             bundlePath,
-            absolutePagePath: relativeRequest,
+            absolutePagePath: entryRequest,
           })
         )
       }
@@ -621,9 +621,7 @@ export class FlightClientEntryPlugin {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
           parentEntries: new Set([entryName]),
-          absoluteEntryFilePath: absolutePagePath
-            ? path.join(this.appDir, '..', absolutePagePath)
-            : undefined,
+          absoluteEntryFilePath: absolutePagePath,
           bundlePath,
           request: clientLoader,
           dispose: false,
