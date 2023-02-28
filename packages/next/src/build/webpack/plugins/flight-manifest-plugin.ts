@@ -374,7 +374,12 @@ export class FlightManifestPlugin {
         if (entryName?.startsWith('app/')) {
           // The `key` here should be the absolute file path but without extension.
           // We need to replace the separator in the entry name to match the system separator.
-          const key = this.appDir + entryName.slice(3).replace(/\//g, sep)
+          const key =
+            this.appDir +
+            entryName
+              .slice(3)
+              .replace(/\//g, sep)
+              .replace(/\.[^\\/.]+$/, '')
           entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
         }
       }
