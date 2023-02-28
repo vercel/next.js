@@ -336,6 +336,7 @@ function useFlightResponse(
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
+  const textDecoder = new TextDecoder()
 
   function read() {
     forwardReader.read().then(({ done, value }) => {
@@ -357,7 +358,7 @@ function useFlightResponse(
         flightResponseRef.current = null
         writer.close()
       } else {
-        const responsePartial = decodeText(value)
+        const responsePartial = decodeText(value, textDecoder)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
@@ -1476,10 +1477,11 @@ export async function renderToHTMLOrFlight(
       renderResult: RenderResult
     ): Promise<string> => {
       const renderChunks: string[] = []
+      const textDecoder = new TextDecoder()
 
       const writable = {
         write(chunk: any) {
-          renderChunks.push(decodeText(chunk))
+          renderChunks.push(decodeText(chunk, textDecoder))
         },
         end() {},
         destroy() {},
