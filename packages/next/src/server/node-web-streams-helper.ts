@@ -14,10 +14,11 @@ export function encodeText(input: string) {
   return new TextEncoder().encode(input)
 }
 
-export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
-  return textDecoder
-    ? textDecoder.decode(input, { stream: true })
-    : new TextDecoder().decode(input)
+export function decodeText(
+  input: Uint8Array | undefined,
+  textDecoder: TextDecoder
+) {
+  return textDecoder.decode(input, { stream: true })
 }
 
 export function readableStreamTee<T = any>(
@@ -161,6 +162,7 @@ function createHeadInsertionTransformStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
   let freezing = false
+  const textDecoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
@@ -176,7 +178,7 @@ function createHeadInsertionTransformStream(
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decodeText(chunk)
+        const content = decodeText(chunk, textDecoder)
         const index = content.indexOf('</head>')
         if (index !== -1) {
           const insertedHeadContent =
@@ -293,11 +295,12 @@ export function createRootLayoutValidatorStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundBody = false
+  const textDecoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
       if (!foundHtml || !foundBody) {
-        const content = decodeText(chunk)
+        const content = decodeText(chunk, textDecoder)
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
         }
