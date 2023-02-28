@@ -164,7 +164,6 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
-  unwatchConfigFiles = watchConfigFiles(dir)
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, 'directory'))) {
@@ -400,6 +399,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
   if (args['--turbo']) {
     isTurboSession = true
+
+    unwatchConfigFiles = watchConfigFiles(dir)
 
     const { loadBindings, __isCustomTurbopackBinary } =
       require('../build/swc') as typeof import('../build/swc')
@@ -685,6 +686,19 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
       })
 
+      const configFileWatcher = new Watchpack()
+      configFileWatcher.watch({
+        files: CONFIG_FILES.map((file) => path.join(dir, file)),
+      })
+      configFileWatcher.on('change', (filename) => {
+        warn(
+          `Found a change in ${path.basename(
+            filename
+          )}, restarting the server to apply changes.`
+        )
+        return setupFork()
+      })
+
       const projectFolderWatcher = new Watchpack({
         ignored: (entry: string) => {
           return !(entry.split('/').length <= watchedEntryLength)
@@ -744,7 +758,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             `Detected project directory rename, restarting in new location`
           )
           handleProjectDirRename(newFiles[0])
-          watchConfigFiles(newFiles[0])
           dir = newFiles[0]
         } else {
           Log.error(

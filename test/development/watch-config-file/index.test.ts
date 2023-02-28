@@ -22,27 +22,37 @@ describe('watch-config-file', () => {
         `,
       },
       dependencies: {},
-      skipStart: true,
     })
   })
   afterAll(() => next.destroy())
 
   it('should output config file change', async () => {
-    // next dev test-dir
-    await next.start(true)
     let i = 1
 
-    await check(async () => {
-      await next.patchFile(
-        'next.config.js',
-        `
+    await next.patchFile(
+      'next.config.js',
+      `
           /** changed - ${i} **/  
           const nextConfig = {
             reactStrictMode: true,
+            async redirects() {
+                return [
+                  {
+                    source: '/about',
+                    destination: '/',
+                    permanent: true,
+                  },
+                ]
+              },
           }
           module.exports = nextConfig`
-      )
-      return next.cliOutput
-    }, /Found a change in next.config.js. Restart the server to see the changes in effect./)
+    )
+
+    await check(
+      async () => next.cliOutput,
+      /Found a change in next\.config\.js, restarting the server to apply changes\./
+    )
+
+    await check(() => next.fetch('/about').then((res) => res.status), 200)
   })
 })
