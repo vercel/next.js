@@ -49,7 +49,7 @@ function Blog({ posts }) {
   return (
     <ul>
       {posts.map((post) => (
-        <li>{post.title}</li>
+        return <li>{post.title}</li>
       ))}
     </ul>
   )
