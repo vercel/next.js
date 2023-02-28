@@ -4,6 +4,7 @@
   "@sentry/node",
   "autoprefixer",
   "aws-crt",
+  "bcrypt",
   "cypress",
   "eslint",
   "express",
@@ -24,6 +25,5 @@
   "ts-node",
   "typescript",
   "vscode-oniguruma",
-  "webpack",
-  "bcrypt"
+  "webpack"
 ]
