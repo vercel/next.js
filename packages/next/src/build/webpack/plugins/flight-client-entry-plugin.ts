@@ -247,7 +247,7 @@ export class FlightClientEntryPlugin {
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = normalizePathSep(
-          relativeRequest.replace(/\.(js|ts)x?$/, '').replace(/^src[\\/]/, '')
+          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         addClientEntryAndSSRModulesList.push(
@@ -257,6 +257,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientImports,
             bundlePath,
+            absolutePagePath: entryRequest,
           })
         )
       }
@@ -574,12 +575,14 @@ export class FlightClientEntryPlugin {
     entryName,
     clientImports,
     bundlePath,
+    absolutePagePath,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     entryName: string
     clientImports: ClientComponentImports
     bundlePath: string
+    absolutePagePath?: string
   }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
     let shouldInvalidate = false
 
@@ -618,6 +621,7 @@ export class FlightClientEntryPlugin {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
           parentEntries: new Set([entryName]),
+          absoluteEntryFilePath: absolutePagePath,
           bundlePath,
           request: clientLoader,
           dispose: false,
@@ -634,6 +638,8 @@ export class FlightClientEntryPlugin {
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
           entryData.parentEntries.add(entryName)
         }
+        entryData.dispose = false
+        entryData.lastActiveTime = Date.now()
       }
     } else {
       injectedClientEntries.set(bundlePath, clientLoader)
