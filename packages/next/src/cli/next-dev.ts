@@ -101,27 +101,14 @@ if (!isChildProcess) {
 }
 
 /** Preven't race conditions on async function, by waiting for the previous invocation to finish */
-const functionNotRunningInParallel = (fn: () => Promise<void>) => {
-  const state = {
-    running: false,
-    runWhenDone: false,
-  }
-  const wrappedFn = async () => {
-    if (state.running) {
-      state.runWhenDone = true
-      return
-    }
-    state.running = true
-    try {
-      await fn()
-    } finally {
-      state.running = false
-    }
+const functionNotRunningInParallel = <T extends unknown[]>(
+  fn: (...args: T) => Promise<void>
+) => {
+  let promise = Promise.resolve()
 
-    if (state.runWhenDone) {
-      state.runWhenDone = false
-      wrappedFn()
-    }
+  const wrappedFn = async (...args: T) => {
+    promise = promise.then(() => fn(...args))
+    await promise
   }
   return wrappedFn
 }
@@ -142,50 +129,102 @@ const getFileHash = async (file: string) => {
 }
 
 /**
- * useEffect but for filechanges, will trigger the effect when any file changes
+ * This function can be reexecuted if needed, it will cleanup the previous execution by calling returned cleanup function
  */
-const fileChangeEffect = async (
-  fileDeps: string[],
-  fn: () => Promise<() => Promise<void>>
+const rerunableFunction = async (
+  fn: (rerun: () => Promise<void>) => Promise<() => Promise<void>>
 ) => {
   let cleanup = async () => {}
   const restart = functionNotRunningInParallel(async () => {
     await cleanup()
-    cleanup = await fn()
-  })
-
-  // null means we don't know the contents yet
-  const fileHashes: Record<string, string | null> = {}
-  fileDeps.forEach((fileDep) => (fileHashes[fileDep] = null))
-
-  // Let's get file hashes later to not slow down dev start
-  setImmediate(() => {
-    fileDeps.forEach(
-      (file) => void getFileHash(file).then((hash) => (fileHashes[file] = hash))
-    )
-  })
-
-  const wp = new Watchpack()
-  wp.watch({ files: fileDeps })
-  wp.on('change', async (filename) => {
-    const newHash = await getFileHash(filename)
-    if (newHash === fileHashes[filename] && newHash !== null) return
-
-    fileHashes[filename] = newHash
-
-    console.log(
-      `\n> Found a change in ${path.basename(
-        filename
-      )}. Restarting the server to apply changes.`
-    )
-    await restart()
+    cleanup = await fn(restart)
   })
 
   await restart()
+  return () => cleanup()
+}
 
-  return async () => {
-    wp.close()
-    await cleanup()
+const createWatcher = (rootDir: string) => {
+  type Entry = {
+    fileWatched: (filename: string) => boolean
+    onFileChange: (params: {
+      added: string[]
+      changed: string[]
+      removed: string[]
+    }) => void
+  }
+
+  let entries: Entry[] = []
+
+  const wp = new Watchpack({
+    ignored: (filename: string) => {
+      for (const entry of entries) {
+        if (entry.fileWatched(filename)) {
+          return false
+        }
+      }
+      return true
+    },
+  })
+
+  const fileHashes = new Map<string, string>()
+
+  let previousItems = new Set<string>()
+  const onChange = functionNotRunningInParallel(async (changedFile: string) => {
+    return
+    const knownFiles = new Set(wp.getTimeInfoEntries().keys())
+    const newFiles = new Set(knownFiles)
+    const removedFiles = new Set<string>()
+
+    previousItems.forEach((item) => {
+      if (!knownFiles.has(item)) removedFiles.delete(item)
+      newFiles.delete(item)
+    })
+    previousItems = knownFiles
+
+    const changedFiles = new Set<string>()
+
+    const newHash = await getFileHash(changedFile)
+    if (fileHashes.has(changedFile) && fileHashes.get(changedFile) === newHash)
+      return
+    fileHashes.set(changedFile, newHash)
+    changedFiles.add(changedFile)
+
+    for (const entry of entries) {
+      const params = {
+        added: [...newFiles].filter((file) => entry.fileWatched(file)),
+        removed: [...removedFiles].filter((file) => entry.fileWatched(file)),
+        changed: [...changedFiles].filter((file) => entry.fileWatched(file)),
+      }
+      // Don't rerun when there are no wathed file changed
+      if (
+        params.added.length ||
+        params.changed.length ||
+        params.removed.length
+      ) {
+        entry.onFileChange(params)
+      }
+    }
+  })
+
+  wp.on('change', (filename: string) => onChange(filename))
+
+  return {
+    addEntry: (entry: Entry) => {
+      entries.push(entry)
+      return () => {
+        entries = entries.filter((e) => e !== entry)
+      }
+    },
+    startWatching: () => {
+      wp.watch({
+        directories: [rootDir],
+        startTime: 0, //Date.now(),
+      })
+    },
+    cleanup: () => {
+      wp.close()
+    },
   }
 }
 
@@ -681,178 +720,98 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           childProcess?.removeListener('exit', callback)
       }
 
-      const handleProjectDirRename = (newDir: string) => {
-        process.chdir(newDir)
-        setupFork(
-          {
-            ...Object.keys(process.env).reduce((newEnv, key) => {
-              newEnv[key] = process.env[key]?.replace(dir, newDir)
-              return newEnv
-            }, {} as typeof process.env),
-            NEXT_PRIVATE_DEV_DIR: newDir,
-          },
-          newDir
+      const parentDir = path.join('/', dir, '..')
+      const watchedEntryLength = dir.split('/').length
+
+      await rerunableFunction(async (rerun) => {
+        rerun = async () => {}
+        const watcher = createWatcher(parentDir)
+        const watcherCleanUps: (() => Promise<void> | void)[] = []
+
+        console.log('starting watcher...')
+
+        setupFork()
+
+        // Handle project directory rename
+        watcherCleanUps.push(
+          watcher.addEntry({
+            fileWatched: (filename) =>
+              filename.split('/').length <= watchedEntryLength,
+            onFileChange: ({ added, removed }) => {
+              // Project was not removed, continue
+              if (!removed.includes(dir)) return
+              const newDir = added[0]
+
+              let hasPagesApp = false
+              try {
+                const result = findPagesDir(
+                  newDir,
+                  !!config.experimental?.appDir
+                )
+                hasPagesApp = Boolean(result.pagesDir || result.appDir)
+              } catch (_) {}
+
+              if (hasPagesApp && newDir) {
+                warn(
+                  `Detected project directory rename, restarting in new location`
+                )
+                // We try to update the environment to the new directory
+                process.chdir(newDir)
+                Object.keys(process.env).forEach((key) => {
+                  process.env[key] = process.env[key]?.replace(dir, newDir)
+                })
+                process.env.NEXT_PRIVATE_DEV_DIR = newDir
+                rerun()
+              } else {
+                Log.error(
+                  `Project directory could not be found, restart Next.js in your new directory`
+                )
+                process.exit(0)
+              }
+            },
+          })
         )
-      }
 
-      await fileChangeEffect(
-        CONFIG_FILES.map((configFile) => path.join(dir, configFile)),
-        async () => {
-          config = await loadConfig(
-            PHASE_DEVELOPMENT_SERVER,
-            dir,
-            undefined,
-            undefined,
-            true
-          )
+        // Handle instrumentation changes
+        config = await loadConfig(
+          PHASE_DEVELOPMENT_SERVER,
+          dir,
+          undefined,
+          undefined,
+          true
+        )
 
-          const instrumentationFilePaths = !!config.experimental
-            ?.instrumentationHook
+        // Handle config and instrumentation changes
+        const watchedFiles = new Set([
+          ...CONFIG_FILES.map((configFile) => path.join(dir, configFile)),
+          ...(!!config.experimental?.instrumentationHook
             ? getPossibleInstrumentationHookFilenames(
                 dir,
                 config.pageExtensions!
               )
-            : []
+            : []),
+        ])
+        watcherCleanUps.push(
+          watcher.addEntry({
+            fileWatched: (filename) => watchedFiles.has(filename),
+            onFileChange: ({ added, removed, changed }) => {
+              const [modifiedFile] = added.concat(removed, changed)
+              warn(
+                `Detected a change in \`${modifiedFile}\`, restarting dev server to apply changes`
+              )
+              rerun()
+            },
+          })
+        )
 
-          const stopInstrumentaionEffect = await fileChangeEffect(
-            instrumentationFilePaths,
-            async () => {
-              setupFork()
+        // We don't want wather to start firing events before we register all listeners
+        watcher.startWatching()
 
-              const parentDir = path.join('/', dir, '..')
-              const watchedEntryLength = parentDir.split('/').length + 1
-              const previousItems = new Set<string>()
-
-              const wp = new Watchpack({
-                ignored: (entry: string) => {
-                  return (
-                    !(entry.split('/').length <= watchedEntryLength) &&
-                    !instrumentationFilePaths.includes(entry)
-                  )
-                },
-              })
-
-              wp.watch({ directories: [parentDir], startTime: 0 })
-              let instrumentationFileLastHash: string | undefined = undefined
-
-              wp.on('aggregated', async () => {
-                const knownFiles = wp.getTimeInfoEntries()
-                const newFiles: string[] = []
-                let hasPagesApp = false
-                // check if the `instrumentation.js` has changed
-                // if it has we need to restart the server
-                const instrumentationFile = [...knownFiles.keys()].find((key) =>
-                  instrumentationFilePaths.includes(key)
-                )
-
-                if (instrumentationFile) {
-                  const fs = require('fs') as typeof import('fs')
-                  const instrumentationFileHash = (
-                    require('crypto') as typeof import('crypto')
-                  )
-                    .createHash('sha256')
-                    .update(
-                      await fs.promises.readFile(instrumentationFile, 'utf8')
-                    )
-                    .digest('hex')
-
-                  if (
-                    instrumentationFileLastHash &&
-                    instrumentationFileHash !== instrumentationFileLastHash
-                  ) {
-                    warn(
-                      `The instrumentation file has changed, restarting the server to apply changes.`
-                    )
-                    return setupFork()
-                  } else {
-                    if (
-                      !instrumentationFileLastHash &&
-                      previousItems.size !== 0
-                    ) {
-                      warn(
-                        'An instrumentation file was added, restarting the server to apply changes.'
-                      )
-                      return setupFork()
-                    }
-                    instrumentationFileLastHash = instrumentationFileHash
-                  }
-                } else if (
-                  [...previousItems.keys()].find((key) =>
-                    instrumentationFilePaths.includes(key)
-                  )
-                ) {
-                  warn(
-                    `The instrumentation file has been removed, restarting the server to apply changes.`
-                  )
-                  instrumentationFileLastHash = undefined
-                  return setupFork()
-                }
-
-                // if the dir still exists nothing to check
-                try {
-                  const result = findPagesDir(
-                    dir,
-                    !!config.experimental?.appDir
-                  )
-                  hasPagesApp = Boolean(result.pagesDir || result.appDir)
-                } catch (err) {
-                  // if findPagesDir throws validation error let this be
-                  // handled in the dev-server itself in the fork
-                  if ((err as any).message?.includes('experimental')) {
-                    return
-                  }
-                }
-
-                // try to find new dir introduced
-                if (previousItems.size) {
-                  for (const key of knownFiles.keys()) {
-                    if (!previousItems.has(key)) {
-                      newFiles.push(key)
-                    }
-                  }
-                  previousItems.clear()
-                }
-
-                for (const key of knownFiles.keys()) {
-                  previousItems.add(key)
-                }
-
-                if (hasPagesApp) {
-                  return
-                }
-
-                // if we failed to find the new dir it may have been moved
-                // to a new parent directory which we can't track as easily
-                // so exit gracefully
-                try {
-                  const result = findPagesDir(
-                    newFiles[0],
-                    !!config.experimental?.appDir
-                  )
-                  hasPagesApp = Boolean(result.pagesDir || result.appDir)
-                } catch (_) {}
-
-                if (hasPagesApp && newFiles.length === 1) {
-                  Log.info(
-                    `Detected project directory rename, restarting in new location`
-                  )
-                  handleProjectDirRename(newFiles[0])
-                  watchConfigFiles(newFiles[0])
-                  dir = newFiles[0]
-                } else {
-                  Log.error(
-                    `Project directory could not be found, restart Next.js in your new directory`
-                  )
-                  process.exit(0)
-                }
-              })
-
-              return async () => {}
-            }
-          )
-          return async () => stopInstrumentaionEffect()
+        return async () => {
+          await Promise.all(watcherCleanUps.map((fn) => fn()))
+          watcher.cleanup()
         }
-      )
+      })
     } else {
       startServer(devServerOptions)
         .then(async (app) => {

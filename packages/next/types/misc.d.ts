@@ -431,6 +431,11 @@ declare module 'next/dist/compiled/watchpack' {
       string,
       { safeTime: number; timestamp: number; accuracy?: number }
     >
+
+    getAggregated(): {
+      changes: string[]
+      removals: string[]
+    }
   }
 
   export default Watchpack
