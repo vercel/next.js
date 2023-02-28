@@ -515,6 +515,8 @@ export default class HotReloader {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
+        originalRewrites: this.config._originalRewrites,
+        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
       }
@@ -572,6 +574,12 @@ export default class HotReloader {
         afterFiles: [],
         fallback: [],
       },
+      originalRewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
@@ -768,7 +776,6 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
-
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
@@ -798,7 +805,6 @@ export default class HotReloader {
             })
           })
         )
-
         return entrypoints
       }
     }

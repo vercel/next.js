@@ -4,6 +4,7 @@
   "@sentry/node",
   "autoprefixer",
   "aws-crt",
+  "bcrypt",
   "cypress",
   "eslint",
   "express",
