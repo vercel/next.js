@@ -14,10 +14,11 @@ export function encodeText(input: string) {
   return new TextEncoder().encode(input)
 }
 
-export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
-  return textDecoder
-    ? textDecoder.decode(input, { stream: true })
-    : new TextDecoder().decode(input)
+export function decodeText(
+  input: Uint8Array | undefined,
+  textDecoder: TextDecoder
+) {
+  return textDecoder.decode(input, { stream: true })
 }
 
 export function readableStreamTee<T = any>(
