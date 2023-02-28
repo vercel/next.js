@@ -1,5 +1,6 @@
 import path = require('path')
 import { defineRule } from '../utils/define-rule'
+import { getRootDirs } from '../utils/get-root-dirs'
 
 const url = 'https://nextjs.org/docs/messages/no-head-element'
 
@@ -18,12 +19,23 @@ export = defineRule({
     return {
       JSXOpeningElement(node) {
         const paths = context.getFilename()
+        const rootDirs = getRootDirs(context)
 
-        const isInAppDir = () =>
-          (paths.includes(`app${path.sep}`) ||
-            paths.includes(`app${path.posix.sep}`)) &&
-          !paths.includes(`pages${path.sep}`) &&
-          !paths.includes(`pages${path.posix.sep}`)
+        const isInAppDir = () => {
+          return rootDirs.some(
+            (rootDir) =>
+              paths.includes(`${rootDir}${path.sep}app${path.sep}`) ||
+              paths.includes(
+                `${rootDir}${path.posix.sep}app${path.posix.sep}`
+              ) ||
+              paths.includes(
+                `${rootDir}${path.sep}src${path.sep}app${path.sep}`
+              ) ||
+              paths.includes(
+                `${rootDir}${path.posix.sep}src${path.posix.sep}app${path.posix.sep}`
+              )
+          )
+        }
         // Only lint the <head> element in pages directory
         if (node.name.name !== 'head' || isInAppDir()) {
           return
