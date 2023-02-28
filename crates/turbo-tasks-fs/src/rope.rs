@@ -22,10 +22,10 @@ static EMPTY_BUF: &[u8] = &[];
 
 /// A Rope provides an efficient structure for sharing bytes/strings between
 /// multiple sources. Cloning a Rope is extremely cheap (Arc and usize), and
-/// the sharing contents of one Rope can be shared by just cloning an Arc.
+/// the sharing contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
-#[turbo_tasks::value(shared, serialization = "custom")]
+#[turbo_tasks::value(shared, serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default)]
 pub struct Rope {
     /// Total length of all held bytes.
@@ -60,18 +60,18 @@ pub struct RopeBuilder {
     length: usize,
 
     /// Immutable bytes references that have been appended to this builder. The
-    /// rope's is the combination of all these committed bytes.
+    /// rope is the combination of all these committed bytes.
     committed: Vec<RopeElem>,
 
     /// Stores bytes that have been pushed, but are not yet committed. This is
     /// either an attempt to push a static lifetime, or a push of owned bytes.
     /// When the builder is flushed, we will commit these bytes into a real
     /// Bytes instance.
-    uncommited: Uncommitted,
+    uncommitted: Uncommitted,
 }
 
 /// Stores any bytes which have been pushed, but we haven't decided to commit
-/// yet. Uncommitted byte bytes allow us to build larger buffers out of possibly
+/// yet. Uncommitted bytes allow us to build larger buffers out of possibly
 /// small pushes.
 #[derive(Default)]
 enum Uncommitted {
@@ -102,7 +102,7 @@ impl Rope {
 
     /// Returns a Read/AsyncRead/Stream/Iterator instance over all bytes.
     pub fn read(&self) -> RopeReader {
-        RopeReader::new(&self.data)
+        RopeReader::new(&self.data, 0)
     }
 
     /// Returns a String instance of all bytes.
@@ -136,7 +136,7 @@ impl RopeBuilder {
             return;
         }
 
-        self.uncommited.push_bytes(bytes);
+        self.uncommitted.push_bytes(bytes);
     }
 
     /// Push static lifetime bytes into the Rope.
@@ -152,7 +152,7 @@ impl RopeBuilder {
         // it's more efficient to own the bytes in a new buffer. We may be able to reuse
         // that buffer when more bytes are pushed.
         if bytes.len() < mem::size_of::<Bytes>() {
-            return self.uncommited.push_static_bytes(bytes);
+            return self.uncommitted.push_static_bytes(bytes);
         }
 
         // We may have pending bytes from a prior push.
@@ -182,7 +182,7 @@ impl RopeBuilder {
     ///
     /// This may be called multiple times without issue.
     pub fn finish(&mut self) {
-        if let Some(b) = self.uncommited.finish() {
+        if let Some(b) = self.uncommitted.finish() {
             debug_assert!(!b.is_empty(), "must not have empty uncommitted bytes");
             self.length += b.len();
             self.committed.push(Local(b));
@@ -190,7 +190,7 @@ impl RopeBuilder {
     }
 
     pub fn len(&self) -> usize {
-        self.length + self.uncommited.len()
+        self.length + self.uncommitted.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -219,7 +219,7 @@ impl From<Vec<u8>> for RopeBuilder {
     fn from(bytes: Vec<u8>) -> Self {
         RopeBuilder {
             // Directly constructing the Uncommitted allows us to skip copying the bytes.
-            uncommited: Uncommitted::from(bytes),
+            uncommitted: Uncommitted::from(bytes),
             ..Default::default()
         }
     }
@@ -295,7 +295,7 @@ impl Uncommitted {
         }
     }
 
-    /// Converts the current uncommited bytes into a Bytes, resetting our
+    /// Converts the current uncommitted bytes into a Bytes, resetting our
     /// representation to None.
     fn finish(&mut self) -> Option<Bytes> {
         match mem::take(self) {
@@ -350,6 +350,77 @@ impl<'de> Deserialize<'de> for Rope {
     }
 }
 
+impl PartialEq for Rope {
+    // Ropes with similar contents are equals, regardless of their structure.
+    fn eq(&self, other: &Self) -> bool {
+        if Arc::ptr_eq(&self.data, &other.data) {
+            return true;
+        }
+        if self.len() != other.len() {
+            return false;
+        }
+
+        // Fast path for structurally equal Ropes. With this, we can do memory reference
+        // checks and skip some contents equality.
+        let left = &self.data;
+        let right = &other.data;
+        let len = min(left.len(), right.len());
+        let mut index = 0;
+        while index < len {
+            let a = &left[index];
+            let b = &right[index];
+
+            match a.maybe_eq(b) {
+                // Bytes or InnerRope point to the same memory, or Bytes are contents equal.
+                Some(true) => index += 1,
+                // Bytes are not contents equal.
+                Some(false) => return false,
+                // InnerRopes point to different memory, or the Ropes weren't structurally equal.
+                None => break,
+            }
+        }
+        // If we reach the end of iteration without finding a mismatch (or early
+        // breaking), then we know the ropes are either equal or not equal.
+        if index == len {
+            // We know that any remaining RopeElem in the InnerRope must contain content, so
+            // if either one contains more RopeElem than they cannot be equal.
+            return left.len() == right.len();
+        }
+
+        // At this point, we need to do slower contents equality. It's possible we'll
+        // still get some memory reference quality for Bytes.
+        let mut left = RopeReader::new(left, index);
+        let mut right = RopeReader::new(right, index);
+        loop {
+            match (left.fill_buf(), right.fill_buf()) {
+                // fill_buf should always return Ok, with either some number of bytes or 0 bytes
+                // when consumed.
+                (Ok(a), Ok(b)) => {
+                    let len = min(a.len(), b.len());
+
+                    // When one buffer is consumed, both must be consumed.
+                    if len == 0 {
+                        return a.len() == b.len();
+                    }
+
+                    if a[0..len] != b[0..len] {
+                        return false;
+                    }
+
+                    left.consume(len);
+                    right.consume(len);
+                }
+
+                // If an error is ever returned (which shouldn't happen for us) for either/both,
+                // then we can't prove equality.
+                _ => return false,
+            }
+        }
+    }
+}
+
+impl Eq for Rope {}
+
 impl From<Vec<u8>> for Uncommitted {
     fn from(bytes: Vec<u8>) -> Self {
         if bytes.is_empty() {
@@ -372,7 +443,7 @@ impl InnerRope {
                     .map(Cow::Borrowed)
             }
             _ => {
-                let mut read = RopeReader::new(self);
+                let mut read = RopeReader::new(self, 0);
                 let mut string = String::with_capacity(self.len());
                 let res = read.read_to_string(&mut string);
                 res.context("failed to convert rope into string")?;
@@ -415,47 +486,37 @@ impl From<Box<[RopeElem]>> for InnerRope {
     }
 }
 
-impl PartialEq for InnerRope {
-    /// Ropes with similar contents are equals, regardless of their structure.
-    fn eq(&self, other: &Self) -> bool {
-        let mut left = RopeReader::new(self);
-        let mut right = RopeReader::new(other);
-
-        loop {
-            match (left.fill_buf(), right.fill_buf()) {
-                // fill_buf should always return Ok, with either some number of bytes or 0 bytes
-                // when consumed.
-                (Ok(a), Ok(b)) => {
-                    let len = min(a.len(), b.len());
-
-                    // When one buffer is consumed, both must be consumed.
-                    if len == 0 {
-                        return a.len() == b.len();
-                    }
-
-                    if a[0..len] != b[0..len] {
-                        return false;
-                    }
-
-                    left.consume(len);
-                    right.consume(len);
-                }
-
-                // If an error is ever returned (which shouldn't happen for us) for either/both,
-                // then we can't prove equality.
-                _ => return false,
-            }
-        }
-    }
-}
-
-impl Eq for InnerRope {}
-
 impl Deref for InnerRope {
     type Target = Arc<Box<[RopeElem]>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl RopeElem {
+    fn maybe_eq(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Local(a), Local(b)) => {
+                if a.len() == b.len() {
+                    return Some(a == b);
+                }
+
+                // But if not, the rope may still be contents equal if a following section
+                // contains the missing bytes.
+                None
+            }
+            (Shared(a), Shared(b)) => {
+                if Arc::ptr_eq(&a.0, &b.0) {
+                    return Some(true);
+                }
+
+                // But if not, they might still be equal and we need to fallback to slower
+                // equality.
+                None
+            }
+            _ => None,
+        }
     }
 }
 
@@ -489,14 +550,12 @@ enum StackElem {
 }
 
 impl RopeReader {
-    fn new(rope: &InnerRope) -> Self {
-        // Only a Rope's root InnerRope can contain an empty slice. Any empty InnerRopes
-        // we concat will be skipped.
-        if rope.is_empty() {
+    fn new(inner: &InnerRope, index: usize) -> Self {
+        if index >= inner.len() {
             Default::default()
         } else {
             RopeReader {
-                stack: vec![StackElem::from(rope)],
+                stack: vec![StackElem::Shared(inner.clone(), index)],
             }
         }
     }
@@ -618,12 +677,6 @@ impl Stream for RopeReader {
     }
 }
 
-impl From<&InnerRope> for StackElem {
-    fn from(rope: &InnerRope) -> Self {
-        Self::Shared(rope.clone(), 0)
-    }
-}
-
 impl From<RopeElem> for StackElem {
     fn from(el: RopeElem) -> Self {
         match el {
@@ -635,7 +688,47 @@ impl From<RopeElem> for StackElem {
 
 #[cfg(test)]
 mod test {
-    use super::{Rope, RopeBuilder};
+    use super::{InnerRope, Rope, RopeBuilder, RopeElem};
+
+    // These are intentionally not exposed, because they do inefficient conversions
+    // in order to fully test cases.
+    impl From<&str> for RopeElem {
+        fn from(value: &str) -> Self {
+            RopeElem::Local(value.to_string().into())
+        }
+    }
+    impl From<Vec<RopeElem>> for RopeElem {
+        fn from(value: Vec<RopeElem>) -> Self {
+            RopeElem::Shared(InnerRope::from(value.into_boxed_slice()))
+        }
+    }
+    impl From<Rope> for RopeElem {
+        fn from(value: Rope) -> Self {
+            RopeElem::Shared(value.data)
+        }
+    }
+    impl Rope {
+        fn new(value: Vec<RopeElem>) -> Self {
+            let data = InnerRope::from(value.into_boxed_slice());
+            Rope {
+                length: data.len(),
+                data,
+            }
+        }
+    }
+    impl InnerRope {
+        fn len(&self) -> usize {
+            self.iter().map(|v| v.len()).sum()
+        }
+    }
+    impl RopeElem {
+        fn len(&self) -> usize {
+            match self {
+                RopeElem::Local(b) => b.len(),
+                RopeElem::Shared(r) => r.len(),
+            }
+        }
+    }
 
     #[test]
     fn empty_build_without_pushes() {
@@ -686,5 +779,96 @@ mod test {
         let empty = Rope::from("".to_string());
         let mut reader = empty.read();
         assert!(reader.next().is_none());
+    }
+
+    #[test]
+    fn empty_equality() {
+        let a = Rope::from("");
+        let b = Rope::from("");
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn cloned_equality() {
+        let a = Rope::from("abc");
+        let b = a.clone();
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn value_equality() {
+        let a = Rope::from("abc".to_string());
+        let b = Rope::from("abc".to_string());
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn value_inequality() {
+        let a = Rope::from("abc".to_string());
+        let b = Rope::from("def".to_string());
+
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn value_equality_shared_1() {
+        let shared = Rope::from("def");
+        let a = Rope::new(vec!["abc".into(), shared.clone().into(), "ghi".into()]);
+        let b = Rope::new(vec!["abc".into(), shared.into(), "ghi".into()]);
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn value_equality_shared_2() {
+        let a = Rope::new(vec!["abc".into(), vec!["def".into()].into(), "ghi".into()]);
+        let b = Rope::new(vec!["abc".into(), vec!["def".into()].into(), "ghi".into()]);
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn value_equality_splits_1() {
+        let a = Rope::new(vec!["a".into(), "aa".into()]);
+        let b = Rope::new(vec!["aa".into(), "a".into()]);
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn value_equality_splits_2() {
+        let a = Rope::new(vec![vec!["a".into()].into(), "aa".into()]);
+        let b = Rope::new(vec![vec!["aa".into()].into(), "a".into()]);
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn value_inequality_shared_1() {
+        let shared = Rope::from("def");
+        let a = Rope::new(vec!["aaa".into(), shared.clone().into(), "ghi".into()]);
+        let b = Rope::new(vec!["bbb".into(), shared.into(), "ghi".into()]);
+
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn value_inequality_shared_2() {
+        let a = Rope::new(vec!["abc".into(), vec!["ddd".into()].into(), "ghi".into()]);
+        let b = Rope::new(vec!["abc".into(), vec!["eee".into()].into(), "ghi".into()]);
+
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn value_inequality_shared_3() {
+        let shared = Rope::from("def");
+        let a = Rope::new(vec!["abc".into(), shared.clone().into(), "ggg".into()]);
+        let b = Rope::new(vec!["abc".into(), shared.into(), "hhh".into()]);
+
+        assert_ne!(a, b);
     }
 }
