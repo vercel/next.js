@@ -14,10 +14,9 @@ export function patchFetch({
   serverHooks: typeof import('../../client/components/hooks-server-context')
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
-  if ((globalThis.fetch as any).patched) return
+  if ((fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-
   const originFetch = fetch
 
   // @ts-expect-error - we're patching fetch
@@ -159,7 +158,8 @@ export function patchFetch({
             revalidate > 0
           ) {
             let base64Body = ''
-            const arrayBuffer = await res.arrayBuffer()
+            const resBlob = await res.blob()
+            const arrayBuffer = await resBlob.arrayBuffer()
 
             if (process.env.NEXT_RUNTIME === 'edge') {
               const { encode } =
@@ -186,7 +186,8 @@ export function patchFetch({
             } catch (err) {
               console.warn(`Failed to set fetch cache`, input, err)
             }
-            return new Response(arrayBuffer, {
+
+            return new Response(resBlob, {
               headers: res.headers,
               status: res.status,
             })
@@ -291,5 +292,5 @@ export function patchFetch({
       return doOriginalFetch()
     }
   )
-  ;(globalThis.fetch as any).patched = true
+  ;(fetch as any).__nextPatched = true
 }

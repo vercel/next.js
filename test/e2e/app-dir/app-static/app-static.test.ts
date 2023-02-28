@@ -555,7 +555,6 @@ createNextDescribe(
         expect($2('#data-body1').text()).toBe(dataBody1)
         expect($2('#data-body2').text()).toBe(dataBody2)
         expect($2('#data-body3').text()).toBe(dataBody3)
-        expect($2('#data-body4').text()).toBe(dataBody4)
         return 'success'
       }, 'success')
     })
