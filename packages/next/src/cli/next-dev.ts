@@ -99,6 +99,23 @@ if (!isChildProcess) {
   process.on('SIGTERM', () => process.exit(0))
 }
 
+/** Get file hash, '' means file is empty */
+const getFileHash = async (file: string) => {
+  const crypto = require('crypto') as typeof import('crypto')
+  const fs = require('fs') as typeof import('fs')
+  let contents
+  try {
+    contents = await fs.promises.readFile(file, 'utf8')
+  } catch (err: any) {
+    if (err.code === 'ENOENT') {
+      // File not found
+      return ''
+    }
+    throw err
+  }
+  return crypto.createHash('sha256').update(contents).digest('hex')
+}
+
 function watchConfigFiles(dirToWatch: string) {
   if (unwatchConfigFiles) {
     unwatchConfigFiles()
@@ -642,14 +659,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         )?.[0]
 
         if (instrumentationFile) {
-          const fs = require('fs') as typeof import('fs')
-          const instrumentationFileHash = (
-            require('crypto') as typeof import('crypto')
-          )
-            .createHash('sha256')
-            .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
-            .digest('hex')
-
+          const instrumentationFileHash = await getFileHash(instrumentationFile)
           if (
             instrumentationFileLastHash &&
             instrumentationFileHash !== instrumentationFileLastHash
@@ -687,16 +697,29 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       })
 
       const configFileWatcher = new Watchpack()
-      configFileWatcher.watch({
-        files: CONFIG_FILES.map((file) => path.join(dir, file)),
+      const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
+      // There is always just one config file, so they can share hash
+      let configHash: string | null = null
+      // Asynchronically get the hash of the config file
+      configFiles.forEach(async (file) => {
+        const hash = await getFileHash(file)
+        if (hash) configHash = hash
       })
-      configFileWatcher.on('change', (filename) => {
-        warn(
-          `Found a change in ${path.basename(
-            filename
-          )}, restarting the server to apply changes.`
-        )
-        return setupFork()
+
+      configFileWatcher.watch({
+        files: configFiles,
+      })
+      configFileWatcher.on('change', async (filename) => {
+        const newHash = await getFileHash(filename)
+        if (newHash !== configHash) {
+          configHash = newHash
+          warn(
+            `Found a change in ${path.basename(
+              filename
+            )}, restarting the server to apply changes.`
+          )
+          return setupFork()
+        }
       })
 
       const projectFolderWatcher = new Watchpack({
