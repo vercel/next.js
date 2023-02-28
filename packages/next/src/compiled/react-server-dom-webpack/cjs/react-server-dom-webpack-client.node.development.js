@@ -14,10 +14,11 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
+var util = require('util');
 var React = require('react');
 
 function createStringDecoder() {
-  return new TextDecoder();
+  return new util.TextDecoder();
 }
 var decoderOptions = {
   stream: true
@@ -690,7 +691,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, callServer) {
+function createResponse$1(bundlerConfig, callServer) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -857,11 +858,11 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse$1(bundlerConfig, callServer) {
+function createResponse(bundlerConfig, callServer) {
   // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
   // It should be inlined to one object literal but minor changes can break it.
-  var stringDecoder =  createStringDecoder() ;
-  var response = createResponse(bundlerConfig, callServer);
+  var stringDecoder = createStringDecoder() ;
+  var response = createResponse$1(bundlerConfig, callServer);
   response._partialRow = '';
 
   {
@@ -873,75 +874,28 @@ function createResponse$1(bundlerConfig, callServer) {
   return response;
 }
 
-function startReadingFromStream(response, stream) {
-  var reader = stream.getReader();
+function noServerCall() {
+  throw new Error('Server Functions cannot be called during initial render. ' + 'This would create a fetch waterfall. Try to use a Server Component ' + 'to pass data to Client Components instead.');
+}
 
-  function progress(_ref) {
-    var done = _ref.done,
-        value = _ref.value;
-
-    if (done) {
-      close(response);
-      return;
+function createFromNodeStream(stream, moduleMap) {
+  var response = createResponse(moduleMap, noServerCall);
+  stream.on('data', function (chunk) {
+    if (typeof chunk === 'string') {
+      processStringChunk(response, chunk, 0);
+    } else {
+      processBinaryChunk(response, chunk);
     }
-
-    var buffer = value;
-    processBinaryChunk(response, buffer);
-    return reader.read().then(progress).catch(error);
-  }
-
-  function error(e) {
-    reportGlobalError(response, e);
-  }
-
-  reader.read().then(progress).catch(error);
-}
-
-function createFromReadableStream(stream, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  startReadingFromStream(response, stream);
-  return getRoot(response);
-}
-
-function createFromFetch(promiseForResponse, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  promiseForResponse.then(function (r) {
-    startReadingFromStream(response, r.body);
-  }, function (e) {
-    reportGlobalError(response, e);
+  });
+  stream.on('error', function (error) {
+    reportGlobalError(response, error);
+  });
+  stream.on('end', function () {
+    return close(response);
   });
   return getRoot(response);
 }
 
-function createFromXHR(request, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  var processedLength = 0;
-
-  function progress(e) {
-    var chunk = request.responseText;
-    processStringChunk(response, chunk, processedLength);
-    processedLength = chunk.length;
-  }
-
-  function load(e) {
-    progress();
-    close(response);
-  }
-
-  function error(e) {
-    reportGlobalError(response, new TypeError('Network error'));
-  }
-
-  request.addEventListener('progress', progress);
-  request.addEventListener('load', load);
-  request.addEventListener('error', error);
-  request.addEventListener('abort', error);
-  request.addEventListener('timeout', error);
-  return getRoot(response);
-}
-
-exports.createFromFetch = createFromFetch;
-exports.createFromReadableStream = createFromReadableStream;
-exports.createFromXHR = createFromXHR;
+exports.createFromNodeStream = createFromNodeStream;
   })();
 }
