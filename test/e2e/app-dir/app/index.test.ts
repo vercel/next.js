@@ -365,7 +365,8 @@ createNextDescribe(
             expect(await browser.elementByCss('#from-dashboard').text()).toBe(
               'hello from app/dashboard'
             )
-          })
+            return 'success'
+          }, 'success')
         } finally {
           await browser.close()
         }
@@ -640,7 +641,8 @@ createNextDescribe(
             expect(await browser.waitForElementByCss('#app-text').text()).toBe(
               'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
             )
-          })
+            return 'success'
+          }, 'success')
         } finally {
           await browser.close()
         }
