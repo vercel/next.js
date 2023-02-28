@@ -401,6 +401,12 @@ export class NextInstance {
       path.join(this.testDir, newFilename)
     )
   }
+  public async renameFolder(foldername: string, newFoldername: string) {
+    return fs.move(
+      path.join(this.testDir, foldername),
+      path.join(this.testDir, newFoldername)
+    )
+  }
   public async deleteFile(filename: string) {
     return fs.remove(path.join(this.testDir, filename))
   }

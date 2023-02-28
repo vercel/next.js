@@ -676,6 +676,19 @@ export default class HotReloader {
               }
             }
 
+            // For child entries, if it has an entry file and it's gone, remove it
+            if (isChildEntry) {
+              if (entryData.absoluteEntryFilePath) {
+                const pageExists =
+                  !dispose &&
+                  (await fileExists(entryData.absoluteEntryFilePath))
+                if (!pageExists) {
+                  delete entries[entryKey]
+                  return
+                }
+              }
+            }
+
             const hasAppDir = !!this.appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
