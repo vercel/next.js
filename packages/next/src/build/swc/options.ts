@@ -186,9 +186,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl,
   pagesDir,
   hasServerComponents,
-}: // This is not passed yet as "paths" resolving needs a test first
-// resolvedBaseUrl,
-any) {
+}: any) {
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
