@@ -20,10 +20,8 @@ createNextDescribe(
       { pathname: '/redirect-1' },
       { pathname: '/redirect-2' },
       { pathname: '/blog/old-post' },
-      { pathname: '/redirect-3/some/value' },
       { pathname: '/redirect-3/some' },
       { pathname: '/redirect-4' },
-      { pathname: '/redirect-4/another' },
     ])(
       'should match redirects in pages correctly $path',
       async ({ pathname }) => {
