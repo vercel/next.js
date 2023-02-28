@@ -1,5 +1,3 @@
-import { FormData, Blob } from 'next/dist/compiled/@edge-runtime/primitives'
-
 const fetchRetry = async (url, init) => {
   for (let i = 0; i < 5; i++) {
     try {
@@ -52,23 +50,7 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
-  const formData = new FormData()
-  formData.append('hello', 'value')
-  formData.append('another', new Blob(['some text'], { type: 'text/plain' }))
-  formData.append('another', 'text')
-
   const dataWithBody3 = await fetchRetry(
-    'https://next-data-api-endpoint.vercel.app/api/random',
-    {
-      method: 'POST',
-      body: formData,
-      next: {
-        revalidate: 10,
-      },
-    }
-  ).then((res) => res.text())
-
-  const dataWithBody4 = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',
@@ -79,13 +61,21 @@ export default async function Page() {
     }
   ).then((res) => res.text())
 
+  const dataWithBody4 = await fetchRetry(
+    'https://next-data-api-endpoint.vercel.app/api/random',
+    {
+      method: 'POST',
+      body: new URLSearchParams('myParam=myValue&myParam=anotherValue'),
+    }
+  ).then((res) => res.text())
+
   return (
     <>
       <p id="page">/variable-revalidate/post-method-cached</p>
       <p id="page-data">{data}</p>
       <p id="data-body1">{dataWithBody1}</p>
       <p id="data-body2">{dataWithBody2}</p>
-      <p id="data-body3">{dataWithBody3}</p>
+      <p id="data-body4">{dataWithBody3}</p>
       <p id="data-body4">{dataWithBody4}</p>
     </>
   )
