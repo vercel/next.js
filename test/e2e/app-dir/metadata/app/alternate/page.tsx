@@ -10,7 +10,7 @@ export const metadata = {
       'de-DE': 'https://example.com/de-DE',
     },
     media: {
-      'only screen and (max-width: 600px)': 'https://example.com/mobile',
+      'only screen and (max-width: 600px)': '/mobile',
     },
     types: {
       'application/rss+xml': 'https://example.com/rss',
