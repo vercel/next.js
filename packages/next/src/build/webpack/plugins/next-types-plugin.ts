@@ -29,7 +29,7 @@ interface Options {
   isEdgeServer: boolean
   pageExtensions: string[]
   typedRoutes: boolean
-  rewrites: Rewrites
+  originalRewrites: Rewrites
   originalRedirects: Redirect[]
 }
 
@@ -306,7 +306,7 @@ export class NextTypesPlugin {
   pageExtensions: string[]
   pagesDir: string
   typedRoutes: boolean
-  rewrites: Rewrites
+  originalRewrites: Rewrites
   originalRedirects: Redirect[]
 
   constructor(options: Options) {
@@ -318,7 +318,7 @@ export class NextTypesPlugin {
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
-    this.rewrites = options.rewrites
+    this.originalRewrites = options.originalRewrites
     this.originalRedirects = options.originalRedirects
   }
 
@@ -482,7 +482,10 @@ export class NextTypesPlugin {
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(this.rewrites, this.originalRedirects)
+              createRouteDefinitions(
+                this.originalRewrites,
+                this.originalRedirects
+              )
             ) as unknown as webpack.sources.RawSource
           }
 

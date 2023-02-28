@@ -515,6 +515,7 @@ export default class HotReloader {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
+        originalRewrites: this.config._originalRewrites,
         originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
@@ -569,6 +570,11 @@ export default class HotReloader {
       buildId: this.buildId,
       pagesDir: this.pagesDir,
       rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      originalRewrites: {
         beforeFiles: [],
         afterFiles: [],
         fallback: [],

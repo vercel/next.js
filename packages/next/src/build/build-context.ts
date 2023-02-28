@@ -23,6 +23,11 @@ export const NextBuildContext: Partial<{
     afterFiles: Rewrite[]
     beforeFiles: Rewrite[]
   }
+  originalRewrites: {
+    fallback: Rewrite[]
+    afterFiles: Rewrite[]
+    beforeFiles: Rewrite[]
+  }
   originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
