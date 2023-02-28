@@ -690,7 +690,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, callServer) {
+function createResponse$1(bundlerConfig, callServer) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -857,11 +857,11 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse$1(bundlerConfig, callServer) {
+function createResponse(bundlerConfig, callServer) {
   // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
   // It should be inlined to one object literal but minor changes can break it.
-  var stringDecoder =  createStringDecoder() ;
-  var response = createResponse(bundlerConfig, callServer);
+  var stringDecoder = createStringDecoder() ;
+  var response = createResponse$1(bundlerConfig, callServer);
   response._partialRow = '';
 
   {
@@ -871,6 +871,10 @@ function createResponse$1(bundlerConfig, callServer) {
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
+}
+
+function createResponseFromOptions(options) {
+  return createResponse(null, options && options.callServer ? options.callServer : undefined);
 }
 
 function startReadingFromStream(response, stream) {
@@ -898,13 +902,13 @@ function startReadingFromStream(response, stream) {
 }
 
 function createFromReadableStream(stream, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
+  var response = createResponseFromOptions(options);
   startReadingFromStream(response, stream);
   return getRoot(response);
 }
 
 function createFromFetch(promiseForResponse, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
+  var response = createResponseFromOptions(options);
   promiseForResponse.then(function (r) {
     startReadingFromStream(response, r.body);
   }, function (e) {
@@ -914,7 +918,7 @@ function createFromFetch(promiseForResponse, options) {
 }
 
 function createFromXHR(request, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
+  var response = createResponseFromOptions(options);
   var processedLength = 0;
 
   function progress(e) {
