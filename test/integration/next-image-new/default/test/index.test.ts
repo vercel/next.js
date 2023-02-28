@@ -1167,6 +1167,16 @@ function runTests(mode) {
           'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
         )
       })
+      it('should not log warnings when image unmounts', async () => {
+        browser = await webdriver(appPort, '/should-not-warn-unmount')
+        await waitFor(1000)
+        const warnings = (await browser.log('browser'))
+          .map((log) => log.message)
+          .join('\n')
+        expect(warnings).not.toContain(
+          'Image with src "/test.jpg" has "fill" and parent element'
+        )
+      })
     }
   })
   // Tests that use the `unsized` attribute:
