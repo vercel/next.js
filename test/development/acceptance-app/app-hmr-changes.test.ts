@@ -52,9 +52,10 @@ createNextDescribe(
         expect(await hasRedbox(browser, false)).toBe(false)
       }
 
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('A few years ago I tweeted')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /A few years ago I tweeted/
+      )
     })
   }
 )
