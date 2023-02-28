@@ -32,7 +32,7 @@ import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
-  entries,
+  getEntries,
   EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
@@ -641,6 +641,8 @@ export default class HotReloader {
     for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
+        const outputPath = this.multiCompiler?.outputPath || ''
+        const entries: ReturnType<typeof getEntries> = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
@@ -1157,7 +1159,8 @@ export default class HotReloader {
   }
 
   public invalidate() {
-    return getInvalidator()?.invalidate()
+    const outputPath = this.multiCompiler?.outputPath
+    return outputPath && getInvalidator(outputPath)?.invalidate()
   }
 
   public async stop(): Promise<void> {
