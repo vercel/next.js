@@ -1063,7 +1063,7 @@ export default class Router implements BaseRouter {
             new URL(curAs, 'http://n').pathname
           )
           const asNoSlashLocale = addBasePath(
-            addLocale(curAs, locale || this.locale)
+            addLocale(asNoSlash, locale || this.locale)
           )
 
           if (
