@@ -132,7 +132,7 @@ import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { createClientRouterFilter } from '../lib/create-router-client-filter'
+import { createClientRouterFilter } from '../lib/create-client-router-filter'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false

@@ -96,7 +96,7 @@ import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
-import { createClientRouterFilter } from '../../lib/create-router-client-filter'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
