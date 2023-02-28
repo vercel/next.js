@@ -1,16 +1,16 @@
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
-import { join } from "node:path";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
 import { toPairs } from "@vercel/turbopack-next/internal/headers";
-import { makeResolver } from "next/dist/server/router.js";
+import { makeResolver } from "next/dist/server/lib/route-resolver";
 import loadConfig from "next/dist/server/config";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
 import middlewareChunkGroup from "MIDDLEWARE_CHUNK_GROUP";
+import middlewareConfig from "MIDDLEWARE_CONFIG";
 
 type RouterRequest = {
   method: string;
@@ -74,16 +74,10 @@ async function getResolveRoute(
     true
   );
 
-  const edgeInfo = {
-    name: "edge",
-    paths: middlewareChunkGroup.map((chunk: string) =>
-      join(process.cwd(), chunk)
-    ),
-    wasm: [],
-    env: [],
-    assets: [],
-  };
-  return await makeResolver(dir, nextConfig, edgeInfo);
+  return await makeResolver(dir, nextConfig, {
+    files: middlewareChunkGroup,
+    matcher: middlewareConfig.matcher,
+  });
 }
 
 export default async function route(
