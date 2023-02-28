@@ -450,8 +450,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             if (isInstrumentationHookFile(page) && pagesType === 'root') {
               server[serverBundlePath.replace('src/', '')] = {
                 import: mappings[page],
-                // this is needed to make sure the file is not chunked
-                filename: `./${INSTRUMENTATION_HOOK_FILENAME}.js`,
+                // the '../' is needed to make sure the file is not chunked
+                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
               }
             } else {
               server[serverBundlePath] = [mappings[page]]
