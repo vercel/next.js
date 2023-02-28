@@ -155,6 +155,7 @@ pub async fn create_page_source(
         output_path,
         base_path: project_path,
         bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        entry_name: "edge".to_string(),
     }
     .cell()
     .into();

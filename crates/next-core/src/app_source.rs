@@ -202,6 +202,7 @@ fn next_route_transition(
         output_path,
         base_path: app_dir,
         bootstrap_file: next_js_file("entry/app/route-bootstrap.ts"),
+        entry_name: "edge".to_string(),
     }
     .cell()
     .into()
