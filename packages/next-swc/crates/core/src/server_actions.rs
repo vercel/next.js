@@ -368,27 +368,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_prepass = true;
             for stmt in stmts.iter_mut() {
                 match &*stmt {
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
-                        if let Decl::Var(var) = decl {
-                            for decl in &var.decls {
-                                match &decl.name {
-                                    Pat::Ident(ident) => {
-                                        // export var foo = 1;
-                                        self.exported_idents.push(ident.id.to_id());
-                                    }
-                                    _ => {}
-                                }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                        decl: Decl::Var(var),
+                        ..
+                    })) => {
+                        for decl in &var.decls {
+                            if let Pat::Ident(ident) = &decl.name {
+                                // export var foo = 1;
+                                self.exported_idents.push(ident.id.to_id());
                             }
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for spec in &named.specifiers {
-                            if let ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) = spec
+                            if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                orig: ModuleExportName::Ident(ident),
+                                ..
+                            }) = spec
                             {
-                                if let ModuleExportName::Ident(ident) = &orig {
-                                    // export { foo, foo as bar }
-                                    self.exported_idents.push(ident.to_id());
-                                }
+                                // export { foo, foo as bar }
+                                self.exported_idents.push(ident.to_id());
                             }
                         }
                     }
@@ -432,13 +431,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for spec in &mut named.specifiers {
-                            if let ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) = spec
+                            if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                orig: ModuleExportName::Ident(ident),
+                                ..
+                            }) = spec
                             {
-                                if let ModuleExportName::Ident(ident) = &orig {
-                                    if !self.async_fn_idents.contains(&ident.to_id()) {
-                                        disallowed_export_span = named.span;
-                                    }
-                                } else {
+                                if !self.async_fn_idents.contains(&ident.to_id()) {
                                     disallowed_export_span = named.span;
                                 }
                             } else {
