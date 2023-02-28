@@ -1641,8 +1641,8 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const errors = (await this.hotReloader?.getCompilationErrors(page)) || []
-    if (errors.length === 0) return
+    const errors = await this.hotReloader?.getCompilationErrors(page)
+    if (!errors) return
 
     // Return the very first error we found.
     return errors[0]
