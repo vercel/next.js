@@ -613,27 +613,26 @@ export class FlightClientEntryPlugin {
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
       const pageKey = COMPILER_NAMES.client + bundlePath
-      if (entries) {
-        if (!entries[pageKey]) {
-          entries[pageKey] = {
-            type: EntryTypes.CHILD_ENTRY,
-            parentEntries: new Set([entryName]),
-            bundlePath,
-            request: clientLoader,
-            dispose: false,
-            lastActiveTime: Date.now(),
-          }
+
+      if (!entries[pageKey]) {
+        entries[pageKey] = {
+          type: EntryTypes.CHILD_ENTRY,
+          parentEntries: new Set([entryName]),
+          bundlePath,
+          request: clientLoader,
+          dispose: false,
+          lastActiveTime: Date.now(),
+        }
+        shouldInvalidate = true
+      } else {
+        const entryData = entries[pageKey]
+        // New version of the client loader
+        if (entryData.request !== clientLoader) {
+          entryData.request = clientLoader
           shouldInvalidate = true
-        } else {
-          const entryData = entries[pageKey]
-          // New version of the client loader
-          if (entryData.request !== clientLoader) {
-            entryData.request = clientLoader
-            shouldInvalidate = true
-          }
-          if (entryData.type === EntryTypes.CHILD_ENTRY) {
-            entryData.parentEntries.add(entryName)
-          }
+        }
+        if (entryData.type === EntryTypes.CHILD_ENTRY) {
+          entryData.parentEntries.add(entryName)
         }
       }
     } else {

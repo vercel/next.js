@@ -36,7 +36,6 @@ import {
   EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
-  setEntries,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
@@ -643,14 +642,7 @@ export default class HotReloader {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
         const outputPath = this.multiCompiler?.outputPath || ''
-        let entries: NonNullable<ReturnType<typeof getEntries>> = getEntries(
-          outputPath
-        ) as any
-
-        if (!entries) {
-          entries = {}
-          setEntries(outputPath, entries)
-        }
+        const entries: ReturnType<typeof getEntries> = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client

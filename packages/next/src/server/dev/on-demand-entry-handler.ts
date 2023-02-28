@@ -180,19 +180,22 @@ const entriesMap: Map<
   }
 > = new Map()
 
-export const getEntries = (dir: string) => {
-  return entriesMap.get(dir)
-}
-export const setEntries = (
-  dir: string,
-  entries: NonNullable<ReturnType<typeof entriesMap['get']>>
-) => {
+// remove /server from end of output for server compiler
+const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
+
+export const getEntries = (
+  dir: string
+): NonNullable<ReturnType<typeof entriesMap['get']>> => {
+  dir = normalizeOutputPath(dir)
+  const entries = entriesMap.get(dir) || {}
   entriesMap.set(dir, entries)
+  return entries
 }
 
 const invalidators: Map<string, Invalidator> = new Map()
 
 export const getInvalidator = (dir: string) => {
+  dir = normalizeOutputPath(dir)
   return invalidators.get(dir)
 }
 
@@ -445,18 +448,14 @@ export function onDemandEntryHandler({
   rootDir: string
   appDir?: string
 }) {
-  let curInvalidator: NonNullable<ReturnType<typeof invalidators['get']>> =
-    getInvalidator(multiCompiler.outputPath) as any
-  let curEntries: NonNullable<ReturnType<typeof entriesMap['get']>> =
-    getEntries(multiCompiler.outputPath) as any
+  let curInvalidator: Invalidator = getInvalidator(
+    multiCompiler.outputPath
+  ) as any
+  let curEntries = getEntries(multiCompiler.outputPath) as any
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
     invalidators.set(multiCompiler.outputPath, curInvalidator)
-  }
-  if (!curEntries) {
-    curEntries = {}
-    entriesMap.set(multiCompiler.outputPath, curEntries)
   }
 
   const startBuilding = (compilation: webpack.Compilation) => {
