@@ -11,8 +11,7 @@ use turbopack_core::chunk::{
     ChunkGroupVc, ChunkVc, ChunkingContextVc, ChunksVc,
 };
 
-use super::{EcmascriptChunkPlaceablesVc, EcmascriptChunkVc};
-use crate::chunk::EcmascriptChunkEvaluate;
+use super::{evaluate::EcmascriptChunkEvaluate, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc};
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunkOptimizer(ChunkingContextVc);
