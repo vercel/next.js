@@ -11,7 +11,7 @@ import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
-  entries,
+  getEntries,
   EntryTypes,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
@@ -146,7 +146,7 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  async createClientEntries(compiler: any, compilation: any) {
+  async createClientEntries(compiler: webpack.Compiler, compilation: any) {
     const addClientEntryAndSSRModulesList: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
@@ -426,7 +426,7 @@ export class FlightClientEntryPlugin {
     )
 
     // Invalidate in development to trigger recompilation
-    const invalidator = getInvalidator()
+    const invalidator = getInvalidator(compiler.outputPath)
     // Check if any of the entry injections need an invalidation
     if (
       invalidator &&
@@ -611,7 +611,9 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
+      const entries = getEntries(compiler.outputPath)
       const pageKey = COMPILER_NAMES.client + bundlePath
+
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
