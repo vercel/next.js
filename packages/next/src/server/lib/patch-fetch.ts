@@ -14,10 +14,9 @@ export function patchFetch({
   serverHooks: typeof import('../../client/components/hooks-server-context')
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
-  if ((globalThis.fetch as any).patched) return
+  if ((fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-
   const originFetch = fetch
 
   // @ts-expect-error - we're patching fetch
@@ -103,10 +102,51 @@ export function patchFetch({
         typeof revalidate === 'number' &&
         revalidate > 0
       ) {
-        cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-          isRequestInput ? (input as Request).url : input.toString(),
-          isRequestInput ? (input as RequestInit) : init
-        )
+        try {
+          cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+            isRequestInput ? (input as Request).url : input.toString(),
+            isRequestInput ? (input as RequestInit) : init
+          )
+        } catch (err) {
+          console.error(`Failed to generate cache key for`, input)
+        }
+      }
+      const requestInputFields = [
+        'cache',
+        'credentials',
+        'headers',
+        'integrity',
+        'keepalive',
+        'method',
+        'mode',
+        'redirect',
+        'referrer',
+        'referrerPolicy',
+        'signal',
+        'window',
+        'duplex',
+      ]
+
+      if (isRequestInput) {
+        const reqInput: Request = input as any
+        const reqOptions: RequestInit = {
+          body: (reqInput as any)._ogBody || reqInput.body,
+        }
+
+        for (const field of requestInputFields) {
+          // @ts-expect-error custom fields
+          reqOptions[field] = reqInput[field]
+        }
+        input = new Request(reqInput.url, reqOptions)
+      } else if (init) {
+        const initialInit = init
+        init = {
+          body: (init as any)._ogBody || init.body,
+        }
+        for (const field of requestInputFields) {
+          // @ts-expect-error custom fields
+          init[field] = initialInit[field]
+        }
       }
 
       const doOriginalFetch = async () => {
@@ -118,7 +158,8 @@ export function patchFetch({
             revalidate > 0
           ) {
             let base64Body = ''
-            const arrayBuffer = await res.arrayBuffer()
+            const resBlob = await res.blob()
+            const arrayBuffer = await resBlob.arrayBuffer()
 
             if (process.env.NEXT_RUNTIME === 'edge') {
               const { encode } =
@@ -145,7 +186,8 @@ export function patchFetch({
             } catch (err) {
               console.warn(`Failed to set fetch cache`, input, err)
             }
-            return new Response(arrayBuffer, {
+
+            return new Response(resBlob, {
               headers: res.headers,
               status: res.status,
             })
@@ -250,5 +292,5 @@ export function patchFetch({
       return doOriginalFetch()
     }
   )
-  ;(globalThis.fetch as any).patched = true
+  ;(fetch as any).__nextPatched = true
 }
