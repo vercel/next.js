@@ -301,10 +301,8 @@ async function findPagePathData(
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
-  if (
-    isMiddlewareFile(normalizedPagePath) ||
-    isInstrumentationHookFile(normalizedPagePath)
-  ) {
+  const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
+  if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
@@ -322,10 +320,18 @@ async function findPagePathData(
       })
     )
 
+    let bundlePath = normalizedPagePath
+    let pageKey = posix.normalize(pageUrl)
+
+    if (isInstrumentation) {
+      bundlePath = bundlePath.replace('/src', '')
+      pageKey = page.replace('/src', '')
+    }
+
     return {
       absolutePagePath: join(rootDir, pagePath),
-      bundlePath: normalizedPagePath.slice(1),
-      page: posix.normalize(pageUrl),
+      bundlePath: bundlePath.slice(1),
+      page: pageKey,
     }
   }
 
@@ -448,7 +454,6 @@ export function onDemandEntryHandler({
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
-
     return pagePaths
   }
 

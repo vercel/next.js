@@ -776,7 +776,6 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
-
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
@@ -806,7 +805,6 @@ export default class HotReloader {
             })
           })
         )
-
         return entrypoints
       }
     }

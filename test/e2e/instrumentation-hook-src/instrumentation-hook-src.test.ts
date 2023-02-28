@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'instrumentation-hook',
+  'instrumentation-hook-src',
   {
     files: __dirname,
     nextConfig: {
@@ -29,25 +29,25 @@ createNextDescribe(
       it('should reload the server when the instrumentation hook changes', async () => {
         await next.render('/')
         await next.patchFile(
-          './instrumentation.js',
+          './src/instrumentation.js',
           `export function register() {console.log('toast')}`
         )
         await check(() => next.cliOutput, /toast/)
         await next.renameFile(
-          './instrumentation.js',
-          './instrumentation.js.bak'
+          './src/instrumentation.js',
+          './src/instrumentation.js.bak'
         )
         await check(
           () => next.cliOutput,
           /The instrumentation file has been removed/
         )
         await next.patchFile(
-          './instrumentation.js.bak',
+          './src/instrumentation.js.bak',
           `export function register() {console.log('bread')}`
         )
         await next.renameFile(
-          './instrumentation.js.bak',
-          './instrumentation.js'
+          './src/instrumentation.js.bak',
+          './src/instrumentation.js'
         )
         await check(() => next.cliOutput, /The instrumentation file was added/)
         await check(() => next.cliOutput, /bread/)
