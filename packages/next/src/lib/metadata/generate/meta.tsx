@@ -36,12 +36,10 @@ function ExtendMeta({
   content,
   namePrefix,
   propertyPrefix,
-  mapKey,
 }: {
   content?: ExtendMetaContent
   namePrefix?: string
   propertyPrefix?: string
-  mapKey: (key: string) => string
 }) {
   const keyPrefix = namePrefix || propertyPrefix
   if (!content) return null
@@ -52,8 +50,14 @@ function ExtendMeta({
           <Meta
             key={keyPrefix + ':' + k + '_' + index}
             {...(propertyPrefix
-              ? { property: mapKey(propertyPrefix + ':' + k) }
-              : { name: mapKey(namePrefix + ':' + k) })}
+              ? // Use `og:image` instead of `og:image:url` to be more compatible as it's a more common format
+                {
+                  property:
+                    propertyPrefix === 'og:image' && k === 'url'
+                      ? 'og:image'
+                      : propertyPrefix + ':' + k,
+                }
+              : { name: namePrefix + ':' + k })}
             content={typeof v === 'string' ? v : v?.toString()}
           />
         )
@@ -66,12 +70,10 @@ export function MultiMeta({
   propertyPrefix,
   namePrefix,
   contents,
-  mapKey = (key) => key,
 }: {
   propertyPrefix?: string
   namePrefix?: string
   contents?: MultiMetaContent | null
-  mapKey?: (key: string) => string
 }) {
   if (typeof contents === 'undefined' || contents === null) {
     return null
@@ -102,7 +104,6 @@ export function MultiMeta({
               namePrefix={namePrefix}
               propertyPrefix={propertyPrefix}
               content={content}
-              mapKey={mapKey}
             />
           )
         }
