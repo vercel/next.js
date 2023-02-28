@@ -16,7 +16,7 @@ describe('next/jest', () => {
         import { render as renderFn, waitFor } from '@testing-library/react'
         import '@testing-library/jest-dom/extend-expect';
 
-        import Page from '../pages'
+        import Page from '@app/pages'
 
         describe('testid', () => {
           it('data-testid should be available in the test', async () => {
