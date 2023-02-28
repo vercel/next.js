@@ -16,6 +16,7 @@ createNextDescribe(
       '@types/react': '^18.0.28',
       '@types/react-dom': '^18.0.10',
       'image-size': '^1.0.2',
+      autoprefixer: '^10.4.13',
     },
   },
   ({ next }) => {
