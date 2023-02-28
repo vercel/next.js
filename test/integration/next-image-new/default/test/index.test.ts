@@ -1173,7 +1173,7 @@ function runTests(mode) {
         const warnings = (await browser.log('browser'))
           .map((log) => log.message)
           .join('\n')
-        expect(warnings).toContain(
+        expect(warnings).not.toContain(
           'Image with src "/test.jpg" has "fill" and parent element'
         )
       })
