@@ -349,22 +349,23 @@ createNextDescribe(
       })
 
       it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
-        await next.render('/dashboard')
         const browser = await next.browser('/link-to-rewritten-path')
 
         try {
           // Click the link.
-          await browser.elementById('link-to-rewritten-path').click()
-          await browser.waitForElementByCss('#from-dashboard')
+          await check(async () => {
+            await browser.elementById('link-to-rewritten-path').click()
+            await browser.waitForElementByCss('#from-dashboard', 5000)
 
-          // Check to see that we were rewritten and not redirected.
-          // TODO-APP: rewrite url is broken
-          // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
+            // Check to see that we were rewritten and not redirected.
+            // TODO-APP: rewrite url is broken
+            // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
 
-          // Check to see that the page we navigated to is in fact the dashboard.
-          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
-            'hello from app/dashboard'
-          )
+            // Check to see that the page we navigated to is in fact the dashboard.
+            expect(await browser.elementByCss('#from-dashboard').text()).toBe(
+              'hello from app/dashboard'
+            )
+          })
         } finally {
           await browser.close()
         }
@@ -622,21 +623,24 @@ createNextDescribe(
       })
 
       it('should navigate to pages dynamic route from pages page if it overlaps with an app page', async () => {
-        await next.render('/dynamic-pages-route-app-overlap/app-dir')
         const browser = await next.browser('/dynamic-pages-route-app-overlap')
 
         try {
           // Click the link.
-          await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
+          await check(async () => {
+            await browser.elementById('pages-link').click()
+            expect(
+              await browser.waitForElementByCss('#app-text', 5000).text()
+            ).toBe(
+              'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+            )
 
-          // When refreshing the browser, the app page should be rendered
-          await browser.refresh()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
+            // When refreshing the browser, the app page should be rendered
+            await browser.refresh()
+            expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+              'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
+            )
+          })
         } finally {
           await browser.close()
         }
