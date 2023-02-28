@@ -194,6 +194,7 @@ describe('accumulateMetadata', () => {
               initialScale: 1,
               minimumScale: 1,
               maximumScale: 1,
+              viewportFit: 'cover',
               interactiveWidget: 'overlays-content',
             },
           },
@@ -203,7 +204,7 @@ describe('accumulateMetadata', () => {
       const metadata = await accumulateMetadata(metadataItems)
       expect(metadata).toMatchObject({
         viewport:
-          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, interactive-widget=overlays-content',
+          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=overlays-content',
       })
     })
   })
