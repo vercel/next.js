@@ -8,16 +8,7 @@ import type {
 import type { Viewport } from '../types/extra-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { resolveUrl, resolveUrlValuesOfObject } from './resolve-url'
-
-const viewPortKeys = {
-  width: 'width',
-  height: 'height',
-  initialScale: 'initial-scale',
-  minimumScale: 'minimum-scale',
-  maximumScale: 'maximum-scale',
-  interactiveWidget: 'interactive-widget',
-  viewportFit: 'viewport-fit',
-} as const
+import { ViewPortKeys } from '../constants'
 
 export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
   if (!themeColor) return null
@@ -43,11 +34,11 @@ export const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
     resolved = viewport
   } else if (viewport) {
     resolved = ''
-    for (const viewportKey_ in viewPortKeys) {
+    for (const viewportKey_ in ViewPortKeys) {
       const viewportKey = viewportKey_ as keyof Viewport
       if (viewport[viewportKey]) {
         if (resolved) resolved += ', '
-        resolved += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
+        resolved += `${ViewPortKeys[viewportKey]}=${viewport[viewportKey]}`
       }
     }
   }
