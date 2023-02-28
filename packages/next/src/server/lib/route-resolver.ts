@@ -82,41 +82,46 @@ export async function makeResolver(
 
   await devServer.matchers.reload()
 
-  // @ts-expect-error
-  devServer.customRoutes = await loadCustomRoutes(nextConfig)
-  const matchers = getMiddlewareMatchers(middleware.matcher, nextConfig)
-  // @ts-expect-error
-  devServer.middleware = {
-    page: '/',
-    match: getMiddlewareRouteMatcher(matchers),
-    matchers,
-  }
+  if (middleware.files?.length) {
+    // @ts-expect-error
+    devServer.customRoutes = await loadCustomRoutes(nextConfig)
 
-  type GetEdgeFunctionInfo =
-    typeof DevServer['prototype']['getEdgeFunctionInfo']
-  const getEdgeFunctionInfo = (
-    original: GetEdgeFunctionInfo
-  ): GetEdgeFunctionInfo => {
-    return (params: { page: string; middleware: boolean }) => {
-      if (params.middleware) {
-        return {
-          name: 'middleware',
-          paths: middleware.files.map((file) => join(process.cwd(), file)),
-          env: [],
-          wasm: [],
-          assets: [],
-        }
-      }
-      return original(params)
+    const matchers = middleware.matcher
+      ? getMiddlewareMatchers(middleware.matcher, nextConfig)
+      : [{ regexp: '.*' }]
+    // @ts-expect-error
+    devServer.middleware = {
+      page: '/',
+      match: getMiddlewareRouteMatcher(matchers),
+      matchers,
     }
-  }
-  // @ts-expect-error protected
-  devServer.getEdgeFunctionInfo = getEdgeFunctionInfo(
+
+    type GetEdgeFunctionInfo =
+      typeof DevServer['prototype']['getEdgeFunctionInfo']
+    const getEdgeFunctionInfo = (
+      original: GetEdgeFunctionInfo
+    ): GetEdgeFunctionInfo => {
+      return (params: { page: string; middleware: boolean }) => {
+        if (params.middleware) {
+          return {
+            name: 'middleware',
+            paths: middleware.files.map((file) => join(process.cwd(), file)),
+            env: [],
+            wasm: [],
+            assets: [],
+          }
+        }
+        return original(params)
+      }
+    }
     // @ts-expect-error protected
-    devServer.getEdgeFunctionInfo.bind(devServer)
-  )
-  // @ts-expect-error protected
-  devServer.hasMiddleware = () => true
+    devServer.getEdgeFunctionInfo = getEdgeFunctionInfo(
+      // @ts-expect-error protected
+      devServer.getEdgeFunctionInfo.bind(devServer)
+    )
+    // @ts-expect-error protected
+    devServer.hasMiddleware = () => true
+  }
 
   const routeResults = new WeakMap<any, string>()
   const routes = devServer.generateRoutes()
