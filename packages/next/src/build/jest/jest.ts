@@ -1,5 +1,5 @@
 import { loadEnvConfig } from '@next/env'
-import { relative, resolve, join } from 'path'
+import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
@@ -7,7 +7,6 @@ import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
-import { pathsToModuleNameMapper } from './paths-to-module-name-mapper'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -97,31 +96,8 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      // Automatically set up 'moduleDirectories' and 'moduleNameMapper'
-      // configuration based on the paths that are defined in the jsconfig
-      let moduleDirectoriesJsConfig
-      let moduleNameMapperJsConfig
-      if (
-        typeof resolvedDir !== 'undefined' &&
-        typeof resolvedBaseUrl !== 'undefined'
-      ) {
-        const relativePathFromRootToBaseUrl = relative(
-          resolvedDir,
-          resolvedBaseUrl
-        )
-        const jestRootDir = join('<rootDir>/', relativePathFromRootToBaseUrl)
-        moduleDirectoriesJsConfig = ['node_modules', jestRootDir]
-        moduleNameMapperJsConfig = pathsToModuleNameMapper(
-          jsConfig?.compilerOptions?.paths ?? {},
-          { prefix: jestRootDir, useESM: isEsmProject, logger: Log }
-        )
-      }
-
       const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
       return {
-        ...(moduleDirectoriesJsConfig
-          ? { moduleDirectories: moduleDirectoriesJsConfig }
-          : {}),
         ...resolvedJestConfig,
 
         moduleNameMapper: {
@@ -145,9 +121,6 @@ export default function nextJest(options: { dir?: string } = {}) {
           '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
           // Handle next/font
           'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
-
-          // If we were able to derive moduleNameMapper settings from the paths in jsconfig
-          ...(moduleNameMapperJsConfig || {}),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

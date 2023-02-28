@@ -183,6 +183,7 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  resolvedBaseUrl,
   pagesDir,
   hasServerComponents,
 }: // This is not passed yet as "paths" resolving needs a test first
@@ -197,7 +198,7 @@ any) {
     nextConfig,
     jsConfig,
     hasServerComponents,
-    // resolvedBaseUrl,
+    resolvedBaseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)
