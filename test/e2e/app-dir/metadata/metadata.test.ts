@@ -126,12 +126,22 @@ createNextDescribe(
         )
         await checkMetaNameContentPair(browser, 'author', ['huozhi', 'tree'])
         await checkLink(browser, 'author', 'https://tree.com')
-        await checkMetaNameContentPair(browser, 'theme-color', 'cyan')
+
+        await checkMeta(browser, 'theme-color', 'cyan', 'name')
+        await checkMeta(
+          browser,
+          'theme-color',
+          '(prefers-color-scheme: dark)',
+          'name',
+          'meta',
+          'media'
+        )
+
         await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
         await checkMetaNameContentPair(
           browser,
           'viewport',
-          'width=device-width, initial-scale=1, shrink-to-fit=no'
+          'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual'
         )
         await checkMetaNameContentPair(browser, 'creator', 'shu')
         await checkMetaNameContentPair(browser, 'publisher', 'vercel')
@@ -141,15 +151,6 @@ createNextDescribe(
           browser,
           'format-detection',
           'telephone=no, address=no, email=no'
-        )
-      })
-
-      it('should support object viewport', async () => {
-        const browser = await next.browser('/viewport/object')
-        await checkMetaNameContentPair(
-          browser,
-          'viewport',
-          'width=device-width, initial-scale=1, maximum-scale=1'
         )
       })
 
@@ -355,20 +356,23 @@ createNextDescribe(
               ...parentMetadata,
             }
           }`
-          await next.patchFile(pagePath, content)
 
-          const browser = await next.browser('/mutate')
-          await check(
-            async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
-            /success/
-          )
-          const error = await getRedboxDescription(browser)
+          try {
+            await next.patchFile(pagePath, content)
 
-          await next.deleteFile(pagePath)
+            const browser = await next.browser('/mutate')
+            await check(
+              async () =>
+                (await hasRedbox(browser, true)) ? 'success' : 'fail',
+              /success/
+            )
 
-          expect(error).toContain(
-            'Cannot add property x, object is not extensible'
-          )
+            expect(await getRedboxDescription(browser)).toContain(
+              'Cannot add property x, object is not extensible'
+            )
+          } finally {
+            await next.deleteFile(pagePath)
+          }
         })
       }
 

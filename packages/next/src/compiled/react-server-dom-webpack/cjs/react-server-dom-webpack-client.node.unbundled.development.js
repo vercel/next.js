@@ -14,10 +14,11 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
+var util = require('util');
 var React = require('react');
 
 function createStringDecoder() {
-  return new TextDecoder();
+  return new util.TextDecoder();
 }
 var decoderOptions = {
   stream: true
@@ -35,104 +36,45 @@ function parseModel(response, json) {
 
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
-  if (bundlerConfig) {
-    var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
-
-    if (metadata.async) {
-      return {
-        id: resolvedModuleData.id,
-        chunks: resolvedModuleData.chunks,
-        name: resolvedModuleData.name,
-        async: true
-      };
-    } else {
-      return resolvedModuleData;
-    }
-  }
-
-  return metadata;
-} // The chunk cache contains all the chunks we've preloaded so far.
-// If they're still pending they're a thenable. This map also exists
-// in Webpack but unfortunately it's not exposed so we have to
-// replicate it in user space. null means that it has already loaded.
-
-var chunkCache = new Map();
+  var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
+  return resolvedModuleData;
+}
 var asyncModuleCache = new Map();
-
-function ignoreReject() {// We rely on rejected promises to be handled by another listener.
-} // Start preloading the modules since we might need them soon.
-// This function doesn't suspend.
-
-
 function preloadModule(metadata) {
-  var chunks = metadata.chunks;
-  var promises = [];
+  var existingPromise = asyncModuleCache.get(metadata.specifier);
 
-  for (var i = 0; i < chunks.length; i++) {
-    var chunkId = chunks[i];
-    var entry = chunkCache.get(chunkId);
-
-    if (entry === undefined) {
-      var thenable = globalThis.__next_chunk_load__(chunkId);
-
-      promises.push(thenable); // $FlowFixMe[method-unbinding]
-
-      var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
-      thenable.then(resolve, ignoreReject);
-      chunkCache.set(chunkId, thenable);
-    } else if (entry !== null) {
-      promises.push(entry);
+  if (existingPromise) {
+    if (existingPromise.status === 'fulfilled') {
+      return null;
     }
-  }
 
-  if (metadata.async) {
-    var existingPromise = asyncModuleCache.get(metadata.id);
-
-    if (existingPromise) {
-      if (existingPromise.status === 'fulfilled') {
-        return null;
-      }
-
-      return existingPromise;
-    } else {
-      var modulePromise = Promise.all(promises).then(function () {
-        return globalThis.__next_require__(metadata.id);
-      });
-      modulePromise.then(function (value) {
-        var fulfilledThenable = modulePromise;
-        fulfilledThenable.status = 'fulfilled';
-        fulfilledThenable.value = value;
-      }, function (reason) {
-        var rejectedThenable = modulePromise;
-        rejectedThenable.status = 'rejected';
-        rejectedThenable.reason = reason;
-      });
-      asyncModuleCache.set(metadata.id, modulePromise);
-      return modulePromise;
-    }
-  } else if (promises.length > 0) {
-    return Promise.all(promises);
+    return existingPromise;
   } else {
-    return null;
+    // $FlowFixMe[unsupported-syntax]
+    var modulePromise = import(metadata.specifier);
+    modulePromise.then(function (value) {
+      var fulfilledThenable = modulePromise;
+      fulfilledThenable.status = 'fulfilled';
+      fulfilledThenable.value = value;
+    }, function (reason) {
+      var rejectedThenable = modulePromise;
+      rejectedThenable.status = 'rejected';
+      rejectedThenable.reason = reason;
+    });
+    asyncModuleCache.set(metadata.specifier, modulePromise);
+    return modulePromise;
   }
-} // Actually require the module or suspend if it's not yet ready.
-// Increase priority if necessary.
-
+}
 function requireModule(metadata) {
-  var moduleExports;
+  var moduleExports; // We assume that preloadModule has been called before, which
+  // should have added something to the module cache.
 
-  if (metadata.async) {
-    // We assume that preloadModule has been called before, which
-    // should have added something to the module cache.
-    var promise = asyncModuleCache.get(metadata.id);
+  var promise = asyncModuleCache.get(metadata.specifier);
 
-    if (promise.status === 'fulfilled') {
-      moduleExports = promise.value;
-    } else {
-      throw promise.reason;
-    }
+  if (promise.status === 'fulfilled') {
+    moduleExports = promise.value;
   } else {
-    moduleExports = globalThis.__next_require__(metadata.id);
+    throw promise.reason;
   }
 
   if (metadata.name === '*') {
@@ -144,7 +86,7 @@ function requireModule(metadata) {
   if (metadata.name === '') {
     // This is a placeholder value that represents that the caller accessed the
     // default property of this if it was an ESM interop module.
-    return moduleExports.__esModule ? moduleExports.default : moduleExports;
+    return moduleExports.default;
   }
 
   return moduleExports[metadata.name];
@@ -690,7 +632,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, callServer) {
+function createResponse$1(bundlerConfig, callServer) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -857,11 +799,11 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse$1(bundlerConfig, callServer) {
+function createResponse(bundlerConfig, callServer) {
   // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
   // It should be inlined to one object literal but minor changes can break it.
-  var stringDecoder =  createStringDecoder() ;
-  var response = createResponse(bundlerConfig, callServer);
+  var stringDecoder = createStringDecoder() ;
+  var response = createResponse$1(bundlerConfig, callServer);
   response._partialRow = '';
 
   {
@@ -873,75 +815,28 @@ function createResponse$1(bundlerConfig, callServer) {
   return response;
 }
 
-function startReadingFromStream(response, stream) {
-  var reader = stream.getReader();
+function noServerCall() {
+  throw new Error('Server Functions cannot be called during initial render. ' + 'This would create a fetch waterfall. Try to use a Server Component ' + 'to pass data to Client Components instead.');
+}
 
-  function progress(_ref) {
-    var done = _ref.done,
-        value = _ref.value;
-
-    if (done) {
-      close(response);
-      return;
+function createFromNodeStream(stream, moduleMap) {
+  var response = createResponse(moduleMap, noServerCall);
+  stream.on('data', function (chunk) {
+    if (typeof chunk === 'string') {
+      processStringChunk(response, chunk, 0);
+    } else {
+      processBinaryChunk(response, chunk);
     }
-
-    var buffer = value;
-    processBinaryChunk(response, buffer);
-    return reader.read().then(progress).catch(error);
-  }
-
-  function error(e) {
-    reportGlobalError(response, e);
-  }
-
-  reader.read().then(progress).catch(error);
-}
-
-function createFromReadableStream(stream, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  startReadingFromStream(response, stream);
-  return getRoot(response);
-}
-
-function createFromFetch(promiseForResponse, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  promiseForResponse.then(function (r) {
-    startReadingFromStream(response, r.body);
-  }, function (e) {
-    reportGlobalError(response, e);
+  });
+  stream.on('error', function (error) {
+    reportGlobalError(response, error);
+  });
+  stream.on('end', function () {
+    return close(response);
   });
   return getRoot(response);
 }
 
-function createFromXHR(request, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  var processedLength = 0;
-
-  function progress(e) {
-    var chunk = request.responseText;
-    processStringChunk(response, chunk, processedLength);
-    processedLength = chunk.length;
-  }
-
-  function load(e) {
-    progress();
-    close(response);
-  }
-
-  function error(e) {
-    reportGlobalError(response, new TypeError('Network error'));
-  }
-
-  request.addEventListener('progress', progress);
-  request.addEventListener('load', load);
-  request.addEventListener('error', error);
-  request.addEventListener('abort', error);
-  request.addEventListener('timeout', error);
-  return getRoot(response);
-}
-
-exports.createFromFetch = createFromFetch;
-exports.createFromReadableStream = createFromReadableStream;
-exports.createFromXHR = createFromXHR;
+exports.createFromNodeStream = createFromNodeStream;
   })();
 }

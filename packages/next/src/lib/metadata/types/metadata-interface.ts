@@ -26,6 +26,7 @@ import type {
   ResolvedRobots,
   TemplateString,
   Verification,
+  ThemeColorDescriptor,
 } from './metadata-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
@@ -131,9 +132,19 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```tsx
    * "#000000"
    * <meta name="theme-color" content="#000000" />
+   *
+   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   *
+   * [
+   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
+   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+   * ]
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
 
   /**
    * The color scheme for the document.
@@ -444,7 +455,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   // if you provide an array it will be flattened into a single tag with comma separation
   keywords: null | Array<string>
   referrer: null | ReferrerEnum
-  themeColor: null | string
+  themeColor: null | ThemeColorDescriptor[]
   colorScheme: null | ColorSchemeEnum
   viewport: null | string
   creator: null | string

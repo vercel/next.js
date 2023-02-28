@@ -215,8 +215,8 @@ class Invalidator {
         continue
       }
 
-      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
       this.building.add(key)
+      this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
     }
   }
 
@@ -224,9 +224,9 @@ class Invalidator {
     this.building.add(compilerKey)
   }
 
-  public doneBuilding() {
+  public doneBuilding(compilerKeys: typeof COMPILER_KEYS = []) {
     const rebuild: typeof COMPILER_KEYS = []
-    for (const key of COMPILER_KEYS) {
+    for (const key of compilerKeys) {
       this.building.delete(key)
 
       if (this.rebuildAgain.has(key)) {
@@ -301,10 +301,8 @@ async function findPagePathData(
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
-  if (
-    isMiddlewareFile(normalizedPagePath) ||
-    isInstrumentationHookFile(normalizedPagePath)
-  ) {
+  const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
+  if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
@@ -322,10 +320,18 @@ async function findPagePathData(
       })
     )
 
+    let bundlePath = normalizedPagePath
+    let pageKey = posix.normalize(pageUrl)
+
+    if (isInstrumentation) {
+      bundlePath = bundlePath.replace('/src', '')
+      pageKey = page.replace('/src', '')
+    }
+
     return {
       absolutePagePath: join(rootDir, pagePath),
-      bundlePath: normalizedPagePath.slice(1),
-      page: posix.normalize(pageUrl),
+      bundlePath: bundlePath.slice(1),
+      page: pageKey,
     }
   }
 
@@ -448,14 +454,18 @@ export function onDemandEntryHandler({
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
     }
-
     return pagePaths
   }
 
+  for (const compiler of multiCompiler.compilers) {
+    compiler.hooks.done.tap('NextJsOnDemandEntries', () =>
+      getInvalidator().doneBuilding([
+        compiler.name as keyof typeof COMPILER_INDEXES,
+      ])
+    )
+  }
+
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
-    if (invalidator.shouldRebuildAll()) {
-      return invalidator.doneBuilding()
-    }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const root = !!appDir
     const pagePaths = [
@@ -492,7 +502,7 @@ export function onDemandEntryHandler({
       doneCallbacks!.emit(page)
     }
 
-    invalidator.doneBuilding()
+    invalidator.doneBuilding([...COMPILER_KEYS])
   })
 
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
