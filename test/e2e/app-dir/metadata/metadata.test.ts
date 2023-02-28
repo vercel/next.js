@@ -126,12 +126,22 @@ createNextDescribe(
         )
         await checkMetaNameContentPair(browser, 'author', ['huozhi', 'tree'])
         await checkLink(browser, 'author', 'https://tree.com')
-        await checkMetaNameContentPair(browser, 'theme-color', 'cyan')
+
+        await checkMeta(browser, 'theme-color', 'cyan', 'name')
+        await checkMeta(
+          browser,
+          'theme-color',
+          '(prefers-color-scheme: dark)',
+          'name',
+          'meta',
+          'media'
+        )
+
         await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
         await checkMetaNameContentPair(
           browser,
           'viewport',
-          'width=device-width, initial-scale=1, shrink-to-fit=no'
+          'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual'
         )
         await checkMetaNameContentPair(browser, 'creator', 'shu')
         await checkMetaNameContentPair(browser, 'publisher', 'vercel')
@@ -141,15 +151,6 @@ createNextDescribe(
           browser,
           'format-detection',
           'telephone=no, address=no, email=no'
-        )
-      })
-
-      it('should support object viewport', async () => {
-        const browser = await next.browser('/viewport/object')
-        await checkMetaNameContentPair(
-          browser,
-          'viewport',
-          'width=device-width, initial-scale=1, maximum-scale=1'
         )
       })
 
@@ -330,6 +331,17 @@ createNextDescribe(
         )
       })
 
+      it('should support notFound and redirect in generateMetadata', async () => {
+        const resNotFound = await next.fetch('/async/not-found')
+        expect(resNotFound.status).toBe(404)
+        const notFoundHtml = await resNotFound.text()
+        expect(notFoundHtml).not.toBe('not-found-text')
+        expect(notFoundHtml).toContain('This page could not be found.')
+
+        const resRedirect = await next.fetch('/async/redirect')
+        expect(resRedirect.status).toBe(307)
+      })
+
       if (isNextDev) {
         it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
           const pagePath = 'app/mutate/page.tsx'
@@ -344,20 +356,23 @@ createNextDescribe(
               ...parentMetadata,
             }
           }`
-          await next.patchFile(pagePath, content)
 
-          const browser = await next.browser('/mutate')
-          await check(
-            async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
-            /success/
-          )
-          const error = await getRedboxDescription(browser)
+          try {
+            await next.patchFile(pagePath, content)
 
-          await next.deleteFile(pagePath)
+            const browser = await next.browser('/mutate')
+            await check(
+              async () =>
+                (await hasRedbox(browser, true)) ? 'success' : 'fail',
+              /success/
+            )
 
-          expect(error).toContain(
-            'Cannot add property x, object is not extensible'
-          )
+            expect(await getRedboxDescription(browser)).toContain(
+              'Cannot add property x, object is not extensible'
+            )
+          } finally {
+            await next.deleteFile(pagePath)
+          }
         })
       }
 
@@ -450,7 +465,7 @@ createNextDescribe(
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
         expect($('[property="og:image:url"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -459,7 +474,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/twitter-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.\w+.png/
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'

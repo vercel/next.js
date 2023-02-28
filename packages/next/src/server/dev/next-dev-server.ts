@@ -96,6 +96,7 @@ import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -238,7 +239,7 @@ export default class DevServer extends Server {
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
-        await this.hotReloader!.ensurePage({
+        await this.hotReloader?.ensurePage({
           match,
           page: match.definition.page,
           clientOnly: false,
@@ -411,6 +412,7 @@ export default class DevServer extends Server {
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
+      let previousClientRouterFilters: any
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -578,6 +580,25 @@ export default class DevServer extends Server {
             Log.error(`  "${pagesPath}" - "${appPath}"`)
           }
         }
+        let clientRouterFilters: any
+
+        if (this.nextConfig.experimental.clientRouterFilter) {
+          clientRouterFilters = createClientRouterFilter(
+            Object.keys(appPaths),
+            ((this.nextConfig as any)._originalRedirects || []).filter(
+              (r: any) => !r.internal
+            )
+          )
+
+          if (
+            !previousClientRouterFilters ||
+            JSON.stringify(previousClientRouterFilters) !==
+              JSON.stringify(clientRouterFilters)
+          ) {
+            envChange = true
+            previousClientRouterFilters = clientRouterFilters
+          }
+        }
 
         if (!this.usingTypeScript && enabledTypeScript) {
           // we tolerate the error here as this is best effort
@@ -664,6 +685,7 @@ export default class DevServer extends Server {
                     hasRewrites,
                     isNodeServer,
                     isEdgeServer,
+                    clientRouterFilters,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {
@@ -726,7 +748,7 @@ export default class DevServer extends Server {
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
             // emit the change so clients fetch the update
-            this.hotReloader!.send(undefined, { devPagesManifest: true })
+            this.hotReloader?.send(undefined, { devPagesManifest: true })
           }
           this.sortedRoutes = sortedRoutes
 
@@ -1118,11 +1140,12 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished = false } = await this.hotReloader!.run(
-      req.originalRequest,
-      res.originalResponse,
-      parsedUrl
-    )
+    const { finished = false } =
+      (await this.hotReloader?.run(
+        req.originalRequest,
+        res.originalResponse,
+        parsedUrl
+      )) || {}
 
     if (finished) {
       return
@@ -1319,7 +1342,7 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader!.ensurePage({
+    return this.hotReloader?.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
     })
@@ -1348,7 +1371,7 @@ export default class DevServer extends Server {
     page: string
     appPaths: string[] | null
   }) {
-    return this.hotReloader!.ensurePage({ page, appPaths, clientOnly: false })
+    return this.hotReloader?.ensurePage({ page, appPaths, clientOnly: false })
   }
 
   generateRoutes() {
@@ -1553,7 +1576,7 @@ export default class DevServer extends Server {
     }
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
-        await this.hotReloader!.ensurePage({
+        await this.hotReloader?.ensurePage({
           page: pathname,
           appPaths,
           clientOnly: false,
@@ -1588,10 +1611,10 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.hotReloader!.buildFallbackError()
+    await this.hotReloader?.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage({ page: '/_error', clientOnly: false })
+    await this.hotReloader?.ensurePage({ page: '/_error', clientOnly: false })
     return await loadDefaultErrorComponents(this.distDir)
   }
 
@@ -1618,7 +1641,7 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const errors = await this.hotReloader!.getCompilationErrors(page)
+    const errors = (await this.hotReloader?.getCompilationErrors(page)) || []
     if (errors.length === 0) return
 
     // Return the very first error we found.

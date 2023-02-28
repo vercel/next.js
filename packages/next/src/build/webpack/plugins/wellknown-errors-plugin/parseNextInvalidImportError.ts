@@ -35,14 +35,21 @@ export function getNextInvalidImportError(
 
     let invalidImportMessage = ''
     if (firstExternalModule) {
-      let formattedExternalFile =
-        firstExternalModule.resource.split('node_modules')
-      formattedExternalFile =
-        formattedExternalFile[formattedExternalFile.length - 1]
+      const firstExternalPackageName =
+        firstExternalModule.resourceResolveData?.descriptionFileData?.name
 
-      invalidImportMessage += `\n\nThe error was caused by importing '${formattedExternalFile.slice(
-        1
-      )}' in '${importTrace[0]}'.`
+      if (firstExternalPackageName === 'styled-jsx') {
+        invalidImportMessage += `\n\nThe error was caused by using 'styled-jsx' in '${importTrace[0]}'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      } else {
+        let formattedExternalFile =
+          firstExternalModule.resource.split('node_modules')
+        formattedExternalFile =
+          formattedExternalFile[formattedExternalFile.length - 1]
+
+        invalidImportMessage += `\n\nThe error was caused by importing '${formattedExternalFile.slice(
+          1
+        )}' in '${importTrace[0]}'.`
+      }
     }
 
     return new SimpleWebpackError(

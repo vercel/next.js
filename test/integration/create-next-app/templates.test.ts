@@ -24,7 +24,8 @@ import { getPkgPaths } from '../../../test/lib/create-next-install'
 
 const startsWithoutError = async (
   appDir: string,
-  modes = ['default', 'turbo']
+  modes = ['default', 'turbo'],
+  usingAppDirectory: boolean = false
 ) => {
   for (const mode of modes) {
     appDir = await fs.realpath(appDir)
@@ -42,7 +43,11 @@ const startsWithoutError = async (
 
       const apiRes = await fetchViaHTTP(appPort, '/api/hello')
       expect(apiRes.status).toBe(200)
-      expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+      if (usingAppDirectory) {
+        expect(await apiRes.text()).toEqual('Hello, Next.js!')
+      } else {
+        expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+      }
     } finally {
       await killApp(app)
     }
@@ -66,7 +71,7 @@ describe('create-next-app templates', () => {
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
-    useTempDir(async (cwd) => {
+    await useTempDir(async (cwd) => {
       const projectName = 'choose-ts-js'
 
       /**
@@ -106,7 +111,7 @@ describe('create-next-app templates', () => {
           resolve()
         })
         /**
-         * Simulate "Y" for TypeScript.
+         * Simulate "N" for TypeScript.
          */
         childProcess.stdin.write('N\n')
       })
@@ -252,6 +257,51 @@ describe('create-next-app templates', () => {
       ])
     })
   })
+
+  it('should prompt user to choose if --import-alias is not provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'choose-import-alias'
+
+      /**
+       * Start the create-next-app call.
+       */
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+      /**
+       * Bind the exit listener.
+       */
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+        childProcess.stdin.write('@/something/*\n')
+      })
+
+      /**
+       * Verify it correctly emitted a TS project by looking for tsconfig.
+       */
+      const tsConfig = require(path.join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        Object {
+          "@/something/*": Array [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
 })
 
 describe('create-next-app --experimental-app-dir', () => {
@@ -291,7 +341,11 @@ describe('create-next-app --experimental-app-dir', () => {
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
-      await startsWithoutError(path.join(cwd, projectName))
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 
@@ -317,10 +371,11 @@ describe('create-next-app --experimental-app-dir', () => {
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
       // is landed
-      await startsWithoutError(path.join(cwd, projectName), [
-        'default',
-        'turbo',
-      ])
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 
@@ -352,10 +407,11 @@ describe('create-next-app --experimental-app-dir', () => {
         mode: 'js',
         srcDir: true,
       })
-      await startsWithoutError(path.join(cwd, projectName), [
-        'default',
-        'turbo',
-      ])
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 })

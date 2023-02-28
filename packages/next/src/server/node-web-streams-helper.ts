@@ -1,5 +1,7 @@
 import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
+import { getTracer } from './lib/trace/tracer'
+import { AppRenderSpan } from './lib/trace/constants'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
@@ -149,7 +151,9 @@ export function renderToInitialStream({
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {
-  return ReactDOMServer.renderToReadableStream(element, streamOptions)
+  return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
+    ReactDOMServer.renderToReadableStream(element, streamOptions)
+  )
 }
 
 function createHeadInsertionTransformStream(

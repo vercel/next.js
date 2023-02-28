@@ -61,7 +61,6 @@ const externals = {
   postcss: 'postcss',
   // Ensure latest version is used
   'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
-  'cssnano-simple': 'next/dist/build/cssnano-simple',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
@@ -689,15 +688,6 @@ export async function ncc_napirs_triples(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('src/compiled/cssnano-simple')
-}
-
-// eslint-disable-next-line camelcase
 externals['p-limit'] = 'next/dist/compiled/p-limit'
 export async function ncc_p_limit(task, opts) {
   await task
@@ -1106,6 +1096,18 @@ export async function ncc_segment_ajv_human_errors(task, opts) {
     .target('src/compiled/@segment/ajv-human-errors')
 }
 
+externals['postcss-plugin-stub-for-cssnano-simple'] =
+  'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple'
+// eslint-disable-next-line camelcase
+export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
+  await task
+    .source('src/bundles/postcss-plugin-stub/index.js')
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/postcss-plugin-stub-for-cssnano-simple')
+}
+
 const babelCorePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
@@ -1174,6 +1176,22 @@ export async function ncc_babel_bundle_packages(task, opts) {
   )
 
   await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
+}
+
+externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
+// eslint-disable-next-line camelcase
+export async function ncc_cssnano_simple_bundle(task, opts) {
+  const bundleExternals = {
+    ...externals,
+    'postcss-svgo': 'next/dist/compiled/postcss-plugin-stub-for-cssnano-simple',
+  }
+
+  await task
+    .source('src/bundles/cssnano-simple/index.js')
+    .ncc({
+      externals: bundleExternals,
+    })
+    .target('src/compiled/cssnano-simple')
 }
 
 // eslint-disable-next-line camelcase
@@ -1611,7 +1629,7 @@ export async function ncc_react(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source.replace(
         /require\(["']scheduler["']\)/g,
         'require("next/dist/compiled/scheduler")'
@@ -1658,61 +1676,28 @@ export async function ncc_rsc_poison_packages(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_server_dom_webpack(task, opts) {
-  // Use installed versions instead of bundled version
-  const peerDeps = {
-    react: 'react',
-    'react-dom': 'react-dom',
-  }
-  await fs.mkdir(join(__dirname, 'src/compiled/react-server-dom-webpack'), {
-    recursive: true,
-  })
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/react-server-dom-webpack/package.json'),
-    JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
+  const reactServerDomDir = dirname(
+    relative(
+      __dirname,
+      require.resolve(`react-server-dom-webpack/package.json`)
+    )
   )
   await task
-    .source(require.resolve('react-server-dom-webpack/client'))
-    .target('src/compiled/react-server-dom-webpack')
+    .source(join(reactServerDomDir, 'LICENSE'))
+    .target(`src/compiled/react-server-dom-webpack`)
   await task
-    .source(require.resolve('react-server-dom-webpack/server.browser'))
-    .target('src/compiled/react-server-dom-webpack')
-
-  // Replace webpack internal apis before bundling
-  await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack/package.json')),
-        'cjs/react-server-dom-webpack-*'
-      )
-    )
+    .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementation in Next.js.
+      // NOTE: We don't alias react and react-dom here since they could change while bundling,
+      // let bundling picking logic controlled by webpack.
       file.data = source
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
-    .target('src/compiled/react-server-dom-webpack/cjs')
-
-  // Compile entries
-  await task
-    .source('src/compiled/react-server-dom-webpack/server.browser.js')
-    .ncc({
-      minify: false,
-      externals: peerDeps,
-    })
-    .target('src/compiled/react-server-dom-webpack')
-
-  await task
-    .source('src/compiled/react-server-dom-webpack/client.js')
-    .ncc({
-      minify: false,
-      externals: peerDeps,
-    })
-    .target('src/compiled/react-server-dom-webpack')
-
-  await fs.remove(join(__dirname, 'src/compiled/react-server-dom-webpack/cjs'))
+    .target(`src/compiled/react-server-dom-webpack`)
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2027,6 +2012,17 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/api'] = 'next/dist/compiled/@opentelemetry/api'
+export async function ncc_opentelemetry_api(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@opentelemetry/api'))
+    )
+    .ncc({ packageName: '@opentelemetry/api', externals })
+    .target('src/compiled/@opentelemetry/api')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2057,7 +2053,6 @@ export async function ncc(task, opts) {
         'ncc_napirs_triples',
         'ncc_p_limit',
         'ncc_raw_body',
-        'ncc_cssnano_simple',
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
@@ -2075,6 +2070,7 @@ export async function ncc(task, opts) {
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_segment_ajv_human_errors',
+        'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_assert',
         'ncc_browser_zlib',
         'ncc_buffer',
@@ -2159,6 +2155,7 @@ export async function ncc(task, opts) {
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
+        'ncc_opentelemetry_api',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -2168,6 +2165,7 @@ export async function ncc(task, opts) {
   await task.serial(
     [
       'ncc_browserslist',
+      'ncc_cssnano_simple_bundle',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',

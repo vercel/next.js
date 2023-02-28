@@ -1,43 +1,21 @@
-import Head from 'next/head'
-import Container from '../components/container'
-import MoreStories from '../components/more-stories'
-import HeroPost from '../components/hero-post'
-import Intro from '../components/intro'
-import Layout from '../components/layout'
-import { CMS_NAME } from '../lib/constants'
 import { indexQuery } from '../lib/queries'
-import { usePreviewSubscription } from '../lib/sanity'
 import { getClient, overlayDrafts } from '../lib/sanity.server'
+import { PreviewSuspense } from 'next-sanity/preview'
+import { lazy } from 'react'
+import Landing from '../components/landing'
 
-export default function Index({ allPosts: initialAllPosts, preview }) {
-  const { data: allPosts } = usePreviewSubscription(indexQuery, {
-    initialData: initialAllPosts,
-    enabled: preview,
-  })
-  const [heroPost, ...morePosts] = allPosts || []
-  return (
-    <>
-      <Layout preview={preview}>
-        <Head>
-          <title>Next.js Blog Example with {CMS_NAME}</title>
-        </Head>
-        <Container>
-          <Intro />
-          {heroPost && (
-            <HeroPost
-              title={heroPost.title}
-              coverImage={heroPost.coverImage}
-              date={heroPost.date}
-              author={heroPost.author}
-              slug={heroPost.slug}
-              excerpt={heroPost.excerpt}
-            />
-          )}
-          {morePosts.length > 0 && <MoreStories posts={morePosts} />}
-        </Container>
-      </Layout>
-    </>
-  )
+const LandingPreview = lazy(() => import('../components/landing-preview'))
+
+export default function IndexPage({ allPosts, preview }) {
+  if (preview) {
+    return (
+      <PreviewSuspense fallback="Loading...">
+        <LandingPreview allPosts={allPosts} />
+      </PreviewSuspense>
+    )
+  }
+
+  return <Landing allPosts={allPosts} />
 }
 
 export async function getStaticProps({ preview = false }) {
