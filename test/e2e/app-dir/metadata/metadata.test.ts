@@ -418,7 +418,7 @@ createNextDescribe(
         )
         await checkMetaPropertyContentPair(browser, 'og:locale', 'en-US')
         await checkMetaPropertyContentPair(browser, 'og:type', 'website')
-        await checkMetaPropertyContentPair(browser, 'og:image:url', [
+        await checkMetaPropertyContentPair(browser, 'og:image', [
           'https://example.com/image.png',
           'https://example.com/image2.png',
         ])
@@ -464,7 +464,7 @@ createNextDescribe(
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image:url"]').attr('content')).toMatch(
+        expect($('[property="og:image"]').attr('content')).toMatch(
           /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(

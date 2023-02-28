@@ -2,7 +2,8 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 import type { TwitterAppDescriptor } from '../types/twitter-types'
 
 import React from 'react'
-import { Meta, MultiMeta } from './meta'
+import { isStringOrURL } from '../resolvers/resolve-url'
+import { Meta, MultiMeta, ExtendMeta } from './meta'
 
 export function OpenGraphMetadata({
   openGraph,
@@ -202,7 +203,20 @@ export function OpenGraphMetadata({
       <Meta property="og:locale" content={openGraph.locale} />
       <Meta property="og:country_name" content={openGraph.countryName} />
       <Meta property="og:ttl" content={openGraph.ttl?.toString()} />
-      <MultiMeta propertyPrefix="og:image" contents={openGraph.images} />
+      {openGraph.images?.map((image, index) => (
+        <React.Fragment key={index}>
+          <Meta
+            property="og:image"
+            content={isStringOrURL(image) ? image : image.url}
+          />
+          {!isStringOrURL(image) && (
+            <ExtendMeta
+              propertyPrefix="og:image"
+              content={{ ...image, url: null }}
+            />
+          )}
+        </React.Fragment>
+      ))}
       <MultiMeta propertyPrefix="og:video" contents={openGraph.videos} />
       <MultiMeta propertyPrefix="og:audio" contents={openGraph.audio} />
       <MultiMeta propertyPrefix="og:email" contents={openGraph.emails} />

@@ -32,7 +32,7 @@ type MultiMetaContent =
   | null
   | undefined
 
-function ExtendMeta({
+export function ExtendMeta({
   content,
   namePrefix,
   propertyPrefix,
