@@ -29,6 +29,7 @@ pub struct NextEdgeTransition {
     pub output_path: FileSystemPathVc,
     pub base_path: FileSystemPathVc,
     pub bootstrap_file: FileContentVc,
+    pub entry_name: String,
 }
 
 #[turbo_tasks::value_impl]
@@ -81,8 +82,14 @@ impl Transition for NextEdgeTransition {
         } else {
             path
         };
-        let mut new_content =
-            RopeBuilder::from(format!("const PAGE = {};\n", stringify_js(path)).into_bytes());
+        let mut new_content = RopeBuilder::from(
+            format!(
+                "const NAME={};\nconst PAGE = {};\n",
+                stringify_js(&self.entry_name),
+                stringify_js(path)
+            )
+            .into_bytes(),
+        );
         new_content.concat(base.content());
         let file = File::from(new_content.build());
         let virtual_asset = VirtualAssetVc::new(

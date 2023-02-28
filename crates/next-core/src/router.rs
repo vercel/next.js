@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::{bail, Result};
 use serde::Deserialize;
+use serde_json::json;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     CompletionVc, Value,
@@ -40,6 +41,7 @@ use crate::{
     },
     next_import_map::get_next_build_import_map,
     next_server::context::ServerContextType,
+    util::{parse_config_from_source, NextSourceConfigVc},
 };
 
 #[turbo_tasks::function]
@@ -194,26 +196,49 @@ async fn config_assets(
     // is no middleware file, then we need to generate a default empty manifest
     // and we cannot process it with the next-edge transition because it
     // requires a real file for some reason.
-    let middleware_manifest = match &*middleware_config {
-        Some(c) => context.with_transition("next-edge").process(
-            c.as_asset(),
-            Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
-        ),
-        None => as_es_module_asset(
-            VirtualAssetVc::new(
-                project_path.join("middleware.js"),
-                File::from("export default [];").into(),
+    let (manifest, config) = match &*middleware_config {
+        Some(c) => {
+            let manifest = context.with_transition("next-edge").process(
+                c.as_asset(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            );
+            let config = parse_config_from_source(c.as_asset());
+            (manifest, config)
+        }
+        None => {
+            let manifest = as_es_module_asset(
+                VirtualAssetVc::new(
+                    project_path.join("middleware.js"),
+                    File::from("export default [];").into(),
+                )
+                .as_asset(),
+                context,
             )
-            .as_asset(),
-            context,
-        )
-        .as_asset(),
+            .as_asset();
+            let config = NextSourceConfigVc::default();
+            (manifest, config)
+        }
     };
 
+    let config_asset = as_es_module_asset(
+        VirtualAssetVc::new(
+            project_path.join("middleware_config.js"),
+            File::from(format!(
+                "export default {};",
+                json!({ "matcher": &config.await?.matcher })
+            ))
+            .into(),
+        )
+        .as_asset(),
+        context,
+    )
+    .as_asset();
+
     let mut inner = HashMap::new();
-    inner.insert("MIDDLEWARE_CHUNK_GROUP".to_string(), middleware_manifest);
+    inner.insert("MIDDLEWARE_CHUNK_GROUP".to_string(), manifest);
+    inner.insert("MIDDLEWARE_CONFIG".to_string(), config_asset);
     Ok(InnerAssetsVc::cell(inner))
 }
 
@@ -262,9 +287,10 @@ fn edge_transition_map(
         edge_compile_time_info,
         edge_chunking_context,
         edge_resolve_options_context,
-        output_path,
+        output_path: output_path.root(),
         base_path: project_path,
         bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
+        entry_name: "middleware".to_string(),
     }
     .cell()
     .into();

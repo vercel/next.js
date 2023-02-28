@@ -89,6 +89,17 @@ pub enum NextRuntime {
 #[derive(Default)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
+
+    /// Middleware router matchers
+    pub matcher: Option<Vec<String>>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSourceConfigVc {
+    #[turbo_tasks::function]
+    pub fn default() -> Self {
+        NextSourceConfig::default().cell()
+    }
 }
 
 /// An issue that occurred while resolving the React Refresh runtime module.
@@ -179,7 +190,7 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
             }
         }
     }
-    Ok(NextSourceConfig::default().cell())
+    Ok(NextSourceConfigVc::default())
 }
 
 fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSourceConfig {
@@ -228,6 +239,40 @@ fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSou
                                     value,
                                 );
                             }
+                        }
+                        if key == "matcher" {
+                            let mut matchers = vec![];
+                            match value {
+                                JsValue::Constant(matcher) => {
+                                    if let Some(matcher) = matcher.as_str() {
+                                        matchers.push(matcher.to_string());
+                                    } else {
+                                        invalid_config(
+                                            "The matcher property must be a string or array of \
+                                             strings",
+                                            value,
+                                        );
+                                    }
+                                }
+                                JsValue::Array { items, .. } => {
+                                    for item in items {
+                                        if let Some(matcher) = item.as_str() {
+                                            matchers.push(matcher.to_string());
+                                        } else {
+                                            invalid_config(
+                                                "The matcher property must be a string or array \
+                                                 of strings",
+                                                value,
+                                            );
+                                        }
+                                    }
+                                }
+                                _ => invalid_config(
+                                    "The matcher property must be a string or array of strings",
+                                    value,
+                                ),
+                            }
+                            config.matcher = Some(matchers);
                         }
                     } else {
                         invalid_config(
