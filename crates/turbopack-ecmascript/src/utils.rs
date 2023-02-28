@@ -72,6 +72,15 @@ where
     serde_json::to_string(s).unwrap()
 }
 
+/// Converts a serializable value into a pretty-printed valid JavaScript
+/// expression.
+pub fn stringify_js_pretty<T>(s: &T) -> String
+where
+    T: Serialize + ?Sized,
+{
+    serde_json::to_string_pretty(s).unwrap()
+}
+
 pub struct FormatIter<T: Iterator, F: Fn() -> T>(pub F);
 
 macro_rules! format_iter {
