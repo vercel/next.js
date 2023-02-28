@@ -451,7 +451,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               server[serverBundlePath.replace('src/', '')] = {
                 import: mappings[page],
                 // this is needed to make sure the file is not chunked
-                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
+                filename: `./${INSTRUMENTATION_HOOK_FILENAME}.js`,
               }
             } else {
               server[serverBundlePath] = [mappings[page]]
@@ -471,13 +471,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               assetPrefix: config.assetPrefix,
             }).import
           }
-          // if (isInstrumentationHookFile(page) && pagesType === 'root') {
-          //   edgeServer[serverBundlePath.replace('src/', '')] = {
-          //     import: mappings[page],
-          //     // this is needed to make sure the file is not chunked
-          //     filename: `./edge-${INSTRUMENTATION_HOOK_FILENAME}.js`,
-          //   }
-          // } else {
           const normalizedServerBundlePath =
             isInstrumentationHookFile(page) && pagesType === 'root'
               ? serverBundlePath.replace('src/', '')
