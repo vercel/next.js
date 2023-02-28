@@ -11,9 +11,11 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <Link href="/about"></Link>
-    // or
-    <Link href='/about' />
+    <>
+      <Link href="/about" legacyBehavior></Link>
+      // or
+      <Link href='/about' legacyBehavior />
+    </>
   )
 }
 ```
