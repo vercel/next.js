@@ -452,12 +452,12 @@ export function onDemandEntryHandler({
     return pagePaths
   }
 
-  const doneBuilding = (stats: webpack.Stats) => {
-    const compilationName = stats.compilation.name as any as CompilerNameValues
-    invalidator.doneBuilding([compilationName])
-  }
   for (const compiler of multiCompiler.compilers) {
-    compiler.hooks.done.tap('NextJsOnDemandEntries', doneBuilding)
+    compiler.hooks.done.tap('NextJsOnDemandEntries', () =>
+      getInvalidator().doneBuilding([
+        compiler.name as keyof typeof COMPILER_INDEXES,
+      ])
+    )
   }
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
