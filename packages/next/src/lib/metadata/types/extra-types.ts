@@ -59,6 +59,7 @@ export type Viewport = {
   initialScale?: number
   minimumScale?: number
   maximumScale?: number
+  viewportFit?: 'auto' | 'cover' | 'contain'
   interactiveWidget?: 'resizes-visual' | 'resizes-content' | 'overlays-content'
 }
 
