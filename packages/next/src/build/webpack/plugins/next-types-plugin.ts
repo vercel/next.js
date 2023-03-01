@@ -205,6 +205,9 @@ function createRouteDefinitions(
   let staticRouteTypes = ''
   let dynamicRouteTypes = ''
 
+  const staticRouteTypesFallback = staticRouteTypes ? '' : 'string'
+  const dynamicRouteTypesFallback = dynamicRouteTypes ? '' : 'string'
+
   function addRouteToRouteTypes(route: string) {
     const isDynamic = isDynamicRoute(route)
     if (isDynamic) {
@@ -267,8 +270,8 @@ declare namespace __next_route_internal_types__ {
   type OptionalCatchAllSlug<S extends string> =
     S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-  type StaticRoutes = ${staticRouteTypes}
-  type DynamicRoutes<T extends string = string> = ${dynamicRouteTypes}
+  type StaticRoutes = ${staticRouteTypesFallback}${staticRouteTypes}
+  type DynamicRoutes<T extends string = string> = ${dynamicRouteTypesFallback}${dynamicRouteTypes}
 
   type RouteImpl<T> = ${fallback}
     | StaticRoutes
