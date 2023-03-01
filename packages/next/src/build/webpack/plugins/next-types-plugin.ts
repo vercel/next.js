@@ -205,9 +205,6 @@ function createRouteDefinitions(
   let staticRouteTypes = ''
   let dynamicRouteTypes = ''
 
-  const staticRouteTypesFallback = staticRouteTypes ? '' : 'string'
-  const dynamicRouteTypesFallback = dynamicRouteTypes ? '' : 'string'
-
   function addRouteToRouteTypes(route: string) {
     const isDynamic = isDynamicRoute(route)
     if (isDynamic) {
@@ -240,6 +237,9 @@ function createRouteDefinitions(
   for (const route of routes) {
     addRouteToRouteTypes(route)
   }
+
+  const staticRouteTypesFallback = staticRouteTypes ? '' : 'string'
+  const dynamicRouteTypesFallback = dynamicRouteTypes ? '' : 'string'
 
   return `// Type definitions for Next.js routes
 
