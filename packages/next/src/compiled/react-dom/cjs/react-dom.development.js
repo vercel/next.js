@@ -11501,11 +11501,14 @@ function cleanupAfterRenderResources() {
 // from Internals -> ReactDOM -> FloatClient -> Internals so this doesn't introduce a new one.
 
 var ReactDOMClientDispatcher = {
+  prefetchDNS: prefetchDNS$1,
+  preconnect: preconnect$1,
   preload: preload$1,
   preinit: preinit$1
-}; // global maps of Resources
+}; // global collections of Resources
 
-var preloadPropsMap = new Map(); // getRootNode is missing from IE and old jsdom versions
+var preloadPropsMap = new Map();
+var preconnectsSet = new Set(); // getRootNode is missing from IE and old jsdom versions
 
 function getHoistableRoot(container) {
   // $FlowFixMe[method-unbinding]
@@ -11542,8 +11545,74 @@ function getDocumentForPreloads() {
 
 function getDocumentFromRoot(root) {
   return root.ownerDocument || root;
+}
+
+function preconnectAs(rel, crossOrigin, href) {
+  var ownerDocument = getDocumentForPreloads();
+
+  if (typeof href === 'string' && href && ownerDocument) {
+    var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
+    var key = "link[rel=\"" + rel + "\"][href=\"" + limitedEscapedHref + "\"]";
+
+    if (typeof crossOrigin === 'string') {
+      key += "[crossorigin=\"" + crossOrigin + "\"]";
+    }
+
+    if (!preconnectsSet.has(key)) {
+      preconnectsSet.add(key);
+      var preconnectProps = {
+        rel: rel,
+        crossOrigin: crossOrigin,
+        href: href
+      };
+
+      if (null === ownerDocument.querySelector(key)) {
+        var preloadInstance = createElement('link', preconnectProps, ownerDocument, HTML_NAMESPACE);
+        setInitialProperties(preloadInstance, 'link', preconnectProps);
+        markNodeAsResource(preloadInstance);
+        ownerDocument.head.appendChild(preloadInstance);
+      }
+    }
+  }
 } // --------------------------------------
-//      ReactDOM.Preload
+//      ReactDOM.prefetchDNS
+// --------------------------------------
+
+
+function prefetchDNS$1(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null) {
+      if (typeof options === 'object' && options.hasOwnProperty('crossOrigin')) {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      } else {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      }
+    }
+  }
+
+  preconnectAs('dns-prefetch', null, href);
+} // --------------------------------------
+//      ReactDOM.preconnect
+// --------------------------------------
+
+
+function preconnect$1(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null && typeof options !== 'object') {
+      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options != null && typeof options.crossOrigin !== 'string') {
+      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
+    }
+  }
+
+  var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+  preconnectAs('preconnect', crossOrigin, href);
+} // --------------------------------------
+//      ReactDOM.preload
 // --------------------------------------
 
 
@@ -11590,7 +11659,8 @@ function preloadPropsFromPreloadOptions(href, as, options) {
     rel: 'preload',
     as: as,
     crossOrigin: as === 'font' ? '' : options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    type: options.type
   };
 } // --------------------------------------
 //      ReactDOM.preinit
@@ -17242,7 +17312,6 @@ function replaySuspendedComponentWithHooks(current, workInProgress, Component, p
   // only get reset when the component either completes (finishRenderingHooks)
   // or unwinds (resetHooksOnUnwind).
   {
-    hookTypesDev = current !== null ? current._debugHookTypes : null;
     hookTypesUpdateIndexDev = -1; // Used for hot reloading:
 
     ignorePreviousDependencies = current !== null && current.type !== workInProgress.type;
@@ -17268,8 +17337,14 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
   var children;
 
   do {
-    didScheduleRenderPhaseUpdateDuringThisPass = false;
+    if (didScheduleRenderPhaseUpdateDuringThisPass) {
+      // It's possible that a use() value depended on a state that was updated in
+      // this rerender, so we need to watch for different thenables this time.
+      thenableState = null;
+    }
+
     thenableIndexCounter = 0;
+    didScheduleRenderPhaseUpdateDuringThisPass = false;
 
     if (numberOfReRenders >= RE_RENDER_LIMIT) {
       throw new Error('Too many re-renders. React limits the number of renders to prevent ' + 'an infinite loop.');
@@ -17397,8 +17472,7 @@ function updateWorkInProgressHook() {
   // This function is used both for updates and for re-renders triggered by a
   // render phase update. It assumes there is either a current hook we can
   // clone, or a work-in-progress hook from a previous render pass that we can
-  // use as a base. When we reach the end of the base list, we must switch to
-  // the dispatcher used for mounts.
+  // use as a base.
   var nextCurrentHook;
 
   if (currentHook === null) {
@@ -17434,14 +17508,8 @@ function updateWorkInProgressHook() {
       if (currentFiber === null) {
         // This is the initial render. This branch is reached when the component
         // suspends, resumes, then renders an additional hook.
-        var _newHook = {
-          memoizedState: null,
-          baseState: null,
-          baseQueue: null,
-          queue: null,
-          next: null
-        };
-        nextCurrentHook = _newHook;
+        // Should never be reached because we should switch to the mount dispatcher first.
+        throw new Error('Update hook called on initial render. This is likely a bug in React. Please file an issue.');
       } else {
         // This is an update. We should always have a current hook.
         throw new Error('Rendered more hooks than during the previous render.');
@@ -17497,7 +17565,19 @@ function use(usable) {
         thenableState = createThenableState();
       }
 
-      return trackUsedThenable(thenableState, thenable, index);
+      var result = trackUsedThenable(thenableState, thenable, index);
+
+      if (currentlyRenderingFiber$1.alternate === null && (workInProgressHook === null ? currentlyRenderingFiber$1.memoizedState === null : workInProgressHook.next === null)) {
+        // Initial render, and either this is the first time the component is
+        // called, or there were no Hooks called after this use() the previous
+        // time (perhaps because it threw). Subsequent Hook calls should use the
+        // mount dispatcher.
+        {
+          ReactCurrentDispatcher$1.current = HooksDispatcherOnMountInDEV;
+        }
+      }
+
+      return result;
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext(context);
@@ -18036,7 +18116,7 @@ function mountEffectImpl(fiberFlags, hookFlags, create, deps) {
 function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
-  var destroy = undefined;
+  var destroy = undefined; // currentHook is null when rerendering after a render phase state update.
 
   if (currentHook !== null) {
     var prevEffect = currentHook.memoizedState;
@@ -18165,13 +18245,11 @@ function updateCallback(callback, deps) {
   var nextDeps = deps === undefined ? null : deps;
   var prevState = hook.memoizedState;
 
-  if (prevState !== null) {
-    if (nextDeps !== null) {
-      var prevDeps = prevState[1];
+  if (nextDeps !== null) {
+    var prevDeps = prevState[1];
 
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        return prevState[0];
-      }
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      return prevState[0];
     }
   }
 
@@ -18195,16 +18273,13 @@ function mountMemo(nextCreate, deps) {
 function updateMemo(nextCreate, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
-  var prevState = hook.memoizedState;
+  var prevState = hook.memoizedState; // Assume these are defined. If they're not, areHookInputsEqual will warn.
 
-  if (prevState !== null) {
-    // Assume these are defined. If they're not, areHookInputsEqual will warn.
-    if (nextDeps !== null) {
-      var prevDeps = prevState[1];
+  if (nextDeps !== null) {
+    var prevDeps = prevState[1];
 
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        return prevState[0];
-      }
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      return prevState[0];
     }
   }
 
@@ -30128,11 +30203,22 @@ function handleThrow(root, thrownValue) {
   {
     markComponentRenderStopped();
 
-    if (workInProgressSuspendedReason !== SuspendedOnError) {
-      var wakeable = thrownValue;
-      markComponentSuspended(erroredWork, wakeable, workInProgressRootRenderLanes);
-    } else {
-      markComponentErrored(erroredWork, thrownValue, workInProgressRootRenderLanes);
+    switch (workInProgressSuspendedReason) {
+      case SuspendedOnError:
+        {
+          markComponentErrored(erroredWork, thrownValue, workInProgressRootRenderLanes);
+          break;
+        }
+
+      case SuspendedOnData:
+      case SuspendedOnImmediate:
+      case SuspendedOnDeprecatedThrowPromise:
+      case SuspendedAndReadyToUnwind:
+        {
+          var wakeable = thrownValue;
+          markComponentSuspended(erroredWork, wakeable, workInProgressRootRenderLanes);
+          break;
+        }
     }
   }
 }
@@ -32960,7 +33046,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-bfb9cbd8c-20230223';
+var ReactVersion = '18.3.0-next-41110021f-20230301';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -34027,12 +34113,22 @@ function unmountComponentAtNode(container) {
   }
 }
 
-function preinit() {
+function prefetchDNS() {
   var dispatcher = Internals.Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preinit.apply(this, arguments);
-  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+    dispatcher.prefetchDNS.apply(this, arguments);
+  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preconnect() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preconnect.apply(this, arguments);
+  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
@@ -34043,6 +34139,16 @@ function preload() {
   if (dispatcher) {
     dispatcher.preload.apply(this, arguments);
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preinit() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinit.apply(this, arguments);
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
@@ -34145,6 +34251,8 @@ exports.findDOMNode = findDOMNode;
 exports.flushSync = flushSync;
 exports.hydrate = hydrate;
 exports.hydrateRoot = hydrateRoot;
+exports.preconnect = preconnect;
+exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
 exports.preload = preload;
 exports.render = render;
