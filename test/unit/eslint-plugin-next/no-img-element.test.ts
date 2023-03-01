@@ -81,7 +81,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images. Note: when self-hosting, Image Optimization runs on your Next.js server. If using an external loader, additional usage or cost could be incurred, depending on your provider. See: https://nextjs.org/docs/messages/no-img-element',
+            "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. Note: check your provider's pricing of bandwidth and image optimization to see how this may impact your bill. See: https://nextjs.org/docs/messages/no-img-element",
           type: 'JSXOpeningElement',
         },
       ],
@@ -103,7 +103,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images. Note: when self-hosting, Image Optimization runs on your Next.js server. If using an external loader, additional usage or cost could be incurred, depending on your provider. See: https://nextjs.org/docs/messages/no-img-element',
+            "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. Note: check your provider's pricing of bandwidth and image optimization to see how this may impact your bill. See: https://nextjs.org/docs/messages/no-img-element",
           type: 'JSXOpeningElement',
         },
       ],
