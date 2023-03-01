@@ -1,13 +1,8 @@
 import type { Metadata } from 'next'
-import ReactDOM from 'react-dom'
 import Link from 'next/link'
+import Client from './client'
 
 export default function Page() {
-  // @ts-ignore
-  ReactDOM.preconnect('https://example.com/preconnect', { crossOrigin: true })
-  // @ts-ignore
-  ReactDOM.prefetchDNS('https://example.com/dns-prefetch')
-
   return (
     <div id="basic">
       <Link id="to-index" href="/">
@@ -17,6 +12,7 @@ export default function Page() {
       <Link href="/title-template/extra/inner" id="to-nested">
         to /title-template/extra/inner
       </Link>
+      <Client />
     </div>
   )
 }
