@@ -25,6 +25,11 @@ export = defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
+        // This eslint rule should work just in pages
+        if (!context.getFilename().startsWith('pages/')) {
+          return
+        }
+
         if (!scriptImportName) {
           return
         }

@@ -103,6 +103,21 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       `,
       filename: 'pages/_document.tsx',
     },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'app/deep/root/layout.tsx',
+    },
   ],
 
   invalid: [
