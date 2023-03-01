@@ -386,7 +386,7 @@ Alternatively, you can use the [`loader` prop](#loader) to configure each instan
 
 Examples:
 
-- [Custom Image Loader Configuration](/docs/api-reference/next.config.js/custom-image-loader-config.md)
+- [Custom Image Loader Configuration](/docs/api-reference/next.config.js/custom-image-loader-config.md#example-loader-configuration)
 
 ## Advanced
 
