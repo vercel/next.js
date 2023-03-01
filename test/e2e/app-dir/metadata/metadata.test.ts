@@ -204,7 +204,7 @@ createNextDescribe(
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com/')
+        await checkLink(browser, 'canonical', 'https://example.com')
         await checkMeta(
           browser,
           'en-US',
@@ -224,7 +224,7 @@ createNextDescribe(
         await checkMeta(
           browser,
           'only screen and (max-width: 600px)',
-          'https://example.com/mobile',
+          '/mobile',
           'media',
           'link',
           'href'
