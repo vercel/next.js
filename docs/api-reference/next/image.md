@@ -384,6 +384,10 @@ export default function myImageLoader({ src, width, quality }) {
 
 Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
+Examples:
+
+- [Custom Image Loader Configuration](/docs/api-reference/next.config.js/custom-image-loader-config.md#example-loader-configuration)
+
 ## Advanced
 
 The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
