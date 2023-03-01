@@ -98,8 +98,11 @@ export default function fastlyLoader({ src, width, quality }) {
 ```js
 // Docs: https://docs.gumlet.com/reference/image-transform-size
 export default function gumletLoader({ src, width, quality }) {
-  const params = ['format=auto', `w=${width}`, `q=${quality || 75}`]
-  return `https://example.com${src}?${params.join('&')}`
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('format', 'auto')
+  url.searchParams.set('w', width.toString())
+  url.searchParams.set('q', quality.toString() || '75')
+  return url.href
 }
 ```
 
