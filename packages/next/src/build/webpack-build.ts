@@ -47,10 +47,6 @@ function isTraceEntryPointsPlugin(
   return plugin instanceof TraceEntryPointsPlugin
 }
 
-interface BuildOptions {
-  debugOutput?: boolean
-}
-
 async function webpackBuildImpl(): Promise<{
   duration: number
   turbotraceContext?: TurbotraceContext
