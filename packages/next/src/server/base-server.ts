@@ -410,12 +410,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
-      disableOptimizedLoading: this.nextConfig.experimental.runtime
-        ? true
-        : this.nextConfig.experimental.disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      runtime: this.nextConfig.experimental.runtime,
       serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
