@@ -51,7 +51,9 @@ export const resolveAlternates: FieldResolverWithMetadataBase<'alternates'> = (
 ) => {
   if (!alternates) return null
   const result: ResolvedAlternateURLs = {
-    canonical: resolveUrl(alternates.canonical, metadataBase),
+    canonical: metadataBase
+      ? resolveUrl(alternates.canonical, metadataBase)
+      : alternates.canonical || null,
     languages: null,
     media: null,
     types: null,

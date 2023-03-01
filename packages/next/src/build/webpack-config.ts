@@ -636,8 +636,8 @@ export default async function getBaseWebpackConfig(
     pagesDir?: string
     reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
-    originalRewrites: CustomRoutes['rewrites']
-    originalRedirects: CustomRoutes['redirects']
+    originalRewrites: CustomRoutes['rewrites'] | undefined
+    originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     target?: string
     appDir?: string

@@ -28,7 +28,11 @@ export function patchFetch({
     },
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-      const isRequestInput = input && typeof input === 'object'
+      const isRequestInput =
+        input &&
+        typeof input === 'object' &&
+        typeof (input as Request).method === 'string'
+
       const getRequestMeta = (field: string) => {
         let value = isRequestInput ? (input as any)[field] : null
         return value || (init as any)?.[field]

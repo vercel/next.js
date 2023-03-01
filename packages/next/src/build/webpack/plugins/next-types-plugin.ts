@@ -29,8 +29,8 @@ interface Options {
   isEdgeServer: boolean
   pageExtensions: string[]
   typedRoutes: boolean
-  originalRewrites: Rewrites
-  originalRedirects: Redirect[]
+  originalRewrites: Rewrites | undefined
+  originalRedirects: Redirect[] | undefined
 }
 
 function createTypeGuardFile(
@@ -139,7 +139,10 @@ export const devPageFiles = new Set<string>()
 const edgeRoutes: string[] = []
 const nodeRoutes: string[] = []
 
-function createRouteDefinitions(rewrites: Rewrites, redirects: Redirect[]) {
+function createRouteDefinitions(
+  rewrites: Rewrites | undefined,
+  redirects: Redirect[] | undefined
+) {
   const extraRoutes: string[] = []
   function addExtraRoute(source: string) {
     let tokens: Token[] | undefined
@@ -171,24 +174,28 @@ function createRouteDefinitions(rewrites: Rewrites, redirects: Redirect[]) {
     }
   }
 
-  for (const rewrite of rewrites.beforeFiles) {
-    addExtraRoute(rewrite.source)
-  }
-  for (const rewrite of rewrites.afterFiles) {
-    addExtraRoute(rewrite.source)
-  }
-  for (const rewrite of rewrites.fallback) {
-    addExtraRoute(rewrite.source)
-  }
-  for (const redirect of redirects) {
-    // Skip internal redirects
-    // https://github.com/vercel/next.js/blob/8ff3d7ff57836c24088474175d595b4d50b3f857/packages/next/src/lib/load-custom-routes.ts#L704-L710
-    if (!('internal' in redirect)) {
-      addExtraRoute(redirect.source)
+  if (rewrites) {
+    for (const rewrite of rewrites.beforeFiles) {
+      addExtraRoute(rewrite.source)
+    }
+    for (const rewrite of rewrites.afterFiles) {
+      addExtraRoute(rewrite.source)
+    }
+    for (const rewrite of rewrites.fallback) {
+      addExtraRoute(rewrite.source)
     }
   }
 
-  const fallback = !edgeRoutes.length && !nodeRoutes.length ? 'string' : ''
+  if (redirects) {
+    for (const redirect of redirects) {
+      // Skip internal redirects
+      // https://github.com/vercel/next.js/blob/8ff3d7ff57836c24088474175d595b4d50b3f857/packages/next/src/lib/load-custom-routes.ts#L704-L710
+      if (!('internal' in redirect)) {
+        addExtraRoute(redirect.source)
+      }
+    }
+  }
+
   const routes = [...edgeRoutes, ...nodeRoutes, ...extraRoutes]
 
   // By exposing the static route types separately as string literals,
@@ -259,13 +266,15 @@ declare namespace __next_route_internal_types__ {
   type OptionalCatchAllSlug<S extends string> =
     S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-  type StaticRoutes = ${staticRouteTypes}
-  type DynamicRoutes<T extends string = string> = ${dynamicRouteTypes}
+  type StaticRoutes = ${staticRouteTypes || 'string'}
+  type DynamicRoutes<T extends string = string> = ${
+    dynamicRouteTypes || 'string'
+  }
 
-  type RouteImpl<T> = ${fallback}
+  type RouteImpl<T> =
     | StaticRoutes
-    | \`\${StaticRoutes}\${SearchOrHash}\`
-    | (T extends \`\${DynamicRoutes<infer _>}\${'' | SearchOrHash}\` ? T : never)
+    | \`\${StaticRoutes}\${Suffix}\`
+    | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
 }
 
 declare module 'next' {
@@ -274,9 +283,8 @@ declare module 'next' {
 
   export type Route<T = any> = __next_route_internal_types__.RouteImpl<T>
 }
-  
+
 declare module 'next/link' {
-  import type { Route } from 'next'
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
   import type { AnchorHTMLAttributes } from 'react'
   import type { UrlObject } from 'url'
@@ -306,8 +314,8 @@ export class NextTypesPlugin {
   pageExtensions: string[]
   pagesDir: string
   typedRoutes: boolean
-  originalRewrites: Rewrites
-  originalRedirects: Redirect[]
+  originalRewrites: Rewrites | undefined
+  originalRedirects: Redirect[] | undefined
 
   constructor(options: Options) {
     this.dir = options.dir
