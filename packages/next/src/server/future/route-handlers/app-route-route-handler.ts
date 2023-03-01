@@ -93,7 +93,7 @@ export type AppRouteModule = {
 
 export type StaticGenerationContext = {
   incrementalCache?: IncrementalCache
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
 }
 
 /**
@@ -309,7 +309,9 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
           staticGenerationAsyncStorage,
           {
             pathname: definition.pathname,
-            renderOpts: context || {},
+            renderOpts: context ?? {
+              supportsDynamicHTML: false,
+            },
           },
           () => {
             const _req = (request ? request : wrapRequest(req)) as NextRequest
