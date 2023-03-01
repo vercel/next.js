@@ -754,9 +754,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       startServer(devServerOptions)
         .then(async (app) => {
           const appUrl = `http://${app.hostname}:${app.port}`
-          console.log('[test] host =', host)
           const hostname = host || '0.0.0.0'
-          console.log('[test] hostname =', hostname)
           startedDevelopmentServer(
             appUrl,
             `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
