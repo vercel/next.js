@@ -27,12 +27,17 @@ Alternatively, you can use the [`loader` prop](/docs/api-reference/next/image.md
 
 ## Example Loader Configuration
 
-- [akamai](#akamai-loader)
-- [cloudinary](#cloudinary-loader)
-- [cloudflare](#cloudflare-loader)
-- [imgix](#imgix-loader)
+- [akamai](#akamai)
+- [cloudinary](#cloudinary)
+- [cloudflare](#cloudflare)
+- [contentful](#contentful)
+- [fastly](#fastly)
+- [gumlet](#gumlet)
+- [imageengine](#imageengine)
+- [imgix](#imgix)
+- [thumbor](#thumbor)
 
-### Akamai Loader
+### Akamai
 
 ```js
 // Docs: https://techdocs.akamai.com/ivm/reference/test-images-on-demand
@@ -41,28 +46,74 @@ export default function akamaiLoader({ src, width, quality }) {
 }
 ```
 
-### Cloudinary Loader
+### Cloudinary
 
 ```js
 // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
 export default function cloudinaryLoader({ src, width, quality }) {
-  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  const params = ['f_auto', 'c_limit', `w_${width}`, `q_${quality || 'auto'}`]
   const paramsString = params.join(',') + '/'
   return `https://example.com/${paramsString}${src}`
 }
 ```
 
-### Cloudflare Loader
+### Cloudflare
 
 ```js
 // Docs: https://developers.cloudflare.com/images/url-format
 export default function cloudflareLoader({ src, width, quality }) {
-  const params = ['width=' + width, 'quality=' + quality || '75', 'format=auto']
+  const params = [`width=${width}`, `quality=${quality || 75}`, 'format=auto']
   return `https://example.com/cdn-cgi/image/${params.join(',')}/${src}`
 }
 ```
 
-### Imgix Loader
+### Contentful
+
+```js
+// Docs: https://www.contentful.com/developers/docs/references/images-api/
+export default function contentfulLoader({ src, quality, width }) {
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('fm', 'webp')
+  url.searchParams.set('w', width.toString())
+  url.searchParams.set('q', quality.toString() || '75')
+  return url.href
+}
+```
+
+## Fastly
+
+```js
+// Docs: https://developer.fastly.com/reference/io/
+export default function fastlyLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  url.searchParams.set('auto', 'webp')
+  url.searchParams.set('width', width.toString())
+  url.searchParams.set('quality', quality.toString() || '75')
+  return url.href
+}
+```
+
+## Gumlet
+
+```js
+// Docs: https://docs.gumlet.com/reference/image-transform-size
+export default function gumletLoader({ src, width, quality }) {
+  const params = ['format=auto', `w=${width}`, `q=${quality || 75}`]
+  return `https://example.com${src}?${params.join('&')}`
+}
+```
+
+### ImageEngine
+
+```js
+export default function imageengineLoader({ src, width, quality }) {
+  const compression = 100 - (quality || 50)
+  const params = [`w_${width}`, `cmpr_${compression}`)]
+  return `https://example.com${src}?imgeng=/${params.join('/')`
+}
+```
+
+### Imgix
 
 ```js
 // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
@@ -74,6 +125,16 @@ export default function imgixLoader({ src, width, quality }) {
   params.set('w', params.get('w') || width.toString())
   params.set('q', quality.toString() || '50')
   return url.href
+}
+```
+
+### Thumbor
+
+```js
+// Docs: https://thumbor.readthedocs.io/en/latest/
+export default function thumborLoader({ src, width, quality }) {
+  const params = [`${width}x0`, `filters:quality(${quality || 75})`]
+  return `https://example.com${params.join('/')}${src}`
 }
 ```
 
