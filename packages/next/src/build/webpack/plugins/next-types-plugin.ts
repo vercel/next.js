@@ -300,7 +300,7 @@ declare module 'next/link' {
     href: Route<T> | UrlObject
   }
 
-  export type LinkProps<T extends string> = LinkRestProps & HrefProp<T extends string>
+  export type LinkProps<T extends string> = LinkRestProps & HrefProp<T>
   export default function Link<RouteType extends string>(props: LinkProps<RouteType>): JSX.Element
 }`
 }
