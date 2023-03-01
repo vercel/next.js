@@ -22,19 +22,21 @@ export = defineRule({
         const rootDirs = getRootDirs(context)
 
         const isInAppDir = () => {
-          return rootDirs.some(
-            (rootDir) =>
-              paths.includes(`${rootDir}${path.sep}app${path.sep}`) ||
-              paths.includes(
-                `${rootDir}${path.posix.sep}app${path.posix.sep}`
-              ) ||
-              paths.includes(
-                `${rootDir}${path.sep}src${path.sep}app${path.sep}`
-              ) ||
-              paths.includes(
-                `${rootDir}${path.posix.sep}src${path.posix.sep}app${path.posix.sep}`
-              )
-          )
+          return rootDirs
+            .map((rootDir) => path.basename(rootDir))
+            .some(
+              (rootDir) =>
+                paths.includes(`${rootDir}${path.sep}app${path.sep}`) ||
+                paths.includes(
+                  `${rootDir}${path.posix.sep}app${path.posix.sep}`
+                ) ||
+                paths.includes(
+                  `${rootDir}${path.sep}src${path.sep}app${path.sep}`
+                ) ||
+                paths.includes(
+                  `${rootDir}${path.posix.sep}src${path.posix.sep}app${path.posix.sep}`
+                )
+            )
         }
         // Only lint the <head> element in pages directory
         if (node.name.name !== 'head' || isInAppDir()) {

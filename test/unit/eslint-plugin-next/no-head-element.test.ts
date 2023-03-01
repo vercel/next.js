@@ -61,7 +61,22 @@ ruleTester.run('no-head-element', rule, {
         );
       }
     `,
-      filename: './app/layout.js',
+      filename: 'next.js/app/layout.js',
+    },
+    {
+      code: `
+      export default function Layout({ children }) {
+        return (
+          <html>
+            <head>
+              <title>layout</title>
+            </head>
+            <body>{children}</body>
+          </html>
+        );
+      }
+    `,
+      filename: 'next.js/src/app/layout.js',
     },
   ],
   invalid: [
