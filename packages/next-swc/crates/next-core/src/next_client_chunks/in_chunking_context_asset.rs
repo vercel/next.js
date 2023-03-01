@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::primitives::StringVc;
 use turbopack::ecmascript::chunk::{
     EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
     EcmascriptExportsVc,
@@ -7,8 +7,14 @@ use turbopack::ecmascript::chunk::{
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("in chunking context".to_string())
+}
 
 #[turbo_tasks::value(shared)]
 pub struct InChunkingContextAsset {
@@ -19,8 +25,8 @@ pub struct InChunkingContextAsset {
 #[turbo_tasks::value_impl]
 impl Asset for InChunkingContextAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.asset.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.asset.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]

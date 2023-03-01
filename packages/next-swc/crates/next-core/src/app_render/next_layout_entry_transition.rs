@@ -31,7 +31,7 @@ impl Transition for NextLayoutEntryTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
         VirtualAssetVc::new(
-            asset.path().join("layout-entry.tsx"),
+            asset.ident().path().join("layout-entry.tsx"),
             next_js_file("entry/app/layout-entry.tsx").into(),
         )
         .into()

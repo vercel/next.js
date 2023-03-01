@@ -13,15 +13,21 @@ use turbopack::ecmascript::{
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetReference,
-        ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
-        ChunkingType, ChunkingTypeOptionVc,
+        Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContext,
+        ChunkingContextVc, ChunkingType, ChunkingTypeOptionVc,
     },
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
 
 use crate::next_client_chunks::in_chunking_context_asset::InChunkingContextAsset;
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("client chunks".to_string())
+}
 
 #[turbo_tasks::value(shared)]
 pub struct WithClientChunksAsset {
@@ -32,8 +38,8 @@ pub struct WithClientChunksAsset {
 #[turbo_tasks::value_impl]
 impl Asset for WithClientChunksAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.asset.path().join("with-client-chunks.js")
+    fn ident(&self) -> AssetIdentVc {
+        self.asset.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
@@ -88,26 +94,10 @@ struct WithClientChunksChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for WithClientChunksChunkItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{}/with-client-chunks.js",
-            self.inner.await?.asset.path().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
-    }
-
-    #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.inner.path()
     }
 
     #[turbo_tasks::function]
@@ -122,7 +112,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
             for reference in chunk.references().await?.iter() {
                 let assets = &*reference.resolve_reference().primary_assets().await?;
                 for asset in assets.iter() {
-                    asset_paths.push(asset.path().await?);
+                    asset_paths.push(asset.ident().path().await?);
                 }
             }
 
@@ -159,6 +149,11 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.inner.ident()
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         let inner = self.inner.await?;
         Ok(AssetReferencesVc::cell(vec![
@@ -187,7 +182,7 @@ impl ValueToString for WithClientChunksAssetReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "local asset {}",
-            self.asset.path().to_string().await?
+            self.asset.ident().to_string().await?
         )))
     }
 }

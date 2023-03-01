@@ -40,13 +40,13 @@ impl Transition for NextClientTransition {
     fn process_source(&self, asset: AssetVc) -> AssetVc {
         if self.is_app {
             VirtualAssetVc::new(
-                asset.path().join("next-app-hydrate.tsx"),
+                asset.ident().path().join("next-app-hydrate.tsx"),
                 next_js_file("entry/app/hydrate.tsx").into(),
             )
             .into()
         } else {
             VirtualAssetVc::new(
-                asset.path().join("next-hydrate.tsx"),
+                asset.ident().path().join("next-hydrate.tsx"),
                 next_js_file("entry/next-hydrate.tsx").into(),
             )
             .into()
@@ -85,7 +85,10 @@ impl Transition for NextClientTransition {
     ) -> Result<AssetVc> {
         let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
             Some(chunkable_asset) => chunkable_asset,
-            None => bail!("asset {} is not chunkable", asset.path().to_string().await?),
+            None => bail!(
+                "asset {} is not chunkable",
+                asset.ident().to_string().await?
+            ),
         };
 
         let runtime_entries = self.runtime_entries.resolve_entries(context.into());

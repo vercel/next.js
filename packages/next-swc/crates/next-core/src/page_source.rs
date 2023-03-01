@@ -659,19 +659,19 @@ impl SsrEntryVc {
         let virtual_asset = match ty {
             SsrType::AutoApi => unreachable!(),
             SsrType::Api => VirtualAssetVc::new(
-                this.entry_asset.path().join("server-api.tsx"),
+                this.entry_asset.ident().path().join("server-api.tsx"),
                 next_js_file("entry/server-api.tsx").into(),
             ),
             SsrType::EdgeApi => VirtualAssetVc::new(
-                this.entry_asset.path().join("server-edge-api.tsx"),
+                this.entry_asset.ident().path().join("server-edge-api.tsx"),
                 next_js_file("entry/server-edge-api.tsx").into(),
             ),
             SsrType::Data => VirtualAssetVc::new(
-                this.entry_asset.path().join("server-data.tsx"),
+                this.entry_asset.ident().path().join("server-data.tsx"),
                 next_js_file("entry/server-data.tsx").into(),
             ),
             SsrType::Html => VirtualAssetVc::new(
-                this.entry_asset.path().join("server-renderer.tsx"),
+                this.entry_asset.ident().path().join("server-renderer.tsx"),
                 next_js_file("entry/server-renderer.tsx").into(),
             ),
         };

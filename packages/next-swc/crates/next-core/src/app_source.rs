@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use indexmap::IndexMap;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{rebase, rope::RopeBuilder, File, FileContent, FileSystemPathVc};
@@ -716,7 +717,7 @@ impl AppRouteVc {
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
                 this.context.compile_time_info(),
-                InnerAssetsVc::cell(HashMap::from([("ROUTE_CHUNK_GROUP".to_string(), entry)])),
+                InnerAssetsVc::cell(IndexMap::from([("ROUTE_CHUNK_GROUP".to_string(), entry)])),
             ),
             chunking_context,
             intermediate_output_path: this.intermediate_output_path,
