@@ -18,10 +18,10 @@ function getFormattedLinkDiagnosticMessageText(
   if (typeof message === 'string' && diagnostic.code === 2322) {
     const match =
       message.match(
-        /Type '"(.+)"' is not assignable to type 'Route<.+> \| UrlObject'\./
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./
       ) ||
       message.match(
-        /Type '"(.+)"' is not assignable to type 'UrlObject \| Route<.+>'\./
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./
       )
 
     if (match) {
@@ -45,10 +45,10 @@ function getFormattedLinkDiagnosticMessageText(
   } else if (typeof message === 'string' && diagnostic.code === 2820) {
     const match =
       message.match(
-        /Type '"(.+)"' is not assignable to type 'Route<.+> \| UrlObject'\. Did you mean '"(.+)"'?/
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\. Did you mean '"(.+)"'?/
       ) ||
       message.match(
-        /Type '"(.+)"' is not assignable to type 'UrlObject \| Route<.+>'\. Did you mean '"(.+)"'?/
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\. Did you mean '"(.+)"'?/
       )
 
     if (match) {
