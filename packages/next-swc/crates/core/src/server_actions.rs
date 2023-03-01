@@ -372,12 +372,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         decl: Decl::Var(var),
                         ..
                     })) => {
-                        for decl in &var.decls {
-                            if let Pat::Ident(ident) = &decl.name {
-                                // export var foo = 1;
-                                self.exported_idents.push(ident.id.to_id());
-                            }
-                        }
+                        let ids: Vec<Id> = collect_idents_in_var_decls(&var.decls);
+                        self.exported_idents.extend(ids);
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for spec in &named.specifiers {
@@ -430,17 +426,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
-                        for spec in &mut named.specifiers {
-                            if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                orig: ModuleExportName::Ident(ident),
-                                ..
-                            }) = spec
-                            {
-                                if !self.async_fn_idents.contains(&ident.to_id()) {
+                        if named.src.is_some() {
+                            disallowed_export_span = named.span;
+                        } else {
+                            for spec in &mut named.specifiers {
+                                if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(ident),
+                                    ..
+                                }) = spec
+                                {
+                                    if !self.async_fn_idents.contains(&ident.to_id()) {
+                                        disallowed_export_span = named.span;
+                                    }
+                                } else {
                                     disallowed_export_span = named.span;
                                 }
-                            } else {
-                                disallowed_export_span = named.span;
                             }
                         }
                     }
