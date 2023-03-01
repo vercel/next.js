@@ -383,6 +383,24 @@ describe('ESLint', () => {
       })
     }
 
+    test('should add relative path for dist types in tsconfig.json when app dir exist', async () => {
+      await nextLint(dirTypescript, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const tsConfigPath = join(
+        dirTypescript,
+        '../with-typescript/tsconfig.json'
+      )
+      const tsConfigContent = await fs.readFile(tsConfigPath, {
+        encoding: 'utf8',
+      })
+      const tsConfigJson = JSON.parse(tsConfigContent)
+
+      expect(tsConfigJson.include).toContain('.build/types/**/*.ts')
+    })
+
     test('shows warnings and errors', async () => {
       const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
         stdout: true,
