@@ -8,13 +8,7 @@ use next_binding::swc::core::{
         BytePos, FileName, DUMMY_SP,
     },
     ecma::{
-        ast::{
-            op, ArrayLit, AssignExpr, AssignPatProp, BlockStmt, CallExpr, ComputedPropName, Decl,
-            DefaultDecl, ExportDecl, ExportDefaultDecl, Expr, ExprStmt, FnDecl, Function, Id,
-            Ident, KeyValuePatProp, KeyValueProp, Lit, MemberExpr, MemberProp, Module, ModuleDecl,
-            ModuleItem, ObjectPatProp, OptChainBase, OptChainExpr, Param, Pat, PatOrExpr, Prop,
-            PropName, RestPat, ReturnStmt, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
-        },
+        ast::*,
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
@@ -40,6 +34,7 @@ pub fn server_actions<C: Comments>(
         start_pos: BytePos(0),
         in_action_file: false,
         in_export_decl: false,
+        in_prepass: false,
         has_action: false,
         top_level: false,
 
@@ -48,6 +43,8 @@ pub fn server_actions<C: Comments>(
         should_add_name: false,
         closure_idents: Default::default(),
         action_idents: Default::default(),
+        async_fn_idents: Default::default(),
+        exported_idents: Default::default(),
 
         annotations: Default::default(),
         extra_items: Default::default(),
@@ -64,6 +61,7 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
     in_action_file: bool,
     in_export_decl: bool,
+    in_prepass: bool,
     has_action: bool,
     top_level: bool,
 
@@ -72,6 +70,8 @@ struct ServerActions<C: Comments> {
     should_add_name: bool,
     closure_idents: Vec<Id>,
     action_idents: Vec<Name>,
+    async_fn_idents: Vec<Id>,
+    exported_idents: Vec<Id>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -87,19 +87,35 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let mut in_action_fn = false;
+        // Need to collect all async function identifiers if we are in a server
+        // file, because it can be exported later.
+        if self.in_action_file && self.in_prepass {
+            if f.function.is_async {
+                self.async_fn_idents.push(f.ident.to_id());
+            }
+            return;
+        }
+
+        let mut is_action_fn = false;
+        let mut is_exported = false;
 
         if self.in_action_file && self.in_export_decl {
             // All export functions in a server file are actions
-            in_action_fn = true;
+            is_action_fn = true;
         } else {
             // Check if the function has `"use server"`
             if let Some(body) = &mut f.function.body {
                 let directive_index = get_server_directive_index_in_fn(&body.stmts);
                 if directive_index >= 0 {
-                    in_action_fn = true;
+                    is_action_fn = true;
                     body.stmts.remove(directive_index.try_into().unwrap());
                 }
+            }
+
+            // If it's exported via named export, it's a valid action.
+            if !is_action_fn && self.exported_idents.contains(&f.ident.to_id()) {
+                is_action_fn = true;
+                is_exported = true;
             }
         }
 
@@ -108,7 +124,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module;
             let old_should_add_name = self.should_add_name;
-            self.in_action_fn = in_action_fn;
+            self.in_action_fn = is_action_fn;
             self.in_module = false;
             self.should_add_name = true;
             f.visit_mut_children_with(self);
@@ -117,7 +133,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.should_add_name = old_should_add_name;
         }
 
-        if !in_action_fn {
+        if !is_action_fn {
             return;
         }
 
@@ -129,7 +145,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        let action_name: JsWord = if self.in_action_file && self.in_export_decl {
+        let need_rename_export = self.in_action_file && (self.in_export_decl || is_exported);
+        let action_name: JsWord = if need_rename_export {
             f.ident.sym.clone()
         } else {
             format!("$ACTION_{}", f.ident.sym).into()
@@ -177,7 +194,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 .into(),
             ));
 
-            if !(self.in_action_file && self.in_export_decl) {
+            if !need_rename_export {
                 // export const $ACTION_myAction = myAction;
                 self.extra_items
                     .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -277,7 +294,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
         n.visit_mut_children_with(self);
 
-        if self.in_module {
+        if self.in_module || self.in_prepass {
             return;
         }
 
@@ -289,6 +306,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_param(&mut self, n: &mut Param) {
         n.visit_mut_children_with(self);
+
+        if self.in_prepass {
+            return;
+        }
 
         if !self.in_action_fn && !self.in_action_file {
             match &n.pat {
@@ -317,7 +338,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if self.in_action_fn && self.should_add_name {
             if let Ok(name) = Name::try_from(&*n) {
                 self.should_add_name = false;
-                self.action_idents.push(name);
+                if !self.in_prepass {
+                    self.action_idents.push(name);
+                }
                 n.visit_mut_children_with(self);
                 self.should_add_name = true;
                 return;
@@ -338,6 +361,40 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_annotations = self.annotations.take();
 
         let mut new = Vec::with_capacity(stmts.len());
+
+        // We need a second pass to collect all async function idents and exports
+        // so we can handle the named export cases if it's in the "use server" file.
+        if self.in_action_file {
+            self.in_prepass = true;
+            for stmt in stmts.iter_mut() {
+                match &*stmt {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                        decl: Decl::Var(var),
+                        ..
+                    })) => {
+                        let ids: Vec<Id> = collect_idents_in_var_decls(&var.decls);
+                        self.exported_idents.extend(ids);
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
+                        for spec in &named.specifiers {
+                            if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                orig: ModuleExportName::Ident(ident),
+                                ..
+                            }) = spec
+                            {
+                                // export { foo, foo as bar }
+                                self.exported_idents.push(ident.to_id());
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+
+                stmt.visit_mut_with(self);
+            }
+            self.in_prepass = false;
+        }
+
         for mut stmt in stmts.take() {
             self.top_level = true;
 
@@ -345,12 +402,45 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // functions.
             if self.in_action_file {
                 let mut disallowed_export_span = DUMMY_SP;
+
+                // Currrently only function exports are allowed.
                 match &mut stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span })) => {
                         match decl {
                             Decl::Fn(_f) => {}
+                            Decl::Var(var) => {
+                                for decl in &mut var.decls {
+                                    if let Some(init) = &decl.init {
+                                        match &**init {
+                                            Expr::Fn(_f) => {}
+                                            _ => {
+                                                disallowed_export_span = *span;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             _ => {
                                 disallowed_export_span = *span;
+                            }
+                        }
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
+                        if named.src.is_some() {
+                            disallowed_export_span = named.span;
+                        } else {
+                            for spec in &mut named.specifiers {
+                                if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(ident),
+                                    ..
+                                }) = spec
+                                {
+                                    if !self.async_fn_idents.contains(&ident.to_id()) {
+                                        disallowed_export_span = named.span;
+                                    }
+                                } else {
+                                    disallowed_export_span = named.span;
+                                }
                             }
                         }
                     }
@@ -360,6 +450,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ..
                     })) => match decl {
                         DefaultDecl::Fn(_f) => {}
+                        _ => {
+                            disallowed_export_span = *span;
+                        }
+                    },
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        expr,
+                        span,
+                        ..
+                    })) => match &**expr {
+                        Expr::Fn(_f) => {}
                         _ => {
                             disallowed_export_span = *span;
                         }
