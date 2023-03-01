@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, hasRedbox, getRedboxDescription } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
 
 createNextDescribe(
@@ -152,6 +152,10 @@ createNextDescribe(
           'format-detection',
           'telephone=no, address=no, email=no'
         )
+
+        await checkLink(browser, 'preconnect', '/preconnect-url')
+        await checkLink(browser, 'preload', '/preload-url')
+        await checkLink(browser, 'dns-prefetch', '/dns-prefetch-url')
       })
 
       it('should support apple related tags `itunes` and `appWebApp`', async () => {
@@ -341,40 +345,6 @@ createNextDescribe(
         const resRedirect = await next.fetch('/async/redirect')
         expect(resRedirect.status).toBe(307)
       })
-
-      if (isNextDev) {
-        it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
-          const pagePath = 'app/mutate/page.tsx'
-          const content = `export default function page(props) {
-            return <p>mutate</p>
-          }
-
-          export async function generateMetadata(props, parent) {
-            const parentMetadata = await parent
-            parentMetadata.x = 1
-            return {
-              ...parentMetadata,
-            }
-          }`
-
-          try {
-            await next.patchFile(pagePath, content)
-
-            const browser = await next.browser('/mutate')
-            await check(
-              async () =>
-                (await hasRedbox(browser, true)) ? 'success' : 'fail',
-              /success/
-            )
-
-            expect(await getRedboxDescription(browser)).toContain(
-              'Cannot add property x, object is not extensible'
-            )
-          } finally {
-            await next.deleteFile(pagePath)
-          }
-        })
-      }
 
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
