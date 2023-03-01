@@ -110,10 +110,9 @@ function writeStringChunk(destination, stringChunk) {
   writtenBytes += written;
 
   if (read < stringChunk.length) {
-    writeToDestination(destination, currentView);
+    writeToDestination(destination, currentView.subarray(0, writtenBytes));
     currentView = new Uint8Array(VIEW_SIZE);
-    writtenBytes = textEncoder.encodeInto(stringChunk.slice(read), // $FlowFixMe[incompatible-call] found when upgrading Flow
-    currentView).written;
+    writtenBytes = textEncoder.encodeInto(stringChunk.slice(read), currentView).written;
   }
 
   if (writtenBytes === VIEW_SIZE) {
