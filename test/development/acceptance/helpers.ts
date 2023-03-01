@@ -29,7 +29,7 @@ export async function sandbox(
     }
   }
   await next.start()
-  const browser = await webdriver(next.appPort, '/')
+  const browser = await webdriver(next.url, '/')
   return {
     session: {
       async write(filename, content) {

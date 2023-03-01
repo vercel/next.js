@@ -29,9 +29,15 @@ export default function RootStyleRegistry({ children }) {
     return <>{styledComponentsFlushEffect()}</>
   })
 
-  return (
-    <StyleSheetManager sheet={styledComponentsStyleSheet.instance}>
-      <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
-    </StyleSheetManager>
+  const child = (
+    <StyleRegistry registry={jsxStyleRegistry}>{children}</StyleRegistry>
   )
+  if (typeof window === 'undefined') {
+    return (
+      <StyleSheetManager sheet={styledComponentsStyleSheet.instance}>
+        {child}
+      </StyleSheetManager>
+    )
+  }
+  return child
 }

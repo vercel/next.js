@@ -1,11 +1,10 @@
 import fs from 'fs-extra'
 import os from 'os'
-import execa from 'execa'
 
-import { dirname, join } from 'path'
+import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
-import { nextBuild, nextLint } from 'next-test-utils'
+import { File, nextBuild, nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
@@ -20,6 +19,9 @@ const dirPluginCoreWebVitalsConfig = join(
 )
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirBaseDirectories = join(__dirname, '../base-directories')
+const dirBaseDirectoriesConfigFile = new File(
+  join(dirBaseDirectories, '/next.config.js')
+)
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidOlderEslintVersion = join(
@@ -35,6 +37,7 @@ const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
+const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -81,7 +84,15 @@ describe('ESLint', () => {
       )
     })
 
+    // Consolidate two tests below when the `appDir` is released.
     test('base directories are linted by default during builds', async () => {
+      dirBaseDirectoriesConfigFile.write(`
+        module.exports = {
+          experimental: {
+            appDir: false,
+          }
+        }
+      `)
       const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
         stdout: true,
         stderr: true,
@@ -100,12 +111,54 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Warning: Synchronous scripts should not be used'
       )
+      expect(output).not.toContain(
+        'Warning: `rel="preconnect"` is missing from Google Font'
+      )
 
       // Files in pages, components, lib, and src directories are linted
       expect(output).toContain('pages/_document.js')
       expect(output).toContain('components/bar.js')
       expect(output).toContain('lib/foo.js')
       expect(output).toContain('src/index.js')
+      expect(output).not.toContain('app/layout.js')
+    })
+
+    test('base directories with appDir flag are linted by default during builds', async () => {
+      dirBaseDirectoriesConfigFile.write(`
+        module.exports = {
+          experimental: {
+            appDir: true,
+          }
+        }
+      `)
+      const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+
+      expect(output).toContain('Failed to compile')
+      expect(output).toContain(
+        'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
+      )
+      expect(output).toContain(
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+      )
+      expect(output).toContain('Warning: Do not include stylesheets manually')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used'
+      )
+      expect(output).toContain(
+        'Warning: `rel="preconnect"` is missing from Google Font'
+      )
+
+      // Files in pages, app, components, lib, and src directories are linted
+      expect(output).toContain('pages/_document.js')
+      expect(output).toContain('components/bar.js')
+      expect(output).toContain('lib/foo.js')
+      expect(output).toContain('src/index.js')
+      expect(output).toContain('app/layout.js')
     })
 
     test('custom directories', async () => {
@@ -301,6 +354,35 @@ describe('ESLint', () => {
       })
     })
 
+    test('should generate next-env.d.ts before lint command', async () => {
+      await nextLint(dirTypescript, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const files = await fs.readdir(dirTypescript)
+
+      expect(files).toContain('next-env.d.ts')
+    })
+
+    for (const { dir } of [
+      { dir: dirEmptyDirectory },
+      { dir: dirIgnoreDuringBuilds },
+      { dir: dirCustomDirectories },
+      { dir: dirConfigInPackageJson },
+    ]) {
+      test('should not generate next-env.d.ts without typescript', async () => {
+        await nextLint(dir, [], {
+          stdout: true,
+          stderr: true,
+        })
+
+        const files = await fs.readdir(dir)
+
+        expect(files).not.toContain('next-env.d.ts')
+      })
+    }
+
     test('shows warnings and errors', async () => {
       const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
         stdout: true,
@@ -316,7 +398,15 @@ describe('ESLint', () => {
       )
     })
 
+    // Consolidate two tests below when the `appDir` is released.
     test('base directories are linted by default', async () => {
+      dirBaseDirectoriesConfigFile.write(`
+        module.exports = {
+          experimental: {
+            appDir: false,
+          }
+        }
+      `)
       const { stdout, stderr } = await nextLint(dirBaseDirectories, [], {
         stdout: true,
         stderr: true,
@@ -333,12 +423,52 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Warning: Synchronous scripts should not be used'
       )
+      expect(output).not.toContain(
+        'Warning: `rel="preconnect"` is missing from Google Font'
+      )
 
       // Files in pages, components, lib, and src directories are linted
       expect(output).toContain('pages/_document.js')
       expect(output).toContain('components/bar.js')
       expect(output).toContain('lib/foo.js')
       expect(output).toContain('src/index.js')
+      expect(output).not.toContain('app/layout.js')
+    })
+
+    test('base directories with appDir flag are linted by default', async () => {
+      dirBaseDirectoriesConfigFile.write(`
+        module.exports = {
+          experimental: {
+            appDir: true,
+          }
+        }
+      `)
+      const { stdout, stderr } = await nextLint(dirBaseDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
+      )
+      expect(output).toContain(
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+      )
+      expect(output).toContain('Warning: Do not include stylesheets manually')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used'
+      )
+      expect(output).toContain(
+        'Warning: `rel="preconnect"` is missing from Google Font'
+      )
+
+      // Files in pages, app, components, lib, and src directories are linted
+      expect(output).toContain('pages/_document.js')
+      expect(output).toContain('components/bar.js')
+      expect(output).toContain('lib/foo.js')
+      expect(output).toContain('src/index.js')
+      expect(output).toContain('app/layout.js')
     })
 
     test('shows warnings and errors with next/core-web-vitals config', async () => {

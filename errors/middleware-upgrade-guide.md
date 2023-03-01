@@ -175,7 +175,7 @@ If you were previously using Middleware to forward headers to an external API, y
 import { type NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default async function handler(req: NextRequest) {

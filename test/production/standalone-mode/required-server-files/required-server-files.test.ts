@@ -293,10 +293,10 @@ describe('should set-up next', () => {
     )
   })
 
-  it('`compress` should be `true` by default', async () => {
+  it('`compress` should be `false` in nextEnv', async () => {
     expect(
       await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
-    ).toContain('"compress":true')
+    ).toContain('"compress":false')
   })
 
   it('should output middleware correctly', async () => {
@@ -321,6 +321,8 @@ describe('should set-up next', () => {
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
+    // not in a monorepo so relative app dir is empty string
+    expect(requiredFilesManifest.relativeAppDir).toBe('')
   })
 
   it('should de-dupe HTML/data requests', async () => {
@@ -1287,5 +1289,10 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
+
+    // when not in next env should be compress: true
+    expect(
+      await fs.readFileSync(join(next.testDir, 'standalone/server.js'), 'utf8')
+    ).toContain('"compress":true')
   })
 })

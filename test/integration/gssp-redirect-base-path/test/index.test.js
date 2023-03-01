@@ -240,7 +240,7 @@ const runTests = (isDev) => {
 
     await check(
       () => browser.eval(() => document.location.hostname),
-      'example.com'
+      'example.vercel.sh'
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
@@ -258,7 +258,7 @@ const runTests = (isDev) => {
 
     await check(
       () => browser.eval(() => document.location.hostname),
-      'example.com'
+      'example.vercel.sh'
     )
 
     const initialHref = await browser.eval(() => window.initialHref)
@@ -275,7 +275,7 @@ const runTests = (isDev) => {
     expect(res.status).toBe(307)
 
     const parsed = url.parse(res.headers.get('location'))
-    expect(parsed.hostname).toBe('example.com')
+    expect(parsed.hostname).toBe('example.vercel.sh')
     expect(parsed.pathname).toBe('/')
   })
 

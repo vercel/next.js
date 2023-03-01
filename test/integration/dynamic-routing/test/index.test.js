@@ -1173,7 +1173,7 @@ function runTests({ dev }) {
         await browser
           .elementByCss('#view-post-1-interpolated-incorrectly')
           .click()
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
           'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
@@ -1454,6 +1454,7 @@ function runTests({ dev }) {
         ],
         rsc: {
           header: 'RSC',
+          contentTypeHeader: 'text/x-component',
           varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
         },
       })

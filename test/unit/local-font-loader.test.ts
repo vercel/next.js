@@ -1,6 +1,6 @@
 import loader from '@next/font/local/loader'
 
-describe('@next/font/local', () => {
+describe('next/font/local', () => {
   describe('generated CSS', () => {
     test('Default CSS', async () => {
       const { css } = await loader({
@@ -23,7 +23,7 @@ describe('@next/font/local', () => {
         "@font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         }
         "
       `)
@@ -50,7 +50,7 @@ describe('@next/font/local', () => {
         "@font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 100 900;
         font-style: italic;
         }
@@ -89,7 +89,7 @@ describe('@next/font/local', () => {
         ascent-override: 90%;
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         }
         "
       `)
@@ -140,7 +140,7 @@ describe('@next/font/local', () => {
         "@font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 100;
         font-style: italic;
         }
@@ -148,7 +148,7 @@ describe('@next/font/local', () => {
         @font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 400;
         font-style: italic;
         }
@@ -156,7 +156,7 @@ describe('@next/font/local', () => {
         @font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 700;
         font-style: italic;
         }
@@ -164,7 +164,7 @@ describe('@next/font/local', () => {
         @font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 400;
         font-style: normal;
         }
@@ -212,7 +212,7 @@ describe('@next/font/local', () => {
         "@font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 400;
         font-style: normal;
         }
@@ -220,7 +220,7 @@ describe('@next/font/local', () => {
         @font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 400;
         font-style: italic;
         }
@@ -228,7 +228,7 @@ describe('@next/font/local', () => {
         @font-face {
         font-family: myFont;
         src: url(/_next/static/media/my-font.woff2) format('woff2');
-        font-display: optional;
+        font-display: swap;
         font-weight: 700;
         }
         "
@@ -251,7 +251,7 @@ describe('@next/font/local', () => {
           loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"@next/font/local has no named exports"`
+        `"next/font/local has no named exports"`
       )
     })
 

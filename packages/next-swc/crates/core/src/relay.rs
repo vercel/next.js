@@ -3,7 +3,7 @@ use regex::Regex;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-use swc_core::{
+use next_binding::swc::core::{
     common::{errors::HANDLER, FileName},
     ecma::ast::*,
     ecma::atoms::JsWord,

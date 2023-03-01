@@ -1,7 +1,7 @@
 {
   "root": true,
   "parser": "@babel/eslint-parser",
-  "plugins": ["react", "react-hooks", "jest", "import"],
+  "plugins": ["react", "react-hooks", "jest", "import", "jsdoc"],
   "env": {
     "browser": true,
     "commonjs": true,
@@ -96,7 +96,16 @@
         "@typescript-eslint/no-useless-constructor": "warn",
         "@typescript-eslint/prefer-literal-enum-member": "error",
         "@typescript-eslint/prefer-namespace-keyword": "error"
-      }
+      },
+      "overrides": [
+        {
+          "files": ["packages/**"],
+          "rules": {
+            "jsdoc/no-types": "error",
+            "jsdoc/no-undefined-types": "error"
+          }
+        }
+      ]
     },
     {
       "files": [
@@ -149,6 +158,9 @@
     {
       "files": ["packages/**/*.tsx", "packages/**/*.ts"],
       "rules": {
+        // Note: you must disable the base rule as it can report incorrect errors
+        "no-shadow": "off",
+        "@typescript-eslint/no-shadow": ["warn", { "builtinGlobals": false }],
         "@typescript-eslint/no-unused-vars": [
           "warn",
           {

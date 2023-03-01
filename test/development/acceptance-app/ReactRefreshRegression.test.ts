@@ -3,13 +3,9 @@ import { sandbox } from './helpers'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import path from 'path'
+import { check } from 'next-test-utils'
 
 describe('ReactRefreshRegression app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -85,7 +81,7 @@ describe('ReactRefreshRegression app', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     await cleanup()
   })
@@ -150,8 +146,7 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/13978
-  // TODO-APP: fix case where server component is moved to a client component
-  test.skip('can fast refresh a page with dynamic rendering', async () => {
+  test('can fast refresh a page with dynamic rendering', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -183,13 +178,17 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      '0'
+    )
+
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      '1'
+    )
 
     await session.patch(
       'index.js',
@@ -209,20 +208,23 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      'Count: 1'
+    )
+
     await session.evaluate(() => document.querySelector('button').click())
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
+
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      'Count: 2'
+    )
 
     await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
-  // TODO-APP: fix case where server component is moved to a client component
-  test.skip('can fast refresh a page with config', async () => {
+  test('can fast refresh a page with config', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -257,9 +259,11 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      '0'
+    )
+
     await session.evaluate(() => document.querySelector('button').click())
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -269,16 +273,13 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/11504
-  // TODO-APP: fix case where error is not resolved to source correctly.
   test('shows an overlay for anonymous function server-side error', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
-
-    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
@@ -292,14 +293,12 @@ describe('ReactRefreshRegression app', () => {
   })
 
   test('shows an overlay for server-side error in server component', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
       `export default function Page() { throw new Error('boom'); }`
     )
-
-    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
@@ -313,15 +312,13 @@ describe('ReactRefreshRegression app', () => {
   })
 
   test('shows an overlay for server-side error in client component', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
       `'use client'
       export default function Page() { throw new Error('boom'); }`
     )
-
-    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
@@ -370,7 +367,7 @@ describe('ReactRefreshRegression app', () => {
 
     let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent
@@ -379,7 +376,7 @@ describe('ReactRefreshRegression app', () => {
 
     didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
     expect(
       await session.evaluate(
         () => document.querySelector('#content').textContent

@@ -10,6 +10,8 @@
     "esModuleInterop": true,
     "module": "commonjs",
     "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",

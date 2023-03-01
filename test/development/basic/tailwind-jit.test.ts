@@ -29,7 +29,7 @@ describe('TailwindCSS JIT', () => {
   it('works with JIT enabled', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
       const text = await browser.elementByCss('.text-6xl').text()
       expect(text).toMatch(/Welcome to/)
       const cssBlue = await browser

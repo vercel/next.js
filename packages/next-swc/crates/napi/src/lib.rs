@@ -31,15 +31,13 @@ DEALINGS IN THE SOFTWARE.
 
 #[macro_use]
 extern crate napi_derive;
-/// Explicit extern crate to use allocator.
-extern crate swc_core;
 
 use std::{env, panic::set_hook, sync::Arc};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use swc_core::{
+use next_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
@@ -51,6 +49,12 @@ pub mod transform;
 pub mod turbopack;
 pub mod turbotrace;
 pub mod util;
+
+// don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
+// compile error
+#[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
+#[global_allocator]
+static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));

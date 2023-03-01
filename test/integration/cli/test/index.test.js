@@ -11,6 +11,7 @@ import {
 import { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
+import stripAnsi from 'strip-ansi'
 
 const dir = join(__dirname, '..')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
@@ -254,7 +255,7 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch('ready')
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
-      expect(stdout).toBeFalsy()
+      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('--hostname', async () => {
@@ -275,6 +276,16 @@ describe('CLI Usage', () => {
       )
       expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommandDev(
+        [dir, '--hostname', '::', '--port', port],
+        true
+      )
+      expect(output).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -344,6 +355,18 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
+    })
+
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommand(
+        ['start', '--hostname', '::', '--port', port],
+        {
+          stdout: true,
+        }
+      )
+      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
     })
 
     test('should warn when unknown argument provided', async () => {

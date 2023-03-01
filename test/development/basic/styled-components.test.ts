@@ -38,10 +38,10 @@ describe('styled-components SWC transform', () => {
   it('should not have hydration mismatch with styled-components transform enabled', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       // Compile /_error
-      await fetchViaHTTP(next.appPort, '/404')
+      await fetchViaHTTP(next.url, '/404')
 
       // Try 4 times to be sure there is no mismatch
       expect(await matchLogs$(browser)).toBe(false)
@@ -59,7 +59,7 @@ describe('styled-components SWC transform', () => {
   })
 
   it('should render the page with correct styles', async () => {
-    const browser = await webdriver(next.appPort, '/')
+    const browser = await webdriver(next.url, '/')
 
     expect(
       await browser.eval(
@@ -75,7 +75,7 @@ describe('styled-components SWC transform', () => {
 
   it('should enable the display name transform by default', async () => {
     // make sure the index chunk gets generated
-    await webdriver(next.appPort, '/')
+    await webdriver(next.url, '/')
 
     const chunk = await next.readFile('.next/static/chunks/pages/index.js')
     expect(chunk).toContain('displayName: \\"pages__Button\\"')

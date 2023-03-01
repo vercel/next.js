@@ -1,4 +1,4 @@
-import { Inter, Roboto } from '@next/font/google'
+import { Inter, Roboto } from 'next/font/google'
 const inter = Inter({ weight: '900', display: 'swap', preload: false })
 const roboto = Roboto({
   weight: '100',

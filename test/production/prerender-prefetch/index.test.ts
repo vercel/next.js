@@ -15,6 +15,11 @@ describe('Prerender prefetch', () => {
     optimisticClientCache?: boolean
   }) => {
     it('should not revalidate during prefetching', async () => {
+      // restart revalidate period
+      for (const path of ['/blog/first', '/blog/second']) {
+        await fetchViaHTTP(next.url, path)
+      }
+
       const reqs = {}
 
       // get initial values

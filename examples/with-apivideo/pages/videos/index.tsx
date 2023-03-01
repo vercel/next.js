@@ -1,10 +1,9 @@
-import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import React, { useEffect, useState } from 'react'
 import VideosListResponse from '@api.video/nodejs-client/lib/model/VideosListResponse'
 
-const Videos: NextPage = () => {
+export default function Videos() {
   const [videosResponse, setVideosResponse] = useState<
     VideosListResponse | undefined
   >(undefined)
@@ -107,5 +106,3 @@ const Videos: NextPage = () => {
     </div>
   )
 }
-
-export default Videos

@@ -9,11 +9,12 @@ export function useStyledComponentsRegistry() {
 
   const styledComponentsFlushEffect = () => {
     const styles = styledComponentsStyleSheet.getStyleElement();
-    styledComponentsStyleSheet.seal();
+    styledComponentsStyleSheet.instance.clearTag();
     return <>{styles}</>;
   };
 
   function StyledComponentsRegistry({ children }: ChildProps) {
+    if (typeof window !== 'undefined') return <>{children}</>;
     return (
       <StyleSheetManager sheet={styledComponentsStyleSheet.instance}>
         {children as React.ReactChild}

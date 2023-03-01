@@ -1,4 +1,4 @@
-import { Fraunces, Indie_Flower, Roboto } from '@next/font/google'
+import { Fraunces, Indie_Flower, Roboto } from 'next/font/google'
 
 const indieFlower = Indie_Flower({ weight: '400', preload: false })
 const fraunces = Fraunces({ weight: '400', preload: false })

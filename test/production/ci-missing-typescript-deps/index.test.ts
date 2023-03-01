@@ -14,6 +14,9 @@ describe('ci-missing-typescript-deps', () => {
         CI: '1',
       },
       skipStart: true,
+      dependencies: {
+        typescript: undefined,
+      },
     })
     try {
       let error

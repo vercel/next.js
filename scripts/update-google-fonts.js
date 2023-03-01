@@ -13,8 +13,17 @@ const fetch = require('node-fetch')
   import type { CssVariable, NextFont, NextFontWithVariable, Display } from '../types'
   `
   const fontData = {}
+  const ignoredSubsets = [
+    'menu',
+    'japanese',
+    'korean',
+    'chinese-simplified',
+    'chinese-hongkong',
+    'chinese-traditional',
+  ]
   for (let { family, fonts, axes, subsets } of familyMetadataList) {
-    subsets = subsets.filter((subset) => subset !== 'menu')
+    subsets = subsets.filter((subset) => !ignoredSubsets.includes(subset))
+    const hasPreloadableSubsets = subsets.length > 0
     const weights = new Set()
     const styles = new Set()
 
@@ -45,6 +54,7 @@ const fetch = require('node-fetch')
       weights: [...weights],
       styles: [...styles],
       axes: hasVariableFont ? axes : undefined,
+      subsets,
     }
     const optionalIfVariableFont = hasVariableFont ? '?' : ''
 
@@ -66,10 +76,10 @@ const fetch = require('node-fetch')
     style?: ${formatUnion(styleTypes)} | Array<${formatUnion(styleTypes)}>
     display?:Display
     variable?: T
-    preload?:boolean
+    ${hasPreloadableSubsets ? 'preload?:boolean' : ''}
     fallback?: string[]
     adjustFontFallback?: boolean
-    subsets?: Array<${formatUnion(subsets)}>
+    ${hasPreloadableSubsets ? `subsets?: Array<${formatUnion(subsets)}>` : ''}
     ${
       optionalAxes
         ? `axes?:(${formatUnion(optionalAxes.map(({ tag }) => tag))})[]`

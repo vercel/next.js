@@ -17,7 +17,7 @@ describe('next/jest', () => {
         })`,
         'jest.config.js': `module.exports = require('next/jest')({ dir: './' })()`,
         'next.config.js': `module.exports = {
-          experimental: { transpilePackages: ['@hashicorp/platform-util'] },
+          transpilePackages: ['@hashicorp/platform-util'],
         }`,
       },
       packageJson: {

@@ -39,7 +39,7 @@ Caching improves response times and reduces the number of requests to external s
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-`Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function. If you're using `next/image`, there are also [specific caching rules](/docs/basic-features/image-optimization.md#caching) for the default Image Optimization loader.
+`Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function. If you're using `next/image`, you can configure the [`minimumCacheTTL`](/docs/api-reference/next/image#minimum-cache-ttl) for the default Image Optimization loader.
 
 **Note:** When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
 
@@ -100,7 +100,7 @@ Each file inside your `pages/` directory will automatically be code split into i
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/Logflare/next-pino-logflare-logging-example">with-logging</a></li>
+    <li><a href="https://github.com/Logflare/next-pino-logflare-logging-example">Pino and Logflare Example</a></li>
   </ul>
 </details>
 
@@ -142,7 +142,6 @@ Once you are able to measure the loading performance, use the following strategi
   - Setting up your Code Editor to view import costs and sizes
   - Finding alternative smaller packages
   - Dynamically loading components and dependencies
-  - For more in-depth information, review this [guide](https://papyrus.dev/@PapyrusBlog/how-we-reduced-next.js-page-size-by-3.5x-and-achieved-a-98-lighthouse-score) and this [performance checklist](https://dev.to/endymion1818/nextjs-performance-checklist-5gjb).
 
 ## Related
 

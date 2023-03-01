@@ -28,7 +28,7 @@ describe('emitDecoratorMetadata SWC option', () => {
   it('should compile with emitDecoratorMetadata enabled', async () => {
     let browser: BrowserInterface
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
       const message = await browser.elementByCss('#message').text()
 
       expect(message).toBe('Hello, world!')

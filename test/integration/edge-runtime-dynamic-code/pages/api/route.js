@@ -23,4 +23,4 @@ export default async function handler(request) {
   )
 }
 
-export const config = { runtime: 'experimental-edge' }
+export const config = { runtime: 'edge' }

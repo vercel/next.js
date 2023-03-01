@@ -1,6 +1,6 @@
 # Modularize Imports Example
 
-This example shows how to use the `modularizeImports` config option.
+This example shows how to use the [`modularizeImports` config option](https://nextjs.org/docs/advanced-features/compiler#modularize-imports).
 
 ## Preview
 

@@ -300,8 +300,8 @@ export class Selenium extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
   async hasElementByCssSelector(selector: string) {
@@ -334,18 +334,18 @@ export class Selenium extends BrowserInterface {
     )
   }
 
-  async eval(snippet) {
+  async eval<T = any>(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return browser.executeScript(snippet)
+    return browser.executeScript<T>(snippet)
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
     }
-    return browser.executeAsyncScript(snippet)
+    return browser.executeAsyncScript<T>(snippet)
   }
 
   async log() {

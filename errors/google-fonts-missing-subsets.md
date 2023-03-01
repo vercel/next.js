@@ -6,7 +6,7 @@ Preload is enabled for a font that is missing a specified subset.
 
 #### Possible Ways to Fix It
 
-Specify which subsets to preload for that font.
+##### Specify which subsets to preload for that font.
 
 - On a font per font basis by adding it to the function call
 
@@ -29,6 +29,17 @@ module.exports = {
 
 If both are configured, the subset in the function call is used.
 
+##### Disable preloading for that font
+
+If it's not possible to preload your intended subset you can disable preloading.
+
+```js
+const notoSansJapanese = Noto_Sans_JP({
+  weight: '400',
+  preload: false,
+})
+```
+
 ### Useful Links
 
-[Specifying a subset](https://beta.nextjs.org/docs/optimizing/fonts#specifying-a-subset)
+[Specifying a subset](https://nextjs.org/docs/basic-features/font-optimization#specifying-a-subset)
