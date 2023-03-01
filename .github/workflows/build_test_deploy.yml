@@ -822,7 +822,7 @@ jobs:
         testDevLTS,
         testProdLTS,
         testDevE2ELTS,
-        testprode2elts,
+        testProdE2ELTS,
       ]
     steps:
       - run: exit 0

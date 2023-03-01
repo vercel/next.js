@@ -58,6 +58,7 @@ createNextDescribe(
           'force-static/page.js',
           'force-static/second.html',
           'force-static/second.rsc',
+          'gen-params-dynamic/[slug]/page.js',
           'hooks/use-pathname/[slug]/page.js',
           'hooks/use-pathname/slug.html',
           'hooks/use-pathname/slug.rsc',
@@ -99,8 +100,6 @@ createNextDescribe(
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
           'variable-revalidate/no-store/page.js',
-          'variable-revalidate/post-method-cached.html',
-          'variable-revalidate/post-method-cached.rsc',
           'variable-revalidate/post-method-cached/page.js',
           'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
@@ -221,11 +220,6 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
-          },
-          '/variable-revalidate/post-method-cached': {
-            dataRoute: '/variable-revalidate/post-method-cached.rsc',
-            initialRevalidateSeconds: 10,
-            srcRoute: '/variable-revalidate/post-method-cached',
           },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
@@ -562,7 +556,6 @@ createNextDescribe(
         expect($2('#data-body1').text()).toBe(dataBody1)
         expect($2('#data-body2').text()).toBe(dataBody2)
         expect($2('#data-body3').text()).toBe(dataBody3)
-        expect($2('#data-body4').text()).toBe(dataBody4)
         return 'success'
       }, 'success')
     })
@@ -777,6 +770,26 @@ createNextDescribe(
 
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).not.toBe($2('#now').text())
+      }
+    })
+
+    it('should not error with generateStaticParams and dynamic data', async () => {
+      const res = await next.fetch('/gen-params-dynamic/one')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('gen-params-dynamic/[slug]')
+      expect(html).toContain('one')
+
+      const data = cheerio.load(html)('#data').text()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/gen-params-dynamic/one')
+        expect(res2.status).toBe(200)
+        expect(
+          cheerio
+            .load(await res2.text())('#data')
+            .text()
+        ).not.toBe(data)
       }
     })
 

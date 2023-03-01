@@ -45,8 +45,8 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
 import { MetadataTree } from '../lib/metadata/metadata'
-import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
-import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { RequestAsyncStorageWrapper } from './async-storage/request-async-storage-wrapper'
+import { StaticGenerationAsyncStorageWrapper } from './async-storage/static-generation-async-storage-wrapper'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
@@ -184,7 +184,7 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: FlightManifest
   serverCSSManifest?: FlightCSSManifest
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
@@ -319,7 +319,7 @@ function useFlightResponse(
   }
   const {
     createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack/client')
+  } = require('next/dist/compiled/react-server-dom-webpack/client.edge')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
@@ -336,6 +336,7 @@ function useFlightResponse(
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
+  const textDecoder = new TextDecoder()
 
   function read() {
     forwardReader.read().then(({ done, value }) => {
@@ -357,7 +358,7 @@ function useFlightResponse(
         flightResponseRef.current = null
         writer.close()
       } else {
-        const responsePartial = decodeText(value)
+        const responsePartial = decodeText(value, textDecoder)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
@@ -1210,10 +1211,15 @@ export async function renderToHTMLOrFlight(
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'force-static') {
-          staticGenerationStore.forceStatic = true
-        } else if (layoutOrPageMod.dynamic !== 'error') {
-          staticGenerationStore.forceStatic = false
+        if (layoutOrPageMod.dynamic === 'error') {
+          staticGenerationStore.dynamicShouldError = true
+        } else {
+          staticGenerationStore.dynamicShouldError = false
+          if (layoutOrPageMod.dynamic === 'force-static') {
+            staticGenerationStore.forceStatic = true
+          } else {
+            staticGenerationStore.forceStatic = false
+          }
         }
       }
 
@@ -1490,10 +1496,11 @@ export async function renderToHTMLOrFlight(
       renderResult: RenderResult
     ): Promise<string> => {
       const renderChunks: string[] = []
+      const textDecoder = new TextDecoder()
 
       const writable = {
         write(chunk: any) {
-          renderChunks.push(decodeText(chunk))
+          renderChunks.push(decodeText(chunk, textDecoder))
         },
         end() {},
         destroy() {},
@@ -2013,11 +2020,11 @@ export async function renderToHTMLOrFlight(
     return renderResult
   }
 
-  return runWithRequestAsyncStorage(
+  return RequestAsyncStorageWrapper.wrap(
     requestAsyncStorage,
     { req, res, renderOpts },
     () =>
-      runWithStaticGenerationAsyncStorage(
+      StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
         { pathname, renderOpts },
         () => wrappedRender()

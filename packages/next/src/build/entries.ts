@@ -206,7 +206,7 @@ export function getEdgeServerEntry(opts: {
 
   if (isInstrumentationHookFile(opts.page)) {
     return {
-      import: opts.page,
+      import: opts.absolutePagePath,
       filename: `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`,
     }
   }
@@ -447,7 +447,15 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               assetPrefix: config.assetPrefix,
             })
           } else {
-            server[serverBundlePath] = [mappings[page]]
+            if (isInstrumentationHookFile(page) && pagesType === 'root') {
+              server[serverBundlePath.replace('src/', '')] = {
+                import: mappings[page],
+                // the '../' is needed to make sure the file is not chunked
+                filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
+              }
+            } else {
+              server[serverBundlePath] = [mappings[page]]
+            }
           }
         },
         onEdgeServer: () => {
@@ -463,8 +471,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               assetPrefix: config.assetPrefix,
             }).import
           }
-
-          edgeServer[serverBundlePath] = getEdgeServerEntry({
+          const normalizedServerBundlePath =
+            isInstrumentationHookFile(page) && pagesType === 'root'
+              ? serverBundlePath.replace('src/', '')
+              : serverBundlePath
+          edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
             ...params,
             rootDir,
             absolutePagePath: mappings[page],
