@@ -211,10 +211,7 @@ const nextDev: CliCommand = async (argv) => {
   // If neither --port nor PORT were specified, it's okay to retry new ports.
   const allowRetry =
     args['--port'] === undefined && process.env.PORT === undefined
-
-  // We do not set a default host value here to prevent breaking
-  // some set-ups that rely on listening on other interfaces
-  const host = args['--hostname']
+  const host = args['--hostname'] || '0.0.0.0'
 
   const devServerOptions = {
     allowRetry,
@@ -757,7 +754,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       startServer(devServerOptions)
         .then(async (app) => {
           const appUrl = `http://${app.hostname}:${app.port}`
+          console.log('[test] host =', host)
           const hostname = host || '0.0.0.0'
+          console.log('[test] hostname =', hostname)
           startedDevelopmentServer(
             appUrl,
             `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
