@@ -168,12 +168,15 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
       },
       args: any[]
     ) {
-      const hash = await sha1(metadata.id + ':' + metadata.name)
+      const actionId = await sha1(metadata.id + ':' + metadata.name)
+
+      // Fetching the current url with the action header.
+      // TODO: Refactor this to look up from a manifest.
       const res = await fetch('', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Next-Action': hash,
+          'Next-Action': actionId,
         },
         body: JSON.stringify({
           bound: args,
