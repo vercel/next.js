@@ -52,8 +52,7 @@ export default function akamaiLoader({ src, width, quality }) {
 // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
 export default function cloudinaryLoader({ src, width, quality }) {
   const params = ['f_auto', 'c_limit', `w_${width}`, `q_${quality || 'auto'}`]
-  const paramsString = params.join(',') + '/'
-  return `https://example.com/${paramsString}${src}`
+  return `https://example.com/${params.join(',')}${src}`
 }
 ```
 
