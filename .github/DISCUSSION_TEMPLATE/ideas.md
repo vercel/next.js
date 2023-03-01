@@ -1,5 +1,4 @@
 body:
-
 - type: textarea
   attributes:
   label: Goals
