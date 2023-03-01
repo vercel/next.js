@@ -14,4 +14,4 @@ The discussion's goal is to achieve the following:
 
 ## Examples
 
-The Next.js uses RFCs (Request For Comment), which you can find in [this discussion category](https://github.com/vercel/next.js/discussions/categories/rfc). Reading through these, you can get a better understanding of what is expected to be included in a good feature request.
+The Next.js team uses RFCs (Request For Comment), which you can find in [this discussion category](https://github.com/vercel/next.js/discussions/categories/rfc). Reading through these, you can get a better understanding of what is expected to be included in a good feature request.
