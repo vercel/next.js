@@ -14,7 +14,7 @@ export default function Home() {
     <>
       <Link href="/about" legacyBehavior></Link>
       // or
-      <Link href='/about' legacyBehavior />
+      <Link href="/about" legacyBehavior />
     </>
   )
 }
