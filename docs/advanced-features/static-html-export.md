@@ -17,15 +17,32 @@ If you're looking to build a hybrid site where only _some_ pages are prerendered
 
 ## `next export`
 
-Update your build script in `package.json` to use `next export`:
+Update your `next.config.js` file to include `output: "export"` like the following:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export',
+}
+
+module.exports = nextConfig
+```
+
+Update your scripts in `package.json` file to include `next export` like the following:
 
 ```json
-"scripts": {
-  "build": "next build && next export"
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "export": "next export"
+  }
 }
 ```
 
-Running `npm run build` will generate an `out` directory.
+Running `npm run build && npm run export` will generate an `out` directory.
 
 `next export` builds an HTML version of your app. During `next build`, [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) and [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md) will generate an HTML file for each page in your `pages` directory (or more for [dynamic routes](/docs/routing/dynamic-routes.md)). Then, `next export` will copy the already exported files into the correct directory. `getInitialProps` will generate the HTML files during `next export` instead of `next build`.
 
