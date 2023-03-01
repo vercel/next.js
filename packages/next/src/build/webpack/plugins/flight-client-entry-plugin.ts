@@ -56,6 +56,9 @@ export type ActionManifest = {
 
 // A map to track "action" -> "list of bundles".
 let serverActions: ActionManifest = {}
+let edgeServerActions: ActionManifest = {}
+const actionModId: Record<string, string | number> = {}
+
 let serverCSSManifest: FlightCSSManifest = {}
 let edgeServerCSSManifest: FlightCSSManifest = {}
 
@@ -274,7 +277,11 @@ export class FlightClientEntryPlugin {
       )
 
       // Create action entry
-      serverActions = {}
+      if (this.isEdgeServer) {
+        edgeServerActions = {}
+      } else {
+        serverActions = {}
+      }
       if (actionEntryImports.size > 0) {
         addActionEntryList.push(
           this.injectActionEntry({
@@ -692,15 +699,18 @@ export class FlightClientEntryPlugin {
       actions: JSON.stringify(actionsArray),
     })}!`
 
+    let currentCompilerServerActions = this.isEdgeServer
+      ? serverActions
+      : edgeServerActions
     for (const [p, names] of actionsArray) {
       for (const name of names) {
         const id = generateActionId(p, name)
-        if (typeof serverActions[id] === 'undefined') {
-          serverActions[id] = {
+        if (typeof currentCompilerServerActions[id] === 'undefined') {
+          currentCompilerServerActions[id] = {
             workers: {},
           }
         }
-        serverActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].workers[bundlePath] = ''
       }
     }
 
@@ -754,8 +764,6 @@ export class FlightClientEntryPlugin {
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
-    const actionModId: Record<string, string | number> = {}
-
     traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
       // Go through all action entries and record the module ID for each entry.
       if (
@@ -767,14 +775,22 @@ export class FlightClientEntryPlugin {
       }
     })
 
-    for (let id in serverActions) {
-      const action = serverActions[id]
+    const fullServerActions = {
+      ...serverActions,
+      ...edgeServerActions,
+    }
+    for (let id in fullServerActions) {
+      const action = fullServerActions[id]
       for (let name in action.workers) {
         action.workers[name] = actionModId[name]
       }
     }
 
-    const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
+    const json = JSON.stringify(
+      fullServerActions,
+      null,
+      this.dev ? 2 : undefined
+    )
     assets[SERVER_REFERENCE_MANIFEST + '.js'] = new sources.RawSource(
       'self.__RSC_SERVER_MANIFEST=' + json
     ) as unknown as webpack.sources.RawSource
