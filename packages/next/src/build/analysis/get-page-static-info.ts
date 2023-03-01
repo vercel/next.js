@@ -140,7 +140,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareMatchers(
+export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
 ): MiddlewareMatcher[] {
