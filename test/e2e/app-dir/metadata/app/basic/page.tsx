@@ -1,7 +1,13 @@
 import type { Metadata } from 'next'
+import ReactDOM from 'react-dom'
 import Link from 'next/link'
 
 export default function Page() {
+  // @ts-ignore
+  ReactDOM.preconnect('https://example.com/preconnect', { crossOrigin: true })
+  // @ts-ignore
+  ReactDOM.prefetchDNS('https://example.com/dns-prefetch')
+
   return (
     <div id="basic">
       <Link id="to-index" href="/">
