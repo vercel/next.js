@@ -58,6 +58,7 @@ createNextDescribe(
           'force-static/page.js',
           'force-static/second.html',
           'force-static/second.rsc',
+          'gen-params-dynamic/[slug]/page.js',
           'hooks/use-pathname/[slug]/page.js',
           'hooks/use-pathname/slug.html',
           'hooks/use-pathname/slug.rsc',
@@ -82,7 +83,10 @@ createNextDescribe(
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
+          'variable-revalidate-edge/post-method-cached/page.js',
+          'variable-revalidate-edge/post-method-request/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
           'variable-revalidate/authorization-cached.html',
           'variable-revalidate/authorization-cached.rsc',
@@ -92,7 +96,12 @@ createNextDescribe(
           'variable-revalidate/cookie-cached.rsc',
           'variable-revalidate/cookie-cached/page.js',
           'variable-revalidate/cookie/page.js',
+          'variable-revalidate/encoding.html',
+          'variable-revalidate/encoding.rsc',
+          'variable-revalidate/encoding/page.js',
           'variable-revalidate/no-store/page.js',
+          'variable-revalidate/post-method-cached/page.js',
+          'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
@@ -206,6 +215,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/cookie-cached.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/cookie-cached',
+          },
+          '/variable-revalidate/encoding': {
+            dataRoute: '/variable-revalidate/encoding.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/encoding',
           },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
@@ -460,6 +474,154 @@ createNextDescribe(
       }, 'success')
     })
 
+    it('should not cache correctly with POST method', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/post-method'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
+    it('should not cache correctly with POST method request init', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate-edge/post-method-request'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/post-method-request'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#page-data').text()).not.toBe(pageData)
+      }
+    })
+
+    it('should cache correctly with post method and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+        const dataBody1 = $('#data-body1').text()
+        const dataBody2 = $('#data-body2').text()
+        const dataBody3 = $('#data-body3').text()
+        const dataBody4 = $('#data-body4').text()
+
+        expect(dataBody1).not.toBe(dataBody2)
+        expect(dataBody2).not.toBe(dataBody3)
+        expect(dataBody3).not.toBe(dataBody4)
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#data-body1').text()).toBe(dataBody1)
+        expect($2('#data-body2').text()).toBe(dataBody2)
+        expect($2('#data-body3').text()).toBe(dataBody3)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with post method and revalidate edge', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/post-method-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+        const dataBody1 = $('#data-body1').text()
+        const dataBody2 = $('#data-body2').text()
+        const dataBody3 = $('#data-body3').text()
+        const dataBody4 = $('#data-body4').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/post-method-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        expect($2('#data-body1').text()).toBe(dataBody1)
+        expect($2('#data-body2').text()).toBe(dataBody2)
+        expect($2('#data-body3').text()).toBe(dataBody3)
+        expect($2('#data-body4').text()).toBe(dataBody4)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with POST method and revalidate', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/post-method-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
     it('should not cache correctly with cookie header', async () => {
       const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
       expect(res.status).toBe(200)
@@ -494,6 +656,68 @@ createNextDescribe(
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate/cookie-cached'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with utf8 encoding', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/encoding'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(JSON.parse(pageData).jp).toBe(
+          '超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump'
+        )
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/encoding'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly with utf8 encoding edge', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/encoding'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(JSON.parse(pageData).jp).toBe(
+          '超鬼畜！激辛ボム兵スピンジャンプ　Bomb Spin Jump'
+        )
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/encoding'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -546,6 +770,26 @@ createNextDescribe(
 
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).not.toBe($2('#now').text())
+      }
+    })
+
+    it('should not error with generateStaticParams and dynamic data', async () => {
+      const res = await next.fetch('/gen-params-dynamic/one')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('gen-params-dynamic/[slug]')
+      expect(html).toContain('one')
+
+      const data = cheerio.load(html)('#data').text()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/gen-params-dynamic/one')
+        expect(res2.status).toBe(200)
+        expect(
+          cheerio
+            .load(await res2.text())('#data')
+            .text()
+        ).not.toBe(data)
       }
     })
 

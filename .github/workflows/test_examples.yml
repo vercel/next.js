@@ -1,0 +1,52 @@
+# This file duplicates bunch of things from build_test_deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      is_dispatched:
+        description: 'Leave this option enabled'
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: '0 */4 * * *'
+
+name: Test examples
+
+env:
+  PNPM_VERSION: 7.24.3
+
+jobs:
+  testExamples:
+    # Don't execute using cron on forks
+    if: (github.repository == 'vercel/next.js') || (inputs.is_dispatched == true)
+    name: Test Examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16, 18]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          check-latest: true
+
+      - run: npm i -g pnpm@${PNPM_VERSION}
+
+      - run: pnpm install
+      - run: pnpm build
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"
+        name: Run test/examples

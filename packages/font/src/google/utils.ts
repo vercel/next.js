@@ -164,14 +164,14 @@ export function getUrl(
   // Variants are all combinations of weight and style, each variant will result in a separate font file
   const variants: Array<[string, string][]> = []
   if (axes.wght) {
-    for (const wgth of axes.wght) {
+    for (const wght of axes.wght) {
       if (!axes.ital) {
-        variants.push([['wght', wgth], ...(axes.variableAxes ?? [])])
+        variants.push([['wght', wght], ...(axes.variableAxes ?? [])])
       } else {
         for (const ital of axes.ital) {
           variants.push([
             ['ital', ital],
-            ['wght', wgth],
+            ['wght', wght],
             ...(axes.variableAxes ?? []),
           ])
         }

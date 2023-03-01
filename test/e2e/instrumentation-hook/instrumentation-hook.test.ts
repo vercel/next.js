@@ -49,7 +49,7 @@ createNextDescribe(
           './instrumentation.js.bak',
           './instrumentation.js'
         )
-        await check(() => next.cliOutput, /An instrumentation file was added/)
+        await check(() => next.cliOutput, /The instrumentation file was added/)
         await check(() => next.cliOutput, /bread/)
       })
     }

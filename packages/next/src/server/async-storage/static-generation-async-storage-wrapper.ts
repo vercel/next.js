@@ -7,7 +7,7 @@ export type RequestContext = {
   pathname: string
   renderOpts: {
     incrementalCache?: IncrementalCache
-    supportsDynamicHTML?: boolean
+    supportsDynamicHTML: boolean
     isRevalidate?: boolean
     isBot?: boolean
   }
@@ -45,11 +45,8 @@ export class StaticGenerationAsyncStorageWrapper
      * These rules help ensure that other existing features like request caching,
      * coalescing, and ISR continue working as intended.
      */
-    const supportsDynamicHTML =
-      typeof renderOpts.supportsDynamicHTML !== 'boolean' ||
-      renderOpts.supportsDynamicHTML
-
-    const isStaticGeneration = !supportsDynamicHTML && !renderOpts.isBot
+    const isStaticGeneration =
+      !renderOpts.supportsDynamicHTML && !renderOpts.isBot
 
     const store: StaticGenerationStore = {
       isStaticGeneration,

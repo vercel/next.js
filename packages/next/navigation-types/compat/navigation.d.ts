@@ -18,7 +18,4 @@ declare module 'next/navigation' {
    * router is not ready.
    */
   export function usePathname(): string | null
-
-  // Re-export the types for next/navigation.
-  export * from 'next/dist/client/components/navigation'
 }

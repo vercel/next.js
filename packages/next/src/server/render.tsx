@@ -254,7 +254,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
