@@ -260,6 +260,7 @@ export default async function build(
       version: process.env.__NEXT_VERSION as string,
     })
 
+    NextBuildContext.debugOutput = debugOutput
     NextBuildContext.nextBuildSpan = nextBuildSpan
     NextBuildContext.dir = dir
     NextBuildContext.appDirOnly = appDirOnly

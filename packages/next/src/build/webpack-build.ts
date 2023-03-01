@@ -47,6 +47,10 @@ function isTraceEntryPointsPlugin(
   return plugin instanceof TraceEntryPointsPlugin
 }
 
+interface BuildOptions {
+  debugOutput?: boolean
+}
+
 async function webpackBuildImpl(): Promise<{
   duration: number
   turbotraceContext?: TurbotraceContext
@@ -61,6 +65,7 @@ async function webpackBuildImpl(): Promise<{
   const buildSpinner = NextBuildContext.buildSpinner
   const dir = NextBuildContext.dir!
   const config = NextBuildContext.config!
+  const debugOutput = !!NextBuildContext.debugOutput
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
   const entrypoints = await nextBuildSpan
@@ -151,6 +156,9 @@ async function webpackBuildImpl(): Promise<{
   webpackBuildStart = process.hrtime()
 
   // We run client and server compilation separately to optimize for memory usage
+  if (debugOutput) {
+    console.log('starting webpack compilation')
+  }
   await runWebpackSpan.traceAsyncFn(async () => {
     // Run the server compilers first and then the client
     // compiler to track the boundary of server/client components.
@@ -163,9 +171,18 @@ async function webpackBuildImpl(): Promise<{
     const serverResult = await runCompiler(serverConfig, {
       runWebpackSpan,
     })
+
+    if (debugOutput) {
+      console.log('finished server compilation', serverResult)
+    }
+
     const edgeServerResult = configs[2]
       ? await runCompiler(configs[2], { runWebpackSpan })
       : null
+
+    if (debugOutput) {
+      console.log('finished edge server compilation', edgeServerResult)
+    }
 
     // Only continue if there were no errors
     if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
@@ -193,6 +210,10 @@ async function webpackBuildImpl(): Promise<{
       clientResult = await runCompiler(clientConfig, {
         runWebpackSpan,
       })
+
+      if (debugOutput) {
+        console.log('finished client compilation', clientResult)
+      }
     }
 
     result = {
@@ -220,6 +241,10 @@ async function webpackBuildImpl(): Promise<{
   result = nextBuildSpan
     .traceChild('format-webpack-messages')
     .traceFn(() => formatWebpackMessages(result, true)) as CompilerResult
+
+  if (debugOutput) {
+    console.log('webpack compilation finished', result)
+  }
 
   NextBuildContext.telemetryPlugin = (
     clientConfig as webpack.Configuration

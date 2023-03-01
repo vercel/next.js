@@ -12,6 +12,7 @@ import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 // to pass it through function arguments.
 // Not exhaustive, but should be extended to as needed whilst refactoring
 export const NextBuildContext: Partial<{
+  debugOutput?: boolean
   // core fields
   dir: string
   buildId: string

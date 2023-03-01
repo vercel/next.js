@@ -2621,6 +2621,11 @@ const runTests = (isDev = false, isTurbo = false) => {
           expect(cleanStdout).toContain(header.value)
         }
       }
+
+      // build compilation debug logs should be present as well
+      expect(cleanStdout).toContain('starting webpack compilation')
+      expect(cleanStdout).toContain('finished server compilation')
+      expect(cleanStdout).toContain('finished client compilation')
     })
   }
 }
