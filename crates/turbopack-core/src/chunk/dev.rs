@@ -1,15 +1,18 @@
+use std::fmt::Write;
+
 use anyhow::Result;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
     Value, ValueToString,
 };
 use turbo_tasks_fs::FileSystemPathVc;
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 
 use super::{ChunkingContext, ChunkingContextVc};
 use crate::{
     asset::{Asset, AssetVc},
     environment::EnvironmentVc,
+    ident::{AssetIdent, AssetIdentVc},
 };
 
 pub struct DevChunkingContextBuilder {
@@ -107,25 +110,70 @@ impl ChunkingContext for DevChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_path(
-        &self,
-        path_vc: FileSystemPathVc,
-        extension: &str,
-    ) -> Result<FileSystemPathVc> {
+    async fn chunk_path(&self, ident: AssetIdentVc, extension: &str) -> Result<FileSystemPathVc> {
         fn clean(s: &str) -> String {
             s.replace('/', "_")
         }
-        // For clippy -- This explicit deref is necessary
-        let path = &*path_vc.await?;
+        let ident = &*ident.await?;
 
+        // For clippy -- This explicit deref is necessary
+        let path = &*ident.path.await?;
         let mut name = if let Some(inner) = self.context_path.await?.get_path_to(path) {
             clean(inner)
         } else {
-            clean(&path_vc.to_string().await?)
+            clean(&ident.path.to_string().await?)
         };
         let removed_extension = name.ends_with(extension);
         if removed_extension {
             name.truncate(name.len() - extension.len());
+        }
+
+        let default_modifier = match extension {
+            ".js" => Some("ecmascript"),
+            ".css" => Some("css"),
+            _ => None,
+        };
+
+        let mut hasher = Xxh3Hash64Hasher::new();
+        let mut has_hash = false;
+        let AssetIdent {
+            path: _,
+            query,
+            fragment,
+            assets,
+            modifiers,
+        } = ident;
+        if let Some(query) = query {
+            0_u8.deterministic_hash(&mut hasher);
+            query.await?.deterministic_hash(&mut hasher);
+            has_hash = true;
+        }
+        if let Some(fragment) = fragment {
+            1_u8.deterministic_hash(&mut hasher);
+            fragment.await?.deterministic_hash(&mut hasher);
+            has_hash = true;
+        }
+        for (key, ident) in assets.iter() {
+            2_u8.deterministic_hash(&mut hasher);
+            key.await?.deterministic_hash(&mut hasher);
+            ident.to_string().await?.deterministic_hash(&mut hasher);
+            has_hash = true;
+        }
+        for modifier in modifiers.iter() {
+            let modifier = modifier.await?;
+            if let Some(default_modifier) = default_modifier {
+                if *modifier == default_modifier {
+                    continue;
+                }
+            }
+            3_u8.deterministic_hash(&mut hasher);
+            modifier.deterministic_hash(&mut hasher);
+            has_hash = true;
+        }
+        if has_hash {
+            let hash = encode_hex(hasher.finish());
+            let truncated_hash = &hash[..6];
+            write!(name, "_{}", truncated_hash)?;
         }
 
         // Location in "path" where hashed and named parts are split.
@@ -176,9 +224,9 @@ impl ChunkingContext for DevChunkingContext {
 
     #[turbo_tasks::function]
     async fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> Result<BoolVc> {
-        let parent_dir = asset_a.path().parent().await?;
+        let parent_dir = asset_a.ident().path().parent().await?;
 
-        let path = asset_b.path().await?;
+        let path = asset_b.ident().path().await?;
         if let Some(rel_path) = parent_dir.get_path_to(&path) {
             if !rel_path.starts_with("node_modules/") && !rel_path.contains("/node_modules/") {
                 return Ok(BoolVc::cell(true));

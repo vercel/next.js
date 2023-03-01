@@ -55,8 +55,8 @@ async fn emit(
             .await?
             .iter()
             .map(|a| async {
-                Ok(if *a.path().extension().await? != "map" {
-                    Some(a.content().write(a.path()))
+                Ok(if *a.ident().path().extension().await? != "map" {
+                    Some(a.content().write(a.ident().path()))
                 } else {
                     None
                 })
@@ -138,7 +138,12 @@ async fn separate_assets(
             // others as "external". We follow references on "internal" assets, but do not
             // look into references of "external" assets, since there are no "internal"
             // assets behind "externals"
-            if asset.path().await?.is_inside(intermediate_output_path) {
+            if asset
+                .ident()
+                .path()
+                .await?
+                .is_inside(intermediate_output_path)
+            {
                 let mut assets = Vec::new();
                 for reference in asset.references().await?.iter() {
                     for asset in reference.resolve_reference().primary_assets().await?.iter() {
@@ -315,9 +320,9 @@ pub async fn trace_stack(
                 None => return Ok(None),
             };
 
-            let path = match to_sys_path(a.path()).await? {
+            let path = match to_sys_path(a.ident().path()).await? {
                 Some(p) => p,
-                None => PathBuf::from(&a.path().await?.path),
+                None => PathBuf::from(&a.ident().path().await?.path),
             };
 
             let p = path.strip_prefix(&root).unwrap();

@@ -23,13 +23,12 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
-use std::collections::HashMap;
-
 use anyhow::Result;
 use chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
 };
 use code_gen::CodeGenerateableVc;
+use indexmap::IndexMap;
 use parse::{parse, ParseResult};
 pub use parse::{ParseResultSourceMap, ParseResultSourceMapVc};
 use path_visitor::ApplyVisitors;
@@ -44,13 +43,14 @@ use swc_core::{
 pub use transform::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, NextJsPageExportFilter,
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetOptionVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     compile_time_info::CompileTimeInfoVc,
     context::AssetContextVc,
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
@@ -87,7 +87,12 @@ pub enum EcmascriptModuleAssetType {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(HashMap<String, AssetVc>);
+pub struct InnerAssets(IndexMap<String, AssetVc>);
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("ecmascript".to_string())
+}
 
 #[turbo_tasks::value]
 #[derive(Clone, Copy)]
@@ -174,8 +179,17 @@ impl EcmascriptModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+    async fn ident(&self) -> Result<AssetIdentVc> {
+        if let Some(inner_assets) = self.inner_assets {
+            let mut ident = self.source.ident().await?.clone_value();
+            for (name, asset) in inner_assets.await?.iter() {
+                ident.add_asset(StringVc::cell(name.clone()), asset.ident());
+            }
+            ident.add_modifier(modifier());
+            Ok(AssetIdentVc::new(Value::new(ident)))
+        } else {
+            Ok(self.source.ident().with_modifier(modifier()))
+        }
     }
 
     #[turbo_tasks::function]
@@ -221,7 +235,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
 impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn origin_path(&self) -> FileSystemPathVc {
-        self.source.path()
+        self.source.ident().path()
     }
 
     #[turbo_tasks::function]
@@ -252,19 +266,12 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ModuleChunkItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        // TODO include inner_assets in this name
-        Ok(StringVc::cell(format!(
-            "{} (ecmascript)",
-            self.module.await?.source.path().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.module.ident()
+    }
+
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
         self.module.references()
@@ -276,11 +283,6 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
-    }
-
-    #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.module.path()
     }
 
     #[turbo_tasks::function]
@@ -391,7 +393,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 inner_code: format!(
                     "const e = new Error(\"Could not parse module '{path}'\");\ne.code = \
                      'MODULE_UNPARSEABLE';\nthrow e;",
-                    path = self.module.path().to_string().await?
+                    path = self.module.ident().path().to_string().await?
                 )
                 .into(),
                 ..Default::default()

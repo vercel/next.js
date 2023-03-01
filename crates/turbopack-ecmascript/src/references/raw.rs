@@ -25,7 +25,7 @@ impl SourceAssetReferenceVc {
 impl AssetReference for SourceAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let context = self.source.path().parent();
+        let context = self.source.ident().path().parent();
 
         Ok(resolve_raw(context, self.path, false))
     }

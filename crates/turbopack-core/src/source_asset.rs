@@ -3,6 +3,7 @@ use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPathVc, LinkCon
 
 use crate::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 
@@ -24,8 +25,8 @@ impl SourceAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for SourceAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.path
+    fn ident(&self) -> AssetIdentVc {
+        AssetIdentVc::from_path(self.path)
     }
 
     #[turbo_tasks::function]

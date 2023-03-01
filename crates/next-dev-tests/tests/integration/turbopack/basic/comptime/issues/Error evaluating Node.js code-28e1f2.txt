@@ -1,0 +1,11 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/crates/next-dev-tests/tests/integration/turbopack/basic/comptime/input",
+    category: "build",
+    title: "Error evaluating Node.js code",
+    description: "Error: > Couldn't find a `pages` directory. Please create one under the project root\n  at Object.findPagesDir (node_modules/.pnpm/next@13.1.7-canary.28_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/lib/find-pages-dir.js:86:19)\n  at DevServer.getRoutes (node_modules/.pnpm/next@13.1.7-canary.28_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/server/dev/next-dev-server.js:130:59)\n  at new Server (node_modules/.pnpm/next@13.1.7-canary.28_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/server/base-server.js:108:47)\n  at new NextNodeServer (node_modules/.pnpm/next@13.1.7-canary.28_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/server/next-server.js:69:9)\n  at new DevServer (node_modules/.pnpm/next@13.1.7-canary.28_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/server/dev/next-dev-server.js:96:9)\n  at Object.makeResolver (node_modules/.pnpm/next@13.1.7-canary.28_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/server/lib/route-resolver.js:39:23)\n  at getResolveRoute (crates/next-dev-tests/tests/integration/turbopack/basic/comptime/input/.next/build/router/chunks/router_f8de3f.js:173:109)\n  at async Module.route (crates/next-dev-tests/tests/integration/turbopack/basic/comptime/input/.next/build/router/chunks/router_f8de3f.js:179:36)\n  at async Module.run (crates/next-dev-tests/tests/integration/turbopack/basic/comptime/input/.next/build/router/chunks/[turbopack-node]_ipc_evaluate.ts._.js:142:39)\n",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+}

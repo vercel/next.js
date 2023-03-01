@@ -121,8 +121,8 @@ pub async fn parse(
     transforms: CssInputTransformsVc,
 ) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = &*source.path().await?;
-    let fs_path_str = &*source.path().to_string().await?;
+    let fs_path = &*source.ident().path().await?;
+    let ident_str = &*source.ident().to_string().await?;
     let ty = ty.into_value();
     Ok(match &*content.await? {
         AssetContent::Redirect { .. } => ParseResult::Unparseable.cell(),
@@ -135,7 +135,7 @@ pub async fn parse(
                     parse_content(
                         string.into_owned(),
                         fs_path,
-                        fs_path_str,
+                        ident_str,
                         source,
                         ty,
                         transforms,
@@ -150,7 +150,7 @@ pub async fn parse(
 async fn parse_content(
     string: String,
     fs_path: &FileSystemPath,
-    fs_path_str: &str,
+    ident_str: &str,
     source: AssetVc,
     ty: CssModuleAssetType,
     transforms: &[CssInputTransform],
@@ -196,7 +196,6 @@ async fn parse_content(
 
     let context = TransformContext {
         source_map: &source_map,
-        file_name_str: fs_path.file_name(),
     };
     for transform in transforms.iter() {
         transform.apply(&mut parsed_stylesheet, &context).await?;
@@ -213,7 +212,7 @@ async fn parse_content(
                 .context("Must include basename preceding .")?
                 .as_str();
             // Truncate this as u32 so it's formated as 8-character hex in the suffic below
-            let path_hash = turbo_tasks_hash::hash_xxh3_hash64(fs_path_str) as u32;
+            let path_hash = turbo_tasks_hash::hash_xxh3_hash64(ident_str) as u32;
             let result = swc_core::css::modules::compile(
                 &mut parsed_stylesheet,
                 // TODO swc_css_modules should take `impl TransformConfig + '_`

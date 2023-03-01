@@ -1,8 +1,10 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    chunk::Chunk,
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::GenerateSourceMap,
@@ -27,8 +29,8 @@ impl CssChunkSourceMapAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<FileSystemPathVc> {
-        Ok(self.chunk.path().append(".map"))
+    async fn ident(&self) -> Result<AssetIdentVc> {
+        Ok(AssetIdentVc::from_path(self.chunk.path().append(".map")))
     }
 
     #[turbo_tasks::function]

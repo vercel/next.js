@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::{anyhow, bail, Result};
+use indexmap::IndexMap;
 use turbo_tasks::Value;
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack::{
@@ -67,7 +66,7 @@ impl Transition for NextEdgeTransition {
         let FileContent::Content(base) = &*self.bootstrap_file.await? else {
             bail!("runtime code not found");
         };
-        let path = asset.path().await?;
+        let path = asset.ident().path().await?;
         let path = self
             .base_path
             .await?
@@ -93,7 +92,7 @@ impl Transition for NextEdgeTransition {
         new_content.concat(base.content());
         let file = File::from(new_content.build());
         let virtual_asset = VirtualAssetVc::new(
-            asset.path().join("next-edge-bootstrap.ts"),
+            asset.ident().path().join("next-edge-bootstrap.ts"),
             FileContent::Content(file).cell().into(),
         );
 
@@ -103,7 +102,7 @@ impl Transition for NextEdgeTransition {
             Value::new(EcmascriptModuleAssetType::Typescript),
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
             context.compile_time_info(),
-            InnerAssetsVc::cell(HashMap::from([("ENTRY".to_string(), asset)])),
+            InnerAssetsVc::cell(IndexMap::from([("ENTRY".to_string(), asset)])),
         );
 
         let asset = ChunkGroupFilesAsset {

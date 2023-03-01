@@ -5,6 +5,7 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::ResolveResultVc,
 };
@@ -32,8 +33,12 @@ impl RebasedAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for RebasedAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> FileSystemPathVc {
-        FileSystemPathVc::rebase(self.source.path(), self.input_dir, self.output_dir)
+    fn ident(&self) -> AssetIdentVc {
+        AssetIdentVc::from_path(FileSystemPathVc::rebase(
+            self.source.ident().path(),
+            self.input_dir,
+            self.output_dir,
+        ))
     }
 
     #[turbo_tasks::function]

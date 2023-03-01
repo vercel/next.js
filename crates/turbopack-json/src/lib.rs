@@ -10,11 +10,12 @@
 use std::fmt::Write;
 
 use anyhow::{bail, Error, Result};
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPathVc};
+use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 use turbopack_ecmascript::chunk::{
@@ -22,6 +23,11 @@ use turbopack_ecmascript::chunk::{
     EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
     EcmascriptExports, EcmascriptExportsVc,
 };
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("json".to_string())
+}
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
@@ -39,8 +45,8 @@ impl JsonModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for JsonModuleAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.source.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
@@ -84,18 +90,12 @@ struct JsonChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for JsonChunkItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{} (json)",
-            self.module.await?.source.path().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkItem for JsonChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.module.ident()
+    }
+
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
         self.module.references()
@@ -110,15 +110,10 @@ impl EcmascriptChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.module.path()
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let content = self.module.path().read();
+        let content = self.module.content().file_content();
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {
@@ -146,7 +141,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
             FileJsonContent::NotFound => {
                 bail!(
                     "JSON file not found: {}",
-                    self.module.path().to_string().await?
+                    self.module.ident().to_string().await?
                 );
             }
         }

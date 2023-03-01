@@ -19,17 +19,13 @@ pub struct CssInputTransforms(Vec<CssInputTransform>);
 
 pub struct TransformContext<'a> {
     pub source_map: &'a Arc<SourceMap>,
-    pub file_name_str: &'a str,
 }
 
 impl CssInputTransform {
     pub async fn apply(
         &self,
         stylesheet: &mut Stylesheet,
-        &TransformContext {
-            source_map: _,
-            file_name_str: _,
-        }: &TransformContext<'_>,
+        &TransformContext { source_map: _ }: &TransformContext<'_>,
     ) -> Result<()> {
         match *self {
             CssInputTransform::Nested => {

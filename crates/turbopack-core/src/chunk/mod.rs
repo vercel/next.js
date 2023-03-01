@@ -28,6 +28,7 @@ use self::{chunk_in_group::ChunkInGroupVc, optimize::optimize};
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     environment::EnvironmentVc,
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{PrimaryResolveResult, ResolveResult, ResolveResultVc},
 };
@@ -80,7 +81,7 @@ pub trait ChunkingContext {
     // environment since this can change due to transitions in the module graph
     fn environment(&self) -> EnvironmentVc;
 
-    fn chunk_path(&self, path: FileSystemPathVc, extension: &str) -> FileSystemPathVc;
+    fn chunk_path(&self, ident: AssetIdentVc, extension: &str) -> FileSystemPathVc;
 
     fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> BoolVc;
 
@@ -197,7 +198,7 @@ impl ValueToString for ChunkGroup {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "group for {}",
-            self.entry.to_string().await?
+            self.entry.path().to_string().await?
         )))
     }
 }
@@ -210,7 +211,15 @@ impl ValueToString for ChunkGroup {
 /// returns true, all referenced assets (if they are [Chunk]s) are placed in the
 /// same chunk group.
 #[turbo_tasks::value_trait]
-pub trait Chunk: Asset + ValueToString {}
+pub trait Chunk: Asset {
+    // TODO Once output assets have their own trait, this path() method will move
+    // into that trait and ident() will be removed from that. Assets on the
+    // output-level only have a path and no complex ident.
+    /// The path of the chunk.
+    fn path(&self) -> FileSystemPathVc {
+        self.ident().path()
+    }
+}
 
 /// see [Chunk] for explanation
 #[turbo_tasks::value_trait]
@@ -298,7 +307,7 @@ impl ValueToString for ChunkReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "chunk {}",
-            self.chunk.to_string().await?
+            self.chunk.ident().to_string().await?
         )))
     }
 }
@@ -460,7 +469,7 @@ where
                     return Err(anyhow!(
                         "Asset {} was requested to be placed into the  same chunk, but this \
                          wasn't possible",
-                        asset.path().to_string().await?
+                        asset.ident().to_string().await?
                     ));
                 }
             }
@@ -703,6 +712,10 @@ where
 
 #[turbo_tasks::value_trait]
 pub trait ChunkItem {
+    /// The [AssetIdent] of the [Asset] that this [ChunkItem] was created from.
+    /// For most chunk types this must uniquely identify the asset as it's the
+    /// source of the module id used at runtime.
+    fn asset_ident(&self) -> AssetIdentVc;
     /// A [ChunkItem] can describe different `references` than its original
     /// [Asset].
     /// TODO(alexkirsz) This should have a default impl that returns empty

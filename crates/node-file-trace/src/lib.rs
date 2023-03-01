@@ -562,10 +562,14 @@ async fn main_operation(
             let modules = input_to_modules(fs, input, process_cwd, exact, enable_mdx).await?;
             for module in modules.iter() {
                 let set = all_assets(*module);
-                IssueVc::attach_context(module.path(), "gathering list of assets".to_string(), set)
-                    .await?;
+                IssueVc::attach_context(
+                    module.ident().path(),
+                    "gathering list of assets".to_string(),
+                    set,
+                )
+                .await?;
                 for asset in set.await?.iter() {
-                    let path = asset.path().await?;
+                    let path = asset.ident().path().await?;
                     result.insert(path.path.to_string());
                 }
             }
@@ -582,7 +586,7 @@ async fn main_operation(
                 .iter()
             {
                 let nft_asset = NftJsonAssetVc::new(*module);
-                let path = nft_asset.path().await?.path.clone();
+                let path = nft_asset.ident().path().await?.path.clone();
                 output_nft_assets.push(path);
                 emits.push(emit_asset(nft_asset.into()));
             }

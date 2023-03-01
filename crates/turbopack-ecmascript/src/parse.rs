@@ -19,9 +19,12 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{primitives::U64Vc, Value, ValueToString};
-use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
-use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
+use turbo_tasks::{
+    primitives::{StringVc, U64Vc},
+    Value, ValueToString,
+};
+use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
@@ -132,8 +135,8 @@ pub async fn parse(
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = &*source.path().await?;
-    let file_path_hash = *hash_file_path(source.path()).await? as u128;
+    let fs_path = &*source.ident().path().await?;
+    let file_path_hash = *hash_ident(source.ident().to_string()).await? as u128;
     let ty = ty.into_value();
     Ok(match &*content.await? {
         AssetContent::File(file) => match &*file.await? {
@@ -155,7 +158,7 @@ pub async fn parse(
                         Err(e) => {
                             return Err(e).context(anyhow!(
                                 "Transforming and/or parsing of {} failed",
-                                source.path().to_string().await?
+                                source.ident().to_string().await?
                             ));
                         }
                     }
@@ -311,9 +314,7 @@ async fn parse_content(
 }
 
 #[turbo_tasks::function]
-async fn hash_file_path(file_path_vc: FileSystemPathVc) -> Result<U64Vc> {
-    let file_path = &*file_path_vc.await?;
-    let mut hasher = Xxh3Hash64Hasher::new();
-    hasher.write_bytes(file_path.file_name().as_bytes());
-    Ok(U64Vc::cell(hasher.finish()))
+async fn hash_ident(ident: StringVc) -> Result<U64Vc> {
+    let ident = &*ident.await?;
+    Ok(U64Vc::cell(hash_xxh3_hash64(ident)))
 }

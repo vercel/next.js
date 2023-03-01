@@ -429,7 +429,7 @@ pub async fn get_next_package(project_root: FileSystemPathVc) -> Result<FileSyst
     );
     let assets = result.primary_assets().await?;
     let asset = assets.first().context("Next.js package not found")?;
-    Ok(asset.path().parent())
+    Ok(asset.ident().path().parent())
 }
 
 #[turbo_tasks::function]
@@ -443,7 +443,7 @@ pub async fn get_swc_helpers_package(project_root: FileSystemPathVc) -> Result<F
     );
     let assets = result.primary_assets().await?;
     let asset = assets.first().context("Next.js package not found")?;
-    Ok(asset.path().parent())
+    Ok(asset.ident().path().parent())
 }
 
 pub async fn insert_alias_option<const N: usize>(

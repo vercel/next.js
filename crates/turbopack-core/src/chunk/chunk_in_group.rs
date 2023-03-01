@@ -1,11 +1,11 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::{primitives::StringVc, ValueToString};
 
 use super::{Chunk, ChunkVc, ParallelChunkReferenceVc};
 use crate::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::ParallelChunkReference,
+    ident::AssetIdentVc,
     introspect::{
         asset::{children_from_asset_references, content_to_details, IntrospectableAssetVc},
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
@@ -42,8 +42,8 @@ impl Chunk for ChunkInGroup {}
 #[turbo_tasks::value_impl]
 impl Asset for ChunkInGroup {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.inner.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.inner.ident()
     }
 
     #[turbo_tasks::function]
@@ -69,14 +69,6 @@ impl Asset for ChunkInGroup {
     #[turbo_tasks::function]
     fn versioned_content(&self) -> VersionedContentVc {
         self.inner.versioned_content()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ChunkInGroup {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        self.inner.to_string()
     }
 }
 
@@ -110,7 +102,7 @@ impl Introspectable for ChunkInGroup {
             if let Some(chunk) = IntrospectableVc::resolve_from(self.inner).await? {
                 chunk.title()
             } else {
-                self.inner.path().to_string()
+                self.inner.ident().to_string()
             },
         )
     }

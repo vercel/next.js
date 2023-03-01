@@ -8,6 +8,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
+    ident::AssetIdentVc,
     source_transform::{SourceTransform, SourceTransformVc},
     virtual_asset::VirtualAssetVc,
 };
@@ -98,8 +99,8 @@ struct WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.source.ident()
     }
 
     #[turbo_tasks::function]
@@ -155,7 +156,7 @@ impl WebpackLoadersProcessedAssetVc {
         let context = this.evaluate_context;
 
         let webpack_loaders_executor = webpack_loaders_executor(project_root, context);
-        let resource_fs_path = this.source.path().await?;
+        let resource_fs_path = this.source.ident().path().await?;
         let resource_path = resource_fs_path.path.as_str();
         let loaders = this.loaders.await?;
         let config_value = evaluate(
@@ -163,7 +164,7 @@ impl WebpackLoadersProcessedAssetVc {
             webpack_loaders_executor,
             project_root,
             env,
-            this.source.path(),
+            this.source.ident(),
             context,
             intermediate_output_path,
             None,

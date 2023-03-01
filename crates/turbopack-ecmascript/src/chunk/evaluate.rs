@@ -1,10 +1,7 @@
 use anyhow::Result;
-use turbopack_core::{
-    asset::Asset,
-    chunk::{
-        chunk_in_group::ChunkInGroupVc, ChunkGroupVc, ChunkingContext, ChunkingContextVc,
-        ModuleIdVc,
-    },
+use turbopack_core::chunk::{
+    chunk_in_group::ChunkInGroupVc, Chunk, ChunkGroupVc, ChunkingContext, ChunkingContextVc,
+    ModuleIdVc,
 };
 
 use super::{

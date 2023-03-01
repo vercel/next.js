@@ -5,7 +5,8 @@ use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkGroupVc, ChunkReferenceVc},
+    chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
     version::{Update, UpdateVc, Version, VersionVc, VersionedContent, VersionedContentVc},
 };
@@ -24,8 +25,8 @@ pub struct DevHtmlAsset {
 #[turbo_tasks::value_impl]
 impl Asset for DevHtmlAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.path
+    fn ident(&self) -> AssetIdentVc {
+        AssetIdentVc::from_path(self.path)
     }
 
     #[turbo_tasks::function]

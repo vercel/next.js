@@ -4,7 +4,8 @@ use anyhow::Result;
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkGroupVc, ChunkReferenceVc},
+    chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 use turbopack_ecmascript::utils::stringify_js;
@@ -18,8 +19,8 @@ pub(super) struct NodeJsBootstrapAsset {
 #[turbo_tasks::value_impl]
 impl Asset for NodeJsBootstrapAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.path
+    fn ident(&self) -> AssetIdentVc {
+        AssetIdentVc::from_path(self.path)
     }
 
     #[turbo_tasks::function]

@@ -2,11 +2,12 @@ use std::io::Write as _;
 
 use anyhow::{anyhow, bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkItemVc, ChunkableAsset, ChunkingContext, ChunkingContextVc},
+    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkableAsset, ChunkingContext, ChunkingContextVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 
@@ -21,6 +22,16 @@ use crate::{
     },
     utils::stringify_js,
 };
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("loader".to_string())
+}
+
+#[turbo_tasks::function]
+fn chunk_list_modifier() -> StringVc {
+    StringVc::cell("chunks list".to_string())
+}
 
 /// The manifest loader item is shipped in the same chunk that uses the dynamic
 /// `import()` expression. Its responsibility is to load the manifest chunk from
@@ -51,26 +62,19 @@ impl ManifestLoaderItemVc {
     async fn chunks_list_path(self) -> Result<FileSystemPathVc> {
         let this = &*self.await?;
         Ok(this.context.chunk_path(
-            this.manifest.path().parent().join("chunk-list.json"),
+            this.manifest.ident().with_modifier(chunk_list_modifier()),
             ".json",
         ))
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ManifestLoaderItem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        self.manifest
-            .path()
-            .parent()
-            .join("manifest-loader.js")
-            .to_string()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkItem for ManifestLoaderItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.manifest.ident().with_modifier(modifier())
+    }
+
     #[turbo_tasks::function]
     async fn references(self_vc: ManifestLoaderItemVc) -> Result<AssetReferencesVc> {
         let this = &*self_vc.await?;
@@ -87,11 +91,6 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
-    }
-
-    #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.manifest.path()
     }
 
     #[turbo_tasks::function]

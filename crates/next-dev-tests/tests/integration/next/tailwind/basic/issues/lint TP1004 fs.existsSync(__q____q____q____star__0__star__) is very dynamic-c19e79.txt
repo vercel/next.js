@@ -9,7 +9,7 @@ PlainIssue {
     source: Some(
         PlainIssueSource {
             asset: PlainAsset {
-                path: "node_modules/.pnpm/postcss@8.4.20/node_modules/postcss/lib/previous-map.js",
+                ident: "[project-with-next]/node_modules/.pnpm/postcss@8.4.20/node_modules/postcss/lib/previous-map.js",
             },
             start: SourcePos {
                 line: 87,
