@@ -196,7 +196,6 @@ function createRouteDefinitions(
     }
   }
 
-  const fallback = !edgeRoutes.length && !nodeRoutes.length ? 'string' : ''
   const routes = [...edgeRoutes, ...nodeRoutes, ...extraRoutes]
 
   // By exposing the static route types separately as string literals,
@@ -273,7 +272,7 @@ declare namespace __next_route_internal_types__ {
   type StaticRoutes = ${staticRouteTypesFallback}${staticRouteTypes}
   type DynamicRoutes<T extends string = string> = ${dynamicRouteTypesFallback}${dynamicRouteTypes}
 
-  type RouteImpl<T> = ${fallback}
+  type RouteImpl<T> =
     | StaticRoutes
     | \`\${StaticRoutes}\${Suffix}\`
     | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
