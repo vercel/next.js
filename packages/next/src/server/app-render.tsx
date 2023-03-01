@@ -1703,20 +1703,33 @@ export async function renderToHTMLOrFlight(
     }
 
     // For action requests, we handle them differently with a sepcial render result.
-    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
-      const workerName = 'app' + renderOpts.pathname
-      const actionModId = serverActionsManifest[actionId].workers[workerName]
+    if (isAction) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
+        const workerName = 'app' + renderOpts.pathname
+        const actionModId = serverActionsManifest[actionId].workers[workerName]
 
-      const { parseBody } =
-        require('./api-utils/node') as typeof import('./api-utils/node')
-      const actionData = (await parseBody(req, '1mb')) || {}
+        const { parseBody } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        const actionData = (await parseBody(req, '1mb')) || {}
 
-      const actionHandler =
-        ComponentMod.__next_app_webpack_require__(actionModId).default
+        const actionHandler =
+          ComponentMod.__next_app_webpack_require__(actionModId).default
 
-      return new ActionRenderResult(
-        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
-      )
+        try {
+          return new ActionRenderResult(
+            JSON.stringify(
+              await actionHandler(actionId, actionData.bound || [])
+            )
+          )
+        } catch (err) {
+          if (isRedirectError(err)) {
+            throw new Error('Invariant: not implemented.')
+          }
+          throw err
+        }
+      } else {
+        throw new Error('Not implemented in Edge Runtime.')
+      }
     }
 
     // Below this line is handling for rendering to HTML.
