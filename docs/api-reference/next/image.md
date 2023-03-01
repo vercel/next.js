@@ -384,6 +384,50 @@ export default function myImageLoader({ src, width, quality }) {
 
 Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
+#### Akamai Loader
+
+```js
+export default function akamaiLoader({ src, width, quality }) {
+  return `https://example.com/${src}?imwidth=${width}`
+}
+```
+
+#### Cloudinary Loader
+
+```js
+// Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
+export default function cloudinaryLoader({ src, width, quality }) {
+  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  const paramsString = params.join(',') + '/'
+  return `https://example.com/${paramsString}${src}`
+}
+```
+
+#### Cloudflare Loader
+
+```js
+// Docs: https://developers.cloudflare.com/images/url-format
+export default function cloudflareLoader({ src, width, quality }) {
+  const params = ['width=' + width, 'quality=' + quality || '75', 'format=auto']
+  return `https://example.com/cdn-cgi/image/${params.join(',')}/${src}`
+}
+```
+
+#### Imgix Loader
+
+```js
+// Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
+export default function imgixLoader({ src, width, quality }) {
+  const url = new URL(`https://example.com${src}`)
+  const params = url.searchParams
+  params.set('auto', params.getAll('auto').join(',') || 'format')
+  params.set('fit', params.get('fit') || 'max')
+  params.set('w', params.get('w') || width.toString())
+  params.set('q', quality.toString() || '50')
+  return url.href
+}
+```
+
 ## Advanced
 
 The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
