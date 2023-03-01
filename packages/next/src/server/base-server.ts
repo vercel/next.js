@@ -1550,7 +1550,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
-      if (isAppPath && isSSG && isrRevalidate === 0) {
+      // we don't throw static to dynamic errors in dev as isSSG
+      // is a best guess in dev since we don't have the prerender pass
+      // to know whether the path is actually static or not
+      if (isAppPath && isSSG && isrRevalidate === 0 && !this.renderOpts.dev) {
         const staticBailoutInfo: {
           stack?: string
           description?: string

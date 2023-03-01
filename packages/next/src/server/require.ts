@@ -32,7 +32,7 @@ export function getMaybePagePath(
   locales?: string[],
   appDirEnabled?: boolean
 ): string | null {
-  const cacheKey = `${page}:${locales}`
+  const cacheKey = `${page}:${distDir}:${locales}`
 
   if (pagePathCache.has(cacheKey)) {
     return pagePathCache.get(cacheKey) as string | null

@@ -18,10 +18,10 @@ function getFormattedLinkDiagnosticMessageText(
   if (typeof message === 'string' && diagnostic.code === 2322) {
     const match =
       message.match(
-        /Type '"(.+)"' is not assignable to type 'Route<string> | URL'\./
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./
       ) ||
       message.match(
-        /Type '"(.+)"' is not assignable to type 'URL | Route<string>'\./
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./
       )
 
     if (match) {
@@ -29,13 +29,35 @@ function getFormattedLinkDiagnosticMessageText(
       return `"${chalk.bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
-    } else if (message === "Type 'string' is not assignable to type 'never'.") {
+    } else if (
+      message === "Type 'string' is not assignable to type 'UrlObject'."
+    ) {
+      const relatedMessage = diagnostic.relatedInformation?.[0]?.messageText
       if (
-        diagnostic.relatedInformation?.[0]?.messageText ===
-        `The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & LinkRestProps & { href: never; }`
+        typeof relatedMessage === 'string' &&
+        relatedMessage.match(
+          /The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & /
+        )
       ) {
         return `Invalid \`href\` property of \`Link\`: the route does not exist. If it is intentional, please type it explicitly with \`as Route\`.`
       }
+    }
+  } else if (typeof message === 'string' && diagnostic.code === 2820) {
+    const match =
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\. Did you mean '"(.+)"'?/
+      ) ||
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\. Did you mean '"(.+)"'?/
+      )
+
+    if (match) {
+      const [, href, suggestion] = match
+      return `"${chalk.bold(
+        href
+      )}" is not an existing route. Did you mean "${chalk.bold(
+        suggestion
+      )}" instead? If it is intentional, please type it explicitly with \`as Route\`.`
     }
   }
 }

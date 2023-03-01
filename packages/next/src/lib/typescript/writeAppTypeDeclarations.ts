@@ -49,16 +49,10 @@ export async function writeAppTypeDeclarations({
     directives.push('/// <reference types="next/image-types/global" />')
   }
 
-  if (isAppDirEnabled) {
-    if (hasPagesDir) {
-      directives.push(
-        '/// <reference types="next/navigation-types/compat/navigation" />'
-      )
-    } else {
-      directives.push(
-        '/// <reference types="next/navigation-types/navigation" />'
-      )
-    }
+  if (isAppDirEnabled && hasPagesDir) {
+    directives.push(
+      '/// <reference types="next/navigation-types/compat/navigation" />'
+    )
   }
 
   // Push the notice in.
