@@ -167,6 +167,11 @@ interface ChildEntry extends EntryType {
    * Which parent entries use this childEntry.
    */
   parentEntries: Set<string>
+  /**
+   * The absolute page to the entry file. Used for detecting if the file was removed. For example:
+   * `/Users/Rick/project/app/about/layout.js`
+   */
+  absoluteEntryFilePath?: string
 }
 
 const entriesMap: Map<
@@ -498,7 +503,7 @@ export function onDemandEntryHandler({
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const root = !!appDir
-    const pagePaths = [
+    const entryNames = [
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.client,
         clientStats.compilation.entrypoints,
@@ -518,8 +523,8 @@ export function onDemandEntryHandler({
         : []),
     ]
 
-    for (const page of pagePaths) {
-      const entry = curEntries[page]
+    for (const name of entryNames) {
+      const entry = curEntries[name]
       if (!entry) {
         continue
       }
@@ -529,7 +534,7 @@ export function onDemandEntryHandler({
       }
 
       entry.status = BUILT
-      doneCallbacks!.emit(page)
+      doneCallbacks!.emit(name)
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])

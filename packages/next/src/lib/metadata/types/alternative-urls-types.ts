@@ -434,12 +434,12 @@ export type AlternateURLs = {
 }
 
 export type ResolvedAlternateURLs = {
-  canonical: null | URL
-  languages: null | Languages<null | URL>
+  canonical: null | string | URL
+  languages: null | Languages<null | string | URL>
   media: null | {
-    [media: string]: null | URL
+    [media: string]: null | string | URL
   }
   types: null | {
-    [types: string]: null | URL
+    [types: string]: null | string | URL
   }
 }

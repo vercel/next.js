@@ -58,6 +58,7 @@ createNextDescribe(
           'force-static/page.js',
           'force-static/second.html',
           'force-static/second.rsc',
+          'gen-params-dynamic/[slug]/page.js',
           'hooks/use-pathname/[slug]/page.js',
           'hooks/use-pathname/slug.html',
           'hooks/use-pathname/slug.rsc',
@@ -769,6 +770,26 @@ createNextDescribe(
 
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).not.toBe($2('#now').text())
+      }
+    })
+
+    it('should not error with generateStaticParams and dynamic data', async () => {
+      const res = await next.fetch('/gen-params-dynamic/one')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('gen-params-dynamic/[slug]')
+      expect(html).toContain('one')
+
+      const data = cheerio.load(html)('#data').text()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/gen-params-dynamic/one')
+        expect(res2.status).toBe(200)
+        expect(
+          cheerio
+            .load(await res2.text())('#data')
+            .text()
+        ).not.toBe(data)
       }
     })
 
