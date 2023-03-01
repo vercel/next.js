@@ -237,9 +237,6 @@ function createRouteDefinitions(
     addRouteToRouteTypes(route)
   }
 
-  const staticRouteTypesFallback = staticRouteTypes ? '' : 'string'
-  const dynamicRouteTypesFallback = dynamicRouteTypes ? '' : 'string'
-
   return `// Type definitions for Next.js routes
 
 /**
@@ -269,8 +266,8 @@ declare namespace __next_route_internal_types__ {
   type OptionalCatchAllSlug<S extends string> =
     S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-  type StaticRoutes = ${staticRouteTypesFallback}${staticRouteTypes}
-  type DynamicRoutes<T extends string = string> = ${dynamicRouteTypesFallback}${dynamicRouteTypes}
+  type StaticRoutes = ${staticRouteTypes || ''}
+  type DynamicRoutes<T extends string = string> = ${dynamicRouteTypes || ''}
 
   type RouteImpl<T> =
     | StaticRoutes
