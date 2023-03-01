@@ -27,15 +27,15 @@ Alternatively, you can use the [`loader` prop](/docs/api-reference/next/image.md
 
 ## Example Loader Configuration
 
-- [akamai](#akamai)
-- [cloudinary](#cloudinary)
-- [cloudflare](#cloudflare)
-- [contentful](#contentful)
-- [fastly](#fastly)
-- [gumlet](#gumlet)
-- [imageengine](#imageengine)
-- [imgix](#imgix)
-- [thumbor](#thumbor)
+- [Akamai](#akamai)
+- [Cloudinary](#cloudinary)
+- [Cloudflare](#cloudflare)
+- [Contentful](#contentful)
+- [Fastly](#fastly)
+- [Gumlet](#gumlet)
+- [ImageEngine](#imageengine)
+- [Imgix](#imgix)
+- [Thumbor](#thumbor)
 
 ### Akamai
 
