@@ -4,10 +4,9 @@ labels: ['area: examples']
 body:
   - type: markdown
     attributes:
-      value: Thanks for taking the time to file a bug report for [one of the examples](https://github.com/vercel/next.js/tree/canary/examples)! Please fill out this form as completely as possible.
-  - type: markdown
-    attributes:
-      value: If you leave out sections there is a high likelihood it will be moved to the GitHub Discussions ["Help" section](https://github.com/vercel/next.js/discussions/categories/help).
+      value: |
+        *Note:* If you leave out sections, the issue might be moved to the ["Help" section](https://github.com/vercel/next.js/discussions/categories/help).
+        Thanks for taking the time to file a bug report for [one of the examples](https://github.com/vercel/next.js/tree/canary/examples)! Please fill out this form as completely as possible.
   - type: checkboxes
     attributes:
       label: Verify canary release
@@ -19,6 +18,7 @@ body:
     attributes:
       label: Provide environment information
       description: Please run `next info` in the root directory of your project and paste the results. You might need to use `npx --no-install next info` if next is not in the current PATH.
+      render: bash
     validations:
       required: true
   - type: input
