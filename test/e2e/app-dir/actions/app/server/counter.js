@@ -7,8 +7,9 @@ export default function Counter({ inc, dec }) {
 
   return (
     <div>
-      <p>Count: {count}</p>
+      <h1>{count}</h1>
       <button
+        id="inc"
         onClick={async () => {
           const newCount = await inc(count)
           setCount(newCount)
@@ -17,6 +18,7 @@ export default function Counter({ inc, dec }) {
         +1
       </button>
       <button
+        id="dec"
         onClick={async () => {
           const newCount = await dec(count)
           setCount(newCount)
