@@ -270,7 +270,7 @@ declare namespace __next_route_internal_types__ {
   type StaticRoutes = ${staticRouteTypes}
   type DynamicRoutes<T extends string = string> = ${dynamicRouteTypes}
 
-  type RouteImpl<T> = ${fallback}
+  type RouteImpl<T extends string> = ${fallback}
     | StaticRoutes
     | \`\${StaticRoutes}\${Suffix}\`
     | \`\${DynamicRoutes<T>}\${Suffix}\`
@@ -280,7 +280,7 @@ declare module 'next' {
   export { default } from 'next/types'
   export * from 'next/types'
 
-  export type Route<T = any> = __next_route_internal_types__.RouteImpl<T>
+  export type Route<T extends string = string> = __next_route_internal_types__.RouteImpl<T>
 }
 
 declare module 'next/link' {
@@ -292,16 +292,16 @@ declare module 'next/link' {
   type LinkRestProps = Omit<Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
 
   // If the href prop can be a Route type with an infer-able S, it's valid.
-  type HrefProp<T> = {
+  type HrefProp<T extends string> = {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      * @see https://nextjs.org/docs/api-reference/next/link
      */
-    href: __next_route_internal_types__.RouteImpl<T> | UrlObject
+    href: Route<T> | UrlObject
   }
 
-  export type LinkProps<T> = LinkRestProps & HrefProp<T>
-  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
+  export type LinkProps<T extends string> = LinkRestProps & HrefProp<T extends string>
+  export default function Link<RouteType extends string>(props: LinkProps<RouteType>): JSX.Element
 }`
 }
 
