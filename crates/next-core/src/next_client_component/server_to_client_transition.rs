@@ -16,7 +16,7 @@ impl Transition for NextServerToClientTransition {
     #[turbo_tasks::function]
     fn process_source(&self, asset: AssetVc) -> AssetVc {
         VirtualAssetVc::new(
-            asset.path().join("client-proxy.tsx"),
+            asset.ident().path().join("client-proxy.tsx"),
             next_js_file(if self.ssr {
                 "entry/app/server-to-client-ssr.tsx"
             } else {

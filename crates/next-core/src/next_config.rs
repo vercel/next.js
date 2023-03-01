@@ -13,6 +13,7 @@ use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::Asset,
     context::AssetContext,
+    ident::AssetIdentVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         find_context_file,
@@ -570,7 +571,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         EcmascriptChunkPlaceablesVc::cell(vec![config_chunk])
     });
     let asset_path = config_asset
-        .map_or(project_root, |a| a.path())
+        .map_or(project_root, |a| a.ident().path())
         .join("load-next-config.js");
     let load_next_config_asset = context.process(
         next_asset(asset_path, "entry/config/next.js"),
@@ -581,7 +582,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         load_next_config_asset,
         project_root,
         env,
-        config_asset.map_or(project_root, |c| c.path()),
+        config_asset.map_or_else(|| AssetIdentVc::from_path(project_root), |c| c.ident()),
         context,
         intermediate_output_path,
         runtime_entries,

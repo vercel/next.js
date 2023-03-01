@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Context, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
@@ -13,6 +12,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
+    ident::AssetIdentVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
     source_asset::SourceAssetVc,
@@ -111,8 +111,8 @@ struct PostCssTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.source.ident()
     }
 
     #[turbo_tasks::function]
@@ -175,7 +175,7 @@ fn postcss_executor(context: AssetContextVc, postcss_config_path: FileSystemPath
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
         context.compile_time_info(),
-        InnerAssetsVc::cell(HashMap::from([("CONFIG".to_string(), config_asset)])),
+        InnerAssetsVc::cell(IndexMap::from([("CONFIG".to_string(), config_asset)])),
     )
     .into()
 }
@@ -185,7 +185,8 @@ impl PostCssTransformedAssetVc {
     #[turbo_tasks::function]
     async fn process(self) -> Result<ProcessPostCssResultVc> {
         let this = self.await?;
-        let find_config_result = find_context_file(this.source.path().parent(), postcss_configs());
+        let find_config_result =
+            find_context_file(this.source.ident().path().parent(), postcss_configs());
         let FindContextFileResult::Found(config_path, _) = *find_config_result.await? else {
             return Ok(ProcessPostCssResult {
                 content: this.source.content(),
@@ -215,14 +216,14 @@ impl PostCssTransformedAssetVc {
         let extra_configs = extra_configs(context, config_path);
 
         let postcss_executor = postcss_executor(context, config_path);
-        let css_fs_path = this.source.path().await?;
+        let css_fs_path = this.source.ident().path().await?;
         let css_path = css_fs_path.path.as_str();
         let config_value = evaluate(
             project_root,
             postcss_executor,
             project_root,
             env,
-            this.source.path(),
+            this.source.ident(),
             context,
             intermediate_output_path,
             Some(extra_configs),

@@ -98,7 +98,7 @@ async fn expand(
         let expanded = expanded.get();
         for root_asset in root_assets.iter() {
             let expanded = expanded.contains(root_asset);
-            assets.push((root_asset.path(), *root_asset));
+            assets.push((root_asset.ident().path(), *root_asset));
             assets_set.insert(*root_asset);
             if expanded {
                 queue.push_back(all_referenced_assets(*root_asset));
@@ -106,7 +106,7 @@ async fn expand(
         }
     } else {
         for root_asset in root_assets.iter() {
-            assets.push((root_asset.path(), *root_asset));
+            assets.push((root_asset.ident().path(), *root_asset));
             assets_set.insert(*root_asset);
             queue.push_back(all_referenced_assets(*root_asset));
         }
@@ -123,7 +123,7 @@ async fn expand(
                 if expanded {
                     queue.push_back(all_referenced_assets(*asset));
                 }
-                assets.push((asset.path(), *asset));
+                assets.push((asset.ident().path(), *asset));
             }
         }
     }

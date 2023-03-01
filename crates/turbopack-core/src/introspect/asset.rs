@@ -42,7 +42,7 @@ impl Introspectable for IntrospectableAsset {
 
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
-        self.0.path().to_string()
+        self.0.ident().to_string()
     }
 
     #[turbo_tasks::function]

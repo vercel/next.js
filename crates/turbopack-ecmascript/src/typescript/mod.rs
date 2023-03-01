@@ -4,9 +4,10 @@ pub mod resolve;
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_fs::{DirectoryContent, FileSystemPathVc};
+use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -36,8 +37,8 @@ impl TsConfigModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for TsConfigModuleAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.source.ident()
     }
 
     #[turbo_tasks::function]
@@ -119,7 +120,7 @@ impl Asset for TsConfigModuleAsset {
                 types
             } else {
                 let mut all_types = Vec::new();
-                let mut current = self.source.path().parent().resolve().await?;
+                let mut current = self.source.ident().path().parent().resolve().await?;
                 loop {
                     if let DirectoryContent::Entries(entries) =
                         &*current.join("node_modules/@types").read_dir().await?
@@ -220,7 +221,7 @@ impl ValueToString for TsExtendsReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "tsconfig extends {}",
-            self.config.path().to_string().await?,
+            self.config.ident().to_string().await?,
         )))
     }
 }

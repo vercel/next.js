@@ -1,8 +1,8 @@
 use anyhow::Result;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{rope::Rope, FileSystemPathVc};
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt};
+use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     asset::AssetVc,
     chunk::{
@@ -40,8 +40,7 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem + ValueToString {
-    fn related_path(&self) -> FileSystemPathVc;
+pub trait EcmascriptChunkItem: ChunkItem {
     fn content(&self) -> EcmascriptChunkItemContentVc;
     fn chunking_context(&self) -> ChunkingContextVc;
     fn id(&self) -> ModuleIdVc {

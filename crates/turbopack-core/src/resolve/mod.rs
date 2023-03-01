@@ -645,9 +645,13 @@ async fn handle_resolve_plugins(
 
     for primary in result_value.primary.iter() {
         if let PrimaryResolveResult::Asset(asset) = primary {
-            if let Some(new_result) =
-                apply_plugins_to_path(asset.path().resolve().await?, context, request, options)
-                    .await?
+            if let Some(new_result) = apply_plugins_to_path(
+                asset.ident().path().resolve().await?,
+                context,
+                request,
+                options,
+            )
+            .await?
             {
                 let new_result = new_result.await?;
                 changed = true;

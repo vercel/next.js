@@ -5,7 +5,7 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString};
 use turbo_tasks_fs::rope::Rope;
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
-    chunk::{ModuleId, ModuleIdReadRef},
+    chunk::{ChunkItem, ModuleId, ModuleIdReadRef},
     code_builder::{Code, CodeBuilder, CodeReadRef, CodeVc},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
 };
@@ -139,7 +139,7 @@ impl EcmascriptChunkContentEntryVc {
                 let js_error_message = serde_json::to_string(&error_message)?;
                 let issue = CodeGenerationIssue {
                     severity: IssueSeverity::Error.cell(),
-                    path: chunk_item.related_path(),
+                    path: chunk_item.asset_ident().path(),
                     title: StringVc::cell("Code generation for chunk item errored".to_string()),
                     message: StringVc::cell(error_message),
                 }

@@ -41,7 +41,7 @@ impl RuntimeEntryVc {
                 bail!(
                     "runtime reference resolved to an asset ({}) that is not placeable into an \
                      ecmascript chunk",
-                    asset.path().to_string().await?
+                    asset.ident().to_string().await?
                 );
             }
         }

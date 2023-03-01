@@ -1,13 +1,14 @@
 use anyhow::Result;
 use serde_json::Value;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
+        Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
         ChunkableAssetVc, ChunkingContextVc, ChunksVc,
     },
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 
@@ -19,6 +20,11 @@ use crate::{
     },
     EcmascriptModuleAssetVc,
 };
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("chunk group files".to_string())
+}
 
 /// An asset that exports a list of chunk URLs by putting the [asset] into a
 /// ChunkGroup with the provided ChunkingContext.
@@ -50,8 +56,8 @@ impl ChunkGroupFilesAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.asset.path().join("client-transition.js")
+    fn ident(&self) -> AssetIdentVc {
+        self.asset.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
@@ -101,26 +107,10 @@ struct ChunkGroupFilesChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ChunkGroupFilesChunkItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{}/chunk_group_files.js",
-            self.inner.await?.asset.path().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
-    }
-
-    #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.inner.path()
     }
 
     #[turbo_tasks::function]
@@ -144,6 +134,11 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for ChunkGroupFilesChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.inner.ident()
+    }
+
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         let chunks = self.inner.chunks();

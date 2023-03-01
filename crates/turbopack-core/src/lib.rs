@@ -11,6 +11,7 @@ pub mod code_builder;
 pub mod compile_time_info;
 pub mod context;
 pub mod environment;
+pub mod ident;
 pub mod introspect;
 pub mod issue;
 pub mod reference;

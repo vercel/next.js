@@ -1,12 +1,12 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         ChunkGroupVc, ChunkVc, ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
         ChunkableAssetVc, ChunkingContextVc, ChunkingType, ChunkingTypeOptionVc,
     },
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
@@ -20,6 +20,11 @@ use crate::chunk::{
     },
     EcmascriptChunkVc,
 };
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("manifest chunk".to_string())
+}
 
 /// The manifest chunk is deferred until requested by the manifest loader
 /// item when the dynamic `import()` expression is reached. Its responsibility
@@ -57,8 +62,8 @@ impl ManifestChunkAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for ManifestChunkAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.asset.path().join("manifest-chunk.js")
+    fn ident(&self) -> AssetIdentVc {
+        self.asset.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
@@ -112,7 +117,7 @@ impl ValueToString for ManifestChunkAssetReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "referenced manifest {}",
-            self.manifest.path().to_string().await?
+            self.manifest.ident().to_string().await?
         )))
     }
 }

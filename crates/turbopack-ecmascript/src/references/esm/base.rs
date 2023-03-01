@@ -46,7 +46,7 @@ impl ReferencedAsset {
     pub(crate) async fn get_ident_from_placeable(
         asset: &EcmascriptChunkPlaceableVc,
     ) -> Result<String> {
-        let path = asset.path().to_string().await?;
+        let path = asset.ident().to_string().await?;
         Ok(magic_identifier::encode(&format!(
             "imported module {}",
             path

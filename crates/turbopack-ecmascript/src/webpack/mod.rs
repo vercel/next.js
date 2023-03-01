@@ -1,9 +1,9 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -23,6 +23,11 @@ use crate::EcmascriptInputTransformsVc;
 
 pub mod parse;
 pub(crate) mod references;
+
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("webpack".to_string())
+}
 
 #[turbo_tasks::value]
 pub struct WebpackModuleAsset {
@@ -50,8 +55,8 @@ impl WebpackModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for WebpackModuleAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.source.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.source.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]

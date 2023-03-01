@@ -69,9 +69,9 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                     "export * used with module {} which has no exports\nTypescript only: Did you \
                      want to export only types with `export type {{ ... }} from \"...\"`?",
                     // TODO recommend export type * from "..." once https://github.com/microsoft/TypeScript/issues/37238 is implemented
-                    asset.path().to_string().await?
+                    asset.ident().to_string().await?
                 )),
-                path: asset.path(),
+                source_ident: asset.ident(),
                 severity: IssueSeverity::Warning.into(),
                 source: None,
                 title: StringVc::cell("unexpected export *".to_string()),
@@ -86,9 +86,9 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
                      from \"...\";` instead?",
-                    asset.path().to_string().await?
+                    asset.ident().to_string().await?
                 )),
-                path: asset.path(),
+                source_ident: asset.ident(),
                 severity: IssueSeverity::Warning.into(),
                 source: None,
                 title: StringVc::cell("unexpected export *".to_string()),
@@ -106,9 +106,9 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<E
                          only available at runtime\nList all export names manually (`export {{ a, \
                          b, c }} from \"...\") or rewrite the module to ESM, to avoid the \
                          additional runtime code.`",
-                        asset.path().to_string().await?
+                        asset.ident().to_string().await?
                     )),
-                    path: asset.path(),
+                    source_ident: asset.ident(),
                     severity: IssueSeverity::Warning.into(),
                     source: None,
                     title: StringVc::cell("unexpected export *".to_string()),

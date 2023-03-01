@@ -69,12 +69,12 @@ impl DirAssetReferenceVc {
 impl AssetReference for DirAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let context_path = self.source.path().await?;
+        let context_path = self.source.ident().path().await?;
         // ignore path.join in `node-gyp`, it will includes too many files
         if context_path.path.contains("node_modules/node-gyp") {
             return Ok(ResolveResult::unresolveable().into());
         }
-        let context = self.source.path().parent();
+        let context = self.source.ident().path().parent();
         let pat = self.path.await?;
         let mut result = IndexSet::default();
         let fs = context.fs();

@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Result};
+use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
@@ -16,6 +15,7 @@ use turbopack_core::{
     chunk::dev::DevChunkingContextVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention::Middleware, ServerAddrVc},
+    ident::AssetIdentVc,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
     source_asset::SourceAssetVc,
@@ -236,7 +236,7 @@ async fn config_assets(
     )
     .as_asset();
 
-    let mut inner = HashMap::new();
+    let mut inner = IndexMap::new();
     inner.insert("MIDDLEWARE_CHUNK_GROUP".to_string(), manifest);
     inner.insert("MIDDLEWARE_CONFIG".to_string(), config_asset);
     Ok(InnerAssetsVc::cell(inner))
@@ -343,7 +343,7 @@ pub async fn route(
         router_asset,
         project_root,
         env,
-        project_root,
+        AssetIdentVc::from_path(project_root),
         context,
         intermediate_output_path,
         Some(next_config),

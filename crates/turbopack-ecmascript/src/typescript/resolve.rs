@@ -12,6 +12,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContext,
+    ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
@@ -33,7 +34,7 @@ use turbopack_core::{
 #[turbo_tasks::value(shared)]
 pub struct TsConfigIssue {
     pub severity: IssueSeverityVc,
-    pub path: FileSystemPathVc,
+    pub source_ident: AssetIdentVc,
     pub message: StringVc,
 }
 
@@ -56,7 +57,7 @@ pub async fn read_tsconfigs(
                 }
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
-                    path: tsconfig.path(),
+                    source_ident: tsconfig.ident(),
                     message: StringVc::cell(message),
                 }
                 .cell()
@@ -67,7 +68,7 @@ pub async fn read_tsconfigs(
             FileJsonContent::NotFound => {
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
-                    path: tsconfig.path(),
+                    source_ident: tsconfig.ident(),
                     message: StringVc::cell("tsconfig not found".into()),
                 }
                 .cell()
@@ -78,7 +79,7 @@ pub async fn read_tsconfigs(
             FileJsonContent::Content(json) => {
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
-                    let context = tsconfig.path().parent();
+                    let context = tsconfig.ident().path().parent();
                     let result = resolve(
                         context,
                         RequestVc::parse(Value::new(extends.to_string().into())),
@@ -95,7 +96,7 @@ pub async fn read_tsconfigs(
                     } else {
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
-                            path: tsconfig.path(),
+                            source_ident: tsconfig.ident(),
                             message: StringVc::cell("extends doesn't resolve correctly".into()),
                         }
                         .cell()
@@ -159,7 +160,7 @@ pub async fn tsconfig_resolve_options(
     let base_url = if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
         json["compilerOptions"]["baseUrl"]
             .as_str()
-            .map(|base_url| source.path().parent().try_join(base_url))
+            .map(|base_url| source.ident().path().parent().try_join(base_url))
     })
     .await?
     {
@@ -172,7 +173,7 @@ pub async fn tsconfig_resolve_options(
     for (content, source) in configs.iter().rev() {
         if let FileJsonContent::Content(json) = &*content.await? {
             if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
-                let mut context = source.path().parent();
+                let mut context = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
                     if let Some(new_context) = *context.try_join(base_url).await? {
                         context = new_context;
@@ -191,7 +192,7 @@ pub async fn tsconfig_resolve_options(
                     } else {
                         TsConfigIssue {
                             severity: IssueSeverity::Warning.cell(),
-                            path: source.path(),
+                            source_ident: source.ident(),
                             message: StringVc::cell(format!(
                                 "compilerOptions.paths[{key}] doesn't contains an array as \
                                  expected\n{key}: {value:#}",
@@ -387,7 +388,7 @@ impl Issue for TsConfigIssue {
 
     #[turbo_tasks::function]
     fn context(&self) -> FileSystemPathVc {
-        self.path
+        self.source_ident.path()
     }
 
     #[turbo_tasks::function]

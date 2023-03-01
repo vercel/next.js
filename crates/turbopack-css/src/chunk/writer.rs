@@ -5,7 +5,10 @@ use std::{
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString};
-use turbopack_core::{chunk::ModuleId, code_builder::CodeBuilder};
+use turbopack_core::{
+    chunk::{ChunkItem, ModuleId},
+    code_builder::CodeBuilder,
+};
 
 use super::{CssChunkItemVc, CssImport};
 use crate::chunk::CssChunkItem;
@@ -37,7 +40,7 @@ pub async fn expand_imports(
                     continue;
                 }
 
-                let id = &*imported_chunk_item.to_string().await?;
+                let id = &*imported_chunk_item.asset_ident().to_string().await?;
                 writeln!(code, "/* import({}) */", id)?;
                 writeln!(code, "{}", open)?;
 
@@ -54,7 +57,7 @@ pub async fn expand_imports(
                     continue;
                 }
 
-                let id = &*composed_chunk_item.to_string().await?;
+                let id = &*composed_chunk_item.asset_ident().to_string().await?;
                 writeln!(code, "/* composes({}) */", id)?;
 
                 let composed_content_vc = composed_chunk_item.content();

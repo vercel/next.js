@@ -1,8 +1,10 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
+    chunk::Chunk,
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::GenerateSourceMap,
@@ -27,10 +29,10 @@ impl EcmascriptChunkSourceMapAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptChunkSourceMapAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<FileSystemPathVc> {
+    async fn ident(&self) -> Result<AssetIdentVc> {
         // NOTE(alexkirsz) We used to include the chunk's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
-        Ok(self.chunk.path().append(".map"))
+        Ok(AssetIdentVc::from_path(self.chunk.path().append(".map")))
     }
 
     #[turbo_tasks::function]

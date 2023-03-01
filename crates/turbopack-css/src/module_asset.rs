@@ -17,6 +17,7 @@ use turbopack_core::{
         ChunkingTypeOptionVc,
     },
     context::AssetContextVc,
+    ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{
@@ -46,6 +47,11 @@ use crate::{
     CssModuleAssetVc,
 };
 
+#[turbo_tasks::function]
+fn modifier() -> StringVc {
+    StringVc::cell("css module".to_string())
+}
+
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct ModuleCssModuleAsset {
@@ -65,8 +71,8 @@ impl ModuleCssModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl Asset for ModuleCssModuleAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.inner.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.inner.ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
@@ -223,7 +229,7 @@ impl EcmascriptChunkPlaceable for ModuleCssModuleAsset {
 impl ResolveOrigin for ModuleCssModuleAsset {
     #[turbo_tasks::function]
     fn origin_path(&self) -> FileSystemPathVc {
-        self.inner.path()
+        self.inner.ident().path()
     }
 
     #[turbo_tasks::function]
@@ -239,18 +245,12 @@ struct ModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ModuleChunkItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "{} (css module)",
-            self.module.path().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkItem for ModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.module.ident()
+    }
+
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         // The proxy reference must come first so it is processed before other potential
@@ -278,11 +278,6 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.module.path()
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let classes = self.module.classes().await?;
 
@@ -301,7 +296,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.cell(),
-                                path: self.module.path(),
+                                source: self.module.ident(),
                                 message: StringVc::cell(formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` can't be resolved.
@@ -315,7 +310,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let Some(css_module) = ModuleCssModuleAssetVc::resolve_from(resolved_module).await? else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.cell(),
-                                path: self.module.path(),
+                                source: self.module.ident(),
                                 message: StringVc::cell(formatdoc! {
                                     r#"
                                         Module {from} referenced in `composes: ... from {from};` is not a CSS module.
@@ -360,7 +355,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
             source_map: Some(generate_minimal_source_map(
-                format!("{}.js", self.module.path().await?.path),
+                self.module.ident().to_string().await?.to_string(),
                 code,
             )),
             ..Default::default()
@@ -380,7 +375,7 @@ impl ValueToString for CssProxyToCssAssetReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "proxy(css) {}",
-            self.module.path().to_string().await?,
+            self.module.ident().to_string().await?,
         )))
     }
 }
@@ -419,8 +414,8 @@ struct CssProxyModuleAsset {
 #[turbo_tasks::value_impl]
 impl Asset for CssProxyModuleAsset {
     #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.module.path()
+    fn ident(&self) -> AssetIdentVc {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]
@@ -468,7 +463,7 @@ impl CssChunkPlaceable for CssProxyModuleAsset {
 impl ResolveOrigin for CssProxyModuleAsset {
     #[turbo_tasks::function]
     fn origin_path(&self) -> FileSystemPathVc {
-        self.module.path()
+        self.module.ident().path()
     }
 
     #[turbo_tasks::function]
@@ -484,15 +479,12 @@ struct CssProxyModuleChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for CssProxyModuleChunkItem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> StringVc {
-        self.module.as_chunk_item(self.context).to_string()
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ChunkItem for CssProxyModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.module.ident()
+    }
+
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
         self.module.references()
@@ -540,7 +532,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> ParseResultS
 #[turbo_tasks::value(shared)]
 struct CssModuleComposesIssue {
     severity: IssueSeverityVc,
-    path: FileSystemPathVc,
+    source: AssetIdentVc,
     message: StringVc,
 }
 
@@ -565,7 +557,7 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn context(&self) -> FileSystemPathVc {
-        self.path
+        self.source.path()
     }
 
     #[turbo_tasks::function]

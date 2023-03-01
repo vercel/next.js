@@ -34,6 +34,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
+    ident::AssetIdentVc,
     issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
     reference::all_referenced_assets,
     reference_type::ReferenceType,
@@ -76,7 +77,7 @@ lazy_static! {
 
 #[turbo_tasks::value]
 struct ModuleIssue {
-    path: FileSystemPathVc,
+    ident: AssetIdentVc,
     title: StringVc,
     description: StringVc,
 }
@@ -90,7 +91,7 @@ impl Issue for ModuleIssue {
 
     #[turbo_tasks::function]
     fn context(&self) -> FileSystemPathVc {
-        self.path
+        self.ident.path()
     }
 
     #[turbo_tasks::function]
@@ -165,20 +166,23 @@ async fn module(
     context: ModuleAssetContextVc,
     reference_type: Value<ReferenceType>,
 ) -> Result<AssetVc> {
-    let path = source.path().resolve().await?;
-    let options = ModuleOptionsVc::new(path.parent(), context.module_options_context());
+    let ident = source.ident().resolve().await?;
+    let options = ModuleOptionsVc::new(ident.path().parent(), context.module_options_context());
 
     let reference_type = reference_type.into_value();
     let mut current_source = source;
     let mut current_module_type = None;
     for rule in options.await?.rules.iter() {
-        if rule.matches(source, &*path.await?, &reference_type).await? {
+        if rule
+            .matches(source, &*ident.path().await?, &reference_type)
+            .await?
+        {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::SourceTransforms(transforms) => {
                         current_source = transforms.transform(current_source);
-                        if current_source.path().resolve().await? != path {
-                            // The path has been changed, so we need to apply new rules.
+                        if current_source.ident().resolve().await? != ident {
+                            // The ident has been changed, so we need to apply new rules.
                             return Ok(module(current_source, context, Value::new(reference_type)));
                         }
                     }
@@ -200,7 +204,7 @@ async fn module(
                             }
                             Some(module_type) => {
                                 ModuleIssue {
-                                    path,
+                                    ident,
                                     title: StringVc::cell("Invalid module type".to_string()),
                                     description: StringVc::cell(
                                         "The module type must be Ecmascript or Typescript to add \
@@ -215,7 +219,7 @@ async fn module(
                             }
                             None => {
                                 ModuleIssue {
-                                    path,
+                                    ident,
                                     title: StringVc::cell("Missing module type".to_string()),
                                     description: StringVc::cell(
                                         "The module type effect must be applied before adding \
@@ -472,7 +476,7 @@ async fn emit_aggregated_assets(
 
 #[turbo_tasks::function]
 pub async fn emit_asset(asset: AssetVc) -> CompletionVc {
-    asset.content().write(asset.path())
+    asset.content().write(asset.ident().path())
 }
 
 #[turbo_tasks::function]
@@ -481,19 +485,11 @@ pub async fn emit_asset_into_dir(
     output_dir: FileSystemPathVc,
 ) -> Result<CompletionVc> {
     let dir = &*output_dir.await?;
-    Ok(if asset.path().await?.is_inside(dir) {
+    Ok(if asset.ident().path().await?.is_inside(dir) {
         emit_asset(asset)
     } else {
         CompletionVc::new()
     })
-}
-
-#[turbo_tasks::function]
-pub fn print_most_referenced(asset: AssetVc) {
-    let aggregated = aggregate(asset);
-    let back_references = compute_back_references(aggregated);
-    let sorted_back_references = top_references(back_references);
-    print_references(sorted_back_references);
 }
 
 #[turbo_tasks::value(shared)]
@@ -556,20 +552,6 @@ async fn top_references(list: ReferencesListVc) -> Result<ReferencesListVc> {
             .collect(),
     }
     .into())
-}
-
-#[turbo_tasks::function]
-async fn print_references(list: ReferencesListVc) -> Result<()> {
-    let list = list.await?;
-    println!("TOP REFERENCES:");
-    for (asset, references) in list.referenced_by.iter() {
-        println!(
-            "{} -> {} times referenced",
-            asset.path().await?.path,
-            references.len()
-        );
-    }
-    Ok(())
 }
 
 async fn warn_on_unsupported_modules(

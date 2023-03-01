@@ -62,7 +62,7 @@ impl Emitter for IssueEmitter {
             }
             .cell(),
             category: StringVc::cell("parse".to_string()),
-            path: self.source.path(),
+            source_ident: self.source.ident(),
             title: StringVc::cell(title),
             message: StringVc::cell(message),
             code,

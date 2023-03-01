@@ -1,11 +1,11 @@
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use indoc::formatdoc;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks::ValueToString;
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkingContext, ChunkingContextVc},
+    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkingContext, ChunkingContextVc},
+    ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 
@@ -28,23 +28,10 @@ pub(super) struct ManifestChunkItem {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for ManifestChunkItem {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(self.manifest.path().to_string())
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
-    }
-
-    #[turbo_tasks::function]
-    fn related_path(&self) -> FileSystemPathVc {
-        self.manifest.path()
     }
 
     #[turbo_tasks::function]
@@ -88,6 +75,11 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for ManifestChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> AssetIdentVc {
+        self.manifest.ident()
+    }
+
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
         let chunks = self.manifest.chunk_group().chunks();

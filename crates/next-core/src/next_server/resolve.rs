@@ -46,7 +46,7 @@ async fn is_node_resolveable(
         return Ok(BoolVc::cell(false));
     };
 
-    if node_asset.path().resolve().await? != expected.resolve().await? {
+    if node_asset.ident().path().resolve().await? != expected.resolve().await? {
         // node.js resolves to a different file
         return Ok(BoolVc::cell(false));
     }

@@ -6,6 +6,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::condition::ContextCondition;
 use turbopack_core::{
     asset::{Asset, AssetVc},
+    ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
 };
 use turbopack_ecmascript::{
@@ -105,7 +106,7 @@ impl NextSourceConfigVc {
 /// An issue that occurred while resolving the React Refresh runtime module.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    path: FileSystemPathVc,
+    ident: AssetIdentVc,
     detail: StringVc,
 }
 
@@ -128,7 +129,7 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn context(&self) -> FileSystemPathVc {
-        self.path
+        self.ident.path()
     }
 
     #[turbo_tasks::function]
@@ -173,7 +174,7 @@ pub async fn parse_config_from_source(module_asset: AssetVc) -> Result<NextSourc
                                 return Ok(parse_config_from_js_value(module_asset, &value).cell());
                             } else {
                                 NextSourceConfigParsingIssue {
-                                    path: module_asset.path(),
+                                    ident: module_asset.ident(),
                                     detail: StringVc::cell(
                                         "The exported config object must contain an variable \
                                          initializer."
@@ -198,7 +199,7 @@ fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSou
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
         NextSourceConfigParsingIssue {
-            path: module_asset.path(),
+            ident: module_asset.ident(),
             detail: StringVc::cell(format!("{detail} Got {explainer}.{hints}")),
         }
         .cell()

@@ -177,7 +177,7 @@ impl PatternMappingVc {
             title: StringVc::cell("non-ecmascript placeable asset".to_string()),
             message: StringVc::cell(format!(
                 "asset {} is not placeable in ESM chunks, so it doesn't have a module id",
-                asset.path().to_string().await?
+                asset.ident().to_string().await?
             )),
             path: origin.origin_path(),
         }

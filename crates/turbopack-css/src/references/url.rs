@@ -7,6 +7,7 @@ use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkingContext, ChunkingContextVc},
+    ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc},
     reference_type::UrlReferenceSubType,
     resolve::{
@@ -96,13 +97,18 @@ impl CodeGenerateable for UrlAssetReference {
         context: ChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;
-        let chunk_path = context.chunk_path(this.origin.origin_path(), ".css");
+        // TODO(WEB-662) This is not the correct way to get the current chunk path. It
+        // currently works as all chunks are in the same directory.
+        let chunk_path =
+            context.chunk_path(AssetIdentVc::from_path(this.origin.origin_path()), ".css");
         let context_path = chunk_path.parent().await?;
 
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self_vc.get_referenced_asset(context).await? {
-            let path = asset.path().await?;
+            // TODO(WEB-662) This is not the correct way to get the path of the asset.
+            // `asset` is on module-level, but we need the output-level asset instead.
+            let path = asset.ident().path().await?;
             let relative_path = context_path
                 .get_relative_path_to(&path)
                 .unwrap_or_else(|| format!("/{}", path.path));

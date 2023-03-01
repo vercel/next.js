@@ -3,11 +3,12 @@ use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{Issue, IssueSeverityVc, IssueSourceVc, IssueVc, OptionIssueSourceVc};
+use crate::ident::AssetIdentVc;
 
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
     pub severity: IssueSeverityVc,
-    pub path: FileSystemPathVc,
+    pub source_ident: AssetIdentVc,
     pub title: StringVc,
     pub message: StringVc,
     pub category: StringVc,
@@ -38,7 +39,7 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn context(&self) -> FileSystemPathVc {
-        self.path
+        self.source_ident.path()
     }
 
     #[turbo_tasks::function]

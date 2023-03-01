@@ -129,7 +129,7 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
     fn from(plain: &'a PlainIssue) -> Self {
         let source = plain.source.as_deref().map(|source| IssueSource {
             asset: Asset {
-                path: &source.asset.path,
+                path: &source.asset.ident,
             },
             start: source.start,
             end: source.end,

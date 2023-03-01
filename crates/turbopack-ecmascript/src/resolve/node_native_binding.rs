@@ -103,7 +103,7 @@ pub async fn resolve_node_pre_gyp_files(
     if let Some(config_asset) = *config {
         if let AssetContent::File(file) = &*config_asset.content().await? {
             if let FileContent::Content(ref config_file) = &*file.await? {
-                let config_file_path = config_asset.path();
+                let config_file_path = config_asset.ident().path();
                 let config_file_dir = config_file_path.parent();
                 let node_pre_gyp_config: NodePreGypConfigJson =
                     parse_json_rope_with_source_context(config_file.content())?;
@@ -152,6 +152,7 @@ pub async fn resolve_node_pre_gyp_files(
                     assets.insert(SourceAssetVc::new(resolved_file_vc).into());
                 }
                 for entry in config_asset
+                    .ident()
                     .path()
                     .parent()
                     // TODO
