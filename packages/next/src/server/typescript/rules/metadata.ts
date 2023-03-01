@@ -8,7 +8,7 @@ import {
 } from '../utils'
 
 const TYPE_ANOTATION = ': Metadata'
-const TYPE_ANOTATION_ASYNC = ': Promise<Metadata> | Metadata'
+const TYPE_ANOTATION_ASYNC = ': Promise<Metadata>'
 const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
 
 // Find the `export const metadata = ...` node.
