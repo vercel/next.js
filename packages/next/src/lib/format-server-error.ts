@@ -12,7 +12,6 @@ const invalidServerComponentReactHooks = [
 ]
 
 function setMessage(error: Error, message: string): void {
-  if (error.message === message) return
   error.message = message
   if (error.stack) {
     const lines = error.stack.split('\n')
@@ -29,11 +28,17 @@ export function formatServerError(error: Error): void {
       'Class extends value undefined is not a constructor or null'
     )
   ) {
+    const addedMessage =
+      'This might be caused by a React Class Component being rendered in a Server Component, React Class Components only works in Client Components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+
+    // If this error instance already has the message, don't add it again
+    if (error.message.includes(addedMessage)) return
+
     setMessage(
       error,
       `${error.message}
 
-This might be caused by a React Class Component being rendered in a Server Component, React Class Components only works in Client Components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component`
+${addedMessage}`
     )
     return
   }
