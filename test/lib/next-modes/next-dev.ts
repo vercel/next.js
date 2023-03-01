@@ -88,8 +88,7 @@ export class NextDevInstance extends NextInstance {
                 msg,
               })
             }
-            // dev server can reload on next.config.js change and that gets a new port so we want to keep listening and update if needed
-            // this.off('stdout', readyCb)
+            // server might reload and change the url again, so we keep listening
             resolve()
           }
         }
