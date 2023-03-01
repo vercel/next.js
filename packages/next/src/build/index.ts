@@ -255,7 +255,8 @@ export default async function build(
   debugOutput = false,
   runLint = true,
   noMangling = false,
-  appDirOnly = false
+  appDirOnly = false,
+  turboNextBuild = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -1010,8 +1011,17 @@ export default async function build(
           ignore: [] as string[],
         }))
 
+      let binding = (await loadBindings()) as any
+
+      async function runTurboBuild() {
+        const turboNextBuildStart = process.hrtime()
+        await binding.turbo.nextBuild()
+        const [duration] = process.hrtime(turboNextBuildStart)
+        return { duration, turbotraceContext: null }
+      }
+
       const { duration: webpackBuildDuration, turbotraceContext } =
-        await webpackBuild()
+        turboNextBuild ? await runTurboBuild() : await webpackBuild()
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {
@@ -1026,7 +1036,6 @@ export default async function build(
         if (!turbotraceContext) {
           return
         }
-        let binding = (await loadBindings()) as any
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -1797,7 +1806,6 @@ export default async function build(
       } else if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
-          let binding = (await loadBindings()) as any
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo.startTrace
           }
