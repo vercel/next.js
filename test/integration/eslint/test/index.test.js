@@ -105,7 +105,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: `Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -417,7 +417,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: `Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -453,7 +453,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: `Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -479,7 +479,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: `Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -515,7 +515,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: `Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -788,7 +788,7 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        'Warning: `Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth due to image sizes. Consider using `<Image />` from `next/image` to automatically optimize images.'
       )
 
       expect(output).not.toContain('pages/index.js')
