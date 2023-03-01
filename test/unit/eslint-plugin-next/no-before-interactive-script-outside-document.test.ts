@@ -139,7 +139,28 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       errors: [
         {
           message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js` or root layout. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+        },
+      ],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <Script
+            id="scriptBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+            strategy="beforeInteractive"
+          ></Script>
+        );
+      }`,
+      filename: 'app/deep/page.js',
+      errors: [
+        {
+          message:
+            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js` or root layout. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
         },
       ],
     },
