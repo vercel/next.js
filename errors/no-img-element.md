@@ -16,7 +16,7 @@ Use [`next/image`](https://nextjs.org/docs/api-reference/next/image) to improve 
 >
 > - [Vercel pricing](https://vercel.com/pricing)
 > - [Cloudinary pricing](https://cloudinary.com/pricing)
-> - [imgix pricing](https://imgix.com]/pricing)
+> - [imgix pricing](https://imgix.com/pricing)
 
 > Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
