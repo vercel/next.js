@@ -205,7 +205,7 @@ const nextLint: CliCommand = async (argv) => {
 
   await verifyTypeScriptSetup({
     dir: baseDir,
-    distDir,
+    distDir: nextConfig.distDir,
     intentDirs: [pagesDir, appDir].filter(Boolean) as string[],
     typeCheckPreflight: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
