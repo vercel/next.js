@@ -68,6 +68,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
   TRACE_OUTPUT_VERSION,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -131,6 +132,7 @@ import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { createClientRouterFilter } from '../lib/create-client-router-filter'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -291,6 +293,8 @@ export default async function build(
 
       const { headers, rewrites, redirects } = customRoutes
       NextBuildContext.rewrites = rewrites
+      NextBuildContext.originalRewrites = config._originalRewrites
+      NextBuildContext.originalRedirects = config._originalRedirects
 
       const cacheDir = path.join(distDir, 'cache')
       if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
@@ -840,6 +844,18 @@ export default async function build(
         ...rewrites.fallback,
       ]
 
+      if (config.experimental.clientRouterFilter) {
+        const nonInternalRedirects = (config._originalRedirects || []).filter(
+          (r: any) => !r.internal
+        )
+        const clientRouterFilters = createClientRouterFilter(
+          appPageKeys,
+          nonInternalRedirects
+        )
+
+        NextBuildContext.clientRouterFilters = clientRouterFilters
+      }
+
       const distDirCreated = await nextBuildSpan
         .traceChild('create-dist-dir')
         .traceAsyncFn(async () => {
@@ -883,6 +899,9 @@ export default async function build(
           )
         )
 
+      const outputFileTracingRoot =
+        config.experimental.outputFileTracingRoot || dir
+
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
 
       const requiredServerFiles = nextBuildSpan
@@ -900,9 +919,17 @@ export default async function build(
             experimental: {
               ...config.experimental,
               trustHostHeader: ciEnvironment.hasNextSupport,
+              incrementalCacheHandlerPath: config.experimental
+                .incrementalCacheHandlerPath
+                ? path.relative(
+                    distDir,
+                    config.experimental.incrementalCacheHandlerPath
+                  )
+                : undefined,
             },
           },
           appDir: dir,
+          relativeAppDir: path.relative(outputFileTracingRoot, dir),
           files: [
             ROUTES_MANIFEST,
             path.relative(distDir, manifestPath),
@@ -945,6 +972,14 @@ export default async function build(
                   path.join(
                     SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.json'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.js'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.json'
                   ),
                 ]
               : []),
@@ -1867,7 +1902,13 @@ export default async function build(
               'cache/next-server.js.nft.json'
             )
 
-            if (lockFiles.length > 0) {
+            if (
+              lockFiles.length > 0 &&
+              // we can't leverage trace cache if this is configured
+              // currently unless we break this to a separate trace
+              // file
+              !config.experimental.incrementalCacheHandlerPath
+            ) {
               const cacheHash = (
                 require('crypto') as typeof import('crypto')
               ).createHash('sha256')
@@ -1900,8 +1941,8 @@ export default async function build(
 
             const root =
               config.experimental?.turbotrace?.contextDirectory ??
-              config.experimental?.outputFileTracingRoot ??
-              dir
+              outputFileTracingRoot
+
             const nextServerEntry = require.resolve(
               'next/dist/server/next-server'
             )
@@ -2145,9 +2186,6 @@ export default async function build(
           'utf8'
         )
       )
-
-      const outputFileTracingRoot =
-        config.experimental.outputFileTracingRoot || dir
 
       if (config.output === 'standalone') {
         await nextBuildSpan

@@ -49,13 +49,15 @@ export function VersionStalenessInfo(props: VersionInfo) {
       >
         {text}
       </small>{' '}
-      <a
-        target="_blank"
-        rel="noopener noreferrer"
-        href="https://nextjs.org/docs/messages/version-staleness"
-      >
-        (learn more)
-      </a>
+      {staleness === 'fresh' || staleness === 'unknown' ? null : (
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://nextjs.org/docs/messages/version-staleness"
+        >
+          (learn more)
+        </a>
+      )}
     </small>
   )
 }

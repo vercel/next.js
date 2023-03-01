@@ -16,6 +16,39 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    it.each([
+      { pathname: '/redirect-1' },
+      { pathname: '/redirect-2' },
+      { pathname: '/blog/old-post' },
+      { pathname: '/redirect-3/some' },
+      { pathname: '/redirect-4' },
+    ])(
+      'should match redirects in pages correctly $path',
+      async ({ pathname }) => {
+        let browser = await next.browser('/')
+
+        await browser.eval(`next.router.push("${pathname}")`)
+        await check(async () => {
+          const href = await browser.eval('location.href')
+          return href.includes('example.vercel.sh') ? 'yes' : href
+        }, 'yes')
+
+        if (pathname.includes('/blog')) {
+          browser = await next.browser('/blog/first')
+          await browser.eval('window.beforeNav = 1')
+
+          // check 5 times to ensure a reload didn't occur
+          for (let i = 0; i < 5; i++) {
+            await waitFor(500)
+            expect(
+              await browser.eval('document.documentElement.innerHTML')
+            ).toContain('hello from pages/blog/[slug]')
+            expect(await browser.eval('window.beforeNav')).toBe(1)
+          }
+        }
+      }
+    )
+
     if (isDev) {
       it('should not have duplicate config warnings', async () => {
         await next.fetch('/')
@@ -591,8 +624,8 @@ createNextDescribe(
         try {
           // Click the link.
           await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#pages-text').text()).toBe(
-            'hello from pages/dynamic-pages-route-app-overlap/[slug]'
+          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
           )
 
           // When refreshing the browser, the app page should be rendered
@@ -1668,18 +1701,18 @@ createNextDescribe(
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
         expect(html).toContain(
-          '<link href="/test1.js" rel="preload" as="script"/>'
+          '<link rel="preload" as="script" href="/test1.js"/>'
         )
         expect(html).toContain(
-          '<link href="/test2.js" rel="preload" as="script"/>'
+          '<link rel="preload" as="script" href="/test2.js"/>'
         )
         expect(html).toContain(
-          '<link href="/test3.js" rel="preload" as="script"/>'
+          '<link rel="preload" as="script" href="/test3.js"/>'
         )
 
         // test4.js has lazyOnload which doesn't need to be preloaded
         expect(html).not.toContain(
-          '<script src="/test4.js" rel="preload" as="script"/>'
+          '<script rel="preload" as="script" src="/test4.js"/>'
         )
       })
     })

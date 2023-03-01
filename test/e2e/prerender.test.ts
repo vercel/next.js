@@ -968,6 +968,39 @@ describe('Prerender', () => {
     })
 
     if ((global as any).isNextDev) {
+      it('should show warning every time page with large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+
+        const outputIndex = next.cliOutput.length
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput.slice(outputIndex),
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+      })
+    }
+
+    if ((global as any).isNextStart) {
+      it('should only show warning once per page when large amount of page data is returned', async () => {
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        await check(
+          () => next.cliOutput,
+          /Warning: data for page "\/large-page-data-ssr" is 256 kB which exceeds the threshold of 128 kB, this amount of data can reduce performance/
+        )
+
+        const outputIndex = next.cliOutput.length
+        await renderViaHTTP(next.url, '/large-page-data-ssr')
+        expect(next.cliOutput.slice(outputIndex)).not.toInclude(
+          'Warning: data for page'
+        )
+      })
+    }
+
+    if ((global as any).isNextDev) {
       it('should not show warning from url prop being returned', async () => {
         const urlPropPage = 'pages/url-prop.js'
         await next.patchFile(
@@ -1482,6 +1515,12 @@ describe('Prerender', () => {
                 next.buildId
               )}\\/large-page-data.json$`,
               page: '/large-page-data',
+            },
+            {
+              dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+                next.buildId
+              )}\\/large-page-data-ssr.json$`,
+              page: '/large-page-data-ssr',
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(

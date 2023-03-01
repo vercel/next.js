@@ -81,7 +81,7 @@ import {
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
-import { pageFiles } from '../../build/webpack/plugins/next-types-plugin'
+import { devPageFiles } from '../../build/webpack/plugins/next-types-plugin'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,
@@ -96,6 +96,7 @@ import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -411,6 +412,7 @@ export default class DevServer extends Server {
       wp.watch({ directories: [this.dir], startTime: 0 })
       const fileWatchTimes = new Map()
       let enabledTypeScript = this.usingTypeScript
+      let previousClientRouterFilters: any
 
       wp.on('aggregated', async () => {
         let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -426,7 +428,7 @@ export default class DevServer extends Server {
         let envChange = false
         let tsconfigChange = false
 
-        pageFiles.clear()
+        devPageFiles.clear()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -471,7 +473,7 @@ export default class DevServer extends Server {
               )
           )
 
-          pageFiles.add(fileName)
+          devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
@@ -578,6 +580,25 @@ export default class DevServer extends Server {
             Log.error(`  "${pagesPath}" - "${appPath}"`)
           }
         }
+        let clientRouterFilters: any
+
+        if (this.nextConfig.experimental.clientRouterFilter) {
+          clientRouterFilters = createClientRouterFilter(
+            Object.keys(appPaths),
+            ((this.nextConfig as any)._originalRedirects || []).filter(
+              (r: any) => !r.internal
+            )
+          )
+
+          if (
+            !previousClientRouterFilters ||
+            JSON.stringify(previousClientRouterFilters) !==
+              JSON.stringify(clientRouterFilters)
+          ) {
+            envChange = true
+            previousClientRouterFilters = clientRouterFilters
+          }
+        }
 
         if (!this.usingTypeScript && enabledTypeScript) {
           // we tolerate the error here as this is best effort
@@ -664,6 +685,7 @@ export default class DevServer extends Server {
                     hasRewrites,
                     isNodeServer,
                     isEdgeServer,
+                    clientRouterFilters,
                   })
 
                   Object.keys(plugin.definitions).forEach((key) => {
@@ -1619,8 +1641,8 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const errors = (await this.hotReloader?.getCompilationErrors(page)) || []
-    if (errors.length === 0) return
+    const errors = await this.hotReloader?.getCompilationErrors(page)
+    if (!errors) return
 
     // Return the very first error we found.
     return errors[0]

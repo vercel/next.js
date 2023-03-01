@@ -45,8 +45,8 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
 import { MetadataTree } from '../lib/metadata/metadata'
-import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
-import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { RequestAsyncStorageWrapper } from './async-storage/request-async-storage-wrapper'
+import { StaticGenerationAsyncStorageWrapper } from './async-storage/static-generation-async-storage-wrapper'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
@@ -184,7 +184,7 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: FlightManifest
   serverCSSManifest?: FlightCSSManifest
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
@@ -319,7 +319,7 @@ function useFlightResponse(
   }
   const {
     createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack/client')
+  } = require('next/dist/compiled/react-server-dom-webpack/client.edge')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
@@ -336,6 +336,7 @@ function useFlightResponse(
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
+  const textDecoder = new TextDecoder()
 
   function read() {
     forwardReader.read().then(({ done, value }) => {
@@ -357,7 +358,7 @@ function useFlightResponse(
         flightResponseRef.current = null
         writer.close()
       } else {
-        const responsePartial = decodeText(value)
+        const responsePartial = decodeText(value, textDecoder)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
@@ -638,7 +639,8 @@ function getPreloadedFontFilesInlineLinkTags(
   serverCSSManifest: FlightCSSManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
-  filePath?: string
+  filePath: string | undefined,
+  injectedFontPreloadTags: Set<string>
 ): string[] | null {
   if (!fontLoaderManifest || !filePath) {
     return null
@@ -652,7 +654,6 @@ function getPreloadedFontFilesInlineLinkTags(
   }
 
   const fontFiles = new Set<string>()
-  // If we find an entry in the manifest but it's empty, add a preconnect tag
   let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
@@ -662,13 +663,21 @@ function getPreloadedFontFilesInlineLinkTags(
       if (preloadedFontFiles) {
         foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
-          fontFiles.add(fontFile)
+          if (!injectedFontPreloadTags.has(fontFile)) {
+            fontFiles.add(fontFile)
+            injectedFontPreloadTags.add(fontFile)
+          }
         }
       }
     }
   }
 
-  if (!foundFontUsage) {
+  // If we find an entry in the manifest but it's empty, add a preconnect tag by returning null.
+  // Only render a preconnect tag if we previously didn't preload any fonts.
+  if (
+    !foundFontUsage ||
+    (fontFiles.size === 0 && injectedFontPreloadTags.size > 0)
+  ) {
     return null
   }
 
@@ -1083,6 +1092,7 @@ export async function renderToHTMLOrFlight(
       firstItem,
       rootLayoutIncluded,
       injectedCSS,
+      injectedFontPreloadTags,
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
@@ -1090,6 +1100,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded: boolean
       firstItem?: boolean
       injectedCSS: Set<string>
+      injectedFontPreloadTags: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
       const [segment, parallelRoutes, components] = tree
       const {
@@ -1114,13 +1125,17 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
+      const injectedFontPreloadTagsWithCurrentLayout = new Set(
+        injectedFontPreloadTags
+      )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
-            layoutOrPagePath
+            layoutOrPagePath,
+            injectedFontPreloadTagsWithCurrentLayout
           )
         : []
 
@@ -1177,10 +1192,15 @@ export async function renderToHTMLOrFlight(
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'force-static') {
-          staticGenerationStore.forceStatic = true
-        } else if (layoutOrPageMod.dynamic !== 'error') {
-          staticGenerationStore.forceStatic = false
+        if (layoutOrPageMod.dynamic === 'error') {
+          staticGenerationStore.dynamicShouldError = true
+        } else {
+          staticGenerationStore.dynamicShouldError = false
+          if (layoutOrPageMod.dynamic === 'force-static') {
+            staticGenerationStore.forceStatic = true
+          } else {
+            staticGenerationStore.forceStatic = false
+          }
         }
       }
 
@@ -1322,6 +1342,7 @@ export async function renderToHTMLOrFlight(
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             })
 
             const childProp: ChildProp = {
@@ -1456,10 +1477,11 @@ export async function renderToHTMLOrFlight(
       renderResult: RenderResult
     ): Promise<string> => {
       const renderChunks: string[] = []
+      const textDecoder = new TextDecoder()
 
       const writable = {
         write(chunk: any) {
-          renderChunks.push(decodeText(chunk))
+          renderChunks.push(decodeText(chunk, textDecoder))
         },
         end() {},
         destroy() {},
@@ -1483,6 +1505,7 @@ export async function renderToHTMLOrFlight(
         parentRendered,
         rscPayloadHead,
         injectedCSS,
+        injectedFontPreloadTags,
         rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
@@ -1493,6 +1516,7 @@ export async function renderToHTMLOrFlight(
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
         injectedCSS: Set<string>
+        injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
@@ -1558,6 +1582,7 @@ export async function renderToHTMLOrFlight(
                       parentParams: currentParams,
                       firstItem: isFirst,
                       injectedCSS,
+                      injectedFontPreloadTags,
                       // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                       rootLayoutIncluded: rootLayoutIncluded,
                     }
@@ -1574,6 +1599,9 @@ export async function renderToHTMLOrFlight(
         // the result consistent.
         const layoutPath = layout?.[1]
         const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+        const injectedFontPreloadTagsWithCurrentLayout = new Set(
+          injectedFontPreloadTags
+        )
         if (layoutPath) {
           getCssInlinedLinkTags(
             serverComponentManifest,
@@ -1582,6 +1610,14 @@ export async function renderToHTMLOrFlight(
             serverCSSForEntries,
             injectedCSSWithCurrentLayout,
             true
+          )
+          getPreloadedFontFilesInlineLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            fontLoaderManifest,
+            serverCSSForEntries,
+            layoutPath,
+            injectedFontPreloadTagsWithCurrentLayout
           )
         }
 
@@ -1605,6 +1641,7 @@ export async function renderToHTMLOrFlight(
             isFirst: false,
             rscPayloadHead,
             injectedCSS: injectedCSSWithCurrentLayout,
+            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
@@ -1641,6 +1678,7 @@ export async function renderToHTMLOrFlight(
               </>
             ),
             injectedCSS: new Set(),
+            injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
           })
         ).slice(1),
@@ -1738,6 +1776,7 @@ export async function renderToHTMLOrFlight(
           parentParams: {},
           firstItem: true,
           injectedCSS: new Set(),
+          injectedFontPreloadTags: new Set(),
           rootLayoutIncluded: false,
         })
 
@@ -1962,11 +2001,11 @@ export async function renderToHTMLOrFlight(
     return renderResult
   }
 
-  return runWithRequestAsyncStorage(
+  return RequestAsyncStorageWrapper.wrap(
     requestAsyncStorage,
     { req, res, renderOpts },
     () =>
-      runWithStaticGenerationAsyncStorage(
+      StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
         { pathname, renderOpts },
         () => wrappedRender()

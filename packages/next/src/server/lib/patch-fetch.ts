@@ -1,9 +1,9 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import { AppRenderSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
+import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-const CACHE_ONE_YEAR = 31536000
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
@@ -14,10 +14,9 @@ export function patchFetch({
   serverHooks: typeof import('../../client/components/hooks-server-context')
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
-  if ((globalThis.fetch as any).patched) return
+  if ((fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-
   const originFetch = fetch
 
   // @ts-expect-error - we're patching fetch
@@ -29,26 +28,72 @@ export function patchFetch({
     },
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+      const isRequestInput =
+        input &&
+        typeof input === 'object' &&
+        typeof (input as Request).method === 'string'
 
-      // If the staticGenerationStore is not available, we can't do any special
-      // treatment of fetch, therefore fallback to the original fetch
-      // implementation.
-      if (!staticGenerationStore) {
+      const getRequestMeta = (field: string) => {
+        let value = isRequestInput ? (input as any)[field] : null
+        return value || (init as any)?.[field]
+      }
+
+      // If the staticGenerationStore is not available, we can't do any
+      // special treatment of fetch, therefore fallback to the original
+      // fetch implementation.
+      if (!staticGenerationStore || (init?.next as any)?.internal) {
         return originFetch(input, init)
       }
 
-      let revalidate: number | undefined | boolean
+      let revalidate: number | undefined | false = undefined
+      // RequestInit doesn't keep extra fields e.g. next so it's
+      // only available if init is used separate
+      let curRevalidate = init?.next?.revalidate
+      const _cache = getRequestMeta('cache')
 
-      if (typeof init?.next?.revalidate === 'number') {
-        revalidate = init.next.revalidate
+      if (_cache === 'force-cache') {
+        curRevalidate = false
+      }
+      if (['no-cache', 'no-store'].includes(_cache || '')) {
+        curRevalidate = 0
+      }
+      if (typeof curRevalidate === 'number') {
+        revalidate = curRevalidate
       }
 
-      if (init?.next?.revalidate === false) {
+      if (curRevalidate === false) {
         revalidate = CACHE_ONE_YEAR
       }
 
+      const _headers = getRequestMeta('headers')
+      const initHeaders: Headers =
+        typeof _headers?.get === 'function'
+          ? _headers
+          : new Headers(_headers || {})
+
+      const hasUnCacheableHeader =
+        initHeaders.get('authorization') || initHeaders.get('cookie')
+
+      const isUnCacheableMethod = !['get', 'head'].includes(
+        getRequestMeta('method')?.toLowerCase() || 'get'
+      )
+
+      if (typeof revalidate === 'undefined') {
+        // if there are uncacheable headers and the cache value
+        // wasn't overridden then we must bail static generation
+        if (hasUnCacheableHeader || isUnCacheableMethod) {
+          revalidate = 0
+        } else {
+          revalidate =
+            typeof staticGenerationStore.revalidate === 'boolean' ||
+            typeof staticGenerationStore.revalidate === 'undefined'
+              ? CACHE_ONE_YEAR
+              : staticGenerationStore.revalidate
+        }
+      }
+
       if (
-        !staticGenerationStore.revalidate ||
+        typeof staticGenerationStore.revalidate === 'undefined' ||
         (typeof revalidate === 'number' &&
           revalidate < staticGenerationStore.revalidate)
       ) {
@@ -56,6 +101,57 @@ export function patchFetch({
       }
 
       let cacheKey: string | undefined
+      if (
+        staticGenerationStore.incrementalCache &&
+        typeof revalidate === 'number' &&
+        revalidate > 0
+      ) {
+        try {
+          cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+            isRequestInput ? (input as Request).url : input.toString(),
+            isRequestInput ? (input as RequestInit) : init
+          )
+        } catch (err) {
+          console.error(`Failed to generate cache key for`, input)
+        }
+      }
+      const requestInputFields = [
+        'cache',
+        'credentials',
+        'headers',
+        'integrity',
+        'keepalive',
+        'method',
+        'mode',
+        'redirect',
+        'referrer',
+        'referrerPolicy',
+        'signal',
+        'window',
+        'duplex',
+      ]
+
+      if (isRequestInput) {
+        const reqInput: Request = input as any
+        const reqOptions: RequestInit = {
+          body: (reqInput as any)._ogBody || reqInput.body,
+        }
+
+        for (const field of requestInputFields) {
+          // @ts-expect-error custom fields
+          reqOptions[field] = reqInput[field]
+        }
+        input = new Request(reqInput.url, reqOptions)
+      } else if (init) {
+        const initialInit = init
+        init = {
+          body: (init as any)._ogBody || init.body,
+        }
+        for (const field of requestInputFields) {
+          // @ts-expect-error custom fields
+          init[field] = initialInit[field]
+        }
+      }
 
       const doOriginalFetch = async () => {
         return originFetch(input, init).then(async (res) => {
@@ -65,49 +161,46 @@ export function patchFetch({
             typeof revalidate === 'number' &&
             revalidate > 0
           ) {
-            const clonedRes = res.clone()
-
             let base64Body = ''
+            const resBlob = await res.blob()
+            const arrayBuffer = await resBlob.arrayBuffer()
 
             if (process.env.NEXT_RUNTIME === 'edge') {
-              let string = ''
-              new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
-                string += String.fromCharCode(byte)
-              })
-              base64Body = btoa(string)
+              const { encode } =
+                require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
+              base64Body = encode(arrayBuffer)
             } else {
-              base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
-                'base64'
-              )
+              base64Body = Buffer.from(arrayBuffer).toString('base64')
             }
 
-            await staticGenerationStore.incrementalCache.set(
-              cacheKey,
-              {
-                kind: 'FETCH',
-                data: {
-                  headers: Object.fromEntries(clonedRes.headers.entries()),
-                  body: base64Body,
+            try {
+              await staticGenerationStore.incrementalCache.set(
+                cacheKey,
+                {
+                  kind: 'FETCH',
+                  data: {
+                    headers: Object.fromEntries(res.headers.entries()),
+                    body: base64Body,
+                  },
+                  revalidate,
                 },
                 revalidate,
-              },
-              revalidate,
-              true
-            )
+                true
+              )
+            } catch (err) {
+              console.warn(`Failed to set fetch cache`, input, err)
+            }
+
+            return new Response(resBlob, {
+              headers: res.headers,
+              status: res.status,
+            })
           }
           return res
         })
       }
 
-      if (
-        staticGenerationStore.incrementalCache &&
-        typeof revalidate === 'number' &&
-        revalidate > 0
-      ) {
-        cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-          input.toString(),
-          init
-        )
+      if (cacheKey && staticGenerationStore?.incrementalCache) {
         const entry = await staticGenerationStore.incrementalCache.get(
           cacheKey,
           true
@@ -127,13 +220,14 @@ export function patchFetch({
             }
 
             const resData = entry.value.data
-            let decodedBody = ''
+            let decodedBody: ArrayBuffer
 
-            // TODO: handle non-text response bodies
             if (process.env.NEXT_RUNTIME === 'edge') {
-              decodedBody = atob(resData.body)
+              const { decode } =
+                require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
+              decodedBody = decode(resData.body)
             } else {
-              decodedBody = Buffer.from(resData.body, 'base64').toString()
+              decodedBody = Buffer.from(resData.body, 'base64').subarray()
             }
 
             return new Response(decodedBody, {
@@ -202,5 +296,5 @@ export function patchFetch({
       return doOriginalFetch()
     }
   )
-  ;(globalThis.fetch as any).patched = true
+  ;(fetch as any).__nextPatched = true
 }

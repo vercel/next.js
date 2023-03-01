@@ -91,8 +91,11 @@ async function webpackBuildImpl(): Promise<{
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
+    originalRewrites: NextBuildContext.originalRewrites,
+    originalRedirects: NextBuildContext.originalRedirects,
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
+    clientRouterFilters: NextBuildContext.clientRouterFilters!,
   }
 
   const configs = await runWebpackSpan

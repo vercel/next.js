@@ -247,6 +247,9 @@ const configSchema = {
           },
           type: 'object',
         },
+        clientRouterFilter: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },
@@ -284,8 +287,8 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
-        fetchCache: {
-          type: 'boolean',
+        fetchCacheKeyPrefix: {
+          type: 'string',
         },
         forceSwcTransforms: {
           type: 'boolean',
@@ -579,6 +582,7 @@ const configSchema = {
                 type: 'string',
               },
               port: {
+                maxLength: 5,
                 type: 'string',
               },
               protocol: {
@@ -587,8 +591,10 @@ const configSchema = {
                 type: 'string',
               },
             },
+            required: ['hostname'] as any,
             type: 'object',
           },
+          maxItems: 50,
           type: 'array',
         },
         unoptimized: {
@@ -607,9 +613,12 @@ const configSchema = {
         },
         deviceSizes: {
           items: {
-            type: 'number',
+            type: 'integer',
+            minimum: 1,
+            maximum: 10000,
           },
           minItems: 1,
+          maxItems: 25,
           type: 'array',
         },
         disableStaticImages: {
@@ -619,6 +628,7 @@ const configSchema = {
           items: {
             type: 'string',
           },
+          maxItems: 50,
           type: 'array',
         },
         formats: {
@@ -626,13 +636,17 @@ const configSchema = {
             enum: ['image/avif', 'image/webp'], // automatic typing does not like enum
             type: 'string',
           } as any,
+          maxItems: 4,
           type: 'array',
         },
         imageSizes: {
           items: {
-            type: 'number',
+            type: 'integer',
+            minimum: 1,
+            maximum: 10000,
           },
-          minItems: 1,
+          minItems: 0,
+          maxItems: 25,
           type: 'array',
         },
         loader: {
@@ -645,7 +659,8 @@ const configSchema = {
           type: 'string',
         },
         minimumCacheTTL: {
-          type: 'number',
+          type: 'integer',
+          minimum: 0,
         },
         path: {
           minLength: 1,

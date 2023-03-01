@@ -28,9 +28,11 @@ export function getRender({
   serverComponentManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
+  serverActionsManifest,
   config,
   buildId,
   fontLoaderManifest,
+  incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -47,10 +49,12 @@ export function getRender({
   subresourceIntegrityManifest?: Record<string, string>
   serverComponentManifest: any
   serverCSSManifest: any
+  serverActionsManifest: any
   appServerMod: any
   config: NextConfigComplete
   buildId: string
   fontLoaderManifest: FontLoaderManifest
+  incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
@@ -77,9 +81,11 @@ export function getRender({
         disableOptimizedLoading: true,
         serverComponentManifest,
         serverCSSManifest,
+        serverActionsManifest,
       },
       appRenderToHTML,
       pagesRenderToHTML,
+      incrementalCacheHandler,
       loadComponent: async (pathname) => {
         if (isAppPath) return null
 

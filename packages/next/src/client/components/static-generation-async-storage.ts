@@ -8,8 +8,9 @@ export interface StaticGenerationStore {
   readonly isRevalidate?: boolean
 
   forceDynamic?: boolean
-  revalidate?: boolean | number
+  revalidate?: false | number
   forceStatic?: boolean
+  dynamicShouldError?: boolean
   pendingRevalidates?: Promise<any>[]
 
   dynamicUsageDescription?: string

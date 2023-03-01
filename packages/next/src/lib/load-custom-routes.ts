@@ -567,6 +567,10 @@ async function loadRedirects(config: NextConfig) {
   // they are still valid
   checkCustomRoutes(redirects, 'redirect')
 
+  // save original redirects before transforms
+  if (Array.isArray(redirects)) {
+    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+  }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
   return redirects
@@ -604,6 +608,13 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(beforeFiles, 'rewrite')
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
+
+  // save original rewrites before transforms
+  ;(config as any)._originalRewrites = {
+    beforeFiles: beforeFiles.map((r) => ({ ...r })),
+    afterFiles: afterFiles.map((r) => ({ ...r })),
+    fallback: fallback.map((r) => ({ ...r })),
+  }
 
   beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
   afterFiles = processRoutes(afterFiles, config, 'rewrite')

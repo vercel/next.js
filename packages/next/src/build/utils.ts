@@ -111,6 +111,10 @@ function sum(a: ReadonlyArray<number>): number {
 }
 
 function denormalizeAppPagePath(page: string): string {
+  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
+  if (page.endsWith('/index')) {
+    page = page.replace(/\/index$/, '')
+  }
   return page + '/page'
 }
 
@@ -1061,7 +1065,7 @@ export type AppConfig = {
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
-type GenerateParams = Array<{
+export type GenerateParams = Array<{
   config?: AppConfig
   segmentPath: string
   getStaticPaths?: GetStaticPaths
@@ -1330,7 +1334,21 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-        const generateParams = await collectGenerateParams(tree)
+        const handlers = componentsResult.ComponentMod.handlers
+
+        const generateParams: GenerateParams = handlers
+          ? [
+              {
+                config: {
+                  revalidate: handlers.revalidate,
+                  dynamic: handlers.dynamic,
+                  dynamicParams: handlers.dynamicParams,
+                },
+                generateStaticParams: handlers.generateStaticParams,
+                segmentPath: page,
+              },
+            ]
+          : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
@@ -1859,9 +1877,15 @@ export function getPossibleInstrumentationHookFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.map((extension) =>
-    path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
-  )
+  const files = []
+  for (const extension of extensions) {
+    files.push(
+      path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`),
+      path.join(folder, `src`, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
+    )
+  }
+
+  return files
 }
 
 export function getPossibleMiddlewareFilenames(

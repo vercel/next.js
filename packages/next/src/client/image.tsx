@@ -276,7 +276,7 @@ function handleLoading(
   img['data-loaded-src'] = src
   const p = 'decode' in img ? img.decode() : Promise.resolve()
   p.catch(() => {}).then(() => {
-    if (!img.parentNode) {
+    if (!img.parentElement || !img.isConnected) {
       // Exit early in case of race condition:
       // - onload() is called
       // - decode() is called but incomplete
@@ -396,15 +396,18 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       <>
         <img
           {...rest}
-          {...imgAttributes}
+          // @ts-ignore - TODO: upgrade to `@types/react@17`
+          loading={loading}
           width={widthInt}
           height={heightInt}
           decoding="async"
           data-nimg={fill ? 'fill' : '1'}
           className={className}
-          // @ts-ignore - TODO: upgrade to `@types/react@17`
-          loading={loading}
           style={{ ...imgStyle, ...blurStyle }}
+          // It's intended to keep `loading` before `src` because React updates
+          // props in order which causes Safari/Firefox to not lazy load properly.
+          // See https://github.com/facebook/react/issues/25883
+          {...imgAttributes}
           ref={useCallback(
             (img: ImgElementWithDataProp | null) => {
               if (forwardedRef) {

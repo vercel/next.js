@@ -22,6 +22,7 @@ import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { warn } from '../build/output/log'
 import { getPossibleInstrumentationHookFilenames } from '../build/utils'
+import { getNpxCommand } from '../lib/helpers/get-npx-command'
 
 let isTurboSession = false
 let sessionStopHandled = false
@@ -197,10 +198,11 @@ const nextDev: CliCommand = async (argv) => {
       (devDependencies['@next/font'] &&
         devDependencies['@next/font'] !== 'workspace:*')
     ) {
+      const command = getNpxCommand(dir)
       Log.warn(
         'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
           'The `@next/font` package will be removed in Next.js 14. ' +
-          'You can migrate by running the `built-in-next-font` codemod. Read more: https://nextjs.org/docs/messages/built-in-next-font'
+          `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
       )
     }
   }
@@ -459,7 +461,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
 
-    await telemetry.flush()
+    if (!isCustomTurbopack) {
+      await telemetry.flush()
+    }
     return server
   } else {
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
@@ -621,27 +625,20 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
         : []
 
-      const wp = new Watchpack({
-        ignored: (entry: string) => {
-          return (
-            !(entry.split('/').length <= watchedEntryLength) &&
-            !instrumentationFilePaths.includes(entry)
-          )
-        },
+      const instrumentationFileWatcher = new Watchpack({})
+
+      instrumentationFileWatcher.watch({
+        files: instrumentationFilePaths,
+        startTime: 0,
       })
 
-      wp.watch({ directories: [parentDir], startTime: 0 })
       let instrumentationFileLastHash: string | undefined = undefined
-
-      wp.on('aggregated', async () => {
-        const knownFiles = wp.getTimeInfoEntries()
-        const newFiles: string[] = []
-        let hasPagesApp = false
-        // check if the `instrumentation.js` has changed
-        // if it has we need to restart the server
-        const instrumentationFile = [...knownFiles.keys()].find((key) =>
-          instrumentationFilePaths.includes(key)
-        )
+      const previousInstrumentationFiles = new Set<string>()
+      instrumentationFileWatcher.on('aggregated', async () => {
+        const knownFiles = instrumentationFileWatcher.getTimeInfoEntries()
+        const instrumentationFile = [...knownFiles.entries()].find(
+          ([key, value]) => instrumentationFilePaths.includes(key) && value
+        )?.[0]
 
         if (instrumentationFile) {
           const fs = require('fs') as typeof import('fs')
@@ -661,16 +658,19 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             )
             return setupFork()
           } else {
-            if (!instrumentationFileLastHash && previousItems.size !== 0) {
+            if (
+              !instrumentationFileLastHash &&
+              previousInstrumentationFiles.size !== 0
+            ) {
               warn(
-                'An instrumentation file was added, restarting the server to apply changes.'
+                'The instrumentation file was added, restarting the server to apply changes.'
               )
               return setupFork()
             }
             instrumentationFileLastHash = instrumentationFileHash
           }
         } else if (
-          [...previousItems.keys()].find((key) =>
+          [...previousInstrumentationFiles.keys()].find((key) =>
             instrumentationFilePaths.includes(key)
           )
         ) {
@@ -680,6 +680,23 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           instrumentationFileLastHash = undefined
           return setupFork()
         }
+
+        previousInstrumentationFiles.clear()
+        knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+      })
+
+      const projectFolderWatcher = new Watchpack({
+        ignored: (entry: string) => {
+          return !(entry.split('/').length <= watchedEntryLength)
+        },
+      })
+
+      projectFolderWatcher.watch({ directories: [parentDir], startTime: 0 })
+
+      projectFolderWatcher.on('aggregated', async () => {
+        const knownFiles = projectFolderWatcher.getTimeInfoEntries()
+        const newFiles: string[] = []
+        let hasPagesApp = false
 
         // if the dir still exists nothing to check
         try {

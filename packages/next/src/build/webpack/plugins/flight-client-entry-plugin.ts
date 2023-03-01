@@ -11,7 +11,7 @@ import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
-  entries,
+  getEntries,
   EntryTypes,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
@@ -146,7 +146,7 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  async createClientEntries(compiler: any, compilation: any) {
+  async createClientEntries(compiler: webpack.Compiler, compilation: any) {
     const addClientEntryAndSSRModulesList: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
@@ -247,7 +247,7 @@ export class FlightClientEntryPlugin {
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = normalizePathSep(
-          relativeRequest.replace(/\.(js|ts)x?$/, '').replace(/^src[\\/]/, '')
+          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         addClientEntryAndSSRModulesList.push(
@@ -257,6 +257,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientImports,
             bundlePath,
+            absolutePagePath: entryRequest,
           })
         )
       }
@@ -426,7 +427,7 @@ export class FlightClientEntryPlugin {
     )
 
     // Invalidate in development to trigger recompilation
-    const invalidator = getInvalidator()
+    const invalidator = getInvalidator(compiler.outputPath)
     // Check if any of the entry injections need an invalidation
     if (
       invalidator &&
@@ -574,12 +575,14 @@ export class FlightClientEntryPlugin {
     entryName,
     clientImports,
     bundlePath,
+    absolutePagePath,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     entryName: string
     clientImports: ClientComponentImports
     bundlePath: string
+    absolutePagePath?: string
   }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
     let shouldInvalidate = false
 
@@ -594,7 +597,10 @@ export class FlightClientEntryPlugin {
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: this.isEdgeServer
         ? clientImports.map((importPath) =>
-            importPath.replace('next/dist/esm/', 'next/dist/')
+            importPath.replace(
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
+            )
           )
         : clientImports,
       server: false,
@@ -608,11 +614,14 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
+      const entries = getEntries(compiler.outputPath)
       const pageKey = COMPILER_NAMES.client + bundlePath
+
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
           parentEntries: new Set([entryName]),
+          absoluteEntryFilePath: absolutePagePath,
           bundlePath,
           request: clientLoader,
           dispose: false,
@@ -629,6 +638,8 @@ export class FlightClientEntryPlugin {
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
           entryData.parentEntries.add(entryName)
         }
+        entryData.dispose = false
+        entryData.lastActiveTime = Date.now()
       }
     } else {
       injectedClientEntries.set(bundlePath, clientLoader)
@@ -764,6 +775,9 @@ export class FlightClientEntryPlugin {
     }
 
     const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
+    assets[SERVER_REFERENCE_MANIFEST + '.js'] = new sources.RawSource(
+      'self.__RSC_SERVER_MANIFEST=' + json
+    ) as unknown as webpack.sources.RawSource
     assets[SERVER_REFERENCE_MANIFEST + '.json'] = new sources.RawSource(
       json
     ) as unknown as webpack.sources.RawSource

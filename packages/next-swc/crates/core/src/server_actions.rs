@@ -166,6 +166,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             .push(annotate(&f.ident, "$$name", action_name.into()));
 
         if self.top_level {
+            // myAction.$$bound = [];
+            self.annotations.push(annotate(
+                &f.ident,
+                "$$bound",
+                ArrayLit {
+                    span: DUMMY_SP,
+                    elems: Vec::new(),
+                }
+                .into(),
+            ));
+
             if !(self.in_action_file && self.in_export_decl) {
                 // export const $ACTION_myAction = myAction;
                 self.extra_items
@@ -197,10 +208,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 used_ids: &ids_from_closure,
             });
 
-            // myAction.$$closure = [id1, id2]
+            // myAction.$$bound = [id1, id2]
             self.annotations.push(annotate(
                 &f.ident,
-                "$$closure",
+                "$$bound",
                 ArrayLit {
                     span: DUMMY_SP,
                     elems: ids_from_closure
@@ -218,7 +229,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 args: vec![f
                     .ident
                     .clone()
-                    .make_member(quote_ident!("$$closure"))
+                    .make_member(quote_ident!("$$bound"))
                     .as_arg()],
                 type_args: Default::default(),
             };
