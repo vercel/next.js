@@ -319,7 +319,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
             // We can currently only statically optimize if only GET/HEAD
             // are used as a Prerender can't be used conditionally based
             // on the method currently
-            const nonStaticHandlers = [
+            const nonStaticHandlers: ReadonlyArray<HTTP_METHOD> = [
               'OPTIONS',
               'POST',
               'PUT',
@@ -327,7 +327,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               'PATCH',
             ]
             const usedNonStaticHandlers = nonStaticHandlers.filter(
-              (name) => !!(module.handlers as any)[name]
+              (name) => name in module.handlers
             )
 
             if (usedNonStaticHandlers.length > 0) {
