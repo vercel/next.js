@@ -255,7 +255,11 @@ export function RuntimeErrorsDialogBody({
           </small>
         </LeftRightDialogHeader>
       </div>
-      <h2 id="nextjs__container_errors_desc" data-severity="error">
+      <h2
+        data-nextjs-turbo-dialog-body
+        id="nextjs__container_errors_desc"
+        data-severity="error"
+      >
         {activeError.error.name}:{" "}
         <HotlinkedText
           text={decodeMagicIdentifiers(activeError.error.message)}
