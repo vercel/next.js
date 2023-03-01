@@ -45,8 +45,8 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
 import { MetadataTree } from '../lib/metadata/metadata'
-import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
-import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { RequestAsyncStorageWrapper } from './async-storage/request-async-storage-wrapper'
+import { StaticGenerationAsyncStorageWrapper } from './async-storage/static-generation-async-storage-wrapper'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
@@ -184,7 +184,7 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: FlightManifest
   serverCSSManifest?: FlightCSSManifest
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
@@ -2001,11 +2001,11 @@ export async function renderToHTMLOrFlight(
     return renderResult
   }
 
-  return runWithRequestAsyncStorage(
+  return RequestAsyncStorageWrapper.wrap(
     requestAsyncStorage,
     { req, res, renderOpts },
     () =>
-      runWithStaticGenerationAsyncStorage(
+      StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
         { pathname, renderOpts },
         () => wrappedRender()
