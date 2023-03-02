@@ -31,10 +31,7 @@ import type { ModuleLoader } from '../helpers/module-loader/module-loader'
 import { RouteHandler } from './route-handler'
 import * as Log from '../../../build/output/log'
 import { patchFetch } from '../../lib/patch-fetch'
-import {
-  StaticGenerationAsyncStorage,
-  StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage'
+import { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
 import { StaticGenerationAsyncStorageWrapper } from '../../async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../../lib/incremental-cache'
 import { AppConfig } from '../../../build/utils'
@@ -313,7 +310,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               supportsDynamicHTML: false,
             },
           },
-          () => {
+          (staticGenerationStore) => {
             const _req = (request ? request : wrapRequest(req)) as NextRequest
 
             // We can currently only statically optimize if only GET/HEAD
@@ -336,36 +333,38 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               )
             }
 
-            const staticGenerationStore =
-              staticGenerationAsyncStorage.getStore() ||
-              ({} as StaticGenerationStore)
-
-            const dynamicConfig = module.handlers.dynamic
-            const revalidateConfig = module.handlers.revalidate
-            let defaultRevalidate: number | false = false
-
-            if (dynamicConfig === 'force-dynamic') {
-              module.staticGenerationBailout(`dynamic = 'force-dynamic'`)
+            switch (module.handlers.dynamic) {
+              case 'force-dynamic':
+                staticGenerationStore.forceDynamic = true
+                module.staticGenerationBailout(`dynamic = 'force-dynamic'`)
+                break
+              case 'force-static':
+                staticGenerationStore.forceStatic = true
+                break
+              default:
+                // TODO: implement
+                break
             }
-            if (typeof revalidateConfig !== 'undefined') {
-              defaultRevalidate = revalidateConfig
 
-              if (typeof staticGenerationStore.revalidate === 'undefined') {
-                staticGenerationStore.revalidate = defaultRevalidate
-              }
+            if (typeof staticGenerationStore.revalidate === 'undefined') {
+              staticGenerationStore.revalidate =
+                module.handlers.revalidate ?? false
             }
 
             const handleNextUrlBailout = (prop: string | symbol) => {
-              if (
-                [
-                  'search',
-                  'searchParams',
-                  'toString',
-                  'href',
-                  'origin',
-                ].includes(prop as string)
-              ) {
-                module.staticGenerationBailout(`nextUrl.${prop as string}`)
+              if (typeof prop !== 'string') return
+
+              switch (prop) {
+                case 'search':
+                case 'searchParams':
+                case 'toString':
+                case 'href':
+                case 'origin':
+                  return module.staticGenerationBailout(
+                    `nextUrl.${prop as string}`
+                  )
+                default:
+                  return
               }
             }
 
@@ -382,32 +381,31 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
             })
 
             const handleReqBailout = (prop: string | symbol) => {
-              if (prop === 'headers') {
-                return module.headerHooks.headers()
-              }
-              // if request.url is accessed directly instead of
-              // request.nextUrl we bail since it includes query
-              // values that can be relied on dynamically
-              if (prop === 'url') {
-                module.staticGenerationBailout(`request.${prop as string}`)
-              }
-              if (
-                [
-                  'body',
-                  'blob',
-                  'json',
-                  'text',
-                  'arrayBuffer',
-                  'formData',
-                ].includes(prop as string)
-              ) {
-                module.staticGenerationBailout(`request.${prop as string}`)
+              if (typeof prop !== 'string') return
+
+              switch (prop) {
+                case 'headers':
+                  return module.headerHooks.headers()
+                // if request.url is accessed directly instead of
+                // request.nextUrl we bail since it includes query
+                // values that can be relied on dynamically
+                case 'url':
+                case 'body':
+                case 'blob':
+                case 'json':
+                case 'text':
+                case 'arrayBuffer':
+                case 'formData':
+                  return module.staticGenerationBailout(`request.${prop}`)
+                default:
+                  return
               }
             }
 
             const wrappedReq = new Proxy(_req, {
               get(target, prop) {
                 handleReqBailout(prop)
+
                 if (prop === 'nextUrl') {
                   return wrappedNextUrl
                 }
@@ -419,6 +417,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
                 return true
               },
             })
+
             return handle(wrappedReq, { params })
           }
         )
