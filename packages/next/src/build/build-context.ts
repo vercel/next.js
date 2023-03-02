@@ -5,6 +5,7 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type getBaseWebpackConfig from './webpack-config'
+import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 
 // a global object to store context for the current build
@@ -12,6 +13,19 @@ import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 // to pass it through function arguments.
 // Not exhaustive, but should be extended to as needed whilst refactoring
 export const NextBuildContext: Partial<{
+  compilerIdx?: number
+  serializedFlightMaps?: {
+    injectedClientEntries?: any
+    serverModuleIds?: any
+    edgeServerModuleIds?: any
+    asyncClientModules?: any
+  }
+  serializedPagesManifestEntries: {
+    edgeServerPages?: PagesManifest
+    nodeServerPages?: PagesManifest
+    edgeServerAppPaths?: PagesManifest
+    nodeServerAppPaths?: PagesManifest
+  }
   // core fields
   dir: string
   buildId: string

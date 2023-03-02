@@ -41,7 +41,7 @@ interface Options {
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
-export const injectedClientEntries = new Map()
+export const injectedClientEntries = new Map<string, string>()
 
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
