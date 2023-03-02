@@ -78,10 +78,12 @@ export function patchFetch({
         getRequestMeta('method')?.toLowerCase() || 'get'
       )
 
+      const autoNoCache = hasUnCacheableHeader || isUnCacheableMethod
+
       if (typeof revalidate === 'undefined') {
         // if there are uncacheable headers and the cache value
         // wasn't overridden then we must bail static generation
-        if (hasUnCacheableHeader || isUnCacheableMethod) {
+        if (autoNoCache) {
           revalidate = 0
         } else {
           revalidate =
@@ -93,9 +95,12 @@ export function patchFetch({
       }
 
       if (
-        typeof staticGenerationStore.revalidate === 'undefined' ||
-        (typeof revalidate === 'number' &&
-          revalidate < staticGenerationStore.revalidate)
+        // we don't consider autoNoCache to switch to dynamic during
+        // revalidate although if it occurs during build we do
+        (!autoNoCache || !staticGenerationStore.isRevalidate) &&
+        (typeof staticGenerationStore.revalidate === 'undefined' ||
+          (typeof revalidate === 'number' &&
+            revalidate < staticGenerationStore.revalidate))
       ) {
         staticGenerationStore.revalidate = revalidate
       }
