@@ -36,9 +36,9 @@ export const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
     resolved = ''
     for (const viewportKey_ in ViewPortKeys) {
       const viewportKey = viewportKey_ as keyof Viewport
-      let value = viewport[viewportKey]
-      if (typeof value === 'boolean') value = value ? 'yes' : 'no'
-      if (typeof value !== undefined) {
+      if (viewportKey in viewport) {
+        let value = viewport[viewportKey]
+        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
         if (resolved) resolved += ', '
         resolved += `${ViewPortKeys[viewportKey]}=${value}`
       }
