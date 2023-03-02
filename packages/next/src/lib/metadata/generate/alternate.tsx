@@ -44,12 +44,12 @@ export function AlternatesMetadata({
           })
         : null}
       {media
-        ? Object.entries(media).map(([media, descriptors]) =>
+        ? Object.entries(media).map(([mediaName, descriptors]) =>
             descriptors?.map((descriptor, index) => (
               <AlternateLink
                 rel="alternate"
                 key={index}
-                media={media}
+                media={mediaName}
                 descriptor={descriptor}
               />
             ))

@@ -1,5 +1,4 @@
 import path from '../../../shared/lib/isomorphic/path'
-import type { ResolvedMetadata } from '../types/metadata-interface'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
