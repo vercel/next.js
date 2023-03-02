@@ -10,6 +10,7 @@ export type RequestContext = {
     supportsDynamicHTML: boolean
     isRevalidate?: boolean
     isBot?: boolean
+    nextExport?: boolean
   }
 }
 
@@ -53,6 +54,7 @@ export class StaticGenerationAsyncStorageWrapper
       pathname,
       incrementalCache: renderOpts.incrementalCache,
       isRevalidate: renderOpts.isRevalidate,
+      isPrerendering: renderOpts.nextExport,
     }
     ;(renderOpts as any).store = store
 

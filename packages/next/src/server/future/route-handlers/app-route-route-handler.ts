@@ -93,6 +93,7 @@ export type AppRouteModule = {
 export type StaticGenerationContext = {
   incrementalCache?: IncrementalCache
   supportsDynamicHTML: boolean
+  nextExport?: boolean
 }
 
 /**
