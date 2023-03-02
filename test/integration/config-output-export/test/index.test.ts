@@ -85,7 +85,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with ./pages/api', async () => {
+  it('should error with api routes', async () => {
     const pagesApi = join(appDir, 'pages/api')
     let result
     let response
@@ -106,6 +106,30 @@ describe('config-output-export', () => {
     expect(response.status).toBe(404)
     expect(result?.stderr).toContain(
       'API Routes cannot be used with "output: export".'
+    )
+  })
+
+  it('should error with middleware', async () => {
+    const middleware = join(appDir, 'middleware.js')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let response: Response | undefined
+    try {
+      fs.writeFileSync(
+        middleware,
+        'export function middleware(req) { console.log("[mw]",request.url) }'
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      response = await fetchViaHTTP(result.port, '/api/mw')
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(middleware)
+    }
+    expect(response.status).toBe(404)
+    expect(result?.stdout + result?.stderr).not.toContain('[mw]')
+    expect(result?.stderr).toContain(
+      'Middleware cannot be used with "output: export".'
     )
   })
 })

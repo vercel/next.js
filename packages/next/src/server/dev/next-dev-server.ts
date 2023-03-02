@@ -489,6 +489,12 @@ export default class DevServer extends Server {
           })
 
           if (isMiddlewareFile(rootFile)) {
+            if (this.nextConfig.output === 'export') {
+              Log.error(
+                'Middleware cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+              )
+              continue
+            }
             this.actualMiddlewareFile = rootFile
             middlewareMatchers = staticInfo.middleware?.matchers || [
               { regexp: '.*' },
