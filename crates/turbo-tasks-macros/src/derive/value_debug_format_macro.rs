@@ -52,10 +52,24 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Formats a single field nested inside named or unnamed fields.
+fn format_field(value: TokenStream2) -> TokenStream2 {
+    quote! {
+        match #value.value_debug_format(depth.saturating_sub(1)).try_to_value_debug_string().await {
+            Ok(result) => match result.await {
+                Ok(result) => result.to_string(),
+                Err(err) => format!("{:?}", err),
+            },
+            Err(err) => format!("{:?}", err),
+        }
+    }
+}
+
 /// Formats a struct or enum variant with named fields (e.g. `struct Foo {
 /// bar: u32 }`, `Foo::Bar { baz: u32 }`).
 fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_destructuring(fields.named.iter(), &ignore_field);
+    let fields_values = fields_idents.iter().cloned().map(format_field);
     (
         captures,
         quote! {
@@ -64,7 +78,7 @@ fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
                 vec![#(
                     FormattingField::new(
                         stringify!(#fields_idents),
-                        #fields_idents.value_debug_format(depth.saturating_sub(1)).try_to_value_debug_string().await?.await?.to_string(),
+                        #fields_values,
                     ),
                 )*],
             )
@@ -76,13 +90,14 @@ fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
 /// Foo(u32)`, `Foo::Bar(u32)`).
 fn format_unnamed(ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, TokenStream2) {
     let (captures, fields_idents) = generate_destructuring(fields.unnamed.iter(), &ignore_field);
+    let fields_values = fields_idents.into_iter().map(format_field);
     (
         captures,
         quote! {
             FormattingStruct::new_unnamed(
                 stringify!(#ident),
                 vec![#(
-                    #fields_idents.value_debug_format(depth.saturating_sub(1)).try_to_value_debug_string().await?.await?.to_string(),
+                    #fields_values,
                 )*],
             )
         },
