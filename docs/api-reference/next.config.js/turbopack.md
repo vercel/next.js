@@ -27,7 +27,7 @@ module.exports = {
           },
         ],
         // Option-less format
-        '.mdx': '@mdx-js/loader',
+        '.mdx': ['@mdx-js/loader'],
       },
     },
   },
