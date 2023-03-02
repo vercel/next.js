@@ -39,6 +39,7 @@ export type HtmlProps = {
   crossOrigin?: string
   optimizeCss?: any
   optimizeFonts?: FontConfig
+  output?: 'standalone' | 'export'
   nextScriptWorkers?: boolean
   runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean

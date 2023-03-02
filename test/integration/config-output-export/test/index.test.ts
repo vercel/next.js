@@ -3,11 +3,14 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getRedboxHeader,
+  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs'
 
@@ -130,6 +133,41 @@ describe('config-output-export', () => {
     expect(result?.stdout + result?.stderr).not.toContain('[mw]')
     expect(result?.stderr).toContain(
       'Middleware cannot be used with "output: export".'
+    )
+  })
+
+  it('should error with isr', async () => {
+    const blog = join(appDir, 'pages/blog.js')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let browser: any
+    try {
+      fs.writeFileSync(
+        blog,
+        `export default function Blog({ posts }) {
+          return posts.map(p => (<>{p}</>))
+         }
+         
+         export async function getStaticProps() {
+          return { 
+           props: { posts: ["my first post"] },
+           revalidate: 10
+          }
+         }`
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      browser = await webdriver(result.port, '/blog')
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(blog)
+    }
+    expect(await hasRedbox(browser, true)).toBe(true)
+    expect(await getRedboxHeader(browser)).toContain(
+      'ISR cannot be used with "output: export".'
+    )
+    expect(result?.stderr).toContain(
+      'ISR cannot be used with "output: export".'
     )
   })
 })

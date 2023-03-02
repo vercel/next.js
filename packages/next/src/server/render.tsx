@@ -241,6 +241,7 @@ export type RenderOptsPartial = {
   optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
+  output?: 'standalone' | 'export'
   nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -846,6 +847,12 @@ export async function renderToHTML(
     }
 
     if ('revalidate' in data) {
+      if (renderOpts.nextExport) {
+        throw new Error('ISR cannot be used with next export.')
+      }
+      if (renderOpts.output === 'export') {
+        throw new Error('ISR cannot be used with "output: export".')
+      }
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
@@ -1400,6 +1407,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
+    output: renderOpts.output,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
