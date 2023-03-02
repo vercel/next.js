@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
     console_subscriber::init();
     let args = Arc::new(Args::parse());
     let should_print = matches!(&*args, Args::Print { .. });
-    let result = start(args, None).await?;
+    let result = start(args, None, None, None).await?;
     if should_print {
         for file in result.iter() {
             println!("{}", file);

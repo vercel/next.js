@@ -26,7 +26,8 @@ use turbo_tasks::{
     NothingVc, TaskId, TransientInstance, TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{
-    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystem, FileSystemVc, ReadGlobResultVc,
+    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc,
+    ReadGlobResultVc,
 };
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
@@ -127,11 +128,6 @@ pub struct CommonArgs {
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "node-api", serde(default))]
     exact: bool,
-
-    /// Whether to enable mdx parsing while tracing dependencies
-    #[cfg_attr(feature = "cli", clap(long))]
-    #[cfg_attr(feature = "node-api", serde(default))]
-    enable_mdx: bool,
 
     /// Enable experimental garbage collection with the provided memory limit in
     /// MB.
@@ -241,60 +237,20 @@ async fn add_glob_results(
 async fn input_to_modules<'a>(
     fs: FileSystemVc,
     input: Vec<String>,
-    process_cwd: Option<String>,
     exact: bool,
-    enable_mdx: bool,
+    process_cwd: Option<String>,
+    context: String,
+    module_options: TransientInstance<ModuleOptionsContext>,
+    resolve_options: TransientInstance<ResolveOptionsContext>,
 ) -> Result<AssetsVc> {
     let root = fs.root();
-    let env = EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironment {
-                cwd: OptionStringVc::cell(process_cwd),
-                ..Default::default()
-            }
-            .into(),
-        )),
-        Value::new(EnvironmentIntention::Api),
-    );
-    let compile_time_info = CompileTimeInfo {
-        environment: env,
-        defines: CompileTimeDefinesVc::empty(),
-    }
-    .cell();
-    let glob_mappings = vec![
-        (
-            root,
-            GlobVc::new("**/*/next/dist/server/next.js"),
-            ImportMapping::Ignore.into(),
-        ),
-        (
-            root,
-            GlobVc::new("**/*/next/dist/bin/next"),
-            ImportMapping::Ignore.into(),
-        ),
-    ];
-    let context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(HashMap::new()),
-        compile_time_info,
-        ModuleOptionsContext {
-            enable_types: true,
-            enable_mdx,
-            ..Default::default()
-        }
-        .cell(),
-        ResolveOptionsContext {
-            emulate_environment: Some(env),
-            resolved_map: Some(
-                ResolvedMap {
-                    by_glob: glob_mappings,
-                }
-                .cell(),
-            ),
-            ..Default::default()
-        }
-        .cell(),
-    )
-    .into();
+    let process_cwd = process_cwd
+        .clone()
+        .map(|p| p.trim_start_matches(&context).to_owned());
+
+    let context: AssetContextVc =
+        create_module_asset(root, process_cwd, module_options, resolve_options).into();
+
     let mut list = Vec::new();
     for input in input.iter() {
         if exact {
@@ -353,6 +309,8 @@ fn process_input(dir: &Path, context: &str, input: &[String]) -> Result<Vec<Stri
 pub async fn start(
     args: Arc<Args>,
     turbo_tasks: Option<&Arc<TurboTasks<MemoryBackend>>>,
+    module_options: Option<ModuleOptionsContext>,
+    resolve_options: Option<ResolveOptionsContext>,
 ) -> Result<Vec<String>> {
     register();
     let &CommonArgs {
@@ -437,6 +395,8 @@ pub async fn start(
                 println!("graph.html written");
             }
         },
+        module_options,
+        resolve_options,
     )
     .await
 }
@@ -445,6 +405,8 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     args: Arc<Args>,
     create_tt: impl Fn() -> Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
+    module_options: Option<ModuleOptionsContext>,
+    resolve_options: Option<ResolveOptionsContext>,
 ) -> Result<Vec<String>> {
     let &CommonArgs {
         watch,
@@ -497,8 +459,15 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         let dir = dir.clone();
         let args = args.clone();
         let sender = sender.clone();
+        let module_options = TransientInstance::new(module_options.clone().unwrap_or_default());
+        let resolve_options = TransientInstance::new(resolve_options.clone().unwrap_or_default());
         Box::pin(async move {
-            let output = main_operation(TransientValue::new(dir.clone()), args.clone().into());
+            let output = main_operation(
+                TransientValue::new(dir.clone()),
+                args.clone().into(),
+                module_options,
+                resolve_options,
+            );
 
             let source = TransientValue::new(output.into());
             let issues = IssueVc::peek_issues_with_path(output)
@@ -538,6 +507,8 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
 async fn main_operation(
     current_dir: TransientValue<PathBuf>,
     args: TransientInstance<Args>,
+    module_options: TransientInstance<ModuleOptionsContext>,
+    resolve_options: TransientInstance<ResolveOptionsContext>,
 ) -> Result<StringsVc> {
     let dir = current_dir.into_value();
     let args = &*args;
@@ -545,21 +516,27 @@ async fn main_operation(
         ref input,
         watch,
         exact,
-        enable_mdx,
         ref context_directory,
         ref process_cwd,
         ..
     } = args.common();
     let context = process_context(&dir, context_directory.as_ref()).unwrap();
-    let process_cwd = process_cwd
-        .clone()
-        .map(|p| p.trim_start_matches(&context).to_owned());
+    let fs = create_fs("context directory", &context, watch).await?;
+
     match *args {
         Args::Print { common: _ } => {
             let input = process_input(&dir, &context, input).unwrap();
             let mut result = BTreeSet::new();
-            let fs = create_fs("context directory", &context, watch).await?;
-            let modules = input_to_modules(fs, input, process_cwd, exact, enable_mdx).await?;
+            let modules = input_to_modules(
+                fs,
+                input,
+                exact,
+                process_cwd.clone(),
+                context,
+                module_options,
+                resolve_options,
+            )
+            .await?;
             for module in modules.iter() {
                 let set = all_assets(*module);
                 IssueVc::attach_context(
@@ -578,12 +555,19 @@ async fn main_operation(
         }
         Args::Annotate { common: _ } => {
             let input = process_input(&dir, &context, input).unwrap();
-            let fs = create_fs("context directory", &context, watch).await?;
             let mut output_nft_assets = Vec::new();
             let mut emits = Vec::new();
-            for module in input_to_modules(fs, input, process_cwd, exact, enable_mdx)
-                .await?
-                .iter()
+            for module in input_to_modules(
+                fs,
+                input,
+                exact,
+                process_cwd.clone(),
+                context,
+                module_options,
+                resolve_options,
+            )
+            .await?
+            .iter()
             {
                 let nft_asset = NftJsonAssetVc::new(*module);
                 let path = nft_asset.ident().path().await?.path.clone();
@@ -602,14 +586,21 @@ async fn main_operation(
         } => {
             let output = process_context(&dir, Some(output_directory)).unwrap();
             let input = process_input(&dir, &context, input).unwrap();
-            let fs = create_fs("context directory", &context, watch).await?;
             let out_fs = create_fs("output directory", &output, watch).await?;
             let input_dir = fs.root();
             let output_dir = out_fs.root();
             let mut emits = Vec::new();
-            for module in input_to_modules(fs, input, process_cwd, exact, enable_mdx)
-                .await?
-                .iter()
+            for module in input_to_modules(
+                fs,
+                input,
+                exact,
+                process_cwd.clone(),
+                context,
+                module_options,
+                resolve_options,
+            )
+            .await?
+            .iter()
             {
                 let rebased = RebasedAssetVc::new(*module, input_dir, output_dir).into();
                 emits.push(emit_with_completion(rebased, output_dir));
@@ -622,6 +613,61 @@ async fn main_operation(
         Args::Size { common: _ } => todo!(),
     }
     Ok(StringsVc::cell(Vec::new()))
+}
+
+#[turbo_tasks::function]
+async fn create_module_asset(
+    root: FileSystemPathVc,
+    process_cwd: Option<String>,
+    module_options: TransientInstance<ModuleOptionsContext>,
+    resolve_options: TransientInstance<ResolveOptionsContext>,
+) -> Result<ModuleAssetContextVc> {
+    let env = EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment {
+                cwd: OptionStringVc::cell(process_cwd.clone()),
+                ..Default::default()
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Api),
+    );
+    let compile_time_info = CompileTimeInfo {
+        environment: env,
+        defines: CompileTimeDefinesVc::empty(),
+    }
+    .cell();
+    let glob_mappings = vec![
+        (
+            root,
+            GlobVc::new("**/*/next/dist/server/next.js"),
+            ImportMapping::Ignore.into(),
+        ),
+        (
+            root,
+            GlobVc::new("**/*/next/dist/bin/next"),
+            ImportMapping::Ignore.into(),
+        ),
+    ];
+    let mut resolve_options = ResolveOptionsContext::clone(&*resolve_options);
+    if resolve_options.emulate_environment.is_none() {
+        resolve_options.emulate_environment = Some(env);
+    }
+    if resolve_options.resolved_map.is_none() {
+        resolve_options.resolved_map = Some(
+            ResolvedMap {
+                by_glob: glob_mappings,
+            }
+            .cell(),
+        );
+    }
+
+    Ok(ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
+        compile_time_info,
+        ModuleOptionsContext::clone(&*module_options).cell(),
+        resolve_options.cell(),
+    ))
 }
 
 fn register() {
