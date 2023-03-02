@@ -49,8 +49,19 @@ pub struct Completions(Vec<CompletionVc>);
 
 #[turbo_tasks::value_impl]
 impl CompletionsVc {
+    /// Merges multiple completions into one. The passed list will be part of
+    /// the cache key, so this function should not be used with varying lists.
+    ///
+    /// Varying lists should use `CompletionsVc::cell(list).completed()`
+    /// instead.
     #[turbo_tasks::function]
-    pub async fn all(self) -> anyhow::Result<CompletionVc> {
+    pub fn all(completions: Vec<CompletionVc>) -> CompletionVc {
+        CompletionsVc::cell(completions).completed()
+    }
+
+    /// Merges the list of completions into one.
+    #[turbo_tasks::function]
+    pub async fn completed(self) -> anyhow::Result<CompletionVc> {
         for c in self.await?.iter() {
             c.await?;
         }

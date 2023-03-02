@@ -389,11 +389,10 @@ async fn source(
         execution_context,
         next_config,
         server_addr,
-        CompletionsVc::cell(vec![
+        CompletionsVc::all(vec![
             app_structure.routes_changed(),
             pages_structure.routes_changed(),
-        ])
-        .all(),
+        ]),
     )
     .into();
     let source = RouterContentSource {

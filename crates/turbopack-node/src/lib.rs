@@ -67,7 +67,7 @@ async fn emit(
             .flatten()
             .collect(),
     )
-    .all())
+    .completed())
 }
 
 /// List of the all assets of the "internal" subgraph and a list of boundary

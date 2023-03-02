@@ -12,6 +12,7 @@ use turbo_tasks_fs::{json::parse_json_rope_with_source_context, FileSystemPathVc
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::Asset,
+    changed::any_content_changed,
     context::AssetContext,
     ident::AssetIdentVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -23,8 +24,7 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc,
+    EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
 };
 use turbopack_node::{
     evaluate::{evaluate, JavaScriptValue},
@@ -558,17 +558,17 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         FindContextFileResult::NotFound(_) => None,
     };
 
-    let runtime_entries = config_asset.map(|config_asset| {
-        // TODO this is a hack to add the config to the bundling to make it watched
-        let config_chunk = EcmascriptModuleAssetVc::new(
+    let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
+        // This invalidates the execution when anything referenced by the config file
+        // changes
+        let config_asset = EcmascriptModuleAssetVc::new(
             config_asset.into(),
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
             context.compile_time_info(),
-        )
-        .as_ecmascript_chunk_placeable();
-        EcmascriptChunkPlaceablesVc::cell(vec![config_chunk])
+        );
+        any_content_changed(config_asset.into())
     });
     let load_next_config_asset = context.process(
         next_asset("entry/config/next.js"),
@@ -582,9 +582,9 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),
         context,
         intermediate_output_path,
-        runtime_entries,
+        None,
         vec![],
-        CompletionVc::immutable(),
+        config_changed,
         /* debug */ false,
     )
     .await?;

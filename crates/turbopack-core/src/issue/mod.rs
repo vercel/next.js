@@ -467,7 +467,7 @@ impl PlainIssue {
         hasher.write_ref(&self.title);
         hasher.write_ref(
             // Normalize syspaths from Windows. These appear in stack traces.
-            &self.description.replace("\\", "/"),
+            &self.description.replace('\\', "/"),
         );
         hasher.write_ref(&self.detail);
         hasher.write_ref(&self.documentation_link);

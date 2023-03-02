@@ -102,18 +102,19 @@ pub async fn process_request_with_content_source(
 
                 // naively checking if content is `compressible`.
                 let mut should_compress = false;
-                let should_compress_predicate =
-                    |mime: &Mime| match (mime.type_(), mime.subtype(), mime.suffix()) {
+                let should_compress_predicate = |mime: &Mime| {
+                    matches!(
+                        (mime.type_(), mime.subtype(), mime.suffix()),
                         (_, mime::PLAIN, _)
-                        | (_, mime::JSON, _)
-                        | (mime::TEXT, _, _)
-                        | (mime::APPLICATION, mime::XML, _)
-                        | (mime::APPLICATION, mime::JAVASCRIPT, _)
-                        | (_, _, Some(mime::XML))
-                        | (_, _, Some(mime::JSON))
-                        | (_, _, Some(mime::TEXT)) => true,
-                        _ => false,
-                    };
+                            | (_, mime::JSON, _)
+                            | (mime::TEXT, _, _)
+                            | (mime::APPLICATION, mime::XML, _)
+                            | (mime::APPLICATION, mime::JAVASCRIPT, _)
+                            | (_, _, Some(mime::XML))
+                            | (_, _, Some(mime::JSON))
+                            | (_, _, Some(mime::TEXT))
+                    )
+                };
 
                 if let Some(content_type) = file.content_type() {
                     header_map.append(
