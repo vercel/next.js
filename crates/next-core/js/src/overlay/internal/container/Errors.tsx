@@ -166,17 +166,29 @@ function useDisplayState(
 }
 
 const enum TabId {
-  TurbopackIssues = "turbopack-issues",
+  TurbopackErrors = "turbopack-issues",
+  TurbopackWarnings = "turbopack-warnings",
   RuntimeErrors = "runtime-errors",
 }
+
+const TAB_PRIORITY = [
+  TabId.TurbopackErrors,
+  TabId.RuntimeErrors,
+  TabId.TurbopackWarnings,
+];
 
 export function Errors({ issues, errors }: ErrorsProps) {
   const [readyErrors, isLoading] = useResolvedErrors(errors);
 
-  const hasIssues = issues.length !== 0;
-  const hasIssueWithError = issues.some((issue) =>
+  const turbopackWarnings = issues.filter(
+    (issue) => !["bug", "fatal", "error"].includes(issue.severity)
+  );
+  const turbopackErrors = issues.filter((issue) =>
     ["bug", "fatal", "error"].includes(issue.severity)
   );
+
+  const hasTurbopackWarnings = turbopackWarnings.length > 0;
+  const hasTurbopackErrors = turbopackErrors.length > 0;
 
   const hasErrors = errors.length !== 0;
   const hasServerError = readyErrors.some((err) =>
@@ -184,23 +196,28 @@ export function Errors({ issues, errors }: ErrorsProps) {
   );
 
   // TODO for now it's already closable, but in future we might want to block users from using a broken app
-  // const isClosable = !isLoading && !hasIssueWithError && !hasServerError;
+  // const isClosable = !isLoading && !hasTurbopackErrors && !hasServerError;
   const isClosable = true;
 
   const defaultTab =
-    hasIssueWithError || !hasErrors
-      ? TabId.TurbopackIssues
-      : TabId.RuntimeErrors;
+    TAB_PRIORITY.find(
+      (tabId) =>
+        ({
+          [TabId.TurbopackErrors]: turbopackErrors.length > 0,
+          [TabId.TurbopackWarnings]: turbopackWarnings.length > 0,
+          [TabId.RuntimeErrors]: hasErrors,
+        }[tabId])
+    ) ?? TabId.RuntimeErrors;
 
   const [selectedTab, setSelectedTab] = React.useState<string>(defaultTab);
 
   React.useEffect(() => {
-    if (defaultTab === TabId.TurbopackIssues) {
-      setSelectedTab(TabId.TurbopackIssues);
+    if (defaultTab === TabId.TurbopackErrors) {
+      setSelectedTab(TabId.TurbopackErrors);
     }
   }, [defaultTab]);
 
-  const onlyHasWarnings = !hasErrors && !hasIssueWithError;
+  const onlyHasWarnings = !hasErrors && !hasTurbopackErrors;
 
   const [stateDisplayState, { fullscreen, minimize, hide }] = useDisplayState(
     onlyHasWarnings ? DisplayState.Minimized : DisplayState.Fullscreen
@@ -213,7 +230,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
-  if (!hasErrors && !hasIssues) {
+  if (!hasErrors && !hasTurbopackWarnings && !hasTurbopackErrors) {
     return null;
   }
 
@@ -224,7 +241,8 @@ export function Errors({ issues, errors }: ErrorsProps) {
   if (displayState === DisplayState.Minimized) {
     return (
       <ErrorsToast
-        errorCount={readyErrors.length + issues.length}
+        errorCount={readyErrors.length + turbopackErrors.length}
+        warningCount={turbopackWarnings.length}
         severity={onlyHasWarnings ? "warning" : "error"}
         onClick={fullscreen}
         onClose={hide}
@@ -248,20 +266,45 @@ export function Errors({ issues, errors }: ErrorsProps) {
           close={isClosable ? minimize : undefined}
         >
           <DialogHeaderTabList>
-            {hasIssues && (
+            {hasTurbopackErrors && (
               <Tab
-                id={TabId.TurbopackIssues}
-                next={hasErrors ? TabId.RuntimeErrors : undefined}
-                data-severity={hasIssueWithError ? "error" : "warning"}
+                id={TabId.TurbopackErrors}
+                next={
+                  hasTurbopackWarnings
+                    ? TabId.TurbopackWarnings
+                    : hasErrors
+                    ? TabId.RuntimeErrors
+                    : undefined
+                }
+                data-severity="error"
               >
                 <PackageX />
-                {issues.length} Turbopack Issue{issues.length > 1 ? "s" : ""}
+                {turbopackErrors.length} Turbopack Error
+                {turbopackErrors.length > 1 ? "s" : ""}
+              </Tab>
+            )}
+            {hasTurbopackWarnings && (
+              <Tab
+                id={TabId.TurbopackWarnings}
+                prev={hasTurbopackErrors ? TabId.TurbopackErrors : undefined}
+                next={hasErrors ? TabId.RuntimeErrors : undefined}
+                data-severity="warning"
+              >
+                <PackageX />
+                {turbopackWarnings.length} Turbopack Warning
+                {turbopackWarnings.length > 1 ? "s" : ""}
               </Tab>
             )}
             {hasErrors && (
               <Tab
                 id={TabId.RuntimeErrors}
-                prev={hasIssues ? TabId.TurbopackIssues : undefined}
+                prev={
+                  hasTurbopackWarnings
+                    ? TabId.TurbopackWarnings
+                    : hasTurbopackErrors
+                    ? TabId.TurbopackErrors
+                    : undefined
+                }
                 data-severity="error"
               >
                 <AlertOctagon />
@@ -274,11 +317,19 @@ export function Errors({ issues, errors }: ErrorsProps) {
             )}
           </DialogHeaderTabList>
         </DialogHeader>
-        {hasIssues && (
+        {hasTurbopackErrors && (
           <TabPanel
             as={TurbopackIssuesDialogBody}
-            id={TabId.TurbopackIssues}
-            issues={issues}
+            id={TabId.TurbopackErrors}
+            issues={turbopackErrors}
+            className="errors-body"
+          />
+        )}
+        {hasTurbopackWarnings && (
+          <TabPanel
+            as={TurbopackIssuesDialogBody}
+            id={TabId.TurbopackWarnings}
+            issues={turbopackWarnings}
             className="errors-body"
           />
         )}

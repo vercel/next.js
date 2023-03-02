@@ -4,6 +4,7 @@ import { noop as css } from "../helpers/noop-template";
 
 export type ErrorsToastProps = {
   errorCount: number;
+  warningCount: number;
   severity: "error" | "warning";
   onClick: () => void;
   onClose: () => void;
@@ -11,19 +12,30 @@ export type ErrorsToastProps = {
 
 export function ErrorsToast({
   errorCount,
+  warningCount,
   severity,
   onClick,
   onClose,
 }: ErrorsToastProps) {
+  let message = "";
+
+  if (errorCount > 0) {
+    message += errorCount + " " + (errorCount > 1 ? "Errors" : "Error");
+  }
+  if (warningCount > 0) {
+    if (errorCount > 0) {
+      message += " and ";
+    }
+
+    message += warningCount + " " + (warningCount > 1 ? "Warnings" : "Warning");
+  }
+
   return (
     <Toast className="toast-errors" onClick={onClick} data-severity={severity}>
       <div className="toast-errors-body">
         {severity == "error" && <AlertOctagon />}
         {severity == "warning" && <AlertTriangle />}
-        <span>
-          {errorCount} {severity}
-          {errorCount > 1 ? "s" : ""}
-        </span>
+        <span>{message}</span>
         <button
           data-toast-errors-hide-button
           className="toast-errors-hide-button"
