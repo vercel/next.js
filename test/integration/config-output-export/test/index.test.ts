@@ -40,6 +40,18 @@ describe('config-output-export', () => {
     await nextConfig.restore()
   })
 
+  it('should work with static homepage', async () => {
+    const result = await runDev({
+      output: 'export',
+    })
+    const response = await fetchViaHTTP(result.port, '/')
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain(
+      '<div id="__next">Hello World</div>'
+    )
+    expect(result.stderr).toBeEmpty()
+  })
+
   it('should error with i18n', async () => {
     const { stderr } = await runDev({
       output: 'export',
@@ -144,7 +156,7 @@ describe('config-output-export', () => {
       fs.writeFileSync(
         blog,
         `export default function Blog({ posts }) {
-          return posts.map(p => (<>{p}</>))
+          return posts.map(p => (<div key={p}>{p}</div>))
          }
          
          export async function getStaticProps() {
@@ -169,5 +181,33 @@ describe('config-output-export', () => {
     expect(result?.stderr).toContain(
       'ISR cannot be used with "output: export".'
     )
+  })
+
+  it('should work with gsp', async () => {
+    const blog = join(appDir, 'pages/blog.js')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let browser: any
+    try {
+      fs.writeFileSync(
+        blog,
+        `export default function Blog({ posts }) {
+          return posts.map(p => (<div key={p}>{p}</div>))
+         }
+         
+         export async function getStaticProps() {
+          return { 
+           props: { posts: ["my first post"] },
+          }
+         }`
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      browser = await webdriver(result.port, '/blog')
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(blog)
+    }
+    expect(await hasRedbox(browser, false)).toBe(false)
   })
 })
