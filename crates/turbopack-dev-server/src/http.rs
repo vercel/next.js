@@ -1,7 +1,15 @@
+use std::io::{Error, ErrorKind};
+
 use anyhow::Result;
 use futures::{StreamExt, TryStreamExt};
-use hyper::{header::HeaderName, Request, Response};
+use hyper::{
+    header::{HeaderName, CONTENT_ENCODING, CONTENT_LENGTH},
+    http::HeaderValue,
+    Request, Response,
+};
+use mime::Mime;
 use mime_guess::mime;
+use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::TransientInstance;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
@@ -92,14 +100,32 @@ pub async fn process_request_with_content_source(
                     );
                 }
 
+                // naively checking if content is `compressible`.
+                let mut should_compress = false;
+                let should_compress_predicate =
+                    |mime: &Mime| match (mime.type_(), mime.subtype(), mime.suffix()) {
+                        (_, mime::PLAIN, _)
+                        | (_, mime::JSON, _)
+                        | (mime::TEXT, _, _)
+                        | (mime::APPLICATION, mime::XML, _)
+                        | (mime::APPLICATION, mime::JAVASCRIPT, _)
+                        | (_, _, Some(mime::XML))
+                        | (_, _, Some(mime::JSON))
+                        | (_, _, Some(mime::TEXT)) => true,
+                        _ => false,
+                    };
+
                 if let Some(content_type) = file.content_type() {
                     header_map.append(
                         "content-type",
                         hyper::header::HeaderValue::try_from(content_type.to_string())?,
                     );
+
+                    should_compress = should_compress_predicate(content_type);
                 } else if let hyper::header::Entry::Vacant(entry) = header_map.entry("content-type")
                 {
                     let guess = mime_guess::from_path(&original_path).first_or_octet_stream();
+                    should_compress = should_compress_predicate(&guess);
                     // If a text type, application/javascript, or application/json was
                     // guessed, use a utf-8 charset as  we most likely generated it as
                     // such.
@@ -117,13 +143,31 @@ pub async fn process_request_with_content_source(
                 }
 
                 let content = file.content();
-                header_map.insert(
-                    "Content-Length",
-                    hyper::header::HeaderValue::try_from(content.len().to_string())?,
-                );
+                let response = if should_compress {
+                    header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
 
-                let bytes = content.read();
-                return Ok(response.body(hyper::Body::wrap_stream(bytes))?);
+                    // Grab ropereader stream, coerce anyhow::Error to std::io::Error
+                    let stream_ext = content
+                        .read()
+                        .into_stream()
+                        .map_err(|err| Error::new(ErrorKind::Other, err));
+
+                    let gzipped_stream =
+                        ReaderStream::new(async_compression::tokio::bufread::GzipEncoder::new(
+                            StreamReader::new(stream_ext),
+                        ));
+
+                    response.body(hyper::Body::wrap_stream(gzipped_stream))?
+                } else {
+                    header_map.insert(
+                        CONTENT_LENGTH,
+                        hyper::header::HeaderValue::try_from(content.len().to_string())?,
+                    );
+
+                    response.body(hyper::Body::wrap_stream(content.read()))?
+                };
+
+                return Ok(response);
             }
         }
         GetFromSourceResult::HttpProxy(proxy_result) => {
