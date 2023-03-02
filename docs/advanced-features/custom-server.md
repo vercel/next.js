@@ -53,11 +53,13 @@ app.prepare().then(() => {
       res.statusCode = 500
       res.end('internal server error')
     }
-  }).once('error', (err) => {
-    throw err
-  }).listen(port, () => {
-    console.log(`> Ready on http://${hostname}:${port}`)
   })
+    .once('error', (err) => {
+      throw err
+    })
+    .listen(port, () => {
+      console.log(`> Ready on http://${hostname}:${port}`)
+    })
 })
 ```
 
