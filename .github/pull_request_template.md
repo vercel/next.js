@@ -17,8 +17,8 @@ Choose the right checklist for the change(s) that you're making:
 
 ### Adding a feature
 
-- Implements an existing feature request or RFC. Make sure the feature request has been accepted for implementation before opening a PR. (An issue/discussion must be opened!)
-- Related issues linked using `fixes #number`
+- Implements an existing feature request or RFC. Make sure the feature request has been accepted for implementation before opening a PR. (A discussion must be opened, see https://github.com/vercel/next.js/discussions/new?category=ideas)
+- Related issues/discussions are linked using `fixes #number`
 - e2e tests added (https://github.com/vercel/next.js/blob/canary/contributing/core/testing.md#writing-tests-for-nextjs
 - Documentation added
 - Telemetry added. In case of a feature if it's used or not.
