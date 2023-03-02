@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: true,
+                    enable_node_modules: Some(fs.root()),
                     custom_conditions: vec!["development".to_string()],
                     ..Default::default()
                 }

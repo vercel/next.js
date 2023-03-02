@@ -420,7 +420,7 @@ fn node_file_trace<B: Backend + 'static>(
                     .cell(),
                     ResolveOptionsContext {
                         enable_node_native_modules: true,
-                        enable_node_modules: true,
+                        enable_node_modules: Some(input_dir),
                         custom_conditions: vec!["node".to_string()],
                         ..Default::default()
                     }

@@ -1,5 +1,6 @@
-use anyhow::{bail, Result};
-use turbo_tasks::ValueToString;
+use anyhow::Result;
+use indexmap::indexmap;
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
@@ -9,14 +10,16 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::{Asset, AssetVc},
-    chunk::{ChunkableAssetVc, ChunkingContextVc},
-    compile_time_info::CompileTimeInfoVc,
-    virtual_asset::VirtualAssetVc,
+    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
+    context::AssetContext,
+};
+use turbopack_ecmascript::{
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
 use super::runtime_entry::RuntimeEntriesVc;
-use crate::embed_js::next_js_file;
+use crate::embed_js::next_asset;
 
 /// Makes a transition into a next.js client context.
 ///
@@ -36,23 +39,6 @@ pub struct NextClientTransition {
 
 #[turbo_tasks::value_impl]
 impl Transition for NextClientTransition {
-    #[turbo_tasks::function]
-    fn process_source(&self, asset: AssetVc) -> AssetVc {
-        if self.is_app {
-            VirtualAssetVc::new(
-                asset.ident().path().join("next-app-hydrate.tsx"),
-                next_js_file("entry/app/hydrate.tsx").into(),
-            )
-            .into()
-        } else {
-            VirtualAssetVc::new(
-                asset.ident().path().join("next-hydrate.tsx"),
-                next_js_file("entry/next-hydrate.tsx").into(),
-            )
-            .into()
-        }
-    }
-
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
@@ -83,18 +69,30 @@ impl Transition for NextClientTransition {
         asset: AssetVc,
         context: ModuleAssetContextVc,
     ) -> Result<AssetVc> {
-        let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
-            Some(chunkable_asset) => chunkable_asset,
-            None => bail!(
-                "asset {} is not chunkable",
-                asset.ident().to_string().await?
-            ),
+        let internal_asset = if self.is_app {
+            next_asset("entry/app/hydrate.tsx")
+        } else {
+            next_asset("entry/next-hydrate.tsx")
         };
+
+        let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
+            internal_asset,
+            context.into(),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            EcmascriptInputTransformsVc::cell(vec![
+                EcmascriptInputTransform::TypeScript,
+                EcmascriptInputTransform::React { refresh: false },
+            ]),
+            context.compile_time_info(),
+            InnerAssetsVc::cell(indexmap! {
+                "PAGE".to_string() => asset
+            }),
+        );
 
         let runtime_entries = self.runtime_entries.resolve_entries(context.into());
 
         let asset = ChunkGroupFilesAsset {
-            asset: chunkable_asset,
+            asset: asset.into(),
             chunking_context: self.client_chunking_context,
             base_path: self.server_root.join("_next"),
             runtime_entries: Some(runtime_entries),

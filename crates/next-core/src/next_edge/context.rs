@@ -51,7 +51,7 @@ pub async fn get_edge_resolve_options_context(
     let next_edge_import_map = get_next_edge_import_map(project_path, ty, next_config);
 
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: true,
+        enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions: vec!["worker".to_string(), "development".to_string()],
         import_map: Some(next_edge_import_map),
         module: true,

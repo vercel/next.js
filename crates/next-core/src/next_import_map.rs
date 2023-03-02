@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
 use turbo_tasks::Value;
-use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
+use turbo_tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc};
 use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
 use turbopack_core::{
     asset::Asset,
@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    embed_js::{attached_next_js_package_path, VIRTUAL_PACKAGE_NAME},
+    embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
     next_client::context::ClientContextType,
     next_config::NextConfigVc,
     next_font_google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
@@ -116,21 +116,21 @@ pub async fn get_next_client_import_map(
 
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
-pub fn get_next_build_import_map(project_path: FileSystemPathVc) -> ImportMapVc {
+pub fn get_next_build_import_map() -> ImportMapVc {
     let mut import_map = ImportMap::empty();
-
-    let package_root = attached_next_js_package_path(project_path);
 
     insert_package_alias(
         &mut import_map,
         &format!("{VIRTUAL_PACKAGE_NAME}/"),
-        package_root,
+        next_js_fs().root(),
     );
 
-    import_map.insert_exact_alias("next", ImportMapping::External(None).into());
-    import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
-    import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
-    import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
+    let external = ImportMapping::External(None).cell();
+
+    import_map.insert_exact_alias("next", external);
+    import_map.insert_wildcard_alias("next/", external);
+    import_map.insert_exact_alias("styled-jsx", external);
+    import_map.insert_wildcard_alias("styled-jsx/", external);
 
     import_map.cell()
 }
@@ -188,33 +188,28 @@ pub async fn get_next_server_import_map(
     let ty = ty.into_value();
 
     insert_next_server_special_aliases(&mut import_map, ty).await?;
+    let external = ImportMapping::External(None).cell();
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-            import_map.insert_exact_alias("next", ImportMapping::External(None).into());
-            import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
-            import_map.insert_exact_alias("react", ImportMapping::External(None).into());
-            import_map.insert_wildcard_alias("react/", ImportMapping::External(None).into());
-            import_map.insert_exact_alias("react-dom", ImportMapping::External(None).into());
-            import_map.insert_wildcard_alias("react-dom/", ImportMapping::External(None).into());
-            import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
-            import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
+            import_map.insert_exact_alias("next", external);
+            import_map.insert_wildcard_alias("next/", external);
+            import_map.insert_exact_alias("react", external);
+            import_map.insert_wildcard_alias("react/", external);
+            import_map.insert_exact_alias("react-dom", external);
+            import_map.insert_wildcard_alias("react-dom/", external);
+            import_map.insert_exact_alias("styled-jsx", external);
+            import_map.insert_wildcard_alias("styled-jsx/", external);
         }
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
-            for external in next_config.server_component_externals().await?.iter() {
-                import_map.insert_exact_alias(external, ImportMapping::External(None).into());
-                import_map.insert_wildcard_alias(
-                    format!("{external}/"),
-                    ImportMapping::External(None).into(),
-                );
+            for name in next_config.server_component_externals().await?.iter() {
+                import_map.insert_exact_alias(name, external);
+                import_map.insert_wildcard_alias(format!("{name}/"), external);
             }
             // The sandbox can't be bundled and needs to be external
-            import_map.insert_exact_alias(
-                "next/dist/server/web/sandbox",
-                ImportMapping::External(None).into(),
-            );
+            import_map.insert_exact_alias("next/dist/server/web/sandbox", external);
         }
         ServerContextType::Middleware => {}
     }
@@ -360,7 +355,7 @@ pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPathVc,
 ) -> Result<()> {
-    let package_root = attached_next_js_package_path(project_path);
+    let package_root = next_js_fs().root();
 
     // we use the next.js hydration code, so we replace the error overlay with our
     // own
@@ -392,54 +387,38 @@ pub async fn insert_next_shared_aliases(
         ImportMapping::Dynamic(NextFontGoogleCssModuleReplacerVc::new(project_path).into()).into(),
     );
 
-    import_map.insert_wildcard_alias(
-        "@swc/helpers/",
-        ImportMapping::PrimaryAlternative(
-            "./*".to_string(),
-            Some(get_swc_helpers_package(project_path)),
-        )
-        .cell(),
-    );
+    import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
+    import_map.insert_singleton_alias("next", project_path);
+    import_map.insert_singleton_alias("react", project_path);
+    import_map.insert_singleton_alias("react-dom", project_path);
 
     Ok(())
 }
 
 #[turbo_tasks::function]
-fn package_lookup_resolve_options(project_root: FileSystemPathVc) -> ResolveOptionsVc {
-    resolve_options(
-        project_root,
+async fn package_lookup_resolve_options(
+    project_path: FileSystemPathVc,
+) -> Result<ResolveOptionsVc> {
+    Ok(resolve_options(
+        project_path,
         ResolveOptionsContext {
-            enable_node_modules: true,
+            enable_node_modules: Some(project_path.root().resolve().await?),
             enable_node_native_modules: true,
             custom_conditions: vec!["development".to_string()],
             ..Default::default()
         }
         .cell(),
-    )
+    ))
 }
 
 #[turbo_tasks::function]
-pub async fn get_next_package(project_root: FileSystemPathVc) -> Result<FileSystemPathVc> {
+pub async fn get_next_package(project_path: FileSystemPathVc) -> Result<FileSystemPathVc> {
     let result = resolve(
-        project_root,
+        project_path,
         RequestVc::parse(Value::new(Pattern::Constant(
             "next/package.json".to_string(),
         ))),
-        package_lookup_resolve_options(project_root),
-    );
-    let assets = result.primary_assets().await?;
-    let asset = assets.first().context("Next.js package not found")?;
-    Ok(asset.ident().path().parent())
-}
-
-#[turbo_tasks::function]
-pub async fn get_swc_helpers_package(project_root: FileSystemPathVc) -> Result<FileSystemPathVc> {
-    let result = resolve(
-        get_next_package(project_root),
-        RequestVc::parse(Value::new(Pattern::Constant(
-            "@swc/helpers/package.json".to_string(),
-        ))),
-        package_lookup_resolve_options(project_root),
+        package_lookup_resolve_options(project_path),
     );
     let assets = result.primary_assets().await?;
     let asset = assets.first().context("Next.js package not found")?;

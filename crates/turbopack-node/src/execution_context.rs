@@ -4,7 +4,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 
 #[turbo_tasks::value]
 pub struct ExecutionContext {
-    pub project_root: FileSystemPathVc,
+    pub project_path: FileSystemPathVc,
     pub intermediate_output_path: FileSystemPathVc,
     pub env: ProcessEnvVc,
 }
@@ -13,12 +13,12 @@ pub struct ExecutionContext {
 impl ExecutionContextVc {
     #[turbo_tasks::function]
     pub fn new(
-        project_root: FileSystemPathVc,
+        project_path: FileSystemPathVc,
         intermediate_output_path: FileSystemPathVc,
         env: ProcessEnvVc,
     ) -> Self {
         ExecutionContext {
-            project_root,
+            project_path,
             intermediate_output_path,
             env,
         }
@@ -29,9 +29,14 @@ impl ExecutionContextVc {
     pub async fn join(self, name: &str) -> Result<Self> {
         let this = self.await?;
         Ok(ExecutionContextVc::new(
-            this.project_root,
+            this.project_path,
             this.intermediate_output_path.join(name),
             this.env,
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn project_path(self) -> Result<FileSystemPathVc> {
+        Ok(self.await?.project_path)
     }
 }

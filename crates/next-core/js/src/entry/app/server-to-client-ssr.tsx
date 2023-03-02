@@ -1,9 +1,10 @@
 import { createProxy } from "next/dist/build/webpack/loaders/next-flight-loader/module-proxy";
 
-("TURBOPACK { transition: next-ssr-client-module; chunking-type: parallel }");
-import { __turbopack_module_id__ as id } from ".";
+("TURBOPACK { chunking-type: parallel }");
+// @ts-expect-error CLIENT_MODULE is provided by rust
+import { __turbopack_module_id__ as id } from "CLIENT_MODULE";
 
-("TURBOPACK { transition: next-client-chunks }");
-import client_id, { chunks } from ".";
+// @ts-expect-error CLIENT_CHUNKS is provided by rust
+import client_id, { chunks } from "CLIENT_CHUNKS";
 
 export default createProxy(JSON.stringify([client_id, chunks, id]));

@@ -540,7 +540,7 @@ fn next_configs() -> StringsVc {
 #[turbo_tasks::function]
 pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<NextConfigVc> {
     let ExecutionContext {
-        project_root,
+        project_path,
         intermediate_output_path,
         env,
     } = *execution_context.await?;
@@ -551,8 +551,8 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(Some(import_map.cell()), None);
-    let find_config_result = find_context_file(project_root, next_configs());
+    let context = node_evaluate_asset_context(project_path, Some(import_map.cell()), None);
+    let find_config_result = find_context_file(project_path, next_configs());
     let config_asset = match &*find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => Some(SourceAssetVc::new(*config_path)),
         FindContextFileResult::NotFound(_) => None,
@@ -570,19 +570,16 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         .as_ecmascript_chunk_placeable();
         EcmascriptChunkPlaceablesVc::cell(vec![config_chunk])
     });
-    let asset_path = config_asset
-        .map_or(project_root, |a| a.ident().path())
-        .join("load-next-config.js");
     let load_next_config_asset = context.process(
-        next_asset(asset_path, "entry/config/next.js"),
+        next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
     let config_value = evaluate(
-        project_root,
+        project_path,
         load_next_config_asset,
-        project_root,
+        project_path,
         env,
-        config_asset.map_or_else(|| AssetIdentVc::from_path(project_root), |c| c.ident()),
+        config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),
         context,
         intermediate_output_path,
         runtime_entries,

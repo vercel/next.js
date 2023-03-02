@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use indexmap::IndexMap;
+use indexmap::indexmap;
 use turbo_tasks::Value;
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack::{
@@ -102,7 +102,9 @@ impl Transition for NextEdgeTransition {
             Value::new(EcmascriptModuleAssetType::Typescript),
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
             context.compile_time_info(),
-            InnerAssetsVc::cell(IndexMap::from([("ENTRY".to_string(), asset)])),
+            InnerAssetsVc::cell(indexmap! {
+                "ENTRY".to_string() => asset
+            }),
         );
 
         let asset = ChunkGroupFilesAsset {

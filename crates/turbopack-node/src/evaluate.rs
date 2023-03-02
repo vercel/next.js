@@ -2,7 +2,7 @@ use std::{borrow::Cow, thread::available_parallelism, time::Duration};
 
 use anyhow::{Context, Result};
 use futures_retry::{FutureRetry, RetryPolicy};
-use indexmap::IndexMap;
+use indexmap::indexmap;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringVc},
     CompletionVc, TryJoinIterExt, Value, ValueToString,
@@ -78,6 +78,8 @@ pub async fn get_evaluate_pool(
     let file_name = module_path.file_name();
     let file_name = if file_name.ends_with(".js") {
         Cow::Borrowed(file_name)
+    } else if let Some(file_name) = file_name.strip_suffix(".ts") {
+        Cow::Owned(format!("{file_name}.js"))
     } else {
         Cow::Owned(format!("{file_name}.js"))
     };
@@ -96,10 +98,10 @@ pub async fn get_evaluate_pool(
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
         context.compile_time_info(),
-        InnerAssetsVc::cell(IndexMap::from([
-            ("INNER".to_string(), module_asset),
-            ("RUNTIME".to_string(), runtime_asset),
-        ])),
+        InnerAssetsVc::cell(indexmap! {
+            "INNER".to_string() => module_asset,
+            "RUNTIME".to_string() => runtime_asset
+        }),
     );
 
     let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(path).await?) else {

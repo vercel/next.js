@@ -22,7 +22,7 @@ use turbopack_core::{
 
 use self::options::FontWeights;
 use crate::{
-    embed_js::attached_next_js_package_path,
+    embed_js::next_js_file_path,
     next_font_google::{
         options::FontDataEntry,
         util::{get_font_axes, get_stylesheet_url},
@@ -76,8 +76,8 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         let properties =
             get_font_css_properties(get_scoped_font_family(*query_vc), options).await?;
         let js_asset = VirtualAssetVc::new(
-                attached_next_js_package_path(self.project_path)
-                    .join(&format!("internal/font/google/{}.js", get_request_id(*query_vc).await?)),
+                next_js_file_path("internal/font/google")
+                    .join(&format!("{}.js", get_request_id(*query_vc).await?)),
                 FileContent::Content(
                     formatdoc!(
                         r#"
@@ -155,10 +155,8 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         let options = font_options_from_query_map(*query_vc);
         let stylesheet_url = get_stylesheet_url_from_options(options);
         let scoped_font_family = get_scoped_font_family(*query_vc);
-        let css_virtual_path = attached_next_js_package_path(self.project_path).join(&format!(
-            "internal/font/google/{}.module.css",
-            get_request_id(*query_vc).await?
-        ));
+        let css_virtual_path = next_js_file_path("internal/font/google")
+            .join(&format!("/{}.module.css", get_request_id(*query_vc).await?));
 
         let stylesheet_res = fetch(
             stylesheet_url,
