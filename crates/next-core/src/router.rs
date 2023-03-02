@@ -349,7 +349,7 @@ pub async fn route(
             JsonValueVc::cell(dir.to_string_lossy().into()),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        false,
+        /* debug */ false,
     )
     .await?;
 

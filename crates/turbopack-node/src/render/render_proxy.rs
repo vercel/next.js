@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_tasks::primitives::StringVc;
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc};
 use turbopack_dev_server::source::{BodyVc, ProxyResult, ProxyResultVc};
@@ -15,6 +16,7 @@ use crate::{get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, tr
 #[turbo_tasks::function]
 pub async fn render_proxy(
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -31,6 +33,7 @@ pub async fn render_proxy(
 
     let pool = get_renderer_pool(
         cwd,
+        env,
         intermediate_asset,
         intermediate_output_path,
         output_root,

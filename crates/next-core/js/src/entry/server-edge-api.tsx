@@ -22,7 +22,7 @@ startHandler(async ({ request, response, query, params, path }) => {
       join(process.cwd(), ".next/server/pages", chunk)
     ),
     wasm: [],
-    env: [],
+    env: Object.keys(process.env),
     assets: [],
   };
   await runEdgeFunction({
