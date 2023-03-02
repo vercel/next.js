@@ -1211,12 +1211,6 @@ export default class NextNodeServer extends BaseServer {
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
-        if (this.nextConfig.output === 'export') {
-          await this.render404(req, res, parsedUrl)
-          return {
-            finished: true,
-          }
-        }
 
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
@@ -1241,6 +1235,10 @@ export default class NextNodeServer extends BaseServer {
           const edgeFunctionsPages = this.getEdgeFunctionsPages()
           for (const edgeFunctionsPage of edgeFunctionsPages) {
             if (edgeFunctionsPage === match.definition.page) {
+              if (this.nextConfig.output === 'export') {
+                await this.render404(req, res, parsedUrl)
+                return { finished: true }
+              }
               delete query._nextBubbleNoFallback
 
               const handledAsEdgeFunction = await this.runEdgeFunction({
@@ -1263,6 +1261,10 @@ export default class NextNodeServer extends BaseServer {
           // it.
           // TODO: move this behavior into a route handler.
           if (match.definition.kind === RouteKind.PAGES_API) {
+            if (this.nextConfig.output === 'export') {
+              await this.render404(req, res, parsedUrl)
+              return { finished: true }
+            }
             delete query._nextBubbleNoFallback
 
             handled = await this.handleApiRequest(
