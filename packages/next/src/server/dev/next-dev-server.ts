@@ -513,6 +513,16 @@ export default class DevServer extends Server {
             keepIndex: isAppPath,
           })
 
+          if (
+            pageName.startsWith('/api/') &&
+            this.nextConfig.output === 'export'
+          ) {
+            Log.error(
+              'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+            continue
+          }
+
           if (isAppPath) {
             if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
               continue

@@ -1211,6 +1211,12 @@ export default class NextNodeServer extends BaseServer {
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
+        if (this.nextConfig.output === 'export') {
+          await this.render404(req, res, parsedUrl)
+          return {
+            finished: true,
+          }
+        }
 
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
