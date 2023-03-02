@@ -97,7 +97,7 @@ export function patchFetch({
       if (
         // we don't consider autoNoCache to switch to dynamic during
         // revalidate although if it occurs during build we do
-        (!autoNoCache || !staticGenerationStore.isRevalidate) &&
+        (!autoNoCache || staticGenerationStore.isPrerendering) &&
         (typeof staticGenerationStore.revalidate === 'undefined' ||
           (typeof revalidate === 'number' &&
             revalidate < staticGenerationStore.revalidate))
