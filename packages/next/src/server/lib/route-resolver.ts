@@ -82,10 +82,10 @@ export async function makeResolver(
 
   await devServer.matchers.reload()
 
-  if (middleware.files?.length) {
-    // @ts-expect-error
-    devServer.customRoutes = await loadCustomRoutes(nextConfig)
+  // @ts-expect-error
+  devServer.customRoutes = await loadCustomRoutes(nextConfig)
 
+  if (middleware.files?.length) {
     const matchers = middleware.matcher
       ? getMiddlewareMatchers(middleware.matcher, nextConfig)
       : [{ regexp: '.*' }]
