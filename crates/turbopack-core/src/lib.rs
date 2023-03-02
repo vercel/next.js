@@ -6,6 +6,7 @@
 #![feature(lint_reasons)]
 
 pub mod asset;
+pub mod changed;
 pub mod chunk;
 pub mod code_builder;
 pub mod compile_time_info;
