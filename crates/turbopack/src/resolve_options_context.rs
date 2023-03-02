@@ -18,7 +18,7 @@ pub struct ResolveOptionsContext {
     pub enable_typescript: bool,
     pub enable_react: bool,
     pub enable_node_native_modules: bool,
-    /// Enable resolving of the node_modules folder when withing the provided
+    /// Enable resolving of the node_modules folder when within the provided
     /// directory
     pub enable_node_modules: Option<FileSystemPathVc>,
     /// Mark well-known Node.js modules as external imports and load them using
