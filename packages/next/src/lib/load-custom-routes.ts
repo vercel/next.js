@@ -609,6 +609,13 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
 
+  // save original rewrites before transforms
+  ;(config as any)._originalRewrites = {
+    beforeFiles: beforeFiles.map((r) => ({ ...r })),
+    afterFiles: afterFiles.map((r) => ({ ...r })),
+    fallback: fallback.map((r) => ({ ...r })),
+  }
+
   beforeFiles = processRoutes(beforeFiles, config, 'rewrite')
   afterFiles = processRoutes(afterFiles, config, 'rewrite')
   fallback = processRoutes(fallback, config, 'rewrite')

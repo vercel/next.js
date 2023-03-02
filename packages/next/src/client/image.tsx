@@ -276,7 +276,7 @@ function handleLoading(
   img['data-loaded-src'] = src
   const p = 'decode' in img ? img.decode() : Promise.resolve()
   p.catch(() => {}).then(() => {
-    if (!img.parentNode) {
+    if (!img.parentElement || !img.isConnected) {
       // Exit early in case of race condition:
       // - onload() is called
       // - decode() is called but incomplete

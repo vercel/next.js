@@ -8,10 +8,10 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 
 export type PagesManifest = { [page: string]: string }
 
-let edgeServerPages = {}
-let nodeServerPages = {}
-let edgeServerAppPaths = {}
-let nodeServerAppPaths = {}
+export let edgeServerPages = {}
+export let nodeServerPages = {}
+export let edgeServerAppPaths = {}
+export let nodeServerAppPaths = {}
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR

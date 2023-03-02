@@ -11,7 +11,7 @@ import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
   getInvalidator,
-  entries,
+  getEntries,
   EntryTypes,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
@@ -41,7 +41,7 @@ interface Options {
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
-export const injectedClientEntries = new Map()
+export const injectedClientEntries = new Map<string, string>()
 
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
@@ -55,9 +55,9 @@ export type ActionManifest = {
 }
 
 // A map to track "action" -> "list of bundles".
-let serverActions: ActionManifest = {}
-let serverCSSManifest: FlightCSSManifest = {}
-let edgeServerCSSManifest: FlightCSSManifest = {}
+export const serverActions: ActionManifest = {}
+export const serverCSSManifest: FlightCSSManifest = {}
+export const edgeServerCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -146,7 +146,7 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  async createClientEntries(compiler: any, compilation: any) {
+  async createClientEntries(compiler: webpack.Compiler, compilation: any) {
     const addClientEntryAndSSRModulesList: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
@@ -247,7 +247,7 @@ export class FlightClientEntryPlugin {
 
         // Replace file suffix as `.js` will be added.
         const bundlePath = normalizePathSep(
-          relativeRequest.replace(/\.(js|ts)x?$/, '').replace(/^src[\\/]/, '')
+          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
 
         addClientEntryAndSSRModulesList.push(
@@ -257,6 +257,7 @@ export class FlightClientEntryPlugin {
             entryName: name,
             clientImports,
             bundlePath,
+            absolutePagePath: entryRequest,
           })
         )
       }
@@ -273,7 +274,6 @@ export class FlightClientEntryPlugin {
       )
 
       // Create action entry
-      serverActions = {}
       if (actionEntryImports.size > 0) {
         addActionEntryList.push(
           this.injectActionEntry({
@@ -291,11 +291,6 @@ export class FlightClientEntryPlugin {
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
       const cssImportsForChunk: Record<string, Set<string>> = {}
-      if (this.isEdgeServer) {
-        edgeServerCSSManifest = {}
-      } else {
-        serverCSSManifest = {}
-      }
 
       let cssManifest = this.isEdgeServer
         ? edgeServerCSSManifest
@@ -426,7 +421,7 @@ export class FlightClientEntryPlugin {
     )
 
     // Invalidate in development to trigger recompilation
-    const invalidator = getInvalidator()
+    const invalidator = getInvalidator(compiler.outputPath)
     // Check if any of the entry injections need an invalidation
     if (
       invalidator &&
@@ -574,12 +569,14 @@ export class FlightClientEntryPlugin {
     entryName,
     clientImports,
     bundlePath,
+    absolutePagePath,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     entryName: string
     clientImports: ClientComponentImports
     bundlePath: string
+    absolutePagePath?: string
   }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
     let shouldInvalidate = false
 
@@ -611,11 +608,14 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
+      const entries = getEntries(compiler.outputPath)
       const pageKey = COMPILER_NAMES.client + bundlePath
+
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
           parentEntries: new Set([entryName]),
+          absoluteEntryFilePath: absolutePagePath,
           bundlePath,
           request: clientLoader,
           dispose: false,
@@ -632,6 +632,8 @@ export class FlightClientEntryPlugin {
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
           entryData.parentEntries.add(entryName)
         }
+        entryData.dispose = false
+        entryData.lastActiveTime = Date.now()
       }
     } else {
       injectedClientEntries.set(bundlePath, clientLoader)

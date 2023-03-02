@@ -12,10 +12,8 @@ import { runCompiler } from './compiler'
 import * as Log from './output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from './webpack-config'
 import { NextError } from '../lib/is-error'
-import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { NextBuildContext } from './build-context'
-import { isMainThread, parentPort, Worker, workerData } from 'worker_threads'
 import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
 import { trace } from '../trace'
@@ -24,6 +22,14 @@ import {
   TraceEntryPointsPlugin,
   TurbotraceContext,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
+import { UnwrapPromise } from '../lib/coalesced-function'
+import * as flightPluginModule from './webpack/plugins/flight-client-entry-plugin'
+import * as flightManifestPluginModule from './webpack/plugins/flight-manifest-plugin'
+import * as pagesPluginModule from './webpack/plugins/pages-manifest-plugin'
+import { Worker } from 'next/dist/compiled/jest-worker'
+import origDebug from 'next/dist/compiled/debug'
+
+const debug = origDebug('next:build:webpack-build')
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -47,9 +53,11 @@ function isTraceEntryPointsPlugin(
   return plugin instanceof TraceEntryPointsPlugin
 }
 
-async function webpackBuildImpl(): Promise<{
+async function webpackBuildImpl(compilerIdx?: number): Promise<{
   duration: number
   turbotraceContext?: TurbotraceContext
+  serializedFlightMaps?: typeof NextBuildContext['serializedFlightMaps']
+  serializedPagesManifestEntries?: typeof NextBuildContext['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -58,7 +66,6 @@ async function webpackBuildImpl(): Promise<{
   }
   let webpackBuildStart
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  const buildSpinner = NextBuildContext.buildSpinner
   const dir = NextBuildContext.dir!
   const config = NextBuildContext.config!
 
@@ -91,6 +98,8 @@ async function webpackBuildImpl(): Promise<{
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
+    originalRewrites: NextBuildContext.originalRewrites,
+    originalRedirects: NextBuildContext.originalRedirects,
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
@@ -148,6 +157,7 @@ async function webpackBuildImpl(): Promise<{
 
   webpackBuildStart = process.hrtime()
 
+  debug(`starting compiler`, compilerIdx)
   // We run client and server compilation separately to optimize for memory usage
   await runWebpackSpan.traceAsyncFn(async () => {
     // Run the server compilers first and then the client
@@ -156,18 +166,28 @@ async function webpackBuildImpl(): Promise<{
 
     // During the server compilations, entries of client components will be
     // injected to this set and then will be consumed by the client compiler.
-    injectedClientEntries.clear()
+    let serverResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
+      null
+    let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
+      null
 
-    const serverResult = await runCompiler(serverConfig, {
-      runWebpackSpan,
-    })
-    const edgeServerResult = configs[2]
-      ? await runCompiler(configs[2], { runWebpackSpan })
-      : null
+    if (!compilerIdx || compilerIdx === 1) {
+      serverResult = await runCompiler(serverConfig, {
+        runWebpackSpan,
+      })
+      debug('server result', serverResult)
+    }
+
+    if (!compilerIdx || compilerIdx === 2) {
+      edgeServerResult = configs[2]
+        ? await runCompiler(configs[2], { runWebpackSpan })
+        : null
+      debug('edge server result', edgeServerResult)
+    }
 
     // Only continue if there were no errors
-    if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
-      injectedClientEntries.forEach((value, key) => {
+    if (!serverResult?.errors.length && !edgeServerResult?.errors.length) {
+      flightPluginModule.injectedClientEntries.forEach((value, key) => {
         const clientEntry = clientConfig.entry as webpack.EntryObject
         if (key === APP_CLIENT_INTERNALS) {
           clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = {
@@ -188,9 +208,12 @@ async function webpackBuildImpl(): Promise<{
         }
       })
 
-      clientResult = await runCompiler(clientConfig, {
-        runWebpackSpan,
-      })
+      if (!compilerIdx || compilerIdx === 3) {
+        clientResult = await runCompiler(clientConfig, {
+          runWebpackSpan,
+        })
+        debug('client result', clientResult)
+      }
     }
 
     result = {
@@ -228,9 +251,6 @@ async function webpackBuildImpl(): Promise<{
   ).plugins?.find(isTraceEntryPointsPlugin)
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
-  if (buildSpinner) {
-    buildSpinner.stopAndPersist()
-  }
 
   if (result.errors.length > 0) {
     // Only keep the first few errors. Others are often indicative
@@ -275,21 +295,85 @@ async function webpackBuildImpl(): Promise<{
       Log.warn('Compiled with warnings\n')
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
-    } else {
+    } else if (!compilerIdx) {
       Log.info('Compiled successfully')
     }
+
     return {
       duration: webpackBuildEnd[0],
       turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
+      serializedFlightMaps: {
+        injectedClientEntries: Array.from(
+          flightPluginModule.injectedClientEntries.entries()
+        ),
+        serverModuleIds: Array.from(
+          flightPluginModule.serverModuleIds.entries()
+        ),
+        edgeServerModuleIds: Array.from(
+          flightPluginModule.edgeServerModuleIds.entries()
+        ),
+        asyncClientModules: Array.from(
+          flightManifestPluginModule.ASYNC_CLIENT_MODULES
+        ),
+        serverActions: flightPluginModule.serverActions,
+        serverCSSManifest: flightPluginModule.serverCSSManifest,
+        edgeServerCSSManifest: flightPluginModule.edgeServerCSSManifest,
+      },
+      serializedPagesManifestEntries: {
+        edgeServerPages: pagesPluginModule.edgeServerPages,
+        edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
+        nodeServerPages: pagesPluginModule.nodeServerPages,
+        nodeServerAppPaths: pagesPluginModule.nodeServerAppPaths,
+      },
     }
   }
 }
 
 // the main function when this file is run as a worker
-async function workerMain() {
-  const { buildContext } = workerData
+export async function workerMain(workerData: {
+  compilerIdx?: number
+  buildContext: typeof NextBuildContext
+}) {
   // setup new build context from the serialized data passed from the parent
-  Object.assign(NextBuildContext, buildContext)
+  Object.assign(NextBuildContext, workerData.buildContext)
+
+  // restore module scope maps for flight plugins
+  const { serializedFlightMaps, serializedPagesManifestEntries } =
+    NextBuildContext
+
+  for (const key of Object.keys(serializedPagesManifestEntries || {})) {
+    Object.assign(
+      (pagesPluginModule as any)[key],
+      (serializedPagesManifestEntries as any)?.[key]
+    )
+  }
+
+  if (serializedFlightMaps) {
+    serializedFlightMaps.asyncClientModules?.forEach((item: any) =>
+      flightManifestPluginModule.ASYNC_CLIENT_MODULES.add(item)
+    )
+
+    for (const field of [
+      'injectedClientEntries',
+      'serverModuleIds',
+      'edgeServerModuleIds',
+    ]) {
+      for (const [key, value] of (serializedFlightMaps as any)[field] || []) {
+        ;(flightPluginModule as any)[field].set(key, value)
+      }
+    }
+
+    for (const field of [
+      'serverActions',
+      'serverCSSManifest',
+      'edgeServerCSSManifest',
+    ]) {
+      Object.assign(
+        (flightPluginModule as any)[field],
+        (serializedFlightMaps as any)[field]
+      )
+    }
+  }
 
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
@@ -301,30 +385,20 @@ async function workerMain() {
   )
   NextBuildContext.nextBuildSpan = trace('next-build')
 
-  try {
-    const result = await webpackBuildImpl()
-    const { entriesTrace } = result.turbotraceContext ?? {}
-    if (entriesTrace) {
-      const { entryNameMap, depModArray } = entriesTrace
-      if (depModArray) {
-        result.turbotraceContext!.entriesTrace!.depModArray = depModArray
-      }
-      if (entryNameMap) {
-        const entryEntries = Array.from(entryNameMap?.entries() ?? [])
-        // @ts-expect-error
-        result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
-      }
+  const result = await webpackBuildImpl(workerData.compilerIdx)
+  const { entriesTrace } = result.turbotraceContext ?? {}
+  if (entriesTrace) {
+    const { entryNameMap, depModArray } = entriesTrace
+    if (depModArray) {
+      result.turbotraceContext!.entriesTrace!.depModArray = depModArray
     }
-    parentPort!.postMessage(JSON.stringify(result))
-  } catch (e) {
-    parentPort!.postMessage(e)
-  } finally {
-    process.exit(0)
+    if (entryNameMap) {
+      const entryEntries = Array.from(entryNameMap?.entries() ?? [])
+      // @ts-expect-error
+      result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
+    }
   }
-}
-
-if (!isMainThread) {
-  workerMain()
+  return result
 }
 
 async function webpackBuildWithWorker() {
@@ -335,49 +409,106 @@ async function webpackBuildWithWorker() {
     nextBuildSpan,
     ...prunedBuildContext
   } = NextBuildContext
-  const worker = new Worker(new URL(import.meta.url), {
-    workerData: {
-      buildContext: prunedBuildContext,
-    },
-  })
 
-  const result = JSON.parse(
-    await new Promise((resolve, reject) => {
-      worker.on('message', (data) => {
-        if (data instanceof Error) {
-          reject(data)
-        } else {
-          resolve(data)
-        }
-      })
-      worker.on('error', reject)
-      worker.on('exit', (code) => {
-        if (code !== 0) {
-          reject(new Error(`Worker stopped with exit code ${code}`))
-        }
-      })
-    })
-  ) as {
-    duration: number
-    turbotraceContext?: TurbotraceContext
+  const getWorker = () => {
+    const _worker = new Worker(__filename, {
+      exposedMethods: ['workerMain'],
+      numWorkers: 1,
+      forkOptions: {
+        env: {
+          ...process.env,
+          NEXT_PRIVATE_BUILD_WORKER: '1',
+        },
+      },
+    }) as Worker & { workerMain: typeof workerMain }
+    _worker.getStderr().pipe(process.stderr)
+    _worker.getStdout().pipe(process.stdout)
+    return _worker
   }
 
-  if (result.turbotraceContext?.entriesTrace) {
-    const { entryNameMap } = result.turbotraceContext.entriesTrace
-    if (entryNameMap) {
-      result.turbotraceContext.entriesTrace.entryNameMap = new Map(entryNameMap)
+  const combinedResult = {
+    duration: 0,
+    turbotraceContext: {} as any,
+  }
+
+  for (let i = 1; i < 4; i++) {
+    const worker = getWorker()
+    const curResult = await worker.workerMain({
+      buildContext: prunedBuildContext,
+      compilerIdx: i,
+    })
+    // destroy worker so it's not sticking around using memory
+    await worker.end()
+
+    prunedBuildContext.serializedFlightMaps = {
+      injectedClientEntries: [
+        ...(prunedBuildContext.serializedFlightMaps?.injectedClientEntries ||
+          []),
+        ...curResult.serializedFlightMaps?.injectedClientEntries,
+      ],
+      serverModuleIds: [
+        ...(prunedBuildContext.serializedFlightMaps?.serverModuleIds || []),
+        ...curResult.serializedFlightMaps?.serverModuleIds,
+      ],
+      edgeServerModuleIds: [
+        ...(prunedBuildContext.serializedFlightMaps?.edgeServerModuleIds || []),
+        ...curResult.serializedFlightMaps?.edgeServerModuleIds,
+      ],
+      asyncClientModules: [
+        ...(prunedBuildContext.serializedFlightMaps?.asyncClientModules || []),
+        ...curResult.serializedFlightMaps?.asyncClientModules,
+      ],
+      serverActions: {
+        ...prunedBuildContext.serializedFlightMaps?.serverActions,
+        ...curResult.serializedFlightMaps?.serverActions,
+      },
+      serverCSSManifest: {
+        ...prunedBuildContext.serializedFlightMaps?.serverCSSManifest,
+        ...curResult.serializedFlightMaps?.serverCSSManifest,
+      },
+      edgeServerCSSManifest: {
+        ...prunedBuildContext.serializedFlightMaps?.edgeServerCSSManifest,
+        ...curResult.serializedFlightMaps?.edgeServerCSSManifest,
+      },
+    }
+    prunedBuildContext.serializedPagesManifestEntries = {
+      edgeServerAppPaths:
+        curResult.serializedPagesManifestEntries?.edgeServerAppPaths,
+      edgeServerPages:
+        curResult.serializedPagesManifestEntries?.edgeServerPages,
+      nodeServerAppPaths:
+        curResult.serializedPagesManifestEntries?.nodeServerAppPaths,
+      nodeServerPages:
+        curResult.serializedPagesManifestEntries?.nodeServerPages,
+    }
+
+    combinedResult.duration += curResult.duration
+
+    if (curResult.turbotraceContext?.entriesTrace) {
+      combinedResult.turbotraceContext = curResult.turbotraceContext
+
+      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace
+      if (entryNameMap) {
+        combinedResult.turbotraceContext.entriesTrace.entryNameMap = new Map(
+          entryNameMap
+        )
+      }
     }
   }
+  buildSpinner?.stopAndPersist()
+  Log.info('Compiled successfully')
 
-  return result
+  return combinedResult
 }
 
 export async function webpackBuild() {
   const config = NextBuildContext.config!
 
   if (config.experimental.webpackBuildWorker) {
+    debug('using separate compiler workers')
     return await webpackBuildWithWorker()
   } else {
+    debug('building all compilers in same process')
     return await webpackBuildImpl()
   }
 }

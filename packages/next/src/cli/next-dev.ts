@@ -270,7 +270,7 @@ const nextDev: CliCommand = async (argv) => {
     let babelrc = await getBabelConfigFile(dir)
     if (babelrc) babelrc = path.basename(babelrc)
 
-    let hasNonDefaultConfig
+    let nonSupportedConfig: string[] = []
     let rawNextConfig: NextConfig = {}
 
     try {
@@ -317,14 +317,14 @@ const nextDev: CliCommand = async (argv) => {
         }
       }
 
-      hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+      nonSupportedConfig = Object.keys(rawNextConfig).filter((key) =>
         checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
       )
     } catch (e) {
       console.error('Unexpected error occurred while checking config', e)
     }
 
-    const hasWarningOrError = babelrc || hasNonDefaultConfig
+    const hasWarningOrError = babelrc || nonSupportedConfig.length
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
@@ -349,13 +349,17 @@ const nextDev: CliCommand = async (argv) => {
         `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
       )}`
     }
-    if (hasNonDefaultConfig) {
+    if (nonSupportedConfig.length) {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
         `The only configurations options supported are:\n${supportedTurbopackNextConfigOptions
           .map((name) => `    - ${chalk.cyan(name)}\n`)
-          .join('')}  To use Turbopack, remove other configuration options.`
+          .join(
+            ''
+          )}  To use Turbopack, remove the following configuration options:\n${nonSupportedConfig.map(
+          (name) => `    - ${chalk.red(name)}\n`
+        )}`
       )}   `
     }
 
@@ -625,27 +629,20 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
         : []
 
-      const wp = new Watchpack({
-        ignored: (entry: string) => {
-          return (
-            !(entry.split('/').length <= watchedEntryLength) &&
-            !instrumentationFilePaths.includes(entry)
-          )
-        },
+      const instrumentationFileWatcher = new Watchpack({})
+
+      instrumentationFileWatcher.watch({
+        files: instrumentationFilePaths,
+        startTime: 0,
       })
 
-      wp.watch({ directories: [parentDir], startTime: 0 })
       let instrumentationFileLastHash: string | undefined = undefined
-
-      wp.on('aggregated', async () => {
-        const knownFiles = wp.getTimeInfoEntries()
-        const newFiles: string[] = []
-        let hasPagesApp = false
-        // check if the `instrumentation.js` has changed
-        // if it has we need to restart the server
-        const instrumentationFile = [...knownFiles.keys()].find((key) =>
-          instrumentationFilePaths.includes(key)
-        )
+      const previousInstrumentationFiles = new Set<string>()
+      instrumentationFileWatcher.on('aggregated', async () => {
+        const knownFiles = instrumentationFileWatcher.getTimeInfoEntries()
+        const instrumentationFile = [...knownFiles.entries()].find(
+          ([key, value]) => instrumentationFilePaths.includes(key) && value
+        )?.[0]
 
         if (instrumentationFile) {
           const fs = require('fs') as typeof import('fs')
@@ -665,16 +662,19 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             )
             return setupFork()
           } else {
-            if (!instrumentationFileLastHash && previousItems.size !== 0) {
+            if (
+              !instrumentationFileLastHash &&
+              previousInstrumentationFiles.size !== 0
+            ) {
               warn(
-                'An instrumentation file was added, restarting the server to apply changes.'
+                'The instrumentation file was added, restarting the server to apply changes.'
               )
               return setupFork()
             }
             instrumentationFileLastHash = instrumentationFileHash
           }
         } else if (
-          [...previousItems.keys()].find((key) =>
+          [...previousInstrumentationFiles.keys()].find((key) =>
             instrumentationFilePaths.includes(key)
           )
         ) {
@@ -684,6 +684,23 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           instrumentationFileLastHash = undefined
           return setupFork()
         }
+
+        previousInstrumentationFiles.clear()
+        knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+      })
+
+      const projectFolderWatcher = new Watchpack({
+        ignored: (entry: string) => {
+          return !(entry.split('/').length <= watchedEntryLength)
+        },
+      })
+
+      projectFolderWatcher.watch({ directories: [parentDir], startTime: 0 })
+
+      projectFolderWatcher.on('aggregated', async () => {
+        const knownFiles = projectFolderWatcher.getTimeInfoEntries()
+        const newFiles: string[] = []
+        let hasPagesApp = false
 
         // if the dir still exists nothing to check
         try {

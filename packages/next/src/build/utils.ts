@@ -1877,9 +1877,15 @@ export function getPossibleInstrumentationHookFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.map((extension) =>
-    path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
-  )
+  const files = []
+  for (const extension of extensions) {
+    files.push(
+      path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`),
+      path.join(folder, `src`, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
+    )
+  }
+
+  return files
 }
 
 export function getPossibleMiddlewareFilenames(

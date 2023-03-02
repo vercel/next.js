@@ -293,6 +293,8 @@ export default async function build(
 
       const { headers, rewrites, redirects } = customRoutes
       NextBuildContext.rewrites = rewrites
+      NextBuildContext.originalRewrites = config._originalRewrites
+      NextBuildContext.originalRedirects = config._originalRedirects
 
       const cacheDir = path.join(distDir, 'cache')
       if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
@@ -1066,7 +1068,9 @@ export default async function build(
             if (filesTracedFromEntries.length) {
               // The turbo trace doesn't provide the traced file type and reason at present
               // let's write the traced files into the first [entry].nft.json
+              // @ts-expect-error types
               const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
+                // @ts-expect-error types
                 ([k]) => k.startsWith(turbotraceContextAppDir)
               )
               const traceOutputPath = path.join(
@@ -1083,7 +1087,7 @@ export default async function build(
           }
           if (chunksTrace) {
             const { action, outputPath } = chunksTrace
-            action.input = action.input.filter((f) => {
+            action.input = action.input.filter((f: any) => {
               const outputPagesPath = path.join(outputPath, '..', 'pages')
               return (
                 !f.startsWith(outputPagesPath) ||
