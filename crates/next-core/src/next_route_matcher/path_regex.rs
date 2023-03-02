@@ -93,7 +93,7 @@ impl PathRegexBuilder {
         R: AsRef<str>,
     {
         self.push_str(if self.include_slash() {
-            "(/[^?]+)?"
+            "(?:/([^?]+))?"
         } else {
             "([^?]+)?"
         });
