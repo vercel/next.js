@@ -75,7 +75,7 @@ export default async function Page() {
       <p id="page-data">{data}</p>
       <p id="data-body1">{dataWithBody1}</p>
       <p id="data-body2">{dataWithBody2}</p>
-      <p id="data-body4">{dataWithBody3}</p>
+      <p id="data-body3">{dataWithBody3}</p>
       <p id="data-body4">{dataWithBody4}</p>
     </>
   )

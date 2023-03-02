@@ -304,11 +304,11 @@ export async function compile_config_schema(task, opts) {
     keyword: 'isFunction',
     schemaType: 'boolean',
     compile() {
-      return (data) => data instanceof Function
+      return (data) => data == null || data instanceof Function
     },
     code(ctx) {
       const { data } = ctx
-      ctx.fail(Ajv._`!(${data} instanceof Function)`)
+      ctx.fail(Ajv._`!(${data} == null || ${data} instanceof Function)`)
     },
     metaSchema: {
       anyOf: [{ type: 'boolean' }],
