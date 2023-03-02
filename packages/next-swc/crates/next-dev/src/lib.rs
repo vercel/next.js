@@ -15,7 +15,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use next_core::{
@@ -29,15 +29,14 @@ use owo_colors::OwoColorize;
 use turbo_malloc::TurboMalloc;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    CollectiblesSource, CompletionsVc, RawVc, StatsType, TransientInstance, TransientValue,
-    TurboTasks, TurboTasksBackendApi, Value,
+    CompletionsVc, StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUiVc, LogOptions};
 use turbopack_core::{
     environment::ServerAddr,
-    issue::{IssueReporter, IssueReporterVc, IssueSeverity, IssueVc},
+    issue::{IssueReporterVc, IssueSeverity},
     resolve::{parse::RequestVc, pattern::QueryMapVc},
     server_fs::ServerFileSystemVc,
 };
@@ -218,9 +217,7 @@ impl NextDevServerBuilder {
             // Initialize a ConsoleUi reporter if no custom reporter was provided
             Box::new(move || ConsoleUiVc::new(log_options.clone().into()).into())
         });
-        let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
 
-        let get_issue_reporter = issue_reporter_arc.clone();
         let source = move || {
             source(
                 root_dir.clone(),
@@ -228,49 +225,26 @@ impl NextDevServerBuilder {
                 entry_requests.clone().into(),
                 eager_compile,
                 turbo_tasks.clone().into(),
-                get_issue_reporter(),
                 browserslist_query.clone(),
                 server_addr.clone().into(),
             )
         };
 
-        Ok(server.serve(tasks, source, issue_reporter_arc.clone()))
-    }
-}
-
-async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
-    source: T,
-    issue_reporter: IssueReporterVc,
-) -> Result<()> {
-    let issues = IssueVc::peek_issues_with_path(source)
-        .await?
-        .strongly_consistent()
-        .await?;
-
-    let has_fatal = issue_reporter.report_issues(
-        TransientInstance::new(issues.clone()),
-        TransientValue::new(source.into()),
-    );
-
-    if *has_fatal.await? {
-        Err(anyhow!("Fatal issue(s) occurred"))
-    } else {
-        Ok(())
+        let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
+        Ok(server.serve(tasks, source, issue_reporter_arc))
     }
 }
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: &str, issue_reporter: IssueReporterVc) -> Result<FileSystemVc> {
+async fn project_fs(project_dir: &str) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
 
 #[turbo_tasks::function]
-async fn output_fs(project_dir: &str, issue_reporter: IssueReporterVc) -> Result<FileSystemVc> {
+async fn output_fs(project_dir: &str) -> Result<FileSystemVc> {
     let disk_fs = DiskFileSystemVc::new("output".to_string(), project_dir.to_string());
-    handle_issues(disk_fs, issue_reporter).await?;
     disk_fs.await?.start_watching()?;
     Ok(disk_fs.into())
 }
@@ -283,12 +257,11 @@ async fn source(
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
-    issue_reporter: IssueReporterVc,
     browserslist_query: String,
     server_addr: TransientInstance<SocketAddr>,
 ) -> Result<ContentSourceVc> {
-    let output_fs = output_fs(&project_dir, issue_reporter);
-    let fs = project_fs(&root_dir, issue_reporter);
+    let output_fs = output_fs(&project_dir);
+    let fs = project_fs(&root_dir);
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -411,10 +384,6 @@ async fn source(
     }
     .cell()
     .into();
-
-    handle_issues(dev_server_fs, issue_reporter).await?;
-    handle_issues(web_source, issue_reporter).await?;
-    handle_issues(page_source, issue_reporter).await?;
 
     Ok(source)
 }
