@@ -38,8 +38,8 @@ pub struct Rope {
 
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).
-#[derive(Clone, Debug, Default)]
-struct InnerRope(Arc<Box<[RopeElem]>>);
+#[derive(Clone, Debug)]
+struct InnerRope(Arc<[RopeElem]>);
 
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
@@ -120,7 +120,7 @@ impl<T: Into<Bytes>> From<T> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope::from(Box::from([Local(bytes)])),
+                data: InnerRope(Arc::from([Local(bytes)])),
             }
         }
     }
@@ -202,7 +202,7 @@ impl RopeBuilder {
         self.finish();
         Rope {
             length: self.length,
-            data: InnerRope::from(self.committed.into_boxed_slice()),
+            data: InnerRope::from(self.committed),
         }
     }
 }
@@ -453,6 +453,12 @@ impl InnerRope {
     }
 }
 
+impl Default for InnerRope {
+    fn default() -> Self {
+        InnerRope(Arc::from([]))
+    }
+}
+
 impl DeterministicHash for InnerRope {
     /// Ropes with similar contents hash the same, regardless of their
     /// structure. Notice the InnerRope does not contain a length (and any
@@ -465,8 +471,8 @@ impl DeterministicHash for InnerRope {
     }
 }
 
-impl From<Box<[RopeElem]>> for InnerRope {
-    fn from(els: Box<[RopeElem]>) -> Self {
+impl From<Vec<RopeElem>> for InnerRope {
+    fn from(els: Vec<RopeElem>) -> Self {
         if cfg!(debug_assertions) {
             // It's important that an InnerRope never contain an empty Bytes section.
             for el in els.iter() {
@@ -482,12 +488,12 @@ impl From<Box<[RopeElem]>> for InnerRope {
                 }
             }
         }
-        InnerRope(Arc::new(els))
+        InnerRope(Arc::from(els))
     }
 }
 
 impl Deref for InnerRope {
-    type Target = Arc<Box<[RopeElem]>>;
+    type Target = Arc<[RopeElem]>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -699,7 +705,7 @@ mod test {
     }
     impl From<Vec<RopeElem>> for RopeElem {
         fn from(value: Vec<RopeElem>) -> Self {
-            RopeElem::Shared(InnerRope::from(value.into_boxed_slice()))
+            RopeElem::Shared(InnerRope::from(value))
         }
     }
     impl From<Rope> for RopeElem {
@@ -709,7 +715,7 @@ mod test {
     }
     impl Rope {
         fn new(value: Vec<RopeElem>) -> Self {
-            let data = InnerRope::from(value.into_boxed_slice());
+            let data = InnerRope::from(value);
             Rope {
                 length: data.len(),
                 data,
