@@ -19,6 +19,9 @@ export const NextBuildContext: Partial<{
     serverModuleIds?: any
     edgeServerModuleIds?: any
     asyncClientModules?: any
+    serverActions?: any
+    serverCSSManifest?: any
+    edgeServerCSSManifest?: any
   }
   serializedPagesManifestEntries: {
     edgeServerPages?: PagesManifest

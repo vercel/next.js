@@ -315,6 +315,9 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
         asyncClientModules: Array.from(
           flightManifestPluginModule.ASYNC_CLIENT_MODULES
         ),
+        serverActions: flightPluginModule.serverActions,
+        serverCSSManifest: flightPluginModule.serverCSSManifest,
+        edgeServerCSSManifest: flightPluginModule.edgeServerCSSManifest,
       },
       serializedPagesManifestEntries: {
         edgeServerPages: pagesPluginModule.edgeServerPages,
@@ -358,6 +361,14 @@ export async function workerMain(workerData: {
       for (const [key, value] of (serializedFlightMaps as any)[field] || []) {
         ;(flightPluginModule as any)[field].set(key, value)
       }
+    }
+
+    for (const field of [
+      'serverActions',
+      'serverCSSManifest',
+      'edgeServerCSSManifest',
+    ]) {
+      ;(flightPluginModule as any)[field] = (serializedFlightMaps as any)[field]
     }
   }
 
@@ -444,6 +455,10 @@ async function webpackBuildWithWorker() {
         ...(prunedBuildContext.serializedFlightMaps?.asyncClientModules || []),
         ...curResult.serializedFlightMaps?.asyncClientModules,
       ],
+      serverActions: curResult.serializedFlightMaps?.serverActions,
+      serverCSSManifest: curResult.serializedFlightMaps?.serverCSSManifest,
+      edgeServerCSSManifest:
+        curResult.serializedFlightMaps?.edgeServerCSSManifest,
     }
     prunedBuildContext.serializedPagesManifestEntries = {
       edgeServerAppPaths:

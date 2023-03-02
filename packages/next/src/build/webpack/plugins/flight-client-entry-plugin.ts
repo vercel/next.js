@@ -55,9 +55,9 @@ export type ActionManifest = {
 }
 
 // A map to track "action" -> "list of bundles".
-let serverActions: ActionManifest = {}
-let serverCSSManifest: FlightCSSManifest = {}
-let edgeServerCSSManifest: FlightCSSManifest = {}
+export let serverActions: ActionManifest = {}
+export let serverCSSManifest: FlightCSSManifest = {}
+export let edgeServerCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
