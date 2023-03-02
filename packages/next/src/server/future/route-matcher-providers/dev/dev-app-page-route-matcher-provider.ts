@@ -49,6 +49,9 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
   protected async transform(
     files: ReadonlyArray<string>
   ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
+    // If the file isn't a match for this matcher, then skip it.
+    const pageFiles = files.filter((filename) => this.expression.test(filename))
+
     // Collect all the app paths for each page. This could include any parallel
     // routes.
     const cache = new Map<
@@ -56,7 +59,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       { page: string; pathname: string; bundlePath: string }
     >()
     const appPaths: Record<string, string[]> = {}
-    for (const filename of files) {
+    for (const filename of pageFiles) {
       const page = this.normalizers.page.normalize(filename)
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
@@ -69,10 +72,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     }
 
     const matchers: Array<AppPageRouteMatcher> = []
-    for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
-
+    for (const filename of pageFiles) {
       // Grab the cached values (and the appPaths).
       const cached = cache.get(filename)
       if (!cached) {
