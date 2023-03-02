@@ -408,7 +408,7 @@ createNextDescribe(
     })
 
     describe('dynamic = "force-static"', () => {
-      it('strips search and headers from request', async () => {
+      it('strips search, headers, and domain from request', async () => {
         const res = await next.fetch('/dynamic?query=true', {
           headers: {
             accept: 'application/json',

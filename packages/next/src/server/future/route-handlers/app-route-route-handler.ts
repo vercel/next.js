@@ -193,14 +193,16 @@ export async function sendResponse(
   }
 }
 
-function stripSearchFromURL(urlString: string): string {
+function cleanURL(urlString: string): string {
   const url = new URL(urlString)
+  url.host = 'localhost:3000'
   url.search = ''
+  url.protocol = 'http'
   return url.toString()
 }
 
 function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
-  const handleNextUrlBailout = (prop: string | symbol) => {
+  function handleNextUrlBailout(prop: string | symbol) {
     switch (prop) {
       case 'search':
       case 'searchParams':
@@ -232,12 +234,12 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
         return cache.searchParams
       case 'url':
       case 'href':
-        if (!cache.url) cache.url = stripSearchFromURL(url)
+        if (!cache.url) cache.url = cleanURL(url)
 
         return cache.url
       case 'toJSON':
       case 'toString':
-        if (!cache.url) cache.url = stripSearchFromURL(url)
+        if (!cache.url) cache.url = cleanURL(url)
         if (!cache.toString) cache.toString = () => cache.url!
 
         return cache.toString
@@ -251,7 +253,7 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
 
         return cache.cookies
       case 'clone':
-        if (!cache.url) cache.url = stripSearchFromURL(url)
+        if (!cache.url) cache.url = cleanURL(url)
 
         return () => new NextURL(cache.url!)
       default:
