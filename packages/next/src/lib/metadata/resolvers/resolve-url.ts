@@ -30,16 +30,4 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-function resolveUrlValuesOfObject(
-  obj: Record<string, string | URL | null> | null | undefined,
-  metadataBase: ResolvedMetadata['metadataBase']
-): null | Record<string, string | URL | null> {
-  if (!obj) return null
-  const result: Record<string, URL | string | null> = {}
-  for (const [key, value] of Object.entries(obj)) {
-    result[key] = metadataBase ? resolveUrl(value, metadataBase) : value
-  }
-  return result
-}
-
-export { isStringOrURL, resolveUrl, resolveUrlValuesOfObject }
+export { isStringOrURL, resolveUrl }

@@ -208,4 +208,92 @@ describe('accumulateMetadata', () => {
       })
     })
   })
+
+  describe('alternate', () => {
+    it('should support string alternate', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: '/relative',
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: '/relative' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support alternate descriptors', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: '/relative',
+              languages: {
+                'en-US': [
+                  { url: '/en-US', title: 'en' },
+                  { url: '/zh_CN', title: 'zh' },
+                ],
+              },
+              media: {
+                'only screen and (max-width: 600px)': [
+                  { url: '/mobile', title: 'mobile' },
+                ],
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: '/relative' },
+          languages: {
+            'en-US': [
+              { url: '/en-US', title: 'en' },
+              { url: '/zh_CN', title: 'zh' },
+            ],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [
+              { url: '/mobile', title: 'mobile' },
+            ],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+  })
 })
