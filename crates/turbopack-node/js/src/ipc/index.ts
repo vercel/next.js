@@ -142,3 +142,38 @@ export const IPC = createIpc<unknown, unknown>(parseInt(PORT, 10));
 process.on("uncaughtException", (err) => {
   IPC.sendError(err);
 });
+
+const improveConsole = (name: string, stream: string, addStack: boolean) => {
+  // @ts-ignore
+  const original = console[name];
+  // @ts-ignore
+  const stdio = process[stream];
+  // @ts-ignore
+  console[name] = (...args: any[]) => {
+    stdio.write(`TURBOPACK_OUTPUT_B\n`);
+    original(...args);
+    if (addStack) {
+      const stack = new Error().stack?.replace(/^.+\n.+\n/, "") + "\n";
+      stdio.write("TURBOPACK_OUTPUT_S\n");
+      stdio.write(stack);
+    }
+    stdio.write("TURBOPACK_OUTPUT_E\n");
+  };
+};
+
+improveConsole("error", "stderr", true);
+improveConsole("warn", "stderr", true);
+improveConsole("count", "stdout", true);
+improveConsole("trace", "stderr", false);
+improveConsole("log", "stdout", true);
+improveConsole("group", "stdout", true);
+improveConsole("groupCollapsed", "stdout", true);
+improveConsole("table", "stdout", true);
+improveConsole("debug", "stdout", true);
+improveConsole("info", "stdout", true);
+improveConsole("dir", "stdout", true);
+improveConsole("dirxml", "stdout", true);
+improveConsole("timeEnd", "stdout", true);
+improveConsole("timeLog", "stdout", true);
+improveConsole("timeStamp", "stdout", true);
+improveConsole("assert", "stderr", true);
