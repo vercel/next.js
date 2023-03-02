@@ -1,10 +1,21 @@
-use turbopack::transition::{Transition, TransitionVc};
+use anyhow::Result;
+use indexmap::indexmap;
+use turbo_tasks::Value;
+use turbopack::{
+    transition::{Transition, TransitionVc},
+    ModuleAssetContextVc,
+};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
-    virtual_asset::VirtualAssetVc,
+    asset::AssetVc,
+    context::AssetContext,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+};
+use turbopack_ecmascript::{
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
-use crate::embed_js::next_js_file;
+use crate::embed_js::next_asset;
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerToClientTransition {
@@ -14,16 +25,44 @@ pub struct NextServerToClientTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextServerToClientTransition {
     #[turbo_tasks::function]
-    fn process_source(&self, asset: AssetVc) -> AssetVc {
-        VirtualAssetVc::new(
-            asset.ident().path().join("client-proxy.tsx"),
-            next_js_file(if self.ssr {
-                "entry/app/server-to-client-ssr.tsx"
-            } else {
-                "entry/app/server-to-client.tsx"
-            })
-            .into(),
+    async fn process(
+        self_vc: NextServerToClientTransitionVc,
+        asset: AssetVc,
+        context: ModuleAssetContextVc,
+        _reference_type: Value<ReferenceType>,
+    ) -> Result<AssetVc> {
+        let internal_asset = next_asset(if self_vc.await?.ssr {
+            "entry/app/server-to-client-ssr.tsx"
+        } else {
+            "entry/app/server-to-client.tsx"
+        });
+        let context = self_vc.process_context(context);
+        let client_chunks = context.with_transition("next-client-chunks").process(
+            asset,
+            Value::new(ReferenceType::Entry(
+                EntryReferenceSubType::AppClientComponent,
+            )),
+        );
+        let client_module = context.with_transition("next-ssr-client-module").process(
+            asset,
+            Value::new(ReferenceType::Entry(
+                EntryReferenceSubType::AppClientComponent,
+            )),
+        );
+        Ok(EcmascriptModuleAssetVc::new_with_inner_assets(
+            internal_asset,
+            context.into(),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            EcmascriptInputTransformsVc::cell(vec![
+                EcmascriptInputTransform::TypeScript,
+                EcmascriptInputTransform::React { refresh: false },
+            ]),
+            context.compile_time_info(),
+            InnerAssetsVc::cell(indexmap! {
+                "CLIENT_MODULE".to_string() => client_module,
+                "CLIENT_CHUNKS".to_string() => client_chunks,
+            }),
         )
-        .into()
+        .into())
     }
 }

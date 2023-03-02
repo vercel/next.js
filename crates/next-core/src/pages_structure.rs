@@ -6,7 +6,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
 use turbopack_dev_server::source::specificity::SpecificityVc;
 
-use crate::{embed_js::wrap_with_next_js_fs, next_config::NextConfigVc};
+use crate::next_config::NextConfigVc;
 
 /// A final route in the pages directory.
 #[turbo_tasks::value]
@@ -113,8 +113,6 @@ pub async fn find_pages_structure(
     server_root: FileSystemPathVc,
     next_config: NextConfigVc,
 ) -> Result<OptionPagesStructureVc> {
-    let project_path = wrap_with_next_js_fs(project_path);
-
     let pages = project_path.join("pages");
     let src_pages = project_path.join("src/pages");
     let pages_dir = if *pages.get_type().await? == FileSystemEntryType::Directory {

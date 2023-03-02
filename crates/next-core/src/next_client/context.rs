@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack::{
     module_options::{
         module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
@@ -28,7 +28,7 @@ use turbopack_node::execution_context::ExecutionContextVc;
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
-    embed_js::attached_next_js_package_path,
+    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -89,7 +89,7 @@ pub async fn get_client_resolve_options_context(
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path);
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: true,
+        enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions: vec!["development".to_string()],
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -268,7 +268,7 @@ pub async fn get_client_runtime_entries(
                 RequestVc::parse(Value::new(Pattern::Constant(
                     "./dev/bootstrap.ts".to_string(),
                 ))),
-                attached_next_js_package_path(project_root).join("_"),
+                next_js_fs().root().join("_"),
             )
             .cell(),
         );

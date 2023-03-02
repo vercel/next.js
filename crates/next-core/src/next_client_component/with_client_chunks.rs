@@ -68,16 +68,18 @@ impl ChunkableAsset for WithClientChunksAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WithClientChunksAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self_vc: WithClientChunksAssetVc,
         context: ChunkingContextVc,
-    ) -> EcmascriptChunkItemVc {
-        WithClientChunksChunkItem {
+    ) -> Result<EcmascriptChunkItemVc> {
+        let this = self_vc.await?;
+        Ok(WithClientChunksChunkItem {
             context: context.with_layer("rsc"),
             inner: self_vc,
+            chunk_item: this.asset.as_chunk_item(context),
         }
         .cell()
-        .into()
+        .into())
     }
 
     #[turbo_tasks::function]
@@ -91,6 +93,7 @@ impl EcmascriptChunkPlaceable for WithClientChunksAsset {
 struct WithClientChunksChunkItem {
     context: ChunkingContextVc,
     inner: WithClientChunksAssetVc,
+    chunk_item: EcmascriptChunkItemVc,
 }
 
 #[turbo_tasks::value_impl]

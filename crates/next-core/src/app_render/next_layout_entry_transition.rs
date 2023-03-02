@@ -1,4 +1,6 @@
 use anyhow::Result;
+use indexmap::indexmap;
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     self,
@@ -7,15 +9,14 @@ use turbopack::{
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbopack_core::{
-    asset::{Asset, AssetVc},
-    compile_time_info::CompileTimeInfoVc,
-    virtual_asset::VirtualAssetVc,
+use turbopack_core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext};
+use turbopack_ecmascript::{
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc, InnerAssetsVc,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceableVc;
 
 use crate::{
-    embed_js::next_js_file, next_client_component::with_client_chunks::WithClientChunksAsset,
+    embed_js::next_asset, next_client_component::with_client_chunks::WithClientChunksAsset,
 };
 
 #[turbo_tasks::value(shared)]
@@ -28,15 +29,6 @@ pub struct NextLayoutEntryTransition {
 
 #[turbo_tasks::value_impl]
 impl Transition for NextLayoutEntryTransition {
-    #[turbo_tasks::function]
-    fn process_source(&self, asset: AssetVc) -> AssetVc {
-        VirtualAssetVc::new(
-            asset.ident().path().join("layout-entry.tsx"),
-            next_js_file("entry/app/layout-entry.tsx").into(),
-        )
-        .into()
-    }
-
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
@@ -65,20 +57,30 @@ impl Transition for NextLayoutEntryTransition {
     async fn process_module(
         &self,
         asset: AssetVc,
-        _context: ModuleAssetContextVc,
+        context: ModuleAssetContextVc,
     ) -> Result<AssetVc> {
-        Ok(
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                WithClientChunksAsset {
-                    asset: placeable,
-                    // next.js code already adds _next prefix
-                    server_root: self.server_root.join("_next"),
-                }
-                .cell()
-                .into()
-            } else {
-                asset
-            },
-        )
+        let internal_asset = next_asset("entry/app/layout-entry.tsx");
+
+        let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
+            internal_asset,
+            context.into(),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            EcmascriptInputTransformsVc::cell(vec![
+                EcmascriptInputTransform::TypeScript,
+                EcmascriptInputTransform::React { refresh: false },
+            ]),
+            context.compile_time_info(),
+            InnerAssetsVc::cell(indexmap! {
+                "PAGE".to_string() => asset
+            }),
+        );
+
+        Ok(WithClientChunksAsset {
+            asset: asset.into(),
+            // next.js code already adds _next prefix
+            server_root: self.server_root.join("_next"),
+        }
+        .cell()
+        .into())
     }
 }

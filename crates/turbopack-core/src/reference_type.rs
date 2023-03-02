@@ -50,7 +50,10 @@ pub enum TypeScriptReferenceSubType {
 pub enum EntryReferenceSubType {
     Web,
     Page,
+    PagesApi,
+    AppPage,
     AppRoute,
+    AppClientComponent,
     Custom(u8),
     Undefined,
 }

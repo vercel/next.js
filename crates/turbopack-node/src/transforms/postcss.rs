@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
+use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
@@ -175,7 +175,9 @@ fn postcss_executor(context: AssetContextVc, postcss_config_path: FileSystemPath
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
         context.compile_time_info(),
-        InnerAssetsVc::cell(IndexMap::from([("CONFIG".to_string(), config_asset)])),
+        InnerAssetsVc::cell(indexmap! {
+            "CONFIG".to_string() => config_asset
+        }),
     )
     .into()
 }
@@ -195,7 +197,7 @@ impl PostCssTransformedAssetVc {
         };
 
         let ExecutionContext {
-            project_root,
+            project_path,
             intermediate_output_path,
             env,
         } = *this.execution_context.await?;
@@ -219,9 +221,9 @@ impl PostCssTransformedAssetVc {
         let css_fs_path = this.source.ident().path().await?;
         let css_path = css_fs_path.path.as_str();
         let config_value = evaluate(
-            project_root,
+            project_path,
             postcss_executor,
-            project_root,
+            project_path,
             env,
             this.source.ident(),
             context,

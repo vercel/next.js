@@ -141,9 +141,9 @@ async fn base_resolve_options(
             }
         } else {
             let mut mods = Vec::new();
-            if opt.enable_node_modules {
+            if let Some(dir) = opt.enable_node_modules {
                 mods.push(ResolveModules::Nested(
-                    root,
+                    dir,
                     vec!["node_modules".to_string()],
                 ));
             }

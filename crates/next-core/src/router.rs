@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
+use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
@@ -33,7 +33,7 @@ use turbopack_node::{
 };
 
 use crate::{
-    embed_js::{next_asset, next_js_file, wrap_with_next_js_fs},
+    embed_js::{next_asset, next_js_file},
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -236,20 +236,16 @@ async fn config_assets(
     )
     .as_asset();
 
-    let mut inner = IndexMap::new();
-    inner.insert("MIDDLEWARE_CHUNK_GROUP".to_string(), manifest);
-    inner.insert("MIDDLEWARE_CONFIG".to_string(), config_asset);
-    Ok(InnerAssetsVc::cell(inner))
+    Ok(InnerAssetsVc::cell(indexmap! {
+        "MIDDLEWARE_CHUNK_GROUP".to_string() => manifest,
+        "MIDDLEWARE_CONFIG".to_string() => config_asset,
+    }))
 }
 
 #[turbo_tasks::function]
-fn route_executor(
-    context: AssetContextVc,
-    project_path: FileSystemPathVc,
-    configs: InnerAssetsVc,
-) -> AssetVc {
+fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
     EcmascriptModuleAssetVc::new_with_inner_assets(
-        next_asset(project_path.join("router.js"), "entry/router.ts"),
+        next_asset("entry/router.ts"),
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
@@ -311,15 +307,15 @@ pub async fn route(
     routes_changed: CompletionVc,
 ) -> Result<RouterResultVc> {
     let ExecutionContext {
-        project_root,
+        project_path,
         intermediate_output_path,
         env,
     } = *execution_context.await?;
-    let project_path = wrap_with_next_js_fs(project_root);
     let intermediate_output_path = intermediate_output_path.join("router");
 
     let context = node_evaluate_asset_context(
-        Some(get_next_build_import_map(project_path)),
+        project_path,
+        Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
             project_path,
@@ -329,21 +325,21 @@ pub async fn route(
     );
 
     let configs = config_assets(context, project_path, next_config.page_extensions());
-    let router_asset = route_executor(context, project_path, configs);
+    let router_asset = route_executor(context, configs);
 
     // TODO this is a hack to get these files watched.
     let next_config = watch_files_hack(context, project_path);
 
     let request = serde_json::value::to_value(&*request.await?)?;
-    let Some(dir) = to_sys_path(project_root).await? else {
+    let Some(dir) = to_sys_path(project_path).await? else {
         bail!("Next.js requires a disk path to check for valid routes");
     };
     let result = evaluate(
         project_path,
         router_asset,
-        project_root,
+        project_path,
         env,
-        AssetIdentVc::from_path(project_root),
+        AssetIdentVc::from_path(project_path),
         context,
         intermediate_output_path,
         Some(next_config),

@@ -117,16 +117,16 @@ pub async fn maybe_add_babel_loader(
 }
 
 #[turbo_tasks::function]
-pub async fn is_babel_loader_available(project_root: FileSystemPathVc) -> Result<BoolVc> {
+pub async fn is_babel_loader_available(project_path: FileSystemPathVc) -> Result<BoolVc> {
     let result = resolve(
-        project_root,
+        project_path,
         RequestVc::parse(Value::new(Pattern::Constant(
             "babel-loader/package.json".to_string(),
         ))),
         resolve_options(
-            project_root,
+            project_path,
             ResolveOptionsContext {
-                enable_node_modules: true,
+                enable_node_modules: Some(project_path.root().resolve().await?),
                 enable_node_native_modules: true,
                 custom_conditions: vec!["development".to_string()],
                 ..Default::default()

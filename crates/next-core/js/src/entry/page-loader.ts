@@ -1,4 +1,4 @@
-import * as page from ".";
+import * as page from "PAGE";
 
 // inserted by rust code
 declare const PAGE_PATH: string;

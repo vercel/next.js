@@ -206,6 +206,26 @@ impl ImportMap {
         self.map
             .insert(AliasPattern::wildcard(prefix, suffix), mapping);
     }
+
+    /// Inserts an alias that resolves an prefix always from a certain location
+    /// to create a singleton.
+    pub fn insert_singleton_alias<'a>(
+        &mut self,
+        prefix: impl Into<String> + 'a,
+        context_path: FileSystemPathVc,
+    ) {
+        let prefix = prefix.into();
+        let wildcard_prefix = prefix.clone() + "/";
+        let wildcard_alias: String = prefix.clone() + "/*";
+        self.insert_exact_alias(
+            &prefix,
+            ImportMapping::PrimaryAlternative(prefix.clone(), Some(context_path)).cell(),
+        );
+        self.insert_wildcard_alias(
+            wildcard_prefix,
+            ImportMapping::PrimaryAlternative(wildcard_alias, Some(context_path)).cell(),
+        );
+    }
 }
 
 #[turbo_tasks::value_impl]

@@ -206,12 +206,12 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
         ResolveOptionsContext {
             enable_typescript: true,
             enable_react: true,
-            enable_node_modules: true,
+            enable_node_modules: Some(project_root),
             custom_conditions: vec!["development".to_string()],
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),
                 ResolveOptionsContext {
-                    enable_node_modules: true,
+                    enable_node_modules: Some(project_root),
                     custom_conditions: vec!["development".to_string()],
                     ..Default::default()
                 }

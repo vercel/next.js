@@ -15,7 +15,6 @@ use turbopack_dev_server::{
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::{
-    embed_js::wrap_with_next_js_fs,
     next_client::context::{
         get_client_asset_context, get_client_chunking_context, get_client_compile_time_info,
         get_client_runtime_entries, ClientContextType,
@@ -25,7 +24,7 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    project_root: FileSystemPathVc,
+    project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     entry_requests: Vec<RequestVc>,
     server_root: FileSystemPathVc,
@@ -34,28 +33,26 @@ pub async fn create_web_entry_source(
     browserslist_query: &str,
     next_config: NextConfigVc,
 ) -> Result<ContentSourceVc> {
-    let project_root = wrap_with_next_js_fs(project_root);
-
     let ty = Value::new(ClientContextType::Other);
     let compile_time_info = get_client_compile_time_info(browserslist_query);
     let context = get_client_asset_context(
-        project_root,
+        project_path,
         execution_context,
         compile_time_info,
         ty,
         next_config,
     );
     let chunking_context = get_client_chunking_context(
-        project_root,
+        project_path,
         server_root,
         compile_time_info.environment(),
         ty,
     );
-    let entries = get_client_runtime_entries(project_root, env, ty, next_config);
+    let entries = get_client_runtime_entries(project_path, env, ty, next_config);
 
     let runtime_entries = entries.resolve_entries(context);
 
-    let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
+    let origin = PlainResolveOriginVc::new(context, project_path.join("_")).as_resolve_origin();
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {

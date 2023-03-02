@@ -13,7 +13,6 @@ use turbopack_dev_server::source::specificity::SpecificityVc;
 
 use crate::{
     app_render::{LayoutSegment, LayoutSegmentVc, LayoutSegmentsVc},
-    embed_js::wrap_with_next_js_fs,
     next_config::NextConfigVc,
 };
 
@@ -101,8 +100,6 @@ pub async fn find_app_structure(
     server_root: FileSystemPathVc,
     next_config: NextConfigVc,
 ) -> Result<OptionAppStructureVc> {
-    let project_path = wrap_with_next_js_fs(project_path);
-
     if !*next_config.app_dir().await? {
         return Ok(OptionAppStructureVc::cell(None));
     }

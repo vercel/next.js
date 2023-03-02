@@ -5,7 +5,8 @@ import startHandler from "@vercel/turbopack-next/internal/page-server-handler";
 // eslint-disable-next-line
 import Document from "next/document";
 import App from "next/app";
-import * as otherExports from ".";
+// @ts-expect-error INNER is provided by rust
+import * as otherExports from "INNER";
 
 startHandler({
   isDataReq: true,

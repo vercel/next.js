@@ -1,7 +1,7 @@
 import loadConfig from "next/dist/server/config";
 import loadCustomRoutes from "next/dist/lib/load-custom-routes";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
-import assert from "assert";
+import assert from "node:assert";
 
 const loadNextConfig = async (silent) => {
   const nextConfig = await loadConfig(
