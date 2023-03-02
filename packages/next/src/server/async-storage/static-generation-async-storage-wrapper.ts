@@ -10,6 +10,7 @@ export type RequestContext = {
     supportsDynamicHTML: boolean
     isRevalidate?: boolean
     isBot?: boolean
+    nextExport?: boolean
   }
 }
 
@@ -19,7 +20,7 @@ export class StaticGenerationAsyncStorageWrapper
   public wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
     context: RequestContext,
-    callback: () => Result
+    callback: (store: StaticGenerationStore) => Result
   ): Result {
     return StaticGenerationAsyncStorageWrapper.wrap(storage, context, callback)
   }
@@ -30,7 +31,7 @@ export class StaticGenerationAsyncStorageWrapper
   public static wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
     { pathname, renderOpts }: RequestContext,
-    callback: () => Result
+    callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
      * Rules of Static & Dynamic HTML:
@@ -53,9 +54,10 @@ export class StaticGenerationAsyncStorageWrapper
       pathname,
       incrementalCache: renderOpts.incrementalCache,
       isRevalidate: renderOpts.isRevalidate,
+      isPrerendering: renderOpts.nextExport,
     }
     ;(renderOpts as any).store = store
 
-    return storage.run(store, callback)
+    return storage.run(store, callback, store)
   }
 }

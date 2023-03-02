@@ -22,7 +22,6 @@ import {
   SERVER_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import {
   generateActionId,
   getActions,
@@ -32,6 +31,7 @@ import {
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { getProxiedPluginState } from '../../build-context'
 
 interface Options {
   dev: boolean
@@ -41,11 +41,6 @@ interface Options {
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
-export const injectedClientEntries = new Map()
-
-export const serverModuleIds = new Map<string, string | number>()
-export const edgeServerModuleIds = new Map<string, string | number>()
-
 export type ActionManifest = {
   [actionId: string]: {
     workers: {
@@ -54,13 +49,27 @@ export type ActionManifest = {
   }
 }
 
-// A map to track "action" -> "list of bundles".
-let serverActions: ActionManifest = {}
-let edgeServerActions: ActionManifest = {}
-const actionModId: Record<string, string | number> = {}
+const pluginState = getProxiedPluginState({
+  // A map to track "action" -> "list of bundles".
+  serverActions: {} as ActionManifest,
+  edgeServerActions: {} as ActionManifest,
+  actionModId: {} as Record<string, string | number>,
 
-let serverCSSManifest: FlightCSSManifest = {}
-let edgeServerCSSManifest: FlightCSSManifest = {}
+  // Manifest of CSS entry files for server/edge server.
+  serverCSSManifest: {} as FlightCSSManifest,
+  edgeServerCSSManifest: {} as FlightCSSManifest,
+
+  // Mapping of resource path to module id for server/edge server.
+  serverModuleIds: {} as Record<string, string | number>,
+  edgeServerModuleIds: {} as Record<string, string | number>,
+
+  // Collect modules from server/edge compiler in client layer,
+  // and detect if it's been used, and mark it as `async: true` for react.
+  // So that react could unwrap the async module from promise and render module itself.
+  ASYNC_CLIENT_MODULES: [] as string[],
+
+  injectedClientEntries: {} as Record<string, string>,
+})
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -113,12 +122,11 @@ export class FlightClientEntryPlugin {
           }
 
           if (this.isEdgeServer) {
-            edgeServerModuleIds.set(
-              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/'),
-              modId
-            )
+            pluginState.edgeServerModuleIds[
+              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/')
+            ] = modId
           } else {
-            serverModuleIds.set(ssrNamedModuleId, modId)
+            pluginState.serverModuleIds[ssrNamedModuleId] = modId
           }
         }
       }
@@ -128,7 +136,7 @@ export class FlightClientEntryPlugin {
         // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
         if (mod.request && mod.resource && !mod.buildInfo.rsc) {
           if (compilation.moduleGraph.isAsync(mod)) {
-            ASYNC_CLIENT_MODULES.add(mod.resource)
+            pluginState.ASYNC_CLIENT_MODULES.push(mod.resource)
           }
         }
 
@@ -278,10 +286,11 @@ export class FlightClientEntryPlugin {
 
       // Create action entry
       if (this.isEdgeServer) {
-        edgeServerActions = {}
+        pluginState.edgeServerActions = {}
       } else {
-        serverActions = {}
+        pluginState.serverActions = {}
       }
+
       if (actionEntryImports.size > 0) {
         addActionEntryList.push(
           this.injectActionEntry({
@@ -299,15 +308,10 @@ export class FlightClientEntryPlugin {
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
       const cssImportsForChunk: Record<string, Set<string>> = {}
-      if (this.isEdgeServer) {
-        edgeServerCSSManifest = {}
-      } else {
-        serverCSSManifest = {}
-      }
 
-      let cssManifest = this.isEdgeServer
-        ? edgeServerCSSManifest
-        : serverCSSManifest
+      const cssManifest = this.isEdgeServer
+        ? pluginState.edgeServerCSSManifest
+        : pluginState.serverCSSManifest
 
       function collectModule(entryName: string, mod: any) {
         const resource = mod.resource
@@ -414,11 +418,11 @@ export class FlightClientEntryPlugin {
       (assets: webpack.Compilation['assets']) => {
         const manifest = JSON.stringify(
           {
-            ...serverCSSManifest,
-            ...edgeServerCSSManifest,
+            ...pluginState.serverCSSManifest,
+            ...pluginState.edgeServerCSSManifest,
             __entry_css_mods__: {
-              ...serverCSSManifest.__entry_css_mods__,
-              ...edgeServerCSSManifest.__entry_css_mods__,
+              ...pluginState.serverCSSManifest.__entry_css_mods__,
+              ...pluginState.edgeServerCSSManifest.__entry_css_mods__,
             },
           },
           null,
@@ -649,7 +653,7 @@ export class FlightClientEntryPlugin {
         entryData.lastActiveTime = Date.now()
       }
     } else {
-      injectedClientEntries.set(bundlePath, clientLoader)
+      pluginState.injectedClientEntries[bundlePath] = clientLoader
     }
 
     // Inject the entry to the server compiler (__sc_client__).
@@ -700,8 +704,8 @@ export class FlightClientEntryPlugin {
     })}!`
 
     let currentCompilerServerActions = this.isEdgeServer
-      ? serverActions
-      : edgeServerActions
+      ? pluginState.serverActions
+      : pluginState.edgeServerActions
     for (const [p, names] of actionsArray) {
       for (const name of names) {
         const id = generateActionId(p, name)
@@ -771,18 +775,18 @@ export class FlightClientEntryPlugin {
         mod.request &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
-        actionModId[chunkGroup.name] = modId
+        pluginState.actionModId[chunkGroup.name] = modId
       }
     })
 
     const fullServerActions = {
-      ...serverActions,
-      ...edgeServerActions,
+      ...pluginState.serverActions,
+      ...pluginState.edgeServerActions,
     }
     for (let id in fullServerActions) {
       const action = fullServerActions[id]
       for (let name in action.workers) {
-        action.workers[name] = actionModId[name]
+        action.workers[name] = pluginState.actionModId[name]
       }
     }
 
