@@ -16,7 +16,7 @@ import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
   resumePluginState,
-  getPluginStateAsStructure,
+  getPluginState,
 } from './build-context'
 import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
@@ -27,8 +27,6 @@ import {
   TurbotraceContext,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { UnwrapPromise } from '../lib/coalesced-function'
-import * as flightPluginModule from './webpack/plugins/flight-client-entry-plugin'
-import * as flightManifestPluginModule from './webpack/plugins/flight-manifest-plugin'
 import * as pagesPluginModule from './webpack/plugins/pages-manifest-plugin'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
@@ -191,9 +189,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
 
     // Only continue if there were no errors
     if (!serverResult?.errors.length && !edgeServerResult?.errors.length) {
-      const pluginState = getPluginStateAsStructure<{
-        injectedClientEntries: Record<string, string>
-      }>()
+      const pluginState = getPluginState()
       for (const key in pluginState.injectedClientEntries) {
         const value = pluginState.injectedClientEntries[key]
         const clientEntry = clientConfig.entry as webpack.EntryObject
@@ -310,7 +306,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
     return {
       duration: webpackBuildEnd[0],
       turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
-      pluginState: getPluginStateAsStructure(),
+      pluginState: getPluginState(),
       serializedPagesManifestEntries: {
         edgeServerPages: pagesPluginModule.edgeServerPages,
         edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
@@ -408,7 +404,7 @@ async function webpackBuildWithWorker() {
     await worker.end()
 
     // Update plugin state
-    prunedBuildContext.pluginState = getPluginStateAsStructure()
+    prunedBuildContext.pluginState = curResult.pluginState
 
     prunedBuildContext.serializedPagesManifestEntries = {
       edgeServerAppPaths:

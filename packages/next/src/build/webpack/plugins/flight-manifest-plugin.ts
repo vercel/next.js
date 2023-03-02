@@ -13,7 +13,7 @@ import {
 } from '../../../shared/lib/constants'
 import { relative, sep } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
-import { getPluginStateAsStructure } from '../../build-context'
+import { getProxiedPluginState } from '../../build-context'
 
 import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
@@ -39,11 +39,11 @@ type ModuleId = string | number /*| null*/
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
 
-const pluginState = getPluginStateAsStructure<{
-  serverModuleIds: Record<string, string | number>
-  edgeServerModuleIds: Record<string, string | number>
-  ASYNC_CLIENT_MODULES: string[]
-}>()
+const pluginState = getProxiedPluginState({
+  serverModuleIds: {} as Record<string, string | number>,
+  edgeServerModuleIds: {} as Record<string, string | number>,
+  ASYNC_CLIENT_MODULES: [] as string[],
+})
 
 interface ManifestNode {
   [moduleExport: string]: {

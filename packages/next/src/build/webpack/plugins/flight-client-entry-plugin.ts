@@ -31,7 +31,7 @@ import {
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { getPluginStateAsStructure } from '../../build-context'
+import { getProxiedPluginState } from '../../build-context'
 
 interface Options {
   dev: boolean
@@ -49,25 +49,25 @@ export type ActionManifest = {
   }
 }
 
-const pluginState = getPluginStateAsStructure<{
+const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
-  serverActions: ActionManifest
+  serverActions: {} as ActionManifest,
 
   // Manifest of CSS entry files for server/edge server.
-  serverCSSManifest: FlightCSSManifest
-  edgeServerCSSManifest: FlightCSSManifest
+  serverCSSManifest: {} as FlightCSSManifest,
+  edgeServerCSSManifest: {} as FlightCSSManifest,
 
   // Mapping of resource path to module id for server/edge server.
-  serverModuleIds: Record<string, string | number>
-  edgeServerModuleIds: Record<string, string | number>
+  serverModuleIds: {} as Record<string, string | number>,
+  edgeServerModuleIds: {} as Record<string, string | number>,
 
   // Collect modules from server/edge compiler in client layer,
   // and detect if it's been used, and mark it as `async: true` for react.
   // So that react could unwrap the async module from promise and render module itself.
-  ASYNC_CLIENT_MODULES: string[]
+  ASYNC_CLIENT_MODULES: [] as string[],
 
-  injectedClientEntries: Record<string, string>
-}>()
+  injectedClientEntries: {} as Record<string, string>,
+})
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -81,18 +81,6 @@ export class FlightClientEntryPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    // Init plugin state
-    if (this.isEdgeServer) {
-      pluginState.edgeServerCSSManifest = {}
-      pluginState.edgeServerModuleIds = {}
-    } else {
-      pluginState.serverCSSManifest = {}
-      pluginState.serverModuleIds = {}
-    }
-    pluginState.serverActions = {}
-    pluginState.ASYNC_CLIENT_MODULES = []
-    pluginState.injectedClientEntries = {}
-
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
