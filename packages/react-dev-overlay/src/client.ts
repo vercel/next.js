@@ -32,15 +32,17 @@ function onUnhandledError(ev: ErrorEvent) {
   }
 
   const e = error
+  const componentStack =
+    typeof hydrationErrorComponentStack === 'string'
+      ? parseComponentStack(hydrationErrorComponentStack).map(
+          (frame: any) => frame.component
+        )
+      : undefined
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
     frames: parseStack(e.stack!),
-    componentStack:
-      hydrationErrorComponentStack &&
-      parseComponentStack(hydrationErrorComponentStack).map(
-        (frame: any) => frame.component
-      ),
+    componentStack,
   })
 }
 
