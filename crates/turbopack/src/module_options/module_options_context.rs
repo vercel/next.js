@@ -41,25 +41,42 @@ impl WebpackLoadersOptions {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ModuleOptionsContext {
+    #[serde(default)]
     pub enable_jsx: bool,
+    #[serde(default)]
     pub enable_emotion: bool,
+    #[serde(default)]
     pub enable_react_refresh: bool,
+    #[serde(default)]
     pub enable_styled_components: bool,
+    #[serde(default)]
     pub enable_styled_jsx: bool,
+    #[serde(default)]
     pub enable_postcss_transform: Option<PostCssTransformOptions>,
+    #[serde(default)]
     pub enable_webpack_loaders: Option<WebpackLoadersOptions>,
+    #[serde(default)]
     pub enable_types: bool,
+    #[serde(default)]
     pub enable_typescript_transform: bool,
+    #[serde(default)]
     pub enable_mdx: bool,
+    #[serde(default)]
     pub preset_env_versions: Option<EnvironmentVc>,
+    #[serde(default)]
     pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
+    #[serde(default)]
     pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
+    #[serde(default)]
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
+    #[serde(default)]
     pub execution_context: Option<ExecutionContextVc>,
+    #[serde(default)]
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ModuleOptionsContextVc)>,
+    #[serde(default)]
     pub placeholder_for_future_extensions: (),
 }
 
