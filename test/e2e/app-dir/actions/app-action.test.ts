@@ -9,6 +9,7 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should create the server reference manifest', async () => {
+      await next.fetch('/server')
       const content = await next.readFile(
         '.next/server/server-reference-manifest.json'
       )
