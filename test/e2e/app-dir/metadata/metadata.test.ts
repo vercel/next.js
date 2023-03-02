@@ -644,6 +644,17 @@ createNextDescribe(
       })
     })
 
+    describe('static routes', () => {
+      it('should support root dir robots.txt', async () => {
+        const content = await next.render('/robots.txt')
+        expect(content).toContain('User-Agent: *\nDisallow:')
+        const res = await next.fetch('/title/robots.txt')
+        expect(res.status).toBe(404)
+      })
+
+      it('should support root dir robots.txt', async () => {})
+    })
+
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {
         const browser = await next.browser('/cache-deduping')

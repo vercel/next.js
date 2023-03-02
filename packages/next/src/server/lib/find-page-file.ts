@@ -68,10 +68,49 @@ export async function findPageFile(
   return existingPath
 }
 
-// Determine if the file is leaf node page file under layouts,
-// The filename should start with 'page' and end with one of the allowed extensions
-export function isLayoutsLeafPage(filePath: string, pageExtensions: string[]) {
-  return new RegExp(
-    `(^page|[\\\\/]page|^route|[\\\\/]route)\\.(?:${pageExtensions.join('|')})$`
-  ).test(filePath)
+/**
+ *
+ * createValidFileMatcher receives configured page extensions and return helpers to determine:
+ * `isLayoutsLeafPage`: if a file is a valid page file or routes file under app directory
+ * `isTrackedFiles`: if it's a tracked file for webpack watcher
+ *
+ */
+export function createValidFileMatcher(
+  pageExtensions: string[],
+  appDirPath: string | undefined
+) {
+  const validExtensionFileRegex = new RegExp(
+    `\\.+(?:${pageExtensions.join('|')})$`
+  )
+  const leafOnlyPageFileRegex = new RegExp(
+    `[\\\\/](page|route)\\.(?:${pageExtensions.join('|')})$`
+  )
+  // TODO: support other metadata routes
+  // regex for /robots.txt|((j|t)sx?)
+  const metadataRoutesRelativePathRegex = new RegExp(
+    `^[\\\\/](robots)\\.(?:${pageExtensions.concat('txt').join('|')})$`
+  )
+
+  function isMetadataRouteFile(filePath: string) {
+    if (!appDirPath) return false
+    const relativePath = filePath.replace(appDirPath, '')
+    return metadataRoutesRelativePathRegex.test(relativePath)
+  }
+
+  // Determine if the file is leaf node page file or route file under layouts,
+  // 'page.<extension>' | 'route.<extension>'
+  function isAppRouterPage(filePath: string) {
+    return leafOnlyPageFileRegex.test(filePath) || isMetadataRouteFile(filePath)
+  }
+
+  function isPageFile(filePath: string) {
+    return (
+      validExtensionFileRegex.test(filePath) || isMetadataRouteFile(filePath)
+    )
+  }
+
+  return {
+    isAppRouterPage,
+    isPageFile,
+  }
 }

@@ -13,8 +13,8 @@ export const enum RouteKind {
    */
   APP_PAGE = 'APP_PAGE',
   /**
-   * `APP_ROUTE` represents all the API routes that are under `app/` with the
-   * filename of `route.{j,t}s{,x}`.
+   * `APP_ROUTE` represents all the API routes and metadata routes that are under `app/` with the
+   * filename of `route.{j,t}s{,x}` or `^(robots).({j,t}s{,x}|txt)`
    */
   APP_ROUTE = 'APP_ROUTE',
 }

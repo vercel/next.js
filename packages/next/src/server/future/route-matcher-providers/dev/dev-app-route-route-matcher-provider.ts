@@ -24,9 +24,13 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ) {
     super(appDir, reader)
 
-    // Match any route file that ends with `/route.${extension}` under the app
-    // directory.
-    this.expression = new RegExp(`[/\\\\]route\\.(?:${extensions.join('|')})$`)
+    // Match any route file that ends with `/route.${extension}` under the app directory.
+    // Match top level robots file that ends with `/robots.${extension}` under the app directory.
+    this.expression = new RegExp(
+      `[/\\\\]route\\.(?:${extensions.join(
+        '|'
+      )})$|[/\\\\]robots\\.(?:${extensions.concat('txt').join('|')})?$`
+    )
 
     const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
 
