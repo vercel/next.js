@@ -233,14 +233,22 @@ createNextDescribe(
           'link',
           'href'
         )
-        await checkMeta(
-          browser,
-          'application/rss+xml',
-          'https://example.com/rss',
-          'type',
-          'link',
-          'href'
-        )
+        expect(
+          await queryMetaProps(browser, 'link', 'title="js title"', [
+            'type',
+            'href',
+          ])
+        ).toEqual({
+          type: 'application/rss+xml',
+          href: 'blog/js.rss',
+        })
+
+        expect(
+          await queryMetaProps(browser, 'link', 'title="rss"', ['type', 'href'])
+        ).toEqual({
+          type: 'application/rss+xml',
+          href: 'blog.rss',
+        })
       })
 
       it('should support robots tags', async () => {
