@@ -65,7 +65,13 @@ describe('RouteHandlerManager', () => {
     }
 
     expect(await handlers.handle(route, req, res)).toEqual(true)
-    expect(handler.handle).toHaveBeenCalledWith(route, req, res)
+    expect(handler.handle).toHaveBeenCalledWith(
+      route,
+      req,
+      res,
+      undefined,
+      undefined
+    )
   })
 
   it('will throw when multiple handlers are added for the same type', () => {
@@ -95,7 +101,13 @@ describe('RouteHandlerManager', () => {
     }
 
     expect(await handlers.handle(route, req, res)).toEqual(true)
-    expect(goodHandler.handle).toBeCalledWith(route, req, res)
+    expect(goodHandler.handle).toBeCalledWith(
+      route,
+      req,
+      res,
+      undefined,
+      undefined
+    )
     expect(badHandler.handle).not.toBeCalled()
   })
 })
