@@ -171,7 +171,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
     let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
       null
 
-    if (!compilerIdx || compilerIdx == 1) {
+    if (!compilerIdx || compilerIdx === 1) {
       serverResult = await runCompiler(serverConfig, {
         runWebpackSpan,
       })
