@@ -161,7 +161,7 @@ describe('config-output-export', () => {
          
          export async function getStaticProps() {
           return { 
-           props: { posts: ["my first post"] },
+           props: { posts: ["my isr post"] },
            revalidate: 10
           }
          }`
@@ -196,7 +196,7 @@ describe('config-output-export', () => {
          
          export async function getStaticProps() {
           return { 
-           props: { posts: ["my first post"] },
+           props: { posts: ["my gsp post"] },
           }
          }`
       )
@@ -209,5 +209,39 @@ describe('config-output-export', () => {
       fs.rmSync(blog)
     }
     expect(await hasRedbox(browser, false)).toBe(false)
+  })
+
+  it('should error with gssp', async () => {
+    const blog = join(appDir, 'pages/blog.js')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let browser: any
+    try {
+      fs.writeFileSync(
+        blog,
+        `export default function Blog({ posts }) {
+          return posts.map(p => (<div key={p}>{p}</div>))
+         }
+         
+         export async function getServerSideProps() {
+          return { 
+            props: { posts: ["my ssr post"] },
+          }
+         }`
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      browser = await webdriver(result.port, '/blog')
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(blog)
+    }
+    expect(await hasRedbox(browser, true)).toBe(true)
+    expect(await getRedboxHeader(browser)).toContain(
+      'getServerSideProps cannot be used with "output: export".'
+    )
+    expect(result?.stderr).toContain(
+      'getServerSideProps cannot be used with "output: export".'
+    )
   })
 })

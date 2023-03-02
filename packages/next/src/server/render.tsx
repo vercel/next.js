@@ -468,6 +468,12 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
+  if (getServerSideProps && renderOpts.output === 'export') {
+    throw new Error(
+      'getServerSideProps cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+    )
+  }
+
   if (getStaticPaths && !pageIsDynamic) {
     throw new Error(
       `getStaticPaths is only allowed for dynamic SSG pages and was found on '${pathname}'.` +
@@ -851,7 +857,9 @@ export async function renderToHTML(
         throw new Error('ISR cannot be used with next export.')
       }
       if (renderOpts.output === 'export') {
-        throw new Error('ISR cannot be used with "output: export".')
+        throw new Error(
+          'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
       }
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
