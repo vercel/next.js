@@ -1,5 +1,6 @@
 import { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
+import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -33,7 +34,9 @@ export class Worker {
             ...process.env,
             // we don't pass down NODE_OPTIONS as it can
             // extra memory usage
-            NODE_OPTIONS: '',
+            NODE_OPTIONS: getNodeOptionsWithoutInspect()
+              .replace(/--max-old-space-size=[\d]{1,}/, '')
+              .trim(),
           } as any,
         },
       }) as JestWorker
