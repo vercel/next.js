@@ -3,6 +3,7 @@ use std::{
     future::Future,
     mem::take,
     path::{Path, PathBuf},
+    pin::Pin,
     process::{ExitStatus, Stdio},
     sync::{Arc, Mutex},
     time::Duration,
@@ -17,7 +18,7 @@ use tokio::{
         BufReader,
     },
     net::{TcpListener, TcpStream},
-    process::{Child, ChildStderr, ChildStdout, Command},
+    process::{Child, Command},
     select,
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
@@ -39,32 +40,40 @@ struct SpawnedNodeJsPoolProcess {
 struct RunningNodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    stdout_buf: Vec<u8>,
-    stdout: BufReader<ChildStdout>,
-    shared_stdout: SharedOutputSet,
-    stdout_occurences: HashMap<Arc<[u8]>, u32>,
-    stderr_buf: Vec<u8>,
-    stderr: BufReader<ChildStderr>,
-    shared_stderr: SharedOutputSet,
-    stderr_occurences: HashMap<Arc<[u8]>, u32>,
+    stdout_future: Pin<Box<dyn Future<Output = ()> + Send>>,
+    stderr_future: Pin<Box<dyn Future<Output = ()> + Send>>,
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
-type SharedOutputSet = Arc<Mutex<IndexSet<(Arc<[u8]>, u32)>>>;
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct OutputEntry {
+    data: Arc<[u8]>,
+    stack_trace: Option<Arc<[u8]>>,
+}
+
+type SharedOutputSet = Arc<Mutex<IndexSet<(OutputEntry, u32)>>>;
+
+static GLOBAL_OUTPUT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+static MARKER: &[u8] = b"TURBOPACK_OUTPUT_";
+static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 
 /// Pipes the `stream` from `final_stream`, but uses `shared` to deduplicate
 /// lines that has beem emitted by other `handle_output_stream` instances with
 /// the same `shared` before.
 async fn handle_output_stream(
-    buffer: &mut Vec<u8>,
-    stream: &mut BufReader<impl AsyncRead + Unpin>,
-    shared: &mut SharedOutputSet,
-    own_output: &mut HashMap<Arc<[u8]>, u32>,
+    mut stream: BufReader<impl AsyncRead + Unpin>,
+    shared: SharedOutputSet,
     mut final_stream: impl AsyncWrite + Unpin,
 ) {
+    let mut buffer = Vec::new();
+    let mut own_output = HashMap::new();
+    let mut nesting: u32 = 0;
+    let mut in_stack = None;
+    let mut stack_trace_buffer = Vec::new();
     loop {
-        match stream.read_until(b'\n', buffer).await {
+        let start = buffer.len();
+        match stream.read_until(b'\n', &mut buffer).await {
             Ok(0) => {
                 break;
             }
@@ -74,19 +83,77 @@ async fn handle_output_stream(
             }
             Ok(_) => {}
         }
-        let line = Arc::from(take(buffer).into_boxed_slice());
-        let occurance_number = *own_output
-            .entry(Arc::clone(&line))
-            .and_modify(|c| *c += 1)
-            .or_insert(0);
-        let new_line = {
-            let mut shared = shared.lock().unwrap();
-            shared.insert((line.clone(), occurance_number))
-        };
-        if new_line && final_stream.write(&line).await.is_err() {
+        if buffer.len() - start == MARKER.len() + 2 && &buffer[start..buffer.len() - 2] == MARKER {
+            // This is new line
+            buffer.pop();
+            // This is the type
+            match buffer.pop() {
+                Some(b'B') => {
+                    stack_trace_buffer.clear();
+                    buffer.truncate(start);
+                    nesting += 1;
+                    in_stack = None;
+                    continue;
+                }
+                Some(b'E') => {
+                    buffer.truncate(start);
+                    if let Some(in_stack) = in_stack {
+                        if nesting != 0 {
+                            stack_trace_buffer = buffer[in_stack..].to_vec();
+                        }
+                        buffer.truncate(in_stack);
+                    }
+                    nesting = nesting.saturating_sub(1);
+                    in_stack = None;
+                    if nesting == 0 {
+                        let line = Arc::from(take(&mut buffer).into_boxed_slice());
+                        let stack_trace = if stack_trace_buffer.is_empty() {
+                            None
+                        } else {
+                            Some(Arc::from(take(&mut stack_trace_buffer).into_boxed_slice()))
+                        };
+                        let entry = OutputEntry {
+                            data: line,
+                            stack_trace,
+                        };
+                        let occurance_number = *own_output
+                            .entry(entry.clone())
+                            .and_modify(|c| *c += 1)
+                            .or_insert(0);
+                        let new_entry = {
+                            let mut shared = shared.lock().unwrap();
+                            shared.insert((entry.clone(), occurance_number))
+                        };
+                        if !new_entry {
+                            // This line has been printed by another process, so we don't need to
+                            // print it again.
+                            continue;
+                        }
+                        let _lock = GLOBAL_OUTPUT_LOCK.lock().await;
+                        if final_stream.write(&entry.data).await.is_err() {
+                            // Whatever happened with stdout/stderr, we can't write to it anymore.
+                            break;
+                        }
+                    }
+                }
+                Some(b'S') => {
+                    buffer.truncate(start);
+                    in_stack = Some(start);
+                    continue;
+                }
+                _ => {}
+            }
+        }
+        if nesting != 0 {
+            // When inside of a marked output we want to aggregate until the end marker
+            continue;
+        }
+        let _lock = GLOBAL_OUTPUT_LOCK.lock().await;
+        if final_stream.write(&buffer).await.is_err() {
             // Whatever happened with stdout/stderr, we can't write to it anymore.
             break;
         }
+        buffer.clear();
     }
 }
 
@@ -167,7 +234,16 @@ impl NodeJsPoolProcess {
                         .unwrap()
                         .read_to_end(&mut stderr)
                         .await?;
-                    Ok((String::from_utf8(stdout)?, String::from_utf8(stderr)?))
+                    fn clean(buffer: Vec<u8>) -> Result<String> {
+                        Ok(String::from_utf8(buffer)?
+                            .lines()
+                            .filter(|line| {
+                                line.len() != MARKER_STR.len() + 1 && !line.starts_with(MARKER_STR)
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n"))
+                    }
+                    Ok((clean(stdout)?, clean(stderr)?))
                 }
 
                 let (connection, _) = select! {
@@ -195,20 +271,19 @@ impl NodeJsPoolProcess {
                     },
                 };
 
-                let stdout = BufReader::new(child.stdout.take().unwrap());
-                let stderr = BufReader::new(child.stderr.take().unwrap());
+                let child_stdout = BufReader::new(child.stdout.take().unwrap());
+                let child_stderr = BufReader::new(child.stderr.take().unwrap());
+
+                let stdout_future =
+                    Box::pin(handle_output_stream(child_stdout, shared_stdout, stdout()));
+                let stderr_future =
+                    Box::pin(handle_output_stream(child_stderr, shared_stderr, stderr()));
 
                 RunningNodeJsPoolProcess {
                     child: Some(child),
                     connection,
-                    stdout,
-                    stdout_buf: Vec::new(),
-                    stdout_occurences: HashMap::new(),
-                    shared_stdout,
-                    stderr,
-                    stderr_buf: Vec::new(),
-                    stderr_occurences: HashMap::new(),
-                    shared_stderr,
+                    stdout_future,
+                    stderr_future,
                 }
             }
             NodeJsPoolProcess::Running(running) => running,
@@ -233,24 +308,10 @@ impl RunningNodeJsPoolProcess {
                 .context("reading packet data")?;
             Ok(packet_data)
         };
-        let stdout_future = handle_output_stream(
-            &mut self.stdout_buf,
-            &mut self.stdout,
-            &mut self.shared_stdout,
-            &mut self.stdout_occurences,
-            stdout(),
-        );
-        let stderr_future = handle_output_stream(
-            &mut self.stderr_buf,
-            &mut self.stderr,
-            &mut self.shared_stderr,
-            &mut self.stderr_occurences,
-            stderr(),
-        );
         select! {
             result = recv_future => result,
-            _ = stdout_future => bail!("stdout stream ended unexpectedly"),
-            _ = stderr_future => bail!("stderr stream ended unexpectedly"),
+            _ = &mut self.stdout_future => bail!("stdout stream ended unexpectedly"),
+            _ = &mut self.stderr_future => bail!("stderr stream ended unexpectedly"),
         }
     }
 
