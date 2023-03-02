@@ -41,7 +41,7 @@ interface Options {
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
-export const injectedClientEntries = new Map()
+export const injectedClientEntries = new Map<string, string>()
 
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
@@ -55,9 +55,9 @@ export type ActionManifest = {
 }
 
 // A map to track "action" -> "list of bundles".
-let serverActions: ActionManifest = {}
-let serverCSSManifest: FlightCSSManifest = {}
-let edgeServerCSSManifest: FlightCSSManifest = {}
+export const serverActions: ActionManifest = {}
+export const serverCSSManifest: FlightCSSManifest = {}
+export const edgeServerCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -274,7 +274,6 @@ export class FlightClientEntryPlugin {
       )
 
       // Create action entry
-      serverActions = {}
       if (actionEntryImports.size > 0) {
         addActionEntryList.push(
           this.injectActionEntry({
@@ -292,11 +291,6 @@ export class FlightClientEntryPlugin {
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
       const cssImportsForChunk: Record<string, Set<string>> = {}
-      if (this.isEdgeServer) {
-        edgeServerCSSManifest = {}
-      } else {
-        serverCSSManifest = {}
-      }
 
       let cssManifest = this.isEdgeServer
         ? edgeServerCSSManifest
