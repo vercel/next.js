@@ -5,10 +5,11 @@ import startHandler from "@vercel/turbopack-next/internal/page-server-handler";
 import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
 
-import Component, * as otherExports from ".";
+// @ts-expect-error INNER is provided by rust
+import Component, * as otherExports from "INNER";
 
-("TURBOPACK { transition: next-client }");
-import chunkGroup from ".";
+// @ts-expect-error INNER_CLIENT_CHUNK_GROUP is provided by rust
+import chunkGroup from "INNER_CLIENT_CHUNK_GROUP";
 
 startHandler({
   isDataReq: false,

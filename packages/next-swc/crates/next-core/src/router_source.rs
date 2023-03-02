@@ -77,7 +77,7 @@ impl ContentSource for NextRouterContentSource {
         // The next-dev server can currently run against projects as simple as
         // `index.js`. If this isn't a Next.js project, don't try to use the Next.js
         // router.
-        let project_root = this.execution_context.await?.project_root;
+        let project_root = this.execution_context.await?.project_path;
         if !(*has_next_config(project_root).await?) {
             return Ok(this
                 .inner

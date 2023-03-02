@@ -15,7 +15,7 @@ export default function Home() {
 function runTests() {
   it("continues to be able to import from `@next/font/google`", () => {
     expect(interNoArgs).toEqual({
-      className: "className__inter_34ab8b4d__318bf44f",
+      className: "className__inter_34ab8b4d__7bdff866",
       style: {
         fontFamily: "'__Inter_34ab8b4d'",
         fontStyle: "normal",

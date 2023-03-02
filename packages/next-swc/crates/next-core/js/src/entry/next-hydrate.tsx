@@ -20,7 +20,8 @@ import {
 } from "@vercel/turbopack-next/dev/hmr-client";
 
 import * as _app from "@vercel/turbopack-next/pages/_app";
-import * as page from ".";
+// @ts-expect-error PAGE is provided by rust
+import * as page from "PAGE";
 
 async function loadPageChunk(assetPrefix: string, chunkPath: string) {
   const fullPath = assetPrefix + chunkPath;

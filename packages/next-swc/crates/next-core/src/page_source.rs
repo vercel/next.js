@@ -1,4 +1,5 @@
 use anyhow::Result;
+use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
@@ -9,13 +10,12 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{rebase, FileContent, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::AssetVc,
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
-    virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
@@ -28,7 +28,7 @@ use turbopack_dev_server::{
 };
 use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_node::{
@@ -41,7 +41,7 @@ use turbopack_node::{
 };
 
 use crate::{
-    embed_js::{attached_next_js_package_path, next_asset, next_js_file, wrap_with_next_js_fs},
+    embed_js::{next_asset, next_js_file},
     env::env_for_js,
     fallback::get_fallback_page,
     next_client::{
@@ -78,7 +78,7 @@ use crate::{
 #[turbo_tasks::function]
 pub async fn create_page_source(
     pages_structure: OptionPagesStructureVc,
-    project_root: FileSystemPathVc,
+    project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     output_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
@@ -87,8 +87,6 @@ pub async fn create_page_source(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
 ) -> Result<ContentSourceVc> {
-    let project_path = wrap_with_next_js_fs(project_root);
-
     let Some(pages_structure) = *pages_structure.await? else {
         return Ok(NoContentSourceVc::new().into());
     };
@@ -476,10 +474,7 @@ async fn create_not_found_page_source(
             (
                 // The error page asset must be within the context path so it can depend on the
                 // Next.js module.
-                next_asset(
-                    attached_next_js_package_path(project_path).join("entry/error.tsx"),
-                    "entry/error.tsx",
-                ),
+                next_asset("entry/error.tsx"),
                 // If no 404 page is defined, the pathname should be _error.
                 StringVc::cell("_error".to_string()),
             )
@@ -642,12 +637,12 @@ impl SsrEntryVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
+        let entry_asset_page = this.context.process(
+            this.entry_asset,
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+        );
         let ty = if this.ty == SsrType::AutoApi {
-            let entry_asset = this.context.process(
-                this.entry_asset,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
-            );
-            let page_config = parse_config_from_source(entry_asset);
+            let page_config = parse_config_from_source(entry_asset_page);
             if page_config.await?.runtime == NextRuntime::Edge {
                 SsrType::EdgeApi
             } else {
@@ -656,29 +651,52 @@ impl SsrEntryVc {
         } else {
             this.ty
         };
-        let virtual_asset = match ty {
+        let (internal_asset, inner_assets) = match ty {
             SsrType::AutoApi => unreachable!(),
-            SsrType::Api => VirtualAssetVc::new(
-                this.entry_asset.ident().path().join("server-api.tsx"),
-                next_js_file("entry/server-api.tsx").into(),
+            SsrType::Api => (
+                next_asset("entry/server-api.tsx"),
+                indexmap! {
+                    "INNER".to_string() => entry_asset_page,
+                },
             ),
-            SsrType::EdgeApi => VirtualAssetVc::new(
-                this.entry_asset.ident().path().join("server-edge-api.tsx"),
-                next_js_file("entry/server-edge-api.tsx").into(),
+            SsrType::EdgeApi => {
+                let entry_asset_edge_chunk_group =
+                    this.context.with_transition("next-edge").process(
+                        this.entry_asset,
+                        Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+                    );
+                (
+                    next_asset("entry/server-edge-api.tsx"),
+                    indexmap! {
+                        "INNER_EDGE_CHUNK_GROUP".to_string() => entry_asset_edge_chunk_group,
+                    },
+                )
+            }
+            SsrType::Data => (
+                next_asset("entry/server-data.tsx"),
+                indexmap! {
+                    "INNER".to_string() => entry_asset_page,
+                },
             ),
-            SsrType::Data => VirtualAssetVc::new(
-                this.entry_asset.ident().path().join("server-data.tsx"),
-                next_js_file("entry/server-data.tsx").into(),
-            ),
-            SsrType::Html => VirtualAssetVc::new(
-                this.entry_asset.ident().path().join("server-renderer.tsx"),
-                next_js_file("entry/server-renderer.tsx").into(),
-            ),
+            SsrType::Html => {
+                let entry_asset_client_chunk_group =
+                    this.context.with_transition("next-client").process(
+                        this.entry_asset,
+                        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                    );
+                (
+                    next_asset("entry/server-renderer.tsx"),
+                    indexmap! {
+                        "INNER".to_string() => entry_asset_page,
+                        "INNER_CLIENT_CHUNK_GROUP".to_string() => entry_asset_client_chunk_group,
+                    },
+                )
+            }
         };
 
         Ok(NodeRenderingEntry {
-            module: EcmascriptModuleAssetVc::new(
-                virtual_asset.into(),
+            module: EcmascriptModuleAssetVc::new_with_inner_assets(
+                internal_asset,
                 this.context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
@@ -686,6 +704,7 @@ impl SsrEntryVc {
                     EcmascriptInputTransform::React { refresh: false },
                 ]),
                 this.context.compile_time_info(),
+                InnerAssetsVc::cell(inner_assets),
             ),
             chunking_context: this.chunking_context,
             intermediate_output_path: this.intermediate_output_path,
