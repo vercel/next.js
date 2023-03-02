@@ -27,6 +27,19 @@ impl EnvMapVc {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl ProcessEnv for EnvMap {
+    #[turbo_tasks::function]
+    async fn read_all(self_vc: EnvMapVc) -> Result<EnvMapVc> {
+        Ok(self_vc)
+    }
+
+    #[turbo_tasks::function]
+    async fn read(self_vc: EnvMapVc, name: &str) -> OptionStringVc {
+        case_insensitive_read(self_vc, name)
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait ProcessEnv {
     // TODO SECURITY: From security perspective it's not good that we read *all* env

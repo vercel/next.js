@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::introspect::{
     asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
@@ -23,6 +24,7 @@ use crate::{
 #[turbo_tasks::function]
 pub fn create_node_api_source(
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
@@ -32,6 +34,7 @@ pub fn create_node_api_source(
 ) -> ContentSourceVc {
     NodeApiContentSource {
         cwd,
+        env,
         specificity,
         server_root,
         pathname,
@@ -52,6 +55,7 @@ pub fn create_node_api_source(
 #[turbo_tasks::value]
 pub struct NodeApiContentSource {
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
@@ -133,6 +137,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         let entry = source.entry.entry(data.clone()).await?;
         Ok(ContentSourceContent::HttpProxy(render_proxy(
             source.cwd,
+            source.env,
             source.server_root.join(&self.path),
             entry.module,
             source.runtime_entries,

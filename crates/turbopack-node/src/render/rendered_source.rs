@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetsSetVc},
@@ -43,6 +44,7 @@ use crate::{
 #[turbo_tasks::function]
 pub fn create_node_rendered_source(
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
@@ -53,6 +55,7 @@ pub fn create_node_rendered_source(
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
         cwd,
+        env,
         specificity,
         server_root,
         route_match,
@@ -77,6 +80,7 @@ pub fn create_node_rendered_source(
 #[turbo_tasks::value]
 pub struct NodeRenderContentSource {
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
@@ -202,6 +206,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         let entry = source.entry.entry(data.clone()).await?;
         let result = render_static(
             source.cwd,
+            source.env,
             source.server_root.join(&self.path),
             entry.module,
             source.runtime_entries,

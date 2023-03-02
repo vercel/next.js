@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use turbo_tasks::primitives::StringVc;
+use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -48,6 +49,7 @@ impl StaticResultVc {
 #[turbo_tasks::function]
 pub async fn render_static(
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -63,6 +65,7 @@ pub async fn render_static(
     );
     let renderer_pool = get_renderer_pool(
         cwd,
+        env,
         intermediate_asset,
         intermediate_output_path,
         output_root,
