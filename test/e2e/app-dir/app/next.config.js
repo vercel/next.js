@@ -1,6 +1,5 @@
 module.exports = {
   experimental: {
-    webpackBuildWorker: true,
     appDir: true,
     sri: {
       algorithm: 'sha256',
