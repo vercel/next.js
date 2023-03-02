@@ -455,12 +455,21 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     let (sender, mut receiver) = channel(1);
     let dir = current_dir().unwrap();
     let tt = create_tt();
+    let module_options = TransientInstance::new(module_options.unwrap_or_default());
+    let resolve_options = TransientInstance::new(resolve_options.unwrap_or_default());
+    let log_options = TransientInstance::new(LogOptions {
+        current_dir: dir.clone(),
+        show_all,
+        log_detail,
+        log_level: log_level.map_or_else(|| IssueSeverity::Error, |l| l.0),
+    });
     let task = tt.spawn_root_task(move || {
         let dir = dir.clone();
         let args = args.clone();
         let sender = sender.clone();
-        let module_options = TransientInstance::new(module_options.clone().unwrap_or_default());
-        let resolve_options = TransientInstance::new(resolve_options.clone().unwrap_or_default());
+        let module_options = module_options.clone();
+        let resolve_options = resolve_options.clone();
+        let log_options = log_options.clone();
         Box::pin(async move {
             let output = main_operation(
                 TransientValue::new(dir.clone()),
@@ -475,12 +484,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 .strongly_consistent()
                 .await?;
 
-            let console_ui = ConsoleUiVc::new(TransientInstance::new(LogOptions {
-                current_dir: dir.clone(),
-                show_all,
-                log_detail,
-                log_level: log_level.map_or_else(|| IssueSeverity::Error, |l| l.0),
-            }));
+            let console_ui = ConsoleUiVc::new(log_options);
             console_ui
                 .as_issue_reporter()
                 .report_issues(TransientInstance::new(issues), source);
