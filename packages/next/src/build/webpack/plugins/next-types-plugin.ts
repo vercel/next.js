@@ -140,7 +140,7 @@ export const devPageFiles = new Set<string>()
 // editors can provide autocompletion for them. However it's currently not
 // possible to provide the same experience for dynamic routes.
 const routeTypes: Record<
-  'edge' | 'node' | 'extra',
+  'edge' | 'node' | 'redirectsRewrites',
   Record<'static' | 'dynamic', string>
 > = {
   edge: {
@@ -151,7 +151,7 @@ const routeTypes: Record<
     static: '',
     dynamic: '',
   },
-  extra: {
+  redirectsRewrites: {
     static: '',
     dynamic: '',
   },
@@ -182,10 +182,10 @@ function formatRouteToRouteType(route: string) {
   return { routeType: `\n    | \`${route}\``, isDynamic }
 }
 
-let redirectsRewritesTypesProcessed = false
+let redirectsRewritesRoutesProcessed = false
 
 // Convert redirects and rewrites into routeTypes.
-function processRedirectsAndRewrites(
+function processRedirectsRewritesRoutes(
   rewrites: Rewrites | undefined,
   redirects: Redirect[] | undefined
 ) {
@@ -217,7 +217,8 @@ function processRedirectsAndRewrites(
 
       const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
 
-      routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
+      routeTypes.redirectsRewrites[isDynamic ? 'dynamic' : 'static'] +=
+        routeType
     }
   }
 
@@ -248,9 +249,9 @@ function createRouteDefinitions() {
   let staticRouteTypes = ''
   let dynamicRouteTypes = ''
 
-  for (const runtimeType of ['edge', 'node', 'extra'] as const) {
-    staticRouteTypes += routeTypes[runtimeType].static
-    dynamicRouteTypes += routeTypes[runtimeType].dynamic
+  for (const type of ['edge', 'node', 'redirectsRewrites'] as const) {
+    staticRouteTypes += routeTypes[type].static
+    dynamicRouteTypes += routeTypes[type].dynamic
   }
 
   return `// Type definitions for Next.js routes
@@ -344,9 +345,9 @@ export class NextTypesPlugin {
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
-    if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
-      redirectsRewritesTypesProcessed = true
-      processRedirectsAndRewrites(
+    if (this.typedRoutes && !redirectsRewritesRoutesProcessed) {
+      redirectsRewritesRoutesProcessed = true
+      processRedirectsRewritesRoutes(
         options.originalRewrites,
         options.originalRedirects
       )
