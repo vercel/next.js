@@ -1,4 +1,4 @@
-import { IPC } from "./index";
+import { IPC, StructuredError } from "./index";
 import type { Ipc as GenericIpc } from "./index";
 
 type IpcIncomingMessage = {
@@ -23,6 +23,11 @@ type IpcOutgoingMessage =
       type: "dirDependency";
       path: string;
       glob: string;
+    }
+  | {
+      type: "emittedError";
+      severity: "warning" | "error";
+      error: StructuredError;
     };
 
 export type Ipc = GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>;
