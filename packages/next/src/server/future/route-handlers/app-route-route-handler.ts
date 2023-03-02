@@ -35,6 +35,8 @@ import { StaticGenerationAsyncStorage } from '../../../client/components/static-
 import { StaticGenerationAsyncStorageWrapper } from '../../async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../../lib/incremental-cache'
 import { AppConfig } from '../../../build/utils'
+import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
+import { NextURL } from '../../web/next-url'
 
 // TODO-APP: This module has a dynamic require so when bundling for edge it causes issues.
 const NodeModuleLoader =
@@ -191,6 +193,141 @@ export async function sendResponse(
   }
 }
 
+function stripSearchFromURL(urlString: string): string {
+  const url = new URL(urlString)
+  url.search = ''
+  return url.toString()
+}
+
+function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
+  const handleNextUrlBailout = (prop: string | symbol) => {
+    switch (prop) {
+      case 'search':
+      case 'searchParams':
+      case 'toString':
+      case 'href':
+      case 'origin':
+        module.staticGenerationBailout(`nextUrl.${prop as string}`)
+        return
+      default:
+        return
+    }
+  }
+
+  const cache: {
+    url?: string
+    toString?: () => string
+    headers?: Headers
+    cookies?: RequestCookies
+    searchParams?: URLSearchParams
+  } = {}
+
+  const handleForceStatic = (url: string, prop: string) => {
+    switch (prop) {
+      case 'search':
+        return ''
+      case 'searchParams':
+        if (!cache.searchParams) cache.searchParams = new URLSearchParams()
+
+        return cache.searchParams
+      case 'url':
+      case 'href':
+        if (!cache.url) cache.url = stripSearchFromURL(url)
+
+        return cache.url
+      case 'toJSON':
+      case 'toString':
+        if (!cache.url) cache.url = stripSearchFromURL(url)
+        if (!cache.toString) cache.toString = () => cache.url!
+
+        return cache.toString
+      case 'headers':
+        if (!cache.headers) cache.headers = new Headers()
+
+        return cache.headers
+      case 'cookies':
+        if (!cache.headers) cache.headers = new Headers()
+        if (!cache.cookies) cache.cookies = new RequestCookies(cache.headers)
+
+        return cache.cookies
+      case 'clone':
+        if (!cache.url) cache.url = stripSearchFromURL(url)
+
+        return () => new NextURL(cache.url!)
+      default:
+        break
+    }
+  }
+
+  const wrappedNextUrl = new Proxy(req.nextUrl, {
+    get(target, prop) {
+      handleNextUrlBailout(prop)
+
+      if (
+        module.handlers.dynamic === 'force-static' &&
+        typeof prop === 'string'
+      ) {
+        const result = handleForceStatic(target.href, prop)
+        if (result !== undefined) return result
+      }
+
+      return (target as any)[prop]
+    },
+    set(target, prop, value) {
+      handleNextUrlBailout(prop)
+      ;(target as any)[prop] = value
+      return true
+    },
+  })
+
+  const handleReqBailout = (prop: string | symbol) => {
+    switch (prop) {
+      case 'headers':
+        module.headerHooks.headers()
+        return
+      // if request.url is accessed directly instead of
+      // request.nextUrl we bail since it includes query
+      // values that can be relied on dynamically
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
+        module.staticGenerationBailout(`request.${prop}`)
+        return
+      default:
+        return
+    }
+  }
+
+  return new Proxy(req, {
+    get(target, prop) {
+      handleReqBailout(prop)
+
+      if (prop === 'nextUrl') {
+        return wrappedNextUrl
+      }
+
+      if (
+        module.handlers.dynamic === 'force-static' &&
+        typeof prop === 'string'
+      ) {
+        const result = handleForceStatic(target.url, prop)
+        if (result !== undefined) return result
+      }
+
+      return (target as any)[prop]
+    },
+    set(target, prop, value) {
+      handleReqBailout(prop)
+      ;(target as any)[prop] = value
+      return true
+    },
+  })
+}
+
 export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
   constructor(
     private readonly requestAsyncLocalStorageWrapper: AsyncStorageWrapper<
@@ -311,8 +448,6 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
             },
           },
           (staticGenerationStore) => {
-            const _req = (request ? request : wrapRequest(req)) as NextRequest
-
             // We can currently only statically optimize if only GET/HEAD
             // are used as a Prerender can't be used conditionally based
             // on the method currently
@@ -351,74 +486,15 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
                 module.handlers.revalidate ?? false
             }
 
-            const handleNextUrlBailout = (prop: string | symbol) => {
-              if (typeof prop !== 'string') return
+            // Wrap the request so we can add additional functionality to cases
+            // that might change it's output or affect the rendering.
+            const wrappedRequest = proxyRequest(
+              // TODO: investigate why/how this cast is necessary/possible
+              (request ? request : wrapRequest(req)) as NextRequest,
+              module
+            )
 
-              switch (prop) {
-                case 'search':
-                case 'searchParams':
-                case 'toString':
-                case 'href':
-                case 'origin':
-                  return module.staticGenerationBailout(
-                    `nextUrl.${prop as string}`
-                  )
-                default:
-                  return
-              }
-            }
-
-            const wrappedNextUrl = new Proxy(_req.nextUrl, {
-              get(target, prop) {
-                handleNextUrlBailout(prop)
-                return (target as any)[prop]
-              },
-              set(target, prop, value) {
-                handleNextUrlBailout(prop)
-                ;(target as any)[prop] = value
-                return true
-              },
-            })
-
-            const handleReqBailout = (prop: string | symbol) => {
-              if (typeof prop !== 'string') return
-
-              switch (prop) {
-                case 'headers':
-                  return module.headerHooks.headers()
-                // if request.url is accessed directly instead of
-                // request.nextUrl we bail since it includes query
-                // values that can be relied on dynamically
-                case 'url':
-                case 'body':
-                case 'blob':
-                case 'json':
-                case 'text':
-                case 'arrayBuffer':
-                case 'formData':
-                  return module.staticGenerationBailout(`request.${prop}`)
-                default:
-                  return
-              }
-            }
-
-            const wrappedReq = new Proxy(_req, {
-              get(target, prop) {
-                handleReqBailout(prop)
-
-                if (prop === 'nextUrl') {
-                  return wrappedNextUrl
-                }
-                return (target as any)[prop]
-              },
-              set(target, prop, value) {
-                handleReqBailout(prop)
-                ;(target as any)[prop] = value
-                return true
-              },
-            })
-
-            return handle(wrappedReq, { params })
+            return handle(wrappedRequest, { params })
           }
         )
     )
