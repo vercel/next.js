@@ -19,5 +19,17 @@ createNextDescribe(
 
       expect(await browser.elementByCss('#app-page').text()).toBe('About')
     })
+
+    it('should not add default locale as base path', async () => {
+      const browser = await next.browser('/')
+
+      await browser
+        .elementByCss('#home-to-about')
+        .click()
+        .waitForElementByCss('#app-page')
+
+      expect(await browser.elementByCss('#app-page').text()).toBe('About')
+      expect(await browser.url()).toBe(`${next.url}/about`)
+    })
   }
 )
