@@ -96,7 +96,15 @@ export default function startHandler({
 
       // We provide a dummy base URL to the URL constructor so that it doesn't
       // throw when we pass a relative URL.
-      const resolvedPath = new URL(renderData.url, "next://").pathname;
+      let resolvedPath = new URL(renderData.url, "next://").pathname;
+      if (isDataReq) {
+        // we still want to match data requests so we remove the prefix and extension
+        // to get back the path the page would have
+        resolvedPath = resolvedPath.replace(
+          /^\/_next\/data\/development(.+).json$/,
+          "$1"
+        );
+      }
       if (
         prerenderFallback === false &&
         // TODO(alexkirsz) Strip basePath.
