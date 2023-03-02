@@ -1,5 +1,16 @@
 import * as Bus from './internal/bus'
 import { parseStack } from './internal/helpers/parseStack'
+// @ts-ignore
+import { parseComponentStack } from 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
+import {
+  hydrationErrorComponentStack,
+  hydrationErrorWarning,
+  patchConsoleError,
+  // @ts-ignore
+} from 'next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info'
+
+// Patch console.error to collect information about hydration errors
+patchConsoleError()
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -14,6 +25,9 @@ function onUnhandledError(ev: ErrorEvent) {
   if (
     error.message.match(/(hydration|content does not match|did not match)/i)
   ) {
+    if (hydrationErrorWarning) {
+      error.message += '\n\n' + hydrationErrorWarning
+    }
     error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
   }
 
@@ -22,6 +36,11 @@ function onUnhandledError(ev: ErrorEvent) {
     type: Bus.TYPE_UNHANDLED_ERROR,
     reason: error,
     frames: parseStack(e.stack!),
+    componentStack:
+      hydrationErrorComponentStack &&
+      parseComponentStack(hydrationErrorComponentStack).map(
+        (frame: any) => frame.component
+      ),
   })
 }
 
