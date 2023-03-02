@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
-    CompletionVc, Value,
+    CompletionVc, CompletionsVc, Value,
 };
 use turbo_tasks_fs::{
     json::parse_json_rope_with_source_context, to_sys_path, File, FileSystemPathVc,
@@ -12,6 +12,7 @@ use turbo_tasks_fs::{
 use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
 use turbopack_core::{
     asset::AssetVc,
+    changed::any_content_changed,
     chunk::dev::DevChunkingContextVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention::Middleware, ServerAddrVc},
@@ -22,9 +23,8 @@ use turbopack_core::{
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
-    OptionEcmascriptModuleAssetVc,
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
 };
 use turbopack_node::{
     evaluate::{evaluate, JavaScriptValue},
@@ -172,14 +172,15 @@ fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModu
 }
 
 #[turbo_tasks::function]
-async fn watch_files_hack(
+async fn next_config_changed(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
-) -> Result<EcmascriptChunkPlaceablesVc> {
+) -> Result<CompletionVc> {
     let next_config = get_config(context, project_path, next_configs()).await?;
-    Ok(match &*next_config {
-        Some(c) => EcmascriptChunkPlaceablesVc::cell(vec![c.as_ecmascript_chunk_placeable()]),
-        None => EcmascriptChunkPlaceablesVc::empty(),
+    Ok(if let Some(c) = *next_config {
+        any_content_changed(c.into())
+    } else {
+        CompletionVc::immutable()
     })
 }
 
@@ -327,8 +328,8 @@ pub async fn route(
     let configs = config_assets(context, project_path, next_config.page_extensions());
     let router_asset = route_executor(context, configs);
 
-    // TODO this is a hack to get these files watched.
-    let next_config = watch_files_hack(context, project_path);
+    // This invalidates the router when the next config changes
+    let next_config_changed = next_config_changed(context, project_path);
 
     let request = serde_json::value::to_value(&*request.await?)?;
     let Some(dir) = to_sys_path(project_path).await? else {
@@ -342,12 +343,12 @@ pub async fn route(
         AssetIdentVc::from_path(project_path),
         context,
         intermediate_output_path,
-        Some(next_config),
+        None,
         vec![
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
         ],
-        routes_changed,
+        CompletionsVc::all(vec![next_config_changed, routes_changed]),
         false,
     )
     .await?;
