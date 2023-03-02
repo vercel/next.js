@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import { sandbox } from './helpers'
-import { createNextDescribe, FileRef } from 'e2e-utils'
-import path from 'path'
+import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
   'Component Stack in error overlay',
