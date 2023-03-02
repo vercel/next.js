@@ -368,7 +368,10 @@ export async function workerMain(workerData: {
       'serverCSSManifest',
       'edgeServerCSSManifest',
     ]) {
-      ;(flightPluginModule as any)[field] = (serializedFlightMaps as any)[field]
+      Object.assign(
+        (flightPluginModule as any)[field],
+        (serializedFlightMaps as any)[field]
+      )
     }
   }
 
@@ -455,10 +458,18 @@ async function webpackBuildWithWorker() {
         ...(prunedBuildContext.serializedFlightMaps?.asyncClientModules || []),
         ...curResult.serializedFlightMaps?.asyncClientModules,
       ],
-      serverActions: curResult.serializedFlightMaps?.serverActions,
-      serverCSSManifest: curResult.serializedFlightMaps?.serverCSSManifest,
-      edgeServerCSSManifest:
-        curResult.serializedFlightMaps?.edgeServerCSSManifest,
+      serverActions: {
+        ...prunedBuildContext.serializedFlightMaps?.serverActions,
+        ...curResult.serializedFlightMaps?.serverActions,
+      },
+      serverCSSManifest: {
+        ...prunedBuildContext.serializedFlightMaps?.serverCSSManifest,
+        ...curResult.serializedFlightMaps?.serverCSSManifest,
+      },
+      edgeServerCSSManifest: {
+        ...prunedBuildContext.serializedFlightMaps?.edgeServerCSSManifest,
+        ...curResult.serializedFlightMaps?.edgeServerCSSManifest,
+      },
     }
     prunedBuildContext.serializedPagesManifestEntries = {
       edgeServerAppPaths:
