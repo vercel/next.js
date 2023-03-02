@@ -1,9 +1,9 @@
 import type { Route, Metadata } from 'next'
 import Link from 'next/link'
 
-export function Card<T>({ href }: { href: Route<T> | URL }) {
+export function Card<T extends string>({ href }: { href: Route<T> | URL }) {
   return (
-    <Link href={href}>
+    <Link<T> href={href}>
       <div>My Card</div>
     </Link>
   )
