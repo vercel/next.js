@@ -7,6 +7,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
+  COMPILER_INDEXES,
 } from '../shared/lib/constants'
 import { runCompiler } from './compiler'
 import * as Log from './output/log'
@@ -28,6 +29,7 @@ import * as flightManifestPluginModule from './webpack/plugins/flight-manifest-p
 import * as pagesPluginModule from './webpack/plugins/pages-manifest-plugin'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
+import { ChildProcess } from 'child_process'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -53,7 +55,9 @@ function isTraceEntryPointsPlugin(
   return plugin instanceof TraceEntryPointsPlugin
 }
 
-async function webpackBuildImpl(compilerIdx?: number): Promise<{
+async function webpackBuildImpl(
+  compilerName?: keyof typeof COMPILER_INDEXES
+): Promise<{
   duration: number
   turbotraceContext?: TurbotraceContext
   serializedFlightMaps?: typeof NextBuildContext['serializedFlightMaps']
@@ -157,7 +161,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
 
   webpackBuildStart = process.hrtime()
 
-  debug(`starting compiler`, compilerIdx)
+  debug(`starting compiler`, compilerName)
   // We run client and server compilation separately to optimize for memory usage
   await runWebpackSpan.traceAsyncFn(async () => {
     // Run the server compilers first and then the client
@@ -171,14 +175,14 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
     let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
       null
 
-    if (!compilerIdx || compilerIdx === 1) {
+    if (!compilerName || compilerName === 'server') {
       serverResult = await runCompiler(serverConfig, {
         runWebpackSpan,
       })
       debug('server result', serverResult)
     }
 
-    if (!compilerIdx || compilerIdx === 2) {
+    if (!compilerName || compilerName === 'edge-server') {
       edgeServerResult = configs[2]
         ? await runCompiler(configs[2], { runWebpackSpan })
         : null
@@ -208,7 +212,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
         }
       })
 
-      if (!compilerIdx || compilerIdx === 3) {
+      if (!compilerName || compilerName === 'client') {
         clientResult = await runCompiler(clientConfig, {
           runWebpackSpan,
         })
@@ -295,7 +299,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
       Log.warn('Compiled with warnings\n')
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
-    } else if (!compilerIdx) {
+    } else if (!compilerName) {
       Log.info('Compiled successfully')
     }
 
@@ -331,7 +335,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
 
 // the main function when this file is run as a worker
 export async function workerMain(workerData: {
-  compilerIdx?: number
+  compilerName: keyof typeof COMPILER_INDEXES
   buildContext: typeof NextBuildContext
 }) {
   // setup new build context from the serialized data passed from the parent
@@ -385,7 +389,7 @@ export async function workerMain(workerData: {
   )
   NextBuildContext.nextBuildSpan = trace('next-build')
 
-  const result = await webpackBuildImpl(workerData.compilerIdx)
+  const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace } = result.turbotraceContext ?? {}
   if (entriesTrace) {
     const { entryNameMap, depModArray } = entriesTrace
@@ -410,10 +414,11 @@ async function webpackBuildWithWorker() {
     ...prunedBuildContext
   } = NextBuildContext
 
-  const getWorker = () => {
+  const getWorker = (compilerName: string) => {
     const _worker = new Worker(__filename, {
       exposedMethods: ['workerMain'],
       numWorkers: 1,
+      maxRetries: 0,
       forkOptions: {
         env: {
           ...process.env,
@@ -423,6 +428,19 @@ async function webpackBuildWithWorker() {
     }) as Worker & { workerMain: typeof workerMain }
     _worker.getStderr().pipe(process.stderr)
     _worker.getStdout().pipe(process.stdout)
+
+    for (const worker of ((_worker as any)._workerPool?._workers || []) as {
+      _child: ChildProcess
+    }[]) {
+      worker._child.on('exit', (code, signal) => {
+        if (code || signal) {
+          console.error(
+            `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
+          )
+        }
+      })
+    }
+
     return _worker
   }
 
@@ -430,12 +448,19 @@ async function webpackBuildWithWorker() {
     duration: 0,
     turbotraceContext: {} as any,
   }
+  // order matters here
+  const ORDERED_COMPILER_NAMES = [
+    'server',
+    'edge-server',
+    'client',
+  ] as (keyof typeof COMPILER_INDEXES)[]
 
-  for (let i = 1; i < 4; i++) {
-    const worker = getWorker()
+  for (const compilerName of ORDERED_COMPILER_NAMES) {
+    const worker = getWorker(compilerName)
+
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
-      compilerIdx: i,
+      compilerName,
     })
     // destroy worker so it's not sticking around using memory
     await worker.end()
