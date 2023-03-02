@@ -13,7 +13,11 @@ import * as Log from './output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from './webpack-config'
 import { NextError } from '../lib/is-error'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import { NextBuildContext } from './build-context'
+import {
+  NextBuildContext,
+  resumePluginState,
+  getPluginStateAsStructure,
+} from './build-context'
 import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
 import { trace } from '../trace'
@@ -55,8 +59,8 @@ function isTraceEntryPointsPlugin(
 
 async function webpackBuildImpl(compilerIdx?: number): Promise<{
   duration: number
+  pluginState: any
   turbotraceContext?: TurbotraceContext
-  serializedFlightMaps?: typeof NextBuildContext['serializedFlightMaps']
   serializedPagesManifestEntries?: typeof NextBuildContext['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
@@ -187,7 +191,11 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
 
     // Only continue if there were no errors
     if (!serverResult?.errors.length && !edgeServerResult?.errors.length) {
-      flightPluginModule.injectedClientEntries.forEach((value, key) => {
+      const pluginState = getPluginStateAsStructure<{
+        injectedClientEntries: Record<string, string>
+      }>()
+      for (const key in pluginState.injectedClientEntries) {
+        const value = pluginState.injectedClientEntries[key]
         const clientEntry = clientConfig.entry as webpack.EntryObject
         if (key === APP_CLIENT_INTERNALS) {
           clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = {
@@ -206,7 +214,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
             layer: WEBPACK_LAYERS.appClient,
           }
         }
-      })
+      }
 
       if (!compilerIdx || compilerIdx === 3) {
         clientResult = await runCompiler(clientConfig, {
@@ -302,23 +310,7 @@ async function webpackBuildImpl(compilerIdx?: number): Promise<{
     return {
       duration: webpackBuildEnd[0],
       turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
-      serializedFlightMaps: {
-        injectedClientEntries: Array.from(
-          flightPluginModule.injectedClientEntries.entries()
-        ),
-        serverModuleIds: Array.from(
-          flightPluginModule.serverModuleIds.entries()
-        ),
-        edgeServerModuleIds: Array.from(
-          flightPluginModule.edgeServerModuleIds.entries()
-        ),
-        asyncClientModules: Array.from(
-          flightManifestPluginModule.ASYNC_CLIENT_MODULES
-        ),
-        serverActions: flightPluginModule.serverActions,
-        serverCSSManifest: flightPluginModule.serverCSSManifest,
-        edgeServerCSSManifest: flightPluginModule.edgeServerCSSManifest,
-      },
+      pluginState: getPluginStateAsStructure(),
       serializedPagesManifestEntries: {
         edgeServerPages: pagesPluginModule.edgeServerPages,
         edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
@@ -337,42 +329,17 @@ export async function workerMain(workerData: {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
 
+  // Resume plugin state
+  resumePluginState(NextBuildContext.pluginState)
+
   // restore module scope maps for flight plugins
-  const { serializedFlightMaps, serializedPagesManifestEntries } =
-    NextBuildContext
+  const { serializedPagesManifestEntries } = NextBuildContext
 
   for (const key of Object.keys(serializedPagesManifestEntries || {})) {
     Object.assign(
       (pagesPluginModule as any)[key],
       (serializedPagesManifestEntries as any)?.[key]
     )
-  }
-
-  if (serializedFlightMaps) {
-    serializedFlightMaps.asyncClientModules?.forEach((item: any) =>
-      flightManifestPluginModule.ASYNC_CLIENT_MODULES.add(item)
-    )
-
-    for (const field of [
-      'injectedClientEntries',
-      'serverModuleIds',
-      'edgeServerModuleIds',
-    ]) {
-      for (const [key, value] of (serializedFlightMaps as any)[field] || []) {
-        ;(flightPluginModule as any)[field].set(key, value)
-      }
-    }
-
-    for (const field of [
-      'serverActions',
-      'serverCSSManifest',
-      'edgeServerCSSManifest',
-    ]) {
-      Object.assign(
-        (flightPluginModule as any)[field],
-        (serializedFlightMaps as any)[field]
-      )
-    }
   }
 
   /// load the config because it's not serializable
@@ -440,37 +407,9 @@ async function webpackBuildWithWorker() {
     // destroy worker so it's not sticking around using memory
     await worker.end()
 
-    prunedBuildContext.serializedFlightMaps = {
-      injectedClientEntries: [
-        ...(prunedBuildContext.serializedFlightMaps?.injectedClientEntries ||
-          []),
-        ...curResult.serializedFlightMaps?.injectedClientEntries,
-      ],
-      serverModuleIds: [
-        ...(prunedBuildContext.serializedFlightMaps?.serverModuleIds || []),
-        ...curResult.serializedFlightMaps?.serverModuleIds,
-      ],
-      edgeServerModuleIds: [
-        ...(prunedBuildContext.serializedFlightMaps?.edgeServerModuleIds || []),
-        ...curResult.serializedFlightMaps?.edgeServerModuleIds,
-      ],
-      asyncClientModules: [
-        ...(prunedBuildContext.serializedFlightMaps?.asyncClientModules || []),
-        ...curResult.serializedFlightMaps?.asyncClientModules,
-      ],
-      serverActions: {
-        ...prunedBuildContext.serializedFlightMaps?.serverActions,
-        ...curResult.serializedFlightMaps?.serverActions,
-      },
-      serverCSSManifest: {
-        ...prunedBuildContext.serializedFlightMaps?.serverCSSManifest,
-        ...curResult.serializedFlightMaps?.serverCSSManifest,
-      },
-      edgeServerCSSManifest: {
-        ...prunedBuildContext.serializedFlightMaps?.edgeServerCSSManifest,
-        ...curResult.serializedFlightMaps?.edgeServerCSSManifest,
-      },
-    }
+    // Update plugin state
+    prunedBuildContext.pluginState = getPluginStateAsStructure()
+
     prunedBuildContext.serializedPagesManifestEntries = {
       edgeServerAppPaths:
         curResult.serializedPagesManifestEntries?.edgeServerAppPaths,

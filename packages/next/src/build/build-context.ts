@@ -5,8 +5,22 @@ import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type getBaseWebpackConfig from './webpack-config'
-import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+
+// A layer for storing data that is used by plugins to communicate with each
+// other between different steps of the build process. This is only internal
+// to Next.js and will not be a part of the final build output.
+let pluginState: Record<string, any> = {}
+export function resumePluginState(resumedState?: Record<string, any>) {
+  pluginState = resumedState || {}
+}
+// This method gives you the plugin state with typed and mutable value fields.
+export function getPluginStateAsStructure<
+  Structure extends Record<string, any>
+>() {
+  return pluginState as Structure
+}
 
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
@@ -14,15 +28,7 @@ import type { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 // Not exhaustive, but should be extended to as needed whilst refactoring
 export const NextBuildContext: Partial<{
   compilerIdx?: number
-  serializedFlightMaps?: {
-    injectedClientEntries?: any
-    serverModuleIds?: any
-    edgeServerModuleIds?: any
-    asyncClientModules?: any
-    serverActions?: any
-    serverCSSManifest?: any
-    edgeServerCSSManifest?: any
-  }
+  pluginState: Record<string, any>
   serializedPagesManifestEntries: {
     edgeServerPages?: PagesManifest
     nodeServerPages?: PagesManifest
