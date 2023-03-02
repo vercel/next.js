@@ -288,9 +288,9 @@ declare namespace __next_route_internal_types__ {
     dynamicRouteTypes || 'string'
   }
 
-  type RouteImpl<T extends string> =
+  type RouteImpl<T> =
     | \`\${StaticRoutes}\${Suffix}\`
-    | \`\${DynamicRoutes<T>}\${Suffix}\`
+    | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
 }
 
 declare module 'next' {
@@ -312,7 +312,7 @@ declare module 'next/link' {
     'href'
   >
 
-  export type LinkProps<T extends string> = LinkRestProps & {
+  export type LinkProps<T> = LinkRestProps & {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      * @see https://nextjs.org/docs/api-reference/next/link
@@ -320,9 +320,7 @@ declare module 'next/link' {
     href: __next_route_internal_types__.RouteImpl<T> | UrlObject
   }
 
-  export default function Link<RouteType extends string>(
-    props: LinkProps<RouteType>
-  ): JSX.Element
+  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
 }`
 }
 
