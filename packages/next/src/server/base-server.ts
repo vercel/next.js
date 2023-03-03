@@ -215,7 +215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
-    output: 'standalone' | 'export'
+    nextConfigOutput: 'standalone' | 'export'
     nextScriptWorkers: any
     locale?: string
     locales?: string[]
@@ -410,7 +410,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      output: this.nextConfig.output,
+      nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
