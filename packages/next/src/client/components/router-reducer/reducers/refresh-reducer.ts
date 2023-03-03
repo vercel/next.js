@@ -105,6 +105,7 @@ export function refreshReducer(
       head
     )
     mutable.cache = cache
+    mutable.prefetchCache = new Map()
   }
 
   mutable.previousTree = state.tree
