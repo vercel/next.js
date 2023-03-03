@@ -10,6 +10,7 @@ import {
 } from '../app-render'
 import { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { tryGetPreviewData } from '../api-utils/node'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
@@ -20,8 +21,8 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
 }
 
 export type RequestContext = {
-  req: IncomingMessage
-  res: ServerResponse
+  req: IncomingMessage | BaseNextRequest
+  res: ServerResponse | BaseNextResponse
   renderOpts?: RenderOpts
 }
 
