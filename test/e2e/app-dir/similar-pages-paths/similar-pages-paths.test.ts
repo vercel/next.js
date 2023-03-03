@@ -10,6 +10,7 @@ createNextDescribe(
     // TODO: enable development test
     if (isNextDev) {
       it('should skip dev test', () => {})
+      return
     }
     it('should redirect route when requesting it directly', async () => {
       const res1 = await next.fetch('/')
