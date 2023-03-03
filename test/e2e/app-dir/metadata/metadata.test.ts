@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
-import { CheerioStatic } from 'cheerio'
+import cheerio from 'cheerio'
 
 createNextDescribe(
   'app dir - metadata',
@@ -42,7 +42,7 @@ createNextDescribe(
       }
     }
 
-    function createMultiHtmlMatcher($: CheerioStatic) {
+    function createMultiHtmlMatcher($: ReturnType<typeof cheerio.load>) {
       /**
        * @param tag - tag name, e.g. 'meta'
        * @param queryKey - query key, e.g. 'property'
