@@ -15,21 +15,21 @@ native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 
 [dependencies]
-anyhow = "1.0.47"
+anyhow = { workspace = true }
 indexmap = { workspace = true }
-lazy_static = "1.4.0"
+lazy_static = { workspace = true }
 reqwest = { workspace = true }
-serde = "1.0.136"
-tokio = "1.11.0"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-core = { path = "../turbopack-core" }
+serde = { workspace = true }
+tokio = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
 
 [dev-dependencies]
-httpmock = "0.6.6"
-tokio = { version = "1.11.0", features = ["full"] }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-turbo-tasks-testing = { path = "../turbo-tasks-testing" }
+httpmock = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

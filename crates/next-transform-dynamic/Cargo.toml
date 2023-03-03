@@ -10,7 +10,7 @@ autobenches = false
 bench = false
 
 [dependencies]
-pathdiff = "0.2.0"
+pathdiff = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",

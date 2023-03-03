@@ -10,36 +10,35 @@ autobenches = false
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
-async-trait = "0.1.56"
-easy-error = "1.0.0"
-fxhash = "0.2.1"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
-lazy_static = "1.4.0"
-next-font = { path = "../next-font" }
-next-transform-dynamic = { path = "../next-transform-dynamic" }
-next-transform-strip-page-exports = { path = "../next-transform-strip-page-exports" }
+lazy_static = { workspace = true }
+next-font = { workspace = true }
+next-transform-dynamic = { workspace = true }
+next-transform-strip-page-exports = { workspace = true }
 num-bigint = "0.4"
 num-traits = "0.2.15"
-once_cell = "1.13.0"
-parking_lot = "0.12.1"
-pin-project-lite = "0.2.9"
-regex = "1.5.4"
-serde = "1.0.136"
-serde_json = "1.0.85"
-serde_qs = "0.10.1"
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+pin-project-lite = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_qs = { workspace = true }
 styled_components = { workspace = true }
 styled_jsx = { workspace = true }
 swc_emotion = { workspace = true }
-tokio = "1.21.2"
-tracing = "0.1.37"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-hash = { path = "../turbo-tasks-hash" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-swc-utils = { path = "../turbopack-swc-utils" }
-url = "2.2.2"
+tokio = { workspace = true }
+tracing = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-swc-utils = { workspace = true }
+url = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -62,13 +61,13 @@ swc_core = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-criterion = { version = "0.3.5", features = ["async_tokio"] }
-rstest = "0.12.0"
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-turbo-tasks-testing = { path = "../turbo-tasks-testing" }
+criterion = { workspace = true, features = ["async_tokio"] }
+rstest = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

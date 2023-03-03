@@ -9,9 +9,6 @@ edition = "2021"
 bench = false
 
 [dependencies]
-proc-macro2 = "1.0.36"
-quote = "1.0"
-
-  [dependencies.syn]
-  features = ["full"]
-  version = "1.0"
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["full"] }

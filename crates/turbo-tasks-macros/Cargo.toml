@@ -10,13 +10,10 @@ proc-macro = true
 bench = false
 
 [dependencies]
-anyhow = "1.0.53"
-convert_case = "0.5.0"
+anyhow = { workspace = true }
+convert_case = "0.6.0"
 proc-macro-error = "1.0.4"
-proc-macro2 = "1.0.36"
-quote = "1.0"
-turbo-tasks-macros-shared = { path = "../turbo-tasks-macros-shared" }
-
-  [dependencies.syn]
-  features = ["full", "extra-traits"]
-  version = "1.0"
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true, features = ["full", "extra-traits"] }
+turbo-tasks-macros-shared = { workspace = true }

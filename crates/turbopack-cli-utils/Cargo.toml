@@ -12,14 +12,14 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.47"
-clap = { version = "4.0.18", features = ["derive"] }
-crossterm = "0.25"
-owo-colors = "3"
-serde = { version = "1.0.136", features = ["derive"] }
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-core = { path = "../turbopack-core" }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+crossterm = "0.26.0"
+owo-colors = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

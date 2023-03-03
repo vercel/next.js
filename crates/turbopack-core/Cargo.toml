@@ -10,30 +10,32 @@ autobenches = false
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
-async-trait = "0.1.56"
-auto-hash-map = { path = "../auto-hash-map" }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
-futures = "0.3.25"
+futures = { workspace = true }
 indexmap = { workspace = true }
-lazy_static = "1.4.0"
-patricia_tree = "0.3.1"
-qstring = "0.7.2"
-regex = "1.5.4"
-serde = { version = "1.0.136", features = ["rc"] }
-serde_json = { version = "1.0.85", features = ["preserve_order"] }
+lazy_static = { workspace = true }
+patricia_tree = "0.5.5"
+qstring = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+serde_qs = { workspace = true }
 sourcemap = "6.0.2"
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-env = { path = "../turbo-tasks-env" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-hash = { path = "../turbo-tasks-hash" }
+
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }
 
 [dev-dependencies]
-rstest = "0.12.0"
+rstest = { workspace = true }
 
 [features]
 issue_path = []

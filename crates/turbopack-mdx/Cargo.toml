@@ -10,16 +10,15 @@ autobenches = false
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
-
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-ecmascript = { path = "../turbopack-ecmascript" }
-
-serde = "1.0.136"
+anyhow = { workspace = true }
+serde = { workspace = true }
 
 mdxjs = { workspace = true }
 
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

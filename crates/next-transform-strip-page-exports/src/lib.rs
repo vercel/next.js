@@ -5,7 +5,7 @@
 
 use std::{cell::RefCell, mem::take, rc::Rc};
 
-use fxhash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::{
         errors::HANDLER,
