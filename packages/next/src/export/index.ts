@@ -719,7 +719,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir)
+          const pagePath = getPagePath(pageName, distDir, undefined, false)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

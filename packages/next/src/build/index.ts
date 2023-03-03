@@ -2400,7 +2400,7 @@ export default async function build(
 
           // remove server bundles that were exported
           for (const page of staticPages) {
-            const serverBundle = getPagePath(page, distDir)
+            const serverBundle = getPagePath(page, distDir, undefined, false)
             await promises.unlink(serverBundle)
           }
 
@@ -2514,7 +2514,12 @@ export default async function build(
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
                 const orig = path.join(exportOptions.outdir, file)
-                const pagePath = getPagePath(originPage, distDir)
+                const pagePath = getPagePath(
+                  originPage,
+                  distDir,
+                  undefined,
+                  false
+                )
 
                 const relativeDest = path
                   .relative(
