@@ -4,6 +4,7 @@ module.exports = {
     sri: {
       algorithm: 'sha256',
     },
+    webpackBuildWorker: true,
   },
   // output: 'standalone',
   rewrites: async () => {

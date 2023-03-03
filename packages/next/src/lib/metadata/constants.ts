@@ -8,6 +8,7 @@ export const ViewPortKeys: { [k in keyof Viewport]: string } = {
   minimumScale: 'minimum-scale',
   maximumScale: 'maximum-scale',
   viewportFit: 'viewport-fit',
+  userScalable: 'user-scalable',
   interactiveWidget: 'interactive-widget',
 } as const
 

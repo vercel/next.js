@@ -16,6 +16,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  target?: string
 }
 
 export interface I18NConfig {
@@ -569,8 +570,6 @@ export interface NextConfig extends Record<string, any> {
 export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
-
-  webpackDevMiddleware: null,
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -611,7 +610,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: null,
+  reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
   },

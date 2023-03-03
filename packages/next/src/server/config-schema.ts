@@ -11,7 +11,7 @@ const configSchema = {
       additionalProperties: false,
       properties: {
         canonicalBase: {
-          minLength: 1,
+          nullable: true,
           type: 'string',
         },
       },
@@ -21,7 +21,7 @@ const configSchema = {
       type: 'string',
     },
     assetPrefix: {
-      minLength: 1,
+      nullable: true,
       type: 'string',
     },
     basePath: {
@@ -169,6 +169,9 @@ const configSchema = {
     },
     compress: {
       type: 'boolean',
+    },
+    configOrigin: {
+      type: 'string',
     },
     crossOrigin: {
       oneOf: [
@@ -342,7 +345,7 @@ const configSchema = {
           type: 'boolean',
         },
         outputFileTracingRoot: {
-          minLength: 1,
+          nullable: true,
           type: 'string',
         },
         outputFileTracingExcludes: {
@@ -521,6 +524,7 @@ const configSchema = {
     },
     i18n: {
       additionalProperties: false,
+      nullable: true,
       properties: {
         defaultLocale: {
           minLength: 1,
@@ -568,17 +572,17 @@ const configSchema = {
     },
     images: {
       additionalProperties: false,
+      nullable: true,
       properties: {
         remotePatterns: {
+          nullable: true,
           items: {
             additionalProperties: false,
             properties: {
               hostname: {
-                minLength: 1,
                 type: 'string',
               },
               pathname: {
-                minLength: 1,
                 type: 'string',
               },
               port: {
@@ -601,15 +605,17 @@ const configSchema = {
           type: 'boolean',
         },
         contentSecurityPolicy: {
-          minLength: 1,
           type: 'string',
+          nullable: true,
         },
         contentDispositionType: {
           enum: ['inline', 'attachment'] as any, // automatic typing does not like enum
           type: 'string',
+          nullable: true,
         },
         dangerouslyAllowSVG: {
           type: 'boolean',
+          nullable: true,
         },
         deviceSizes: {
           items: {
@@ -617,12 +623,13 @@ const configSchema = {
             minimum: 1,
             maximum: 10000,
           },
-          minItems: 1,
           maxItems: 25,
           type: 'array',
+          nullable: true,
         },
         disableStaticImages: {
           type: 'boolean',
+          nullable: true,
         },
         domains: {
           items: {
@@ -630,6 +637,7 @@ const configSchema = {
           },
           maxItems: 50,
           type: 'array',
+          nullable: true,
         },
         formats: {
           items: {
@@ -638,6 +646,7 @@ const configSchema = {
           } as any,
           maxItems: 4,
           type: 'array',
+          nullable: true,
         },
         imageSizes: {
           items: {
@@ -648,23 +657,26 @@ const configSchema = {
           minItems: 0,
           maxItems: 25,
           type: 'array',
+          nullable: true,
         },
         loader: {
           // automatic typing does not like enum
           enum: VALID_LOADERS as any,
           type: 'string',
+          nullable: true,
         },
         loaderFile: {
-          minLength: 1,
           type: 'string',
+          nullable: true,
         },
         minimumCacheTTL: {
           type: 'integer',
           minimum: 0,
+          nullable: true,
         },
         path: {
-          minLength: 1,
           type: 'string',
+          nullable: true,
         },
       },
       type: 'object',
@@ -737,6 +749,9 @@ const configSchema = {
     swcMinify: {
       type: 'boolean',
     },
+    target: {
+      type: 'string',
+    },
     trailingSlash: {
       type: 'boolean',
     },
@@ -768,7 +783,7 @@ const configSchema = {
         'must be a function that returns a webpack configuration object',
     } as any,
   },
-} as JSONSchemaType<NextConfig>
+} as JSONSchemaType<NextConfig & { configOrigin?: any; target?: any }>
 
 // module.exports is used to get around an export bug with TypeScript
 // and the Ajv automatic typing
