@@ -10,7 +10,7 @@ describe('PagesRouteMatcherProvider', () => {
     const loader: ManifestLoader = { load: jest.fn(() => ({})) }
     const provider = new PagesRouteMatcherProvider('<root>', loader)
     expect(await provider.matchers()).toEqual([])
-    expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+    expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
   })
 
   describe('locale matching', () => {
@@ -120,7 +120,7 @@ describe('PagesRouteMatcherProvider', () => {
         )
         const matchers = await provider.matchers()
 
-        expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
         const routes = matchers.map((matcher) => matcher.definition)
         expect(routes).toContainEqual(route)
         expect(routes).toHaveLength(expected.length)
@@ -176,7 +176,7 @@ describe('PagesRouteMatcherProvider', () => {
         const matcher = new PagesRouteMatcherProvider('<root>', loader)
         const matchers = await matcher.matchers()
 
-        expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
         expect(matchers).toHaveLength(1)
         expect(matchers[0].definition).toEqual(route)
       }

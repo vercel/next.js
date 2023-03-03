@@ -75,19 +75,19 @@ describe('getSortedRoutes', () => {
         '/blog/[id]/comments/[cid]',
         '/blog/[cid]',
       ])
-    ).toThrowError(/different slug names/)
+    ).toThrow(/different slug names/)
   })
 
   it('catches reused param names', () => {
     expect(() =>
       getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
-    ).toThrowError(/the same slug name/)
+    ).toThrow(/the same slug name/)
   })
 
   it('catches reused param names with catch-all', () => {
-    expect(() =>
-      getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])
-    ).toThrowError(/the same slug name/)
+    expect(() => getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])).toThrow(
+      /the same slug name/
+    )
   })
 
   it('catches middle catch-all with another catch-all', () => {
@@ -211,6 +211,6 @@ describe('getSortedRoutes', () => {
         '/blog/[helloworld]',
         '/blog/[helloworld]/[hello-world]',
       ])
-    ).toThrowError(/differ only by non-word/)
+    ).toThrow(/differ only by non-word/)
   })
 })

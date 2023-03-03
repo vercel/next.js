@@ -101,13 +101,13 @@ describe('RouteHandlerManager', () => {
     }
 
     expect(await handlers.handle(route, req, res)).toEqual(true)
-    expect(goodHandler.handle).toBeCalledWith(
+    expect(goodHandler.handle).toHaveBeenCalledWith(
       route,
       req,
       res,
       undefined,
       undefined
     )
-    expect(badHandler.handle).not.toBeCalled()
+    expect(badHandler.handle).not.toHaveBeenCalled()
   })
 })

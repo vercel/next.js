@@ -58,7 +58,7 @@ createNextDescribe(
       const tempfile = path.join(tmpOutDir, 'temp.txt')
       await next.patchFile(tempfile, 'test')
       await next.export({ outdir: tmpOutDir })
-      await expect(next.readFile(tempfile)).rejects.toThrowError()
+      await expect(next.readFile(tempfile)).rejects.toThrow()
     })
 
     const fileExist = async (file: string) =>

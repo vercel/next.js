@@ -198,7 +198,7 @@ describe('Application Export Intent Output', () => {
 
       expect(() => {
         fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-      }).toThrowError(/ENOENT/)
+      }).toThrow(/ENOENT/)
     })
 
     it('should export and create file', async () => {
@@ -214,7 +214,7 @@ describe('Application Export Intent Output', () => {
 
       expect(() => {
         fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-      }).toThrowError(/ENOENT/)
+      }).toThrow(/ENOENT/)
     })
   })
 })

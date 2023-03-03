@@ -23,7 +23,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       'next.config.js'
     )
 
-    expect(spy).not.toBeCalled()
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('should log warning message with removed experimental config', () => {
