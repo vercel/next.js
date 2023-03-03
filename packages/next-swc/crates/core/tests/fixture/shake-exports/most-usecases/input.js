@@ -34,3 +34,12 @@ export {keep3, asKeep as keep4, removeNamed}
 export default function removeDefault() {
   console.log('should be removed')
 }
+
+function ShouldBeKept() {
+  return 'should be kept'
+}
+let shouldBeKept2 = 'should be kept'
+
+export function keep5() {
+  return <ShouldBeKept val={shouldBeKept2} />
+}
