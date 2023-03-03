@@ -103,7 +103,7 @@ __swc_testing = ["__swc", "testing"]
 mdxjs = { optional = true, workspace = true }
 modularize_imports = { optional = true, workspace = true }
 # TODO: Not sure what's going on, but using `workspace = true` noops `default-features = false`?
-next-dev = { optional = true, path = "../next-dev", version = "0.1.0", default-features = false, features = [
+next-dev = { optional = true, workspace = true, default-features = false, features = [
   "custom_allocator",
 ] }
 node-file-trace = { optional = true, workspace = true }

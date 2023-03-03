@@ -17,44 +17,44 @@ tokio_console = [
 ]
 
 [dependencies]
-console-subscriber = { version = "0.1.8", optional = true }
+console-subscriber = { workspace = true, optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.47"
-chromiumoxide = { version = "0.4.0", features = [
+anyhow = { workspace = true }
+chromiumoxide = { workspace = true, features = [
   "tokio-runtime",
 ], default-features = false }
-futures = "0.3.25"
-httpmock = { version = "0.6.6", features = ["standalone"] }
-lazy_static = "1.4.0"
-mime = "0.3.16"
-next-core = { path = "../next-core" }
-next-dev = { path = "../next-dev" }
-owo-colors = "3"
-parking_lot = "0.12.1"
-rand = "0.8.5"
-regex = "1.6.0"
-serde = "1.0.136"
-serde_json = "1.0.85"
-test-generator = "0.3.0"
-tokio = { version = "1.21.2", features = ["full"] }
+futures = { workspace = true }
+httpmock = { workspace = true, features = ["standalone"] }
+lazy_static = { workspace = true }
+mime = { workspace = true }
+next-core = { workspace = true }
+next-dev = { workspace = true }
+owo-colors = { workspace = true }
+parking_lot = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+test-generator = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 # For matching on errors from chromiumoxide. Keep in
 # sync with chromiumoxide's tungstenite requirement.
-tungstenite = "0.17.3"
-turbo-malloc = { path = "../turbo-malloc", default-features = false, features = [
+tungstenite = { workspace = true }
+turbo-malloc = { workspace = true, default-features = false, features = [
   "custom_allocator",
 ] }
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-turbo-tasks-testing = { path = "../turbo-tasks-testing" }
-turbopack-cli-utils = { path = "../turbopack-cli-utils" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-dev-server = { path = "../turbopack-dev-server" }
-turbopack-node = { path = "../turbopack-node" }
-turbopack-test-utils = { path = "../turbopack-test-utils" }
-url = "2.2.2"
-webbrowser = "0.7.1"
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-dev-server = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-test-utils = { workspace = true }
+url = { workspace = true }
+webbrowser = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

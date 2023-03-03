@@ -9,32 +9,32 @@ edition = "2021"
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
-auto-hash-map = { path = "../auto-hash-map" }
+anyhow = { workspace = true }
+auto-hash-map = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 indoc = { workspace = true }
-mime = "0.3.16"
-once_cell = "1.13.0"
-qstring = "0.7.2"
-regex = "1.6.0"
-serde = "1.0.136"
-serde_json = "1.0.85"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-env = { path = "../turbo-tasks-env" }
-turbo-tasks-fetch = { path = "../turbo-tasks-fetch" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-hash = { path = "../turbo-tasks-hash" }
-turbopack = { path = "../turbopack" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-dev-server = { path = "../turbopack-dev-server" }
-turbopack-ecmascript = { path = "../turbopack-ecmascript" }
-turbopack-env = { path = "../turbopack-env" }
-turbopack-node = { path = "../turbopack-node" }
+mime = { workspace = true }
+once_cell = { workspace = true }
+qstring = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fetch = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-dev-server = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-env = { workspace = true }
+turbopack-node = { workspace = true }
 
 swc_core = { workspace = true, features = ["ecma_ast", "common"] }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }
 
 [features]
 next-font-local = []

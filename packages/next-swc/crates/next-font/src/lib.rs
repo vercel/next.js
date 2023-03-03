@@ -1,4 +1,4 @@
-use fxhash::FxHashSet;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use swc_core::{
     common::{collections::AHashMap, BytePos, Spanned},

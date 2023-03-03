@@ -10,8 +10,8 @@ autobenches = false
 bench = false
 
 [dependencies]
-fxhash = "0.2.1"
-tracing = "0.1.37"
+rustc-hash = { workspace = true }
+tracing = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
