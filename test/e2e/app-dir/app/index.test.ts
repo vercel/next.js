@@ -73,10 +73,13 @@ createNextDescribe(
     it('should not apply client router filter on shallow', async () => {
       const browser = await next.browser('/')
       await browser.eval('window.beforeNav = 1')
-      await browser.eval(
-        `window.next.router.push('/', '/redirect-1', { shallow: true })`
-      )
-      await check(() => browser.eval('window.location.pathname'), '/redirect-1')
+
+      await check(async () => {
+        await browser.eval(
+          `window.next.router.push('/', '/redirect-1', { shallow: true })`
+        )
+        return await browser.eval('window.location.pathname')
+      }, '/redirect-1')
       expect(await browser.eval('window.beforeNav')).toBe(1)
     })
 
