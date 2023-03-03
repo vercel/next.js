@@ -216,6 +216,7 @@ fn shake_exports_fixture(input: PathBuf) {
                     String::from("keep2").into(),
                     String::from("keep3").into(),
                     String::from("keep4").into(),
+                    String::from("keep5").into(),
                 ],
             })
         },
