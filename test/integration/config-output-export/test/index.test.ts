@@ -7,8 +7,6 @@ import {
   hasRedbox,
   killApp,
   launchApp,
-  nextBuild,
-  nextStart,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
