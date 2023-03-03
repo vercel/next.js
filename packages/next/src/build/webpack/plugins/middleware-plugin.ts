@@ -179,7 +179,7 @@ function getCreateAssets(params: {
         catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
       })
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        { regexp: namedRegex, originalSource: page },
+        { regexp: namedRegex, originalSource: matcherSource },
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
