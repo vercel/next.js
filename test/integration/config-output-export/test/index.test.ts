@@ -146,7 +146,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with getStaticProps and revalidate (ISR)', async () => {
+  it('should error with getStaticProps and revalidate 10 seconds (ISR)', async () => {
     const blog = join(appDir, 'pages/blog.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -160,7 +160,7 @@ describe('config-output-export', () => {
          export async function getStaticProps() {
           return { 
            props: { posts: ["my isr post"] },
-           revalidate: 10
+           revalidate: 10,
           }
          }`
       )
@@ -181,7 +181,36 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should work with getStaticProps without revalidate', async () => {
+  it('should work with getStaticProps and revalidate false', async () => {
+    const blog = join(appDir, 'pages/blog.js')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let browser: any
+    try {
+      fs.writeFileSync(
+        blog,
+        `export default function Blog({ posts }) {
+          return posts.map(p => (<div key={p}>{p}</div>))
+         }
+         
+         export async function getStaticProps() {
+          return { 
+           props: { posts: ["my gsp post"] },
+           revalidate: false,
+          }
+         }`
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      browser = await webdriver(result.port, '/blog')
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(blog)
+    }
+    expect(await hasRedbox(browser, false)).toBe(false)
+  })
+
+  it('should work with getStaticProps and without revalidate', async () => {
     const blog = join(appDir, 'pages/blog.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -209,7 +238,7 @@ describe('config-output-export', () => {
     expect(await hasRedbox(browser, false)).toBe(false)
   })
 
-  it('should error with getServerSideProps', async () => {
+  it('should error with getServerSideProps without fallback', async () => {
     const blog = join(appDir, 'pages/blog.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -243,7 +272,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with getStaticPaths fallback true', async () => {
+  it('should error with getStaticPaths and fallback true', async () => {
     const posts = join(appDir, 'pages/posts')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -289,7 +318,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with getStaticPaths fallback blocking', async () => {
+  it('should error with getStaticPaths and fallback blocking', async () => {
     const posts = join(appDir, 'pages/posts')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -335,7 +364,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should work with getStaticPaths fallback false', async () => {
+  it('should work with getStaticPaths and fallback false', async () => {
     const posts = join(appDir, 'pages/posts')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
