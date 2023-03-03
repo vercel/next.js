@@ -175,11 +175,16 @@ function getCreateAssets(params: {
         ? normalizeAppPath(page)
         : page
 
+      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+
       const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
-        catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
+        catchAll,
       })
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        { regexp: namedRegex, originalSource: matcherSource },
+        {
+          regexp: namedRegex,
+          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
+        },
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
