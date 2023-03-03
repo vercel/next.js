@@ -13,6 +13,24 @@ createNextDescribe(
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
+    async function checkMeta(
+      browser: BrowserInterface,
+      queryValue: string,
+      expected: string | string[],
+      queryKey: string = 'property',
+      tag: string = 'meta',
+      domAttributeField: string = 'content'
+    ) {
+      const values = await browser.eval(
+        `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
+      )
+      if (Array.isArray(expected)) {
+        expect(values).toEqual(expected)
+      } else {
+        expect(values[0]).toBe(expected)
+      }
+    }
+
     function createDomMatcher(browser: BrowserInterface) {
       /**
        * @param tag - tag name, e.g. 'meta'
@@ -114,24 +132,6 @@ createNextDescribe(
             )
           })
         )
-      }
-    }
-
-    async function checkMeta(
-      browser: BrowserInterface,
-      queryValue: string,
-      expected: string | string[],
-      queryKey: string = 'property',
-      tag: string = 'meta',
-      domAttributeField: string = 'content'
-    ) {
-      const values = await browser.eval(
-        `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
-      )
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
-      } else {
-        expect(values[0]).toBe(expected)
       }
     }
 
