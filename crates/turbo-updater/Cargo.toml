@@ -13,13 +13,10 @@ native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 
 [dependencies]
-atty = "0.2"
-console = "0.15.5"
-reqwest = { version = "0.11.14", default_features = false, features = [
-  "json",
-  "blocking",
-] }
-semver = "1.0"
-serde = { version = "1.0.126", features = ["derive"] }
-thiserror = "1.0"
+atty = { workspace = true }
+console = { workspace = true }
+reqwest = { workspace = true, features = ["json", "blocking"] }
+semver = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
 update-informer = { git = "https://github.com/mgrachev/update-informer", rev = "b7a415ac2276e857167b9fe8282044f93155878a", default_features = false }

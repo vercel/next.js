@@ -39,50 +39,48 @@ native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 
 [dependencies]
-anyhow = { version = "1.0.47", features = ["backtrace"] }
-clap = { version = "4.0.18", features = ["derive", "env"], optional = true }
-console-subscriber = { version = "0.1.8", optional = true }
-dunce = "1.0.3"
-futures = "0.3.25"
-mime = "0.3.16"
-next-core = { path = "../next-core" }
-owo-colors = "3"
-serde = "1.0.136"
-tokio = { version = "1.21.2", features = ["full"] }
-turbo-malloc = { path = "../turbo-malloc", default-features = false }
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
-turbopack-cli-utils = { path = "../turbopack-cli-utils" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-dev-server = { path = "../turbopack-dev-server" }
-turbopack-node = { path = "../turbopack-node" }
-webbrowser = "0.7.1"
+anyhow = { workspace = true, features = ["backtrace"] }
+clap = { workspace = true, features = ["derive", "env"], optional = true }
+console-subscriber = { workspace = true, optional = true }
+dunce = { workspace = true }
+futures = { workspace = true }
+mime = { workspace = true }
+next-core = { workspace = true }
+owo-colors = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-malloc = { workspace = true, default-features = false }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-dev-server = { workspace = true }
+turbopack-node = { workspace = true }
+webbrowser = { workspace = true }
 
 [dev-dependencies]
-chromiumoxide = { version = "0.4.0", features = [
+chromiumoxide = { workspace = true, features = [
   "tokio-runtime",
 ], default-features = false }
-criterion = { version = "0.4.0", features = ["async_tokio"] }
-once_cell = "1.13.0"
-parking_lot = "0.12.1"
+criterion = { workspace = true, features = ["async_tokio"] }
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
 portpicker = "0.1.1"
-rand = "0.8.5"
-regex = "1.6.0"
-serde_json = "1.0.85"
-tempfile = "3.3.0"
-# For matching on errors from chromiumoxide. Keep in
-# sync with chromiumoxide's tungstenite requirement.
-tungstenite = "0.17.3"
-turbo-tasks-testing = { path = "../turbo-tasks-testing" }
-turbopack-create-test-app = { path = "../turbopack-create-test-app" }
-url = "2.2.2"
+rand = { workspace = true }
+regex = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tungstenite = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-create-test-app = { workspace = true }
+url = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
-nix = "0.25.0"
+nix = "0.26.1"
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }
 vergen = { version = "7.3.2", default-features = false, features = [
   "cargo",
   "build",

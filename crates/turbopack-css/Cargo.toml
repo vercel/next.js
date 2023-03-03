@@ -10,19 +10,19 @@ autobenches = false
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
-async-trait = "0.1.56"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
-once_cell = "1.13.0"
-regex = "1.6.0"
-serde = "1.0.136"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbo-tasks-hash = { path = "../turbo-tasks-hash" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-ecmascript = { path = "../turbopack-ecmascript" }
-turbopack-swc-utils = { path = "../turbopack-swc-utils" }
+once_cell = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-swc-utils = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -39,4 +39,4 @@ swc_core = { workspace = true, features = [
 ] }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

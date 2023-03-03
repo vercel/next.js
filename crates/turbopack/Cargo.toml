@@ -14,40 +14,41 @@ test_persistent_cache = []
 bench_against_node_nft = []
 
 [dependencies]
-anyhow = "1.0.47"
+anyhow = { workspace = true }
 async-recursion = "1.0.2"
 indexmap = { workspace = true, features = ["serde"] }
-lazy_static = "1.4.0"
-regex = "1.5.4"
-serde = "1.0.136"
-serde_json = "1.0.85"
-tokio = "1.21.2"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack-core = { path = "../turbopack-core" }
-turbopack-css = { path = "../turbopack-css" }
-turbopack-ecmascript = { path = "../turbopack-ecmascript" }
-turbopack-env = { path = "../turbopack-env" }
-turbopack-json = { path = "../turbopack-json" }
-turbopack-mdx = { path = "../turbopack-mdx" }
-turbopack-node = { path = "../turbopack-node" }
-turbopack-static = { path = "../turbopack-static" }
+lazy_static = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-env = { workspace = true }
+turbopack-json = { workspace = true }
+turbopack-mdx = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-static = { workspace = true }
 # turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
 
 [dev-dependencies]
-criterion = { version = "0.3.5", features = ["async_tokio"] }
+criterion = { workspace = true, features = ["async_tokio"] }
 difference = "2.0"
-futures = "0.3.25"
-rstest = "0.12.0"
-rstest_reuse = "0.3.0"
-test-generator = "0.3.0"
-tokio = "1.21.2"
-turbo-malloc = { path = "../turbo-malloc" }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+futures = { workspace = true }
+rstest = { workspace = true }
+rstest_reuse = "0.5.0"
+test-generator = { workspace = true }
+tokio = { workspace = true }
+turbo-malloc = { workspace = true }
+turbo-tasks-memory = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

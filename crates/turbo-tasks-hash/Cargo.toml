@@ -13,5 +13,5 @@ bench = false
 base16 = "0.2.1"
 hex = "0.4.3"
 md4 = "0.10.1"
-turbo-tasks-macros = { path = "../turbo-tasks-macros" }
+turbo-tasks-macros = { workspace = true }
 twox-hash = "1.6.3"

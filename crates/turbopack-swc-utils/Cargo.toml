@@ -10,8 +10,8 @@ autobenches = false
 bench = false
 
 [dependencies]
-turbo-tasks = { path = "../turbo-tasks" }
-turbopack-core = { path = "../turbopack-core" }
+turbo-tasks = { workspace = true }
+turbopack-core = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "base",
@@ -21,4 +21,4 @@ swc_core = { workspace = true, features = [
 ] }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

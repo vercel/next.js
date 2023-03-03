@@ -25,21 +25,21 @@ node-api = []
 custom_allocator = ["turbo-malloc", "turbo-malloc/custom_allocator"]
 
 [dependencies]
-clap = { version = "4.0.18", optional = true, features = ["derive"] }
-turbo-malloc = { path = "../turbo-malloc", optional = true, default-features = false }
-turbo-tasks = { path = "../turbo-tasks" }
-# turbo-tasks-memory = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
-turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+anyhow = { workspace = true }
+clap = { workspace = true, optional = true, features = ["derive"] }
+console-subscriber = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+turbo-malloc = { workspace = true, optional = true, default-features = false }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }
-anyhow = "1.0.47"
-console-subscriber = { version = "0.1.8", optional = true }
-serde = { version = "1.0.136", features = ["derive"] }
-serde_json = "1.0.85"
-tokio = { version = "1.21.2", features = ["full"] }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack = { path = "../turbopack" }
-turbopack-cli-utils = { path = "../turbopack-cli-utils" }
-turbopack-core = { path = "../turbopack-core" }
+turbopack = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

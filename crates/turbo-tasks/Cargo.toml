@@ -16,28 +16,28 @@ log_function_stats = []
 hanging_detection = []
 
 [dependencies]
-anyhow = "1.0.47"
-auto-hash-map = { path = "../auto-hash-map" }
-concurrent-queue = "1.2.2"
-dashmap = "5.4.0"
+anyhow = { workspace = true }
+auto-hash-map = { workspace = true }
+concurrent-queue = { workspace = true }
+dashmap = { workspace = true }
 erased-serde = "0.3.20"
 event-listener = "2.5.3"
-futures = "0.3.25"
+futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
 nohash-hasher = "0.2.0"
-once_cell = "1.13.0"
-parking_lot = "0.12.1"
-pin-project-lite = "0.2.9"
-regex = "1.6.0"
-serde = { version = "1.0.136", features = ["rc", "derive"] }
-serde_json = "1.0.85"
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+pin-project-lite = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = ["rc", "derive"] }
+serde_json = { workspace = true }
 serde_regex = "1.1.0"
 stable_deref_trait = "1.2.0"
-thiserror = "1.0.31"
-tokio = { version = "1.21.2", features = ["full"] }
-turbo-tasks-hash = { path = "../turbo-tasks-hash" }
-turbo-tasks-macros = { path = "../turbo-tasks-macros" }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-hash = { workspace = true }
+turbo-tasks-macros = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

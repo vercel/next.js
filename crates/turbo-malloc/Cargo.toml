@@ -9,8 +9,8 @@ autobenches = false
 [lib]
 bench = false
 
-[target.'cfg(not(target_os = "linux"))'.dependencies]
-mimalloc = { version = "0.1.32", features = [], optional = true }
+[dependencies]
+mimalloc = { version = "0.1.32", optional = true }
 
 [target.'cfg(all(target_os = "linux", not(target_arch = "aarch64")))'.dependencies]
 mimalloc = { version = "0.1.32", features = [

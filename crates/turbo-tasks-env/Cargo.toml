@@ -9,12 +9,12 @@ edition = "2021"
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
+anyhow = { workspace = true }
 dotenvy = "0.15.5"
 indexmap = { workspace = true, features = ["serde"] }
-serde = "1.0.136"
-turbo-tasks = { path = "../turbo-tasks" }
-turbo-tasks-fs = { path = "../turbo-tasks-fs" }
+serde = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
 
 [build-dependencies]
-turbo-tasks-build = { path = "../turbo-tasks-build" }
+turbo-tasks-build = { workspace = true }

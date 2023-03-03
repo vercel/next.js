@@ -17,9 +17,9 @@ bench = false
 bench = false
 
 [dependencies]
-anyhow = "1.0.47"
-clap = { version = "4.0.18", features = ["derive"] }
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
 indoc = { workspace = true }
-pathdiff = "0.2.1"
-serde_json = "1.0.85"
-tempfile = "3.3.0"
+pathdiff = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
