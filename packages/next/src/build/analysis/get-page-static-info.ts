@@ -30,6 +30,7 @@ export interface MiddlewareMatcher {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  originalSource: string
 }
 
 export interface PageStaticInfo {
@@ -197,6 +198,7 @@ export function getMiddlewareMatchers(
     return {
       ...rest,
       regexp: parsedPage.regexStr,
+      originalSource: source,
     }
   })
 }
