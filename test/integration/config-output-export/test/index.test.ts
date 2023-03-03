@@ -288,4 +288,91 @@ describe('config-output-export', () => {
       'getStaticPaths with "fallback: true" cannot be used with "output: export".'
     )
   })
+
+  it('should error with fallback blocking', async () => {
+    const posts = join(appDir, 'pages/posts')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let browser: any
+    try {
+      fs.mkdirSync(posts)
+      fs.writeFileSync(
+        join(posts, '[slug].js'),
+        `export default function Post(props) {
+          return <h1>Hello from {props.slug}</h1>
+         }
+         
+         export async function getStaticPaths({ params }) {
+          return { 
+            paths: [
+              { params: { slug: 'one' } },
+            ],
+            fallback: 'blocking',
+          }
+         }
+
+         export async function getStaticProps({ params }) {
+          return { 
+           props: { slug: params.slug },
+          }
+         }`
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      browser = await webdriver(result.port, '/posts/one')
+      expect(await hasRedbox(browser, false)).toBe(false)
+      browser = await webdriver(result.port, '/posts/two')
+      expect(await hasRedbox(browser, true)).toBe(true)
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(posts, { recursive: true, force: true })
+    }
+    expect(await getRedboxHeader(browser)).toContain(
+      'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
+    )
+    expect(result?.stderr).toContain(
+      'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
+    )
+  })
+
+  it('should work with fallback false', async () => {
+    const posts = join(appDir, 'pages/posts')
+    let result: { stdout: string; stderr: string; port: number } | undefined
+    let browser: any
+    try {
+      fs.mkdirSync(posts)
+      fs.writeFileSync(
+        join(posts, '[slug].js'),
+        `export default function Post(props) {
+          return <h1>Hello from {props.slug}</h1>
+         }
+         
+         export async function getStaticPaths({ params }) {
+          return { 
+            paths: [
+              { params: { slug: 'one' } },
+            ],
+            fallback: false,
+          }
+         }
+
+         export async function getStaticProps({ params }) {
+          return { 
+           props: { slug: params.slug },
+          }
+         }`
+      )
+      result = await runDev({
+        output: 'export',
+      })
+      browser = await webdriver(result.port, '/posts/one')
+    } finally {
+      await killApp(app).catch(() => {})
+      fs.rmSync(posts, { recursive: true, force: true })
+    }
+    const h1 = await browser.elementByCss('h1')
+    expect(await h1.text()).toContain('Hello from one')
+    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(result.stderr).toBeEmpty()
+  })
 })

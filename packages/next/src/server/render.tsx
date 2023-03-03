@@ -474,12 +474,6 @@ export async function renderToHTML(
     )
   }
 
-  if (getStaticPaths && isFallback && renderOpts.output === 'export') {
-    throw new Error(
-      'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
-    )
-  }
-
   if (getStaticPaths && !pageIsDynamic) {
     throw new Error(
       `getStaticPaths is only allowed for dynamic SSG pages and was found on '${pathname}'.` +

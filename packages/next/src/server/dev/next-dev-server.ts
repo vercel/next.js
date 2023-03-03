@@ -1550,6 +1550,18 @@ export default class DevServer extends Server {
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
     ).value
 
+    if (this.nextConfig.output === 'export') {
+      if (fallback === 'blocking') {
+        throw new Error(
+          'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      } else if (fallback === true) {
+        throw new Error(
+          'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
+    }
+
     return {
       staticPaths,
       fallbackMode:
