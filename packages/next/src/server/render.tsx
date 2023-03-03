@@ -241,7 +241,7 @@ export type RenderOptsPartial = {
   optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
-  output?: 'standalone' | 'export'
+  nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -468,7 +468,7 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
-  if (getServerSideProps && renderOpts.output === 'export') {
+  if (getServerSideProps && renderOpts.nextConfigOutput === 'export') {
     throw new Error(
       'getServerSideProps cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
     )
@@ -853,7 +853,7 @@ export async function renderToHTML(
     }
 
     if ('revalidate' in data) {
-      if (data.revalidate && renderOpts.output === 'export') {
+      if (data.revalidate && renderOpts.nextConfigOutput === 'export') {
         throw new Error(
           'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
         )
@@ -1412,7 +1412,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
-    output: renderOpts.output,
+    nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
