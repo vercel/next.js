@@ -88,7 +88,7 @@ export async function makeResolver(
   if (middleware.files?.length) {
     const matchers = middleware.matcher
       ? getMiddlewareMatchers(middleware.matcher, nextConfig)
-      : [{ regexp: '.*' }]
+      : [{ regexp: '.*', originalSource: '/' }]
     // @ts-expect-error
     devServer.middleware = {
       page: '/',
