@@ -41,7 +41,7 @@ describe('getSortedRoutes', () => {
         '/apples/[ab]/[cd]/ef',
       ])
     ).toMatchInlineSnapshot(`
-      Array [
+      [
         "/",
         "/apples/[ab]/[cd]/ef",
         "/blog/abc",
@@ -154,17 +154,17 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[[blog]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+      `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
     expect(() =>
       getSortedRoutes(['/abc/[[blog]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+      `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
     expect(() =>
       getSortedRoutes(['/abc/[[blog]]/def'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+      `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
   })
 
@@ -172,12 +172,12 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[...one]', '/[[...one]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an required and optional catch-all route at the same level (\\"[...one]\\" and \\"[[...one]]\\" )."`
+      `"You cannot use both an required and optional catch-all route at the same level ("[...one]" and "[[...one]]" )."`
     )
     expect(() =>
       getSortedRoutes(['/[[...one]]', '/[...one]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an optional and required catch-all route at the same level (\\"[[...one]]\\" and \\"[...one]\\")."`
+      `"You cannot use both an optional and required catch-all route at the same level ("[[...one]]" and "[...one]")."`
     )
   })
 
@@ -185,23 +185,23 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/', '/[[...all]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/" and "/[[...all]]")."`
     )
     expect(() =>
       getSortedRoutes(['/[[...all]]', '/'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/" and "/[[...all]]")."`
     )
 
     expect(() =>
       getSortedRoutes(['/sub', '/sub/[[...all]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/sub" and "/sub[[...all]]")."`
     )
     expect(() =>
       getSortedRoutes(['/sub/[[...all]]', '/sub'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/sub" and "/sub[[...all]]")."`
     )
   })
 
