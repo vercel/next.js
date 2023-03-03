@@ -16,6 +16,27 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    it('should encode chunk path correctly', async () => {
+      const browser = await next.browser('/')
+      const requests = []
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      await browser.eval(
+        'window.location.href = "/dynamic-client/first/second"'
+      )
+
+      await check(async () => {
+        return requests.some(
+          (req) =>
+            req.includes(encodeURI('/[category]/[id]')) && req.endsWith('.js')
+        )
+          ? 'found'
+          : JSON.stringify(requests)
+      }, 'found')
+    })
+
     it.each([
       { pathname: '/redirect-1' },
       { pathname: '/redirect-2' },
