@@ -1,6 +1,5 @@
 export function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { tracing } = require('@opentelemetry/sdk-node')
     const { Resource } = require('@opentelemetry/resources')
     const {
       SemanticResourceAttributes,
@@ -9,11 +8,11 @@ export function register() {
     const { NodeTracerProvider, SimpleSpanProcessor } =
       require('@opentelemetry/sdk-trace-node') as typeof import('@opentelemetry/sdk-trace-node')
     const {
-      OTLPTraceExporter,
+      OTLPTraceExporter: OTLPTraceExporterGRPC,
     } = require('@opentelemetry/exporter-trace-otlp-grpc')
-
-    // const exporter =new OTLPTraceExporter()
-    const exporter = new tracing.ConsoleSpanExporter()
+    const {
+      OTLPTraceExporter: OTLPTraceExporterHTTP,
+    } = require('@opentelemetry/exporter-trace-otlp-http')
 
     const provider = new NodeTracerProvider({
       resource: new Resource({
@@ -21,7 +20,17 @@ export function register() {
       }),
     })
 
-    provider.addSpanProcessor(new SimpleSpanProcessor(exporter))
+    // You can use either HTTP or GRPC to send traces to the collector
+    const useGrpc = true
+    if (!useGrpc) {
+      provider.addSpanProcessor(
+        new SimpleSpanProcessor(new OTLPTraceExporterHTTP({}))
+      )
+    } else {
+      provider.addSpanProcessor(
+        new SimpleSpanProcessor(new OTLPTraceExporterGRPC({}))
+      )
+    }
 
     provider.register()
   }

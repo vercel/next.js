@@ -13,7 +13,6 @@
     "@opentelemetry/exporter-trace-otlp-http": "0.35.1",
     "@opentelemetry/instrumentation-fetch": "0.35.1",
     "@opentelemetry/resources": "1.9.1",
-    "@opentelemetry/sdk-node": "0.35.1",
     "@opentelemetry/sdk-trace-base": "1.9.1",
     "@opentelemetry/semantic-conventions": "1.9.1",
     "next": "latest",
