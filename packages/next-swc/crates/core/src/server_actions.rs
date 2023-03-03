@@ -464,6 +464,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             disallowed_export_span = *span;
                         }
                     },
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll { span, .. })) => {
+                        disallowed_export_span = *span;
+                    }
                     _ => {}
                 }
 

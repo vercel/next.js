@@ -7,15 +7,18 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
+  COMPILER_INDEXES,
 } from '../shared/lib/constants'
 import { runCompiler } from './compiler'
 import * as Log from './output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from './webpack-config'
 import { NextError } from '../lib/is-error'
-import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import { NextBuildContext } from './build-context'
-import { isMainThread, parentPort, Worker, workerData } from 'worker_threads'
+import {
+  NextBuildContext,
+  resumePluginState,
+  getPluginState,
+} from './build-context'
 import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
 import { trace } from '../trace'
@@ -24,6 +27,13 @@ import {
   TraceEntryPointsPlugin,
   TurbotraceContext,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
+import { UnwrapPromise } from '../lib/coalesced-function'
+import * as pagesPluginModule from './webpack/plugins/pages-manifest-plugin'
+import { Worker } from 'next/dist/compiled/jest-worker'
+import origDebug from 'next/dist/compiled/debug'
+import { ChildProcess } from 'child_process'
+
+const debug = origDebug('next:build:webpack-build')
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -47,9 +57,13 @@ function isTraceEntryPointsPlugin(
   return plugin instanceof TraceEntryPointsPlugin
 }
 
-async function webpackBuildImpl(): Promise<{
+async function webpackBuildImpl(
+  compilerName?: keyof typeof COMPILER_INDEXES
+): Promise<{
   duration: number
+  pluginState: any
   turbotraceContext?: TurbotraceContext
+  serializedPagesManifestEntries?: typeof NextBuildContext['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -58,7 +72,6 @@ async function webpackBuildImpl(): Promise<{
   }
   let webpackBuildStart
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  const buildSpinner = NextBuildContext.buildSpinner
   const dir = NextBuildContext.dir!
   const config = NextBuildContext.config!
 
@@ -150,6 +163,7 @@ async function webpackBuildImpl(): Promise<{
 
   webpackBuildStart = process.hrtime()
 
+  debug(`starting compiler`, compilerName)
   // We run client and server compilation separately to optimize for memory usage
   await runWebpackSpan.traceAsyncFn(async () => {
     // Run the server compilers first and then the client
@@ -158,18 +172,30 @@ async function webpackBuildImpl(): Promise<{
 
     // During the server compilations, entries of client components will be
     // injected to this set and then will be consumed by the client compiler.
-    injectedClientEntries.clear()
+    let serverResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
+      null
+    let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
+      null
 
-    const serverResult = await runCompiler(serverConfig, {
-      runWebpackSpan,
-    })
-    const edgeServerResult = configs[2]
-      ? await runCompiler(configs[2], { runWebpackSpan })
-      : null
+    if (!compilerName || compilerName === 'server') {
+      serverResult = await runCompiler(serverConfig, {
+        runWebpackSpan,
+      })
+      debug('server result', serverResult)
+    }
+
+    if (!compilerName || compilerName === 'edge-server') {
+      edgeServerResult = configs[2]
+        ? await runCompiler(configs[2], { runWebpackSpan })
+        : null
+      debug('edge server result', edgeServerResult)
+    }
 
     // Only continue if there were no errors
-    if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
-      injectedClientEntries.forEach((value, key) => {
+    if (!serverResult?.errors.length && !edgeServerResult?.errors.length) {
+      const pluginState = getPluginState()
+      for (const key in pluginState.injectedClientEntries) {
+        const value = pluginState.injectedClientEntries[key]
         const clientEntry = clientConfig.entry as webpack.EntryObject
         if (key === APP_CLIENT_INTERNALS) {
           clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = {
@@ -188,11 +214,14 @@ async function webpackBuildImpl(): Promise<{
             layer: WEBPACK_LAYERS.appClient,
           }
         }
-      })
+      }
 
-      clientResult = await runCompiler(clientConfig, {
-        runWebpackSpan,
-      })
+      if (!compilerName || compilerName === 'client') {
+        clientResult = await runCompiler(clientConfig, {
+          runWebpackSpan,
+        })
+        debug('client result', clientResult)
+      }
     }
 
     result = {
@@ -230,9 +259,6 @@ async function webpackBuildImpl(): Promise<{
   ).plugins?.find(isTraceEntryPointsPlugin)
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
-  if (buildSpinner) {
-    buildSpinner.stopAndPersist()
-  }
 
   if (result.errors.length > 0) {
     // Only keep the first few errors. Others are often indicative
@@ -277,21 +303,44 @@ async function webpackBuildImpl(): Promise<{
       Log.warn('Compiled with warnings\n')
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
-    } else {
+    } else if (!compilerName) {
       Log.info('Compiled successfully')
     }
+
     return {
       duration: webpackBuildEnd[0],
       turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
+      pluginState: getPluginState(),
+      serializedPagesManifestEntries: {
+        edgeServerPages: pagesPluginModule.edgeServerPages,
+        edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
+        nodeServerPages: pagesPluginModule.nodeServerPages,
+        nodeServerAppPaths: pagesPluginModule.nodeServerAppPaths,
+      },
     }
   }
 }
 
 // the main function when this file is run as a worker
-async function workerMain() {
-  const { buildContext } = workerData
+export async function workerMain(workerData: {
+  compilerName: keyof typeof COMPILER_INDEXES
+  buildContext: typeof NextBuildContext
+}) {
   // setup new build context from the serialized data passed from the parent
-  Object.assign(NextBuildContext, buildContext)
+  Object.assign(NextBuildContext, workerData.buildContext)
+
+  // Resume plugin state
+  resumePluginState(NextBuildContext.pluginState)
+
+  // restore module scope maps for flight plugins
+  const { serializedPagesManifestEntries } = NextBuildContext
+
+  for (const key of Object.keys(serializedPagesManifestEntries || {})) {
+    Object.assign(
+      (pagesPluginModule as any)[key],
+      (serializedPagesManifestEntries as any)?.[key]
+    )
+  }
 
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
@@ -303,30 +352,20 @@ async function workerMain() {
   )
   NextBuildContext.nextBuildSpan = trace('next-build')
 
-  try {
-    const result = await webpackBuildImpl()
-    const { entriesTrace } = result.turbotraceContext ?? {}
-    if (entriesTrace) {
-      const { entryNameMap, depModArray } = entriesTrace
-      if (depModArray) {
-        result.turbotraceContext!.entriesTrace!.depModArray = depModArray
-      }
-      if (entryNameMap) {
-        const entryEntries = Array.from(entryNameMap?.entries() ?? [])
-        // @ts-expect-error
-        result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
-      }
+  const result = await webpackBuildImpl(workerData.compilerName)
+  const { entriesTrace } = result.turbotraceContext ?? {}
+  if (entriesTrace) {
+    const { entryNameMap, depModArray } = entriesTrace
+    if (depModArray) {
+      result.turbotraceContext!.entriesTrace!.depModArray = depModArray
     }
-    parentPort!.postMessage(JSON.stringify(result))
-  } catch (e) {
-    parentPort!.postMessage(e)
-  } finally {
-    process.exit(0)
+    if (entryNameMap) {
+      const entryEntries = Array.from(entryNameMap?.entries() ?? [])
+      // @ts-expect-error
+      result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
+    }
   }
-}
-
-if (!isMainThread) {
-  workerMain()
+  return result
 }
 
 async function webpackBuildWithWorker() {
@@ -337,49 +376,99 @@ async function webpackBuildWithWorker() {
     nextBuildSpan,
     ...prunedBuildContext
   } = NextBuildContext
-  const worker = new Worker(new URL(import.meta.url), {
-    workerData: {
-      buildContext: prunedBuildContext,
-    },
-  })
 
-  const result = JSON.parse(
-    await new Promise((resolve, reject) => {
-      worker.on('message', (data) => {
-        if (data instanceof Error) {
-          reject(data)
-        } else {
-          resolve(data)
+  const getWorker = (compilerName: string) => {
+    const _worker = new Worker(__filename, {
+      exposedMethods: ['workerMain'],
+      numWorkers: 1,
+      maxRetries: 0,
+      forkOptions: {
+        env: {
+          ...process.env,
+          NEXT_PRIVATE_BUILD_WORKER: '1',
+        },
+      },
+    }) as Worker & { workerMain: typeof workerMain }
+    _worker.getStderr().pipe(process.stderr)
+    _worker.getStdout().pipe(process.stdout)
+
+    for (const worker of ((_worker as any)._workerPool?._workers || []) as {
+      _child: ChildProcess
+    }[]) {
+      worker._child.on('exit', (code, signal) => {
+        if (code || signal) {
+          console.error(
+            `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
+          )
         }
       })
-      worker.on('error', reject)
-      worker.on('exit', (code) => {
-        if (code !== 0) {
-          reject(new Error(`Worker stopped with exit code ${code}`))
-        }
-      })
-    })
-  ) as {
-    duration: number
-    turbotraceContext?: TurbotraceContext
+    }
+
+    return _worker
   }
 
-  if (result.turbotraceContext?.entriesTrace) {
-    const { entryNameMap } = result.turbotraceContext.entriesTrace
-    if (entryNameMap) {
-      result.turbotraceContext.entriesTrace.entryNameMap = new Map(entryNameMap)
+  const combinedResult = {
+    duration: 0,
+    turbotraceContext: {} as any,
+  }
+  // order matters here
+  const ORDERED_COMPILER_NAMES = [
+    'server',
+    'edge-server',
+    'client',
+  ] as (keyof typeof COMPILER_INDEXES)[]
+
+  for (const compilerName of ORDERED_COMPILER_NAMES) {
+    const worker = getWorker(compilerName)
+
+    const curResult = await worker.workerMain({
+      buildContext: prunedBuildContext,
+      compilerName,
+    })
+    // destroy worker so it's not sticking around using memory
+    await worker.end()
+
+    // Update plugin state
+    prunedBuildContext.pluginState = curResult.pluginState
+
+    prunedBuildContext.serializedPagesManifestEntries = {
+      edgeServerAppPaths:
+        curResult.serializedPagesManifestEntries?.edgeServerAppPaths,
+      edgeServerPages:
+        curResult.serializedPagesManifestEntries?.edgeServerPages,
+      nodeServerAppPaths:
+        curResult.serializedPagesManifestEntries?.nodeServerAppPaths,
+      nodeServerPages:
+        curResult.serializedPagesManifestEntries?.nodeServerPages,
+    }
+
+    combinedResult.duration += curResult.duration
+
+    if (curResult.turbotraceContext?.entriesTrace) {
+      combinedResult.turbotraceContext = curResult.turbotraceContext
+
+      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace
+      if (entryNameMap) {
+        combinedResult.turbotraceContext.entriesTrace.entryNameMap = new Map(
+          entryNameMap
+        )
+      }
     }
   }
+  buildSpinner?.stopAndPersist()
+  Log.info('Compiled successfully')
 
-  return result
+  return combinedResult
 }
 
 export async function webpackBuild() {
   const config = NextBuildContext.config!
 
   if (config.experimental.webpackBuildWorker) {
+    debug('using separate compiler workers')
     return await webpackBuildWithWorker()
   } else {
+    debug('building all compilers in same process')
     return await webpackBuildImpl()
   }
 }
