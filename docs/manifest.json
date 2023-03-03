@@ -509,6 +509,10 @@
               "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
             },
             {
+              "title": "Custom Image Loader Config",
+              "path": "/docs/api-reference/next.config.js/custom-image-loader-config.md"
+            },
+            {
               "title": "Custom Webpack Config",
               "path": "/docs/api-reference/next.config.js/custom-webpack-config.md"
             },

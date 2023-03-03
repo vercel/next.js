@@ -13,7 +13,10 @@ export const metadata = {
       'only screen and (max-width: 600px)': '/mobile',
     },
     types: {
-      'application/rss+xml': 'https://example.com/rss',
+      'application/rss+xml': [
+        { url: 'blog.rss', title: 'rss' },
+        { url: 'blog/js.rss', title: 'js title' },
+      ],
     },
   },
 }
