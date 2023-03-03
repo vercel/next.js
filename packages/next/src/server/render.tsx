@@ -853,9 +853,6 @@ export async function renderToHTML(
     }
 
     if ('revalidate' in data) {
-      if (renderOpts.nextExport) {
-        throw new Error('ISR cannot be used with next export.')
-      }
       if (renderOpts.output === 'export') {
         throw new Error(
           'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
