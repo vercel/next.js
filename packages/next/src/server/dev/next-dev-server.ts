@@ -491,7 +491,7 @@ export default class DevServer extends Server {
           if (isMiddlewareFile(rootFile)) {
             this.actualMiddlewareFile = rootFile
             middlewareMatchers = staticInfo.middleware?.matchers || [
-              { regexp: '.*' },
+              { regexp: '.*', originalSource: '/:path*' },
             ]
             continue
           }

@@ -131,7 +131,7 @@ describe('Middleware Runtime', () => {
             ]),
             name: 'middleware',
             page: '/',
-            matchers: [{ regexp: '^/.*$', originalSource: '/' }],
+            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
             wasm: [],
             assets: [],
             regions: 'auto',
