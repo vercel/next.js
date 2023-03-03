@@ -59,6 +59,7 @@ export default function page() {
       <Link href="/rewrite-param/x/page?1">test</Link>
       <Link href="/redirect">test</Link>
       <Link href={new URL('/about')}>test</Link>
+      <Link href="/api/hello">test</Link>
     </>
   )
 
