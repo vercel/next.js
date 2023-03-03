@@ -140,7 +140,7 @@ export const devPageFiles = new Set<string>()
 // editors can provide autocompletion for them. However it's currently not
 // possible to provide the same experience for dynamic routes.
 const routeTypes: Record<
-  'edge' | 'node' | 'redirectsRewrites',
+  'edge' | 'node' | 'extra',
   Record<'static' | 'dynamic', string>
 > = {
   edge: {
@@ -151,7 +151,7 @@ const routeTypes: Record<
     static: '',
     dynamic: '',
   },
-  redirectsRewrites: {
+  extra: {
     static: '',
     dynamic: '',
   },
@@ -179,7 +179,10 @@ function formatRouteToRouteType(route: string) {
       .join('/')
   }
 
-  return { routeType: `\n    | \`${route}\``, isDynamic }
+  return {
+    isDynamic,
+    routeType: `\n    | \`${route}\``,
+  }
 }
 
 let redirectsRewritesRoutesProcessed = false
@@ -217,8 +220,7 @@ function processRedirectsRewritesRoutes(
 
       const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
 
-      routeTypes.redirectsRewrites[isDynamic ? 'dynamic' : 'static'] +=
-        routeType
+      routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
     }
   }
 
@@ -249,7 +251,7 @@ function createRouteDefinitions() {
   let staticRouteTypes = ''
   let dynamicRouteTypes = ''
 
-  for (const type of ['edge', 'node', 'redirectsRewrites'] as const) {
+  for (const type of ['edge', 'node', 'extra'] as const) {
     staticRouteTypes += routeTypes[type].static
     dynamicRouteTypes += routeTypes[type].dynamic
   }
@@ -289,6 +291,8 @@ declare namespace __next_route_internal_types__ {
   }
 
   type RouteImpl<T> =
+    ${/* This keeps autocompletion working for static routes */ ''}
+    | StaticRoutes
     | \`\${StaticRoutes}\${Suffix}\`
     | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
 }
