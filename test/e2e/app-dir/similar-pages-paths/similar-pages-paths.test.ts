@@ -4,10 +4,13 @@ createNextDescribe(
   'app-dir similar pages paths',
   {
     files: __dirname,
-    // TODO: enable development test
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
+    // TODO: enable development test
+    if (isNextDev) {
+      it('should skip dev test', () => {})
+    }
     it('should redirect route when requesting it directly', async () => {
       const res1 = await next.fetch('/')
       expect(res1.status).toBe(200)
