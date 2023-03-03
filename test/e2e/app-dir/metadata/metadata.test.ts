@@ -1,6 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import { CheerioStatic } from 'cheerio'
 
 createNextDescribe(
   'app dir - metadata',
@@ -295,7 +296,7 @@ createNextDescribe(
 
       it('should support robots tags', async () => {
         const $ = await next.render$('/robots')
-        const matchMultiDom = createMultiDomMatcher($)
+        const matchMultiDom = createMultiHtmlMatcher($)
 
         await matchMultiDom('meta', 'name', 'content', {
           robots: 'noindex, follow, nocache',
