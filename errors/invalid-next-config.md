@@ -24,7 +24,3 @@ For example for the below warning, there is a typo and `rewritess` needs to be r
 ```sh
 The root value has an unexpected property, rewritess, which is not in the list of allowed properties
 ```
-
-### Useful Links
-
-- [`next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
