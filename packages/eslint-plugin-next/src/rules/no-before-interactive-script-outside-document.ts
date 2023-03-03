@@ -8,7 +8,7 @@ export = defineRule({
   meta: {
     docs: {
       description:
-        "Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `pages/_document.js` or root layout.",
+        "Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `pages/_document.js`.",
       recommended: true,
       url,
     },
@@ -25,6 +25,11 @@ export = defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
+        // This eslint rule should work just in pages
+        if (!context.getFilename().startsWith('pages/')) {
+          return
+        }
+
         if (!scriptImportName) {
           return
         }
@@ -45,25 +50,14 @@ export = defineRule({
           return
         }
 
-        const filename = path.sep + context.getFilename()
-        const document = filename.split('pages')[1]
+        const document = context.getFilename().split('pages')[1]
         if (document && path.parse(document).name.startsWith('_document')) {
-          return
-        }
-
-        if (
-          // is in app dir
-          filename.split(path.sep + 'app' + path.sep).length > 1 &&
-          // is layout
-          path.basename(filename).startsWith('layout.')
-        ) {
-          // TODO: check if it's root layout
           return
         }
 
         context.report({
           node,
-          message: `\`next/script\`'s \`beforeInteractive\` strategy should not be used outside of \`pages/_document.js\` or root layout. See: ${url}`,
+          message: `\`next/script\`'s \`beforeInteractive\` strategy should not be used outside of \`pages/_document.js\`. See: ${url}`,
         })
       },
     }
