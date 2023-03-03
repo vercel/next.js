@@ -438,7 +438,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     const response = await this.requestAsyncLocalStorageWrapper.wrap(
       requestAsyncStorage,
       {
-        req: (req as NodeNextRequest).originalRequest,
+        req: (req as NodeNextRequest).originalRequest ?? request,
         res: (res as NodeNextResponse).originalResponse,
       },
       () =>
