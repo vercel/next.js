@@ -16,6 +16,7 @@ export interface Mutable {
   applyFocusAndScroll?: boolean
   pendingPush?: boolean
   cache?: CacheNode
+  prefetchCache?: AppRouterState['prefetchCache']
 }
 
 /**

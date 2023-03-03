@@ -9,11 +9,10 @@ import {
   ReducerState,
   RefreshAction,
 } from '../router-reducer-types'
-import {
-  handleMutable,
-  applyFlightData,
-  handleExternalUrl,
-} from './navigate-reducer'
+import { handleExternalUrl } from './navigate-reducer'
+import { handleMutable } from '../handle-mutable'
+import { CacheStates } from '../../../../shared/lib/app-router-context'
+import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -91,9 +90,20 @@ export function refreshReducer(
     mutable.canonicalUrl = canonicalUrlOverrideHref
   }
 
-  const applied = applyFlightData(state, cache, flightDataPath)
+  // The one before last item is the router state tree patch
+  const [subTreeData, head] = flightDataPath.slice(-2)
 
-  if (applied) {
+  // Handles case where prefetch only returns the router tree patch without rendered components.
+  if (subTreeData !== null) {
+    cache.status = CacheStates.READY
+    cache.subTreeData = subTreeData
+    fillLazyItemsTillLeafWithHead(
+      cache,
+      // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
+      undefined,
+      treePatch,
+      head
+    )
     mutable.cache = cache
   }
 

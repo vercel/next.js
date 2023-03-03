@@ -533,30 +533,6 @@ describe('refreshReducer', () => {
                   subTreeData: null,
                 },
               ],
-              [
-                'about',
-                {
-                  status: CacheStates.READY,
-                  parallelRoutes: new Map([
-                    [
-                      'children',
-                      new Map([
-                        [
-                          '',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <>About page</>,
-                            parallelRoutes: new Map(),
-                          },
-                        ],
-                      ]),
-                    ],
-                  ]),
-                  data: null,
-                  subTreeData: <>About layout level</>,
-                },
-              ],
             ]),
           ],
         ]),

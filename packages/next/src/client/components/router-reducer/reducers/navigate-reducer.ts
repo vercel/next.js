@@ -1,17 +1,9 @@
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context'
-import type {
-  FlightDataPath,
-  FlightSegmentPath,
-} from '../../../../server/app-render'
+import { CacheStates } from '../../../../shared/lib/app-router-context'
+import type { FlightSegmentPath } from '../../../../server/app-render'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
-import { fillCacheWithNewSubTreeData } from '../fill-cache-with-new-subtree-data'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
 import { fillCacheWithDataProperty } from '../fill-cache-with-data-property'
 import { createOptimisticTree } from '../create-optimistic-tree'
@@ -24,74 +16,8 @@ import {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-
-export function handleMutable(
-  state: ReadonlyReducerState,
-  mutable: Mutable
-): ReducerState {
-  return {
-    // Set href.
-    canonicalUrl:
-      typeof mutable.canonicalUrl !== 'undefined'
-        ? mutable.canonicalUrl === state.canonicalUrl
-          ? state.canonicalUrl
-          : mutable.canonicalUrl
-        : state.canonicalUrl,
-    pushRef: {
-      pendingPush:
-        typeof mutable.pendingPush !== 'undefined'
-          ? mutable.pendingPush
-          : state.pushRef.pendingPush,
-      mpaNavigation:
-        typeof mutable.mpaNavigation !== 'undefined'
-          ? mutable.mpaNavigation
-          : state.pushRef.mpaNavigation,
-    },
-    // All navigation requires scroll and focus management to trigger.
-    focusAndScrollRef: {
-      apply:
-        typeof mutable.applyFocusAndScroll !== 'undefined'
-          ? mutable.applyFocusAndScroll
-          : state.focusAndScrollRef.apply,
-    },
-    // Apply cache.
-    cache: mutable.cache ? mutable.cache : state.cache,
-    prefetchCache: state.prefetchCache,
-    // Apply patched router state.
-    tree:
-      typeof mutable.patchedTree !== 'undefined'
-        ? mutable.patchedTree
-        : state.tree,
-  }
-}
-
-export function applyFlightData(
-  state: ReadonlyReducerState,
-  cache: CacheNode,
-  flightDataPath: FlightDataPath
-): boolean {
-  // The one before last item is the router state tree patch
-  const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
-
-  // Handles case where prefetch only returns the router tree patch without rendered components.
-  if (subTreeData === null) {
-    return false
-  }
-
-  if (flightDataPath.length === 3) {
-    cache.status = CacheStates.READY
-    cache.subTreeData = subTreeData
-    fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
-  } else {
-    // Copy subTreeData for the root node of the cache.
-    cache.status = CacheStates.READY
-    cache.subTreeData = state.cache.subTreeData
-    // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
-  }
-
-  return true
-}
+import { handleMutable } from '../handle-mutable'
+import { applyFlightData } from '../apply-flight-data'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
