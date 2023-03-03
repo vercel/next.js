@@ -89,6 +89,18 @@ const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
 
+const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
+  [COMPILER_NAMES.server]: ['main', 'module'],
+  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+  [COMPILER_NAMES.edgeServer]: [
+    'edge-light',
+    'worker',
+    'browser',
+    'module',
+    'main',
+  ],
+}
+
 const BABEL_CONFIG_FILES = [
   '.babelrc',
   '.babelrc.json',
@@ -790,12 +802,37 @@ export default async function getBaseWebpackConfig(
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
     : []
 
+  // Loader for API routes needs to be differently configured as it shouldn't
+  // have RSC transpiler enabled, so syntax checks such as invalid imports won't
+  // be performed. However, it still needs to use the "react-server" condition
+  // to make isomorphic dependencies work.
+  const loaderForAPIRoutes =
+    hasServerComponents && useSWCLoader
+      ? {
+          loader: 'next-swc-loader',
+          options: {
+            ...getSwcLoader({ isServerLayer: true }).options,
+            hasServerComponents: false,
+          },
+        }
+      : defaultLoaders.babel
+
   const pageExtensions = config.pageExtensions
 
   const outputPath =
     isNodeServer || isEdgeServer
       ? path.join(distDir, SERVER_DIRECTORY)
       : distDir
+
+  const reactServerCondition = [
+    'react-server',
+    ...mainFieldsPerCompiler[
+      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
+    ],
+    'node',
+    'import',
+    'require',
+  ]
 
   const clientEntries = isClient
     ? ({
@@ -912,18 +949,6 @@ export default async function getBaseWebpackConfig(
         : []),
       `${nextDist}pages/_document.js`,
     ]
-  }
-
-  const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
-    [COMPILER_NAMES.server]: ['main', 'module'],
-    [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: [
-      'edge-light',
-      'worker',
-      'browser',
-      'module',
-      'main',
-    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
@@ -1725,17 +1750,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  conditionNames: [
-                    'react-server',
-                    ...mainFieldsPerCompiler[
-                      isEdgeServer
-                        ? COMPILER_NAMES.edgeServer
-                        : COMPILER_NAMES.server
-                    ],
-                    'node',
-                    'import',
-                    'require',
-                  ],
+                  conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1862,14 +1877,6 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /\.(js|cjs|mjs)$/,
-          issuerLayer: WEBPACK_LAYERS.api,
-          parser: {
-            // Switch back to normal URL handling
-            url: true,
-          },
-        },
-        {
           oneOf: [
             {
               ...codeCondition,
@@ -1878,7 +1885,10 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: defaultLoaders.babel,
+              use: loaderForAPIRoutes,
+              resolve: {
+                conditionNames: reactServerCondition,
+              },
             },
             {
               ...codeCondition,

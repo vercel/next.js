@@ -35,6 +35,7 @@ describe('app dir - rsc basics', () => {
         'styled-components': '6.0.0-beta.5',
         react: 'latest',
         'react-dom': 'latest',
+        'server-only': 'latest',
       },
       packageJson: {
         scripts: {
@@ -428,6 +429,11 @@ describe('app dir - rsc basics', () => {
       expect(gotData).toBe(true)
       expect(gotInlinedData).toBe(true)
     })
+  })
+
+  it('should support server-only in pages/api', async () => {
+    const res = await next.fetch('/api/server-only')
+    expect(await res.text()).toBe('Hello from server-only.js')
   })
 
   // disable this flaky test
