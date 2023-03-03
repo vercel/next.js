@@ -1,4 +1,4 @@
-import { nextFontError } from '../utils'
+import { nextFontError } from '../next-font-error'
 
 const NORMAL_WEIGHT = 400
 const BOLD_WEIGHT = 700
