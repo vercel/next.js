@@ -76,7 +76,8 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Headers](/docs/api-reference/next.config.js/headers.md)
 - [Middleware](/docs/middleware.md)
 - [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
-- [`fallback: true`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-true)
+- [`getStaticPaths` with `fallback: true`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-true)
+- [`getStaticPaths` with `fallback: 'blocking'`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-blocking)
 - [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md)
 
 ### `getInitialProps`

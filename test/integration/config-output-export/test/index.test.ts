@@ -50,7 +50,7 @@ describe('config-output-export', () => {
     expect(result.stderr).toBeEmpty()
   })
 
-  it('should error with i18n', async () => {
+  it('should error with "i18n" config', async () => {
     const { stderr } = await runDev({
       output: 'export',
       i18n: {
@@ -63,7 +63,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with rewrites', async () => {
+  it('should error with "rewrites" config', async () => {
     const { stderr } = await runDev({
       output: 'export',
       rewrites: [{ source: '/from', destination: '/to' }],
@@ -73,7 +73,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with redirects', async () => {
+  it('should error with "redirects" config', async () => {
     const { stderr } = await runDev({
       output: 'export',
       redirects: [{ source: '/from', destination: '/to', permanent: true }],
@@ -83,7 +83,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with headers', async () => {
+  it('should error with "headers" config', async () => {
     const { stderr } = await runDev({
       output: 'export',
       headers: [
@@ -98,7 +98,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with api routes', async () => {
+  it('should error with api routes function', async () => {
     const pagesApi = join(appDir, 'pages/api')
     let result
     let response
@@ -122,7 +122,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with middleware', async () => {
+  it('should error with middleware function', async () => {
     const middleware = join(appDir, 'middleware.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let response: Response | undefined
@@ -146,7 +146,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with isr', async () => {
+  it('should error with getStaticProps and revalidate (ISR)', async () => {
     const blog = join(appDir, 'pages/blog.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -181,7 +181,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should work with gsp', async () => {
+  it('should work with getStaticProps without revalidate', async () => {
     const blog = join(appDir, 'pages/blog.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -209,7 +209,7 @@ describe('config-output-export', () => {
     expect(await hasRedbox(browser, false)).toBe(false)
   })
 
-  it('should error with gssp', async () => {
+  it('should error with getServerSideProps', async () => {
     const blog = join(appDir, 'pages/blog.js')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -243,7 +243,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with fallback true', async () => {
+  it('should error with getStaticPaths fallback true', async () => {
     const posts = join(appDir, 'pages/posts')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -289,7 +289,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should error with fallback blocking', async () => {
+  it('should error with getStaticPaths fallback blocking', async () => {
     const posts = join(appDir, 'pages/posts')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
@@ -335,7 +335,7 @@ describe('config-output-export', () => {
     )
   })
 
-  it('should work with fallback false', async () => {
+  it('should work with getStaticPaths fallback false', async () => {
     const posts = join(appDir, 'pages/posts')
     let result: { stdout: string; stderr: string; port: number } | undefined
     let browser: any
