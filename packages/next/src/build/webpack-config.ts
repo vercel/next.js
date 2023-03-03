@@ -792,7 +792,7 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
   }
 
-  const swcLoaderForRSC = hasServerComponents
+  const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
       ? getSwcLoader({ isServerLayer: true })
       : // When using Babel, we will have to add the SWC loader
@@ -804,14 +804,13 @@ export default async function getBaseWebpackConfig(
 
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
-  // be performed. However, it still needs to use the "react-server" condition
-  // to make isomorphic dependencies work.
+  // be performed.
   const loaderForAPIRoutes =
     hasServerComponents && useSWCLoader
       ? {
           loader: 'next-swc-loader',
           options: {
-            ...getSwcLoader({ isServerLayer: true }).options,
+            ...getSwcLoader().options,
             hasServerComponents: false,
           },
         }
@@ -1886,9 +1885,6 @@ export default async function getBaseWebpackConfig(
                 url: true,
               },
               use: loaderForAPIRoutes,
-              resolve: {
-                conditionNames: reactServerCondition,
-              },
             },
             {
               ...codeCondition,
@@ -1901,12 +1897,12 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     exclude: [staticGenerationAsyncStorageRegex],
-                    use: swcLoaderForRSC,
+                    use: swcLoaderForServerLayer,
                   },
                   {
                     test: codeCondition.test,
                     resourceQuery: /__edge_ssr_entry__/,
-                    use: swcLoaderForRSC,
+                    use: swcLoaderForServerLayer,
                   },
                 ]
               : []),

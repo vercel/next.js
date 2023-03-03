@@ -431,9 +431,9 @@ describe('app dir - rsc basics', () => {
     })
   })
 
-  it('should support server-only in pages/api', async () => {
-    const res = await next.fetch('/api/server-only')
-    expect(await res.text()).toBe('Hello from server-only.js')
+  it('should not apply rsc syntax checks in pages/api', async () => {
+    const res = await next.fetch('/api/import-test')
+    expect(await res.text()).toBe('Hello from import-test.js')
   })
 
   // disable this flaky test
