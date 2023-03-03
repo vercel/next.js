@@ -49,7 +49,7 @@ export class RequestAsyncStorageWrapper
   public wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
     context: RequestContext,
-    callback: () => Result
+    callback: (store: RequestStore) => Result
   ): Result {
     return RequestAsyncStorageWrapper.wrap(storage, context, callback)
   }
@@ -60,7 +60,7 @@ export class RequestAsyncStorageWrapper
   public static wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
     { req, res, renderOpts }: RequestContext,
-    callback: () => Result
+    callback: (store: RequestStore) => Result
   ): Result {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
@@ -105,6 +105,6 @@ export class RequestAsyncStorageWrapper
       previewData,
     }
 
-    return storage.run(store, callback)
+    return storage.run(store, callback, store)
   }
 }

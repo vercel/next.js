@@ -379,5 +379,39 @@ createNextDescribe(
 
       await cleanup()
     })
+
+    it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+      const pagePath = 'app/metadata/mutate/page.js'
+      const content = `export default function page(props) {
+        return <p>mutate</p>
+      }
+
+      export async function generateMetadata(props, parent) {
+        const parentMetadata = await parent
+        parentMetadata.x = 1
+        return {
+          ...parentMetadata,
+        }
+      }`
+
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/metadata/mutate'
+      )
+
+      await session.patch(pagePath, content)
+
+      await check(
+        async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
+        /success/
+      )
+
+      expect(await session.getRedboxDescription()).toContain(
+        'Cannot add property x, object is not extensible'
+      )
+
+      await cleanup()
+    })
   }
 )
