@@ -291,8 +291,9 @@ declare namespace __next_route_internal_types__ {
   }
 
   type RouteImpl<T> =
-    ${/* This keeps autocompletion working for static routes */ ''}
-    | StaticRoutes
+    ${
+      /* This keeps autocompletion working for static routes */ '| StaticRoutes'
+    }
     | \`\${StaticRoutes}\${Suffix}\`
     | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
 }
