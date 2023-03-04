@@ -544,7 +544,7 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
-  output?: 'standalone'
+  output?: 'standalone' | 'export'
 
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
