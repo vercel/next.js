@@ -253,6 +253,9 @@ const configSchema = {
         clientRouterFilter: {
           type: 'boolean',
         },
+        clientRouterFilterRedirects: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },
@@ -701,7 +704,7 @@ const configSchema = {
     },
     output: {
       // automatic typing doesn't like enum
-      enum: ['standalone'] as any,
+      enum: ['standalone', 'export'] as any,
       type: 'string',
     },
     outputFileTracing: {
