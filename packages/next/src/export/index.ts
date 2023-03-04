@@ -442,7 +442,7 @@ export default async function exportApp(
 
     if (options.buildExport && hasAppDir) {
       // @ts-expect-error untyped
-      renderOpts.serverComponentManifest = require(join(
+      renderOpts.clientReferenceManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
         CLIENT_REFERENCE_MANIFEST + '.json'

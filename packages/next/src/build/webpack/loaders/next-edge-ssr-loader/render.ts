@@ -4,7 +4,7 @@ import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
-import type { FlightManifest } from '../../plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -26,7 +26,7 @@ export function getRender({
   reactLoadableManifest,
   appRenderToHTML,
   pagesRenderToHTML,
-  serverComponentManifest,
+  clientReferenceManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
   serverActionsManifest,
@@ -48,7 +48,7 @@ export function getRender({
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest?: FlightManifest
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any
@@ -80,7 +80,7 @@ export function getRender({
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        serverComponentManifest,
+        clientReferenceManifest,
         serverCSSManifest,
         serverActionsManifest,
       },

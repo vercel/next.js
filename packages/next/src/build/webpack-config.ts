@@ -46,8 +46,8 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
+import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -2193,11 +2193,11 @@ export default async function getBaseWebpackConfig(
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
-          ? new FlightManifestPlugin({
+          ? new ClientReferenceManifestPlugin({
               dev,
               appDir,
             })
-          : new FlightClientEntryPlugin({
+          : new ClientReferenceEntryPlugin({
               appDir,
               dev,
               isEdgeServer,

@@ -170,7 +170,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts
-      .serverComponentManifest
+      .clientReferenceManifest
   }
   protected getServerCSSManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest

@@ -3,7 +3,7 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import type { FlightCSSManifest } from './flight-manifest-plugin'
+import type { ClientCSSReferenceManifest } from './flight-manifest-plugin'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringify } from 'querystring'
@@ -54,8 +54,8 @@ const pluginState = getProxiedPluginState({
   serverActions: {} as ActionManifest,
 
   // Manifest of CSS entry files for server/edge server.
-  serverCSSManifest: {} as FlightCSSManifest,
-  edgeServerCSSManifest: {} as FlightCSSManifest,
+  serverCSSManifest: {} as ClientCSSReferenceManifest,
+  edgeServerCSSManifest: {} as ClientCSSReferenceManifest,
 
   // Mapping of resource path to module id for server/edge server.
   serverModuleIds: {} as Record<string, string | number>,
@@ -69,7 +69,7 @@ const pluginState = getProxiedPluginState({
   injectedClientEntries: {} as Record<string, string>,
 })
 
-export class FlightClientEntryPlugin {
+export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
@@ -407,7 +407,7 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const data: FlightCSSManifest = {
+        const data: ClientCSSReferenceManifest = {
           cssImports: {
             ...pluginState.serverCSSManifest.cssImports,
             ...pluginState.edgeServerCSSManifest.cssImports,

@@ -25,8 +25,8 @@ import {
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { matchSegment } from '../client/components/match-segments'
 import {
-  FlightCSSManifest,
-  FlightManifest,
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
@@ -182,9 +182,9 @@ export class ReadonlyRequestCookies {
 type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
-  // Leave `serverComponentManifest` optional for type compatibility with next server
-  serverComponentManifest?: FlightManifest
-  serverCSSManifest?: FlightCSSManifest
+  // Leave `clientReferenceManifest` optional for type compatibility with next server
+  clientReferenceManifest?: ClientReferenceManifest
+  serverCSSManifest?: ClientCSSReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -310,7 +310,7 @@ interface FlightResponseRef {
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: FlightManifest,
+  clientReferenceManifest: ClientReferenceManifest,
   rscChunks: Uint8Array[],
   flightResponseRef: FlightResponseRef,
   nonce?: string
@@ -325,8 +325,8 @@ function useFlightResponse(
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
     moduleMap: isEdgeRuntime
-      ? serverComponentManifest.edgeSSRModuleMapping
-      : serverComponentManifest.ssrModuleMapping,
+      ? clientReferenceManifest.edgeSSRModuleMapping
+      : clientReferenceManifest.ssrModuleMapping,
   })
   flightResponseRef.current = res
 
@@ -386,12 +386,12 @@ function createServerComponentRenderer(
   },
   {
     transformStream,
-    serverComponentManifest,
+    clientReferenceManifest,
     serverContexts,
     rscChunks,
   }: {
     transformStream: TransformStream<Uint8Array, Uint8Array>
-    serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+    clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
     serverContexts: Array<
       [ServerContextName: string, JSONValue: Object | number | string]
     >
@@ -415,7 +415,7 @@ function createServerComponentRenderer(
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
-        serverComponentManifest.clientModules,
+        clientReferenceManifest.clientModules,
         {
           context: serverContexts,
           onError: serverComponentsErrorHandler,
@@ -433,7 +433,7 @@ function createServerComponentRenderer(
     const response = useFlightResponse(
       writable,
       reqStream,
-      serverComponentManifest,
+      clientReferenceManifest,
       rscChunks,
       flightResponseRef,
       nonce
@@ -564,8 +564,8 @@ function getSegmentParam(segment: string): {
  * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
 function getCssInlinedLinkTags(
-  serverComponentManifest: FlightManifest,
-  serverCSSManifest: FlightCSSManifest,
+  clientReferenceManifest: ClientReferenceManifest,
+  serverCSSManifest: ClientCSSReferenceManifest,
   filePath: string,
   serverCSSForEntries: string[],
   injectedCSS: Set<string>,
@@ -575,7 +575,7 @@ function getCssInlinedLinkTags(
 
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
   const cssFilesForEntry = new Set(
-    serverComponentManifest.cssModules?.[filePathWithoutExt] || []
+    clientReferenceManifest.cssModules?.[filePathWithoutExt] || []
   )
 
   if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
@@ -593,7 +593,7 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest.clientModules[mod]
+        const modData = clientReferenceManifest.clientModules[mod]
         if (modData) {
           for (const chunk of modData.default.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
@@ -616,7 +616,7 @@ function getCssInlinedLinkTags(
 }
 
 function getServerCSSForEntries(
-  serverCSSManifest: FlightCSSManifest,
+  serverCSSManifest: ClientCSSReferenceManifest,
   entries: string[]
 ) {
   const css = []
@@ -636,8 +636,8 @@ function getServerCSSForEntries(
  * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
  */
 function getPreloadedFontFilesInlineLinkTags(
-  serverComponentManifest: FlightManifest,
-  serverCSSManifest: FlightCSSManifest,
+  clientReferenceManifest: ClientReferenceManifest,
+  serverCSSManifest: ClientCSSReferenceManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
   filePath: string | undefined,
@@ -766,7 +766,7 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  const serverComponentManifest = renderOpts.serverComponentManifest!
+  const clientReferenceManifest = renderOpts.clientReferenceManifest!
   const serverCSSManifest = renderOpts.serverCSSManifest!
 
   const capturedErrors: Error[] = []
@@ -1053,7 +1053,7 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
-        serverComponentManifest,
+        clientReferenceManifest,
         serverCSSManifest!,
         filePath,
         serverCSSForEntries,
@@ -1116,7 +1116,7 @@ export async function renderToHTMLOrFlight(
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
-            serverComponentManifest,
+            clientReferenceManifest,
             serverCSSManifest!,
             layoutOrPagePath,
             serverCSSForEntries,
@@ -1130,7 +1130,7 @@ export async function renderToHTMLOrFlight(
       )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
-            serverComponentManifest,
+            clientReferenceManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
@@ -1604,7 +1604,7 @@ export async function renderToHTMLOrFlight(
         )
         if (layoutPath) {
           getCssInlinedLinkTags(
-            serverComponentManifest,
+            clientReferenceManifest,
             serverCSSManifest!,
             layoutPath,
             serverCSSForEntries,
@@ -1612,7 +1612,7 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadedFontFilesInlineLinkTags(
-            serverComponentManifest,
+            clientReferenceManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
@@ -1688,7 +1688,7 @@ export async function renderToHTMLOrFlight(
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifest.clientModules,
+        clientReferenceManifest.clientModules,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,
@@ -1760,7 +1760,7 @@ export async function renderToHTMLOrFlight(
 
     const serverComponentsRenderOpts = {
       transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
+      clientReferenceManifest,
       serverContexts,
       rscChunks: [],
     }

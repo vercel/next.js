@@ -67,7 +67,7 @@ interface ManifestNode {
   }
 }
 
-export type FlightManifest = {
+export type ClientReferenceManifest = {
   clientModules: {
     [moduleId: string]: ManifestNode
   }
@@ -84,7 +84,7 @@ export type FlightManifest = {
   [modulePath: string]: ManifestNode
 }
 
-export type FlightCSSManifest = {
+export type ClientCSSReferenceManifest = {
   cssImports: {
     [modulePath: string]: string[]
   }
@@ -93,9 +93,9 @@ export type FlightCSSManifest = {
   }
 }
 
-const PLUGIN_NAME = 'FlightManifestPlugin'
+const PLUGIN_NAME = 'ClientReferenceManifestPlugin'
 
-export class FlightManifestPlugin {
+export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   ASYNC_CLIENT_MODULES: Set<string>
@@ -139,7 +139,7 @@ export class FlightManifestPlugin {
     compilation: webpack.Compilation,
     context: string
   ) {
-    const manifest: FlightManifest = {
+    const manifest: ClientReferenceManifest = {
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
       cssModules: {},
