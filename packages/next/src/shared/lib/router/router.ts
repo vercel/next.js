@@ -1998,6 +1998,12 @@ export default class Router implements BaseRouter {
               throw err
             })
 
+      // when rendering error routes we don't apply middleware
+      // effects
+      if (data && (pathname === '/_error' || pathname === '/404')) {
+        data.effect = undefined
+      }
+
       if (isQueryUpdating) {
         if (!data) {
           data = { json: self.__NEXT_DATA__.props }
