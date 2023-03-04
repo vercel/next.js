@@ -84,8 +84,10 @@ pub async fn get_client_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
-    let next_client_import_map = get_next_client_import_map(project_path, ty, next_config);
+    let next_client_import_map =
+        get_next_client_import_map(project_path, ty, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path);
     let module_options_context = ResolveOptionsContext {
@@ -119,7 +121,8 @@ pub async fn get_client_module_options_context(
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
     let custom_rules = get_next_client_transforms_rules(ty.into_value()).await?;
-    let resolve_options_context = get_client_resolve_options_context(project_path, ty, next_config);
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path, ty, next_config, execution_context);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_path, resolve_options_context)
             .await?
@@ -182,7 +185,8 @@ pub fn get_client_asset_context(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> AssetContextVc {
-    let resolve_options_context = get_client_resolve_options_context(project_path, ty, next_config);
+    let resolve_options_context =
+        get_client_resolve_options_context(project_path, ty, next_config, execution_context);
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -244,8 +248,10 @@ pub async fn get_client_runtime_entries(
     env: ProcessEnvVc,
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<RuntimeEntriesVc> {
-    let resolve_options_context = get_client_resolve_options_context(project_root, ty, next_config);
+    let resolve_options_context =
+        get_client_resolve_options_context(project_root, ty, next_config, execution_context);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_root, resolve_options_context)
             .await?

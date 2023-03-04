@@ -116,11 +116,13 @@ pub(crate) fn get_stylesheet_url(
     if axes.wght.is_empty() {
         let mut variant = vec![];
         if let Some(variable_axes) = &axes.variable_axes {
-            for (key, val) in variable_axes {
-                variant.push((key.as_str(), &val[..]));
+            if !variable_axes.is_empty() {
+                for (key, val) in variable_axes {
+                    variant.push((key.as_str(), &val[..]));
+                }
+                variants.push(variant);
             }
         }
-        variants.push(variant);
     } else {
         for wght in &axes.wght {
             if axes.ital.is_empty() {
@@ -135,13 +137,19 @@ pub(crate) fn get_stylesheet_url(
             } else {
                 for ital in &axes.ital {
                     let mut variant = vec![];
-                    variant.push((
-                        "ital",
-                        match ital {
-                            FontItal::Normal => "0",
-                            FontItal::Italic => "1",
-                        },
-                    ));
+
+                    // If Normal is the only requested variant, it's safe to omit the ital axis
+                    // entirely. Otherwise, include all variants.
+                    if matches!(ital, FontItal::Italic) || axes.ital.len() > 1 {
+                        variant.push((
+                            "ital",
+                            match ital {
+                                FontItal::Normal => "0",
+                                FontItal::Italic => "1",
+                            },
+                        ));
+                    }
+
                     variant.push(("wght", &wght[..]));
                     if let Some(variable_axes) = &axes.variable_axes {
                         for (key, val) in variable_axes {
@@ -170,44 +178,53 @@ pub(crate) fn get_stylesheet_url(
         });
     }
 
-    let first_variant = variants
-        .first()
-        .context("Requires at least one font variant")?;
-    // Always use the first variant's keys. There's an implicit invariant from the
-    // code above that the keys across each variant are identical, and therefore
-    // will be sorted identically across variants.
-    //
-    // Generates a comma-separated list of axis names, e.g. `ital,opsz,wght`.
-    let variant_keys_str = first_variant
-        .iter()
-        .map(|pair| pair.0)
-        .collect::<Vec<&str>>()
-        .join(",");
-
-    let mut variant_values = variants
-        .iter()
-        .map(|variant| {
-            variant
+    let first_variant = variants.first();
+    match first_variant {
+        None => Ok(format!(
+            "{}?family={}&display={}",
+            root_url,
+            font_family.replace(' ', "+"),
+            display
+        )),
+        Some(first_variant) => {
+            // Always use the first variant's keys. There's an implicit invariant from the
+            // code above that the keys across each variant are identical, and therefore
+            // will be sorted identically across variants.
+            //
+            // Generates a comma-separated list of axis names, e.g. `ital,opsz,wght`.
+            let variant_keys_str = first_variant
                 .iter()
-                .map(|pair| pair.1)
+                .map(|pair| pair.0)
                 .collect::<Vec<&str>>()
-                .join(",")
-        })
-        .collect::<Vec<String>>();
-    variant_values.sort();
-    // An encoding of the series of sorted variant values, with variants delimited
-    // by `;` and the values within a variant delimited by `,` e.g.
-    // `"0,10..100,500;1,10.100;500"`
-    let variant_values_str = variant_values.join(";");
+                .join(",");
 
-    Ok(format!(
-        "{}?family={}:{}@{}&display={}",
-        root_url,
-        font_family.replace(' ', "+"),
-        variant_keys_str,
-        variant_values_str,
-        display
-    ))
+            let mut variant_values = variants
+                .iter()
+                .map(|variant| {
+                    variant
+                        .iter()
+                        .map(|pair| pair.1)
+                        .collect::<Vec<&str>>()
+                        .join(",")
+                })
+                .collect::<Vec<String>>();
+            variant_values.sort();
+
+            // An encoding of the series of sorted variant values, with variants delimited
+            // by `;` and the values within a variant delimited by `,` e.g.
+            // `"0,10..100,500;1,10.100;500"`
+            let variant_values_str = variant_values.join(";");
+
+            Ok(format!(
+                "{}?family={}:{}@{}&display={}",
+                root_url,
+                font_family.replace(' ', "+"),
+                variant_keys_str,
+                variant_values_str,
+                display
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -418,7 +435,7 @@ mod tests {
                 },
                 "optional"
             )?,
-            "https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,500&display=optional"
+            "https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&display=optional"
         );
 
         Ok(())
@@ -441,7 +458,7 @@ mod tests {
                 },
                 "optional"
             )?,
-            "https://fonts.googleapis.com/css2?family=Roboto+Serif:ital,opsz,wdth,wght,GRAD@0,8..144,50..150,500,-50..100&display=optional"
+            "https://fonts.googleapis.com/css2?family=Roboto+Serif:opsz,wdth,wght,GRAD@8..144,50..150,500,-50..100&display=optional"
         );
 
         Ok(())
@@ -488,6 +505,44 @@ mod tests {
                 "optional"
             )?,
             "https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=optional"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stylesheet_url_variable_font_without_anything() -> Result<()> {
+        assert_eq!(
+            get_stylesheet_url(
+                GOOGLE_FONTS_STYLESHEET_URL,
+                "Nabla",
+                &FontAxes {
+                    wght: indexset! {},
+                    ital: indexset! {},
+                    variable_axes: None,
+                },
+                "swap"
+            )?,
+            "https://fonts.googleapis.com/css2?family=Nabla&display=swap"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stylesheet_url_variable_font_with_empty_variable_axes() -> Result<()> {
+        assert_eq!(
+            get_stylesheet_url(
+                GOOGLE_FONTS_STYLESHEET_URL,
+                "Nabla",
+                &FontAxes {
+                    wght: indexset! {},
+                    ital: indexset! {},
+                    variable_axes: Some(vec![]),
+                },
+                "swap"
+            )?,
+            "https://fonts.googleapis.com/css2?family=Nabla&display=swap"
         );
 
         Ok(())

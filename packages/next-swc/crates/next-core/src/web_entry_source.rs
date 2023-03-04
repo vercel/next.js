@@ -48,7 +48,7 @@ pub async fn create_web_entry_source(
         compile_time_info.environment(),
         ty,
     );
-    let entries = get_client_runtime_entries(project_path, env, ty, next_config);
+    let entries = get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
 
