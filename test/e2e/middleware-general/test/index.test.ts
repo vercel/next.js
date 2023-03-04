@@ -109,7 +109,7 @@ describe('Middleware Runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*' }])
+        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
       })
     }
 
@@ -131,7 +131,7 @@ describe('Middleware Runtime', () => {
             ]),
             name: 'middleware',
             page: '/',
-            matchers: [{ regexp: '^/.*$' }],
+            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
             wasm: [],
             assets: [],
             regions: 'auto',
