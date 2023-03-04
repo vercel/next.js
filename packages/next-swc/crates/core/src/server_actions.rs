@@ -137,7 +137,7 @@ impl<C: Comments> ServerActions<C> {
 
         // myAction.$$typeof = Symbol.for('react.server.reference');
         self.annotations.push(annotate(
-            &ident,
+            ident,
             "$$typeof",
             CallExpr {
                 span: DUMMY_SP,
@@ -152,19 +152,19 @@ impl<C: Comments> ServerActions<C> {
 
         // myAction.$$filepath = '/app/page.tsx';
         self.annotations.push(annotate(
-            &ident,
+            ident,
             "$$filepath",
             self.file_name.to_string().into(),
         ));
 
         // myAction.$$name = '$ACTION_myAction';
         self.annotations
-            .push(annotate(&ident, "$$name", action_name.into()));
+            .push(annotate(ident, "$$name", action_name.into()));
 
         if self.top_level {
             // myAction.$$bound = [];
             self.annotations.push(annotate(
-                &ident,
+                ident,
                 "$$bound",
                 ArrayLit {
                     span: DUMMY_SP,
@@ -206,7 +206,7 @@ impl<C: Comments> ServerActions<C> {
 
             // myAction.$$bound = [id1, id2]
             self.annotations.push(annotate(
-                &ident,
+                ident,
                 "$$bound",
                 ArrayLit {
                     span: DUMMY_SP,
