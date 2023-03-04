@@ -850,7 +850,9 @@ export default async function build(
         )
         const clientRouterFilters = createClientRouterFilter(
           appPageKeys,
-          nonInternalRedirects
+          config.experimental.clientRouterFilterRedirects
+            ? nonInternalRedirects
+            : []
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters
