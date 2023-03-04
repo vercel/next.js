@@ -3029,7 +3029,10 @@ export default async function build(
           ),
           { overwrite: true }
         )
-        if (appDir) {
+        if (
+          appDir &&
+          (await fileExists(path.join(distDir, SERVER_DIRECTORY, 'app')))
+        ) {
           await recursiveCopy(
             path.join(distDir, SERVER_DIRECTORY, 'app'),
             path.join(
