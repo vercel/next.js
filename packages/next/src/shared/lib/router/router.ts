@@ -1123,7 +1123,7 @@ export default class Router implements BaseRouter {
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
 
-    if (!isQueryUpdating) {
+    if (!isQueryUpdating && !options.shallow) {
       await this._bfl(as, undefined, options.locale)
     }
 
@@ -1509,7 +1509,7 @@ export default class Router implements BaseRouter {
         isMiddlewareRewrite,
       })
 
-      if (!isQueryUpdating) {
+      if (!isQueryUpdating && !options.shallow) {
         await this._bfl(
           as,
           'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,

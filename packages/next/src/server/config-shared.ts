@@ -115,6 +115,7 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   clientRouterFilter?: boolean
+  clientRouterFilterRedirects?: boolean
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
@@ -543,7 +544,7 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
-  output?: 'standalone'
+  output?: 'standalone' | 'export'
 
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
@@ -621,6 +622,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   experimental: {
     clientRouterFilter: false,
+    clientRouterFilterRedirects: false,
     preCompiledNextServer: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
