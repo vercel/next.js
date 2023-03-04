@@ -289,6 +289,10 @@ async fn parse_content(
                 transform.apply(&mut parsed_program, &context).await?;
             }
 
+            parsed_program.visit_mut_with(
+                &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
+            );
+
             let eval_context = EvalContext::new(&parsed_program, unresolved_mark);
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
