@@ -325,8 +325,8 @@ function useFlightResponse(
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
     moduleMap: isEdgeRuntime
-      ? serverComponentManifest.__edge_ssr_module_mapping__
-      : serverComponentManifest.__ssr_module_mapping__,
+      ? serverComponentManifest.edgeSSRModuleMapping
+      : serverComponentManifest.ssrModuleMapping,
   })
   flightResponseRef.current = res
 
@@ -415,7 +415,7 @@ function createServerComponentRenderer(
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
-        serverComponentManifest.__client_references__,
+        serverComponentManifest.clientModules,
         {
           context: serverContexts,
           onError: serverComponentsErrorHandler,
@@ -571,11 +571,11 @@ function getCssInlinedLinkTags(
   injectedCSS: Set<string>,
   collectNewCSSImports?: boolean
 ): string[] {
-  const layoutOrPageCssModules = serverCSSManifest[filePath]
+  const layoutOrPageCssModules = serverCSSManifest.cssImports[filePath]
 
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
   const cssFilesForEntry = new Set(
-    serverComponentManifest.__entry_css_files__?.[filePathWithoutExt] || []
+    serverComponentManifest.cssModules?.[filePathWithoutExt] || []
   )
 
   if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
@@ -593,7 +593,7 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest.__client_references__[mod]
+        const modData = serverComponentManifest.clientModules[mod]
         if (modData) {
           for (const chunk of modData.default.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
@@ -623,10 +623,10 @@ function getServerCSSForEntries(
   for (const entry of entries) {
     const entryName = entry.replace(/\.[^.]+$/, '')
     if (
-      serverCSSManifest.__entry_css_mods__ &&
-      serverCSSManifest.__entry_css_mods__[entryName]
+      serverCSSManifest.cssModules &&
+      serverCSSManifest.cssModules[entryName]
     ) {
-      css.push(...serverCSSManifest.__entry_css_mods__[entryName])
+      css.push(...serverCSSManifest.cssModules[entryName])
     }
   }
   return css
@@ -646,9 +646,7 @@ function getPreloadedFontFilesInlineLinkTags(
   if (!fontLoaderManifest || !filePath) {
     return null
   }
-  const layoutOrPageCss =
-    serverCSSManifest[filePath] ||
-    serverComponentManifest.__client_css_manifest__?.[filePath]
+  const layoutOrPageCss = serverCSSManifest.cssImports[filePath]
 
   if (!layoutOrPageCss) {
     return null
@@ -762,7 +760,6 @@ export async function renderToHTMLOrFlight(
     buildManifest,
     subresourceIntegrityManifest,
     serverActionsManifest,
-    serverCSSManifest = {},
     ComponentMod,
     dev,
     fontLoaderManifest,
@@ -770,6 +767,7 @@ export async function renderToHTMLOrFlight(
   } = renderOpts
 
   const serverComponentManifest = renderOpts.serverComponentManifest!
+  const serverCSSManifest = renderOpts.serverCSSManifest!
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -1056,7 +1054,7 @@ export async function renderToHTMLOrFlight(
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
         serverComponentManifest,
-        serverCSSManifest,
+        serverCSSManifest!,
         filePath,
         serverCSSForEntries,
         injectedCSS
@@ -1690,7 +1688,7 @@ export async function renderToHTMLOrFlight(
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifest.__client_references__,
+        serverComponentManifest.clientModules,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,

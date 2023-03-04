@@ -68,16 +68,16 @@ interface ManifestNode {
 }
 
 export type FlightManifest = {
-  __client_references__: {
+  clientModules: {
     [moduleId: string]: ManifestNode
   }
-  __ssr_module_mapping__: {
+  ssrModuleMapping: {
     [moduleId: string]: ManifestNode
   }
-  __edge_ssr_module_mapping__: {
+  edgeSSRModuleMapping: {
     [moduleId: string]: ManifestNode
   }
-  __entry_css_files__: {
+  cssModules: {
     [entryPathWithoutExtension: string]: string[]
   }
 } & {
@@ -85,9 +85,10 @@ export type FlightManifest = {
 }
 
 export type FlightCSSManifest = {
-  [modulePath: string]: string[]
-} & {
-  __entry_css_mods__?: {
+  cssImports: {
+    [modulePath: string]: string[]
+  }
+  cssModules?: {
     [entry: string]: string[]
   }
 }
@@ -139,10 +140,10 @@ export class FlightManifestPlugin {
     context: string
   ) {
     const manifest: FlightManifest = {
-      __ssr_module_mapping__: {},
-      __edge_ssr_module_mapping__: {},
-      __entry_css_files__: {},
-      __client_references__: {},
+      ssrModuleMapping: {},
+      edgeSSRModuleMapping: {},
+      cssModules: {},
+      clientModules: {},
     }
     const dev = this.dev
 
@@ -195,9 +196,9 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleReferences = manifest.__client_references__
-        const moduleIdMapping = manifest.__ssr_module_mapping__
-        const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
+        const moduleReferences = manifest.clientModules
+        const moduleIdMapping = manifest.ssrModuleMapping
+        const edgeModuleIdMapping = manifest.edgeSSRModuleMapping
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -347,9 +348,9 @@ export class FlightManifestPlugin {
           ] = moduleExports
         }
 
-        manifest.__ssr_module_mapping__ = moduleIdMapping
-        manifest.__edge_ssr_module_mapping__ = edgeModuleIdMapping
-        manifest.__client_references__ = moduleReferences
+        manifest.ssrModuleMapping = moduleIdMapping
+        manifest.edgeSSRModuleMapping = edgeModuleIdMapping
+        manifest.clientModules = moduleReferences
       }
 
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
@@ -378,7 +379,8 @@ export class FlightManifestPlugin {
         }
       })
 
-      const entryCSSFiles: any = manifest.__entry_css_files__ || {}
+      const entryCSSFiles: { [key: string]: string[] } =
+        manifest.cssModules || {}
 
       const addCSSFilesToEntry = (
         files: string[],
@@ -407,7 +409,7 @@ export class FlightManifestPlugin {
         })
       }
 
-      manifest.__entry_css_files__ = entryCSSFiles
+      manifest.cssModules = entryCSSFiles
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST

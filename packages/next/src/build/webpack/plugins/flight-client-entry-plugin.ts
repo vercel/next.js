@@ -342,12 +342,10 @@ export class FlightClientEntryPlugin {
           }
 
           const entryCSSInfo: Record<string, string[]> =
-            cssManifest.__entry_css_mods__ || {}
+            cssManifest.cssModules || {}
           entryCSSInfo[entryName] = [...cssImportsForChunk[entryName]]
 
-          Object.assign(cssManifest, {
-            __entry_css_mods__: entryCSSInfo,
-          })
+          cssManifest.cssModules = entryCSSInfo
         })
       })
 
@@ -395,7 +393,8 @@ export class FlightClientEntryPlugin {
             clientEntryDependencyMap,
           })
 
-          Object.assign(cssManifest, cssImports)
+          if (!cssManifest.cssImports) cssManifest.cssImports = {}
+          Object.assign(cssManifest.cssImports, cssImports)
         }
       })
     })
@@ -408,18 +407,17 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify(
-          {
-            ...pluginState.serverCSSManifest,
-            ...pluginState.edgeServerCSSManifest,
-            __entry_css_mods__: {
-              ...pluginState.serverCSSManifest.__entry_css_mods__,
-              ...pluginState.edgeServerCSSManifest.__entry_css_mods__,
-            },
+        const data: FlightCSSManifest = {
+          cssImports: {
+            ...pluginState.serverCSSManifest.cssImports,
+            ...pluginState.edgeServerCSSManifest.cssImports,
           },
-          null,
-          this.dev ? 2 : undefined
-        )
+          cssModules: {
+            ...pluginState.serverCSSManifest.cssModules,
+            ...pluginState.edgeServerCSSManifest.cssModules,
+          },
+        }
+        const manifest = JSON.stringify(data, null, this.dev ? 2 : undefined)
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           manifest
         ) as unknown as webpack.sources.RawSource
