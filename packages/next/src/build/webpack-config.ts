@@ -89,6 +89,18 @@ const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
 
+const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
+  [COMPILER_NAMES.server]: ['main', 'module'],
+  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+  [COMPILER_NAMES.edgeServer]: [
+    'edge-light',
+    'worker',
+    'browser',
+    'module',
+    'main',
+  ],
+}
+
 const BABEL_CONFIG_FILES = [
   '.babelrc',
   '.babelrc.json',
@@ -781,7 +793,7 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
   }
 
-  const swcLoaderForRSC = hasServerComponents
+  const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
       ? getSwcLoader({ isServerLayer: true })
       : // When using Babel, we will have to add the SWC loader
@@ -791,12 +803,36 @@ export default async function getBaseWebpackConfig(
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
     : []
 
+  // Loader for API routes needs to be differently configured as it shouldn't
+  // have RSC transpiler enabled, so syntax checks such as invalid imports won't
+  // be performed.
+  const loaderForAPIRoutes =
+    hasServerComponents && useSWCLoader
+      ? {
+          loader: 'next-swc-loader',
+          options: {
+            ...getSwcLoader().options,
+            hasServerComponents: false,
+          },
+        }
+      : defaultLoaders.babel
+
   const pageExtensions = config.pageExtensions
 
   const outputPath =
     isNodeServer || isEdgeServer
       ? path.join(distDir, SERVER_DIRECTORY)
       : distDir
+
+  const reactServerCondition = [
+    'react-server',
+    ...mainFieldsPerCompiler[
+      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
+    ],
+    'node',
+    'import',
+    'require',
+  ]
 
   const clientEntries = isClient
     ? ({
@@ -913,18 +949,6 @@ export default async function getBaseWebpackConfig(
         : []),
       `${nextDist}pages/_document.js`,
     ]
-  }
-
-  const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
-    [COMPILER_NAMES.server]: ['main', 'module'],
-    [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: [
-      'edge-light',
-      'worker',
-      'browser',
-      'module',
-      'main',
-    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
@@ -1726,17 +1750,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  conditionNames: [
-                    'react-server',
-                    ...mainFieldsPerCompiler[
-                      isEdgeServer
-                        ? COMPILER_NAMES.edgeServer
-                        : COMPILER_NAMES.server
-                    ],
-                    'node',
-                    'import',
-                    'require',
-                  ],
+                  conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1863,14 +1877,6 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /\.(js|cjs|mjs)$/,
-          issuerLayer: WEBPACK_LAYERS.api,
-          parser: {
-            // Switch back to normal URL handling
-            url: true,
-          },
-        },
-        {
           oneOf: [
             {
               ...codeCondition,
@@ -1879,7 +1885,7 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: defaultLoaders.babel,
+              use: loaderForAPIRoutes,
             },
             {
               ...codeCondition,
@@ -1892,12 +1898,12 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     exclude: [staticGenerationAsyncStorageRegex],
-                    use: swcLoaderForRSC,
+                    use: swcLoaderForServerLayer,
                   },
                   {
                     test: codeCondition.test,
                     resourceQuery: /__edge_ssr_entry__/,
-                    use: swcLoaderForRSC,
+                    use: swcLoaderForServerLayer,
                   },
                 ]
               : []),
