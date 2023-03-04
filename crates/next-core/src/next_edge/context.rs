@@ -10,6 +10,7 @@ use turbopack_core::{
         ServerAddrVc,
     },
 };
+use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
@@ -47,8 +48,10 @@ pub async fn get_edge_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
-    let next_edge_import_map = get_next_edge_import_map(project_path, ty, next_config);
+    let next_edge_import_map =
+        get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),

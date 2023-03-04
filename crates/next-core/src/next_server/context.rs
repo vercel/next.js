@@ -47,8 +47,10 @@ pub async fn get_server_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
-    let next_server_import_map = get_next_server_import_map(project_path, ty, next_config);
+    let next_server_import_map =
+        get_next_server_import_map(project_path, ty, next_config, execution_context);
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
 

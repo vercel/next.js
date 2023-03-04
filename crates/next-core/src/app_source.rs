@@ -99,9 +99,10 @@ async fn next_client_transition(
         ty,
         next_config,
     );
-    let client_runtime_entries = get_client_runtime_entries(project_path, env, ty, next_config);
+    let client_runtime_entries =
+        get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
     let client_resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, next_config);
+        get_client_resolve_options_context(project_path, ty, next_config, execution_context);
 
     Ok(NextClientTransition {
         is_app: true,
@@ -137,6 +138,7 @@ fn next_ssr_client_module_transition(
             project_path,
             ty,
             next_config,
+            execution_context,
         ),
         ssr_environment: get_server_compile_time_info(ty, process_env, server_addr),
     }
@@ -157,7 +159,7 @@ fn next_layout_entry_transition(
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
     let rsc_compile_time_info = get_server_compile_time_info(ty, process_env, server_addr);
     let rsc_resolve_options_context =
-        get_server_resolve_options_context(project_path, ty, next_config);
+        get_server_resolve_options_context(project_path, ty, next_config, execution_context);
     let rsc_module_options_context =
         get_server_module_options_context(project_path, execution_context, ty, next_config);
 
@@ -179,6 +181,7 @@ fn next_route_transition(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
     output_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
 ) -> TransitionVc {
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
@@ -194,7 +197,7 @@ fn next_route_transition(
     )
     .build();
     let edge_resolve_options_context =
-        get_edge_resolve_options_context(project_path, server_ty, next_config);
+        get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
 
     NextEdgeTransition {
         edge_compile_time_info,
@@ -235,6 +238,7 @@ fn app_context(
             next_config,
             server_addr,
             output_path,
+            execution_context,
         ),
     );
     transitions.insert(
@@ -295,7 +299,7 @@ fn app_context(
         TransitionsByNameVc::cell(transitions),
         get_server_compile_time_info(ssr_ty, env, server_addr),
         get_server_module_options_context(project_path, execution_context, ssr_ty, next_config),
-        get_server_resolve_options_context(project_path, ssr_ty, next_config),
+        get_server_resolve_options_context(project_path, ssr_ty, next_config, execution_context),
     )
     .into()
 }
