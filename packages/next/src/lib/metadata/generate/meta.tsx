@@ -50,7 +50,13 @@ function ExtendMeta({
           <Meta
             key={keyPrefix + ':' + k + '_' + index}
             {...(propertyPrefix
-              ? { property: propertyPrefix + ':' + k }
+              ? // Use `og:image` instead of `og:image:url` to be more compatible as it's a more common format
+                {
+                  property:
+                    propertyPrefix === 'og:image' && k === 'url'
+                      ? 'og:image'
+                      : propertyPrefix + ':' + k,
+                }
               : { name: namePrefix + ':' + k })}
             content={typeof v === 'string' ? v : v?.toString()}
           />

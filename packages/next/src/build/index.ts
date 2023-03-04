@@ -132,7 +132,7 @@ import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { createClientRouterFilter } from '../lib/create-router-client-filter'
+import { createClientRouterFilter } from '../lib/create-client-router-filter'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -293,6 +293,8 @@ export default async function build(
 
       const { headers, rewrites, redirects } = customRoutes
       NextBuildContext.rewrites = rewrites
+      NextBuildContext.originalRewrites = config._originalRewrites
+      NextBuildContext.originalRedirects = config._originalRedirects
 
       const cacheDir = path.join(distDir, 'cache')
       if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
@@ -848,7 +850,9 @@ export default async function build(
         )
         const clientRouterFilters = createClientRouterFilter(
           appPageKeys,
-          nonInternalRedirects
+          config.experimental.clientRouterFilterRedirects
+            ? nonInternalRedirects
+            : []
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters
@@ -1066,7 +1070,9 @@ export default async function build(
             if (filesTracedFromEntries.length) {
               // The turbo trace doesn't provide the traced file type and reason at present
               // let's write the traced files into the first [entry].nft.json
+              // @ts-expect-error types
               const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
+                // @ts-expect-error types
                 ([k]) => k.startsWith(turbotraceContextAppDir)
               )
               const traceOutputPath = path.join(
@@ -1083,7 +1089,7 @@ export default async function build(
           }
           if (chunksTrace) {
             const { action, outputPath } = chunksTrace
-            action.input = action.input.filter((f) => {
+            action.input = action.input.filter((f: any) => {
               const outputPagesPath = path.join(outputPath, '..', 'pages')
               return (
                 !f.startsWith(outputPagesPath) ||
@@ -2396,7 +2402,7 @@ export default async function build(
 
           // remove server bundles that were exported
           for (const page of staticPages) {
-            const serverBundle = getPagePath(page, distDir)
+            const serverBundle = getPagePath(page, distDir, undefined, false)
             await promises.unlink(serverBundle)
           }
 
@@ -2510,7 +2516,12 @@ export default async function build(
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
                 const orig = path.join(exportOptions.outdir, file)
-                const pagePath = getPagePath(originPage, distDir)
+                const pagePath = getPagePath(
+                  originPage,
+                  distDir,
+                  undefined,
+                  false
+                )
 
                 const relativeDest = path
                   .relative(

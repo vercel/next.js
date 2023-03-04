@@ -14,10 +14,9 @@ export function patchFetch({
   serverHooks: typeof import('../../client/components/hooks-server-context')
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
-  if ((globalThis.fetch as any).patched) return
+  if ((fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-
   const originFetch = fetch
 
   // @ts-expect-error - we're patching fetch
@@ -29,7 +28,11 @@ export function patchFetch({
     },
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-      const isRequestInput = input && typeof input === 'object'
+      const isRequestInput =
+        input &&
+        typeof input === 'object' &&
+        typeof (input as Request).method === 'string'
+
       const getRequestMeta = (field: string) => {
         let value = isRequestInput ? (input as any)[field] : null
         return value || (init as any)?.[field]
@@ -75,10 +78,12 @@ export function patchFetch({
         getRequestMeta('method')?.toLowerCase() || 'get'
       )
 
+      const autoNoCache = hasUnCacheableHeader || isUnCacheableMethod
+
       if (typeof revalidate === 'undefined') {
         // if there are uncacheable headers and the cache value
         // wasn't overridden then we must bail static generation
-        if (hasUnCacheableHeader || isUnCacheableMethod) {
+        if (autoNoCache) {
           revalidate = 0
         } else {
           revalidate =
@@ -90,9 +95,12 @@ export function patchFetch({
       }
 
       if (
-        typeof staticGenerationStore.revalidate === 'undefined' ||
-        (typeof revalidate === 'number' &&
-          revalidate < staticGenerationStore.revalidate)
+        // we don't consider autoNoCache to switch to dynamic during
+        // revalidate although if it occurs during build we do
+        (!autoNoCache || staticGenerationStore.isPrerendering) &&
+        (typeof staticGenerationStore.revalidate === 'undefined' ||
+          (typeof revalidate === 'number' &&
+            revalidate < staticGenerationStore.revalidate))
       ) {
         staticGenerationStore.revalidate = revalidate
       }
@@ -159,7 +167,8 @@ export function patchFetch({
             revalidate > 0
           ) {
             let base64Body = ''
-            const arrayBuffer = await res.arrayBuffer()
+            const resBlob = await res.blob()
+            const arrayBuffer = await resBlob.arrayBuffer()
 
             if (process.env.NEXT_RUNTIME === 'edge') {
               const { encode } =
@@ -186,7 +195,8 @@ export function patchFetch({
             } catch (err) {
               console.warn(`Failed to set fetch cache`, input, err)
             }
-            return new Response(arrayBuffer, {
+
+            return new Response(resBlob, {
               headers: res.headers,
               status: res.status,
             })
@@ -291,5 +301,5 @@ export function patchFetch({
       return doOriginalFetch()
     }
   )
-  ;(globalThis.fetch as any).patched = true
+  ;(fetch as any).__nextPatched = true
 }

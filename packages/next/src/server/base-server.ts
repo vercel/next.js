@@ -215,6 +215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
+    nextConfigOutput: 'standalone' | 'export'
     nextScriptWorkers: any
     locale?: string
     locales?: string[]
@@ -409,6 +410,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
       disableOptimizedLoading: this.nextConfig.experimental.runtime
         ? true
@@ -1550,7 +1552,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
-      if (isAppPath && isSSG && isrRevalidate === 0) {
+      // we don't throw static to dynamic errors in dev as isSSG
+      // is a best guess in dev since we don't have the prerender pass
+      // to know whether the path is actually static or not
+      if (isAppPath && isSSG && isrRevalidate === 0 && !this.renderOpts.dev) {
         const staticBailoutInfo: {
           stack?: string
           description?: string

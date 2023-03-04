@@ -58,6 +58,10 @@ createNextDescribe(
           'force-static/page.js',
           'force-static/second.html',
           'force-static/second.rsc',
+          'gen-params-dynamic-revalidate/[slug]/page.js',
+          'gen-params-dynamic-revalidate/one.html',
+          'gen-params-dynamic-revalidate/one.rsc',
+          'gen-params-dynamic/[slug]/page.js',
           'hooks/use-pathname/[slug]/page.js',
           'hooks/use-pathname/slug.html',
           'hooks/use-pathname/slug.rsc',
@@ -190,6 +194,11 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/force-static/[slug]',
           },
+          '/gen-params-dynamic-revalidate/one': {
+            dataRoute: '/gen-params-dynamic-revalidate/one.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/gen-params-dynamic-revalidate/[slug]',
+          },
           '/ssg-preview': {
             dataRoute: '/ssg-preview.rsc',
             initialRevalidateSeconds: false,
@@ -244,6 +253,16 @@ createNextDescribe(
             dataRouteRegex: '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$',
             fallback: null,
             routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
+          },
+          '/gen-params-dynamic-revalidate/[slug]': {
+            dataRoute: '/gen-params-dynamic-revalidate/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
@@ -555,7 +574,6 @@ createNextDescribe(
         expect($2('#data-body1').text()).toBe(dataBody1)
         expect($2('#data-body2').text()).toBe(dataBody2)
         expect($2('#data-body3').text()).toBe(dataBody3)
-        expect($2('#data-body4').text()).toBe(dataBody4)
         return 'success'
       }, 'success')
     })
@@ -771,6 +789,46 @@ createNextDescribe(
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).not.toBe($2('#now').text())
       }
+    })
+
+    it('should not error with generateStaticParams and dynamic data', async () => {
+      const res = await next.fetch('/gen-params-dynamic/one')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('gen-params-dynamic/[slug]')
+      expect(html).toContain('one')
+
+      const data = cheerio.load(html)('#data').text()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/gen-params-dynamic/one')
+        expect(res2.status).toBe(200)
+        expect(
+          cheerio
+            .load(await res2.text())('#data')
+            .text()
+        ).not.toBe(data)
+      }
+    })
+
+    it('should not error with generateStaticParams and authed data on revalidate', async () => {
+      const res = await next.fetch('/gen-params-dynamic-revalidate/one')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('gen-params-dynamic/[slug]')
+      expect(html).toContain('one')
+      const initData = cheerio.load(html)('#data').text()
+
+      await check(async () => {
+        const res2 = await next.fetch('/gen-params-dynamic-revalidate/one')
+
+        expect(res2.status).toBe(200)
+
+        const $ = cheerio.load(await res2.text())
+        expect($('#data').text()).toBeTruthy()
+        expect($('#data').text()).not.toBe(initData)
+        return 'success'
+      }, 'success')
     })
 
     it('should honor dynamic = "force-static" correctly', async () => {

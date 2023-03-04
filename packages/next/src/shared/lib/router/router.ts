@@ -1063,7 +1063,7 @@ export default class Router implements BaseRouter {
             new URL(curAs, 'http://n').pathname
           )
           const asNoSlashLocale = addBasePath(
-            addLocale(curAs, locale || this.locale)
+            addLocale(asNoSlash, locale || this.locale)
           )
 
           if (
@@ -1123,7 +1123,7 @@ export default class Router implements BaseRouter {
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
 
-    if (!isQueryUpdating) {
+    if (!isQueryUpdating && !options.shallow) {
       await this._bfl(as, undefined, options.locale)
     }
 
@@ -1509,7 +1509,7 @@ export default class Router implements BaseRouter {
         isMiddlewareRewrite,
       })
 
-      if (!isQueryUpdating) {
+      if (!isQueryUpdating && !options.shallow) {
         await this._bfl(
           as,
           'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,

@@ -81,7 +81,7 @@ import {
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
-import { pageFiles } from '../../build/webpack/plugins/next-types-plugin'
+import { devPageFiles } from '../../build/webpack/plugins/next-types-plugin'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,
@@ -96,7 +96,7 @@ import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
-import { createClientRouterFilter } from '../../lib/create-router-client-filter'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -428,7 +428,7 @@ export default class DevServer extends Server {
         let envChange = false
         let tsconfigChange = false
 
-        pageFiles.clear()
+        devPageFiles.clear()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -473,7 +473,7 @@ export default class DevServer extends Server {
               )
           )
 
-          pageFiles.add(fileName)
+          devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
@@ -489,9 +489,15 @@ export default class DevServer extends Server {
           })
 
           if (isMiddlewareFile(rootFile)) {
+            if (this.nextConfig.output === 'export') {
+              Log.error(
+                'Middleware cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+              )
+              continue
+            }
             this.actualMiddlewareFile = rootFile
             middlewareMatchers = staticInfo.middleware?.matchers || [
-              { regexp: '.*' },
+              { regexp: '.*', originalSource: '/:path*' },
             ]
             continue
           }
@@ -512,6 +518,16 @@ export default class DevServer extends Server {
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
           })
+
+          if (
+            pageName.startsWith('/api/') &&
+            this.nextConfig.output === 'export'
+          ) {
+            Log.error(
+              'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+            continue
+          }
 
           if (isAppPath) {
             if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
@@ -585,9 +601,11 @@ export default class DevServer extends Server {
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
-            ((this.nextConfig as any)._originalRedirects || []).filter(
-              (r: any) => !r.internal
-            )
+            this.nextConfig.experimental.clientRouterFilterRedirects
+              ? ((this.nextConfig as any)._originalRedirects || []).filter(
+                  (r: any) => !r.internal
+                )
+              : []
           )
 
           if (
@@ -1534,6 +1552,18 @@ export default class DevServer extends Server {
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
     ).value
 
+    if (this.nextConfig.output === 'export') {
+      if (fallback === 'blocking') {
+        throw new Error(
+          'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      } else if (fallback === true) {
+        throw new Error(
+          'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
+    }
+
     return {
       staticPaths,
       fallbackMode:
@@ -1641,8 +1671,8 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const errors = (await this.hotReloader?.getCompilationErrors(page)) || []
-    if (errors.length === 0) return
+    const errors = await this.hotReloader?.getCompilationErrors(page)
+    if (!errors) return
 
     // Return the very first error we found.
     return errors[0]

@@ -30,7 +30,7 @@ export function getHandle({ page, mod }: any) {
       extendedReq,
       extendedRes,
       // TODO: pass incrementalCache here
-      {},
+      { supportsDynamicHTML: true },
       request
     )
 

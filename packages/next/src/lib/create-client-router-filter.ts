@@ -1,9 +1,11 @@
+import { Token } from 'next/dist/compiled/path-to-regexp'
 import { BloomFilter } from '../shared/lib/bloom-filter'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { Redirect } from './load-custom-routes'
+import { tryToParsePath } from './try-to-parse-path'
 
-const POTENTIAL_ERROR_RATE = 0.02
+const POTENTIAL_ERROR_RATE = 0.01
 
 export function createClientRouterFilter(
   paths: string[],
@@ -42,26 +44,14 @@ export function createClientRouterFilter(
   for (const redirect of redirects) {
     const { source } = redirect
     const path = removeTrailingSlash(source)
+    let tokens: Token[] = []
 
-    if (path.includes(':') || path.includes('(')) {
-      let subPath = ''
-      const pathParts = path.split('/')
+    try {
+      tokens = tryToParsePath(source).tokens || []
+    } catch (_) {}
 
-      for (let i = 1; i < pathParts.length + 1; i++) {
-        const curPart = pathParts[i]
-
-        if (curPart.includes(':') || curPart.includes('(')) {
-          break
-        }
-        subPath = `${subPath}/${curPart}`
-      }
-
-      // if redirect has matcher at top-level we don't include this
-      // as it would match everything
-      if (subPath) {
-        dynamicPaths.add(subPath)
-      }
-    } else {
+    if (tokens.every((token) => typeof token === 'string')) {
+      // only include static redirects initially
       staticPaths.add(path)
     }
   }

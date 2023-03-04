@@ -690,7 +690,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, callServer) {
+function createResponse$1(bundlerConfig, callServer) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -811,20 +811,6 @@ function processFullRow(response, row) {
       }
   }
 }
-
-function processStringChunk(response, chunk, offset) {
-  var linebreak = chunk.indexOf('\n', offset);
-
-  while (linebreak > -1) {
-    var fullrow = response._partialRow + chunk.substring(offset, linebreak);
-    processFullRow(response, fullrow);
-    response._partialRow = '';
-    offset = linebreak + 1;
-    linebreak = chunk.indexOf('\n', offset);
-  }
-
-  response._partialRow += chunk.substring(offset);
-}
 function processBinaryChunk(response, chunk) {
 
   var stringDecoder = response._stringDecoder;
@@ -857,11 +843,11 @@ function createFromJSONCallback(response) {
   };
 }
 
-function createResponse$1(bundlerConfig, callServer) {
+function createResponse(bundlerConfig, callServer) {
   // NOTE: CHECK THE COMPILER OUTPUT EACH TIME YOU CHANGE THIS.
   // It should be inlined to one object literal but minor changes can break it.
-  var stringDecoder =  createStringDecoder() ;
-  var response = createResponse(bundlerConfig, callServer);
+  var stringDecoder = createStringDecoder() ;
+  var response = createResponse$1(bundlerConfig, callServer);
   response._partialRow = '';
 
   {
@@ -871,6 +857,14 @@ function createResponse$1(bundlerConfig, callServer) {
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
+}
+
+function noServerCall() {
+  throw new Error('Server Functions cannot be called during initial render. ' + 'This would create a fetch waterfall. Try to use a Server Component ' + 'to pass data to Client Components instead.');
+}
+
+function createResponseFromOptions(options) {
+  return createResponse(options && options.moduleMap ? options.moduleMap : null, noServerCall);
 }
 
 function startReadingFromStream(response, stream) {
@@ -898,13 +892,13 @@ function startReadingFromStream(response, stream) {
 }
 
 function createFromReadableStream(stream, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
+  var response = createResponseFromOptions(options);
   startReadingFromStream(response, stream);
   return getRoot(response);
 }
 
 function createFromFetch(promiseForResponse, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
+  var response = createResponseFromOptions(options);
   promiseForResponse.then(function (r) {
     startReadingFromStream(response, r.body);
   }, function (e) {
@@ -913,35 +907,7 @@ function createFromFetch(promiseForResponse, options) {
   return getRoot(response);
 }
 
-function createFromXHR(request, options) {
-  var response = createResponse$1(options && options.moduleMap ? options.moduleMap : null, options && options.callServer ? options.callServer : undefined);
-  var processedLength = 0;
-
-  function progress(e) {
-    var chunk = request.responseText;
-    processStringChunk(response, chunk, processedLength);
-    processedLength = chunk.length;
-  }
-
-  function load(e) {
-    progress();
-    close(response);
-  }
-
-  function error(e) {
-    reportGlobalError(response, new TypeError('Network error'));
-  }
-
-  request.addEventListener('progress', progress);
-  request.addEventListener('load', load);
-  request.addEventListener('error', error);
-  request.addEventListener('abort', error);
-  request.addEventListener('timeout', error);
-  return getRoot(response);
-}
-
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
-exports.createFromXHR = createFromXHR;
   })();
 }

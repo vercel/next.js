@@ -12,6 +12,7 @@ createNextDescribe(
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',
+      '@next/mdx': 'canary',
     },
   },
   ({ next, isNextDev: isDev }) => {
@@ -206,6 +207,17 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('button')).fontSize`
             )
           ).toBe('50px')
+        })
+      })
+
+      describe('page extensions', () => {
+        it('should include css imported in MDX pages', async () => {
+          const browser = await next.browser('/mdx')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
         })
       })
 
