@@ -198,8 +198,10 @@ export async function writeConfigurationDefaults(
     if (userTsConfig.compilerOptions) {
       // Check if the config or the resolved config has the plugin already.
       const hasNextPlugin = [
-        ...(tsOptions.plugins as { name: string }[]),
-        ...userTsConfig.compilerOptions.plugins,
+        ...(Array.isArray(tsOptions.plugins) ? tsOptions.plugins : []),
+        ...(Array.isArray(userTsConfig.compilerOptions.plugins)
+          ? userTsConfig.compilerOptions.plugins
+          : []),
       ].some(({ name }: { name: string }) => name === 'next')
 
       // If the TS config extends on another config, we can't add the `plugin` field
