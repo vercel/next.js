@@ -16,6 +16,7 @@ use turbopack_core::{
         resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
     },
 };
+use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
@@ -31,10 +32,11 @@ pub async fn get_next_client_import_map(
     project_path: FileSystemPathVc,
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path).await?;
+    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -166,10 +168,11 @@ pub async fn get_next_server_import_map(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path).await?;
+    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -223,10 +226,11 @@ pub async fn get_next_edge_import_map(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
 
-    insert_next_shared_aliases(&mut import_map, project_path).await?;
+    insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
 
     insert_alias_option(
         &mut import_map,
@@ -354,6 +358,7 @@ pub async fn insert_next_server_special_aliases(
 pub async fn insert_next_shared_aliases(
     import_map: &mut ImportMap,
     project_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -384,7 +389,10 @@ pub async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
-        ImportMapping::Dynamic(NextFontGoogleCssModuleReplacerVc::new(project_path).into()).into(),
+        ImportMapping::Dynamic(
+            NextFontGoogleCssModuleReplacerVc::new(project_path, execution_context).into(),
+        )
+        .into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

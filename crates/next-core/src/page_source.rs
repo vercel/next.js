@@ -105,7 +105,7 @@ pub async fn create_page_source(
         next_config,
     );
     let client_resolve_options_context =
-        get_client_resolve_options_context(project_path, client_ty, next_config);
+        get_client_resolve_options_context(project_path, client_ty, next_config, execution_context);
 
     let client_chunking_context = get_client_chunking_context(
         project_path,
@@ -115,7 +115,7 @@ pub async fn create_page_source(
     );
 
     let client_runtime_entries =
-        get_client_runtime_entries(project_path, env, client_ty, next_config);
+        get_client_runtime_entries(project_path, env, client_ty, next_config, execution_context);
 
     let next_client_transition = NextClientTransition {
         is_app: false,
@@ -144,7 +144,7 @@ pub async fn create_page_source(
     )
     .build();
     let edge_resolve_options_context =
-        get_edge_resolve_options_context(project_path, server_ty, next_config);
+        get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
 
     let next_edge_transition = NextEdgeTransition {
         edge_compile_time_info,
@@ -160,7 +160,7 @@ pub async fn create_page_source(
 
     let server_compile_time_info = get_server_compile_time_info(server_ty, env, server_addr);
     let server_resolve_options_context =
-        get_server_resolve_options_context(project_path, server_ty, next_config);
+        get_server_resolve_options_context(project_path, server_ty, next_config, execution_context);
 
     let server_module_options_context =
         get_server_module_options_context(project_path, execution_context, server_ty, next_config);

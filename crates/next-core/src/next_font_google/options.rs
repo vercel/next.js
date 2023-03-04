@@ -144,7 +144,7 @@ pub fn options_from_request(
 
     let display = argument
         .and_then(|a| a.display.to_owned())
-        .unwrap_or_else(|| "optional".to_owned());
+        .unwrap_or_else(|| "swap".to_owned());
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_ref()) {
         return Err(anyhow!(
@@ -247,7 +247,7 @@ mod tests {
                 font_family: "ABeeZee".to_owned(),
                 weights: FontWeights::Variable,
                 styles: indexset! {"normal".to_owned()},
-                display: "optional".to_owned(),
+                display: "swap".to_owned(),
                 preload: true,
                 selected_variable_axes: None,
                 fallback: None,

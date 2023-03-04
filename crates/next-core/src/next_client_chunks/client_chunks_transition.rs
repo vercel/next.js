@@ -63,6 +63,7 @@ impl NextClientChunksTransitionVc {
                 project_path,
                 ty,
                 next_config,
+                execution_context,
             ),
             client_compile_time_info,
             server_root,
