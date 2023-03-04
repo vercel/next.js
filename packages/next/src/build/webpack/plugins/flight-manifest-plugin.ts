@@ -195,7 +195,6 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleExports = manifest.__client_references__[resource] || {}
         const moduleReferences = manifest.__client_references__
         const moduleIdMapping = manifest.__ssr_module_mapping__
         const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
@@ -283,6 +282,7 @@ export class FlightManifestPlugin {
             .filter(nonNullable)
         }
 
+        const moduleExports = moduleReferences[resource] || {}
         const moduleExportedKeys = ['', '*']
           .concat(
             [...exportsInfo.exports]
