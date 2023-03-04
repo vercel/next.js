@@ -601,9 +601,11 @@ export default class DevServer extends Server {
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
-            ((this.nextConfig as any)._originalRedirects || []).filter(
-              (r: any) => !r.internal
-            )
+            this.nextConfig.experimental.clientRouterFilterRedirects
+              ? ((this.nextConfig as any)._originalRedirects || []).filter(
+                  (r: any) => !r.internal
+                )
+              : []
           )
 
           if (
