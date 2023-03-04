@@ -631,7 +631,7 @@ describe('Switchable runtime', () => {
                 name: 'pages/api/hello',
                 page: '/api/hello',
                 matchers: [
-                  { regexp: '^/api/hello$', originalSource: '/api/edge' },
+                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
                 ],
                 wasm: [],
               },
