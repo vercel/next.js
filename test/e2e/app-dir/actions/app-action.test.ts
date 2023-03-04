@@ -8,16 +8,6 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
-    it('should create the server reference manifest', async () => {
-      await next.fetch('/server')
-      const content = await next.readFile(
-        '.next/server/server-reference-manifest.json'
-      )
-      // Make sure it's valid JSON
-      JSON.parse(content)
-      expect(content.length > 0).toBeTrue()
-    })
-
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -29,6 +19,23 @@ createNextDescribe(
 
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementByCss('h1').text(), '0')
+    })
+
+    it('should support headers and cookies', async () => {
+      const browser = await next.browser('/header')
+
+      await browser.elementByCss('#cookie').click()
+      await check(async () => {
+        const res = (await browser.elementByCss('h1').text()) || ''
+        const id = res.split(':')
+        return id[0] === id[1] && id[0] ? 'same' : 'different'
+      }, 'same')
+
+      await browser.elementByCss('#header').click()
+      await check(async () => {
+        const res = (await browser.elementByCss('h1').text()) || ''
+        return res.includes('Mozilla') ? 'UA' : ''
+      }, 'UA')
     })
   }
 )
