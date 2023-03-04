@@ -3,6 +3,7 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
+import type { FlightManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type {
   PageConfig,
   GetStaticPaths,
@@ -35,7 +36,7 @@ export type LoadComponentsReturnType = {
   buildManifest: BuildManifest
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
-  serverComponentManifest?: any
+  serverComponentManifest?: FlightManifest
   serverActionsManifest?: any
   Document: DocumentType
   App: AppType
@@ -110,10 +111,10 @@ async function loadComponentsImpl({
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
     loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
     hasServerComponents
-      ? loadManifest(
+      ? loadManifest<FlightManifest>(
           join(distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
         )
-      : null,
+      : undefined,
     hasServerComponents
       ? loadManifest(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')

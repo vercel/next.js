@@ -179,9 +179,10 @@ export class ReadonlyRequestCookies {
   }
 }
 
-export type RenderOptsPartial = {
+type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
+  // Leave `serverComponentManifest` optional for type compatibility with next server
   serverComponentManifest?: FlightManifest
   serverCSSManifest?: FlightCSSManifest
   supportsDynamicHTML: boolean
@@ -309,7 +310,7 @@ interface FlightResponseRef {
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: any,
+  serverComponentManifest: FlightManifest,
   rscChunks: Uint8Array[],
   flightResponseRef: FlightResponseRef,
   nonce?: string
@@ -414,7 +415,7 @@ function createServerComponentRenderer(
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
-        serverComponentManifest,
+        serverComponentManifest.__client_references__,
         {
           context: serverContexts,
           onError: serverComponentsErrorHandler,
@@ -592,7 +593,7 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest[mod]
+        const modData = serverComponentManifest.__client_references__[mod]
         if (modData) {
           for (const chunk of modData.default.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
@@ -760,7 +761,6 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     subresourceIntegrityManifest,
-    serverComponentManifest,
     serverActionsManifest,
     serverCSSManifest = {},
     ComponentMod,
@@ -768,6 +768,8 @@ export async function renderToHTMLOrFlight(
     fontLoaderManifest,
     supportsDynamicHTML,
   } = renderOpts
+
+  const serverComponentManifest = renderOpts.serverComponentManifest!
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -1688,7 +1690,7 @@ export async function renderToHTMLOrFlight(
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifest,
+        serverComponentManifest.__client_references__,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,

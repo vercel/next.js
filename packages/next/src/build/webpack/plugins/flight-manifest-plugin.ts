@@ -68,6 +68,9 @@ interface ManifestNode {
 }
 
 export type FlightManifest = {
+  __client_references__: {
+    [moduleId: string]: ManifestNode
+  }
   __ssr_module_mapping__: {
     [moduleId: string]: ManifestNode
   }
@@ -139,6 +142,7 @@ export class FlightManifestPlugin {
       __ssr_module_mapping__: {},
       __edge_ssr_module_mapping__: {},
       __entry_css_files__: {},
+      __client_references__: {},
     }
     const dev = this.dev
 
@@ -191,7 +195,8 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleExports = manifest[resource] || {}
+        const moduleExports = manifest.__client_references__[resource] || {}
+        const moduleReferences = manifest.__client_references__
         const moduleIdMapping = manifest.__ssr_module_mapping__
         const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
@@ -207,8 +212,8 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!manifest[resource]) {
-            manifest[resource] = {
+          if (!moduleReferences[resource]) {
+            moduleReferences[resource] = {
               default: {
                 id,
                 name: 'default',
@@ -219,8 +224,11 @@ export class FlightManifestPlugin {
             // It is possible that there are multiple modules with the same resource,
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
-            manifest[resource].default.chunks = [
-              ...new Set([...manifest[resource].default.chunks, ...chunkCSS]),
+            moduleReferences[resource].default.chunks = [
+              ...new Set([
+                ...moduleReferences[resource].default.chunks,
+                ...chunkCSS,
+              ]),
             ]
           }
 
@@ -326,12 +334,12 @@ export class FlightManifestPlugin {
           }
         })
 
-        manifest[resource] = moduleExports
+        moduleReferences[resource] = moduleExports
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
         if (/[\\/]next[\\/]dist[\\/]/.test(resource)) {
-          manifest[
+          moduleReferences[
             resource.replace(
               /[\\/]next[\\/]dist[\\/]/,
               '/next/dist/esm/'.replace(/\//g, path.sep)
@@ -341,6 +349,7 @@ export class FlightManifestPlugin {
 
         manifest.__ssr_module_mapping__ = moduleIdMapping
         manifest.__edge_ssr_module_mapping__ = edgeModuleIdMapping
+        manifest.__client_references__ = moduleReferences
       }
 
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {

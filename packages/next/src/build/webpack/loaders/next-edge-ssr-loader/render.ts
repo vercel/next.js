@@ -4,6 +4,7 @@ import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
 import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
+import type { FlightManifest } from '../../plugins/flight-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -47,7 +48,7 @@ export function getRender({
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest: any
+  serverComponentManifest?: FlightManifest
   serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any

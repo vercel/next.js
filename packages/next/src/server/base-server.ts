@@ -29,6 +29,7 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { FlightManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -227,7 +228,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     isBot?: boolean
-    serverComponentManifest?: any
+    serverComponentManifest?: FlightManifest
     serverCSSManifest?: any
     serverActionsManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -241,7 +242,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected serverComponentManifest?: any
+  protected serverComponentManifest?: FlightManifest
   protected serverCSSManifest?: any
   protected fontLoaderManifest?: FontLoaderManifest
   public readonly hostname?: string

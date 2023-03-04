@@ -27,6 +27,7 @@ import type {
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { FlightManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -246,7 +247,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  serverComponentManifest?: any
+  serverComponentManifest?: FlightManifest
   serverCSSManifest?: any
   fontLoaderManifest?: FontLoaderManifest
   distDir?: string
