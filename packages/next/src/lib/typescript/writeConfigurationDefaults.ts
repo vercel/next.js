@@ -196,10 +196,17 @@ export async function writeConfigurationDefaults(
   // Enable the Next.js typescript plugin.
   if (isAppDirEnabled) {
     if (userTsConfig.compilerOptions) {
+      // Check if the config or the resolved config has the plugin already.
+      const hasNextPlugin = [
+        ...(tsOptions.plugins as { name: string }[]),
+        ...userTsConfig.compilerOptions.plugins,
+      ].some(({ name }: { name: string }) => name === 'next')
+
       // If the TS config extends on another config, we can't add the `plugin` field
       // because that will override the parent config's plugins.
       // Instead we have to show a message to the user to add the plugin manually.
       if (
+        !hasNextPlugin &&
         'extends' in userTsConfig &&
         !('plugins' in userTsConfig.compilerOptions)
       ) {
@@ -210,22 +217,16 @@ export async function writeConfigurationDefaults(
             '"plugins": [{ "name": "next" }]'
           )}\`) manually to your TypeScript configuration. Learn more: https://beta.nextjs.org/docs/configuring/typescript#using-the-typescript-plugin\n`
         )
-      } else {
+      } else if (!hasNextPlugin) {
         if (!('plugins' in userTsConfig.compilerOptions)) {
           userTsConfig.compilerOptions.plugins = []
         }
-        if (
-          !userTsConfig.compilerOptions.plugins.some(
-            (plugin: { name: string }) => plugin.name === 'next'
-          )
-        ) {
-          userTsConfig.compilerOptions.plugins.push({ name: 'next' })
-          suggestedActions.push(
-            chalk.cyan('plugins') +
-              ' was updated to add ' +
-              chalk.bold(`{ name: 'next' }`)
-          )
-        }
+        userTsConfig.compilerOptions.plugins.push({ name: 'next' })
+        suggestedActions.push(
+          chalk.cyan('plugins') +
+            ' was updated to add ' +
+            chalk.bold(`{ name: 'next' }`)
+        )
       }
 
       // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
