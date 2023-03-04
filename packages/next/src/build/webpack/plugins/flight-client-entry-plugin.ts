@@ -474,7 +474,7 @@ export class FlightClientEntryPlugin {
     const visitedBySegment: { [segment: string]: Set<string> } = {}
     const clientComponentImports: ClientComponentImports = []
     const actionImports: [string, string[]][] = []
-    const CSSImports: CssImports = {}
+    const CSSImports = new Set<string>()
 
     const filterClientComponents = (
       dependencyToFilter: any,
@@ -527,8 +527,7 @@ export class FlightClientEntryPlugin {
           }
         }
 
-        CSSImports[entryRequest] = CSSImports[entryRequest] || []
-        CSSImports[entryRequest].push(modRequest)
+        CSSImports.add(modRequest)
       }
 
       // Check if request is for css file.
@@ -567,7 +566,11 @@ export class FlightClientEntryPlugin {
 
     return {
       clientImports: clientComponentImports,
-      cssImports: CSSImports,
+      cssImports: CSSImports.size
+        ? {
+            [entryRequest]: Array.from(CSSImports),
+          }
+        : {},
       actionImports,
     }
   }
