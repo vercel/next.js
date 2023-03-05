@@ -185,6 +185,7 @@ function formatRouteToRouteType(route: string) {
   }
 }
 
+// Whether redirects and rewrites have been processed into routeTypes or not.
 let redirectsRewritesRoutesProcessed = false
 
 // Convert redirects and rewrites into routeTypes.
@@ -402,9 +403,7 @@ export class NextTypesPlugin {
       ? '..'
       : '../..'
 
-    const handleModule = async (_mod: webpack.Module, assets: any) => {
-      const mod: webpack.NormalModule = _mod as any
-
+    const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
 
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
@@ -418,7 +417,7 @@ export class NextTypesPlugin {
         return
       }
 
-      if (_mod.layer !== WEBPACK_LAYERS.server) return
+      if (mod.layer !== WEBPACK_LAYERS.server) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
@@ -480,8 +479,8 @@ export class NextTypesPlugin {
             routeTypes.node.static = ''
           }
 
-          compilation.chunkGroups.forEach((chunkGroup: any) => {
-            chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          compilation.chunkGroups.forEach((chunkGroup) => {
+            chunkGroup.chunks.forEach((chunk) => {
               if (!chunk.name) return
 
               // Here we only track page chunks.
@@ -500,9 +499,11 @@ export class NextTypesPlugin {
                 promises.push(handleModule(mod, assets))
 
                 // If this is a concatenation, register each child to the parent ID.
-                const anyModule = mod as any
+                const anyModule = mod as unknown as {
+                  modules: webpack.NormalModule[]
+                }
                 if (anyModule.modules) {
-                  anyModule.modules.forEach((concatenatedMod: any) => {
+                  anyModule.modules.forEach((concatenatedMod) => {
                     promises.push(handleModule(concatenatedMod, assets))
                   })
                 }
