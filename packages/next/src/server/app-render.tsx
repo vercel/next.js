@@ -636,7 +636,6 @@ function getServerCSSForEntries(
  * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
  */
 function getPreloadedFontFilesInlineLinkTags(
-  clientReferenceManifest: ClientReferenceManifest,
   serverCSSManifest: ClientCSSReferenceManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
@@ -1130,7 +1129,6 @@ export async function renderToHTMLOrFlight(
       )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
-            clientReferenceManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
@@ -1612,7 +1610,6 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadedFontFilesInlineLinkTags(
-            clientReferenceManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
