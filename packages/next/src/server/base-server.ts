@@ -130,7 +130,7 @@ export interface Options {
    */
   dir?: string
   /**
-   * Tells if Next.js is running in a Serverless platform
+   * Tells if Next.js is at the platform-level
    */
   minimalMode?: boolean
   /**

@@ -890,7 +890,6 @@ export default async function build(
       )
 
       // We need to write the manifest with rewrites before build
-      // so serverless can import the manifest
       await nextBuildSpan
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() =>

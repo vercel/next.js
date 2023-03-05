@@ -185,7 +185,7 @@ export default class NextNodeServer extends BaseServer {
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
-     * Using this from process.env allows targeting both serverless and SSR by calling
+     * Using this from process.env allows targeting SSR by calling
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
