@@ -115,11 +115,7 @@ impl<C: Comments> ServerActions<C> {
         if !function.is_async {
             HANDLER.with(|handler| {
                 handler
-                    .struct_span_err(
-                        ident.span,
-                        "Server actions must be
-        async functions",
-                    )
+                    .struct_span_err(ident.span, "Server actions must be async functions")
                     .emit();
             });
         }
