@@ -1703,7 +1703,6 @@ export default async function getBaseWebpackConfig(
         'next-client-pages-loader',
         'next-image-loader',
         'next-metadata-image-loader',
-        'next-serverless-loader',
         'next-style-loader',
         'next-flight-loader',
         'next-flight-client-entry-loader',

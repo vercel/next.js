@@ -60,7 +60,7 @@ import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
