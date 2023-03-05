@@ -291,6 +291,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
+        if f.ident.is_none() {
+            f.visit_mut_children_with(self);
+            return;
+        }
+
         let (is_action_fn, is_exported) =
             self.get_action_info(f.ident.as_mut().unwrap(), &mut f.function);
 
