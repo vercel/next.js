@@ -405,6 +405,16 @@ createNextDescribe(
         expect(res.status).toEqual(200)
         expect(await res.text()).toContain('hello, world')
       })
+
+      it('returns a response when headers are accessed', async () => {
+        const meta = { ping: 'pong' }
+        const res = await next.fetch('/edge/headers', {
+          headers: withRequestMeta(meta),
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.json()).toEqual(meta)
+      })
     })
 
     describe('dynamic = "force-static"', () => {

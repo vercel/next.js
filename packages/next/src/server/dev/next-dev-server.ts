@@ -489,9 +489,15 @@ export default class DevServer extends Server {
           })
 
           if (isMiddlewareFile(rootFile)) {
+            if (this.nextConfig.output === 'export') {
+              Log.error(
+                'Middleware cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+              )
+              continue
+            }
             this.actualMiddlewareFile = rootFile
             middlewareMatchers = staticInfo.middleware?.matchers || [
-              { regexp: '.*' },
+              { regexp: '.*', originalSource: '/:path*' },
             ]
             continue
           }
@@ -512,6 +518,16 @@ export default class DevServer extends Server {
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
           })
+
+          if (
+            pageName.startsWith('/api/') &&
+            this.nextConfig.output === 'export'
+          ) {
+            Log.error(
+              'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+            continue
+          }
 
           if (isAppPath) {
             if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
@@ -585,9 +601,11 @@ export default class DevServer extends Server {
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
-            ((this.nextConfig as any)._originalRedirects || []).filter(
-              (r: any) => !r.internal
-            )
+            this.nextConfig.experimental.clientRouterFilterRedirects
+              ? ((this.nextConfig as any)._originalRedirects || []).filter(
+                  (r: any) => !r.internal
+                )
+              : []
           )
 
           if (
@@ -1533,6 +1551,18 @@ export default class DevServer extends Server {
     const { paths: staticPaths, fallback } = (
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
     ).value
+
+    if (this.nextConfig.output === 'export') {
+      if (fallback === 'blocking') {
+        throw new Error(
+          'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      } else if (fallback === true) {
+        throw new Error(
+          'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
+    }
 
     return {
       staticPaths,
