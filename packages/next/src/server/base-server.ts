@@ -1196,7 +1196,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
     // unexpected SSR invocations
-    if (!isSSG && req.headers['x-middleware-prefetch']) {
+    if (
+      !isSSG &&
+      req.headers['x-middleware-prefetch'] &&
+      !(is404Page || pathname === '/_error')
+    ) {
       res.setHeader('x-middleware-skip', '1')
       res.body('{}').send()
       return null
