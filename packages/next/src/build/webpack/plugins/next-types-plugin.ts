@@ -362,8 +362,8 @@ export class NextTypesPlugin {
 
     const isApp = filePath.startsWith(this.appDir + path.sep)
 
-    // Filter out non-page and non-route files in app dir
-    if (isApp && !/[/\\](?:page|route)\.[^.]+$/.test(filePath)) {
+    // Filter out non-page files in app dir
+    if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
       return
     }
 
@@ -422,12 +422,11 @@ export class NextTypesPlugin {
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
-      const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
       const relativePathToRoot = path.relative(this.dir, mod.resource)
 
       if (!this.dev) {
-        if (IS_PAGE || IS_ROUTE) {
+        if (IS_PAGE) {
           this.collectPage(mod.resource)
         }
       }
@@ -488,11 +487,7 @@ export class NextTypesPlugin {
               // Here we only track page chunks.
               if (
                 !chunk.name.startsWith('pages/') &&
-                !(
-                  chunk.name.startsWith('app/') &&
-                  (chunk.name.endsWith('/page') ||
-                    chunk.name.endsWith('/route'))
-                )
+                !(chunk.name.startsWith('app/') && chunk.name.endsWith('/page'))
               ) {
                 return
               }
