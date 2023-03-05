@@ -1,15 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Rewrite } from '../lib/load-custom-routes'
-import type { BuildManifest } from './get-page-files'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
-import type {
-  GetServerSideProps,
-  GetStaticPaths,
-  GetStaticProps,
-} from '../../types'
 import type { BaseNextRequest } from './base-http'
-import type { __ApiPreviewProps } from './api-utils'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
@@ -30,44 +23,6 @@ import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
 import { addRequestMeta } from './request-meta'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
-
-export const vercelHeader = 'x-vercel-id'
-
-export type ServerlessHandlerCtx = {
-  page: string
-
-  pageModule: any
-  pageComponent?: any
-  pageConfig?: any
-  pageGetStaticProps?: GetStaticProps
-  pageGetStaticPaths?: GetStaticPaths
-  pageGetServerSideProps?: GetServerSideProps
-
-  appModule?: any
-  errorModule?: any
-  documentModule?: any
-  notFoundModule?: any
-
-  runtimeConfig: any
-  buildManifest?: BuildManifest
-  reactLoadableManifest?: any
-  basePath: string
-  rewrites: {
-    fallback?: Rewrite[]
-    afterFiles?: Rewrite[]
-    beforeFiles?: Rewrite[]
-  }
-  pageIsDynamic: boolean
-  generateEtags: boolean
-  distDir: string
-  buildId: string
-  escapedBuildId: string
-  assetPrefix: string
-  poweredByHeader: boolean
-  canonicalBase: string
-  encodedPreviewProps: __ApiPreviewProps
-  i18n?: NextConfig['i18n']
-}
 
 export function normalizeVercelUrl(
   req: BaseNextRequest | IncomingMessage,
@@ -136,11 +91,15 @@ export function getUtils({
   pageIsDynamic,
   trailingSlash,
 }: {
-  page: ServerlessHandlerCtx['page']
-  i18n?: ServerlessHandlerCtx['i18n']
-  basePath: ServerlessHandlerCtx['basePath']
-  rewrites: ServerlessHandlerCtx['rewrites']
-  pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
+  page: string
+  i18n?: NextConfig['i18n']
+  basePath: string
+  rewrites: {
+    fallback?: Rewrite[]
+    afterFiles?: Rewrite[]
+    beforeFiles?: Rewrite[]
+  }
+  pageIsDynamic: boolean
   trailingSlash?: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
@@ -532,7 +491,7 @@ export function getUtils({
 
     if (
       !shouldNotRedirect &&
-      !req.headers[vercelHeader] &&
+      !req.headers['x-vercel-id'] &&
       i18n.localeDetection !== false &&
       (localeDomainRedirect ||
         shouldAddLocalePrefix ||
