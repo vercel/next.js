@@ -80,6 +80,12 @@ describe('Middleware Runtime', () => {
         /This page could not be found/
       )
       expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.refresh()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
     })
 
     it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {
