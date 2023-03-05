@@ -186,10 +186,10 @@ function formatRouteToRouteType(route: string) {
 }
 
 // Whether redirects and rewrites have been converted into routeTypes or not.
-let redirectsRewritesRoutesConverted = false
+let redirectsRewritesTypesProcessed = false
 
 // Convert redirects and rewrites into routeTypes.
-function convertRedirectsRewritesRoutes(
+function addRedirectsRewritesRouteTypes(
   rewrites: Rewrites | undefined,
   redirects: Redirect[] | undefined
 ) {
@@ -349,9 +349,9 @@ export class NextTypesPlugin {
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
-    if (this.typedRoutes && !redirectsRewritesRoutesConverted) {
-      redirectsRewritesRoutesConverted = true
-      convertRedirectsRewritesRoutes(
+    if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
+      redirectsRewritesTypesProcessed = true
+      addRedirectsRewritesRouteTypes(
         options.originalRewrites,
         options.originalRedirects
       )
