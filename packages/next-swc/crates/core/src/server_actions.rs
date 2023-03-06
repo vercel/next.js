@@ -1,5 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
+use hex::encode as hex_encode;
 use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -15,6 +16,7 @@ use next_binding::swc::core::{
     },
 };
 use serde::Deserialize;
+use sha1::{Digest, Sha1};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -146,16 +148,17 @@ impl<C: Comments> ServerActions<C> {
             .into(),
         ));
 
-        // myAction.$$filepath = '/app/page.tsx';
-        self.annotations.push(annotate(
-            ident,
-            "$$filepath",
-            self.file_name.to_string().into(),
-        ));
+        // Attach a checksum to the action using sha1:
+        // myAction.$$id = sha1('file_name' + ':' + 'action_name');
+        let mut hasher = Sha1::new();
+        hasher.update(self.file_name.to_string().as_bytes());
+        hasher.update(b":");
+        hasher.update(action_name.as_bytes());
+        let result = hasher.finalize();
 
-        // myAction.$$name = '$ACTION_myAction';
+        // Convert result to hex string
         self.annotations
-            .push(annotate(ident, "$$name", action_name.into()));
+            .push(annotate(ident, "$$id", hex_encode(&result).into()));
 
         if self.top_level {
             // myAction.$$bound = [];

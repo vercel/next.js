@@ -592,9 +592,9 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest[mod]
+        const modData = serverComponentManifest[mod + '#']
         if (modData) {
-          for (const chunk of modData.default.chunks) {
+          for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
             // chunk, it means that it's actually used. We should include it.
             if (cssFilesForEntry.has(chunk)) {
@@ -645,9 +645,7 @@ function getPreloadedFontFilesInlineLinkTags(
   if (!fontLoaderManifest || !filePath) {
     return null
   }
-  const layoutOrPageCss =
-    serverCSSManifest[filePath] ||
-    serverComponentManifest.__client_css_manifest__?.[filePath]
+  const layoutOrPageCss = serverCSSManifest[filePath]
 
   if (!layoutOrPageCss) {
     return null
