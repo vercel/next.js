@@ -1575,7 +1575,9 @@ export default async function getBaseWebpackConfig(
               }): boolean {
                 return (
                   module.size() > 160000 &&
-                  /(?:node_modules|__virtual__)[/\\]/.test(module.nameForCondition() || '')
+                  /(?:node_modules|__virtual__)[/\\]/.test(
+                    module.nameForCondition() || ''
+                  )
                 )
               },
               name(module: {
