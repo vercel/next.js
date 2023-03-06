@@ -10,6 +10,7 @@ createNextDescribe(
     dependencies: {
       react: 'latest',
       'react-dom': 'latest',
+      'https-proxy-agent': '5.0.1',
     },
     skipDeployment: true,
     env: {
