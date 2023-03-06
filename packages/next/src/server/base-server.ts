@@ -1317,6 +1317,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       opts.isBot = isBotRequest
     }
 
+    // In development, we always want to generate dynamic HTML.
+    if (opts.dev && opts.supportsDynamicHTML === false) {
+      opts.supportsDynamicHTML = true
+    }
+
     const defaultLocale = isSSG
       ? this.nextConfig.i18n?.defaultLocale
       : query.__nextDefaultLocale
@@ -1441,7 +1446,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
-      const supportsDynamicHTML = !(isSSG || hasStaticPaths)
+      // In development, we always want to generate dynamic HTML.
+      const supportsDynamicHTML = opts.dev || !(isSSG || hasStaticPaths)
 
       const match =
         pathname !== '/_error' && !is404Page && !is500Page
