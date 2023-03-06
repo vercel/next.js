@@ -3,6 +3,7 @@ import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plug
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 
 import '../lib/setup-exception-listeners'
 import { loadEnvConfig } from '@next/env'
@@ -1319,6 +1320,22 @@ export default async function build(
           MIDDLEWARE_MANIFEST
         ))
 
+        const actionManifest = appDir
+          ? (require(path.join(
+              distDir,
+              SERVER_DIRECTORY,
+              SERVER_REFERENCE_MANIFEST + '.json'
+            )) as ActionManifest)
+          : null
+        const entriesWithAction = actionManifest ? new Set() : null
+        if (actionManifest && entriesWithAction) {
+          for (const id in actionManifest) {
+            for (const entry in actionManifest[id].workers) {
+              entriesWithAction.add(entry)
+            }
+          }
+        }
+
         for (const key of Object.keys(middlewareManifest?.functions)) {
           if (key.startsWith('/api')) {
             edgeRuntimePagesCount++
@@ -1457,6 +1474,14 @@ export default async function build(
                         isStatic = false
                         isSsg = false
                       } else {
+                        // If a page has action and it is static, we need to
+                        // change it to SSG to keep the worker created.
+                        // TODO: This is a workaround for now, we should have a
+                        // dedicated worker defined in a heuristic way.
+                        const hasAction = entriesWithAction?.has(
+                          'app' + originalAppPath
+                        )
+
                         if (
                           workerResult.encodedPrerenderRoutes &&
                           workerResult.prerenderRoutes
@@ -1474,7 +1499,7 @@ export default async function build(
                         }
 
                         const appConfig = workerResult.appConfig || {}
-                        if (workerResult.appConfig?.revalidate !== 0) {
+                        if (appConfig.revalidate !== 0 && !hasAction) {
                           const isDynamic = isDynamicRoute(page)
                           const hasGenerateStaticParams =
                             !!workerResult.prerenderRoutes?.length
