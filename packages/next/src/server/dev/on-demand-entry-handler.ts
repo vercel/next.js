@@ -96,6 +96,14 @@ export function getEntryKey(
   return `${compilerType}@${pageType}@${page}`
 }
 
+function getPageType(pageBundlePath: string) {
+  return pageBundlePath.startsWith('pages/')
+    ? 'pages'
+    : pageBundlePath.startsWith('app/')
+    ? 'app'
+    : 'root'
+}
+
 function getEntrypointsFromTree(
   tree: FlightRouterState,
   isFirst: boolean,
@@ -495,12 +503,8 @@ export function onDemandEntryHandler({
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
-      const pageType =
-        entrypoint.name === 'root'
-          ? 'root'
-          : entrypoint.name?.startsWith('app/')
-          ? 'app'
-          : 'pages'
+      const pageType = getPageType(entrypoint.name!)
+
       if (page) {
         pagePaths.push(getEntryKey(type, pageType, page))
       } else if (
@@ -692,11 +696,7 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        const pageType = pagePathData.bundlePath.startsWith('pages/')
-          ? 'pages'
-          : pagePathData.bundlePath.startsWith('app/')
-          ? 'app'
-          : 'root'
+        const pageType = getPageType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
