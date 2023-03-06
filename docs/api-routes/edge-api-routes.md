@@ -88,7 +88,7 @@ export default async function handler(req: NextRequest) {
 ### Forwarding Headers
 
 ```typescript
-import { type NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export const config = {
   runtime: 'edge',
