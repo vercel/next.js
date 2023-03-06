@@ -234,7 +234,8 @@ export function getUrl(
  */
 export async function fetchCSSFromGoogleFonts(
   url: string,
-  fontFamily: string
+  fontFamily: string,
+  isDev: boolean
 ): Promise<string> {
   // Check if mocked responses are defined, if so use them instead of fetching from Google Fonts
   let mockedResponse: string | undefined
@@ -251,12 +252,18 @@ export async function fetchCSSFromGoogleFonts(
     // Just use the mocked CSS if it's set
     cssResponse = mockedResponse
   } else {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
     const res = await fetch(url, {
+      // Add a timeout in dev
+      signal: isDev ? controller.signal : undefined,
       headers: {
         // The file format is based off of the user agent, make sure woff2 files are fetched
         'user-agent':
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
       },
+    }).finally(() => {
+      clearTimeout(timeoutId)
     })
 
     if (!res.ok) {
@@ -272,7 +279,7 @@ export async function fetchCSSFromGoogleFonts(
 /**
  * Fetch the url and return a buffer with the font file.
  */
-export async function fetchFontFile(url: string) {
+export async function fetchFontFile(url: string, isDev: boolean) {
   // Check if we're using mocked data
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
     // If it's an absolute path, read the file from the filesystem
@@ -283,7 +290,16 @@ export async function fetchFontFile(url: string) {
     return Buffer.from(url)
   }
 
-  const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 3000)
+  const arrayBuffer = await fetch(url, {
+    // Add a timeout in dev
+    signal: isDev ? controller.signal : undefined,
+  })
+    .then((r: any) => r.arrayBuffer())
+    .finally(() => {
+      clearTimeout(timeoutId)
+    })
   return Buffer.from(arrayBuffer)
 }
 
