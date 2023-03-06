@@ -52,6 +52,8 @@ export type ActionManifest = {
 const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest,
+  edgeServerActions: {} as ActionManifest,
+  actionModId: {} as Record<string, string | number>,
 
   // Manifest of CSS entry files for server/edge server.
   serverCSSManifest: {} as ClientCSSReferenceManifest,
@@ -283,6 +285,12 @@ export class ClientReferenceEntryPlugin {
       )
 
       // Create action entry
+      if (this.isEdgeServer) {
+        pluginState.edgeServerActions = {}
+      } else {
+        pluginState.serverActions = {}
+      }
+
       if (actionEntryImports.size > 0) {
         addActionEntryList.push(
           this.injectActionEntry({
@@ -696,15 +704,18 @@ export class ClientReferenceEntryPlugin {
       actions: JSON.stringify(actionsArray),
     })}!`
 
+    let currentCompilerServerActions = this.isEdgeServer
+      ? pluginState.serverActions
+      : pluginState.edgeServerActions
     for (const [p, names] of actionsArray) {
       for (const name of names) {
         const id = generateActionId(p, name)
-        if (typeof pluginState.serverActions[id] === 'undefined') {
-          pluginState.serverActions[id] = {
+        if (typeof currentCompilerServerActions[id] === 'undefined') {
+          currentCompilerServerActions[id] = {
             workers: {},
           }
         }
-        pluginState.serverActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].workers[bundlePath] = ''
       }
     }
 
@@ -758,8 +769,6 @@ export class ClientReferenceEntryPlugin {
     compilation: webpack.Compilation,
     assets: webpack.Compilation['assets']
   ) {
-    const actionModId: Record<string, string | number> = {}
-
     traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
       // Go through all action entries and record the module ID for each entry.
       if (
@@ -767,19 +776,23 @@ export class ClientReferenceEntryPlugin {
         mod.request &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
-        actionModId[chunkGroup.name] = modId
+        pluginState.actionModId[chunkGroup.name] = modId
       }
     })
 
-    for (let id in pluginState.serverActions) {
-      const action = pluginState.serverActions[id]
+    const fullServerActions = {
+      ...pluginState.serverActions,
+      ...pluginState.edgeServerActions,
+    }
+    for (let id in fullServerActions) {
+      const action = fullServerActions[id]
       for (let name in action.workers) {
-        action.workers[name] = actionModId[name]
+        action.workers[name] = pluginState.actionModId[name]
       }
     }
 
     const json = JSON.stringify(
-      pluginState.serverActions,
+      fullServerActions,
       null,
       this.dev ? 2 : undefined
     )

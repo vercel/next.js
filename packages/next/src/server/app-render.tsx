@@ -1710,7 +1710,7 @@ export async function renderToHTMLOrFlight(
         const actionData = (await parseBody(req, '1mb')) || {}
 
         const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId).default
+          ComponentMod.__next_app_webpack_require__(actionModId)
 
         try {
           return new ActionRenderResult(
