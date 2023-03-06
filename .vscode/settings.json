@@ -58,5 +58,5 @@
     "*.ts": "$(capture).test.ts, $(capture).test.tsx",
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx"
   },
-  "cSpell.words": ["opentelemetry", "Zipkin"]
+  "cSpell.words": ["opentelemetry", "OTEL", "Zipkin"]
 }

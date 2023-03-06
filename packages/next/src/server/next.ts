@@ -72,8 +72,7 @@ export class NextServer {
       return getTracer().trace(
         NextServerSpan.getRequestHandler,
         {
-          tracerName: [req.method, parsedUrl?.pathname].join(' '),
-          kind: SpanKind.SERVER,
+          tracerName: [req.method, parsedUrl?.pathname].join(' ') || undefined,
           attributes: {
             ...getRequestAttributes(req),
             ...getServerAttributes(req),
