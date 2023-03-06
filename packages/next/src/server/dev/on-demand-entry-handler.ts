@@ -696,7 +696,7 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        const pageType = getPageType(pagePathData.bundlePath)
+        const pageType = isInsideAppDir ? 'app' : 'pages'
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
@@ -754,7 +754,7 @@ export function onDemandEntryHandler({
           pageFilePath: pagePathData.absolutePagePath,
           nextConfig,
           isDev: true,
-          pageType: isInsideAppDir ? 'app' : 'pages',
+          pageType,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
