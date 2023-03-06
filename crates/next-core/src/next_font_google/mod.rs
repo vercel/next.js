@@ -448,10 +448,10 @@ async fn get_mock_stylesheet(
 
     let ExecutionContext {
         env,
-        project_root: _,
+        project_path,
         intermediate_output_path,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(None, None);
+    let context = node_evaluate_asset_context(project_path, None, None);
     let loader_path = mock_fs.root().join("loader.js");
     let mocked_response_asset = EcmascriptModuleAssetVc::new(
         VirtualAssetVc::new(
