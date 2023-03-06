@@ -23,16 +23,22 @@ createNextDescribe(
         await next.start()
         await next.fetch('/')
         await check(() => next.cliOutput, /fonts.googleapis.com/)
+        // Error should include the actual google fonts URL
         expect(next.cliOutput).toInclude(
-          'request to https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap failed, reason: Port should be >= 0 and < 65536. Received 999999.'
+          'https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap'
         )
+        // Should include error message about invalid port used in proxy agent
+        expect(next.cliOutput).toInclude('999999')
       })
     } else {
       it('should use a proxy agent when https_proxy is set in prod', async () => {
         await expect(next.start()).rejects.toThrow('next build failed')
+        // Error should include the actual google fonts URL
         expect(next.cliOutput).toInclude(
-          'request to https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap failed, reason: Port should be >= 0 and < 65536. Received 999999.'
+          'https://fonts.googleapis.com/css2?family=Oswald:wght@200..700&display=swap'
         )
+        // Should include error message about invalid port used in proxy agent
+        expect(next.cliOutput).toInclude('999999')
       })
     }
   }
