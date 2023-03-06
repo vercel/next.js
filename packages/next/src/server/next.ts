@@ -5,7 +5,7 @@ import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { resolve } from 'path'
+import { parse, resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
@@ -15,7 +15,12 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
-import { getTracer, SpanKind } from './lib/trace/tracer'
+import {
+  getRequestAttributes,
+  getServerAttributes,
+  getTracer,
+  SpanKind,
+} from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 
 loadRequireHook()
@@ -67,17 +72,11 @@ export class NextServer {
       return getTracer().trace(
         NextServerSpan.getRequestHandler,
         {
-          tracerName: [req.method, req.url].join(' '),
+          tracerName: [req.method, parsedUrl?.pathname].join(' '),
           kind: SpanKind.SERVER,
           attributes: {
-            'http.method': req.method,
-            'http.url': req.url,
-            'http.flavor': req.httpVersion,
-            'http.user_agent': req.headers['user-agent'],
-            'http.request_content_length': req.readableLength,
-            'net.sock.family': req.socket?.remoteFamily,
-            'net.sock.peer.addr': req.socket?.remoteAddress,
-            'net.sock.peer.port': req.socket?.remotePort,
+            ...getRequestAttributes(req),
+            ...getServerAttributes(req),
           },
         },
         async () => {
