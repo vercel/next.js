@@ -1475,14 +1475,6 @@ export default async function build(
                         isStatic = false
                         isSsg = false
                       } else {
-                        // If a page has action and it is static, we need to
-                        // change it to SSG to keep the worker created.
-                        // TODO: This is a workaround for now, we should have a
-                        // dedicated worker defined in a heuristic way.
-                        const hasAction = entriesWithAction?.has(
-                          'app' + originalAppPath
-                        )
-
                         if (
                           workerResult.encodedPrerenderRoutes &&
                           workerResult.prerenderRoutes
@@ -1500,7 +1492,7 @@ export default async function build(
                         }
 
                         const appConfig = workerResult.appConfig || {}
-                        if (appConfig.revalidate !== 0 && !hasAction) {
+                        if (appConfig.revalidate !== 0) {
                           const isDynamic = isDynamicRoute(page)
                           const hasGenerateStaticParams =
                             !!workerResult.prerenderRoutes?.length

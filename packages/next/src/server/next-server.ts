@@ -958,7 +958,12 @@ export default class NextNodeServer extends BaseServer {
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
     return getTracer().trace(NextNodeServerSpan.findPageComponents, () =>
-      this.findPageComponentsImpl({ pathname, query, params, isAppPath })
+      this.findPageComponentsImpl({
+        pathname,
+        query,
+        params,
+        isAppPath,
+      })
     )
   }
 

@@ -2020,7 +2020,15 @@ export async function renderToHTMLOrFlight(
     () =>
       StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
-        { pathname, renderOpts },
+        {
+          pathname,
+          renderOpts: isAction
+            ? {
+                supportsDynamicHTML: true,
+                isBot: false,
+              }
+            : renderOpts,
+        },
         () => wrappedRender()
       )
   )

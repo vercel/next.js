@@ -1253,6 +1253,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.serverComponentManifest && req.headers[RSC.toLowerCase()]
     )
 
+    const isActionRequest = isAppPath && !!req.headers['next-action']
+
     // For pages we need to ensure the correct Vary header is set too, to avoid
     // caching issues when navigating between pages and app
     if (!isAppPath && isFlightRequest) {
@@ -1276,6 +1278,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (
       !is404Page &&
       !is500Page &&
+      !isActionRequest &&
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
@@ -1594,6 +1597,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         value = { kind: 'PAGE', html: body, pageData }
       }
       return { revalidate: isrRevalidate, value }
+    }
+
+    // If this is an action request, we don't need to check the cache but directly
+    // pass it to the render function.
+    if (isActionRequest) {
+      const result = await doRender()
+      if (!result || !result.value || result.value.kind !== 'PAGE') {
+        throw new Error('invariant: Failed to handle action')
+      }
+      return {
+        type: 'html',
+        body: result.value.html,
+      }
     }
 
     const cacheEntry = await this.responseCache.get(
