@@ -135,25 +135,25 @@ class NextTracerImpl implements NextTracer {
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
-    name: SpanNames,
+    type: SpanNames,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: SpanNames,
+    type: SpanNames,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
-    name: SpanNames,
+    type: SpanNames,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: SpanNames,
+    type: SpanNames,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
-    const [name, fnOrOptions, fnOrEmpty] = args
+    const [type, fnOrOptions, fnOrEmpty] = args
 
     // coerce options form overload
     const {
@@ -174,11 +174,13 @@ class NextTracerImpl implements NextTracer {
           }
 
     if (
-      !NextVanillaSpanAllowlist.includes(name) &&
+      !NextVanillaSpanAllowlist.includes(type) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn()
     }
+
+    const traceName = options.tracerName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     const spanContext = this.getSpanContext(
@@ -188,12 +190,12 @@ class NextTracerImpl implements NextTracer {
     const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
       spanContext
         ? this.getTracerInstance().startActiveSpan(
-            name,
+            traceName,
             options,
             spanContext,
             actualFn
           )
-        : this.getTracerInstance().startActiveSpan(name, options, actualFn)
+        : this.getTracerInstance().startActiveSpan(traceName, options, actualFn)
 
     return runWithContext((span: Span) => {
       try {
