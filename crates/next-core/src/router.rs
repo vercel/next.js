@@ -40,7 +40,7 @@ use crate::{
         transition::NextEdgeTransition,
     },
     next_import_map::get_next_build_import_map,
-    next_server::context::ServerContextType,
+    next_server::context::{get_server_module_options_context, ServerContextType},
     util::{parse_config_from_source, NextSourceConfigVc},
 };
 
@@ -282,9 +282,17 @@ fn edge_transition_map(
         execution_context,
     );
 
+    let server_module_options_context = get_server_module_options_context(
+        project_path,
+        execution_context,
+        Value::new(ServerContextType::Middleware),
+        next_config,
+    );
+
     let next_edge_transition = NextEdgeTransition {
         edge_compile_time_info,
         edge_chunking_context,
+        edge_module_options_context: Some(server_module_options_context),
         edge_resolve_options_context,
         output_path: output_path.root(),
         base_path: project_path,
