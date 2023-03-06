@@ -82,7 +82,7 @@ pub struct NextConfig {
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     swc_minify: bool,
-    target: String,
+    target: Option<String>,
     trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
