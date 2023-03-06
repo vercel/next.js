@@ -389,15 +389,23 @@ export default class HotReloader {
                   stackTrace
                 )?.[1]
                 if (file) {
-                  const fileUrl = new URL(file, 'file://')
-                  const cwd = process.cwd()
-                  const modules = fileUrl.searchParams
-                    .getAll('modules')
-                    .map((filepath) => filepath.slice(cwd.length + 1))
-                    .filter((filepath) => !filepath.startsWith('node_modules'))
+                  // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
+                  // It it's webpack url, it will start with '(app-client)/./'
+                  if (file.startsWith('(app-client)/./')) {
+                    const fileUrl = new URL(file, 'file://')
+                    const cwd = process.cwd()
+                    const modules = fileUrl.searchParams
+                      .getAll('modules')
+                      .map((filepath) => filepath.slice(cwd.length + 1))
+                      .filter(
+                        (filepath) => !filepath.startsWith('node_modules')
+                      )
 
-                  if (modules.length > 0) {
-                    fileMessage = ` when ${modules.join(', ')} changed`
+                    if (modules.length > 0) {
+                      fileMessage = ` when ${modules.join(', ')} changed`
+                    }
+                  } else {
+                    fileMessage = ` when ${file} changed`
                   }
                 }
               }
