@@ -202,6 +202,7 @@ fn next_route_transition(
     NextEdgeTransition {
         edge_compile_time_info,
         edge_chunking_context,
+        edge_module_options_context: None,
         edge_resolve_options_context,
         output_path,
         base_path: app_dir,
