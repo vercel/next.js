@@ -11963,7 +11963,7 @@ function styleTagPropsFromRawProps(rawProps) {
 
 function getStyleKey(href) {
   var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-  return "href=\"" + limitedEscapedHref + "\"";
+  return "href~=\"" + limitedEscapedHref + "\"";
 }
 
 function getStyleTagSelectorFromKey(key) {
@@ -30588,7 +30588,17 @@ function renderRootConcurrent(root, lanes) {
         }
       }
 
-      workLoopConcurrent();
+      if (true && ReactCurrentActQueue.current !== null) {
+        // `act` special case: If we're inside an `act` scope, don't consult
+        // `shouldYield`. Always keep working until the render is complete.
+        // This is not just an optimization: in a unit test environment, we
+        // can't trust the result of `shouldYield`, because the host I/O is
+        // likely mocked.
+        workLoopSync();
+      } else {
+        workLoopConcurrent();
+      }
+
       break;
     } catch (thrownValue) {
       handleThrow(root, thrownValue);
@@ -33046,7 +33056,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-41110021f-20230301';
+var ReactVersion = '18.3.0-next-49f741046-20230305';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -33141,7 +33151,7 @@ function findHostInstanceWithWarning(component, methodName) {
       }
     }
 
-    return hostFiber.stateNode;
+    return getPublicInstance(hostFiber.stateNode);
   }
 }
 
@@ -33338,7 +33348,7 @@ function findHostInstanceWithNoPortals(fiber) {
     return null;
   }
 
-  return hostFiber.stateNode;
+  return getPublicInstance(hostFiber.stateNode);
 }
 
 var shouldErrorImpl = function (fiber) {
