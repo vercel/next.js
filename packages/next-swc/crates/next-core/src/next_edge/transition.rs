@@ -24,6 +24,7 @@ use turbopack_ecmascript::{
 pub struct NextEdgeTransition {
     pub edge_compile_time_info: CompileTimeInfoVc,
     pub edge_chunking_context: ChunkingContextVc,
+    pub edge_module_options_context: Option<ModuleOptionsContextVc>,
     pub edge_resolve_options_context: ResolveOptionsContextVc,
     pub output_path: FileSystemPathVc,
     pub base_path: FileSystemPathVc,
@@ -46,7 +47,7 @@ impl Transition for NextEdgeTransition {
         &self,
         context: ModuleOptionsContextVc,
     ) -> ModuleOptionsContextVc {
-        context
+        self.edge_module_options_context.unwrap_or(context)
     }
 
     #[turbo_tasks::function]

@@ -149,6 +149,7 @@ pub async fn create_page_source(
     let next_edge_transition = NextEdgeTransition {
         edge_compile_time_info,
         edge_chunking_context,
+        edge_module_options_context: None,
         edge_resolve_options_context,
         output_path,
         base_path: project_path,

@@ -75,7 +75,7 @@ async function getResolveRoute(
   );
 
   return await makeResolver(dir, nextConfig, {
-    files: middlewareChunkGroup,
+    files: middlewareChunkGroup.filter((f) => /\.[mc]?js$/.test(f)),
     matcher: middlewareConfig.matcher,
   });
 }
