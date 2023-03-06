@@ -557,7 +557,7 @@ export async function check(contentFn, regex, hardError = true) {
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
   }
   return false
 }
