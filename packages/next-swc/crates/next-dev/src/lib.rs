@@ -29,7 +29,7 @@ use owo_colors::OwoColorize;
 use turbo_malloc::TurboMalloc;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    CompletionsVc, StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
@@ -362,10 +362,8 @@ async fn source(
         execution_context,
         next_config,
         server_addr,
-        CompletionsVc::all(vec![
-            app_structure.routes_changed(),
-            pages_structure.routes_changed(),
-        ]),
+        app_structure,
+        pages_structure,
     )
     .into();
     let source = RouterContentSource {
