@@ -90,13 +90,13 @@ function convertDynamicParamTypeToSyntax(
 
 export function getEntryKey(
   compilerType: CompilerNameValues,
-  pageType: 'app' | 'pages' | 'root',
+  pageBundleType: 'app' | 'pages' | 'root',
   page: string
 ) {
-  return `${compilerType}@${pageType}@${page}`
+  return `${compilerType}@${pageBundleType}@${page}`
 }
 
-function getPageType(pageBundlePath: string) {
+function getPageBundleType(pageBundlePath: string) {
   return pageBundlePath.startsWith('pages/')
     ? 'pages'
     : pageBundlePath.startsWith('app/')
@@ -503,16 +503,18 @@ export function onDemandEntryHandler({
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
-      const pageType = getPageType(entrypoint.name!)
 
       if (page) {
-        pagePaths.push(getEntryKey(type, pageType, page))
+        const pageBundleType = entrypoint.name?.startsWith('app/')
+          ? 'app'
+          : 'pages'
+        pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
         (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, pageType, `/${entrypoint.name}`))
+        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
       }
     }
     return pagePaths
@@ -697,6 +699,7 @@ export function onDemandEntryHandler({
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
         const pageType = isInsideAppDir ? 'app' : 'pages'
+        const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
@@ -764,7 +767,7 @@ export function onDemandEntryHandler({
         await runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
-          pageType,
+          pageType: pageBundleType,
           onClient: () => {
             // Skip adding the client entry for app / Server Components.
             if (isServerComponent || isInsideAppDir) {
