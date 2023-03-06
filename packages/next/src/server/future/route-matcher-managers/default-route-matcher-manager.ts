@@ -228,7 +228,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       return matcher.match(pathname, options)
     }
 
-    return matcher.match(pathname)
+    return matcher.match(options.i18n?.pathname ?? pathname)
   }
 
   public async *matchAll(
