@@ -218,6 +218,22 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="canonical" href="https://example.com" />
    * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
    * ```
+   *
+   * Multiple titles example for alternate URLs except `canonical`:
+   * ```tsx
+   * {
+   *   canonical: "https://example.com",
+   *   types: {
+   *     'application/rss+xml': [
+   *       { url: 'blog.rss', title: 'rss' },
+   *       { url: 'blog/js.rss', title: 'js title' },
+   *     ],
+   *   },
+   * }
+   * <link rel="canonical" href="https://example.com" />
+   * <link rel="alternate" href="https://example.com/blog.rss" type="application/rss+xml" title="rss" />
+   * <link rel="alternate" href="https://example.com/blog/js.rss" type="application/rss+xml" title="js title" />
+   * ```
    */
   alternates?: null | AlternateURLs
 
@@ -242,7 +258,7 @@ interface Metadata extends DeprecatedMetadataFields {
   icons?: null | IconURL | Array<Icon> | Icons
 
   /**
-   * The manifest.json file is the only file that every extension using WebExtension APIs must contain
+   * A web application manifest, as defined in the Web Application Manifest specification.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
    * @example

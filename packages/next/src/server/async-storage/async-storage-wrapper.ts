@@ -16,6 +16,6 @@ export interface AsyncStorageWrapper<Store extends {}, Context extends {}> {
   wrap<Result>(
     storage: AsyncLocalStorage<Store>,
     context: Context,
-    callback: () => Result
+    callback: (store: Store) => Result
   ): Result
 }
