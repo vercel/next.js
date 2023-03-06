@@ -19,13 +19,6 @@ import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 
-// This is the module that will be used to anchor all client references to.
-// I.e. it will have all the client files as async deps from this point on.
-// We use the Flight client implementation because you can't get to these
-// without the client runtime so it's the first time in the loading sequence
-// you might want them.
-// const clientFileName = require.resolve('../');
-
 interface Options {
   dev: boolean
   appDir: string
@@ -320,7 +313,7 @@ export class FlightManifestPlugin {
           }
         }
 
-        function addSSRIdMapping(resource: string, name: string) {
+        function addSSRIdMapping(name: string) {
           const key = resource + (name === '*' ? '' : '#' + name)
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
@@ -346,8 +339,8 @@ export class FlightManifestPlugin {
 
         addClientReference('*')
         addClientReference('')
-        addSSRIdMapping(resource, '*')
-        addSSRIdMapping(resource, '')
+        addSSRIdMapping('*')
+        addSSRIdMapping('')
 
         const moduleExportedKeys = [
           ...[...exportsInfo.exports]
@@ -368,7 +361,7 @@ export class FlightManifestPlugin {
             addClientReference(name)
           }
 
-          addSSRIdMapping(resource, name)
+          addSSRIdMapping(name)
         })
 
         manifest.__ssr_module_mapping__ = moduleIdMapping

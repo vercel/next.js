@@ -158,7 +158,7 @@ impl<C: Comments> ServerActions<C> {
 
         // Convert result to hex string
         self.annotations
-            .push(annotate(ident, "$$id", hex_encode(&result).into()));
+            .push(annotate(ident, "$$id", hex_encode(result).into()));
 
         if self.top_level {
             // myAction.$$bound = [];
