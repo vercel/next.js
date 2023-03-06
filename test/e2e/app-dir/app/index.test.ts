@@ -662,6 +662,13 @@ createNextDescribe(
           // Click the link.
           await check(async () => {
             await browser.elementById('pages-link').click()
+
+            // Test: let's see
+            await new Promise((resolve) => setTimeout(resolve, 5000))
+            expect(
+              await browser.eval('document.documentElement.innerHTML')
+            ).toBe('')
+
             expect(
               await browser.waitForElementByCss('#app-text', 5000).text()
             ).toBe(
