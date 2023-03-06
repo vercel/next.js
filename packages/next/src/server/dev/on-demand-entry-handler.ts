@@ -692,6 +692,11 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
+        const pageType = pagePathData.bundlePath.startsWith('pages/')
+          ? 'pages'
+          : pagePathData.bundlePath.startsWith('app/')
+          ? 'app'
+          : 'root'
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
@@ -755,11 +760,7 @@ export function onDemandEntryHandler({
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
           isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-        const pageType = pagePathData.bundlePath.startsWith('pages/')
-          ? 'pages'
-          : pagePathData.bundlePath.startsWith('app/')
-          ? 'app'
-          : 'root'
+
         await runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
