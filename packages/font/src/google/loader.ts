@@ -85,7 +85,10 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     // Fetch CSS from Google Fonts or get it from the cache
     let fontFaceDeclarations = hasCachedCSS
       ? cssCache.get(url)
-      : await fetchCSSFromGoogleFonts(url, fontFamily).catch(() => null)
+      : await fetchCSSFromGoogleFonts(url, fontFamily).catch((err) => {
+          console.error(err)
+          return null
+        })
     if (!hasCachedCSS) {
       cssCache.set(url, fontFaceDeclarations ?? null)
     } else {
@@ -111,7 +114,10 @@ const nextFontGoogleFontLoader: FontLoader = async ({
         // Download the font file or get it from cache
         const fontFileBuffer = hasCachedFont
           ? fontCache.get(googleFontFileUrl)
-          : await fetchFontFile(googleFontFileUrl).catch(() => null)
+          : await fetchFontFile(googleFontFileUrl).catch((err) => {
+              console.error(err)
+              return null
+            })
         if (!hasCachedFont) {
           fontCache.set(googleFontFileUrl, fontFileBuffer ?? null)
         } else {
@@ -162,7 +168,6 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     loaderContext.cacheable(false)
     if (isDev) {
       if (isServer) {
-        console.error(err)
         Log.error(
           `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.`
         )

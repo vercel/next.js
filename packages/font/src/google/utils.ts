@@ -7,6 +7,7 @@ import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 import * as Log from 'next/dist/build/output/log'
 import { nextFontError } from '../utils'
 import fontData from './font-data.json'
+import { getProxyAgent } from './get-proxy-agent'
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
 const formatValues = (values: string[]) =>
@@ -252,6 +253,7 @@ export async function fetchCSSFromGoogleFonts(
     cssResponse = mockedResponse
   } else {
     const res = await fetch(url, {
+      agent: getProxyAgent(),
       headers: {
         // The file format is based off of the user agent, make sure woff2 files are fetched
         'user-agent':
@@ -283,7 +285,9 @@ export async function fetchFontFile(url: string) {
     return Buffer.from(url)
   }
 
-  const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())
+  const arrayBuffer = await fetch(url, { agent: getProxyAgent() }).then(
+    (r: any) => r.arrayBuffer()
+  )
   return Buffer.from(arrayBuffer)
 }
 
