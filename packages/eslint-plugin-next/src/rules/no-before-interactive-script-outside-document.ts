@@ -25,8 +25,12 @@ export = defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        // This eslint rule should work just in pages
-        if (!context.getFilename().startsWith('pages/')) {
+        // This rule shouldn't fire in `app/`
+        if (
+          ['app/', `src/app/`].some((dir) =>
+            context.getFilename().startsWith(dir)
+          )
+        ) {
           return
         }
 
