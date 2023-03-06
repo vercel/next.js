@@ -37,7 +37,12 @@ export async function findPageFile(
     await Promise.all(
       pagePaths.map(async (path) => {
         const filePath = join(pagesDir, path)
-        return (await fileExists(filePath)) ? path : null
+        try {
+          return (await fileExists(filePath)) ? path : null
+        } catch (err: any) {
+          if (!err?.code?.includes('ENOTDIR')) throw err
+        }
+        return null
       })
     )
   ).filter(nonNullable)
@@ -67,6 +72,6 @@ export async function findPageFile(
 // The filename should start with 'page' and end with one of the allowed extensions
 export function isLayoutsLeafPage(filePath: string, pageExtensions: string[]) {
   return new RegExp(
-    `(^page|[\\\\/]page)\\.(?:${pageExtensions.join('|')})$`
+    `(^page|[\\\\/]page|^route|[\\\\/]route)\\.(?:${pageExtensions.join('|')})$`
   ).test(filePath)
 }

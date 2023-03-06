@@ -1,8 +1,8 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
+import type { TwitterAppDescriptor } from '../types/twitter-types'
 
 import React from 'react'
-import { ExtendMeta, Meta, MultiMeta } from './meta'
-import { TwitterAppDescriptor } from '../types/twitter-types'
+import { Meta, MultiMeta } from './meta'
 
 export function OpenGraphMetadata({
   openGraph,
@@ -233,8 +233,11 @@ function TwitterAppItem({
   return (
     <>
       <Meta name={`twitter:app:name:${type}`} content={app.name} />
-      <ExtendMeta namePrefix="twitter:app:id" content={app.id} />
-      <ExtendMeta namePrefix="twitter:app:url" content={app.url} />
+      <Meta name={`twitter:app:id:${type}`} content={app.id[type]} />
+      <Meta
+        name={`twitter:app:url:${type}`}
+        content={app.url?.[type]?.toString()}
+      />
     </>
   )
 }
@@ -257,16 +260,16 @@ export function TwitterMetadata({
       <Meta name="twitter:title" content={twitter.title?.absolute} />
       <Meta name="twitter:description" content={twitter.description} />
       {twitter.images
-        ? twitter.images.map((image) => (
-            <>
+        ? twitter.images.map((image, index) => (
+            <React.Fragment key={index}>
               <Meta name="twitter:image" content={image.url} />
               <Meta name="twitter:image:alt" content={image.alt} />
-            </>
+            </React.Fragment>
           ))
         : null}
       {card === 'player'
-        ? twitter.players.map((player) => (
-            <>
+        ? twitter.players.map((player, index) => (
+            <React.Fragment key={index}>
               <Meta
                 name="twitter:player"
                 content={player.playerUrl.toString()}
@@ -277,7 +280,7 @@ export function TwitterMetadata({
               />
               <Meta name="twitter:player:width" content={player.width} />
               <Meta name="twitter:player:height" content={player.height} />
-            </>
+            </React.Fragment>
           ))
         : null}
       {card === 'app' ? (

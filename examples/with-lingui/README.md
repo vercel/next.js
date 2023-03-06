@@ -1,6 +1,6 @@
 # With Lingui example
 
-This example shows a way to use [lingui.js](https://lingui.js.org) with next.js.
+This example shows a way to use [Lingui](https://lingui.dev) with next.js.
 
 It adds a webpack loader for the messages to avoid having to manually compile while developing as well as adds the compile step to the `next build` script for production builds.
 
@@ -32,7 +32,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ### How to add more translated strings
 
-To add new strings use the [react component](https://lingui.js.org/tutorials/react-patterns.html#common-i18n-patterns-in-react) `<Trans />` and then run `yarn export` to export the messages into `locale/{language}/messages.po`.
+To add new strings use the [react component](https://lingui.dev/tutorials/react-patterns) `<Trans />` and then run `yarn export` to export the messages into `locale/{language}/messages.po`.
 
 ### How to add another language
 

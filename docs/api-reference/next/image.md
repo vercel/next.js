@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                                                                                                                                                  |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v13.2.0` | `contentDispositionType` configuration added.                                                                                                                                                                            |
 | `v13.0.6` | `ref` prop added.                                                                                                                                                                                                        |
 | `v13.0.0` | `<span>` wrapper removed. `layout`, `objectFit`, `objectPosition`, `lazyBoundary`, `lazyRoot` props removed. `alt` is required. `onLoadingComplete` receives reference to `img` element. Built-in loader config removed. |
 | `v12.3.0` | `remotePatterns` and `unoptimized` configuration is stable.                                                                                                                                                              |
@@ -269,7 +270,15 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following configuration:
+```js
+import Image from 'next/image'
+
+const UnoptimizedImage = (props) => {
+  return <Image {...props} unoptimized />
+}
+```
+
+Since Next.js 12.3.0, this prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
@@ -374,6 +383,10 @@ export default function myImageLoader({ src, width, quality }) {
 ```
 
 Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
+
+Examples:
+
+- [Custom Image Loader Configuration](/docs/api-reference/next.config.js/custom-image-loader-config.md#example-loader-configuration)
 
 ## Advanced
 
@@ -495,16 +508,19 @@ module.exports = {
 
 The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/advanced-features/security-headers.md).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` and `contentSecurityPolicy` inside your `next.config.js`:
+If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js
 module.exports = {
   images: {
     dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 ```
+
+In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
 
 ### Animated Images
 

@@ -22,6 +22,7 @@ import entryConfig from './rules/config'
 import serverLayer from './rules/server'
 import entryDefault from './rules/entry'
 import clientBoundary from './rules/client-boundary'
+import metadata from './rules/metadata'
 
 export function createTSPlugin(modules: {
   typescript: typeof import('typescript/lib/tsserverlibrary')
@@ -59,14 +60,22 @@ export function createTSPlugin(modules: {
       }
       if (!isAppEntryFile(fileName)) return prior
 
-      // Remove specified entries from completion list if it's a server entry.
+      // If it's a server entry.
       if (!getIsClientEntry(fileName)) {
+        // Remove specified entries from completion list
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
+
+        // Provide autocompletion for metadata fields
+        prior = metadata.filterCompletionsAtPosition(
+          fileName,
+          position,
+          options,
+          prior
+        )
       }
 
       // Add auto completions for export configs.
-      const entries = entryConfig.getCompletionsAtPosition(fileName, position)
-      prior.entries = [...prior.entries, ...entries]
+      entryConfig.addCompletionsAtPosition(fileName, position, prior)
 
       const source = getSource(fileName)
       if (!source) return prior
@@ -106,6 +115,17 @@ export function createTSPlugin(modules: {
       )
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
+      const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
+        fileName,
+        position,
+        entryName,
+        formatOptions,
+        source,
+        preferences,
+        data
+      )
+      if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
+
       return info.languageService.getCompletionEntryDetails(
         fileName,
         position,
@@ -137,6 +157,9 @@ export function createTSPlugin(modules: {
         ) {
           return
         }
+
+        const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
+        if (metadataInfo) return metadataInfo
       }
 
       const overriden = entryConfig.getQuickInfoAtPosition(fileName, position)
@@ -168,6 +191,7 @@ export function createTSPlugin(modules: {
 
       ts.forEachChild(source!, (node) => {
         if (ts.isImportDeclaration(node)) {
+          // import ...
           if (isAppEntry) {
             if (!isClientEntry) {
               // Check if it has valid imports in the server layer
@@ -191,7 +215,16 @@ export function createTSPlugin(modules: {
                 source,
                 node
               )
-            prior.push(...diagnostics)
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+            prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
           if (isClientEntry) {
@@ -226,6 +259,19 @@ export function createTSPlugin(modules: {
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
           // export function ...
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
+
           if (isClientEntry) {
             prior.push(
               ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
@@ -234,10 +280,37 @@ export function createTSPlugin(modules: {
               )
             )
           }
+        } else if (ts.isExportDeclaration(node)) {
+          // export { ... }
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportDeclarationInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportDeclaration(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
         }
       })
 
       return prior
+    }
+
+    // Get definition and link for specific node
+    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
+      if (isAppEntryFile(fileName) && !getIsClientEntry(fileName)) {
+        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
+          fileName,
+          position
+        )
+        if (metadataDefinition) return metadataDefinition
+      }
+
+      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
     }
 
     return proxy

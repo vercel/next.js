@@ -25,7 +25,6 @@ coverage
 # test output
 test/**/out*
 test/**/next-env.d.ts
-test/**/tsconfig.json
 .DS_Store
 /e2e-tests
 test/tmp/**

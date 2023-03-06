@@ -1,6 +1,10 @@
 import fs from 'fs'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
+// @ts-ignore
+import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
+// @ts-ignore
+import * as Log from 'next/dist/build/output/log'
 import { nextFontError } from '../utils'
 import fontData from './font-data.json'
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
@@ -29,22 +33,22 @@ export function validateData(
     weight,
     style,
     preload = true,
-    // If preload is disabled set display to 'swap' by default.
-    // If display is 'optional' and we don't preload, we will never fetch the font in time to display it, not even in dev.
-    display = preload ? 'optional' : 'swap',
+    display = 'swap',
     axes,
     fallback,
     adjustFontFallback = true,
     variable,
     subsets: callSubsets,
   } = data[0] || ({} as any)
+  // Get the subsets defined for the font from either next.config.js or the function call. If both are present, pick the function call subsets.
   const subsets = callSubsets ?? config?.subsets ?? []
 
   if (functionName === '') {
-    nextFontError(`@next/font/google has no default export`)
+    nextFontError(`next/font/google has no default export`)
   }
 
   const fontFamily = functionName.replace(/_/g, ' ')
+  // Get the Google font metadata, we'll use this to validate the font arguments and to print better error messages
   const fontFamilyData = (fontData as any)[fontFamily]
   if (!fontFamilyData) {
     nextFontError(`Unknown font \`${fontFamily}\``)
@@ -52,9 +56,8 @@ export function validateData(
 
   const availableSubsets = fontFamilyData.subsets
   if (availableSubsets.length === 0) {
-    // If the font doesn't have any preloaded subsets, disable preload and set display to 'swap'
+    // If the font doesn't have any preloadeable subsets, disable preload
     preload = false
-    display = 'swap'
   } else {
     if (preload && !callSubsets && !config?.subsets) {
       nextFontError(
@@ -75,6 +78,7 @@ export function validateData(
   const fontWeights = fontFamilyData.weights
   const fontStyles = fontFamilyData.styles
 
+  // Get the unique weights and styles from the function call
   const weights = !weight
     ? []
     : [...new Set(Array.isArray(weight) ? weight : [weight])]
@@ -113,8 +117,10 @@ export function validateData(
 
   if (styles.length === 0) {
     if (fontStyles.length === 1) {
+      // Handle default style for fonts that only have italic
       styles.push(fontStyles[0])
     } else {
+      // Otherwise set default style to normal
       styles.push('normal')
     }
   }
@@ -155,6 +161,9 @@ export function validateData(
   }
 }
 
+/**
+ * Generate the Google Fonts URL given the requested weight(s), style(s) and additional variable axes
+ */
 export function getUrl(
   fontFamily: string,
   axes: {
@@ -167,14 +176,14 @@ export function getUrl(
   // Variants are all combinations of weight and style, each variant will result in a separate font file
   const variants: Array<[string, string][]> = []
   if (axes.wght) {
-    for (const wgth of axes.wght) {
+    for (const wght of axes.wght) {
       if (!axes.ital) {
-        variants.push([['wght', wgth], ...(axes.variableAxes ?? [])])
+        variants.push([['wght', wght], ...(axes.variableAxes ?? [])])
       } else {
         for (const ital of axes.ital) {
           variants.push([
             ['ital', ital],
-            ['wght', wgth],
+            ['wght', wght],
             ...(axes.variableAxes ?? []),
           ])
         }
@@ -216,7 +225,18 @@ export function getUrl(
   return url
 }
 
-export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
+/**
+ * Fetches the CSS containing the @font-face declarations from Google Fonts.
+ * The fetch has a user agent header with a modern browser to ensure we'll get .woff2 files.
+ *
+ * The env variable NEXT_FONT_GOOGLE_MOCKED_RESPONSES may be set containing a path to mocked data.
+ * It's used to defined mocked data to avoid hitting the Google Fonts API during tests.
+ */
+export async function fetchCSSFromGoogleFonts(
+  url: string,
+  fontFamily: string
+): Promise<string> {
+  // Check if mocked responses are defined, if so use them instead of fetching from Google Fonts
   let mockedResponse: string | undefined
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
     const mockFile = require(process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES)
@@ -226,8 +246,9 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
     }
   }
 
-  let cssResponse
+  let cssResponse: string
   if (mockedResponse) {
+    // Just use the mocked CSS if it's set
     cssResponse = mockedResponse
   } else {
     const res = await fetch(url, {
@@ -248,17 +269,27 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
   return cssResponse
 }
 
+/**
+ * Fetch the url and return a buffer with the font file.
+ */
 export async function fetchFontFile(url: string) {
+  // Check if we're using mocked data
   if (process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES) {
+    // If it's an absolute path, read the file from the filesystem
     if (url.startsWith('/')) {
       return fs.readFileSync(url)
     }
+    // Otherwise just return a unique buffer
     return Buffer.from(url)
   }
+
   const arrayBuffer = await fetch(url).then((r: any) => r.arrayBuffer())
   return Buffer.from(arrayBuffer)
 }
 
+/**
+ * Validates and gets the data for each font axis required to generate the Google Fonts URL.
+ */
 export function getFontAxes(
   fontFamily: string,
   weights: string[],
@@ -269,19 +300,25 @@ export function getFontAxes(
   ital?: string[]
   variableAxes?: [string, string][]
 } {
+  // Get all the available axes for the current font from the metadata file
   const allAxes: Array<{ tag: string; min: number; max: number }> = (
     fontData as any
   )[fontFamily].axes
+
   const hasItalic = styles.includes('italic')
   const hasNormal = styles.includes('normal')
+  // Make sure the order is correct, otherwise Google Fonts will return an error
+  // If only normal is set, we can skip returning the ital axis as normal is the default
   const ital = hasItalic ? [...(hasNormal ? ['0'] : []), '1'] : undefined
 
   // Weights will always contain one element if it's a variable font
   if (weights[0] === 'variable') {
     if (selectedVariableAxes) {
+      // The axes other than weight and style that can be defined for the current variable font
       const defineAbleAxes: string[] = allAxes
         .map(({ tag }) => tag)
         .filter((tag) => tag !== 'wght')
+
       if (defineAbleAxes.length === 0) {
         nextFontError(`Font \`${fontFamily}\` has no definable \`axes\``)
       }
@@ -307,6 +344,7 @@ export function getFontAxes(
     let variableAxes: [string, string][] | undefined
     for (const { tag, min, max } of allAxes) {
       if (tag === 'wght') {
+        // In variable fonts the weight is a range
         weightAxis = `${min}..${max}`
       } else if (selectedVariableAxes?.includes(tag)) {
         if (!variableAxes) {
@@ -327,4 +365,68 @@ export function getFontAxes(
       wght: weights,
     }
   }
+}
+
+/**
+ * Get precalculated fallback font metrics for the Google Fonts family.
+ *
+ * TODO:
+ * We might want to calculate these values with fontkit instead (like in next/font/local).
+ * That way we don't have to update the precalculated values every time a new font is added to Google Fonts.
+ */
+export function getFallbackFontOverrideMetrics(fontFamily: string) {
+  try {
+    const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
+      calculateSizeAdjustValues(
+        require('next/dist/server/google-font-metrics.json')[fontFamily]
+      )
+    return {
+      fallbackFont,
+      ascentOverride: `${ascent}%`,
+      descentOverride: `${descent}%`,
+      lineGapOverride: `${lineGap}%`,
+      sizeAdjust: `${sizeAdjust}%`,
+    }
+  } catch {
+    Log.error(`Failed to find font override values for font \`${fontFamily}\``)
+  }
+}
+
+/**
+ * Find all font files in the CSS response and determine which files should be preloaded.
+ * In Google Fonts responses, the @font-face's subset is above it in a comment.
+ * Walk through the CSS from top to bottom, keeping track of the current subset.
+ */
+export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
+  // Find font files to download
+  const fontFiles: Array<{
+    googleFontFileUrl: string
+    preloadFontFile: boolean
+  }> = []
+
+  // Keep track of the current subset
+  let currentSubset = ''
+  for (const line of css.split('\n')) {
+    const newSubset = /\/\* (.+?) \*\//.exec(line)?.[1]
+    if (newSubset) {
+      // Found new subset in a comment above the next @font-face declaration
+      currentSubset = newSubset
+    } else {
+      const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
+      if (
+        googleFontFileUrl &&
+        !fontFiles.some(
+          (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
+        )
+      ) {
+        // Found the font file in the @font-face declaration.
+        fontFiles.push({
+          googleFontFileUrl,
+          preloadFontFile: !!subsetsToPreload?.includes(currentSubset),
+        })
+      }
+    }
+  }
+
+  return fontFiles
 }

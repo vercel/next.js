@@ -12,8 +12,10 @@ export interface Mutable {
   mpaNavigation?: boolean
   previousTree?: FlightRouterState
   patchedTree?: FlightRouterState
-  canonicalUrlOverride?: string
-  useExistingCache?: true
+  canonicalUrl?: string
+  applyFocusAndScroll?: boolean
+  pendingPush?: boolean
+  cache?: CacheNode
 }
 
 /**
@@ -25,6 +27,7 @@ export interface RefreshAction {
   type: typeof ACTION_REFRESH
   cache: CacheNode
   mutable: Mutable
+  origin: Location['origin']
 }
 
 /**
@@ -65,6 +68,8 @@ export interface RefreshAction {
 export interface NavigateAction {
   type: typeof ACTION_NAVIGATE
   url: URL
+  isExternalUrl: boolean
+  locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
   cache: CacheNode

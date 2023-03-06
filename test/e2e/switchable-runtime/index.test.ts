@@ -194,7 +194,9 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                matchers: [{ regexp: '^/api/hello$' }],
+                matchers: [
+                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
+                ],
                 wasm: [],
               },
               '/api/edge': {
@@ -205,7 +207,9 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                matchers: [{ regexp: '^/api/edge$' }],
+                matchers: [
+                  { regexp: '^/api/edge$', originalSource: '/api/edge' },
+                ],
                 wasm: [],
               },
             },
@@ -626,7 +630,9 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/hello',
                 page: '/api/hello',
-                matchers: [{ regexp: '^/api/hello$' }],
+                matchers: [
+                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
+                ],
                 wasm: [],
               },
               '/api/edge': {
@@ -637,7 +643,9 @@ describe('Switchable runtime', () => {
                 ],
                 name: 'pages/api/edge',
                 page: '/api/edge',
-                matchers: [{ regexp: '^/api/edge$' }],
+                matchers: [
+                  { regexp: '^/api/edge$', originalSource: '/api/edge' },
+                ],
                 wasm: [],
               },
             },

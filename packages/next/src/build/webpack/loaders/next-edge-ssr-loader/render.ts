@@ -1,4 +1,4 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
@@ -28,9 +28,11 @@ export function getRender({
   serverComponentManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
+  serverActionsManifest,
   config,
   buildId,
   fontLoaderManifest,
+  incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -47,10 +49,12 @@ export function getRender({
   subresourceIntegrityManifest?: Record<string, string>
   serverComponentManifest: any
   serverCSSManifest: any
+  serverActionsManifest: any
   appServerMod: any
-  config: NextConfig
+  config: NextConfigComplete
   buildId: string
   fontLoaderManifest: FontLoaderManifest
+  incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
@@ -77,11 +81,14 @@ export function getRender({
         disableOptimizedLoading: true,
         serverComponentManifest,
         serverCSSManifest,
+        serverActionsManifest,
       },
       appRenderToHTML,
       pagesRenderToHTML,
+      incrementalCacheHandler,
       loadComponent: async (pathname) => {
         if (isAppPath) return null
+
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -91,6 +98,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            isAppPath: !!pageMod.__next_app_webpack_require__,
             pathname,
           }
         }

@@ -1,5 +1,5 @@
-import { check } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { sandbox } from './helpers'
 
@@ -37,6 +37,68 @@ createNextDescribe(
       await cleanup()
     })
 
+    it('should throw an error when metadata export is used in client components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/client-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/client-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+
+      // Add `metadata` error
+      let uncomment = content.replace(
+        '// export const metadata',
+        'export const metadata'
+      )
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
+      )
+
+      // Restore file
+      await session.patch(pageFile, content)
+      expect(await session.hasRedbox(false)).toBe(false)
+
+      // Add `generateMetadata` error
+      uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
+      )
+
+      await cleanup()
+    })
+
+    it('should throw an error when metadata exports are used together in server components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/server-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+      const uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
+      )
+
+      await cleanup()
+    })
+
     it('should throw an error when getStaticProps is used', async () => {
       const { session, cleanup } = await sandbox(
         next,
@@ -56,21 +118,6 @@ createNextDescribe(
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
         '"getStaticProps" is not supported in app/'
-      )
-
-      await cleanup()
-    })
-
-    it('should error for styled-jsx imports on server side', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/styled-jsx'
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
-        'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
       )
 
       await cleanup()
@@ -224,6 +271,7 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -239,17 +287,21 @@ createNextDescribe(
         app/server-with-errors/error-file/error.js"
       `)
 
-      // Add "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        '"use client"'
+      await cleanup()
+    })
+
+    it('should throw an error when error file is a server component with empty error file', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/error-file'
       )
-      expect(await session.hasRedbox(false)).toBe(false)
 
       // Empty file
       await session.patch('app/server-with-errors/error-file/error.js', '')
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -296,6 +348,25 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/editor-links/component.js
+        ReactServerComponentsError:
+
+        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+           ,-[1:1]
+         1 | import { useState } from 'react'
+           :          ^^^^^^^^
+         2 | export default function Component() {
+         3 |   return <div>Component</div>
+         4 | }
+           \`----
+
+        Maybe one of these should be marked as a client entry with \\"use client\\":
+        app/editor-links/component.js
+        app/editor-links/page.js"
+      `)
+
       await browser.waitForElementByCss('[data-with-open-in-editor-link]')
       const collapsedFrameworkGroups = await browser.elementsByCss(
         '[data-with-open-in-editor-link]'
@@ -305,6 +376,40 @@ createNextDescribe(
       }
 
       await check(() => editorRequestsCount, /2/)
+
+      await cleanup()
+    })
+
+    it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+      const pagePath = 'app/metadata/mutate/page.js'
+      const content = `export default function page(props) {
+        return <p>mutate</p>
+      }
+
+      export async function generateMetadata(props, parent) {
+        const parentMetadata = await parent
+        parentMetadata.x = 1
+        return {
+          ...parentMetadata,
+        }
+      }`
+
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/metadata/mutate'
+      )
+
+      await session.patch(pagePath, content)
+
+      await check(
+        async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
+        /success/
+      )
+
+      expect(await session.getRedboxDescription()).toContain(
+        'Cannot add property x, object is not extensible'
+      )
 
       await cleanup()
     })

@@ -157,8 +157,7 @@ Error:
    \`----
 
 Caused by:
-    0: error was recoverable, but proceeding would result in wrong codegen
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js"
@@ -177,8 +176,7 @@ Error:
    \`----
 
 Caused by:
-    0: error was recoverable, but proceeding would result in wrong codegen
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js"

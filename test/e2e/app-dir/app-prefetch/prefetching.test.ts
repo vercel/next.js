@@ -74,5 +74,41 @@ createNextDescribe(
         requests.filter((request) => request === '/static-page').length
       ).toBe(1)
     })
+
+    it('should not prefetch for a bot user agent', async () => {
+      const browser = await next.browser('/404')
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+      await browser.eval(
+        `location.href = "/?useragent=${encodeURIComponent(
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        )}"`
+      )
+
+      await browser.elementByCss('#to-static-page').moveTo()
+
+      // check five times to ensure prefetch didn't occur
+      for (let i = 0; i < 5; i++) {
+        await waitFor(500)
+        expect(
+          requests.filter((request) => request === '/static-page').length
+        ).toBe(0)
+      }
+    })
+
+    it('should navigate when prefetch is false', async () => {
+      const browser = await next.browser('/prefetch-false/initial')
+      await browser
+        .elementByCss('#to-prefetch-false-result')
+        .click()
+        .waitForElementByCss('#prefetch-false-page-result')
+
+      expect(
+        await browser.elementByCss('#prefetch-false-page-result').text()
+      ).toBe('Result page')
+    })
   }
 )

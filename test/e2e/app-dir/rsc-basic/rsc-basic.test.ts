@@ -35,6 +35,7 @@ describe('app dir - rsc basics', () => {
         'styled-components': '6.0.0-beta.5',
         react: 'latest',
         'react-dom': 'latest',
+        'server-only': 'latest',
       },
       packageJson: {
         scripts: {
@@ -102,7 +103,7 @@ describe('app dir - rsc basics', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
-    // should have default head when there's no head.js provided
+    // should have default metadata when there's nothing additional provided
     expect(homeHTML).toContain('<meta charSet="utf-8"/>')
     expect(homeHTML).toContain(
       '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
@@ -430,6 +431,11 @@ describe('app dir - rsc basics', () => {
     })
   })
 
+  it('should not apply rsc syntax checks in pages/api', async () => {
+    const res = await next.fetch('/api/import-test')
+    expect(await res.text()).toBe('Hello from import-test.js')
+  })
+
   // disable this flaky test
   it.skip('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
@@ -460,7 +466,7 @@ describe('app dir - rsc basics', () => {
       const files = [
         'middleware-build-manifest.js',
         'middleware-manifest.json',
-        'flight-manifest.json',
+        'client-reference-manifest.json',
       ]
 
       files.forEach((file) => {

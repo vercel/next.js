@@ -1,5 +1,5 @@
 import { Html, Head, Main, NextScript } from 'next/document'
-import { Abel } from '@next/font/google'
+import { Abel } from 'next/font/google'
 
 // eslint-disable-next-line no-unused-vars
 const abel = Abel({ weight: '400' })

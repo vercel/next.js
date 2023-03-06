@@ -70,7 +70,7 @@ const cwd = process.cwd()
         } finally {
           publishSema.release()
         }
-        // lerna publish in next step sill fail if git status is not clean
+        // lerna publish in next step will fail if git status is not clean
         await execa(
           `git`,
           [

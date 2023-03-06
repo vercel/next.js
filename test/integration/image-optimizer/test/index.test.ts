@@ -11,7 +11,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
-import { cleanImagesDir, expectWidth, fsToJson, runTests } from './util'
+import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
 const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
@@ -43,7 +43,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.domains exceeds length of 50, received length (51), please reduce the length of the array to continue'
+        'The value at .images.domains must have 50 or fewer items but it has 51.'
       )
     })
 
@@ -70,7 +70,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.remotePatterns exceeds length of 50, received length (51), please reduce the length of the array to continue'
+        'The value at .images.remotePatterns must have 50 or fewer items but it has 51.'
       )
     })
 
@@ -95,7 +95,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Invalid images.remotePatterns values:\n{"hostname":"example.com","foo":"bar"}'
+        'The value at .images.remotePatterns[0] has an unexpected property, foo, which is not in the list of allowed properties (hostname, pathname, port, protocol).'
       )
     })
 
@@ -120,7 +120,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Invalid images.remotePatterns values:\n{"protocol":"https"}'
+        "The value at .images.remotePatterns[0] is missing the required field 'hostname'."
       )
     })
 
@@ -145,7 +145,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.deviceSizes exceeds length of 25, received length (51), please reduce the length of the array to continue'
+        'The value at .images.deviceSizes must have 25 or fewer items but it has 51.'
       )
     })
 
@@ -170,7 +170,10 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+        'The value at .images.deviceSizes[0] must be equal to or greater than 1.'
+      )
+      expect(stderr).toContain(
+        'The value at .images.deviceSizes[1] must be equal to or less than 10000.'
       )
     })
 
@@ -195,7 +198,10 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+        'The value at .images.imageSizes[0] must be equal to or greater than 1.'
+      )
+      expect(stderr).toContain(
+        'The value at .images.imageSizes[3] must be equal to or less than 10000.'
       )
     })
 
@@ -220,7 +226,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.loader should be one of (default, imgix, cloudinary, akamai, custom), received invalid value (notreal)'
+        'The value at .images.loader must be one of: "default", "imgix", "cloudinary", "akamai", or "custom".'
       )
     })
 
@@ -245,7 +251,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `Specified images.formats should be an Array of mime type strings, received invalid values (jpeg)`
+        `The value at .images.formats[1] must be one of: "image/avif" or "image/webp".`
       )
     })
 
@@ -345,7 +351,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `Specified images.dangerouslyAllowSVG should be a boolean`
+        `The value at .images.dangerouslyAllowSVG must be a boolean but it was a string.`
       )
     })
 
@@ -370,60 +376,84 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `Specified images.contentSecurityPolicy should be a string`
+        `The value at .images.contentSecurityPolicy must be a string but it was a number.`
       )
     })
-  })
 
-  // domains for testing
-  const domains = [
-    'localhost',
-    'example.com',
-    'assets.vercel.com',
-    'image-optimization-test.vercel.app',
-  ]
+    it('should error when images.contentDispositionType is not valid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            contentDispositionType: 'nope',
+          },
+        })
+      )
+      let stderr = ''
 
-  // Reduce to 5 seconds so tests dont dont need to
-  // wait too long before testing stale responses.
-  const minimumCacheTTL = 5
-
-  describe('Server support for minimumCacheTTL in next.config.js', () => {
-    const size = 96 // defaults defined in server/config.ts
-    const dangerouslyAllowSVG = true
-    const ctx: any = {
-      w: size,
-      isDev: false,
-      domains,
-      minimumCacheTTL,
-      dangerouslyAllowSVG,
-      imagesDir,
-      appDir,
-    }
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: {
-          domains,
-          minimumCacheTTL,
-          dangerouslyAllowSVG,
-        },
-      })
-      ctx.nextOutput = ''
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(appDir)
-      await cleanImagesDir({ imagesDir })
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort, {
+      app = await launchApp(appDir, await findPort(), {
         onStderr(msg) {
-          ctx.nextOutput += msg
+          stderr += msg || ''
         },
       })
-    })
-    afterAll(async () => {
-      await killApp(ctx.app)
-      nextConfig.restore()
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `The value at .images.contentDispositionType must be one of: "inline" or "attachment".`
+      )
     })
 
-    runTests(ctx)
+    it('should error when images.minimumCacheTTL is not valid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            minimumCacheTTL: -1,
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `The value at .images.minimumCacheTTL must be equal to or greater than 0.`
+      )
+    })
+
+    it('should error when images.unoptimized is not a boolean', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            unoptimized: 'yup',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `The value at .images.unoptimized must be a boolean but it was a string.`
+      )
+    })
   })
 
   describe('Server support for trailingSlash in next.config.js', () => {

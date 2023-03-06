@@ -19,17 +19,19 @@ export function fillLazyItemsTillLeafWithHead(
     const cacheKey = Array.isArray(segmentForParallelRoute)
       ? segmentForParallelRoute[1]
       : segmentForParallelRoute
+
     if (existingCache) {
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {
         let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
+        const existingCacheNode = parallelRouteCacheNode.get(cacheKey)
         parallelRouteCacheNode.delete(cacheKey)
         const newCacheNode: CacheNode = {
           status: CacheStates.LAZY_INITIALIZED,
           data: null,
           subTreeData: null,
-          parallelRoutes: new Map(),
+          parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
         }
         parallelRouteCacheNode.set(cacheKey, newCacheNode)
         fillLazyItemsTillLeafWithHead(
@@ -50,7 +52,14 @@ export function fillLazyItemsTillLeafWithHead(
       subTreeData: null,
       parallelRoutes: new Map(),
     }
-    newCache.parallelRoutes.set(key, new Map([[cacheKey, newCacheNode]]))
+
+    const existingParallelRoutes = newCache.parallelRoutes.get(key)
+    if (existingParallelRoutes) {
+      existingParallelRoutes.set(cacheKey, newCacheNode)
+    } else {
+      newCache.parallelRoutes.set(key, new Map([[cacheKey, newCacheNode]]))
+    }
+
     fillLazyItemsTillLeafWithHead(
       newCacheNode,
       undefined,

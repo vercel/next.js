@@ -186,7 +186,6 @@ export function runNextCommand(argv, options = {}) {
     ...process.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
-    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
     ...options.env,
   }
 
@@ -670,16 +669,27 @@ export async function hasRedbox(browser, expected = true) {
 
 export async function getRedboxHeader(browser) {
   return retry(
-    () =>
-      evaluate(browser, () => {
+    () => {
+      if (shouldRunTurboDevTest()) {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+            p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
           )
         const root = portal.shadowRoot
-        return root.querySelector('[data-nextjs-dialog-header]').innerText
-      }),
+        return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+      } else {
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-dialog-header]').innerText
+        })
+      }
+    },
     10000,
     500,
     'getRedboxHeader'
@@ -769,22 +779,13 @@ export function readNextBuildClientPageFile(appDir, page) {
 export function getPagesManifest(dir) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return readJson(serverFile)
-  }
-  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+  return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir, content) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return writeFile(serverFile, content)
-  }
-  return writeFile(
-    path.join(dir, '.next/serverless/pages-manifest.json'),
-    content
-  )
+  return writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir, page) {

@@ -48,15 +48,15 @@ const clientBoundary = {
 
         if (typeDeclarationNode) {
           if (
-            // Show errors for not serializable props.
+            // Show warning for not serializable props.
             ts.isFunctionOrConstructorTypeNode(typeDeclarationNode) ||
             ts.isClassDeclaration(typeDeclarationNode)
           ) {
             diagnostics.push({
               file: source,
-              category: ts.DiagnosticCategory.Error,
+              category: ts.DiagnosticCategory.Warning,
               code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-              messageText: `All props must be serializable for client components in the entry file, "${propName}" is invalid.`,
+              messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
               start: prop.getStart(),
               length: prop.getWidth(),
             })

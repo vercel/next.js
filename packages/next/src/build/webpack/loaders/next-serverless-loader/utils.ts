@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Rewrite } from '../../../../lib/load-custom-routes'
 import type { BuildManifest } from '../../../../server/get-page-files'
-import type { RouteMatch } from '../../../../shared/lib/router/utils/route-matcher'
+import type { RouteMatchFn } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../../server/config'
 import type {
   GetServerSideProps,
@@ -10,9 +10,9 @@ import type {
 } from '../../../../../types'
 import type { BaseNextRequest } from '../../../../server/base-http'
 import type { __ApiPreviewProps } from '../../../../server/api-utils'
+import type { ParsedUrlQuery } from 'querystring'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
@@ -144,7 +144,7 @@ export function getUtils({
   trailingSlash?: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
-  let dynamicRouteMatcher: RouteMatch | undefined
+  let dynamicRouteMatcher: RouteMatchFn | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
@@ -292,7 +292,7 @@ export function getUtils({
           re: {
             // Simulate a RegExp match from the \`req.url\` input
             exec: (str: string) => {
-              const obj = parseQs(str)
+              const obj = Object.fromEntries(new URLSearchParams(str))
               const matchesHasLocale =
                 i18n && detectedLocale && obj['1'] === detectedLocale
 

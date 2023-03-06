@@ -24,7 +24,7 @@ const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId: any) => {
-  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+  return encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
 }
 
 // Ignore the module ID transform in client.
@@ -64,6 +64,16 @@ const appElement: HTMLElement | Document | null = document
 const getCacheKey = () => {
   const { pathname, search } = location
   return pathname + search
+}
+
+async function sha1(message: string) {
+  const arrayBuffer = await crypto.subtle.digest(
+    'SHA-1',
+    new TextEncoder().encode(message)
+  )
+  const data = Array.from(new Uint8Array(arrayBuffer))
+  const hex = data.map((b) => b.toString(16).padStart(2, '0')).join('')
+  return hex
 }
 
 const encoder = new TextEncoder()
@@ -150,7 +160,32 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
     },
   })
 
-  const newResponse = createFromReadableStream(readable)
+  const newResponse = createFromReadableStream(readable, {
+    async callServer(
+      metadata: {
+        id: string
+        name: string
+      },
+      args: any[]
+    ) {
+      const actionId = await sha1(metadata.id + ':' + metadata.name)
+
+      // Fetching the current url with the action header.
+      // TODO: Refactor this to look up from a manifest.
+      const res = await fetch('', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Next-Action': actionId,
+        },
+        body: JSON.stringify({
+          bound: args,
+        }),
+      })
+
+      return res.json()
+    },
+  })
 
   rscCache.set(cacheKey, newResponse)
   return newResponse

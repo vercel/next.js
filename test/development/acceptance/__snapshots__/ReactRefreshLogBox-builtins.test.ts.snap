@@ -32,19 +32,19 @@ Module not found: Can't resolve 'b'
   3 |         return (
   4 |           <div>
 
-Import trace for requested module:
-./pages/index.js
+https://nextjs.org/docs/messages/module-not-found
 
-https://nextjs.org/docs/messages/module-not-found"
+Import trace for requested module:
+./pages/index.js"
 `;
 
 exports[`ReactRefreshLogBox default Node.js builtins 1`] = `
 "./node_modules/my-package/index.js:2:0
 Module not found: Can't resolve 'dns'
 
+https://nextjs.org/docs/messages/module-not-found
+
 Import trace for requested module:
 ./index.js
-./pages/index.js
-
-https://nextjs.org/docs/messages/module-not-found"
+./pages/index.js"
 `;

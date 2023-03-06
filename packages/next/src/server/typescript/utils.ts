@@ -28,6 +28,10 @@ export function getTs() {
   return ts
 }
 
+export function getInfo() {
+  return info
+}
+
 export function getTypeChecker() {
   return info.languageService.getProgram()?.getTypeChecker()
 }
@@ -88,7 +92,7 @@ export function getIsClientEntry(
   fileName: string,
   throwOnInvalidDirective?: boolean
 ) {
-  const source = info.languageService.getProgram()?.getSourceFile(fileName)
+  const source = getSource(fileName)
   if (source) {
     let isClientEntry = false
     let isDirective = true

@@ -23,6 +23,7 @@ import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
 import { hasMatch } from '../shared/lib/match-remote-pattern'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -403,7 +404,7 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone'
+  nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   let optimizedBuffer = buffer
   if (sharp) {
@@ -448,7 +449,7 @@ export async function optimizeImage({
     optimizedBuffer = await transformer.toBuffer()
     // End sharp transformation logic
   } else {
-    if (showSharpMissingWarning && nextConfigOutput) {
+    if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
       // TODO: should we ensure squoosh also works even though we don't
       // recommend it be used in production and this is a production feature
       console.error(
@@ -573,17 +574,21 @@ export async function imageOptimizer(
     }
   }
 
-  if (upstreamType === SVG && !nextConfig.images.dangerouslyAllowSVG) {
-    console.error(
-      `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-    )
-    throw new ImageError(
-      400,
-      '"url" parameter is valid but image type is not allowed'
-    )
-  }
-
   if (upstreamType) {
+    upstreamType = upstreamType.toLowerCase().trim()
+
+    if (
+      upstreamType.startsWith('image/svg') &&
+      !nextConfig.images.dangerouslyAllowSVG
+    ) {
+      console.error(
+        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+      )
+      throw new ImageError(
+        400,
+        '"url" parameter is valid but image type is not allowed'
+      )
+    }
     const vector = VECTOR_TYPES.includes(upstreamType)
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
@@ -591,7 +596,7 @@ export async function imageOptimizer(
     if (vector || animate) {
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
-    if (!upstreamType.startsWith('image/')) {
+    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
       console.error(
         "The requested resource isn't a valid image for",
         href,
@@ -668,11 +673,11 @@ export async function imageOptimizer(
 function getFileNameWithExtension(
   url: string,
   contentType: string | null
-): string | void {
+): string {
   const [urlWithoutQueryParams] = url.split('?')
   const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
   if (!contentType || !fileNameWithExtension) {
-    return
+    return 'image.bin'
   }
 
   const [fileName] = fileNameWithExtension.split('.')
@@ -688,7 +693,7 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string,
+  imagesConfig: ImageConfigComplete,
   maxAge: number,
   isDev: boolean
 ) {
@@ -708,16 +713,12 @@ function setResponseHeaders(
   }
 
   const fileName = getFileNameWithExtension(url, contentType)
-  if (fileName) {
-    res.setHeader(
-      'Content-Disposition',
-      contentDisposition(fileName, { type: 'inline' })
-    )
-  }
+  res.setHeader(
+    'Content-Disposition',
+    contentDisposition(fileName, { type: imagesConfig.contentDispositionType })
+  )
 
-  if (contentSecurityPolicy) {
-    res.setHeader('Content-Security-Policy', contentSecurityPolicy)
-  }
+  res.setHeader('Content-Security-Policy', imagesConfig.contentSecurityPolicy)
   res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
@@ -731,7 +732,7 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string,
+  imagesConfig: ImageConfigComplete,
   maxAge: number,
   isDev: boolean
 ) {
@@ -745,7 +746,7 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy,
+    imagesConfig,
     maxAge,
     isDev
   )

@@ -2,7 +2,7 @@ import chalk from 'next/dist/compiled/chalk'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { ESLINT_DEFAULT_DIRS } from './constants'
+import { ESLINT_DEFAULT_DIRS, ESLINT_DEFAULT_DIRS_WITH_APP } from './constants'
 import { Telemetry } from '../telemetry/storage'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from './compile-error'
@@ -12,14 +12,13 @@ export async function verifyAndLint(
   dir: string,
   cacheLocation: string,
   configLintDirs: string[] | undefined,
-  numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined,
   telemetry: Telemetry,
   hasAppDir: boolean
 ): Promise<void> {
   try {
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
-      numWorkers,
+      numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }) as Worker & {
@@ -29,7 +28,12 @@ export async function verifyAndLint(
     lintWorkers.getStdout().pipe(process.stdout)
     lintWorkers.getStderr().pipe(process.stderr)
 
-    const lintDirs = (configLintDirs ?? ESLINT_DEFAULT_DIRS).reduce(
+    // Remove that when the `appDir` will be stable.
+    const directoriesToLint = hasAppDir
+      ? ESLINT_DEFAULT_DIRS_WITH_APP
+      : ESLINT_DEFAULT_DIRS
+
+    const lintDirs = (configLintDirs ?? directoriesToLint).reduce(
       (res: string[], d: string) => {
         const currDir = join(dir, d)
         if (!existsSync(currDir)) return res

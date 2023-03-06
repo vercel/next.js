@@ -26,6 +26,8 @@ export type Feature =
   | 'next/dynamic'
   | '@next/font/google'
   | '@next/font/local'
+  | 'next/font/google'
+  | 'next/font/local'
   | 'swcLoader'
   | 'swcMinify'
   | 'swcRelay'
@@ -73,6 +75,8 @@ const FEATURE_MODULE_MAP: ReadonlyMap<Feature, string> = new Map([
 const FEATURE_MODULE_REGEXP_MAP: ReadonlyMap<Feature, RegExp> = new Map([
   ['@next/font/google', /\/@next\/font\/google\/target.css?.+$/],
   ['@next/font/local', /\/@next\/font\/local\/target.css?.+$/],
+  ['next/font/google', /\/next\/font\/google\/target.css?.+$/],
+  ['next/font/local', /\/next\/font\/local\/target.css?.+$/],
 ])
 
 // List of build features used in webpack configuration

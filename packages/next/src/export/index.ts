@@ -22,7 +22,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   FONT_LOADER_MANIFEST,
   MIDDLEWARE_MANIFEST,
@@ -30,6 +30,7 @@ import {
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -400,13 +401,16 @@ export default async function exportApp(
       runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextConfigOutput: nextConfig.output,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: hasAppDir,
-      fontLoaderManifest: nextConfig.experimental.fontLoaders
-        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
-        : undefined,
+      fontLoaderManifest: require(join(
+        distDir,
+        'server',
+        `${FONT_LOADER_MANIFEST}.json`
+      )),
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -441,13 +445,19 @@ export default async function exportApp(
       renderOpts.serverComponentManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
-        `${FLIGHT_MANIFEST}.json`
+        CLIENT_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
       // @ts-expect-error untyped
       renderOpts.serverCSSManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
         FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverActionsManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        SERVER_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
     }
 
@@ -479,7 +489,9 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) => !isAPIRoute(exportPathMap[route].page)
+      (route) =>
+        (exportPathMap[route] as any)._isAppDir ||
+        !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -512,38 +524,40 @@ export default async function exportApp(
     }
     let hasMiddleware = false
 
-    try {
-      const middlewareManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        MIDDLEWARE_MANIFEST
-      )) as MiddlewareManifest
+    if (!options.buildExport) {
+      try {
+        const middlewareManifest = require(join(
+          distDir,
+          SERVER_DIRECTORY,
+          MIDDLEWARE_MANIFEST
+        )) as MiddlewareManifest
 
-      hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
-    } catch (_) {}
+        hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
+      } catch (_) {}
 
-    // Warn if the user defines a path for an API page
-    if (hasApiRoutes || hasMiddleware) {
-      if (!options.silent) {
-        Log.warn(
-          chalk.yellow(
-            `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
-          ) +
-            `\n` +
+      // Warn if the user defines a path for an API page
+      if (hasApiRoutes || hasMiddleware) {
+        if (!options.silent) {
+          Log.warn(
             chalk.yellow(
-              `This command is meant for static-only hosts, and is` +
-                ' ' +
-                chalk.bold(`not necessary to make your application static.`)
+              `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
             ) +
-            `\n` +
-            chalk.yellow(
-              `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
-            ) +
-            `\n` +
-            chalk.yellow(
-              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
-            )
-        )
+              `\n` +
+              chalk.yellow(
+                `This command is meant for static-only hosts, and is` +
+                  ' ' +
+                  chalk.bold(`not necessary to make your application static.`)
+              ) +
+              `\n` +
+              chalk.yellow(
+                `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+              ) +
+              `\n` +
+              chalk.yellow(
+                `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
+              )
+          )
+        }
       }
     }
 
@@ -645,6 +659,10 @@ export default async function exportApp(
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
+            isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+            fetchCache: nextConfig.experimental.appDir,
+            incrementalCacheHandlerPath:
+              nextConfig.experimental.incrementalCacheHandlerPath,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -665,6 +683,11 @@ export default async function exportApp(
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
               configuration.initialPageRevalidationMap[path] =
                 result.fromBuildExportRevalidate
+            }
+
+            if (typeof result.fromBuildExportMeta !== 'undefined') {
+              configuration.initialPageMetaMap[path] =
+                result.fromBuildExportMeta
             }
 
             if (result.ssgNotFound === true) {
@@ -697,7 +720,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir)
+          const pagePath = getPagePath(pageName, distDir, undefined, false)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

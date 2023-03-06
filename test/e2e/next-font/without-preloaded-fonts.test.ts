@@ -8,7 +8,7 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-describe('@next/font/google without-preloaded-fonts without _app', () => {
+describe('next/font/google without-preloaded-fonts without _app', () => {
   let next: NextInstance
 
   if ((global as any).isNextDeploy) {
@@ -29,9 +29,6 @@ describe('@next/font/google without-preloaded-fonts without _app', () => {
           join(__dirname, 'without-preloaded-fonts/next.config.js')
         ),
       },
-      dependencies: {
-        '@next/font': 'canary',
-      },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
       },
@@ -49,6 +46,7 @@ describe('@next/font/google without-preloaded-fonts without _app', () => {
       crossorigin: 'anonymous',
       href: '/',
       rel: 'preconnect',
+      'data-next-font': 'size-adjust',
     })
 
     // Preload
@@ -64,7 +62,7 @@ describe('@next/font/google without-preloaded-fonts without _app', () => {
   })
 })
 
-describe('@next/font/google no preloads with _app', () => {
+describe('next/font/google no preloads with _app', () => {
   let next: NextInstance
 
   if ((global as any).isNextDeploy) {
@@ -88,9 +86,6 @@ describe('@next/font/google no preloads with _app', () => {
           join(__dirname, 'without-preloaded-fonts/next.config.js')
         ),
       },
-      dependencies: {
-        '@next/font': 'canary',
-      },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
       },
@@ -108,6 +103,7 @@ describe('@next/font/google no preloads with _app', () => {
       crossorigin: 'anonymous',
       href: '/',
       rel: 'preconnect',
+      'data-next-font': 'size-adjust',
     })
 
     // Preload
@@ -124,6 +120,7 @@ describe('@next/font/google no preloads with _app', () => {
       crossorigin: 'anonymous',
       href: '/',
       rel: 'preconnect',
+      'data-next-font': 'size-adjust',
     })
 
     // Preload

@@ -71,7 +71,6 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
-  readableStreamTee,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -89,7 +88,8 @@ import {
 } from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { getTracer } from './lib/trace/tracer'
+import { RenderSpan } from './lib/trace/constants'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -241,6 +241,7 @@ export type RenderOptsPartial = {
   optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
+  nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -254,7 +255,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -398,7 +399,6 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
-    supportsDynamicHTML,
     images,
     runtime: globalRuntime,
     App,
@@ -466,6 +466,12 @@ export async function renderToHTML(
 
   if (getServerSideProps && isSSG) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
+  }
+
+  if (getServerSideProps && renderOpts.nextConfigOutput === 'export') {
+    throw new Error(
+      'getServerSideProps cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+    )
   }
 
   if (getStaticPaths && !pageIsDynamic) {
@@ -847,6 +853,11 @@ export async function renderToHTML(
     }
 
     if ('revalidate' in data) {
+      if (data.revalidate && renderOpts.nextConfigOutput === 'export') {
+        throw new Error(
+          'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
@@ -947,21 +958,23 @@ export async function renderToHTML(
     }
 
     try {
-      data = await getServerSideProps({
-        req: req as IncomingMessage & {
-          cookies: NextApiRequestCookies
-        },
-        res: resOrProxy,
-        query,
-        resolvedUrl: renderOpts.resolvedUrl as string,
-        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
+      data = await getTracer().trace(RenderSpan.getServerSideProps, async () =>
+        getServerSideProps({
+          req: req as IncomingMessage & {
+            cookies: NextApiRequestCookies
+          },
+          res: resOrProxy,
+          query,
+          resolvedUrl: renderOpts.resolvedUrl as string,
+          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
+        })
+      )
       canAccessRes = false
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
@@ -1101,20 +1114,8 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const generateStaticHTML = supportsDynamicHTML !== true
+  // Always disable streaming for pages rendering
+  const generateStaticHTML = true
   const renderDocument = async () => {
     // For `Document`, there are two cases that we don't support:
     // 1. Using `Document.getInitialProps` in the Edge runtime.
@@ -1179,8 +1180,8 @@ export async function renderToHTML(
         if (renderShell) {
           return renderShell(EnhancedApp, EnhancedComponent).then(
             async (stream) => {
-              const forwardStream = readableStreamTee(stream)[1]
-              const html = await streamToString(forwardStream)
+              await stream.allReady
+              const html = await streamToString(stream)
               return { html, head }
             }
           )
@@ -1245,34 +1246,27 @@ export async function renderToHTML(
       return await renderToInitialStream({
         ReactDOMServer,
         element: content,
-        streamOptions: {
-          onError(streamingErr: any) {
-            if (streamingErr?.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
-              return streamingErr.digest
-            }
-          },
-        },
       })
     }
 
-    const createBodyResult = (
-      initialStream: ReactReadableStream,
-      suffix?: string
-    ) => {
-      // this must be called inside bodyResult so appWrappers is
-      // up to date when `wrapApp` is called
-      const getServerInsertedHTML = async (): Promise<string> => {
-        return renderToString(styledJsxInsertedHTML())
+    const createBodyResult = getTracer().wrap(
+      RenderSpan.createBodyResult,
+      (initialStream: ReactReadableStream, suffix?: string) => {
+        // this must be called inside bodyResult so appWrappers is
+        // up to date when `wrapApp` is called
+        const getServerInsertedHTML = async (): Promise<string> => {
+          return renderToString(styledJsxInsertedHTML())
+        }
+
+        return continueFromInitialStream(initialStream, {
+          suffix,
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: false,
+        })
       }
-
-      return continueFromInitialStream(initialStream, {
-        suffix,
-        dataStream: serverComponentsInlinedTransformStream?.readable,
-        generateStaticHTML,
-        getServerInsertedHTML,
-        serverInsertedHTMLToHead: false,
-      })
-    }
+    )
 
     const hasDocumentGetInitialProps = !(
       process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
@@ -1325,7 +1319,10 @@ export async function renderToHTML(
     }
   }
 
-  const documentResult = await renderDocument()
+  const documentResult = await getTracer().trace(
+    RenderSpan.renderDocument,
+    async () => renderDocument()
+  )
   if (!documentResult) {
     return null
   }
@@ -1415,6 +1412,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
+    nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
@@ -1429,7 +1427,10 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = await renderToString(document)
+  const documentHTML = await getTracer().trace(
+    RenderSpan.renderToString,
+    async () => renderToString(document)
+  )
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []

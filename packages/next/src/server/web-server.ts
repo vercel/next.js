@@ -5,8 +5,7 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { DynamicRoutes, PageChecker, Route } from './router'
-import type { NextConfig } from './config-shared'
+import type { Route, RouterOptions } from './router'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
 
@@ -27,7 +26,7 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-
+import { IncrementalCache } from './lib/incremental-cache'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -39,6 +38,7 @@ interface WebServerOptions extends Options {
       Pick<BaseServer['renderOpts'], 'buildId'>
     pagesRenderToHTML?: typeof import('./render').renderToHTML
     appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
+    incrementalCacheHandler?: any
   }
 }
 
@@ -54,8 +54,40 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
-  protected getIncrementalCache() {
-    return {} as any
+  protected getIncrementalCache({
+    requestHeaders,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+  }) {
+    const dev = !!this.renderOpts.dev
+    // incremental-cache is request specific with a shared
+    // although can have shared caches in module scope
+    // per-cache handler
+    return new IncrementalCache({
+      dev,
+      requestHeaders,
+      appDir: this.hasAppDir,
+      minimalMode: this.minimalMode,
+      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk: false,
+      CurCacheHandler:
+        this.serverOptions.webServerConfig.incrementalCacheHandler,
+      getPrerenderManifest: () => {
+        if (dev) {
+          return {
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }
+        } else {
+          return this.getPrerenderManifest()
+        }
+      },
+    })
   }
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
@@ -125,7 +157,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getPrerenderManifest() {
     return {
-      version: 3 as const,
+      version: 4 as const,
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
@@ -149,22 +181,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       .fontLoaderManifest
   }
 
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
+  protected generateRoutes(): RouterOptions {
     const fsRoutes: Route[] = [
       {
         match: getPathMatch('/_next/data/:path*'),
@@ -301,7 +318,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           )
 
           if (localePathResult.detectedLocale) {
-            pathname = localePathResult.pathname
             parsedUrl.query.__nextLocale = localePathResult.detectedLocale
           }
         }
@@ -332,7 +348,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (useFileSystemPublicRoutes) {
       this.appPathRoutes = this.getAppPathRoutes()
-      this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {
@@ -347,8 +362,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       catchAllRoute,
       catchAllMiddleware: [],
       useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage.bind(this),
+      matchers: this.matchers,
       nextConfig: this.nextConfig,
     }
   }
@@ -357,6 +371,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected async handleApiRequest() {
     return false
   }
+
   protected async renderHTML(
     req: WebNextRequest,
     _res: WebNextResponse,

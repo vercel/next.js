@@ -3592,6 +3592,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Gajraj One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["devanagari", "latin", "latin-ext"]
+  },
   "Galada": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -3798,6 +3803,11 @@
     "weights": ["400", "700"],
     "styles": ["normal"],
     "subsets": ["devanagari", "latin", "latin-ext"]
+  },
+  "Gloock": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic-ext", "latin", "latin-ext"]
   },
   "Gloria Hallelujah": {
     "weights": ["400"],
@@ -5088,6 +5098,30 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Labrada": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Lacquer": {
     "weights": ["400"],
@@ -6441,6 +6475,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Mynerve": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["greek", "latin", "latin-ext", "vietnamese"]
+  },
   "Mystery Quest": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -7712,10 +7751,10 @@
     "styles": ["normal"],
     "subsets": ["myanmar"]
   },
-  "Noto Sans N Ko": {
+  "Noto Sans NKo": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["nko"]
+    "subsets": ["latin", "latin-ext", "nko"]
   },
   "Noto Sans Nabataean": {
     "weights": ["400"],
@@ -8714,19 +8753,6 @@
     ],
     "subsets": ["latin", "nyiakeng-puachue-hmong"]
   },
-  "Noto Serif Nyiakeng Puachue Hmong": {
-    "weights": ["400", "500", "600", "700", "variable"],
-    "styles": ["normal"],
-    "axes": [
-      {
-        "tag": "wght",
-        "min": 400,
-        "max": 700,
-        "defaultValue": 400
-      }
-    ],
-    "subsets": ["nyiakeng-puachue-hmong"]
-  },
   "Noto Serif Oriya": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -9417,6 +9443,19 @@
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "vietnamese"]
+  },
+  "Phudu": {
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Piazzolla": {
     "weights": [
@@ -10773,6 +10812,37 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Shantell Sans": {
+    "weights": ["300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "BNCE",
+        "min": -100,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "INFM",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "SPAC",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
   "Shanti": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -10980,6 +11050,7 @@
   },
   "Sofia Sans": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -10989,21 +11060,23 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
   "Sofia Sans Condensed": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -11013,21 +11086,23 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
   "Sofia Sans Extra Condensed": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -11037,21 +11112,23 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
   "Sofia Sans Semi Condensed": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -11061,18 +11138,19 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ],
-    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
   "Solitreo": {
     "weights": ["400"],
@@ -11935,7 +12013,7 @@
   "Unica One": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "UnifrakturCook": {
     "weights": ["700"],

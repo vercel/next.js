@@ -5,7 +5,7 @@ const nextConfig = {
     styledComponents: true,
   },
   images: {
-    domains: ['cdn.api.video'],
+    domains: ['vod.api.video'],
   },
 }
 

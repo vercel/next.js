@@ -17,6 +17,7 @@ import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
@@ -29,6 +30,7 @@ export interface MiddlewareMatcher {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  originalSource: string
 }
 
 export interface PageStaticInfo {
@@ -39,12 +41,18 @@ export interface PageStaticInfo {
   middleware?: Partial<MiddlewareConfig>
 }
 
-const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
+const CLIENT_MODULE_LABEL =
+  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) \*\//
+const ACTION_MODULE_LABEL =
+  /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+
 export type RSCModuleType = 'server' | 'client'
-export function getRSCModuleType(source: string): RSCModuleType {
-  return source.includes(CLIENT_MODULE_LABEL)
-    ? RSC_MODULE_TYPES.client
-    : RSC_MODULE_TYPES.server
+export function getRSCModuleInformation(source: string): RSCMeta {
+  const clientRefs = source.match(CLIENT_MODULE_LABEL)?.[1]?.split(',')
+  const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+
+  const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
+  return { type, actions, clientRefs }
 }
 
 /**
@@ -133,7 +141,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareMatchers(
+export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
 ): MiddlewareMatcher[] {
@@ -159,7 +167,9 @@ function getMiddlewareMatchers(
     const isRoot = source === '/'
 
     if (i18n?.locales && r.locale !== false) {
-      source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
+      source = `/:nextInternalLocale((?!_next/)[^/.]{1,})${
+        isRoot ? '' : source
+      }`
     }
 
     source = `/:nextData(_next/data/[^/]{1,})?${source}${
@@ -188,6 +198,7 @@ function getMiddlewareMatchers(
     return {
       ...rest,
       regexp: parsedPage.regexStr,
+      originalSource: source,
     }
   })
 }
@@ -294,7 +305,7 @@ export async function getPageStaticInfo(params: {
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr, runtime } = checkExports(swcAST)
-    const rsc = getRSCModuleType(fileContent)
+    const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
     let config: any = {}

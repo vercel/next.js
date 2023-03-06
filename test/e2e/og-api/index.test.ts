@@ -22,9 +22,18 @@ describe('og-api', () => {
     expect(html).toContain('hello world')
   })
 
-  it('should work', async () => {
+  it('should work in pages/api', async () => {
     const res = await fetchViaHTTP(next.url, '/api/og')
     expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    const body = await res.blob()
+    expect(body.size).toBeGreaterThan(0)
+  })
+
+  it('should work in app route', async () => {
+    const res = await fetchViaHTTP(next.url, '/og')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
     const body = await res.blob()
     expect(body.size).toBeGreaterThan(0)
   })

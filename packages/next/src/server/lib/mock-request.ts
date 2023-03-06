@@ -35,6 +35,7 @@ export function mockRequest(
 
   mockRes.writeHead = (_status: any, _headers: any) =>
     Object.assign(mockHeaders, _headers)
+  mockRes.hasHeader = (name: string) => Boolean(mockHeaders[name.toLowerCase()])
   mockRes.getHeader = (name: string) => mockHeaders[name.toLowerCase()]
   mockRes.getHeaders = () => mockHeaders
   mockRes.getHeaderNames = () => Object.keys(mockHeaders)

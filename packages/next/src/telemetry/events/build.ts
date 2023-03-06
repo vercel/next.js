@@ -150,6 +150,8 @@ export type EventBuildFeatureUsage = {
     | 'next/dynamic'
     | '@next/font/google'
     | '@next/font/local'
+    | 'next/font/google'
+    | 'next/font/local'
     | 'experimental/optimizeCss'
     | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'

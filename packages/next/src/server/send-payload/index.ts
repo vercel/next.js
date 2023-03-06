@@ -5,6 +5,7 @@ import { generateETag } from '../lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import RenderResult from '../render-result'
 import { setRevalidateHeaders } from './revalidate-headers'
+import { RSC_CONTENT_TYPE_HEADER } from '../../client/components/app-router-headers'
 
 export type PayloadOptions =
   | { private: true }
@@ -79,7 +80,7 @@ export async function sendRenderResult({
       resultContentType
         ? resultContentType
         : type === 'rsc'
-        ? 'application/octet-stream'
+        ? RSC_CONTENT_TYPE_HEADER
         : type === 'json'
         ? 'application/json'
         : 'text/html; charset=utf-8'

@@ -1,5 +1,5 @@
 async function myAction(a, b, c) {
-  "use action";
+  "use server";
   console.log('a')
 }
 

@@ -1,8 +1,15 @@
 import type { ServerRuntime } from '../../types'
 
+// in seconds
+export const CACHE_ONE_YEAR = 31536000
+
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
+
+// Pattern to detect instrumentation hooks file
+export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
+export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
@@ -39,7 +46,9 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
+// Consolidate this consts when the `appDir` will be stable.
 export const ESLINT_DEFAULT_DIRS = ['pages', 'components', 'lib', 'src']
+export const ESLINT_DEFAULT_DIRS_WITH_APP = ['app', ...ESLINT_DEFAULT_DIRS]
 
 export const ESLINT_PROMPT_VALUES = [
   {

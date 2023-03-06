@@ -1,6 +1,8 @@
+import deleteFromDb from 'db'
+
 export function Item({ id1, id2 }) {
     async function deleteItem() {
-        "use action";
+        "use server";
         await deleteFromDb(id1);
         await deleteFromDb(id2);
     }

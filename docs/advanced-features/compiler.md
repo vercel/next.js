@@ -441,28 +441,6 @@ import lodash from 'lodash'
 
 ## Experimental Features
 
-### Minifier debug options
-
-While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
-
-```js
-// next.config.js
-
-module.exports = {
-  experimental: {
-    swcMinifyDebugOptions: {
-      compress: {
-        defaults: true,
-        side_effects: false,
-      },
-    },
-  },
-}
-```
-
-If your app works with the options above, it means `side_effects` is the problematic option.
-See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
-
 ### SWC Trace profiling
 
 You can generate SWC's internal transform traces as chromium's [trace event format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview?mode=html#%21=).

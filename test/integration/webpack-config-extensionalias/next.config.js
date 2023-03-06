@@ -1,5 +1,7 @@
 module.exports = {
-  webpack(config) {
-    return config
+  experimental: {
+    extensionAlias: {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+    },
   },
 }

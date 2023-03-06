@@ -11,13 +11,26 @@ description: Export your Next.js app to static HTML, and run it standalone witho
   </ul>
 </details>
 
-`next export` allows you to export your Next.js application to static HTML, which can be run standalone without the need of a Node.js server. It is recommended to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
+`next export` allows you to export your Next.js application to static HTML, which can render without the need of a Node.js server. It is recommended to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
 
 If you're looking to build a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically. Learn more about [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) and [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md).
 
 ## `next export`
 
-Update your build script in `package.json` to use `next export`:
+Update your `next.config.js` file to include `output: "export"` like the following:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export',
+}
+
+module.exports = nextConfig
+```
+
+Update your scripts in `package.json` file to include `next export` like the following:
 
 ```json
 "scripts": {
@@ -59,7 +72,8 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 - [Headers](/docs/api-reference/next.config.js/headers.md)
 - [Middleware](/docs/middleware.md)
 - [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
-- [`fallback: true`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-true)
+- [`getStaticPaths` with `fallback: true`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-true)
+- [`getStaticPaths` with `fallback: 'blocking'`](/docs/api-reference/data-fetching/get-static-paths.md#fallback-blocking)
 - [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md)
 
 ### `getInitialProps`

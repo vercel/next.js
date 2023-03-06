@@ -51,7 +51,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -76,7 +76,7 @@ describe('create next app', () => {
             '--eslint',
             '--no-src-dir',
             '--no-experimental-app',
-            `--import-alias="@/*"`,
+            `--import-alias=@/*`,
           ],
           { cwd }
         )
@@ -286,6 +286,7 @@ describe('create next app', () => {
             '--eslint',
             '--example',
             '__internal-testing-retry',
+            '--import-alias=@/*',
           ],
           {
             cwd,
@@ -303,7 +304,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'default-example'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'default'],
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--example',
+          'default',
+          '--import-alias=@/*',
+        ],
         {
           cwd,
         }
@@ -325,7 +333,7 @@ describe('create next app', () => {
           '--example',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -361,7 +369,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -401,7 +409,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -426,7 +434,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -450,7 +458,7 @@ describe('create next app', () => {
           '--use-npm',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -503,7 +511,7 @@ describe('create next app', () => {
           '--use-pnpm',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -573,7 +581,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -639,7 +647,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -712,7 +720,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
-          `--import-alias="@/*"`,
+          `--import-alias=@/*`,
         ],
         {
           cwd,

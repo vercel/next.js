@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { isNotFoundError } from '../../../not-found'
+import { isRedirectError } from '../../../redirect'
 import {
   hydrationErrorWarning,
   hydrationErrorComponentStack,
@@ -12,10 +14,7 @@ export const RuntimeErrorHandler = {
 
 function isNextRouterError(error: any): boolean {
   return (
-    error &&
-    error.digest &&
-    (error.digest.startsWith('NEXT_REDIRECT') ||
-      error.digest === 'NEXT_NOT_FOUND')
+    error && error.digest && (isRedirectError(error) || isNotFoundError(error))
   )
 }
 

@@ -9,20 +9,25 @@ export type FontLoaderManifest = {
   app: {
     [moduleRequest: string]: string[]
   }
+  appUsingSizeAdjust: boolean
+  pagesUsingSizeAdjust: boolean
 }
 const PLUGIN_NAME = 'FontLoaderManifestPlugin'
+
+const fontLoaderTargets = [
+  require.resolve('next/font/google/target.css'),
+  require.resolve('next/font/local/target.css'),
+  // TODO: remove this in the next major version
+  /node_modules\/@next\/font\/google\/target\.css\?{.+}$/,
+  /node_modules\/@next\/font\/local\/target\.css\?{.+}$/,
+]
 
 // Creates a manifest of all fonts that should be preloaded given a route
 export class FontLoaderManifestPlugin {
   private appDirEnabled: boolean
-  private fontLoaderTargets: string[]
 
-  constructor(options: {
-    appDirEnabled: boolean
-    fontLoaderTargets: string[]
-  }) {
+  constructor(options: { appDirEnabled: boolean }) {
     this.appDirEnabled = options.appDirEnabled
-    this.fontLoaderTargets = options.fontLoaderTargets
   }
 
   apply(compiler: webpack.Compiler) {
@@ -34,8 +39,10 @@ export class FontLoaderManifestPlugin {
         compilation.hooks.finishModules.tap(PLUGIN_NAME, (modules) => {
           const modulesArr = Array.from(modules)
           fontLoaderModules = modulesArr.filter((mod: any) =>
-            this.fontLoaderTargets.some((fontLoaderTarget) =>
-              mod.userRequest?.startsWith(`${fontLoaderTarget}?`)
+            fontLoaderTargets.some((fontLoaderTarget) =>
+              typeof fontLoaderTarget === 'string'
+                ? mod.userRequest?.startsWith(`${fontLoaderTarget}?`)
+                : fontLoaderTarget.test(mod.userRequest)
             )
           )
         })
@@ -50,6 +57,8 @@ export class FontLoaderManifestPlugin {
           const fontLoaderManifest: FontLoaderManifest = {
             pages: {},
             app: {},
+            appUsingSizeAdjust: false,
+            pagesUsingSizeAdjust: false,
           }
 
           if (this.appDirEnabled) {
@@ -59,6 +68,12 @@ export class FontLoaderManifestPlugin {
               const fontFiles: string[] = modAssets.filter((file: string) =>
                 /\.(woff|woff2|eot|ttf|otf)$/.test(file)
               )
+
+              if (!fontLoaderManifest.appUsingSizeAdjust) {
+                fontLoaderManifest.appUsingSizeAdjust = fontFiles.some((file) =>
+                  file.includes('-s')
+                )
+              }
 
               // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
               const preloadedFontFiles: string[] = fontFiles.filter(
@@ -85,6 +100,12 @@ export class FontLoaderManifestPlugin {
               .filter((file: string) =>
                 /\.(woff|woff2|eot|ttf|otf)$/.test(file)
               )
+
+            if (!fontLoaderManifest.pagesUsingSizeAdjust) {
+              fontLoaderManifest.pagesUsingSizeAdjust = fontFiles.some((file) =>
+                file.includes('-s')
+              )
+            }
 
             // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
             const preloadedFontFiles: string[] = fontFiles.filter(

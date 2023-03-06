@@ -137,16 +137,15 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                           status: CacheStates.LAZY_INITIALIZED,
                         },
                       ],
-                      // TODO-APP: this segment should be preserved when creating the new cache
-                      // [
-                      //   '',
-                      //   {
-                      //     data: null,
-                      //     status: CacheStates.READY,
-                      //     subTreeData: <>Page</>,
-                      //     parallelRoutes: new Map(),
-                      //   },
-                      // ],
+                      [
+                        '',
+                        {
+                          data: null,
+                          status: CacheStates.READY,
+                          subTreeData: <>Page</>,
+                          parallelRoutes: new Map(),
+                        },
+                      ],
                     ]),
                   ],
                 ]),
