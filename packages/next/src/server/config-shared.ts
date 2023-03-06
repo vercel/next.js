@@ -16,6 +16,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  target?: string
 }
 
 export interface I18NConfig {
@@ -114,6 +115,7 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   clientRouterFilter?: boolean
+  clientRouterFilterRedirects?: boolean
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
@@ -542,7 +544,15 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
-  output?: 'standalone'
+  /**
+   * The type of build output.
+   * - `undefined`: The default build output, `.next` directory, that works with production mode `next start` or a hosting provider like Vercel
+   * - `'standalone'`: A standalone build output, `.next/standalone` directory, that only includes necessary files/dependencies. Useful for self-hosting in a Docker container.
+   * - `'export'`: An exported build output, `out` directory, that only includes static HTML/CSS/JS. Useful for self-hosting without a Node.js server.
+   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @see [Static HTML Export](https://nextjs.org/docs/advanced-features/static-html-export)
+   */
+  output?: 'standalone' | 'export'
 
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
@@ -569,7 +579,6 @@ export interface NextConfig extends Record<string, any> {
 export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
-  webpackDevMiddleware: null,
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -610,7 +619,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: null,
+  reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -621,6 +630,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   experimental: {
     clientRouterFilter: false,
+    clientRouterFilterRedirects: false,
     preCompiledNextServer: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',

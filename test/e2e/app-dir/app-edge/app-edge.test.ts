@@ -61,6 +61,7 @@ createNextDescribe(
         expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
           {
             regexp: '^/group$',
+            originalSource: '/group',
           },
         ])
       })

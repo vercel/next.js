@@ -28,10 +28,13 @@ ${actionList
   .join('\n')}
 }
 
-export default async function endpoint(id, bound) {
+async function endpoint(id, bound) {
   const action = await actions[id]()
   return action.apply(null, bound)
 }
+
+// Using "export default" will cause this to be tree-shaken away due to unused exports.
+module.exports = endpoint
 `
 }
 
