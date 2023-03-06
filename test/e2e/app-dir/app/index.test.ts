@@ -16,6 +16,27 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    it('should encode chunk path correctly', async () => {
+      const browser = await next.browser('/')
+      const requests = []
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      await browser.eval(
+        'window.location.href = "/dynamic-client/first/second"'
+      )
+
+      await check(async () => {
+        return requests.some(
+          (req) =>
+            req.includes(encodeURI('/[category]/[id]')) && req.endsWith('.js')
+        )
+          ? 'found'
+          : JSON.stringify(requests)
+      }, 'found')
+    })
+
     it.each([
       { pathname: '/redirect-1' },
       { pathname: '/redirect-2' },
@@ -48,6 +69,19 @@ createNextDescribe(
         }
       }
     )
+
+    it('should not apply client router filter on shallow', async () => {
+      const browser = await next.browser('/')
+      await browser.eval('window.beforeNav = 1')
+
+      await check(async () => {
+        await browser.eval(
+          `window.next.router.push('/', '/redirect-1', { shallow: true })`
+        )
+        return await browser.eval('window.location.pathname')
+      }, '/redirect-1')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    })
 
     if (isDev) {
       it('should not have duplicate config warnings', async () => {

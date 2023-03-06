@@ -258,7 +258,7 @@ interface Metadata extends DeprecatedMetadataFields {
   icons?: null | IconURL | Array<Icon> | Icons
 
   /**
-   * The manifest.json file is the only file that every extension using WebExtension APIs must contain
+   * A web application manifest, as defined in the Web Application Manifest specification.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
    * @example

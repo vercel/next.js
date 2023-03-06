@@ -416,7 +416,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
-          { regexp: '.*' },
+          { regexp: '.*', originalSource: '/:path*' },
         ]
       }
 

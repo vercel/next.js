@@ -5,7 +5,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { Redirect } from './load-custom-routes'
 import { tryToParsePath } from './try-to-parse-path'
 
-const POTENTIAL_ERROR_RATE = 0.02
+const POTENTIAL_ERROR_RATE = 0.01
 
 export function createClientRouterFilter(
   paths: string[],

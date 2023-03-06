@@ -433,14 +433,19 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     // Get the handler function for the given method.
     const handle = this.resolve(req.method, module)
 
+    const requestContext: RequestContext =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? { req, res }
+        : {
+            req: (req as NodeNextRequest).originalRequest,
+            res: (res as NodeNextResponse).originalResponse,
+          }
+
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
     const response = await this.requestAsyncLocalStorageWrapper.wrap(
       requestAsyncStorage,
-      {
-        req: (req as NodeNextRequest).originalRequest,
-        res: (res as NodeNextResponse).originalResponse,
-      },
+      requestContext,
       () =>
         this.staticAsyncLocalStorageWrapper.wrap(
           staticGenerationAsyncStorage,
