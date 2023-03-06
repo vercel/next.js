@@ -391,7 +391,7 @@ export default class NextNodeServer extends BaseServer {
         type: 'route',
         name: '_next/image catchall',
         fn: async (req, res, _params, parsedUrl) => {
-          if (this.minimalMode) {
+          if (this.minimalMode || this.nextConfig.output === 'export') {
             res.statusCode = 400
             res.body('Bad Request').send()
             return {
@@ -1235,6 +1235,10 @@ export default class NextNodeServer extends BaseServer {
           const edgeFunctionsPages = this.getEdgeFunctionsPages()
           for (const edgeFunctionsPage of edgeFunctionsPages) {
             if (edgeFunctionsPage === match.definition.page) {
+              if (this.nextConfig.output === 'export') {
+                await this.render404(req, res, parsedUrl)
+                return { finished: true }
+              }
               delete query._nextBubbleNoFallback
 
               const handledAsEdgeFunction = await this.runEdgeFunction({
@@ -1257,6 +1261,10 @@ export default class NextNodeServer extends BaseServer {
           // it.
           // TODO: move this behavior into a route handler.
           if (match.definition.kind === RouteKind.PAGES_API) {
+            if (this.nextConfig.output === 'export') {
+              await this.render404(req, res, parsedUrl)
+              return { finished: true }
+            }
             delete query._nextBubbleNoFallback
 
             handled = await this.handleApiRequest(

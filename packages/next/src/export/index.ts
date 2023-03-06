@@ -401,6 +401,7 @@ export default async function exportApp(
       runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextConfigOutput: nextConfig.output,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
@@ -719,7 +720,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir)
+          const pagePath = getPagePath(pageName, distDir, undefined, false)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

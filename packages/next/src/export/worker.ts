@@ -385,6 +385,7 @@ export default async function exportPage({
             `http://localhost:3000${req.url}`
           )
           const staticContext: StaticGenerationContext = {
+            nextExport: true,
             supportsDynamicHTML: false,
             incrementalCache: curRenderOpts.incrementalCache,
           }
