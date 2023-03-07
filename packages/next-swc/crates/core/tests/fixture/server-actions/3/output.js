@@ -3,6 +3,5 @@
     console.log('a');
 }
 myAction.$$typeof = Symbol.for("react.server.reference");
-myAction.$$filepath = "/app/item.js";
-myAction.$$name = "myAction";
+myAction.$$id = "e10665baac148856374b2789aceb970f66fec33e";
 myAction.$$bound = [];
