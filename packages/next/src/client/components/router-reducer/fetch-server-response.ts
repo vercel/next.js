@@ -34,13 +34,15 @@ export async function fetchServerResponse(
     headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 
+  const isNextExport = process.env.__NEXT_CONFIG_OUTPUT === 'export'
+
   try {
     let cloneUrl = new URL(url)
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+    if (isNextExport) {
       if (cloneUrl.pathname.endsWith('/')) {
-        cloneUrl.pathname += 'index.rsc'
+        cloneUrl.pathname += 'index.txt'
       } else {
-        cloneUrl.pathname += +'.rsc'
+        cloneUrl.pathname += +'.txt'
       }
     }
     const res = await fetch(cloneUrl, {
@@ -52,8 +54,10 @@ export async function fetchServerResponse(
       ? urlToUrlWithoutFlightMarker(res.url)
       : undefined
 
+    const contentType = res.headers.get('content-type')
     const isFlightResponse =
-      res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
+      contentType === RSC_CONTENT_TYPE_HEADER ||
+      (isNextExport && contentType === 'text/plain')
 
     // If fetch returns something different than flight response handle it like a mpa navigation
     if (!isFlightResponse) {

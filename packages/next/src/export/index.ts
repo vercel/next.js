@@ -778,7 +778,7 @@ export default async function exportApp(
                 outDir,
                 `${route}${
                   subFolders && route !== '/index' ? `${sep}index` : ''
-                }.rsc`
+                }.txt`
               )
             : join(pagesDataDir, `${route}.json`)
 
