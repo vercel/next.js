@@ -17,8 +17,14 @@ createNextDescribe(
       await browser.elementByCss('#inc').click()
       await check(() => browser.elementByCss('h1').text(), '1')
 
+      await browser.elementByCss('#inc').click()
+      await check(() => browser.elementByCss('h1').text(), '2')
+
+      await browser.elementByCss('#double').click()
+      await check(() => browser.elementByCss('h1').text(), '4')
+
       await browser.elementByCss('#dec').click()
-      await check(() => browser.elementByCss('h1').text(), '0')
+      await check(() => browser.elementByCss('h1').text(), '3')
     })
 
     it('should support headers and cookies', async () => {
