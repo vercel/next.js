@@ -13,11 +13,7 @@ import {
 } from '../../../shared/lib/constants'
 import { relative, sep } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
-
-import {
-  edgeServerModuleIds,
-  serverModuleIds,
-} from './flight-client-entry-plugin'
+import { getProxiedPluginState } from '../../build-context'
 
 import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
@@ -42,6 +38,12 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
+
+const pluginState = getProxiedPluginState({
+  serverModuleIds: {} as Record<string, string | number>,
+  edgeServerModuleIds: {} as Record<string, string | number>,
+  ASYNC_CLIENT_MODULES: [] as string[],
+})
 
 interface ManifestNode {
   [moduleExport: string]: {
@@ -89,18 +91,15 @@ export type FlightCSSManifest = {
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
-// Collect modules from server/edge compiler in client layer,
-// and detect if it's been used, and mark it as `async: true` for react.
-// So that react could unwrap the async module from promise and render module itself.
-export const ASYNC_CLIENT_MODULES = new Set<string>()
-
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
+  ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
+    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -158,11 +157,11 @@ export class FlightManifestPlugin {
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      function recordModule(
+      const recordModule = (
         id: ModuleId,
         mod: webpack.NormalModule,
         chunkCSS: string[]
-      ) {
+      ) => {
         const isCSSModule =
           regexCSS.test(mod.resource) ||
           mod.type === 'css/mini-extract' ||
@@ -235,7 +234,7 @@ export class FlightManifestPlugin {
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const isAsyncModule = ASYNC_CLIENT_MODULES.has(mod.resource)
+        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
 
         const cjsExports = [
           ...new Set([
@@ -305,19 +304,24 @@ export class FlightManifestPlugin {
             }
           }
 
-          if (serverModuleIds.has(ssrNamedModuleId)) {
+          if (
+            typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
+          ) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
               ...moduleExports[name],
-              id: serverModuleIds.get(ssrNamedModuleId)!,
+              id: pluginState.serverModuleIds[ssrNamedModuleId],
             }
           }
 
-          if (edgeServerModuleIds.has(ssrNamedModuleId)) {
+          if (
+            typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
+            'undefined'
+          ) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
             edgeModuleIdMapping[id][name] = {
               ...moduleExports[name],
-              id: edgeServerModuleIds.get(ssrNamedModuleId)!,
+              id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
             }
           }
         })
@@ -374,7 +378,12 @@ export class FlightManifestPlugin {
         if (entryName?.startsWith('app/')) {
           // The `key` here should be the absolute file path but without extension.
           // We need to replace the separator in the entry name to match the system separator.
-          const key = this.appDir + entryName.slice(3).replace(/\//g, sep)
+          const key =
+            this.appDir +
+            entryName
+              .slice(3)
+              .replace(/\//g, sep)
+              .replace(/\.[^\\/.]+$/, '')
           entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
         }
       }
@@ -395,7 +404,7 @@ export class FlightManifestPlugin {
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST
     const json = JSON.stringify(manifest, null, this.dev ? 2 : undefined)
 
-    ASYNC_CLIENT_MODULES.clear()
+    pluginState.ASYNC_CLIENT_MODULES = []
 
     assets[file + '.js'] = new sources.RawSource(
       'self.__RSC_MANIFEST=' + json

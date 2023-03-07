@@ -7,9 +7,10 @@ export type RequestContext = {
   pathname: string
   renderOpts: {
     incrementalCache?: IncrementalCache
-    supportsDynamicHTML?: boolean
+    supportsDynamicHTML: boolean
     isRevalidate?: boolean
     isBot?: boolean
+    nextExport?: boolean
   }
 }
 
@@ -19,7 +20,7 @@ export class StaticGenerationAsyncStorageWrapper
   public wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
     context: RequestContext,
-    callback: () => Result
+    callback: (store: StaticGenerationStore) => Result
   ): Result {
     return StaticGenerationAsyncStorageWrapper.wrap(storage, context, callback)
   }
@@ -30,7 +31,7 @@ export class StaticGenerationAsyncStorageWrapper
   public static wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
     { pathname, renderOpts }: RequestContext,
-    callback: () => Result
+    callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
      * Rules of Static & Dynamic HTML:
@@ -45,20 +46,18 @@ export class StaticGenerationAsyncStorageWrapper
      * These rules help ensure that other existing features like request caching,
      * coalescing, and ISR continue working as intended.
      */
-    const supportsDynamicHTML =
-      typeof renderOpts.supportsDynamicHTML !== 'boolean' ||
-      renderOpts.supportsDynamicHTML
-
-    const isStaticGeneration = !supportsDynamicHTML && !renderOpts.isBot
+    const isStaticGeneration =
+      !renderOpts.supportsDynamicHTML && !renderOpts.isBot
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
       pathname,
       incrementalCache: renderOpts.incrementalCache,
       isRevalidate: renderOpts.isRevalidate,
+      isPrerendering: renderOpts.nextExport,
     }
     ;(renderOpts as any).store = store
 
-    return storage.run(store, callback)
+    return storage.run(store, callback, store)
   }
 }

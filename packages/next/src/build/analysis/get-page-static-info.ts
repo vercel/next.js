@@ -30,6 +30,7 @@ export interface MiddlewareMatcher {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  originalSource: string
 }
 
 export interface PageStaticInfo {
@@ -140,7 +141,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-function getMiddlewareMatchers(
+export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
 ): MiddlewareMatcher[] {
@@ -197,6 +198,7 @@ function getMiddlewareMatchers(
     return {
       ...rest,
       regexp: parsedPage.regexStr,
+      originalSource: source,
     }
   })
 }

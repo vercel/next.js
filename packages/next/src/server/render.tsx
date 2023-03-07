@@ -241,6 +241,7 @@ export type RenderOptsPartial = {
   optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
+  nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
@@ -254,7 +255,7 @@ export type RenderOptsPartial = {
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -465,6 +466,12 @@ export async function renderToHTML(
 
   if (getServerSideProps && isSSG) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
+  }
+
+  if (getServerSideProps && renderOpts.nextConfigOutput === 'export') {
+    throw new Error(
+      'getServerSideProps cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+    )
   }
 
   if (getStaticPaths && !pageIsDynamic) {
@@ -846,6 +853,11 @@ export async function renderToHTML(
     }
 
     if ('revalidate' in data) {
+      if (data.revalidate && renderOpts.nextConfigOutput === 'export') {
+        throw new Error(
+          'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
@@ -1400,6 +1412,7 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
+    nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,

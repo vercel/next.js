@@ -93,7 +93,7 @@ createNextDescribe(
       await session.patch(pageFile, uncomment)
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        'export generateMetadata and metadata together'
+        '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
       )
 
       await cleanup()
@@ -376,6 +376,40 @@ createNextDescribe(
       }
 
       await check(() => editorRequestsCount, /2/)
+
+      await cleanup()
+    })
+
+    it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+      const pagePath = 'app/metadata/mutate/page.js'
+      const content = `export default function page(props) {
+        return <p>mutate</p>
+      }
+
+      export async function generateMetadata(props, parent) {
+        const parentMetadata = await parent
+        parentMetadata.x = 1
+        return {
+          ...parentMetadata,
+        }
+      }`
+
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/metadata/mutate'
+      )
+
+      await session.patch(pagePath, content)
+
+      await check(
+        async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
+        /success/
+      )
+
+      expect(await session.getRedboxDescription()).toContain(
+        'Cannot add property x, object is not extensible'
+      )
 
       await cleanup()
     })

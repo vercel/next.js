@@ -3,6 +3,7 @@ import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plug
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 
 import '../lib/setup-exception-listeners'
 import { loadEnvConfig } from '@next/env'
@@ -68,6 +69,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
   TRACE_OUTPUT_VERSION,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -131,7 +133,7 @@ import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { createClientRouterFilter } from '../lib/create-router-client-filter'
+import { createClientRouterFilter } from '../lib/create-client-router-filter'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -292,6 +294,8 @@ export default async function build(
 
       const { headers, rewrites, redirects } = customRoutes
       NextBuildContext.rewrites = rewrites
+      NextBuildContext.originalRewrites = config._originalRewrites
+      NextBuildContext.originalRedirects = config._originalRedirects
 
       const cacheDir = path.join(distDir, 'cache')
       if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
@@ -847,7 +851,9 @@ export default async function build(
         )
         const clientRouterFilters = createClientRouterFilter(
           appPageKeys,
-          nonInternalRedirects
+          config.experimental.clientRouterFilterRedirects
+            ? nonInternalRedirects
+            : []
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters
@@ -970,6 +976,14 @@ export default async function build(
                     SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.json'
                   ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.js'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    SERVER_REFERENCE_MANIFEST + '.json'
+                  ),
                 ]
               : []),
             REACT_LOADABLE_MANIFEST,
@@ -1057,7 +1071,9 @@ export default async function build(
             if (filesTracedFromEntries.length) {
               // The turbo trace doesn't provide the traced file type and reason at present
               // let's write the traced files into the first [entry].nft.json
+              // @ts-expect-error types
               const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
+                // @ts-expect-error types
                 ([k]) => k.startsWith(turbotraceContextAppDir)
               )
               const traceOutputPath = path.join(
@@ -1074,7 +1090,7 @@ export default async function build(
           }
           if (chunksTrace) {
             const { action, outputPath } = chunksTrace
-            action.input = action.input.filter((f) => {
+            action.input = action.input.filter((f: any) => {
               const outputPagesPath = path.join(outputPath, '..', 'pages')
               return (
                 !f.startsWith(outputPagesPath) ||
@@ -1268,7 +1284,6 @@ export default async function build(
               enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
-              pageRuntime: config.experimental.runtime,
             })
         )
 
@@ -1304,6 +1319,22 @@ export default async function build(
           SERVER_DIRECTORY,
           MIDDLEWARE_MANIFEST
         ))
+
+        const actionManifest = appDir
+          ? (require(path.join(
+              distDir,
+              SERVER_DIRECTORY,
+              SERVER_REFERENCE_MANIFEST + '.json'
+            )) as ActionManifest)
+          : null
+        const entriesWithAction = actionManifest ? new Set() : null
+        if (actionManifest && entriesWithAction) {
+          for (const id in actionManifest) {
+            for (const entry in actionManifest[id].workers) {
+              entriesWithAction.add(entry)
+            }
+          }
+        }
 
         for (const key of Object.keys(middlewareManifest?.functions)) {
           if (key.startsWith('/api')) {
@@ -1443,6 +1474,14 @@ export default async function build(
                         isStatic = false
                         isSsg = false
                       } else {
+                        // If a page has action and it is static, we need to
+                        // change it to SSG to keep the worker created.
+                        // TODO: This is a workaround for now, we should have a
+                        // dedicated worker defined in a heuristic way.
+                        const hasAction = entriesWithAction?.has(
+                          'app' + originalAppPath
+                        )
+
                         if (
                           workerResult.encodedPrerenderRoutes &&
                           workerResult.prerenderRoutes
@@ -1460,7 +1499,7 @@ export default async function build(
                         }
 
                         const appConfig = workerResult.appConfig || {}
-                        if (workerResult.appConfig?.revalidate !== 0) {
+                        if (appConfig.revalidate !== 0 && !hasAction) {
                           const isDynamic = isDynamicRoute(page)
                           const hasGenerateStaticParams =
                             !!workerResult.prerenderRoutes?.length
@@ -2387,7 +2426,7 @@ export default async function build(
 
           // remove server bundles that were exported
           for (const page of staticPages) {
-            const serverBundle = getPagePath(page, distDir)
+            const serverBundle = getPagePath(page, distDir, undefined, false)
             await promises.unlink(serverBundle)
           }
 
@@ -2501,7 +2540,12 @@ export default async function build(
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
                 const orig = path.join(exportOptions.outdir, file)
-                const pagePath = getPagePath(originPage, distDir)
+                const pagePath = getPagePath(
+                  originPage,
+                  distDir,
+                  undefined,
+                  false
+                )
 
                 const relativeDest = path
                   .relative(

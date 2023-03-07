@@ -32,7 +32,7 @@ import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
-  entries,
+  getEntries,
   EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
@@ -334,8 +334,8 @@ export default class HotReloader {
             case 'client-hmr-latency': {
               traceChild = {
                 name: payload.event,
-                startTime: BigInt(payload.startTime * 1000 * 1000),
-                endTime: BigInt(payload.endTime * 1000 * 1000),
+                startTime: BigInt(payload.startTime) * BigInt(1000 * 1000),
+                endTime: BigInt(payload.endTime) * BigInt(1000 * 1000),
               }
               break
             }
@@ -389,7 +389,24 @@ export default class HotReloader {
                   stackTrace
                 )?.[1]
                 if (file) {
-                  fileMessage = ` when ${file} changed`
+                  // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
+                  // If it's a webpack loader URL, it will start with '(app-client)/./'
+                  if (file.startsWith('(app-client)/./')) {
+                    const fileUrl = new URL(file, 'file://')
+                    const cwd = process.cwd()
+                    const modules = fileUrl.searchParams
+                      .getAll('modules')
+                      .map((filepath) => filepath.slice(cwd.length + 1))
+                      .filter(
+                        (filepath) => !filepath.startsWith('node_modules')
+                      )
+
+                    if (modules.length > 0) {
+                      fileMessage = ` when ${modules.join(', ')} changed`
+                    }
+                  } else {
+                    fileMessage = ` when ${file} changed`
+                  }
                 }
               }
 
@@ -515,6 +532,8 @@ export default class HotReloader {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
+        originalRewrites: this.config._originalRewrites,
+        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
       }
@@ -572,6 +591,12 @@ export default class HotReloader {
         afterFiles: [],
         fallback: [],
       },
+      originalRewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
@@ -633,6 +658,8 @@ export default class HotReloader {
     for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
+        const outputPath = this.multiCompiler?.outputPath || ''
+        const entries: ReturnType<typeof getEntries> = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
@@ -663,6 +690,19 @@ export default class HotReloader {
               if (!pageExists) {
                 delete entries[entryKey]
                 return
+              }
+            }
+
+            // For child entries, if it has an entry file and it's gone, remove it
+            if (isChildEntry) {
+              if (entryData.absoluteEntryFilePath) {
+                const pageExists =
+                  !dispose &&
+                  (await fileExists(entryData.absoluteEntryFilePath))
+                if (!pageExists) {
+                  delete entries[entryKey]
+                  return
+                }
               }
             }
 
@@ -768,7 +808,6 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
-
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
@@ -798,7 +837,6 @@ export default class HotReloader {
             })
           })
         )
-
         return entrypoints
       }
     }
@@ -1151,7 +1189,8 @@ export default class HotReloader {
   }
 
   public invalidate() {
-    return getInvalidator()?.invalidate()
+    const outputPath = this.multiCompiler?.outputPath
+    return outputPath && getInvalidator(outputPath)?.invalidate()
   }
 
   public async stop(): Promise<void> {

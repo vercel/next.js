@@ -1,12 +1,25 @@
+import type { Rewrite, Redirect } from '../../../lib/load-custom-routes'
+import type { Token } from 'next/dist/compiled/path-to-regexp'
+
 import path from 'path'
 import { promises as fs } from 'fs'
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { parse } from 'next/dist/compiled/path-to-regexp'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import { getPageFromPath } from '../../entries'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
+
+type Rewrites = {
+  fallback: Rewrite[]
+  afterFiles: Rewrite[]
+  beforeFiles: Rewrite[]
+}
 
 interface Options {
   dir: string
@@ -14,7 +27,10 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
+  pageExtensions: string[]
   typedRoutes: boolean
+  originalRewrites: Rewrites | undefined
+  originalRedirects: Redirect[] | undefined
 }
 
 function createTypeGuardFile(
@@ -118,20 +134,142 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
-const nodeRouteTypes: string[] = []
-const edgeRouteTypes: string[] = []
+export const devPageFiles = new Set<string>()
 
-export const pageFiles = new Set<string>()
+// By exposing the static route types separately as string literals,
+// editors can provide autocompletion for them. However it's currently not
+// possible to provide the same experience for dynamic routes.
+const routeTypes: Record<
+  'edge' | 'node' | 'extra',
+  Record<'static' | 'dynamic', string>
+> = {
+  edge: {
+    static: '',
+    dynamic: '',
+  },
+  node: {
+    static: '',
+    dynamic: '',
+  },
+  extra: {
+    static: '',
+    dynamic: '',
+  },
+}
 
-function createRouteDefinitions(originalNextModule: string) {
-  const fallback =
-    !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
+function formatRouteToRouteType(route: string) {
+  const isDynamic = isDynamicRoute(route)
+  if (isDynamic) {
+    route = route
+      .split('/')
+      .map((part) => {
+        if (part.startsWith('[') && part.endsWith(']')) {
+          if (part.startsWith('[...')) {
+            // /[...slug]
+            return `\${CatchAllSlug<T>}`
+          } else if (part.startsWith('[[...') && part.endsWith(']]')) {
+            // /[[...slug]]
+            return `\${OptionalCatchAllSlug<T>}`
+          }
+          // /[slug]
+          return `\${SafeSlug<T>}`
+        }
+        return part
+      })
+      .join('/')
+  }
 
-  return `type SearchOrHash = \`?\${string}\` | \`#\${string}\`
-type Suffix = '' | SearchOrHash
+  return {
+    isDynamic,
+    routeType: `\n    | \`${route}\``,
+  }
+}
 
-type SafeSlug<S extends string> = 
-  S extends \`\${string}/\${string}\`
+// Whether redirects and rewrites have been converted into routeTypes or not.
+let redirectsRewritesTypesProcessed = false
+
+// Convert redirects and rewrites into routeTypes.
+function addRedirectsRewritesRouteTypes(
+  rewrites: Rewrites | undefined,
+  redirects: Redirect[] | undefined
+) {
+  function addExtraRoute(source: string) {
+    let tokens: Token[] | undefined
+    try {
+      tokens = parse(source)
+    } catch {
+      // Ignore invalid routes - they will be handled by other checks.
+    }
+
+    if (Array.isArray(tokens)) {
+      let normalizedRoute = ''
+
+      for (const token of tokens) {
+        if (typeof token === 'object') {
+          if (token.modifier === '*') {
+            normalizedRoute += `${token.prefix}[[...${token.name}]]`
+          } else if (token.modifier === '+') {
+            normalizedRoute += `${token.prefix}[...${token.name}]`
+          } else {
+            normalizedRoute += `${token.prefix}[${token.name}]`
+            // TODO: Optional modifier `?` is not supported yet.
+          }
+        } else if (typeof token === 'string') {
+          normalizedRoute += token
+        }
+      }
+
+      const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
+
+      routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
+    }
+  }
+
+  if (rewrites) {
+    for (const rewrite of rewrites.beforeFiles) {
+      addExtraRoute(rewrite.source)
+    }
+    for (const rewrite of rewrites.afterFiles) {
+      addExtraRoute(rewrite.source)
+    }
+    for (const rewrite of rewrites.fallback) {
+      addExtraRoute(rewrite.source)
+    }
+  }
+
+  if (redirects) {
+    for (const redirect of redirects) {
+      // Skip internal redirects
+      // https://github.com/vercel/next.js/blob/8ff3d7ff57836c24088474175d595b4d50b3f857/packages/next/src/lib/load-custom-routes.ts#L704-L710
+      if (!('internal' in redirect)) {
+        addExtraRoute(redirect.source)
+      }
+    }
+  }
+}
+
+function createRouteDefinitions() {
+  let staticRouteTypes = ''
+  let dynamicRouteTypes = ''
+
+  for (const type of ['edge', 'node', 'extra'] as const) {
+    staticRouteTypes += routeTypes[type].static
+    dynamicRouteTypes += routeTypes[type].dynamic
+  }
+
+  return `// Type definitions for Next.js routes
+
+/**
+ * Internal types used by the Next.js router and Link component.
+ * These types are not meant to be used directly.
+ * @internal
+ */
+declare namespace __next_route_internal_types__ {
+  type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+
+  type Suffix = '' | SearchOrHash
+
+  type SafeSlug<S extends string> = S extends \`\${string}/\${string}\`
     ? never
     : S extends \`\${string}\${SearchOrHash}\`
     ? never
@@ -139,55 +277,56 @@ type SafeSlug<S extends string> =
     ? never
     : S
 
-type CatchAllSlug<S extends string> = 
-  S extends \`\${string}\${SearchOrHash}\`
+  type CatchAllSlug<S extends string> = S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S extends ''
     ? never
     : S
 
-type OptionalCatchAllSlug<S extends string> = 
-  S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S
+  type OptionalCatchAllSlug<S extends string> =
+    S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-type Route<T extends string = string> = ${fallback}
-${
-  edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
-  nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
-}
-
-declare module 'next/link' {
-  import React from 'react'
-  import { UrlObject } from 'url'
-  import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
-
-  type LinkRestProps = Omit<Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
-
-  // If the href prop can be a Route type with an infer-able S, it's valid.
-  type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
-    /**
-     * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     *
-     * https://nextjs.org/docs/api-reference/next/link
-     */
-    href: T
-  } : {
-    /**
-     * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     *
-     * https://nextjs.org/docs/api-reference/next/link
-     */
-    href: never
+  type StaticRoutes = ${staticRouteTypes || 'string'}
+  type DynamicRoutes<T extends string = string> = ${
+    dynamicRouteTypes || 'string'
   }
 
-  export type LinkProps<T> = LinkRestProps & HrefProp<T>
-  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
+  type RouteImpl<T> =
+    ${
+      /* This keeps autocompletion working for static routes */ '| StaticRoutes'
+    }
+    | \`\${StaticRoutes}\${Suffix}\`
+    | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
 }
 
 declare module 'next' {
-${originalNextModule.replaceAll('../dist', 'next/dist')}
-  export { Route }
+  export { default } from 'next/types'
+  export * from 'next/types'
+
+  export type Route<T extends string = string> =
+    __next_route_internal_types__.RouteImpl<T>
+}
+
+declare module 'next/link' {
+  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+  import type { AnchorHTMLAttributes } from 'react'
+  import type { UrlObject } from 'url'
+  
+  type LinkRestProps = Omit<
+    Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> &
+      OriginalLinkProps,
+    'href'
+  >
+
+  export type LinkProps<T> = LinkRestProps & {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     * @see https://nextjs.org/docs/api-reference/next/link
+     */
+    href: __next_route_internal_types__.RouteImpl<T> | UrlObject
+  }
+
+  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
 }`
 }
 
@@ -195,9 +334,10 @@ export class NextTypesPlugin {
   dir: string
   distDir: string
   appDir: string
-  pagesDir: string
   dev: boolean
   isEdgeServer: boolean
+  pageExtensions: string[]
+  pagesDir: string
   typedRoutes: boolean
 
   constructor(options: Options) {
@@ -206,8 +346,16 @@ export class NextTypesPlugin {
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
+    if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
+      redirectsRewritesTypesProcessed = true
+      addRedirectsRewritesRouteTypes(
+        options.originalRewrites,
+        options.originalRedirects
+      )
+    }
   }
 
   collectPage(filePath: string) {
@@ -228,39 +376,20 @@ export class NextTypesPlugin {
       return
     }
 
-    const page = isApp
-      ? normalizeAppPath(path.relative(this.appDir, filePath))
-      : '/' + path.relative(this.pagesDir, filePath)
-
-    let route =
-      (isApp
-        ? page.replace(/[/\\]page\.[^./]+$/, '')
-        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')
-      ).replace(/\\/g, '/') || '/'
-
-    if (isDynamicRoute(route)) {
-      route = route
-        .split('/')
-        .map((part) => {
-          if (part.startsWith('[') && part.endsWith(']')) {
-            if (part.startsWith('[...')) {
-              // /[...slug]
-              return `\${CatchAllSlug<T>}`
-            } else if (part.startsWith('[[...') && part.endsWith(']]')) {
-              // /[[...slug]]
-              return `\${OptionalCatchAllSlug<T>}`
-            }
-            // /[slug]
-            return `\${SafeSlug<T>}`
-          }
-          return part
-        })
-        .join('/')
-    }
-
-    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
-      `\`${route}\${Suffix}\``
+    let route = (isApp ? normalizeAppPath : denormalizePagePath)(
+      ensureLeadingSlash(
+        getPageFromPath(
+          path.relative(isApp ? this.appDir : this.pagesDir, filePath),
+          this.pageExtensions
+        )
+      )
     )
+
+    const { isDynamic, routeType } = formatRouteToRouteType(route)
+
+    routeTypes[this.isEdgeServer ? 'edge' : 'node'][
+      isDynamic ? 'dynamic' : 'static'
+    ] += routeType
   }
 
   apply(compiler: webpack.Compiler) {
@@ -274,9 +403,7 @@ export class NextTypesPlugin {
       ? '..'
       : '../..'
 
-    const handleModule = async (_mod: webpack.Module, assets: any) => {
-      const mod: webpack.NormalModule = _mod as any
-
+    const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
 
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
@@ -290,7 +417,7 @@ export class NextTypesPlugin {
         return
       }
 
-      if (_mod.layer !== WEBPACK_LAYERS.server) return
+      if (mod.layer !== WEBPACK_LAYERS.server) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
@@ -324,13 +451,13 @@ export class NextTypesPlugin {
             type: 'layout',
             slots,
           })
-        ) as unknown as webpack.sources.RawSource
+        )
       } else if (IS_PAGE) {
         assets[assetPath] = new sources.RawSource(
           createTypeGuardFile(mod.resource, relativeImportPath, {
             type: 'page',
           })
-        ) as unknown as webpack.sources.RawSource
+        )
       }
     }
 
@@ -345,13 +472,15 @@ export class NextTypesPlugin {
 
           // Clear routes
           if (this.isEdgeServer) {
-            edgeRouteTypes.length = 0
+            routeTypes.edge.dynamic = ''
+            routeTypes.edge.static = ''
           } else {
-            nodeRouteTypes.length = 0
+            routeTypes.node.dynamic = ''
+            routeTypes.node.static = ''
           }
 
-          compilation.chunkGroups.forEach((chunkGroup: any) => {
-            chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          compilation.chunkGroups.forEach((chunkGroup) => {
+            chunkGroup.chunks.forEach((chunk) => {
               if (!chunk.name) return
 
               // Here we only track page chunks.
@@ -370,9 +499,11 @@ export class NextTypesPlugin {
                 promises.push(handleModule(mod, assets))
 
                 // If this is a concatenation, register each child to the parent ID.
-                const anyModule = mod as any
+                const anyModule = mod as unknown as {
+                  modules: webpack.NormalModule[]
+                }
                 if (anyModule.modules) {
-                  anyModule.modules.forEach((concatenatedMod: any) => {
+                  anyModule.modules.forEach((concatenatedMod) => {
                     promises.push(handleModule(concatenatedMod, assets))
                   })
                 }
@@ -383,20 +514,17 @@ export class NextTypesPlugin {
           await Promise.all(promises)
 
           if (this.typedRoutes) {
-            const originalNextModule = await fs.readFile(
-              path.join(__dirname, '../../../../types/index.d.ts'),
-              'utf-8'
-            )
-
-            pageFiles.forEach((file) => {
-              this.collectPage(file)
-            })
+            if (this.dev && !this.isEdgeServer) {
+              devPageFiles.forEach((file) => {
+                this.collectPage(file)
+              })
+            }
 
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions(originalNextModule)
+              createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource
           }
 

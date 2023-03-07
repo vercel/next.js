@@ -931,9 +931,9 @@ describe('navigateReducer', () => {
           ],
         },
         // TODO-APP: optimistic tree is wrong
-        // undefined,
-        // undefined,
-        // true,
+        undefined,
+        undefined,
+        true,
       ],
     }
 
