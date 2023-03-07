@@ -1,20 +1,21 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, Value};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
-pub type FontData = IndexMap<String, FontDataEntry>;
+pub(crate) type FontData = IndexMap<String, FontDataEntry>;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
-pub struct NextFontGoogleOptions {
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash)]
+pub(crate) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
     pub font_family: String,
     pub weights: FontWeights,
-    pub styles: IndexSet<String>,
+    pub styles: Vec<String>,
     pub display: String,
     pub preload: bool,
     pub selected_variable_axes: Option<Vec<String>>,
@@ -24,14 +25,24 @@ pub struct NextFontGoogleOptions {
     pub subsets: Option<Vec<String>>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
-pub enum FontWeights {
+#[turbo_tasks::value_impl]
+impl NextFontGoogleOptionsVc {
+    #[turbo_tasks::function]
+    pub fn new(options: Value<NextFontGoogleOptions>) -> NextFontGoogleOptionsVc {
+        Self::cell(options.into_value())
+    }
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TraceRawVcs,
+)]
+pub(crate) enum FontWeights {
     Variable,
-    Fixed(IndexSet<u16>),
+    Fixed(Vec<u16>),
 }
 
 #[derive(Debug, Deserialize)]
-pub struct FontDataEntry {
+pub(crate) struct FontDataEntry {
     pub weights: Vec<String>,
     pub styles: Vec<String>,
     pub axes: Option<Vec<Axis>>,
@@ -39,17 +50,16 @@ pub struct FontDataEntry {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Axis {
+pub(crate) struct Axis {
     pub tag: String,
     pub min: f64,
     pub max: f64,
-    pub default_value: f64,
 }
 
 // Transforms the request fields to a struct suitable for making requests to
 // Google Fonts. Similar to next/font/google's validateData:
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
-pub fn options_from_request(
+pub(crate) fn options_from_request(
     request: &NextFontRequest,
     data: &IndexMap<String, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
@@ -77,11 +87,11 @@ pub fn options_from_request(
     let mut styles = argument
         .and_then(|argument| {
             argument.style.as_ref().map(|w| match w {
-                OneOrManyStrings::One(one) => indexset! {one.to_owned()},
-                OneOrManyStrings::Many(many) => IndexSet::from_iter(many.iter().cloned()),
+                OneOrManyStrings::One(one) => vec![one.to_owned()],
+                OneOrManyStrings::Many(many) => many.clone(),
             })
         })
-        .unwrap_or_else(IndexSet::new);
+        .unwrap_or_default();
 
     let weights = if requested_weights.is_empty() {
         if !font_data.weights.contains(&"variable".to_owned()) {
@@ -115,9 +125,9 @@ pub fn options_from_request(
             }
         }
 
-        let mut weights = indexset! {};
+        let mut weights = vec![];
         for weight in requested_weights {
-            weights.insert(weight.parse()?);
+            weights.push(weight.parse()?);
         }
 
         FontWeights::Fixed(weights)
@@ -125,9 +135,9 @@ pub fn options_from_request(
 
     if styles.is_empty() {
         if font_data.styles.len() == 1 {
-            styles.insert(font_data.styles[0].clone());
+            styles.push(font_data.styles[0].clone());
         } else {
-            styles.insert("normal".to_owned());
+            styles.push("normal".to_owned());
         }
     }
 
@@ -169,7 +179,7 @@ pub fn options_from_request(
         preload: argument.map(|a| a.preload).unwrap_or(true),
         selected_variable_axes: argument.and_then(|a| a.axes.clone()),
         fallback: argument.and_then(|a| a.fallback.clone()),
-        adjust_font_fallback: argument.map(|a| a.adjust_font_fallback).unwrap_or(false),
+        adjust_font_fallback: argument.map(|a| a.adjust_font_fallback).unwrap_or(true),
         variable: argument.and_then(|a| a.variable.clone()),
         subsets: argument.and_then(|a| a.subsets.clone()),
     })
@@ -178,7 +188,7 @@ pub fn options_from_request(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use indexmap::{indexset, IndexMap};
+    use indexmap::IndexMap;
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
@@ -246,12 +256,12 @@ mod tests {
             NextFontGoogleOptions {
                 font_family: "ABeeZee".to_owned(),
                 weights: FontWeights::Variable,
-                styles: indexset! {"normal".to_owned()},
+                styles: vec!["normal".to_owned()],
                 display: "swap".to_owned(),
                 preload: true,
                 selected_variable_axes: None,
                 fallback: None,
-                adjust_font_fallback: false,
+                adjust_font_fallback: true,
                 variable: None,
                 subsets: None,
             },
@@ -400,7 +410,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, indexset! {"italic".to_owned()});
+        assert_eq!(options.styles, vec!["italic".to_owned()]);
 
         Ok(())
     }
@@ -432,7 +442,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, indexset! {"normal".to_owned()});
+        assert_eq!(options.styles, vec!["normal".to_owned()]);
 
         Ok(())
     }
