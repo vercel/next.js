@@ -18,14 +18,14 @@ const deepProxyHandlers = {
         // These names are a little too common. We should probably have a way to
         // have the Flight runtime extract the inner target instead.
         return target.$$typeof
-      case '$$id':
-        return target.$$id
-      case '$$async':
-        return target.$$async
+      case 'filepath':
+        return target.filepath
       case 'name':
         return target.name
       case 'displayName':
         return undefined
+      case 'async':
+        return target.async
       // We need to special case this because createElement reads it if we pass this
       // reference.
       case 'defaultProps':
@@ -45,7 +45,17 @@ const deepProxyHandlers = {
       default:
         break
     }
-    const expression = String(target.name) + '.' + String(name)
+    let expression
+    switch (target.name) {
+      case '':
+        expression = String(name)
+        break
+      case '*':
+        expression = String(name)
+        break
+      default:
+        expression = String(target.name) + '.' + String(name)
+    }
     throw new Error(
       `Cannot access ${expression} on the server. ` +
         'You cannot dot into a client module from a server component. ' +
@@ -62,13 +72,15 @@ const proxyHandlers = {
     switch (name) {
       // These names are read by the Flight runtime if you end up using the exports object.
       case '$$typeof':
+        // These names are a little too common. We should probably have a way to
+        // have the Flight runtime extract the inner target instead.
         return target.$$typeof
-      case '$$id':
-        return target.$$id
-      case '$$async':
-        return target.$$async
+      case 'filepath':
+        return target.filepath
       case 'name':
         return target.name
+      case 'async':
+        return target.async
       // We need to special case this because createElement reads it if we pass this
       // reference.
       case 'defaultProps':
@@ -82,7 +94,7 @@ const proxyHandlers = {
       case '__esModule':
         // Something is conditionally checking which export to use. We'll pretend to be
         // an ESM compat module but then we'll check again on the client.
-        const moduleId = target.$$id
+        const moduleId = target.filepath
         target.default = Object.defineProperties(
           function () {
             throw new Error(
@@ -93,11 +105,12 @@ const proxyHandlers = {
             )
           },
           {
-            $$typeof: { value: CLIENT_REFERENCE },
             // This a placeholder value that tells the client to conditionally use the
             // whole object or just the default export.
-            $$id: { value: target.$$id + '#' },
-            $$async: { value: target.$$async },
+            name: { value: '' },
+            $$typeof: { value: CLIENT_REFERENCE },
+            filepath: { value: target.filepath },
+            async: { value: target.async },
           }
         )
         return true
@@ -106,7 +119,7 @@ const proxyHandlers = {
           // Use a cached value
           return target.then
         }
-        if (!target.$$async) {
+        if (!target.async) {
           // If this module is expected to return a Promise (such as an AsyncModule) then
           // we should resolve that with a client reference that unwraps the Promise on
           // the client.
@@ -114,9 +127,11 @@ const proxyHandlers = {
           const clientReference = Object.defineProperties(
             {},
             {
+              // Represents the whole Module object instead of a particular import.
+              name: { value: '*' },
               $$typeof: { value: CLIENT_REFERENCE },
-              $$id: { value: target.$$id },
-              $$async: { value: true },
+              filepath: { value: target.filepath },
+              async: { value: true },
             }
           )
           const proxy = new Proxy(clientReference, proxyHandlers)
@@ -136,9 +151,10 @@ const proxyHandlers = {
             // If this is not used as a Promise but is treated as a reference to a `.then`
             // export then we should treat it as a reference to that name.
             {
+              name: { value: 'then' },
               $$typeof: { value: CLIENT_REFERENCE },
-              $$id: { value: target.$$id },
-              $$async: { value: false },
+              filepath: { value: target.filepath },
+              async: { value: false },
             }
           ))
           return then
@@ -164,9 +180,10 @@ const proxyHandlers = {
           )
         },
         {
+          name: { value: name },
           $$typeof: { value: CLIENT_REFERENCE },
-          $$id: { value: target.$$id + '#' + name },
-          $$async: { value: target.$$async },
+          filepath: { value: target.filepath },
+          async: { value: target.async },
         }
       )
       cachedReference = target[name] = new Proxy(reference, deepProxyHandlers)
@@ -186,10 +203,11 @@ export function createProxy(moduleId: string) {
   const clientReference = Object.defineProperties(
     {},
     {
+      // Represents the whole object instead of a particular import.
+      name: { value: '*' },
       $$typeof: { value: CLIENT_REFERENCE },
-      // Represents the whole Module object instead of a particular import.
-      $$id: { value: moduleId },
-      $$async: { value: false },
+      filepath: { value: moduleId },
+      async: { value: false },
     }
   )
   return new Proxy(clientReference, proxyHandlers)

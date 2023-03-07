@@ -21,7 +21,8 @@ export function y(p, [p1, { p2  }], ...p3) {
         return $ACTION_action(action.$$bound);
     }
     action.$$typeof = Symbol.for("react.server.reference");
-    action.$$id = "b3d2707f04906fa37fdc7bee4f53e41053034751";
+    action.$$filepath = "/app/item.js";
+    action.$$name = "$ACTION_action";
     action.$$bound = [
         f2,
         f2,

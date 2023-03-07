@@ -4,9 +4,6 @@ const path = require('path')
 const { readJson, writeJson } = require('fs-extra')
 const execa = require('execa')
 
-/** @type {any} */
-const fetch = require('node-fetch')
-
 // Use this script to update Next's vendored copy of React and related packages:
 //
 // Basic usage (defaults to most recent React canary version):

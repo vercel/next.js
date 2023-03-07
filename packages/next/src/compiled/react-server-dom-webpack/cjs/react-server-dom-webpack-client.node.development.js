@@ -550,13 +550,13 @@ function createServerReferenceProxy(response, metaData) {
 
     if (p.status === INITIALIZED) {
       var bound = p.value;
-      return callServer(metaData.id, bound.concat(args));
+      return callServer(metaData, bound.concat(args));
     } // Since this is a fake Promise whose .then doesn't chain, we have to wrap it.
     // TODO: Remove the wrapper once that's fixed.
 
 
     return Promise.resolve(p).then(function (bound) {
-      return callServer(metaData.id, bound.concat(args));
+      return callServer(metaData, bound.concat(args));
     });
   };
 
