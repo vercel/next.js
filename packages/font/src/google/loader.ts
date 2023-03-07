@@ -32,7 +32,6 @@ const nextFontGoogleFontLoader: FontLoader = async ({
   emitFontFile,
   isDev,
   isServer,
-  loaderContext,
 }) => {
   const {
     fontFamily,
@@ -83,7 +82,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     // Fetch CSS from Google Fonts or get it from the cache
     let fontFaceDeclarations = hasCachedCSS
       ? cssCache.get(url)
-      : await fetchCSSFromGoogleFonts(url, fontFamily).catch((err) => {
+      : await fetchCSSFromGoogleFonts(url, fontFamily, isDev).catch((err) => {
           console.error(err)
           return null
         })
@@ -112,7 +111,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
         // Download the font file or get it from cache
         const fontFileBuffer = hasCachedFont
           ? fontCache.get(googleFontFileUrl)
-          : await fetchFontFile(googleFontFileUrl).catch((err) => {
+          : await fetchFontFile(googleFontFileUrl, isDev).catch((err) => {
               console.error(err)
               return null
             })
@@ -163,7 +162,6 @@ const nextFontGoogleFontLoader: FontLoader = async ({
       css: updatedCssResponse,
     }
   } catch (err) {
-    loaderContext.cacheable(false)
     if (isDev) {
       if (isServer) {
         Log.error(
