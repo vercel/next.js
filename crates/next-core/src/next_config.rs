@@ -15,6 +15,7 @@ use turbopack_core::{
     changed::any_content_changed,
     context::AssetContext,
     ident::AssetIdentVc,
+    issue::IssueContextExt,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         find_context_file,
@@ -539,6 +540,22 @@ fn next_configs() -> StringsVc {
 
 #[turbo_tasks::function]
 pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<NextConfigVc> {
+    let ExecutionContext { project_path, .. } = *execution_context.await?;
+    let find_config_result = find_context_file(project_path, next_configs());
+    let config_file = match &*find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => Some(*config_path),
+        FindContextFileResult::NotFound(_) => None,
+    };
+    load_next_config_internal(execution_context, config_file)
+        .issue_context(config_file, "Loading Next.js config")
+        .await
+}
+
+#[turbo_tasks::function]
+pub async fn load_next_config_internal(
+    execution_context: ExecutionContextVc,
+    config_file: Option<FileSystemPathVc>,
+) -> Result<NextConfigVc> {
     let ExecutionContext {
         project_path,
         intermediate_output_path,
@@ -552,11 +569,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(project_path, Some(import_map.cell()), None);
-    let find_config_result = find_context_file(project_path, next_configs());
-    let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(SourceAssetVc::new(*config_path)),
-        FindContextFileResult::NotFound(_) => None,
-    };
+    let config_asset = config_file.map(SourceAssetVc::new);
 
     let config_changed = config_asset.map_or_else(CompletionVc::immutable, |config_asset| {
         // This invalidates the execution when anything referenced by the config file

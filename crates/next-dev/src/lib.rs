@@ -10,7 +10,7 @@ use std::{
     future::{join, Future},
     io::{stdout, Write},
     net::{IpAddr, SocketAddr},
-    path::MAIN_SEPARATOR,
+    path::{PathBuf, MAIN_SEPARATOR},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -206,6 +206,7 @@ impl NextDevServerBuilder {
         let browserslist_query = self.browserslist_query;
         let log_options = Arc::new(LogOptions {
             current_dir: current_dir().unwrap(),
+            project_dir: PathBuf::from(project_dir.clone()),
             show_all,
             log_detail,
             log_level: self.log_level,

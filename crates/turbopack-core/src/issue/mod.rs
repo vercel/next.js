@@ -7,13 +7,12 @@ pub mod unsupported_module;
 use std::{
     cmp::Ordering,
     fmt::{Display, Formatter},
-    future::IntoFuture,
     sync::Arc,
 };
 
 use anyhow::Result;
+use async_trait::async_trait;
 use auto_hash_map::AutoSet;
-use futures::FutureExt;
 use turbo_tasks::{
     emit,
     primitives::{BoolVc, StringReadRef, StringVc, U64Vc},
@@ -159,8 +158,50 @@ impl ValueToString for IssueProcessingPathItem {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl IssueProcessingPathItemVc {
+    #[turbo_tasks::function]
+    pub async fn into_plain(self) -> Result<PlainIssueProcessingPathItemVc> {
+        let this = self.await?;
+        Ok(PlainIssueProcessingPathItem {
+            context: if let Some(context) = this.context {
+                Some(context.to_string().await?)
+            } else {
+                None
+            },
+            description: this.description.await?,
+        }
+        .cell())
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionIssueProcessingPathItems(Option<Vec<IssueProcessingPathItemVc>>);
+
+#[turbo_tasks::value_impl]
+impl OptionIssueProcessingPathItemsVc {
+    #[turbo_tasks::function]
+    pub fn none() -> Self {
+        OptionIssueProcessingPathItemsVc::cell(None)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn into_plain(self) -> Result<PlainIssueProcessingPathVc> {
+        Ok(PlainIssueProcessingPathVc::cell(
+            if let Some(items) = &*self.await? {
+                Some(
+                    items
+                        .iter()
+                        .map(|item| item.into_plain())
+                        .try_join()
+                        .await?,
+                )
+            } else {
+                None
+            },
+        ))
+    }
+}
 
 #[turbo_tasks::value]
 struct RootIssueProcessingPath(IssueVc);
@@ -198,7 +239,7 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
         let mut shortest: Option<&Vec<_>> = None;
         for path in paths.iter().filter_map(|p| p.as_ref()) {
             if let Some(old) = shortest {
-                match old.cmp(path) {
+                match old.len().cmp(&path.len()) {
                     Ordering::Greater => {
                         shortest = Some(path);
                     }
@@ -246,9 +287,9 @@ impl IssueVc {
 
 impl IssueVc {
     #[allow(unused_variables, reason = "behind feature flag")]
-    pub async fn attach_context<T: CollectiblesSource + Copy>(
-        context: FileSystemPathVc,
-        description: String,
+    pub async fn attach_context<T: CollectiblesSource + Copy + Send>(
+        context: impl Into<Option<FileSystemPathVc>> + Send,
+        description: impl Into<String> + Send,
         source: T,
     ) -> Result<T> {
         #[cfg(feature = "issue_path")]
@@ -258,8 +299,8 @@ impl IssueVc {
                 emit(
                     ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
-                            context: Some(context),
-                            description: StringVc::cell(description),
+                            context: context.into(),
+                            description: StringVc::cell(description.into()),
                         })),
                         children,
                     ))
@@ -271,27 +312,11 @@ impl IssueVc {
     }
 
     #[allow(unused_variables, reason = "behind feature flag")]
-    pub async fn attach_description<T: CollectiblesSource + Copy>(
-        description: String,
+    pub async fn attach_description<T: CollectiblesSource + Copy + Send>(
+        description: impl Into<String> + Send,
         source: T,
     ) -> Result<T> {
-        #[cfg(feature = "issue_path")]
-        {
-            let children = source.take_collectibles().await?;
-            if !children.is_empty() {
-                emit(
-                    ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItemVc::cell(IssueProcessingPathItem {
-                            context: None,
-                            description: StringVc::cell(description),
-                        })),
-                        children,
-                    ))
-                    .as_issue_processing_path(),
-                );
-            }
-        }
-        Ok(source)
+        Self::attach_context(None, description, source).await
     }
 
     /// Returns all issues from `source` in a list with their associated
@@ -373,7 +398,7 @@ impl CapturedIssues {
             #[cfg(feature = "issue_path")]
             let path = self.processing_path.shortest_path(*issue);
             #[cfg(not(feature = "issue_path"))]
-            let path = OptionIssueProcessingPathItemsVc::cell(None);
+            let path = OptionIssueProcessingPathItemsVc::none();
             (*issue, path)
         })
     }
@@ -382,7 +407,16 @@ impl CapturedIssues {
         let mut list = self
             .issues
             .iter()
-            .map(|issue| issue.into_plain().into_future())
+            .map(|&issue| async move {
+                #[cfg(feature = "issue_path")]
+                return issue
+                    .into_plain(self.processing_path.shortest_path(issue))
+                    .await;
+                #[cfg(not(feature = "issue_path"))]
+                return issue
+                    .into_plain(OptionIssueProcessingPathItemsVc::none())
+                    .await;
+            })
             .try_join()
             .await?;
         list.sort_by(|a, b| ReadRef::ptr_cmp(a, b));
@@ -453,6 +487,7 @@ pub struct PlainIssue {
 
     pub source: Option<PlainIssueSourceReadRef>,
     pub sub_issues: Vec<PlainIssueReadRef>,
+    pub processing_path: PlainIssueProcessingPathReadRef,
 }
 
 impl PlainIssue {
@@ -497,7 +532,10 @@ impl PlainIssueVc {
 #[turbo_tasks::value_impl]
 impl IssueVc {
     #[turbo_tasks::function]
-    pub async fn into_plain(self) -> Result<PlainIssueVc> {
+    pub async fn into_plain(
+        self,
+        processing_path: OptionIssueProcessingPathItemsVc,
+    ) -> Result<PlainIssueVc> {
         Ok(PlainIssue {
             severity: *self.severity().await?,
             context: self.context().to_string().await?.clone_value(),
@@ -506,24 +544,26 @@ impl IssueVc {
             description: self.description().await?.clone_value(),
             detail: self.detail().await?.clone_value(),
             documentation_link: self.documentation_link().await?.clone_value(),
-            source: self
-                .source()
-                .into_future()
-                .then(|s| async {
-                    if let Some(s) = *s? {
-                        return Ok(Some(s.into_plain().await?));
-                    }
-
-                    anyhow::Ok(None)
-                })
-                .await?,
+            source: {
+                if let Some(s) = *self.source().await? {
+                    Some(s.into_plain().await?)
+                } else {
+                    None
+                }
+            },
             sub_issues: self
                 .sub_issues()
                 .await?
                 .iter()
-                .map(|i| async move { anyhow::Ok(i.into_plain().await?) })
+                .map(|i| async move {
+                    anyhow::Ok(
+                        i.into_plain(OptionIssueProcessingPathItemsVc::none())
+                            .await?,
+                    )
+                })
                 .try_join()
                 .await?,
+            processing_path: processing_path.into_plain().await?,
         }
         .cell())
     }
@@ -577,6 +617,17 @@ impl PlainAssetVc {
     }
 }
 
+#[turbo_tasks::value(transparent, serialization = "none")]
+#[derive(Clone, Debug)]
+pub struct PlainIssueProcessingPath(Option<Vec<PlainIssueProcessingPathItemReadRef>>);
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone, Debug)]
+pub struct PlainIssueProcessingPathItem {
+    pub context: Option<StringReadRef>,
+    pub description: StringReadRef,
+}
+
 #[turbo_tasks::value_trait]
 pub trait IssueReporter {
     fn report_issues(
@@ -584,4 +635,34 @@ pub trait IssueReporter {
         issues: TransientInstance<ReadRef<CapturedIssues>>,
         source: TransientValue<RawVc>,
     ) -> BoolVc;
+}
+
+#[async_trait]
+pub trait IssueContextExt
+where
+    Self: Sized,
+{
+    async fn issue_context(
+        self,
+        context: impl Into<Option<FileSystemPathVc>> + Send,
+        description: impl Into<String> + Send,
+    ) -> Result<Self>;
+    async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self>;
+}
+
+#[async_trait]
+impl<T> IssueContextExt for T
+where
+    T: CollectiblesSource + Copy + Send,
+{
+    async fn issue_context(
+        self,
+        context: impl Into<Option<FileSystemPathVc>> + Send,
+        description: impl Into<String> + Send,
+    ) -> Result<Self> {
+        IssueVc::attach_context(context, description, self).await
+    }
+    async fn issue_description(self, description: impl Into<String> + Send) -> Result<Self> {
+        IssueVc::attach_description(description, self).await
+    }
 }

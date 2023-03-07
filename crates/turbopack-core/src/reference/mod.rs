@@ -5,7 +5,7 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
-    issue::IssueVc,
+    issue::IssueContextExt,
     resolve::{PrimaryResolveResult, ResolveResult, ResolveResultVc},
 };
 pub mod source_map;
@@ -128,12 +128,9 @@ pub async fn all_assets(asset: AssetVc) -> Result<AssetsVc> {
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some((parent, references)) = queue.pop_front() {
-        IssueVc::attach_context(
-            parent.ident().path(),
-            "expanding references of asset".to_string(),
-            references,
-        )
-        .await?;
+        let references = references
+            .issue_context(parent.ident().path(), "expanding references of asset")
+            .await?;
         for asset in references.await?.iter() {
             if assets.insert(*asset) {
                 queue.push_back((*asset, all_referenced_assets(*asset)));

@@ -494,8 +494,8 @@ impl IssueReporter for TestIssueReporter {
         _source: TransientValue<RawVc>,
     ) -> Result<BoolVc> {
         let issue_tx = self.issue_tx.get_untracked().clone();
-        for issue in captured_issues.iter() {
-            let plain = issue.into_plain();
+        for (issue, path) in captured_issues.iter_with_shortest_path() {
+            let plain = issue.into_plain(path);
             issue_tx.send((plain.await?, plain.dbg().await?)).await?;
         }
 

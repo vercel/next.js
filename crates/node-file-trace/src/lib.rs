@@ -44,7 +44,7 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo},
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
-    issue::{IssueReporter, IssueSeverity, IssueVc},
+    issue::{IssueContextExt, IssueReporter, IssueSeverity, IssueVc},
     reference::all_assets,
     resolve::options::{ImportMapping, ResolvedMap},
     source_asset::SourceAssetVc,
@@ -459,6 +459,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     let resolve_options = TransientInstance::new(resolve_options.unwrap_or_default());
     let log_options = TransientInstance::new(LogOptions {
         current_dir: dir.clone(),
+        project_dir: dir.clone(),
         show_all,
         log_detail,
         log_level: log_level.map_or_else(|| IssueSeverity::Error, |l| l.0),
@@ -542,13 +543,9 @@ async fn main_operation(
             )
             .await?;
             for module in modules.iter() {
-                let set = all_assets(*module);
-                IssueVc::attach_context(
-                    module.ident().path(),
-                    "gathering list of assets".to_string(),
-                    set,
-                )
-                .await?;
+                let set = all_assets(*module)
+                    .issue_context(module.ident().path(), "gathering list of assets")
+                    .await?;
                 for asset in set.await?.iter() {
                     let path = asset.ident().path().await?;
                     result.insert(path.path.to_string());
