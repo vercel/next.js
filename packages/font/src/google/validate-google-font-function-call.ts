@@ -20,8 +20,7 @@ type FontOptions = {
  */
 export function validateGoogleFontFunctionCall(
   functionName: string,
-  fontFunctionArgument: any,
-  config: any
+  fontFunctionArgument: any
 ): FontOptions {
   let {
     weight,
@@ -32,11 +31,8 @@ export function validateGoogleFontFunctionCall(
     fallback,
     adjustFontFallback = true,
     variable,
-    subsets: callSubsets,
+    subsets,
   } = fontFunctionArgument || ({} as any)
-  // Get the subsets defined for the font from either next.config.js or the function call. If both are present, pick the function call subsets.
-  const subsets = callSubsets ?? config?.subsets ?? []
-
   if (functionName === '') {
     nextFontError(`next/font/google has no default export`)
   }
@@ -52,8 +48,8 @@ export function validateGoogleFontFunctionCall(
   if (availableSubsets.length === 0) {
     // If the font doesn't have any preloadeable subsets, disable preload
     preload = false
-  } else {
-    if (preload && !callSubsets && !config?.subsets) {
+  } else if (preload) {
+    if (!subsets) {
       nextFontError(
         `Missing selected subsets for font \`${fontFamily}\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
       )

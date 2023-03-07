@@ -187,8 +187,6 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: Array<{ loader: string; options?: any }>
-
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
   turbo?: ExperimentalTurboOptions

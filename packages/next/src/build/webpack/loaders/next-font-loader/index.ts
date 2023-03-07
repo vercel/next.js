@@ -1,16 +1,15 @@
 import type { FontLoader } from '../../../../../font'
 
-import { promises as fs } from 'fs'
 import path from 'path'
 import chalk from 'next/dist/compiled/chalk'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'
-import { CONFIG_FILES } from '../../../../shared/lib/constants'
 
 export default async function nextFontLoader(this: any) {
-  const fontLoaderSpan = this.currentTraceSpan.traceChild('next-font-loader')
-  return fontLoaderSpan.traceAsyncFn(async () => {
+  const nextFontLoaderSpan =
+    this.currentTraceSpan.traceChild('next-font-loader')
+  return nextFontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
 
     // next-swc next_font_loaders turns each font loader call into JSON
@@ -38,27 +37,8 @@ export default async function nextFontLoader(this: any) {
       isServer,
       assetPrefix,
       fontLoaderPath,
-      fontLoaderOptions,
       postcss: getPostcss,
     } = this.getOptions()
-
-    const nextConfigPaths = CONFIG_FILES.map((config) =>
-      path.join(this.rootContext, config)
-    )
-    // Add next.config.js as a dependency, loaders must rerun in case options changed
-    await Promise.all(
-      nextConfigPaths.map(async (configPath) => {
-        const hasConfig = await fs.access(configPath).then(
-          () => true,
-          () => false
-        )
-        if (hasConfig) {
-          this.addDependency(configPath)
-        } else {
-          this.addMissingDependency(configPath)
-        }
-      })
-    )
 
     const emitFontFile = (
       content: Buffer,
@@ -89,7 +69,6 @@ export default async function nextFontLoader(this: any) {
           functionName,
           variableName,
           data,
-          config: fontLoaderOptions,
           emitFontFile,
           resolve: (src: string) =>
             promisify(this.resolve)(
