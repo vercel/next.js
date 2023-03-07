@@ -277,17 +277,21 @@ pub async fn create_page_source(
     let fallback_source =
         AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
 
-    Ok(CombinedContentSource {
+    let source = CombinedContentSource {
         sources: vec![
             // Match _next/404 first to ensure rewrites work properly.
-            force_not_found_source,
+            force_not_found_source.issue_context(pages_dir, "Next.js pages directory not found"),
             page_source,
-            fallback_source.into(),
-            fallback_not_found_source,
+            fallback_source
+                .as_content_source()
+                .issue_context(pages_dir, "Next.js pages directory fallback"),
+            fallback_not_found_source
+                .issue_context(pages_dir, "Next.js pages directory not found fallback"),
         ],
     }
     .cell()
-    .into())
+    .into();
+    Ok(source)
 }
 
 /// Handles a single page file in the pages directory
@@ -555,54 +559,53 @@ async fn create_page_source_for_directory(
     let mut sources = vec![];
 
     for item in items.iter() {
-        match *item.await? {
+        let source = match *item.await? {
             PagesStructureItem::Page {
                 page,
                 specificity,
                 url,
-            } => {
-                sources.push(create_page_source_for_file(
-                    project_path,
-                    env,
-                    server_context,
-                    server_data_context,
-                    client_context,
-                    pages_dir,
-                    specificity,
-                    SourceAssetVc::new(page).into(),
-                    runtime_entries,
-                    fallback_page,
-                    server_root,
-                    url,
-                    false,
-                    output_root,
-                    output_root,
-                ));
-            }
+            } => create_page_source_for_file(
+                project_path,
+                env,
+                server_context,
+                server_data_context,
+                client_context,
+                pages_dir,
+                specificity,
+                SourceAssetVc::new(page).into(),
+                runtime_entries,
+                fallback_page,
+                server_root,
+                url,
+                false,
+                output_root,
+                output_root,
+            )
+            .issue_context(page, "Next.js pages directory"),
             PagesStructureItem::Api {
                 api,
                 specificity,
                 url,
-            } => {
-                sources.push(create_page_source_for_file(
-                    project_path,
-                    env,
-                    server_context,
-                    server_data_context,
-                    client_context,
-                    pages_dir,
-                    specificity,
-                    SourceAssetVc::new(api).into(),
-                    runtime_entries,
-                    fallback_page,
-                    server_root,
-                    url,
-                    true,
-                    output_root,
-                    output_root,
-                ));
-            }
-        }
+            } => create_page_source_for_file(
+                project_path,
+                env,
+                server_context,
+                server_data_context,
+                client_context,
+                pages_dir,
+                specificity,
+                SourceAssetVc::new(api).into(),
+                runtime_entries,
+                fallback_page,
+                server_root,
+                url,
+                true,
+                output_root,
+                output_root,
+            )
+            .issue_context(api, "Next.js pages api directory"),
+        };
+        sources.push(source);
     }
 
     for child in children.iter() {

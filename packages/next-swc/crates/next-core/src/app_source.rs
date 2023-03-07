@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap},
     io::Write,
+    iter::once,
 };
 
 use anyhow::{anyhow, Result};
@@ -394,7 +395,9 @@ async fn create_app_source_for_directory(
     intermediate_output_path_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
     let AppStructure {
-        item, ref children, ..
+        item,
+        ref children,
+        directory,
     } = *app_structure.await?;
     let mut sources = Vec::new();
 
@@ -473,21 +476,31 @@ async fn create_app_source_for_directory(
             return Ok(NoContentSourceVc::new().into());
         }
     }
-    for child in children.iter() {
-        sources.push(create_app_source_for_directory(
-            *child,
-            context_ssr,
-            context,
-            project_path,
-            env,
-            server_root,
-            runtime_entries,
-            fallback_page,
-            intermediate_output_path_root,
-        ));
-    }
 
-    Ok(CombinedContentSource { sources }.cell().into())
+    let source = CombinedContentSource { sources }
+        .cell()
+        .as_content_source()
+        .issue_context(directory, "Next.js App Router");
+
+    Ok(CombinedContentSource {
+        sources: once(source)
+            .chain(children.iter().map(|child| {
+                create_app_source_for_directory(
+                    *child,
+                    context_ssr,
+                    context,
+                    project_path,
+                    env,
+                    server_root,
+                    runtime_entries,
+                    fallback_page,
+                    intermediate_output_path_root,
+                )
+            }))
+            .collect(),
+    }
+    .cell()
+    .into())
 }
 
 /// The renderer for pages in app directory

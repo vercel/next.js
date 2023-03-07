@@ -22,4 +22,7 @@ PlainIssue {
         },
     ),
     sub_issues: [],
+    processing_path: Some(
+        [],
+    ),
 }

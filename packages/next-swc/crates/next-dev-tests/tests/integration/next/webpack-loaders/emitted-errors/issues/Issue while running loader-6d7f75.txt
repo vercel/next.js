@@ -8,4 +8,14 @@ PlainIssue {
     documentation_link: "",
     source: None,
     sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/index.js",
+                ),
+                description: "Next.js pages directory",
+            },
+        ],
+    ),
 }
