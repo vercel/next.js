@@ -15,9 +15,13 @@ impl<T> Default for NonDeterministic<T> {
 impl<T> GraphStore<T> for NonDeterministic<T> {
     type Handle = ();
 
-    fn insert(&mut self, _parent_handle: Option<Self::Handle>, node: T) -> (Self::Handle, &T) {
+    fn insert(
+        &mut self,
+        _from_handle: Option<Self::Handle>,
+        node: T,
+    ) -> Option<(Self::Handle, &T)> {
         self.output.push(node);
-        ((), self.output.last().unwrap())
+        Some(((), self.output.last().unwrap()))
     }
 }
 
