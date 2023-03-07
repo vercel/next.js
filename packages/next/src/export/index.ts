@@ -31,6 +31,7 @@ import {
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVER_REFERENCE_MANIFEST,
+  APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -238,6 +239,11 @@ export default async function exportApp(
       prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
     } catch (_) {}
 
+    let appRoutePathManifest: any | undefined = undefined
+    try {
+      appRoutePathManifest = require(join(distDir, APP_PATH_ROUTES_MANIFEST))
+    } catch (_) {}
+
     const excludedPrerenderRoutes = new Set<string>()
     const pages = options.pages || Object.keys(pagesManifest)
     const defaultPathMap: ExportPathMap = {}
@@ -267,6 +273,21 @@ export default async function exportApp(
       }
 
       defaultPathMap[page] = { page }
+    }
+
+    for (var [key, value] of Object.entries(appRoutePathManifest)) {
+      let val = value as string
+      if (
+        key.endsWith('/page') &&
+        !prerenderManifest?.routes[val] &&
+        !prerenderManifest?.dynamicRoutes[val]
+      ) {
+        defaultPathMap[val] = {
+          page: key,
+          // @ts-ignore
+          _isAppDir: true,
+        }
+      }
     }
 
     // Initialize the output directory
@@ -711,7 +732,15 @@ export default async function exportApp(
       await Promise.all(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
-          const pageName = srcRoute || route
+          let appSrcRoute = srcRoute
+          for (const [keyAppRoute, valueAppRoute] of Object.entries(
+            appRoutePathManifest
+          )) {
+            if (valueAppRoute === srcRoute) {
+              appSrcRoute = keyAppRoute
+            }
+          }
+          const pageName = appSrcRoute || route
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
@@ -720,7 +749,8 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir, undefined, false)
+          const isAppPath = Boolean(appSrcRoute)
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs
@@ -743,13 +773,20 @@ export default async function exportApp(
             outDir,
             `${route}.amp${subFolders ? `${sep}index` : ''}.html`
           )
-          const jsonDest = join(pagesDataDir, `${route}.json`)
+          const jsonDest = isAppPath
+            ? join(
+                outDir,
+                `${route}${
+                  subFolders && route !== '/index' ? `${sep}index` : ''
+                }.rsc`
+              )
+            : join(pagesDataDir, `${route}.json`)
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
 
           const htmlSrc = `${orig}.html`
-          const jsonSrc = `${orig}.json`
+          const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
 
           await promises.copyFile(htmlSrc, htmlDest)
           await promises.copyFile(jsonSrc, jsonDest)

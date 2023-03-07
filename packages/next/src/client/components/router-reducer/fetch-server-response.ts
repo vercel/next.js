@@ -35,7 +35,15 @@ export async function fetchServerResponse(
   }
 
   try {
-    const res = await fetch(url.toString(), {
+    let cloneUrl = new URL(url)
+    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+      if (cloneUrl.pathname.endsWith('/')) {
+        cloneUrl.pathname += 'index.rsc'
+      } else {
+        cloneUrl.pathname += +'.rsc'
+      }
+    }
+    const res = await fetch(cloneUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',
       headers,
