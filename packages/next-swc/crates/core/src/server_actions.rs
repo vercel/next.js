@@ -459,6 +459,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        expr,
+                        ..
+                    })) => {
+                        if let Expr::Ident(ident) = &**expr {
+                            // export default foo
+                            self.exported_idents.push(ident.to_id());
+                        }
+                    }
                     _ => {}
                 }
 
@@ -532,6 +541,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ..
                     })) => match &**expr {
                         Expr::Fn(_f) => {}
+                        Expr::Ident(ident) => {
+                            if !self.async_fn_idents.contains(&ident.to_id()) {
+                                disallowed_export_span = *span;
+                            }
+                        }
                         _ => {
                             disallowed_export_span = *span;
                         }
