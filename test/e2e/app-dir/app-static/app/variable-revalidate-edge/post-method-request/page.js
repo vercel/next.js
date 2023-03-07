@@ -14,6 +14,9 @@ export default async function Page() {
     new URL('https://next-data-api-endpoint.vercel.app/api/random'),
     {
       method: 'POST',
+      next: {
+        revalidate: 0,
+      },
     }
   ).then((res) => res.text())
 
