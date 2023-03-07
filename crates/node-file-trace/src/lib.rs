@@ -629,7 +629,7 @@ async fn create_module_asset(
     let env = EnvironmentVc::new(
         Value::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment {
-                cwd: OptionStringVc::cell(process_cwd.clone()),
+                cwd: OptionStringVc::cell(process_cwd),
                 ..Default::default()
             }
             .into(),

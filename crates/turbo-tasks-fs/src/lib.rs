@@ -74,6 +74,7 @@ pub trait FileSystem: ValueToString {
     fn read(&self, fs_path: FileSystemPathVc) -> FileContentVc;
     fn read_link(&self, fs_path: FileSystemPathVc) -> LinkContentVc;
     fn read_dir(&self, fs_path: FileSystemPathVc) -> DirectoryContentVc;
+    fn track(&self, fs_path: FileSystemPathVc) -> CompletionVc;
     fn write(&self, fs_path: FileSystemPathVc, content: FileContentVc) -> CompletionVc;
     fn write_link(&self, fs_path: FileSystemPathVc, target: LinkContentVc) -> CompletionVc;
     fn metadata(&self, fs_path: FileSystemPathVc) -> FileMetaVc;
@@ -311,6 +312,18 @@ impl Debug for DiskFileSystem {
     }
 }
 
+/// Reads the file from disk, without converting the contents into a Vc.
+async fn read_file(path: PathBuf, mutex_map: &MutexMap<PathBuf>) -> Result<FileContent> {
+    let _lock = mutex_map.lock(path.clone()).await;
+    Ok(match retry_future(|| File::from_path(path.clone())).await {
+        Ok(file) => FileContent::new(file),
+        Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
+        Err(e) => {
+            bail!(anyhow!(e).context(format!("reading file {}", path.display())))
+        }
+    })
+}
+
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
@@ -318,15 +331,7 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path, true);
 
-        let _lock = self.mutex_map.lock(full_path.clone()).await;
-        let content = match retry_future(|| File::from_path(full_path.clone())).await {
-            Ok(file) => FileContent::new(file),
-            Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
-            Err(e) => {
-                bail!(anyhow!(e).context(format!("reading file {}", full_path.display())))
-            }
-        };
-
+        let content = read_file(full_path, &self.mutex_map).await?;
         Ok(content.cell())
     }
 
@@ -467,6 +472,13 @@ impl FileSystem for DiskFileSystem {
     }
 
     #[turbo_tasks::function]
+    async fn track(&self, fs_path: FileSystemPathVc) -> Result<CompletionVc> {
+        let full_path = self.to_sys_path(fs_path).await?;
+        self.register_invalidator(full_path, true);
+        Ok(CompletionVc::new())
+    }
+
+    #[turbo_tasks::function]
     async fn write(
         &self,
         fs_path: FileSystemPathVc,
@@ -474,17 +486,23 @@ impl FileSystem for DiskFileSystem {
     ) -> Result<CompletionVc> {
         let full_path = self.to_sys_path(fs_path).await?;
         let content = content.await?;
-        let old_content = fs_path
-            .read()
-            .await
-            .with_context(|| format!("reading old content of {}", full_path.display()))?;
 
-        if *content == *old_content {
+        // Track the file, so that we will rewrite it if it ever changes.
+        fs_path.track().await?;
+
+        // We perform an untracked read here, so that this write is not dependent on the
+        // read's FileContent value (and the memory it holds). Our untracked read can be
+        // freed immediately. Given this is an output file, it's unlikely any Turbo code
+        // will need to read the file from disk into a FileContentVc, so we're not
+        // wasting cycles.
+        let old_content = read_file(full_path.clone(), &self.mutex_map).await?;
+
+        if *content == old_content {
             return Ok(CompletionVc::unchanged());
         }
         let _lock = self.mutex_map.lock(full_path.clone()).await;
 
-        let create_directory = *old_content == FileContent::NotFound;
+        let create_directory = old_content == FileContent::NotFound;
         match &*content {
             FileContent::Content(file) => {
                 if create_directory {
@@ -948,6 +966,11 @@ impl FileSystemPathVc {
     #[turbo_tasks::function]
     pub async fn read_dir(self) -> DirectoryContentVc {
         self.fs().read_dir(self)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn track(self) -> CompletionVc {
+        self.fs().track(self)
     }
 
     #[turbo_tasks::function]
@@ -1634,6 +1657,11 @@ impl FileSystem for NullFileSystem {
     #[turbo_tasks::function]
     fn read_dir(&self, _fs_path: FileSystemPathVc) -> DirectoryContentVc {
         DirectoryContentVc::not_found()
+    }
+
+    #[turbo_tasks::function]
+    fn track(&self, _fs_path: FileSystemPathVc) -> CompletionVc {
+        CompletionVc::immutable()
     }
 
     #[turbo_tasks::function]

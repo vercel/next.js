@@ -141,6 +141,11 @@ impl FileSystem for AttachedFileSystem {
     }
 
     #[turbo_tasks::function]
+    fn track(self_vc: AttachedFileSystemVc, path: FileSystemPathVc) -> CompletionVc {
+        self_vc.get_inner_fs_path(path).track()
+    }
+
+    #[turbo_tasks::function]
     fn write(
         self_vc: AttachedFileSystemVc,
         path: FileSystemPathVc,

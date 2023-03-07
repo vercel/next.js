@@ -74,6 +74,11 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
+    fn track(&self, _path: FileSystemPathVc) -> CompletionVc {
+        CompletionVc::immutable()
+    }
+
+    #[turbo_tasks::function]
     fn write(&self, _path: FileSystemPathVc, _content: FileContentVc) -> Result<CompletionVc> {
         bail!("Writing is not possible to the embedded filesystem")
     }
