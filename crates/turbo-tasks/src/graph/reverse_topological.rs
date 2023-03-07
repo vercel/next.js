@@ -29,17 +29,17 @@ where
 {
     type Handle = T;
 
-    fn insert(&mut self, parent: Option<T>, node: T) -> (Self::Handle, &T) {
-        let vec = if let Some(parent) = parent {
+    fn insert(&mut self, from_handle: Option<T>, node: T) -> Option<(Self::Handle, &T)> {
+        let vec = if let Some(from_handle) = from_handle {
             self.adjacency_map
-                .entry(parent)
+                .entry(from_handle)
                 .or_insert_with(|| Vec::with_capacity(1))
         } else {
             &mut self.roots
         };
 
         vec.push(node.clone());
-        (node, vec.last().unwrap())
+        Some((node, vec.last().unwrap()))
     }
 }
 
@@ -99,15 +99,15 @@ where
 
                     self.visited.insert(current.clone());
 
-                    let Some(children) = self.adjacency_map.get(&current) else {
+                    let Some(neighbors) = self.adjacency_map.get(&current) else {
                         break current;
                     };
 
                     self.stack.push((ReverseTopologicalPass::Post, current));
                     self.stack.extend(
-                        children
+                        neighbors
                             .iter()
-                            .map(|child| (ReverseTopologicalPass::Pre, child.clone())),
+                            .map(|neighbor| (ReverseTopologicalPass::Pre, neighbor.clone())),
                     );
                 }
             }
