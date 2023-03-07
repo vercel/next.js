@@ -157,8 +157,6 @@
     "gzip-size": "5.1.1",
     "html-validator": "5.1.18",
     "http-proxy": "1.18.1",
-    "http-proxy-agent": "5.0.0",
-    "https-proxy-agent": "5.0.1",
     "husky": "8.0.0",
     "image-size": "0.9.3",
     "is-animated": "2.0.2",
