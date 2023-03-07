@@ -41,7 +41,6 @@ class TestExporter implements SpanExporter {
   ) {
     const traceFullPath = path.join(__dirname, traceFile)
     for (const span of spans) {
-      console.log('exporting', span.name)
       await fs.appendFile(
         traceFullPath,
         JSON.stringify(serializeSpan(span)) + '\n'
@@ -55,8 +54,6 @@ class TestExporter implements SpanExporter {
 }
 
 export const register = () => {
-  fs.createFileSync('./' + traceFile)
-
   const provider = new NodeTracerProvider({
     resource: new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: 'test-next-app',
@@ -67,4 +64,7 @@ export const register = () => {
 
   // Make sure to register you provider
   provider.register()
+
+  // Creating this file will let our tests know that initialization is done
+  fs.createFileSync('./' + traceFile)
 }

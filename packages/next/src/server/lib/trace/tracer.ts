@@ -222,18 +222,22 @@ class NextTracerImpl implements NextTracer {
           return fn(span, (err?: Error) => closeSpanWithError(span, err))
         }
 
-        const result = fn(span)
+        let result = fn(span)
 
-        if (isPromise(result)) {
-          result.then(
-            () => span.end(),
-            (err) => closeSpanWithError(span, err)
-          )
-        } else {
+        if (!isPromise(result)) {
           span.end()
+          return result
         }
 
         return result
+          .then((value) => {
+            span.end()
+            return value
+          })
+          .catch((err) => {
+            closeSpanWithError(span, err)
+            throw err
+          })
       } catch (err: any) {
         closeSpanWithError(span, err)
         throw err
