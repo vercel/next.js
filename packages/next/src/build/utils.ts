@@ -1255,7 +1255,7 @@ export async function isPageStatic({
   parentId?: any
   edgeInfo?: any
   pageType?: 'pages' | 'app'
-  pageRuntime: ServerRuntime
+  pageRuntime?: ServerRuntime
   hasServerComponents?: boolean
   originalAppPath?: string
 }): Promise<{
