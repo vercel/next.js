@@ -178,7 +178,7 @@ export default async function exportPage({
       delete query.__nextLocale
       delete query.__nextSsgPath
 
-      if (renderOpts.locale) {
+      if (renderOpts.locale && !isAppDir) {
         const localePathResult = normalizeLocalePath(path, renderOpts.locales)
 
         if (localePathResult.detectedLocale) {
