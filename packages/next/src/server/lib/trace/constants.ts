@@ -29,7 +29,7 @@ enum LoadComponentsSpan {
 }
 
 enum NextServerSpan {
-  getRequestHandler = 'NextServer.getRequestHandler',
+  rootRequestHandler = 'NextServer.rootRequestHandler',
   getServer = 'NextServer.getServer',
   getServerRequestHandler = 'NextServer.getServerRequestHandler',
   createServer = 'createServer.createServer',
@@ -100,7 +100,7 @@ type SpanNames =
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
-  NextServerSpan.getRequestHandler,
+  NextServerSpan.rootRequestHandler,
   NextNodeServerSpan.findPageComponents,
   BaseServerSpan.renderToResponse,
   RenderSpan.getServerSideProps,

@@ -65,7 +65,7 @@ export class NextServer {
       parsedUrl?: UrlWithParsedQuery
     ) => {
       return getTracer().trace(
-        NextServerSpan.getRequestHandler,
+        NextServerSpan.rootRequestHandler,
         {
           tracerName: [req.method, req.url].join(' '),
           kind: SpanKind.SERVER,
