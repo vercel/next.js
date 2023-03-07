@@ -2,8 +2,9 @@ use std::cmp::Ordering;
 
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{indexset, IndexSet};
+use turbo_tasks::primitives::{StringVc, U32Vc};
 
-use super::options::{FontData, FontWeights};
+use super::options::{FontData, FontWeights, NextFontGoogleOptionsVc};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct FontAxes {
@@ -18,12 +19,41 @@ pub(crate) enum FontItal {
     Normal,
 }
 
+#[turbo_tasks::value(shared)]
+pub(crate) enum FontFamilyType {
+    WebFont,
+    Fallback,
+}
+
+#[turbo_tasks::function]
+pub(crate) async fn get_scoped_font_family(
+    ty: FontFamilyTypeVc,
+    options: NextFontGoogleOptionsVc,
+    request_hash: U32Vc,
+) -> Result<StringVc> {
+    let options = options.await?;
+    let hash = {
+        let mut hash = format!("{:x?}", request_hash.await?);
+        hash.truncate(6);
+        hash
+    };
+
+    let font_family_base = options.font_family.replace(' ', "_");
+    let ty = &*ty.await?;
+    let font_family = match ty {
+        FontFamilyType::WebFont => font_family_base,
+        FontFamilyType::Fallback => format!("{}_Fallback", font_family_base),
+    };
+
+    Ok(StringVc::cell(format!("__{}_{}", font_family, hash)))
+}
+
 // Derived from https://github.com/vercel/next.js/blob/9e098da0915a2a4581bebe2270953a1216be1ba4/packages/font/src/google/utils.ts#L232
 pub(crate) fn get_font_axes(
     font_data: &FontData,
     font_family: &str,
     weights: &FontWeights,
-    styles: &IndexSet<String>,
+    styles: &[String],
     selected_variable_axes: &Option<Vec<String>>,
 ) -> Result<FontAxes> {
     let all_axes = &font_data
@@ -32,8 +62,8 @@ pub(crate) fn get_font_axes(
         .axes;
 
     let ital = {
-        let has_italic = styles.contains("italic");
-        let has_normal = styles.contains("normal");
+        let has_italic = styles.contains(&"italic".to_owned());
+        let has_normal = styles.contains(&"normal".to_owned());
         let mut set = IndexSet::new();
         if has_normal {
             set.insert(FontItal::Normal);
@@ -253,13 +283,7 @@ mod tests {
   "#,
         )?;
 
-        match get_font_axes(
-            &data,
-            "foobar",
-            &FontWeights::Variable,
-            &indexset! {},
-            &None,
-        ) {
+        match get_font_axes(&data, "foobar", &FontWeights::Variable, &[], &None) {
             Ok(_) => panic!(),
             Err(err) => {
                 assert_eq!(err.to_string(), "Font family not found")
@@ -281,13 +305,7 @@ mod tests {
   "#,
         )?;
 
-        match get_font_axes(
-            &data,
-            "ABeeZee",
-            &FontWeights::Variable,
-            &indexset! {},
-            &None,
-        ) {
+        match get_font_axes(&data, "ABeeZee", &FontWeights::Variable, &[], &None) {
             Ok(_) => panic!(),
             Err(err) => {
                 assert_eq!(err.to_string(), "Font ABeeZee has no definable `axes`")
@@ -331,7 +349,7 @@ mod tests {
                 &data,
                 "Inter",
                 &FontWeights::Variable,
-                &indexset! {},
+                &[],
                 &Some(vec!["slnt".to_owned()]),
             )?,
             FontAxes {
@@ -372,7 +390,7 @@ mod tests {
                 &data,
                 "Inter",
                 &FontWeights::Variable,
-                &indexset! {},
+                &[],
                 &Some(vec!["slnt".to_owned()]),
             )?,
             FontAxes {
@@ -406,13 +424,7 @@ mod tests {
         )?;
 
         assert_eq!(
-            get_font_axes(
-                &data,
-                "Hind",
-                &FontWeights::Fixed(indexset! {500}),
-                &indexset! {},
-                &None
-            )?,
+            get_font_axes(&data, "Hind", &FontWeights::Fixed(vec![500]), &[], &None)?,
             FontAxes {
                 wght: indexset! {"500".to_owned()},
                 ital: indexset! {},

@@ -14,7 +14,12 @@ use turbopack_core::{
     asset::AssetVc,
     reference::{AssetReferenceVc, AssetReferencesVc},
     reference_type::{CssReferenceSubType, ReferenceType},
-    resolve::{handle_resolve_error, origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    resolve::{
+        handle_resolve_error,
+        origin::{ResolveOrigin, ResolveOriginVc},
+        parse::RequestVc,
+        ResolveResultVc,
+    },
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -157,7 +162,7 @@ pub async fn css_resolve(
     let options = origin.resolve_options(ty.clone());
     let result = origin.resolve_asset(request, options, ty.clone());
 
-    handle_resolve_error(result, ty, origin, request, options).await
+    handle_resolve_error(result, ty, origin.origin_path(), request, options).await
 }
 
 // TODO enable serialization

@@ -82,7 +82,14 @@ pub async fn url_resolve(
     } else {
         rel_result
     };
-    handle_resolve_error(result, ty.clone(), origin, request, resolve_options).await?;
+    handle_resolve_error(
+        result,
+        ty.clone(),
+        origin.origin_path(),
+        request,
+        resolve_options,
+    )
+    .await?;
     Ok(origin.context().process_resolve_result(result, ty))
 }
 
@@ -94,5 +101,12 @@ async fn specific_resolve(
 ) -> Result<ResolveResultVc> {
     let result = origin.resolve_asset(request, options, reference_type.clone());
 
-    handle_resolve_error(result, reference_type, origin, request, options).await
+    handle_resolve_error(
+        result,
+        reference_type,
+        origin.origin_path(),
+        request,
+        options,
+    )
+    .await
 }

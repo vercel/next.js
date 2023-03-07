@@ -22,7 +22,7 @@ pub struct NextFontRequestArguments {
     pub preload: bool,
     pub axes: Option<Vec<String>>,
     pub fallback: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default = "default_adjust_font_fallback")]
     pub adjust_font_fallback: bool,
     pub variable: Option<String>,
 }
@@ -32,4 +32,8 @@ pub struct NextFontRequestArguments {
 pub enum OneOrManyStrings {
     One(String),
     Many(Vec<String>),
+}
+
+fn default_adjust_font_fallback() -> bool {
+    true
 }
