@@ -17,6 +17,7 @@ use turbopack_core::{
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention::Middleware, ServerAddrVc},
     ident::AssetIdentVc,
+    issue::IssueVc,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
     source_asset::SourceAssetVc,
@@ -311,6 +312,32 @@ fn edge_transition_map(
 
 #[turbo_tasks::function]
 pub async fn route(
+    execution_context: ExecutionContextVc,
+    request: RouterRequestVc,
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
+    routes_changed: CompletionVc,
+) -> Result<RouterResultVc> {
+    let RouterRequest {
+        ref method,
+        ref pathname,
+        ..
+    } = *request.await?;
+    IssueVc::attach_description(
+        format!("Next.js Routing for {} {}", method, pathname),
+        route_internal(
+            execution_context,
+            request,
+            next_config,
+            server_addr,
+            routes_changed,
+        ),
+    )
+    .await
+}
+
+#[turbo_tasks::function]
+async fn route_internal(
     execution_context: ExecutionContextVc,
     request: RouterRequestVc,
     next_config: NextConfigVc,

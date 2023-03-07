@@ -22,4 +22,20 @@ PlainIssue {
         },
     ),
     sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/crates/next-dev-tests/tests/integration/next/tailwind/basic/input/pages/index.jsx",
+                ),
+                description: "Next.js pages directory",
+            },
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/crates/next-dev-tests/tests/integration/next/tailwind/basic/input/styles/globals.css",
+                ),
+                description: "PostCSS processing",
+            },
+        ],
+    ),
 }

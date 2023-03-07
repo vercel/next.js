@@ -104,11 +104,11 @@ async fn run(resource: &'static str) -> Result<()> {
             .await?;
 
         let plain_issues = captured_issues
-            .iter()
-            .map(|issue_vc| async move {
+            .iter_with_shortest_path()
+            .map(|(issue_vc, path)| async move {
                 Ok((
-                    issue_vc.into_plain().await?,
-                    issue_vc.into_plain().dbg().await?,
+                    issue_vc.into_plain(path).await?,
+                    issue_vc.into_plain(path).dbg().await?,
                 ))
             })
             .try_join()

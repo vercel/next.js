@@ -8,4 +8,7 @@ PlainIssue {
     documentation_link: "",
     source: None,
     sub_issues: [],
+    processing_path: Some(
+        [],
+    ),
 }
