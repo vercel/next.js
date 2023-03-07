@@ -659,7 +659,7 @@ export default class HotReloader {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
         const outputPath = this.multiCompiler?.outputPath || ''
-        const entries: ReturnType<typeof getEntries> = getEntries(outputPath)
+        const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
@@ -672,8 +672,12 @@ export default class HotReloader {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
 
-            const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
-            const [, key, page] = result! // this match should always happen
+            const result =
+              /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
+                entryKey
+              )
+            const [, key /* pageType*/, , page] = result! // this match should always happen
+
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return

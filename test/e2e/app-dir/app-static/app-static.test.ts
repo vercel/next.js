@@ -482,7 +482,7 @@ createNextDescribe(
       const html = await res.text()
       const $ = cheerio.load(html)
 
-      const pageData = $('#page-data').text()
+      const pageData2 = $('#page-data2').text()
 
       for (let i = 0; i < 3; i++) {
         const res2 = await fetchViaHTTP(
@@ -493,7 +493,7 @@ createNextDescribe(
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
 
-        expect($2('#page-data').text()).not.toBe(pageData)
+        expect($2('#page-data2').text()).not.toBe(pageData2)
       }
     })
 
