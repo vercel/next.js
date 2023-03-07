@@ -1,4 +1,4 @@
-# Missing specified subset for a `@next/font/google` font
+# Missing specified subset for a `next/font/google` font
 
 #### Why This Error Occurred
 
@@ -21,7 +21,7 @@ const inter = Inter({ subsets: ['latin'] })
 module.exports = {
   experimental: {
     fontLoaders: [
-      { loader: '@next/font/google', options: { subsets: ['latin'] } },
+      { loader: 'next/font/google', options: { subsets: ['latin'] } },
     ],
   },
 }
