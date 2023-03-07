@@ -1,9 +1,6 @@
-import { nextFontError } from '../utils'
-
-const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
-
-const formatValues = (values: string[]) =>
-  values.map((val) => `\`${val}\``).join(', ')
+import { allowedDisplayValues } from '../constants'
+import { formatAvailableValues } from '../format-available-values'
+import { nextFontError } from '../next-font-error'
 
 const extToFormat = {
   woff: 'woff',
@@ -30,7 +27,14 @@ type FontOptions = {
   adjustFontFallback?: string | false
   declarations?: Array<{ prop: string; value: string }>
 }
-export function validateData(functionName: string, fontData: any): FontOptions {
+
+/**
+ * Validate the data recieved from next-swc next_font_loaders on next/font/local calls
+ */
+export function validateLocalFontFunctionCall(
+  functionName: string,
+  fontData: any
+): FontOptions {
   if (functionName) {
     nextFontError(`next/font/local has no named exports`)
   }
@@ -48,7 +52,7 @@ export function validateData(functionName: string, fontData: any): FontOptions {
 
   if (!allowedDisplayValues.includes(display)) {
     nextFontError(
-      `Invalid display value \`${display}\`.\nAvailable display values: ${formatValues(
+      `Invalid display value \`${display}\`.\nAvailable display values: ${formatAvailableValues(
         allowedDisplayValues
       )}`
     )
