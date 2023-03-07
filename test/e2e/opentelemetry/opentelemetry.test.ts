@@ -1,5 +1,7 @@
+import { SpanKind } from '@opentelemetry/api'
+
 import { createNextDescribe } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 import { SavedSpan, traceFile } from './constants'
 
@@ -50,6 +52,17 @@ createNextDescribe(
       await next.patchFile(traceFile, '')
     }
 
+    const expectSpanToHaveAttributes = (
+      span: SavedSpan,
+      attributes: Record<string, any>
+    ) => {
+      Object.keys(attributes).forEach((key) => {
+        expect({ [key]: span.attributes[key] }).toStrictEqual({
+          [key]: attributes[key],
+        })
+      })
+    }
+
     beforeAll(async () => {
       await waitForOtelToInitialize()
     })
@@ -58,7 +71,6 @@ createNextDescribe(
       await cleanTraces()
     })
 
-    // In case you need to test the response object
     it('should exactly one root trace for each request with correct props', async () => {
       await next.fetch('/')
 
@@ -66,10 +78,33 @@ createNextDescribe(
       const rootTraces = traces.filter((trace) => !trace.parentId)
 
       expect(rootTraces).toHaveLength(1)
-      const rootTrace = expect(rootTraces[0].name).toBe('GET /')
-      expect(rootTraces[0].kind).toBe('SERVER')
+      const rootTrace = rootTraces[0]
+
+      expect(rootTrace.name).toBe('GET /')
+      expect(rootTrace.kind).toBe(SpanKind.SERVER)
+      expectSpanToHaveAttributes(rootTrace, {
+        //HTTP: https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/
+        'http.status_code': 200,
+        'http.method': 'GET',
+        'http.target': '/',
+        'http.route': '/',
+      })
     })
 
-    it('should should provide all required properties for root trace', async () => {})
+    it('should show correctly route with params', async () => {
+      await next.fetch('/stuff')
+
+      const traces = await getTraces()
+      const rootTraces = traces.filter((trace) => !trace.parentId)
+
+      expect(rootTraces).toHaveLength(1)
+      const rootTrace = rootTraces[0]
+
+      expect(rootTrace.name).toBe('GET /stuff')
+      expectSpanToHaveAttributes(rootTrace, {
+        'http.target': '/stuff',
+        'http.route': '/stuff',
+      })
+    })
   }
 )

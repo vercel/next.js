@@ -239,5 +239,8 @@
   "engines": {
     "node": ">=14.6.0"
   },
-  "packageManager": "pnpm@7.24.3"
+  "packageManager": "pnpm@7.24.3",
+  "dependencies": {
+    "@opentelemetry/api": "1.4.0"
+  }
 }

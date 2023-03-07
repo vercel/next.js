@@ -5,7 +5,7 @@ import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { parse, resolve } from 'path'
+import { resolve } from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
@@ -15,12 +15,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
-import {
-  getRequestAttributes,
-  getServerAttributes,
-  getTracer,
-  SpanKind,
-} from './lib/trace/tracer'
+import { getTracer, SpanKind } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 
 loadRequireHook()
@@ -72,16 +67,22 @@ export class NextServer {
       return getTracer().trace(
         NextServerSpan.getRequestHandler,
         {
-          tracerName: [req.method, req.url].join(' ') || undefined,
+          tracerName: [req.method, req.url].join(' '),
           kind: SpanKind.SERVER,
           attributes: {
-            ...getRequestAttributes(req),
-            ...getServerAttributes(req),
+            'http.method': req.method,
+            'http.target': req.url,
+            // TODO: Route should be actually pathname like `/blog/[slug]`
+            'http.route': req.url,
           },
         },
-        async () => {
+        async (span) => {
           const requestHandler = await this.getServerRequestHandler()
-          return requestHandler(req, res, parsedUrl)
+          await requestHandler(req, res, parsedUrl)
+
+          span.setAttributes({
+            'http.status_code': res.statusCode,
+          })
         }
       )
     }

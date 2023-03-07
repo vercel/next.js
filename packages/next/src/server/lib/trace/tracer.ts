@@ -1,7 +1,6 @@
 import { NextVanillaSpanAllowlist, SpanNames } from './constants'
 
 import type { ContextAPI, Span, SpanOptions, Tracer } from '@opentelemetry/api'
-import { IncomingMessage } from 'http'
 
 let api: typeof import('@opentelemetry/api')
 
@@ -28,24 +27,6 @@ const closeSpanWithError = (span: Span, error?: Error) => {
   span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   span.end()
 }
-
-const getRequestAttributes = (req: IncomingMessage) => ({
-  'http.method': req.method,
-  'http.url': req.url,
-  'http.flavor': req.httpVersion,
-  'http.user_agent': req.headers['user-agent'],
-  'http.request_content_length': req.readableLength,
-  // TODO: handle family formatting
-  // 'net.sock.family': req.socket?.remoteFamily,
-  'net.sock.peer.addr': req.socket?.remoteAddress,
-  'net.sock.peer.port': req.socket?.remotePort,
-})
-
-const getServerAttributes = (req: IncomingMessage) => ({
-  // TODO:
-  // 'http.scheme':
-  'http.target': req.url,
-})
 
 type TracerSpanOptions = SpanOptions & {
   parentSpan?: Span
@@ -322,8 +303,6 @@ const getTracer = (() => {
 export {
   NextTracer,
   getTracer,
-  getRequestAttributes,
-  getServerAttributes,
   Span,
   SpanOptions,
   ContextAPI,
