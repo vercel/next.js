@@ -390,7 +390,7 @@ async fn dir_dependency_shallow(glob: ReadGlobResultVc) -> Result<CompletionVc> 
         // Reading all files to add itself as dependency
         match *item {
             DirectoryEntry::File(file) => {
-                file.read().await?;
+                file.track().await?;
             }
             DirectoryEntry::Directory(dir) => {
                 dir_dependency(dir.read_glob(GlobVc::new("**"), false)).await?;

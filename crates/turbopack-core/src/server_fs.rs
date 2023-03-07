@@ -34,6 +34,11 @@ impl FileSystem for ServerFileSystem {
     }
 
     #[turbo_tasks::function]
+    fn track(&self, _fs_path: FileSystemPathVc) -> Result<CompletionVc> {
+        bail!("Tracking is not possible to the marker filesystem for the server")
+    }
+
+    #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> Result<CompletionVc> {
         bail!("Writing is not possible to the marker filesystem for the server")
     }
