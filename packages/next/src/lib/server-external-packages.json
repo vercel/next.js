@@ -2,6 +2,7 @@
   "@prisma/client",
   "@sentry/nextjs",
   "@sentry/node",
+  "argon2",
   "autoprefixer",
   "aws-crt",
   "bcrypt",

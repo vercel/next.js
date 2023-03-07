@@ -1,5 +1,6 @@
+import { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-
+import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -24,10 +25,37 @@ export class Worker {
     this._worker = undefined
 
     const createWorker = () => {
-      this._worker = new JestWorker(workerPath, farmOptions) as JestWorker
+      this._worker = new JestWorker(workerPath, {
+        ...farmOptions,
+        forkOptions: {
+          ...farmOptions.forkOptions,
+          env: {
+            ...((farmOptions.forkOptions?.env || {}) as any),
+            ...process.env,
+            // we don't pass down NODE_OPTIONS as it can
+            // extra memory usage
+            NODE_OPTIONS: getNodeOptionsWithoutInspect()
+              .replace(/--max-old-space-size=[\d]{1,}/, '')
+              .trim(),
+          } as any,
+        },
+      }) as JestWorker
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
       )
+
+      for (const worker of ((this._worker as any)._workerPool?._workers ||
+        []) as {
+        _child: ChildProcess
+      }[]) {
+        worker._child.on('exit', (code, signal) => {
+          if (code || signal) {
+            console.error(
+              `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
+            )
+          }
+        })
+      }
 
       this._worker.getStdout().pipe(process.stdout)
       this._worker.getStderr().pipe(process.stderr)
