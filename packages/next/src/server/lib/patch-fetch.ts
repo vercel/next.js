@@ -78,11 +78,14 @@ export function patchFetch({
         getRequestMeta('method')?.toLowerCase() || 'get'
       )
 
-      const autoNoCache = hasUnCacheableHeader || isUnCacheableMethod
+      // if there are authorized headers or a POST method and
+      // dynamic data usage was present above the tree we bail
+      // e.g. if cookies() is used before an authed/POST fetch
+      const autoNoCache =
+        (hasUnCacheableHeader || isUnCacheableMethod) &&
+        staticGenerationStore.revalidate === 0
 
       if (typeof revalidate === 'undefined') {
-        // if there are uncacheable headers and the cache value
-        // wasn't overridden then we must bail static generation
         if (autoNoCache) {
           revalidate = 0
         } else {
@@ -97,7 +100,7 @@ export function patchFetch({
       if (
         // we don't consider autoNoCache to switch to dynamic during
         // revalidate although if it occurs during build we do
-        (!autoNoCache || staticGenerationStore.isPrerendering) &&
+        !autoNoCache &&
         (typeof staticGenerationStore.revalidate === 'undefined' ||
           (typeof revalidate === 'number' &&
             revalidate < staticGenerationStore.revalidate))

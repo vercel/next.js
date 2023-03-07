@@ -4,6 +4,9 @@ export default async function Page() {
   const data = await fetch(
     new Request('https://next-data-api-endpoint.vercel.app/api/random', {
       method: 'POST',
+      next: {
+        revalidate: 0,
+      },
     })
   ).then((res) => res.text())
 

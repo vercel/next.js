@@ -1201,7 +1201,14 @@ export async function renderToHTMLOrFlight(
       }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
-        defaultRevalidate = layoutOrPageMod.revalidate
+        defaultRevalidate = layoutOrPageMod.revalidate as number
+
+        if (
+          typeof staticGenerationStore.revalidate === 'undefined' ||
+          staticGenerationStore.revalidate > defaultRevalidate
+        ) {
+          staticGenerationStore.revalidate = defaultRevalidate
+        }
 
         if (
           staticGenerationStore.isStaticGeneration &&
