@@ -5,7 +5,6 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       headers: {
-        // revalidate 3 is overridden by cookie header here
         cookie: 'authorized=true',
       },
     }
