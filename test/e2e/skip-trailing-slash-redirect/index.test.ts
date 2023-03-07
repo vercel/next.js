@@ -17,10 +17,9 @@ describe('skip-trailing-slash-redirect', () => {
   afterAll(() => next.destroy())
 
   it.each([
-    // TODO: should these cases be supported
-    // { pathname: '/chained-rewrite-ssg' },
-    // { pathname: '/chained-rewrite-static' },
-    // { pathname: '/chained-rewrite-ssr' },
+    { pathname: '/chained-rewrite-ssg' },
+    { pathname: '/chained-rewrite-static' },
+    { pathname: '/chained-rewrite-ssr' },
     { pathname: '/docs/first' },
     { pathname: '/docs-auto-static/first' },
     { pathname: '/docs-ssr/first' },
