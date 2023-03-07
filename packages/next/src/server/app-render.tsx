@@ -592,9 +592,9 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest[mod]
+        const modData = serverComponentManifest[mod + '#']
         if (modData) {
-          for (const chunk of modData.default.chunks) {
+          for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
             // chunk, it means that it's actually used. We should include it.
             if (cssFilesForEntry.has(chunk)) {
@@ -635,7 +635,6 @@ function getServerCSSForEntries(
  * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
  */
 function getPreloadedFontFilesInlineLinkTags(
-  serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
@@ -645,9 +644,7 @@ function getPreloadedFontFilesInlineLinkTags(
   if (!fontLoaderManifest || !filePath) {
     return null
   }
-  const layoutOrPageCss =
-    serverCSSManifest[filePath] ||
-    serverComponentManifest.__client_css_manifest__?.[filePath]
+  const layoutOrPageCss = serverCSSManifest[filePath]
 
   if (!layoutOrPageCss) {
     return null
@@ -1130,7 +1127,6 @@ export async function renderToHTMLOrFlight(
       )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
-            serverComponentManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
@@ -1612,7 +1608,6 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadedFontFilesInlineLinkTags(
-            serverComponentManifest,
             serverCSSManifest!,
             fontLoaderManifest,
             serverCSSForEntries,
