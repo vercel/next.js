@@ -22,7 +22,7 @@ static EMPTY_BUF: &[u8] = &[];
 
 /// A Rope provides an efficient structure for sharing bytes/strings between
 /// multiple sources. Cloning a Rope is extremely cheap (Arc and usize), and
-/// the sharing contents of one Rope can be done by just cloning an Arc.
+/// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
 #[turbo_tasks::value(shared, serialization = "custom", eq = "manual")]
@@ -100,7 +100,7 @@ impl Rope {
         self.length == 0
     }
 
-    /// Returns a Read/AsyncRead/Stream/Iterator instance over all bytes.
+    /// Returns a [Read]/[AsyncRead]/[Iterator] instance over all bytes.
     pub fn read(&self) -> RopeReader {
         RopeReader::new(&self.data, 0)
     }
@@ -388,7 +388,7 @@ impl PartialEq for Rope {
         }
 
         // At this point, we need to do slower contents equality. It's possible we'll
-        // still get some memory reference quality for Bytes.
+        // still get some memory reference equality for Bytes.
         let mut left = RopeReader::new(left, index);
         let mut right = RopeReader::new(right, index);
         loop {
@@ -538,8 +538,8 @@ impl DeterministicHash for RopeElem {
     }
 }
 
-/// Implements the Read/AsyncRead/Stream/Iterator trait over a Rope.
 #[derive(Debug, Default)]
+/// Implements the [Read]/[AsyncRead]/[Iterator] trait over a [Rope].
 pub struct RopeReader {
     /// The Rope's tree is kept as a cloned stack, allowing us to accomplish
     /// incremental yielding.
@@ -694,6 +694,11 @@ impl From<RopeElem> for StackElem {
 
 #[cfg(test)]
 mod test {
+    use std::{
+        cmp::min,
+        io::{BufRead, Read},
+    };
+
     use super::{InnerRope, Rope, RopeBuilder, RopeElem};
 
     // These are intentionally not exposed, because they do inefficient conversions
@@ -876,5 +881,75 @@ mod test {
         let b = Rope::new(vec!["abc".into(), shared.into(), "hhh".into()]);
 
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn iteration() {
+        let shared = Rope::from("def");
+        let rope = Rope::new(vec!["abc".into(), shared.into(), "ghi".into()]);
+
+        let chunks = rope.read().into_iter().collect::<Vec<_>>();
+
+        assert_eq!(chunks, vec!["abc", "def", "ghi"]);
+    }
+
+    #[test]
+    fn read() {
+        let shared = Rope::from("def");
+        let rope = Rope::new(vec!["abc".into(), shared.into(), "ghi".into()]);
+
+        let mut chunks = vec![];
+        let mut buf = [0_u8; 2];
+        let mut reader = rope.read();
+        loop {
+            let amt = reader.read(&mut buf).unwrap();
+            if amt == 0 {
+                break;
+            }
+            chunks.push(Vec::from(&buf[0..amt]));
+        }
+
+        assert_eq!(
+            chunks,
+            vec![
+                Vec::from(*b"ab"),
+                Vec::from(*b"cd"),
+                Vec::from(*b"ef"),
+                Vec::from(*b"gh"),
+                Vec::from(*b"i")
+            ]
+        );
+    }
+
+    #[test]
+    fn fill_buf() {
+        let shared = Rope::from("def");
+        let rope = Rope::new(vec!["abc".into(), shared.into(), "ghi".into()]);
+
+        let mut chunks = vec![];
+        let mut reader = rope.read();
+        loop {
+            let buf = reader.fill_buf().unwrap();
+            if buf.is_empty() {
+                break;
+            }
+            let c = min(2, buf.len());
+            chunks.push(Vec::from(buf));
+            reader.consume(c);
+        }
+
+        assert_eq!(
+            chunks,
+            // We're receiving a full buf, then only consuming 2 bytes, so we'll still get the
+            // third.
+            vec![
+                Vec::from(*b"abc"),
+                Vec::from(*b"c"),
+                Vec::from(*b"def"),
+                Vec::from(*b"f"),
+                Vec::from(*b"ghi"),
+                Vec::from(*b"i")
+            ]
+        );
     }
 }

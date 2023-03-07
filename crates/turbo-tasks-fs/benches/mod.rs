@@ -13,6 +13,7 @@ use criterion::{
 use notify::{watcher, RecursiveMode, Watcher};
 use tokio::runtime::Runtime;
 use turbo_tasks::event::Event;
+use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 
 fn bench_file_watching(c: &mut Criterion) {
     let mut g = c.benchmark_group("turbo-tasks-fs");
@@ -74,9 +75,35 @@ fn bench_file_watching(c: &mut Criterion) {
     );
 }
 
+fn bench_rope_iteration(c: &mut Criterion) {
+    let mut g = c.benchmark_group("turbo-tasks-fs");
+    g.sample_size(10);
+    g.measurement_time(Duration::from_secs(10));
+
+    g.bench_function(
+        BenchmarkId::new("bench_rope_iteration", "next collect"),
+        move |b| {
+            b.iter(|| {
+                let mut root = RopeBuilder::default();
+                for _ in 0..5 {
+                    let mut inner = RopeBuilder::default();
+                    for _ in 0..5 {
+                        let r = Rope::from("abc".to_string().into_bytes());
+                        inner += &r;
+                    }
+                    root += &inner.build();
+                }
+
+                let rope = root.build();
+                let _v = rope.read().into_iter().collect::<Vec<_>>();
+            })
+        },
+    );
+}
+
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_file_watching
+    targets = bench_file_watching, bench_rope_iteration
 );
 criterion_main!(benches);
