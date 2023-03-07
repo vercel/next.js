@@ -101,6 +101,7 @@ createNextDescribe(
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
           'variable-revalidate/no-store/page.js',
+          'variable-revalidate/post-method-request/page.js',
           'variable-revalidate/post-method.html',
           'variable-revalidate/post-method.rsc',
           'variable-revalidate/post-method/page.js',

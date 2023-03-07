@@ -1,5 +1,3 @@
-export const runtime = 'experimental-edge'
-
 export default async function Page() {
   const data = await fetch(
     new Request('https://next-data-api-endpoint.vercel.app/api/random', {
@@ -22,7 +20,7 @@ export default async function Page() {
 
   return (
     <>
-      <p id="page">/variable-revalidate-edge/post-method</p>
+      <p id="page">/variable-revalidate/post-method</p>
       <p id="page-data">{data}</p>
       <p id="page-data2">{data2}</p>
     </>

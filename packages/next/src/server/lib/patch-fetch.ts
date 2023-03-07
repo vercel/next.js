@@ -48,7 +48,13 @@ export function patchFetch({
       let revalidate: number | undefined | false = undefined
       // RequestInit doesn't keep extra fields e.g. next so it's
       // only available if init is used separate
-      let curRevalidate = init?.next?.revalidate
+      let curRevalidate =
+        typeof init?.next?.revalidate !== 'undefined'
+          ? init?.next?.revalidate
+          : isRequestInput
+          ? (input as any).next?.revalidate
+          : undefined
+
       const _cache = getRequestMeta('cache')
 
       if (_cache === 'force-cache') {

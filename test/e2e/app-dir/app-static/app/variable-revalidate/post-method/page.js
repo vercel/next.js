@@ -65,7 +65,7 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       method: 'POST',
-      body: new URLSearchParams('myParam=myValue&myParam=anotherValue'),
+      body: new URLSearchParams('myParam=myValue&myParam=diffValue'),
     }
   ).then((res) => res.text())
 
