@@ -97,6 +97,9 @@ export function getEntryKey(
 }
 
 function getPageBundleType(pageBundlePath: string) {
+  // Handle special case for /_error
+  if (pageBundlePath === '/_error') return 'pages'
+  if (isMiddlewareFilename(pageBundlePath)) return 'root'
   return pageBundlePath.startsWith('pages/')
     ? 'pages'
     : pageBundlePath.startsWith('app/')
@@ -709,7 +712,7 @@ export function onDemandEntryHandler({
         } => {
           const entryKey = getEntryKey(
             compilerType,
-            pageType,
+            pageBundleType,
             pagePathData.page
           )
           if (
@@ -779,7 +782,7 @@ export function onDemandEntryHandler({
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
             const edgeServerEntry = getEntryKey(
               COMPILER_NAMES.edgeServer,
-              pageType,
+              pageBundleType,
               pagePathData.page
             )
             if (
@@ -797,7 +800,7 @@ export function onDemandEntryHandler({
             )
             const serverEntry = getEntryKey(
               COMPILER_NAMES.server,
-              pageType,
+              pageBundleType,
               pagePathData.page
             )
             if (
