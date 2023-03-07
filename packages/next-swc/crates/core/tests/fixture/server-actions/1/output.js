@@ -4,7 +4,8 @@ export function Item({ id1 , id2  }) {
         return $ACTION_deleteItem(deleteItem.$$bound);
     }
     deleteItem.$$typeof = Symbol.for("react.server.reference");
-    deleteItem.$$id = "de52fdc8536c533b05b2e525bd43b18cf019cbb3";
+    deleteItem.$$filepath = "/app/item.js";
+    deleteItem.$$name = "$ACTION_deleteItem";
     deleteItem.$$bound = [
         id1,
         id2
