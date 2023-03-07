@@ -36,12 +36,14 @@ pub fn server_actions<C: Comments>(
         start_pos: BytePos(0),
         in_action_file: false,
         in_export_decl: false,
+        in_default_export_decl: false,
         in_prepass: false,
         has_action: false,
         top_level: false,
 
         in_module: true,
         in_action_fn: false,
+        action_index: 0,
         should_add_name: false,
         closure_idents: Default::default(),
         action_idents: Default::default(),
@@ -63,12 +65,14 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
     in_action_file: bool,
     in_export_decl: bool,
+    in_default_export_decl: bool,
     in_prepass: bool,
     has_action: bool,
     top_level: bool,
 
     in_module: bool,
     in_action_fn: bool,
+    action_index: u32,
     should_add_name: bool,
     closure_idents: Vec<Id>,
     action_idents: Vec<Name>,
@@ -130,8 +134,14 @@ impl<C: Comments> ServerActions<C> {
         };
         let action_ident = private_ident!(action_name.clone());
 
+        let export_name: JsWord = if self.in_default_export_decl {
+            "default".into()
+        } else {
+            action_name
+        };
+
         self.has_action = true;
-        self.export_actions.push(action_name.to_string());
+        self.export_actions.push(export_name.to_string());
 
         // myAction.$$typeof = Symbol.for('react.server.reference');
         self.annotations.push(annotate(
@@ -149,11 +159,11 @@ impl<C: Comments> ServerActions<C> {
         ));
 
         // Attach a checksum to the action using sha1:
-        // myAction.$$id = sha1('file_name' + ':' + 'action_name');
+        // myAction.$$id = sha1('file_name' + ':' + 'export_name');
         let mut hasher = Sha1::new();
         hasher.update(self.file_name.to_string().as_bytes());
         hasher.update(b":");
-        hasher.update(action_name.as_bytes());
+        hasher.update(export_name.as_bytes());
         let result = hasher.finalize();
 
         // Convert result to hex string
@@ -273,9 +283,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
         let old = self.in_export_decl;
+        let old_default = self.in_default_export_decl;
         self.in_export_decl = true;
+        self.in_default_export_decl = true;
         decl.decl.visit_mut_with(self);
         self.in_export_decl = old;
+        self.in_default_export_decl = old_default;
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
@@ -291,8 +304,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if f.ident.is_none() {
-            f.visit_mut_children_with(self);
-            return;
+            // Exported anonymous async functions need to have a name assigned.
+            if self.in_action_file && self.in_export_decl && f.function.is_async {
+                let action_name: JsWord = format!("$ACTION_default_{}", self.action_index).into();
+                self.action_index += 1;
+                f.ident = Some(Ident::new(action_name, DUMMY_SP));
+            } else {
+                f.visit_mut_children_with(self);
+                return;
+            }
         }
 
         let (is_action_fn, is_exported) =

@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ foo */ export default async function foo() {}
+/* __next_internal_action_entry_do_not_use__ default */ export default async function foo() {}
 foo.$$typeof = Symbol.for("react.server.reference");
-foo.$$id = "ab21efdafbe611287bc25c0462b1e0510d13e48b";
+foo.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
 foo.$$bound = [];
