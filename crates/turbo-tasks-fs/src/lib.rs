@@ -29,7 +29,7 @@ use std::{
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{
         mpsc::{channel, RecvError, TryRecvError},
-        Arc, Mutex, MutexGuard,
+        Arc, Mutex,
     },
     time::Duration,
 };
@@ -114,7 +114,7 @@ impl DiskWatcher {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn start_watching(
         &self,
-        watcher: &mut MutexGuard<Option<RecommendedWatcher>>,
+        watcher: &mut std::sync::MutexGuard<Option<RecommendedWatcher>>,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
@@ -226,7 +226,9 @@ impl DiskFileSystem {
         watcher_guard.replace(watcher);
         drop(watcher_guard);
 
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let disk_watcher = self.watcher.clone();
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let root_path = self.root_path().to_path_buf();
 
         spawn_thread(move || {
