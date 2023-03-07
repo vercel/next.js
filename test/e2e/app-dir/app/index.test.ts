@@ -749,28 +749,6 @@ createNextDescribe(
             '{"category":"books","id":"hello-world"}'
           )
         })
-
-        it('should allow dynamic routes to access cookies', async () => {
-          for (const category of ['books', 'frameworks']) {
-            for (let i = 0; i < 2; i++) {
-              let $ = await next.render$(
-                `/dynamic/${category}`,
-                {},
-                {
-                  headers: {
-                    cookie: 'session=value',
-                  },
-                }
-              )
-
-              expect($('#cookie-result').text()).toBe('has cookie')
-
-              $ = await next.render$(`/dynamic/${category}`)
-
-              expect($('#cookie-result').text()).toBe('no cookie')
-            }
-          }
-        })
       })
 
       describe('catch-all routes', () => {
