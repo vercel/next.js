@@ -15,6 +15,7 @@ use swc_core::{
         preset_env::{self, Targets},
         transforms::{
             base::{feature::FeatureFlag, helpers::inject_helpers, resolver, Assumptions},
+            proposal::decorators,
             react::react,
         },
         visit::{FoldWith, VisitMutWith},
@@ -24,8 +25,10 @@ use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
-use turbopack_core::environment::EnvironmentVc;
+use turbo_tasks_fs::{
+    json::parse_json_with_source_context, FileJsonContent, FileJsonContentVc, FileSystemPathVc,
+};
+use turbopack_core::{asset::AssetVc, environment::EnvironmentVc};
 
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
 
@@ -78,6 +81,9 @@ pub enum EcmascriptInputTransform {
     StyledComponents,
     StyledJsx,
     TypeScript,
+    // Apply ecma decorators transform. This is not part of Typescript transform, even though
+    // decorators can be ts-specific (legacy decorartors) since there's ecma decorators for js.
+    Decorators,
 }
 
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
@@ -102,6 +108,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
+    pub tsconfig: &'a Option<Vec<(FileJsonContentVc, AssetVc)>>,
 }
 
 impl EcmascriptInputTransform {
@@ -116,6 +123,7 @@ impl EcmascriptInputTransform {
             file_path_str,
             file_name_str,
             file_name_hash,
+            tsconfig,
         }: &TransformContext<'_>,
     ) -> Result<()> {
         match *self {
@@ -198,9 +206,63 @@ impl EcmascriptInputTransform {
                     FileName::Anon,
                 ));
             }
+            EcmascriptInputTransform::Decorators => {
+                // TODO: Currently this only supports legacy decorators from tsconfig / jsconfig
+                // options.
+                if let Some(tsconfig) = tsconfig {
+                    // Selectively picks up tsconfig.json values to construct
+                    // swc transform's stripconfig. It doesn't account .swcrc config currently.
+                    for (value, _) in tsconfig {
+                        let value = &*value.await?;
+                        if let FileJsonContent::Content(value) = value {
+                            let legacy_decorators = value["compilerOptions"]
+                                ["experimentalDecorators"]
+                                .as_bool()
+                                .unwrap_or(false);
+
+                            if legacy_decorators {
+                                // TODO: `fn decorators` does not support visitMut yet
+                                let p =
+                                    std::mem::replace(program, Program::Module(Module::dummy()));
+                                *program = p.fold_with(&mut chain!(
+                                    decorators(decorators::Config {
+                                        legacy: true,
+                                        emit_metadata: true,
+                                        use_define_for_class_fields: value["compilerOptions"]
+                                            ["useDefineForClassFields"]
+                                            .as_bool()
+                                            .unwrap_or(false),
+                                    }),
+                                    inject_helpers(unresolved_mark),
+                                ));
+                            }
+                        }
+                    }
+                };
+            }
             EcmascriptInputTransform::TypeScript => {
-                use swc_core::ecma::transforms::typescript::strip;
-                program.visit_mut_with(&mut strip(top_level_mark));
+                use swc_core::ecma::transforms::typescript::{strip_with_config, Config};
+
+                let config = if let Some(tsconfig) = tsconfig {
+                    let mut config = Config {
+                        ..Default::default()
+                    };
+
+                    for (value, _) in tsconfig {
+                        let value = &*value.await?;
+                        if let FileJsonContent::Content(value) = value {
+                            let use_define_for_class_fields =
+                                &value["compilerOptions"]["useDefineForClassFields"];
+                            config.use_define_for_class_fields =
+                                use_define_for_class_fields.as_bool().unwrap_or(false);
+                        }
+                    }
+                    config
+                } else {
+                    Default::default()
+                };
+
+                program.visit_mut_with(&mut strip_with_config(config, top_level_mark));
             }
             EcmascriptInputTransform::ClientDirective(transition_name) => {
                 let transition_name = &*transition_name.await?;
