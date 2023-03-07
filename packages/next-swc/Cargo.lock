@@ -2384,12 +2384,14 @@ dependencies = [
  "easy-error",
  "either",
  "fxhash",
+ "hex",
  "next-binding",
  "once_cell",
  "pathdiff",
  "regex",
  "serde",
  "serde_json",
+ "sha1 0.10.5",
  "tracing",
  "walkdir",
 ]
@@ -3640,6 +3642,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f04293dc80c3993519f2d7f6f511707ee7094fe0c6d3406feb330cdb3540eba3"
+dependencies = [
+ "cfg-if 1.0.0",
+ "cpufeatures",
+ "digest",
+]
+
+[[package]]
 name = "sha1_smol"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3848,7 +3861,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "sha1",
+ "sha1 0.6.1",
  "syn",
 ]
 
