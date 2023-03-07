@@ -23,17 +23,10 @@ export function register() {
       }),
     })
 
-    // You can use either HTTP or GRPC to send traces to the collector
-    const useGrpc = true
-    if (!useGrpc) {
-      provider.addSpanProcessor(
-        new SimpleSpanProcessor(new OTLPTraceExporterHTTP({}))
-      )
-    } else {
-      provider.addSpanProcessor(
-        new SimpleSpanProcessor(new OTLPTraceExporterGRPC({}))
-      )
-    }
+    // Open Telemetry supports http and grpc exporters.
+    provider.addSpanProcessor(
+      new SimpleSpanProcessor(new OTLPTraceExporterHTTP({}))
+    )
 
     // Make sure to register you provider
     provider.register()
