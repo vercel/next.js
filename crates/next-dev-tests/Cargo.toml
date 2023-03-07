@@ -29,7 +29,7 @@ httpmock = { workspace = true, features = ["standalone"] }
 lazy_static = { workspace = true }
 mime = { workspace = true }
 next-core = { workspace = true }
-next-dev = { workspace = true }
+next-dev = { path = "../next-dev" }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
