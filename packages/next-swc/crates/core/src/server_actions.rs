@@ -135,7 +135,7 @@ impl<C: Comments> ServerActions<C> {
         let export_name: JsWord = if self.in_default_export_decl {
             "default".into()
         } else {
-            action_name.clone()
+            action_name
         };
 
         self.has_action = true;
@@ -165,7 +165,7 @@ impl<C: Comments> ServerActions<C> {
 
         // myAction.$$name = '$ACTION_myAction';
         self.annotations
-            .push(annotate(ident, "$$name", action_name.into()));
+            .push(annotate(ident, "$$name", export_name.into()));
 
         if self.top_level {
             // myAction.$$bound = [];

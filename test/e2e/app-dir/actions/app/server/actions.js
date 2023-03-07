@@ -7,3 +7,7 @@ export async function inc(value) {
 export async function dec(value) {
   return value - 1
 }
+
+export default async function double(value) {
+  return value * 2
+}
