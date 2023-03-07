@@ -488,6 +488,12 @@ createNextDescribe(
         })
       })
 
+      it('should not hoist meta[itemProp] to head', async () => {
+        const $ = await next.render$('/')
+        expect($('head meta[itemProp]').length).toBe(0)
+        expect($('header meta[itemProp]').length).toBe(1)
+      })
+
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
         let $icon = $('link[rel="icon"]')

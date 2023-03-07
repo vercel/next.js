@@ -3,6 +3,7 @@
 const path = require('path')
 const { readJson, writeJson } = require('fs-extra')
 const execa = require('execa')
+const fetch = require('node-fetch')
 
 /** @type {any} */
 const fetch = require('node-fetch')
