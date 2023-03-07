@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check, waitFor } from 'next-test-utils'
 
 import { SavedSpan, traceFile } from './constants'
 
@@ -22,7 +23,7 @@ createNextDescribe(
       '@types/fs-extra': '^8.0.0',
     },
     env: {
-      NEXT_OTEL_VERBOSE: '1',
+      // NEXT_OTEL_VERBOSE: '1',
     },
   },
   ({ next }) => {
@@ -34,15 +35,41 @@ createNextDescribe(
         .map((line) => JSON.parse(line))
     }
 
+    const waitForOtelToInitialize = async () => {
+      await check(
+        async () =>
+          await next
+            .readFile(traceFile)
+            .then(() => 'ok')
+            .catch(() => 'err'),
+        'ok'
+      )
+    }
+
+    const cleanTraces = async () => {
+      await next.patchFile(traceFile, '')
+    }
+
+    beforeAll(async () => {
+      await waitForOtelToInitialize()
+    })
+
+    afterEach(async () => {
+      await cleanTraces()
+    })
+
     // In case you need to test the response object
-    it('it will emit trace when we load /', async () => {
+    it('should exactly one root trace for each request with correct props', async () => {
       await next.fetch('/')
 
       const traces = await getTraces()
-      expect(
-        traces.filter((trace) => trace.name === 'get /')
-      ).toMatchInlineSnapshot(`Array []`)
-      console.log(traces)
+      const rootTraces = traces.filter((trace) => !trace.parentId)
+
+      expect(rootTraces).toHaveLength(1)
+      const rootTrace = expect(rootTraces[0].name).toBe('GET /')
+      expect(rootTraces[0].kind).toBe('SERVER')
     })
+
+    it('should should provide all required properties for root trace', async () => {})
   }
 )
