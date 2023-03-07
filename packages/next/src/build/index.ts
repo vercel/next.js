@@ -1284,7 +1284,6 @@ export default async function build(
               enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
-              pageRuntime: config.experimental.runtime,
             })
         )
 
