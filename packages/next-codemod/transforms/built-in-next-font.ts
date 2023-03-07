@@ -42,9 +42,5 @@ export default function transformer(
       fontImport.node.source = j.stringLiteral('next/font/local')
     })
 
-  if (hasChanges) {
-    return root.toSource(options)
-  }
-
-  return file.source
+  return hasChanges ? root.toSource(options) : file.source
 }
