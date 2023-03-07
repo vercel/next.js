@@ -2023,6 +2023,24 @@ export async function ncc_opentelemetry_api(task, opts) {
     .target('src/compiled/@opentelemetry/api')
 }
 
+// eslint-disable-next-line camelcase
+externals['http-proxy-agent'] = 'next/dist/compiled/http-proxy-agent'
+export async function ncc_http_proxy_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('http-proxy-agent')))
+    .ncc({ packageName: 'http-proxy-agent', externals })
+    .target('src/compiled/http-proxy-agent')
+}
+
+// eslint-disable-next-line camelcase
+externals['https-proxy-agent'] = 'next/dist/compiled/https-proxy-agent'
+export async function ncc_https_proxy_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('https-proxy-agent')))
+    .ncc({ packageName: 'https-proxy-agent', externals })
+    .target('src/compiled/https-proxy-agent')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2157,6 +2175,8 @@ export async function ncc(task, opts) {
         'ncc_minimatch',
         'ncc_opentelemetry_api',
         'ncc_mini_css_extract_plugin',
+        'ncc_http_proxy_agent',
+        'ncc_https_proxy_agent',
       ],
       opts
     )
