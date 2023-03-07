@@ -671,13 +671,15 @@ export async function getRedboxHeader(browser) {
   return retry(
     () => {
       if (shouldRunTurboDevTest()) {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
-          )
-        const root = portal.shadowRoot
-        return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        })
       } else {
         return evaluate(browser, () => {
           const portal = [].slice
