@@ -88,22 +88,22 @@ createNextDescribe(
           'static-to-dynamic-error/[id]/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
-          'variable-revalidate-edge/post-method-cached/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
+          'variable-revalidate-edge/post-method/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
-          'variable-revalidate/authorization-cached.html',
-          'variable-revalidate/authorization-cached.rsc',
-          'variable-revalidate/authorization-cached/page.js',
+          'variable-revalidate/authorization.html',
+          'variable-revalidate/authorization.rsc',
           'variable-revalidate/authorization/page.js',
-          'variable-revalidate/cookie-cached.html',
-          'variable-revalidate/cookie-cached.rsc',
-          'variable-revalidate/cookie-cached/page.js',
+          'variable-revalidate/cookie.html',
+          'variable-revalidate/cookie.rsc',
           'variable-revalidate/cookie/page.js',
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
           'variable-revalidate/no-store/page.js',
-          'variable-revalidate/post-method-cached/page.js',
+          'variable-revalidate/post-method-request/page.js',
+          'variable-revalidate/post-method.html',
+          'variable-revalidate/post-method.rsc',
           'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -214,20 +214,25 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
           },
-          '/variable-revalidate/authorization-cached': {
-            dataRoute: '/variable-revalidate/authorization-cached.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/authorization-cached',
+          '/variable-revalidate/authorization': {
+            dataRoute: '/variable-revalidate/authorization.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/authorization',
           },
-          '/variable-revalidate/cookie-cached': {
-            dataRoute: '/variable-revalidate/cookie-cached.rsc',
+          '/variable-revalidate/cookie': {
+            dataRoute: '/variable-revalidate/cookie.rsc',
             initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/cookie-cached',
+            srcRoute: '/variable-revalidate/cookie',
           },
           '/variable-revalidate/encoding': {
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
+          },
+          '/variable-revalidate/post-method': {
+            dataRoute: '/variable-revalidate/post-method.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/post-method',
           },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
@@ -441,35 +446,11 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should not cache correctly with authorization header', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/authorization'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/authorization'
-        )
-        expect(res2.status).toBe(200)
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect($2('#page-data').text()).not.toBe(pageData)
-      }
-    })
-
     it('should cache correctly with authorization header and revalidate', async () => {
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/authorization-cached'
+          '/variable-revalidate/authorization'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -480,7 +461,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/authorization-cached'
+          '/variable-revalidate/authorization'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -490,30 +471,6 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
-    })
-
-    it('should not cache correctly with POST method', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/post-method'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/post-method'
-        )
-        expect(res2.status).toBe(200)
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect($2('#page-data').text()).not.toBe(pageData)
-      }
     })
 
     it('should not cache correctly with POST method request init', async () => {
@@ -544,7 +501,7 @@ createNextDescribe(
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -563,7 +520,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -582,7 +539,7 @@ createNextDescribe(
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate-edge/post-method-cached'
+          '/variable-revalidate-edge/post-method'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -597,7 +554,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate-edge/post-method-cached'
+          '/variable-revalidate-edge/post-method'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -617,7 +574,7 @@ createNextDescribe(
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -628,7 +585,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -640,30 +597,9 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should not cache correctly with cookie header', async () => {
-      const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
-        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
-        expect(res2.status).toBe(200)
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect($2('#page-data').text()).not.toBe(pageData)
-      }
-    })
-
     it('should cache correctly with cookie header and revalidate', async () => {
       await check(async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/cookie-cached'
-        )
+        const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
         expect(res.status).toBe(200)
         const html = await res.text()
         const $ = cheerio.load(html)
@@ -671,10 +607,7 @@ createNextDescribe(
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/cookie-cached'
-        )
+        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
