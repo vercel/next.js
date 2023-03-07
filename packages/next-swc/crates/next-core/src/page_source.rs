@@ -7,7 +7,7 @@ use turbo_tasks::{
     Value,
 };
 use turbo_tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
-use turbo_tasks_fs::{rebase, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -575,7 +575,7 @@ async fn create_page_source_for_directory(
                     server_root,
                     url,
                     false,
-                    rebase(page, project_path, output_root),
+                    output_root,
                     output_root,
                 ));
             }
@@ -598,7 +598,7 @@ async fn create_page_source_for_directory(
                     server_root,
                     url,
                     true,
-                    rebase(api, project_path, output_root),
+                    output_root,
                     output_root,
                 ));
             }
