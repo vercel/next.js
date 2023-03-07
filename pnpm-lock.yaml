@@ -140,6 +140,7 @@ importers:
       pixrem: 5.0.0
       playwright-chromium: 1.28.1
       plop: 3.0.5
+      postcss: 8.4.14
       postcss-nested: 4.2.1
       postcss-pseudoelements: 5.0.0
       postcss-short-size: 4.0.0
@@ -315,6 +316,7 @@ importers:
       pixrem: 5.0.0
       playwright-chromium: 1.28.1
       plop: 3.0.5
+      postcss: 8.4.14
       postcss-nested: 4.2.1
       postcss-pseudoelements: 5.0.0
       postcss-short-size: 4.0.0
@@ -5850,7 +5852,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0
+      webpack: 5.74.0_@swc+core@1.2.203
     transitivePeerDependencies:
       - supports-color
 
@@ -6506,7 +6508,6 @@ packages:
     cpu: [arm]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-android-arm64/1.2.203:
@@ -6515,7 +6516,6 @@ packages:
     cpu: [arm64]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-arm64/1.2.203:
@@ -6524,7 +6524,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.2.203:
@@ -6533,7 +6532,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-freebsd-x64/1.2.203:
@@ -6542,7 +6540,6 @@ packages:
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.2.203:
@@ -6551,7 +6548,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.2.203:
@@ -6560,7 +6556,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.2.203:
@@ -6569,7 +6564,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.2.203:
@@ -6578,7 +6572,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.2.203:
@@ -6587,7 +6580,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.2.203:
@@ -6596,7 +6588,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.2.203:
@@ -6605,7 +6596,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.2.203:
@@ -6614,7 +6604,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core/1.2.203:
@@ -6635,7 +6624,6 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.2.203
       '@swc/core-win32-ia32-msvc': 1.2.203
       '@swc/core-win32-x64-msvc': 1.2.203
-    dev: true
 
   /@swc/helpers/0.4.11:
     resolution: {integrity: sha512-rEUrBSGIoSFuYxwBYtlUFMlE2CwGhmW+w9355/5oduSw8e5h2+Tj4UrAGNNgP9915++wj5vkQo0UuOBqOAq4nw==}
@@ -23085,7 +23073,6 @@ packages:
       source-map: 0.6.1
       terser: 5.14.1
       webpack: 5.74.0_@swc+core@1.2.203
-    dev: true
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -24483,7 +24470,6 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
-    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
