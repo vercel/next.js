@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     cmp::min,
     fmt,
-    io::{self, BufRead, Read, Result as IoResult, Write},
+    io::{BufRead, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
     pin::Pin,
@@ -620,7 +620,7 @@ impl Iterator for RopeReader {
 }
 
 impl Read for RopeReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         Ok(self.read_internal(buf.len(), &mut ReadBuf::new(buf)))
     }
 }
@@ -630,7 +630,7 @@ impl AsyncRead for RopeReader {
         self: Pin<&mut Self>,
         _cx: &mut TaskContext<'_>,
         buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
+    ) -> Poll<IoResult<()>> {
         let this = self.get_mut();
         this.read_internal(buf.remaining(), buf);
         Poll::Ready(Ok(()))
