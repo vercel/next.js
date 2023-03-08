@@ -38,5 +38,5 @@ turbo-tasks-build = { workspace = true }
 rstest = { workspace = true }
 
 [features]
-default = ["issue_path"]
+default = []
 issue_path = []
