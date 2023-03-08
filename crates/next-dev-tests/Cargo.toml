@@ -49,7 +49,7 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbopack-cli-utils = { workspace = true }
-turbopack-core = { workspace = true }
+turbopack-core = { workspace = true, features = ["issue_path"] }
 turbopack-dev-server = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-test-utils = { workspace = true }

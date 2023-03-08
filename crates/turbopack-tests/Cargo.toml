@@ -24,7 +24,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
-turbopack-core = { workspace = true }
+turbopack-core = { workspace = true, features = ["issue_path"] }
 turbopack-env = { workspace = true }
 turbopack-test-utils = { workspace = true }
 
