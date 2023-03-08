@@ -18,7 +18,7 @@ const PLUGIN_NAME = 'NextFontManifestPlugin'
  * When calling font functions with next/font, you can specify if you'd like the font to be preloaded (true by default).
  * e.g.: const inter = Inter({ subsets: ['latin'], preload: true })
  *
- * In that case, next-font-loader will emit the font file as [name].p.(woff|woff2|eot|ttf|otf) instead of [name].(woff|woff2|eot|ttf|otf).
+ * In that case, next-font-loader will emit the font file as [name].p.[ext] instead of [name].[ext]
  * This function returns those files from an array that can include both preloaded and non-preloaded files.
  */
 function getPreloadedFontFiles(fontFiles: string[]) {
@@ -41,14 +41,14 @@ function getPageIsUsingSizeAdjust(fontFiles: string[]) {
  * The manifest file is used in the Next.js render functions (_document.tsx for pages/ and app-render for app/) to add preload tags for the font files.
  * We only want to att preload fonts that are used by the current route.
  *
- * For pages/ the manifest looks at the entrypoint's module graph and creates a map:
+ * For pages/ the plugin finds the fonts imported in the entrypoint chunks and creates a map:
  * { [route]: fontFile[] }
- * When rendering the app in _document.tsx, it gets the font files to preload with manifest.pages[currentRouteBeingRendered].
+ * When rendering the app in _document.tsx, it gets the font files to preload: manifest.pages[currentRouteBeingRendered].
  *
  * For app/, the manifest is a bit different.
  * Instead of creating a map of route to font files, it creates a map of the webpack module request to font files.
  * { [webpackModuleRequest]: fontFile[]]}
- * When creating the component tree in app-render it will look if the font module is in the FlightCSSManifest for the current route and preload those files.
+ * When creating the component tree in app-render it looks for font files to preload: manifest.app[moduleBeingRendered]
  */
 export class NextFontManifestPlugin {
   private appDirEnabled: boolean
@@ -113,8 +113,8 @@ export class NextFontManifestPlugin {
             }
           }
 
+          // Look at all the entrypoints created for pages/.
           for (const entrypoint of compilation.entrypoints.values()) {
-            // Get all entrypoints created for pages/.
             const pagePath = getRouteFromEntrypoint(entrypoint.name!)
 
             if (!pagePath) {

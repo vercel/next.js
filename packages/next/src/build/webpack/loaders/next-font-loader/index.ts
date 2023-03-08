@@ -73,11 +73,11 @@ export default async function nextFontLoader(this: any) {
      * Emit font files to .next/static/media as [hash].[ext].
      *
      * If the font should be preloaded, add .p to the filename: [hash].p.[ext]
-     * NextFontManifestPlugin adds these files and to the next/font manifest.
+     * NextFontManifestPlugin adds these files to the next/font manifest.
      *
      * If the font is using a size-adjust fallback font, add -s to the filename: [hash]-s.[ext]
      * NextFontManifestPlugin uses this to see if fallback fonts are being used.
-     * This is used to collect stats on fallback fonts usage.
+     * This is used to collect stats on fallback fonts usage by the Google Aurora team.
      */
     const emitFontFile = (
       content: Buffer,
@@ -103,7 +103,7 @@ export default async function nextFontLoader(this: any) {
     }
 
     try {
-      // Import the font loader function from next/font/local or next/font/google
+      // Import the font loader function from either next/font/local or next/font/google
       // The font loader function emits font files and returns @font-faces and fallback font metrics
       const fontLoader: FontLoader = require(fontLoaderPath).default
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
