@@ -12,7 +12,9 @@ use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     debug::{ValueDebugFormat, ValueDebugFormatString},
+    manager::find_cell_by_type,
     trace::{TraceRawVcs, TraceRawVcsContext},
+    RawVc, SharedReference, Typed,
 };
 
 /// The read value of a value cell. The read value is immutable, while the cell
@@ -158,6 +160,22 @@ impl<T, U> ReadRef<T, U> {
 
     pub fn ptr_cmp(&self, other: &ReadRef<T, U>) -> Ordering {
         Arc::as_ptr(&self.0).cmp(&Arc::as_ptr(&other.0))
+    }
+}
+
+impl<T, U> ReadRef<T, U>
+where
+    T: Typed + Send + Sync + 'static,
+{
+    /// Returns a new cell that points to a value that implements the value
+    /// trait `T`.
+    pub fn cell(trait_ref: ReadRef<T, U>) -> T::Vc {
+        // See Safety clause above.
+        let local_cell = find_cell_by_type(T::get_value_type_id());
+        local_cell
+            .update_shared_reference(SharedReference(Some(T::get_value_type_id()), trait_ref.0));
+        let raw_vc: RawVc = local_cell.into();
+        raw_vc.into()
     }
 }
 

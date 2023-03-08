@@ -3,28 +3,39 @@
 use std::sync::Mutex;
 
 use anyhow::Result;
-use turbo_tasks::{get_invalidator, Invalidator};
+use turbo_tasks::{get_invalidator, IntoTraitRef, Invalidator, TraitRef};
 use turbo_tasks_testing::{register, run};
 
 register!();
 
 #[tokio::test]
-async fn cell_local() {
+async fn trait_ref() {
     run! {
         let counter = CounterVc::cell(Counter { value: Mutex::new((0, None))});
+
         let counter_value = counter.get_value();
 
         assert_eq!(*counter.get_value().strongly_consistent().await?, 0);
         assert_eq!(*counter_value.strongly_consistent().await?, 0);
+
         counter.await?.incr();
 
         assert_eq!(*counter.get_value().strongly_consistent().await?, 1);
         assert_eq!(*counter_value.strongly_consistent().await?, 1);
-        let local_counter_value = counter_value.cell_local().await?;
+
+        // `ref_counter` will still point to the same `counter` instance as `counter`.
+        let ref_counter = TraitRef::cell(counter.as_counter_trait().into_trait_ref().await?);
+        let ref_counter_value = ref_counter.get_value();
+
+        // However, `local_counter_value` will point to the value of `counter_value`
+        // at the time it was turned into a trait reference (just like a `ReadRef` would).
+        let local_counter_value = TraitRef::cell(counter_value.as_counter_value_trait().into_trait_ref().await?).get_value();
+
         counter.await?.incr();
 
         assert_eq!(*counter.get_value().strongly_consistent().await?, 2);
         assert_eq!(*counter_value.strongly_consistent().await?, 2);
+        assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
         assert_eq!(*local_counter_value.strongly_consistent().await?, 1);
     }
 }
@@ -48,13 +59,30 @@ impl Counter {
     }
 }
 
+#[turbo_tasks::value_trait]
+trait CounterTrait {
+    fn get_value(&self) -> CounterValueVc;
+}
+
 #[turbo_tasks::value_impl]
-impl CounterVc {
+impl CounterTrait for Counter {
     #[turbo_tasks::function]
-    pub async fn get_value(self) -> Result<CounterValueVc> {
-        let this = self.await?;
-        let mut lock = this.value.lock().unwrap();
+    async fn get_value(&self) -> Result<CounterValueVc> {
+        let mut lock = self.value.lock().unwrap();
         lock.1 = Some(get_invalidator());
         Ok(CounterValueVc::cell(lock.0))
+    }
+}
+
+#[turbo_tasks::value_trait]
+trait CounterValueTrait {
+    fn get_value(&self) -> CounterValueVc;
+}
+
+#[turbo_tasks::value_impl]
+impl CounterValueTrait for CounterValue {
+    #[turbo_tasks::function]
+    fn get_value(self_vc: CounterValueVc) -> CounterValueVc {
+        self_vc
     }
 }

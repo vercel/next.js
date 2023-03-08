@@ -11,6 +11,8 @@ use syn::{
 };
 use turbo_tasks_macros_shared::{get_ref_ident, get_register_value_type_ident};
 
+use crate::util::strongly_consistent_doccomment;
+
 fn get_read_ref_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "ReadRef"), ident.span())
 }
@@ -395,11 +397,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
     };
 
+    let future_type = if let Some(inner_type) = inner_type {
+        quote! {
+           turbo_tasks::ReadRawVcFuture<turbo_tasks::TransparentValueCast<#ident, #inner_type>>
+        }
+    } else {
+        quote! {
+            turbo_tasks::ReadRawVcFuture<turbo_tasks::ValueCast<#ident>>
+        }
+    };
+
     let into_future = if let Some(inner_type) = inner_type {
         quote! {
              impl std::future::IntoFuture for #ref_ident {
                 type Output = turbo_tasks::Result<#read_ref_ident>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, #inner_type>;
+                type IntoFuture = #future_type;
                 fn into_future(self) -> Self::IntoFuture {
                     /// SAFETY: Types are binary identical via #[repr(transparent)]
                     unsafe { self.node.into_transparent_read::<#ident, #inner_type>() }
@@ -408,7 +420,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl std::future::IntoFuture for &#ref_ident {
                 type Output = turbo_tasks::Result<#read_ref_ident>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident, #inner_type>;
+                type IntoFuture = #future_type;
                 fn into_future(self) -> Self::IntoFuture {
                     /// SAFETY: Types are binary identical via #[repr(transparent)]
                     unsafe { self.node.into_transparent_read::<#ident, #inner_type>() }
@@ -419,7 +431,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
              impl std::future::IntoFuture for #ref_ident {
                 type Output = turbo_tasks::Result<#read_ref_ident>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
+                type IntoFuture = #future_type;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
                 }
@@ -427,7 +439,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
             impl std::future::IntoFuture for &#ref_ident {
                 type Output = turbo_tasks::Result<#read_ref_ident>;
-                type IntoFuture = turbo_tasks::ReadRawVcFuture<#ident>;
+                type IntoFuture = #future_type;
                 fn into_future(self) -> Self::IntoFuture {
                     self.node.into_read::<#ident>()
                 }
@@ -436,46 +448,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let strongly_consistent = {
-        let (return_type, read) = if let Some(inner_type) = inner_type {
-            (
-                quote! {
-                   turbo_tasks::ReadRawVcFuture<#ident, #inner_type>
-                },
-                quote! {
-                    /// SAFETY: Types are binary identical via #[repr(transparent)]
-                    unsafe { self.node.into_transparent_strongly_consistent_read::<#ident, #inner_type>() }
-                },
-            )
+        let read = if let Some(inner_type) = inner_type {
+            quote! {
+                /// SAFETY: Types are binary identical via #[repr(transparent)]
+                unsafe { self.node.into_transparent_strongly_consistent_read::<#ident, #inner_type>() }
+            }
         } else {
-            (
-                quote! {
-                    turbo_tasks::ReadRawVcFuture<#ident>
-                },
-                quote! {
-                    self.node.into_strongly_consistent_read::<#ident>()
-                },
-            )
+            quote! {
+                self.node.into_strongly_consistent_read::<#ident>()
+            }
         };
+        let doc = strongly_consistent_doccomment();
         quote! {
-            /// The invalidation of tasks due to changes is eventually consistent by default.
-            /// Tasks will execute as early as any of their children has changed, even while
-            /// other children or grandchildren are still computing (and may or may not result
-            /// in a future invalidation). Tasks may execute multiple times until the graph
-            /// reaches the end state. Partial applied changes might be visible to the user.
-            /// But changes are available as fast as possible and won't be blocked by some
-            /// slower parts of the graph (e. g. recomputation of blurred images, linting,
-            /// etc).
-            ///
-            /// When you read a task with `.strongly_consistent()` it will make that one read
-            /// operation strongly consistent. That means it will only return a result when all
-            /// children and grandchildren in that graph have been settled. This means your
-            /// current task will recompute less often, but it might also need to wait for
-            /// slower operations in the graph and can't continue with partial applied changes.
-            ///
-            /// Reading strongly consistent is also far more expensive compared to normal
-            /// reading, so it should be used with care.
+            #doc
             #[must_use]
-            pub fn strongly_consistent(self) -> #return_type {
+            pub fn strongly_consistent(self) -> #future_type {
                 #read
             }
         }
@@ -581,6 +568,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         impl turbo_tasks::Typed for #ident {
+            type Vc = #ref_ident;
+
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
                 *#value_type_id_ident
             }
@@ -616,11 +605,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             /// see [turbo_tasks::RawVc::resolve_strongly_consistent]
             pub async fn resolve_strongly_consistent(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve_strongly_consistent().await? })
-            }
-
-            /// see [turbo_tasks::RawVc::cell_local]
-            pub async fn cell_local(self) -> turbo_tasks::Result<Self> {
-                Ok(Self { node: self.node.cell_local().await? })
             }
 
             pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {
