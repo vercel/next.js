@@ -126,19 +126,11 @@ impl<C: Comments> ServerActions<C> {
 
     fn add_action_annotations(
         &mut self,
-        ident: &mut Ident,
+        ident: &Ident,
         function: &mut Box<Function>,
         is_exported: bool,
         is_default_export: bool,
     ) -> Option<Box<Function>> {
-        if !function.is_async {
-            HANDLER.with(|handler| {
-                handler
-                    .struct_span_err(ident.span, "Server actions must be async functions")
-                    .emit();
-            });
-        }
-
         let need_rename_export = self.in_action_file && (self.in_export_decl || is_exported);
         let action_name: JsWord = if need_rename_export {
             ident.sym.clone()
@@ -336,28 +328,45 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module;
             let old_should_add_name = self.should_add_name;
+            let old_in_export_decl = self.in_export_decl;
+            let old_in_default_export_decl = self.in_default_export_decl;
             self.in_action_fn = is_action_fn;
             self.in_module = false;
             self.should_add_name = true;
+            self.in_export_decl = false;
+            self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
             self.in_module = old_in_module;
             self.should_add_name = old_should_add_name;
+            self.in_export_decl = old_in_export_decl;
+            self.in_default_export_decl = old_in_default_export_decl;
         }
 
         if !is_action_fn {
             return;
         }
 
-        let maybe_new_fn = self.add_action_annotations(
-            f.ident.as_mut().unwrap(),
-            &mut f.function,
-            is_exported,
-            is_default_export,
-        );
+        if !f.function.is_async {
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(
+                        f.ident.as_mut().unwrap().span,
+                        "Server actions must be async functions",
+                    )
+                    .emit();
+            });
+        } else {
+            let maybe_new_fn = self.add_action_annotations(
+                f.ident.as_mut().unwrap(),
+                &mut f.function,
+                is_exported,
+                is_default_export,
+            );
 
-        if let Some(new_fn) = maybe_new_fn {
-            f.function = new_fn;
+            if let Some(new_fn) = maybe_new_fn {
+                f.function = new_fn;
+            }
         }
     }
 
@@ -379,29 +388,89 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module;
             let old_should_add_name = self.should_add_name;
+            let old_in_export_decl = self.in_export_decl;
+            let old_in_default_export_decl = self.in_default_export_decl;
             self.in_action_fn = is_action_fn;
             self.in_module = false;
             self.should_add_name = true;
+            self.in_export_decl = false;
+            self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
             self.in_module = old_in_module;
             self.should_add_name = old_should_add_name;
+            self.in_export_decl = old_in_export_decl;
+            self.in_default_export_decl = old_in_default_export_decl;
         }
 
         if !is_action_fn {
             return;
         }
 
-        let maybe_new_fn = self.add_action_annotations(
-            &mut f.ident,
-            &mut f.function,
-            is_exported,
-            is_default_export,
-        );
+        if !f.function.is_async {
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(f.ident.span, "Server actions must be async functions")
+                    .emit();
+            });
+        } else {
+            let maybe_new_fn = self.add_action_annotations(
+                &mut f.ident,
+                &mut f.function,
+                is_exported,
+                is_default_export,
+            );
 
-        if let Some(new_fn) = maybe_new_fn {
-            f.function = new_fn;
+            if let Some(new_fn) = maybe_new_fn {
+                f.function = new_fn;
+            }
         }
+    }
+
+    fn visit_mut_var_decl(&mut self, n: &mut VarDecl) {
+        if self.in_action_file {
+            for decl in n.decls.iter_mut() {
+                if decl.init.is_none() {
+                    continue;
+                }
+
+                let init = decl.init.as_mut().unwrap();
+                if let Pat::Ident(ident) = &mut decl.name {
+                    if let Some(fn_expr) = init.as_mut_fn_expr() {
+                        // Collect `const foo = async function () {}` declarations. For now we
+                        // ignore other types of assignments.
+                        if fn_expr.function.is_async {
+                            if self.in_prepass {
+                                self.async_fn_idents.push(ident.id.to_id());
+                            } else if let Some(exported_ident) = self
+                                .exported_idents
+                                .iter()
+                                .find(|(id, _)| id == &ident.id.to_id())
+                            {
+                                // It's an action function, we need to add the
+                                // name to the function if missing.
+                                if fn_expr.ident.is_none() {
+                                    let action_name: JsWord =
+                                        format!("$ACTION_fn_{}", self.action_index).into();
+                                    self.action_index += 1;
+                                    fn_expr.ident = Some(Ident::new(action_name, DUMMY_SP));
+                                }
+                                self.exported_idents.push((
+                                    fn_expr.ident.as_ref().unwrap().to_id(),
+                                    exported_ident.1.clone(),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if self.in_prepass {
+                return;
+            }
+        }
+
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_module(&mut self, m: &mut Module) {
@@ -541,6 +610,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     if let Some(init) = &decl.init {
                                         match &**init {
                                             Expr::Fn(_f) => {}
+                                            Expr::Arrow(_f) => {}
                                             _ => {
                                                 disallowed_export_span = *span;
                                             }
