@@ -18,6 +18,7 @@ export interface InstallTemplateArgs {
   template: TemplateType
   mode: TemplateMode
   eslint: boolean
+  tailwind: boolean
   srcDir: boolean
   importAlias: string
 }

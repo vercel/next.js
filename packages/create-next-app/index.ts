@@ -53,6 +53,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--tailwind',
+    `
+
+  Initialize with Tailwind CSS config.
+`
+  )
+  .option(
     '--eslint',
     `
 
@@ -224,12 +231,10 @@ async function run(): Promise<void> {
       eslint: true,
       srcDir: false,
       importAlias: '@/*',
+      tailwind: true,
     }
-    const getPrefOrDefault = (field: string) => {
-      return typeof preferences[field] === 'undefined'
-        ? defaults[field]
-        : preferences[field]
-    }
+    const getPrefOrDefault = (field: string) =>
+      preferences[field] ?? defaults[field]
 
     if (!program.typescript && !program.javascript) {
       if (ciInfo.isCI) {
@@ -313,6 +318,28 @@ async function run(): Promise<void> {
     }
 
     if (
+      !process.argv.includes('--tailwind') &&
+      !process.argv.includes('--no-tailwind')
+    ) {
+      if (ciInfo.isCI) {
+        program.tailwind = false
+      } else {
+        const tw = chalk.hex('#38BDF8')('Tailwind CSS')
+        const { tailwind } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'tailwind',
+          message: `Would you like to use ${tw} with this project?`,
+          initial: getPrefOrDefault('srcDir'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.tailwind = Boolean(tailwind)
+        preferences.tailwind = Boolean(tailwind)
+      }
+    }
+
+    if (
       !process.argv.includes('--experimental-app') &&
       !process.argv.includes('--no-experimental-app')
     ) {
@@ -367,6 +394,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      tailwind: program.tailwind,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
@@ -395,6 +423,7 @@ async function run(): Promise<void> {
       packageManager,
       typescript: program.typescript,
       eslint: program.eslint,
+      tailwind: program.tailwind,
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,

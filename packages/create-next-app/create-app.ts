@@ -34,6 +34,7 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  tailwind,
   eslint,
   experimentalApp,
   srcDir,
@@ -44,6 +45,7 @@ export async function createApp({
   example?: string
   examplePath?: string
   typescript: boolean
+  tailwind: boolean
   eslint: boolean
   experimentalApp: boolean
   srcDir: boolean
@@ -222,6 +224,7 @@ export async function createApp({
       mode,
       packageManager,
       isOnline,
+      tailwind,
       eslint,
       srcDir,
       importAlias,

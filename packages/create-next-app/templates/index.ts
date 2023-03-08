@@ -36,6 +36,7 @@ export const installTemplate = async ({
   isOnline,
   template,
   mode,
+  tailwind,
   eslint,
   srcDir,
   importAlias,
@@ -188,6 +189,10 @@ export const installTemplate = async ({
       '@types/node',
       '@types/react-dom'
     )
+  }
+
+  if (tailwind) {
+    dependencies.push('tailwindcss postcss autoprefixer')
   }
 
   /**
