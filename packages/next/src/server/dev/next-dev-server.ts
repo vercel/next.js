@@ -1604,6 +1604,7 @@ export default class DevServer extends Server {
         return value
       })
       .catch((err) => {
+        this.staticPathsCache.del(pathname)
         if (!result) throw err
         Log.error(`Failed to generate static paths for ${pathname}:`)
         console.error(err)
