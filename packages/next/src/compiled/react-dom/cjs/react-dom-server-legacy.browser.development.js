@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-49f741046-20230305';
+var ReactVersion = '18.3.0-next-703c67560-20230307';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2918,7 +2918,7 @@ function pushStartTextArea(target, props) {
 
 function pushMeta(target, props, responseState, textEmbedded, insertionMode, noscriptTagInScope) {
   {
-    if (insertionMode === SVG_MODE || noscriptTagInScope) {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
       return pushSelfClosing(target, props, 'meta');
     } else {
       if (textEmbedded) {
@@ -2942,7 +2942,7 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
     var href = props.href;
     var precedence = props.precedence;
 
-    if (insertionMode === SVG_MODE || noscriptTagInScope || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
       {
         if (rel === 'stylesheet' && typeof props.precedence === 'string') {
           if (typeof href !== 'string' || !href) {
@@ -3167,7 +3167,7 @@ function pushStyle(target, props, resources, textEmbedded, insertionMode, noscri
     var precedence = props.precedence;
     var href = props.href;
 
-    if (insertionMode === SVG_MODE || noscriptTagInScope || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
       // This style tag is not able to be turned into a Style Resource
       return pushStyleImpl(target, props);
     }
@@ -3382,7 +3382,7 @@ function pushTitle(target, props, responseState, insertionMode, noscriptTagInSco
   }
 
   {
-    if (insertionMode !== SVG_MODE && !noscriptTagInScope) {
+    if (insertionMode !== SVG_MODE && !noscriptTagInScope && props.itemProp == null) {
       pushTitleImpl(responseState.hoistableChunks, props);
       return null;
     } else {
@@ -3463,7 +3463,7 @@ function pushStartHtml(target, props, responseState, insertionMode) {
 
 function pushScript(target, props, resources, textEmbedded, insertionMode, noscriptTagInScope) {
   {
-    if (insertionMode === SVG_MODE || noscriptTagInScope || typeof props.src !== 'string' || !props.src) {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof props.src !== 'string' || !props.src) {
       // This script will not be a resource nor can it be preloaded, we bailout early
       // and emit it in place.
       return pushScriptImpl(target, props);

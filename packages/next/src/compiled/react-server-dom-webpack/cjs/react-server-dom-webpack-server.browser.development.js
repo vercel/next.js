@@ -185,6 +185,7 @@ function processErrorChunkDev(request, id, digest, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(model, request.toJSON);
   var row = id.toString(16) + ':' + json + '\n';
   return stringToChunk(row);
@@ -195,6 +196,7 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processImportChunk(request, id, clientReferenceMetadata) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(clientReferenceMetadata);
   var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
