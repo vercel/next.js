@@ -69,6 +69,7 @@ createNextDescribe(
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
