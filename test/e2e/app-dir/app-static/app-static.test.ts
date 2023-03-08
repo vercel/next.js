@@ -22,13 +22,30 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    let prerenderManifest
+
+    beforeAll(async () => {
+      if (isNextStart) {
+        prerenderManifest = JSON.parse(
+          await next.readFile('.next/prerender-manifest.json')
+        )
+      }
+    })
+
     if (isNextStart) {
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
           await glob('**/*', {
             cwd: join(next.testDir, '.next/server/app'),
           })
-        ).filter((file) => file.match(/.*\.(js|html|rsc)$/))
+        )
+          .filter((file) => file.match(/.*\.(js|html|rsc)$/))
+          .map((file) => {
+            return file.replace(
+              /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+              'partial-gen-params-no-additional-$1/$2/RAND'
+            )
+          })
 
         expect(files).toEqual([
           '(new)/custom/page.js',
@@ -74,6 +91,33 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense.html',
           'hooks/use-search-params/with-suspense.rsc',
           'hooks/use-search-params/with-suspense/page.js',
+          'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
+          'partial-gen-params-no-additional-lang/en/RAND.html',
+          'partial-gen-params-no-additional-lang/en/RAND.rsc',
+          'partial-gen-params-no-additional-lang/en/first.html',
+          'partial-gen-params-no-additional-lang/en/first.rsc',
+          'partial-gen-params-no-additional-lang/en/second.html',
+          'partial-gen-params-no-additional-lang/en/second.rsc',
+          'partial-gen-params-no-additional-lang/fr/RAND.html',
+          'partial-gen-params-no-additional-lang/fr/RAND.rsc',
+          'partial-gen-params-no-additional-lang/fr/first.html',
+          'partial-gen-params-no-additional-lang/fr/first.rsc',
+          'partial-gen-params-no-additional-lang/fr/second.html',
+          'partial-gen-params-no-additional-lang/fr/second.rsc',
+          'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
+          'partial-gen-params-no-additional-slug/en/RAND.html',
+          'partial-gen-params-no-additional-slug/en/RAND.rsc',
+          'partial-gen-params-no-additional-slug/en/first.html',
+          'partial-gen-params-no-additional-slug/en/first.rsc',
+          'partial-gen-params-no-additional-slug/en/second.html',
+          'partial-gen-params-no-additional-slug/en/second.rsc',
+          'partial-gen-params-no-additional-slug/fr/RAND.html',
+          'partial-gen-params-no-additional-slug/fr/RAND.rsc',
+          'partial-gen-params-no-additional-slug/fr/first.html',
+          'partial-gen-params-no-additional-slug/fr/first.rsc',
+          'partial-gen-params-no-additional-slug/fr/second.html',
+          'partial-gen-params-no-additional-slug/fr/second.rsc',
+          'partial-gen-params/[lang]/[slug]/page.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -112,12 +156,10 @@ createNextDescribe(
       })
 
       it('should have correct prerender-manifest entries', async () => {
-        const manifest = JSON.parse(
-          await next.readFile('.next/prerender-manifest.json')
-        )
+        const curManifest = JSON.parse(JSON.stringify(prerenderManifest))
 
-        Object.keys(manifest.dynamicRoutes).forEach((key) => {
-          const item = manifest.dynamicRoutes[key]
+        for (const key of Object.keys(curManifest.dynamicRoutes)) {
+          const item = curManifest.dynamicRoutes[key]
 
           if (item.dataRouteRegex) {
             item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
@@ -125,10 +167,25 @@ createNextDescribe(
           if (item.routeRegex) {
             item.routeRegex = normalizeRegEx(item.routeRegex)
           }
-        })
+        }
 
-        expect(manifest.version).toBe(4)
-        expect(manifest.routes).toEqual({
+        for (const key of Object.keys(curManifest.routes)) {
+          const newKey = key.replace(
+            /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+            'partial-gen-params-no-additional-$1/$2/RAND'
+          )
+          if (newKey !== key) {
+            const route = curManifest.routes[key]
+            delete curManifest.routes[key]
+            curManifest.routes[newKey] = {
+              ...route,
+              dataRoute: `${newKey}.rsc`,
+            }
+          }
+        }
+
+        expect(curManifest.version).toBe(4)
+        expect(curManifest.routes).toEqual({
           '/blog/tim': {
             initialRevalidateSeconds: 10,
             srcRoute: '/blog/[author]',
@@ -183,6 +240,66 @@ createNextDescribe(
             dataRoute: '/hooks/use-search-params/with-suspense.rsc',
             initialRevalidateSeconds: false,
             srcRoute: '/hooks/use-search-params/with-suspense',
+          },
+          '/partial-gen-params-no-additional-lang/en/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-lang/en/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/en/first': {
+            dataRoute: '/partial-gen-params-no-additional-lang/en/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/en/second': {
+            dataRoute: '/partial-gen-params-no-additional-lang/en/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/fr/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-lang/fr/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/fr/first': {
+            dataRoute: '/partial-gen-params-no-additional-lang/fr/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/fr/second': {
+            dataRoute: '/partial-gen-params-no-additional-lang/fr/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/en/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-slug/en/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/en/first': {
+            dataRoute: '/partial-gen-params-no-additional-slug/en/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/en/second': {
+            dataRoute: '/partial-gen-params-no-additional-slug/en/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/fr/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-slug/fr/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/fr/first': {
+            dataRoute: '/partial-gen-params-no-additional-slug/fr/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/fr/second': {
+            dataRoute: '/partial-gen-params-no-additional-slug/fr/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
           },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
@@ -240,7 +357,7 @@ createNextDescribe(
             srcRoute: '/variable-revalidate/revalidate-3',
           },
         })
-        expect(manifest.dynamicRoutes).toEqual({
+        expect(curManifest.dynamicRoutes).toEqual({
           '/blog/[author]/[slug]': {
             routeRegex: normalizeRegEx('^/blog/([^/]+?)/([^/]+?)(?:/)?$'),
             dataRoute: '/blog/[author]/[slug].rsc',
@@ -255,9 +372,13 @@ createNextDescribe(
           },
           '/dynamic-error/[id]': {
             dataRoute: '/dynamic-error/[id].rsc',
-            dataRouteRegex: '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/gen-params-dynamic-revalidate/[slug]': {
             dataRoute: '/gen-params-dynamic-revalidate/[slug].rsc',
@@ -277,6 +398,38 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/partial-gen-params-no-additional-lang/[lang]/[slug]': {
+            dataRoute:
+              '/partial-gen-params-no-additional-lang/[lang]/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: false,
+            routeRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/partial-gen-params-no-additional-slug/[lang]/[slug]': {
+            dataRoute:
+              '/partial-gen-params-no-additional-slug/[lang]/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: false,
+            routeRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/partial-gen-params/[lang]/[slug]': {
+            dataRoute: '/partial-gen-params/[lang]/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
           '/force-static/[slug]': {
@@ -384,6 +537,166 @@ createNextDescribe(
           expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
             /Page with dynamic = "error" encountered dynamic data method on \/dynamic-error\/static-bailout-1/
           )
+        }
+      })
+    }
+
+    it('should handle partial-gen-params with default dynamicParams correctly', async () => {
+      const res = await next.fetch('/partial-gen-params/en/first')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      const params = JSON.parse($('#params').text())
+
+      expect(params).toEqual({ lang: 'en', slug: 'first' })
+    })
+
+    it('should handle partial-gen-params with layout dynamicParams = false correctly', async () => {
+      for (const { path, status, params } of [
+        // these checks don't work with custom memory only
+        // cache handler
+        ...(process.env.CUSTOM_CACHE_HANDLER
+          ? []
+          : [
+              {
+                path: '/partial-gen-params-no-additional-lang/en/first',
+                status: 200,
+                params: { lang: 'en', slug: 'first' },
+              },
+            ]),
+        {
+          path: '/partial-gen-params-no-additional-lang/de/first',
+          status: 404,
+          params: {},
+        },
+        {
+          path: '/partial-gen-params-no-additional-lang/en/non-existent',
+          status: 404,
+          params: {},
+        },
+      ]) {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(status)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const curParams = JSON.parse($('#params').text() || '{}')
+
+        expect(curParams).toEqual(params)
+      }
+    })
+
+    it('should handle partial-gen-params with page dynamicParams = false correctly', async () => {
+      for (const { path, status, params } of [
+        // these checks don't work with custom memory only
+        // cache handler
+        ...(process.env.CUSTOM_CACHE_HANDLER
+          ? []
+          : [
+              {
+                path: '/partial-gen-params-no-additional-slug/en/first',
+                status: 200,
+                params: { lang: 'en', slug: 'first' },
+              },
+            ]),
+        {
+          path: '/partial-gen-params-no-additional-slug/de/first',
+          status: 404,
+          params: {},
+        },
+        {
+          path: '/partial-gen-params-no-additional-slug/en/non-existent',
+          status: 404,
+          params: {},
+        },
+      ]) {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(status)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const curParams = JSON.parse($('#params').text() || '{}')
+
+        expect(curParams).toEqual(params)
+      }
+    })
+
+    // fetch cache in generateStaticParams needs fs for persistence
+    // so doesn't behave as expected with custom in memory only
+    // cache handler
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should honor fetch cache in generateStaticParams', async () => {
+        const initialRes = await next.fetch(
+          `/partial-gen-params-no-additional-lang/en/first`
+        )
+
+        expect(initialRes.status).toBe(200)
+
+        // we can't read prerender-manifest from deployment
+        if (isNextDeploy) return
+
+        let langFetchSlug
+        let slugFetchSlug
+
+        if (isDev) {
+          await check(() => {
+            const matches = stripAnsi(next.cliOutput).match(
+              /partial-gen-params fetch ([\d]{1,})/
+            )
+
+            if (matches[1]) {
+              langFetchSlug = matches[1]
+              slugFetchSlug = langFetchSlug
+            }
+            return langFetchSlug ? 'success' : next.cliOutput
+          }, 'success')
+        } else {
+          // the fetch cache can potentially be a miss since
+          // the generateStaticParams are executed parallel
+          // in separate workers so parse value from
+          // prerender-manifest
+          const routes = Object.keys(prerenderManifest.routes)
+
+          for (const route of routes) {
+            const langSlug = route.match(
+              /partial-gen-params-no-additional-lang\/en\/([\d]{1,})/
+            )?.[1]
+
+            if (langSlug) {
+              langFetchSlug = langSlug
+            }
+
+            const slugSlug = route.match(
+              /partial-gen-params-no-additional-slug\/en\/([\d]{1,})/
+            )?.[1]
+
+            if (slugSlug) {
+              slugFetchSlug = slugSlug
+            }
+          }
+        }
+        require('console').log({ langFetchSlug, slugFetchSlug })
+
+        for (const { pathname, slug } of [
+          {
+            pathname: '/partial-gen-params-no-additional-lang/en',
+            slug: langFetchSlug,
+          },
+          {
+            pathname: '/partial-gen-params-no-additional-slug/en',
+            slug: slugFetchSlug,
+          },
+        ]) {
+          const res = await next.fetch(`${pathname}/${slug}`)
+          expect(res.status).toBe(200)
+          expect(
+            JSON.parse(
+              cheerio
+                .load(await res.text())('#params')
+                .text()
+            )
+          ).toEqual({ lang: 'en', slug })
         }
       })
     }

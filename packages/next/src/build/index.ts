@@ -1463,6 +1463,11 @@ export default async function build(
                           edgeInfo,
                           pageType,
                           hasServerComponents: !!appDir,
+                          incrementalCacheHandlerPath:
+                            config.experimental.incrementalCacheHandlerPath,
+                          isrFlushToDisk: config.experimental.isrFlushToDisk,
+                          maxMemoryCacheSize:
+                            config.experimental.isrMemoryCacheSize,
                         })
                       }
                     )
