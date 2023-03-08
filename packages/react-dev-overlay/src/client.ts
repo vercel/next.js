@@ -24,6 +24,8 @@ function onUnhandledError(ev: ErrorEvent) {
     error.message.match(/(hydration|content does not match|did not match)/i)
   ) {
     if (hydrationErrorWarning) {
+      // The patched console.error found hydration errors logged by React
+      // Append the logged warning to the error message
       error.message += '\n\n' + hydrationErrorWarning
     }
     error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
