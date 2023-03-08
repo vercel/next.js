@@ -41,20 +41,22 @@ pub(crate) enum FontWeights {
     Fixed(Vec<u16>),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
 pub(crate) struct FontDataEntry {
     pub weights: Vec<String>,
     pub styles: Vec<String>,
     pub axes: Option<Vec<Axis>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Axis {
     pub tag: String,
     pub min: f64,
     pub max: f64,
 }
+
+impl Eq for Axis {}
 
 // Transforms the request fields to a struct suitable for making requests to
 // Google Fonts. Similar to next/font/google's validateData:
