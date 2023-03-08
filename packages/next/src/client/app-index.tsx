@@ -66,16 +66,6 @@ const getCacheKey = () => {
   return pathname + search
 }
 
-async function sha1(message: string) {
-  const arrayBuffer = await crypto.subtle.digest(
-    'SHA-1',
-    new TextEncoder().encode(message)
-  )
-  const data = Array.from(new Uint8Array(arrayBuffer))
-  const hex = data.map((b) => b.toString(16).padStart(2, '0')).join('')
-  return hex
-}
-
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: string[] | undefined = undefined
@@ -161,14 +151,10 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   })
 
   const newResponse = createFromReadableStream(readable, {
-    async callServer(
-      metadata: {
-        id: string
-        name: string
-      },
-      args: any[]
-    ) {
-      const actionId = await sha1(metadata.id + ':' + metadata.name)
+    async callServer(id: string, args: any[]) {
+      console.log('callServer', id, args)
+
+      const actionId = id
 
       // Fetching the current url with the action header.
       // TODO: Refactor this to look up from a manifest.

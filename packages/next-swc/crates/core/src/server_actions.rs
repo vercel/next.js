@@ -1,5 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 
+use hex::encode as hex_encode;
 use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -15,6 +16,7 @@ use next_binding::swc::core::{
     },
 };
 use serde::Deserialize;
+use sha1::{Digest, Sha1};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -75,7 +77,9 @@ struct ServerActions<C: Comments> {
     closure_idents: Vec<Id>,
     action_idents: Vec<Name>,
     async_fn_idents: Vec<Id>,
-    exported_idents: Vec<Id>,
+
+    // (ident, is default export)
+    exported_idents: Vec<(Id, bool)>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -83,9 +87,14 @@ struct ServerActions<C: Comments> {
 }
 
 impl<C: Comments> ServerActions<C> {
-    fn get_action_info(&mut self, ident: &mut Ident, function: &mut Box<Function>) -> (bool, bool) {
+    fn get_action_info(
+        &mut self,
+        ident: &mut Ident,
+        function: &mut Box<Function>,
+    ) -> (bool, bool, bool) {
         let mut is_action_fn = false;
-        let mut is_exported = false;
+        let mut is_exported = self.in_export_decl;
+        let mut is_default_export = self.in_default_export_decl;
 
         if self.in_action_file && self.in_export_decl {
             // All export functions in a server file are actions
@@ -101,13 +110,18 @@ impl<C: Comments> ServerActions<C> {
             }
 
             // If it's exported via named export, it's a valid action.
-            if !is_action_fn && self.exported_idents.contains(&ident.to_id()) {
+            let exported_ident = self
+                .exported_idents
+                .iter()
+                .find(|(id, _)| id == &ident.to_id());
+            if let Some((_, is_default)) = exported_ident {
                 is_action_fn = true;
                 is_exported = true;
+                is_default_export = *is_default;
             }
         }
 
-        (is_action_fn, is_exported)
+        (is_action_fn, is_exported, is_default_export)
     }
 
     fn add_action_annotations(
@@ -115,6 +129,7 @@ impl<C: Comments> ServerActions<C> {
         ident: &mut Ident,
         function: &mut Box<Function>,
         is_exported: bool,
+        is_default_export: bool,
     ) -> Option<Box<Function>> {
         if !function.is_async {
             HANDLER.with(|handler| {
@@ -132,7 +147,7 @@ impl<C: Comments> ServerActions<C> {
         };
         let action_ident = private_ident!(action_name.clone());
 
-        let export_name: JsWord = if self.in_default_export_decl {
+        let export_name: JsWord = if is_default_export {
             "default".into()
         } else {
             action_name
@@ -156,16 +171,17 @@ impl<C: Comments> ServerActions<C> {
             .into(),
         ));
 
-        // myAction.$$filepath = '/app/page.tsx';
-        self.annotations.push(annotate(
-            ident,
-            "$$filepath",
-            self.file_name.to_string().into(),
-        ));
+        // Attach a checksum to the action using sha1:
+        // myAction.$$id = sha1('file_name' + ':' + 'export_name');
+        let mut hasher = Sha1::new();
+        hasher.update(self.file_name.to_string().as_bytes());
+        hasher.update(b":");
+        hasher.update(export_name.as_bytes());
+        let result = hasher.finalize();
 
-        // myAction.$$name = '$ACTION_myAction';
+        // Convert result to hex string
         self.annotations
-            .push(annotate(ident, "$$name", export_name.into()));
+            .push(annotate(ident, "$$id", hex_encode(result).into()));
 
         if self.top_level {
             // myAction.$$bound = [];
@@ -312,7 +328,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        let (is_action_fn, is_exported) =
+        let (is_action_fn, is_exported, is_default_export) =
             self.get_action_info(f.ident.as_mut().unwrap(), &mut f.function);
 
         {
@@ -333,8 +349,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        let maybe_new_fn =
-            self.add_action_annotations(f.ident.as_mut().unwrap(), &mut f.function, is_exported);
+        let maybe_new_fn = self.add_action_annotations(
+            f.ident.as_mut().unwrap(),
+            &mut f.function,
+            is_exported,
+            is_default_export,
+        );
 
         if let Some(new_fn) = maybe_new_fn {
             f.function = new_fn;
@@ -351,7 +371,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        let (is_action_fn, is_exported) = self.get_action_info(&mut f.ident, &mut f.function);
+        let (is_action_fn, is_exported, is_default_export) =
+            self.get_action_info(&mut f.ident, &mut f.function);
 
         {
             // Visit children
@@ -371,7 +392,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        let maybe_new_fn = self.add_action_annotations(&mut f.ident, &mut f.function, is_exported);
+        let maybe_new_fn = self.add_action_annotations(
+            &mut f.ident,
+            &mut f.function,
+            is_exported,
+            is_default_export,
+        );
 
         if let Some(new_fn) = maybe_new_fn {
             f.function = new_fn;
@@ -465,7 +491,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ..
                     })) => {
                         let ids: Vec<Id> = collect_idents_in_var_decls(&var.decls);
-                        self.exported_idents.extend(ids);
+                        self.exported_idents
+                            .extend(ids.into_iter().map(|id| (id, false)));
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for spec in &named.specifiers {
@@ -475,8 +502,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }) = spec
                             {
                                 // export { foo, foo as bar }
-                                self.exported_idents.push(ident.to_id());
+                                self.exported_idents.push((ident.to_id(), false));
                             }
+                        }
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        expr,
+                        ..
+                    })) => {
+                        if let Expr::Ident(ident) = &**expr {
+                            // export default foo
+                            self.exported_idents.push((ident.to_id(), true));
                         }
                     }
                     _ => {}
@@ -552,6 +588,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ..
                     })) => match &**expr {
                         Expr::Fn(_f) => {}
+                        Expr::Ident(ident) => {
+                            if !self.async_fn_idents.contains(&ident.to_id()) {
+                                disallowed_export_span = *span;
+                            }
+                        }
                         _ => {
                             disallowed_export_span = *span;
                         }
