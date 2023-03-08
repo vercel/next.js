@@ -1,5 +1,6 @@
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
+import { getProxyAgent } from './get-proxy-agent'
 
 /**
  * Fetch the url and return a buffer with the font file.
@@ -18,6 +19,7 @@ export async function fetchFontFile(url: string, isDev: boolean) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 3000)
   const arrayBuffer = await fetch(url, {
+    agent: getProxyAgent(),
     // Add a timeout in dev
     signal: isDev ? controller.signal : undefined,
   })
