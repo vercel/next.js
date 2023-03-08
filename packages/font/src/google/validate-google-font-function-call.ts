@@ -51,7 +51,9 @@ export function validateGoogleFontFunctionCall(
   } else if (preload) {
     if (!subsets) {
       nextFontError(
-        `Missing selected subsets for font \`${fontFamily}\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
+        `Preload is enabled but no subsets were specified for font \`${fontFamily}\`. Please specify subsets or disable preloading if your intended subset can't be preloaded.\nAvailable subsets: ${formatAvailableValues(
+          availableSubsets
+        )}\n\nRead more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
       )
     }
     subsets.forEach((subset: string) => {

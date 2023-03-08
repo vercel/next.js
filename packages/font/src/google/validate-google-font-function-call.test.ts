@@ -84,11 +84,13 @@ describe('validateFontFunctionCall errors', () => {
   })
 
   test('Missing subsets in config and call', async () => {
-    expect(() =>
-      validateGoogleFontFunctionCall('Inter', {})
-    ).toThrowErrorMatchingInlineSnapshot(
-      `"Missing selected subsets for font \`Inter\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets"`
-    )
+    expect(() => validateGoogleFontFunctionCall('Inter', {}))
+      .toThrowErrorMatchingInlineSnapshot(`
+      "Preload is enabled but no subsets were specified for font \`Inter\`. Please specify subsets or disable preloading if your intended subset can't be preloaded.
+      Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`
+
+      Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets"
+    `)
   })
 
   test('Setting axes on non variable font', async () => {
