@@ -415,7 +415,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         } else {
             let maybe_new_fn = self.add_action_annotations(
-                &mut f.ident,
+                &f.ident,
                 &mut f.function,
                 is_exported,
                 is_default_export,
@@ -457,7 +457,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 }
                                 self.exported_idents.push((
                                     fn_expr.ident.as_ref().unwrap().to_id(),
-                                    exported_ident.1.clone(),
+                                    exported_ident.1,
                                 ));
                             }
                         }
