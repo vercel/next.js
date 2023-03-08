@@ -21,7 +21,7 @@ serde_json = "1"
 sha1 = "0.10.1"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
-next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230302.2", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1", features = [
   "__swc_core",
   "__swc_core_next_core",
   "__swc_transform_styled_jsx",
@@ -31,7 +31,7 @@ next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-2
 ] }
 
 [dev-dependencies]
-next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230302.2", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1", features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }
