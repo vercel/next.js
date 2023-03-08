@@ -52,7 +52,6 @@ swc_core = { workspace = true, features = [
   "ecma_transforms_module",
   "ecma_transforms_react",
   "ecma_transforms_typescript",
-  "ecma_transforms_proposal",
   "ecma_quote",
   "ecma_visit",
   "ecma_visit_path",
