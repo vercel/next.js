@@ -740,6 +740,22 @@ async function renderToString(element: React.ReactElement) {
   })
 }
 
+function parseFlightRouterState(stateHeader: string | string[] | undefined) {
+  if (typeof stateHeader === 'undefined') {
+    return undefined
+  }
+  if (Array.isArray(stateHeader)) {
+    throw new Error(
+      'Multiple router state headers were sent. This is not allowed.'
+    )
+  }
+  try {
+    return JSON.parse(stateHeader)
+  } catch (err) {
+    throw new Error('The router state header was sent but could not be parsed.')
+  }
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -823,23 +839,21 @@ export async function renderToHTMLOrFlight(
     }
 
     // don't modify original query object
-    query = Object.assign({}, query)
+    query = { ...query }
+    stripInternalQueries(query)
 
     const isPrefetch =
       req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
     // TODO-APP: verify the tree is valid
-    // TODO-APP: verify query param is single value (not an array)
     // TODO-APP: verify tree can't grow out of control
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     let providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-        ? JSON.parse(
-            req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()] as string
-          )
-        : undefined
+      ? parseFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
       : undefined
 
     /**
@@ -858,8 +872,6 @@ export async function renderToHTMLOrFlight(
         : require('next/dist/compiled/nanoid').nanoid()
 
     const searchParamsProps = { searchParams: query }
-
-    stripInternalQueries(query)
 
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
