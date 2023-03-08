@@ -99,6 +99,7 @@ import { MatchOptions } from './future/route-matcher-managers/route-matcher-mana
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { nodeFs } from './lib/node-fs-methods'
 
 export * from './base-server'
 
@@ -1336,13 +1337,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getCacheFilesystem(): CacheFs {
-    return {
-      readFile: (f) => fs.promises.readFile(f, 'utf8'),
-      readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-      writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
-      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
-      stat: (f) => fs.promises.stat(f),
-    }
+    return nodeFs
   }
 
   private normalizeReq(
