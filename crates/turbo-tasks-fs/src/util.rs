@@ -1,4 +1,10 @@
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    io::{ErrorKind, Result as IoResult},
+    path::Path,
+};
+
+use anyhow::{anyhow, Result};
 
 /// Joins two /-separated paths into a normalized path.
 /// Paths are concatenated with /.
@@ -109,4 +115,15 @@ pub fn normalize_request(str: &str) -> String {
         }
     }
     seqments.join("/")
+}
+
+/// Converts a disk access Result<T> into a Result<Some<T>>, where a NotFound
+/// error results in a None value. This is purely to reduce boilerplate code
+/// comparing NotFound errors against all other errors.
+pub fn extract_disk_access<T>(value: IoResult<T>, path: &Path) -> Result<Option<T>> {
+    match value {
+        Ok(v) => Ok(Some(v)),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(anyhow!(e).context(format!("reading file {}", path.display()))),
+    }
 }

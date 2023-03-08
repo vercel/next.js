@@ -21,10 +21,11 @@ pub mod util;
 
 use std::{
     borrow::Cow,
+    cmp::min,
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
-    io::{self, ErrorKind},
+    io::{self, BufRead, ErrorKind},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::{
@@ -47,7 +48,10 @@ use read_glob::read_glob;
 pub use read_glob::{ReadGlobResult, ReadGlobResultVc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::{fs, io::AsyncReadExt};
+use tokio::{
+    fs,
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
+};
 use turbo_tasks::{
     mark_stateful,
     primitives::{BoolVc, StringReadRef, StringVc},
@@ -56,7 +60,7 @@ use turbo_tasks::{
     CompletionVc, Invalidator, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
-use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
+use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 
 use self::{json::UnparseableJson, mutex_map::MutexMap};
 use crate::{
@@ -416,18 +420,6 @@ impl Debug for DiskFileSystem {
     }
 }
 
-/// Reads the file from disk, without converting the contents into a Vc.
-async fn read_file(path: PathBuf, mutex_map: &MutexMap<PathBuf>) -> Result<FileContent> {
-    let _lock = mutex_map.lock(path.clone()).await;
-    Ok(match retry_future(|| File::from_path(path.clone())).await {
-        Ok(file) => FileContent::new(file),
-        Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
-        Err(e) => {
-            bail!(anyhow!(e).context(format!("reading file {}", path.display())))
-        }
-    })
-}
-
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function]
@@ -435,7 +427,14 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path)?;
 
-        let content = read_file(full_path, &self.mutex_map).await?;
+        let _lock = self.mutex_map.lock(full_path.clone()).await;
+        let content = match retry_future(|| File::from_path(full_path.clone())).await {
+            Ok(file) => FileContent::new(file),
+            Err(e) if e.kind() == ErrorKind::NotFound => FileContent::NotFound,
+            Err(e) => {
+                bail!(anyhow!(e).context(format!("reading file {}", full_path.display())))
+            }
+        };
         Ok(content.cell())
     }
 
@@ -594,19 +593,19 @@ impl FileSystem for DiskFileSystem {
         // Track the file, so that we will rewrite it if it ever changes.
         fs_path.track().await?;
 
-        // We perform an untracked read here, so that this write is not dependent on the
-        // read's FileContent value (and the memory it holds). Our untracked read can be
-        // freed immediately. Given this is an output file, it's unlikely any Turbo code
-        // will need to read the file from disk into a FileContentVc, so we're not
-        // wasting cycles.
-        let old_content = read_file(full_path.clone(), &self.mutex_map).await?;
-
-        if *content == old_content {
-            return Ok(CompletionVc::unchanged());
-        }
         let _lock = self.mutex_map.lock(full_path.clone()).await;
 
-        let create_directory = old_content == FileContent::NotFound;
+        // We perform an untracked comparison here, so that this write is not dependent
+        // on a read's FileContentVc (and the memory it holds). Our untracked read can
+        // be freed immediately. Given this is an output file, it's unlikely any Turbo
+        // code will need to read the file from disk into a FileContentVc, so we're not
+        // wasting cycles.
+        let compare = content.streaming_compare(full_path.clone()).await?;
+        if compare == FileComparison::Equal {
+            return Ok(CompletionVc::unchanged());
+        }
+
+        let create_directory = compare == FileComparison::Create;
         match &*content {
             FileContent::Content(file) => {
                 if create_directory {
@@ -1297,6 +1296,69 @@ impl From<File> for FileContent {
 impl From<File> for FileContentVc {
     fn from(file: File) -> Self {
         FileContent::Content(file).cell()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FileComparison {
+    Create,
+    Equal,
+    NotEqual,
+}
+
+impl FileContent {
+    /// Performs a comparison of self's data against a disk file's streamed
+    /// read.
+    async fn streaming_compare(&self, path: PathBuf) -> Result<FileComparison> {
+        let old_file = extract_disk_access(retry_future(|| fs::File::open(&path)).await, &path)?;
+        let Some(mut old_file) = old_file else {
+            return Ok(match self {
+                FileContent::NotFound => FileComparison::Equal,
+                _ => FileComparison::Create,
+            });
+        };
+        // We know old file exists, does the new file?
+        let FileContent::Content(new_file) = self else {
+            return Ok(FileComparison::NotEqual);
+        };
+
+        let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, &path)?;
+        let Some(old_meta) = old_meta else {
+            // If we failed to get meta, then the old file has been deleted between the handle open.
+            // In which case, we just pretend the file never existed.
+            return Ok(FileComparison::Create);
+        };
+        // If the meta is different, we need to rewrite the file to update it.
+        if new_file.meta != old_meta.into() {
+            return Ok(FileComparison::NotEqual);
+        }
+
+        // So meta matches, and we have a file handle. Let's stream the contents to see
+        // if they match.
+        let mut new_contents = new_file.read();
+        let mut old_contents = BufReader::new(&mut old_file);
+        Ok(loop {
+            let new_chunk = new_contents.fill_buf()?;
+            let Ok(old_chunk) = old_contents.fill_buf().await else {
+                break FileComparison::NotEqual;
+            };
+
+            let len = min(new_chunk.len(), old_chunk.len());
+            if len == 0 {
+                if new_chunk.len() == old_chunk.len() {
+                    break FileComparison::Equal;
+                } else {
+                    break FileComparison::NotEqual;
+                }
+            }
+
+            if new_chunk[0..len] != old_chunk[0..len] {
+                break FileComparison::NotEqual;
+            }
+
+            new_contents.consume(len);
+            old_contents.consume(len);
+        })
     }
 }
 
