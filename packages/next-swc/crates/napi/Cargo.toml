@@ -40,7 +40,6 @@ tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
 turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1" }
 turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1" }
 turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1" }
 next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1", features = [
@@ -49,6 +48,10 @@ next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-2
   "__turbo_node_file_trace",
   "__feature_mdx_rs",
 ] }
+
+
+[target.'cfg(any(not(target_os = "linux"), not(target_arch = "aarch64")))'.dependencies]
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1" }
 
 # There are few build targets we can't use native-tls which default features rely on,
 # allow to specify alternative (rustls) instead via features.
