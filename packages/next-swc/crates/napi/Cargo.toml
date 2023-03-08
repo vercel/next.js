@@ -50,7 +50,7 @@ next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-2
 ] }
 
 
-[target.'cfg(any(not(target_os = "linux"), not(target_arch = "aarch64")))'.dependencies]
+[target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
 turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230308.1" }
 
 # There are few build targets we can't use native-tls which default features rely on,
