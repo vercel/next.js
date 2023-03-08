@@ -64,10 +64,12 @@ if (typeof window !== 'undefined') {
       )
     ) {
       if (hydrationErrorWarning) {
+        // The patched console.error found hydration errors logged by React
+        // Append the logged warning to the error message
         error.message += '\n\n' + hydrationErrorWarning
       }
       if (hydrationErrorComponentStack) {
-        // Component stack added to the error, picked up by the hot-reloader-client
+        // Hydration error component stack is added to the error, it's picked up by the hot-reloader-client
         ;(error as any)._componentStack = hydrationErrorComponentStack
       }
       error.message +=
