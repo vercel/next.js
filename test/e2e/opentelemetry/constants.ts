@@ -4,7 +4,7 @@ export const traceFile = 'otel-trace.txt'
 
 export type SavedSpan = {
   traceId: string
-  parentId: string
+  parentId?: string
   traceState: any
   name: string
   id: string

@@ -72,8 +72,6 @@ export class NextServer {
           attributes: {
             'http.method': req.method,
             'http.target': req.url,
-            // TODO: Route should be actually pathname like `/blog/[slug]`
-            'http.route': req.url,
           },
         },
         async (span) => {

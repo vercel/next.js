@@ -12,6 +12,7 @@ createNextDescribe(
     nextConfig: {
       experimental: {
         instrumentationHook: true,
+        appDir: true,
       },
     },
     dependencies: {
@@ -71,8 +72,8 @@ createNextDescribe(
       await cleanTraces()
     })
 
-    it('should exactly one root trace for each request with correct props', async () => {
-      await next.fetch('/')
+    it('should have root server span with correct fields', async () => {
+      await next.fetch('/pages')
 
       const traces = await getTraces()
       const rootTraces = traces.filter((trace) => !trace.parentId)
@@ -80,19 +81,18 @@ createNextDescribe(
       expect(rootTraces).toHaveLength(1)
       const rootTrace = rootTraces[0]
 
-      expect(rootTrace.name).toBe('GET /')
+      expect(rootTrace.name).toBe('GET /pages')
       expect(rootTrace.kind).toBe(SpanKind.SERVER)
       expectSpanToHaveAttributes(rootTrace, {
         //HTTP: https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/
         'http.status_code': 200,
         'http.method': 'GET',
-        'http.target': '/',
-        'http.route': '/',
+        'http.target': '/pages',
       })
     })
 
-    it('should show correctly route with params', async () => {
-      await next.fetch('/stuff')
+    it('should should have root span with params', async () => {
+      await next.fetch('/pages/params/stuff')
 
       const traces = await getTraces()
       const rootTraces = traces.filter((trace) => !trace.parentId)
@@ -100,11 +100,48 @@ createNextDescribe(
       expect(rootTraces).toHaveLength(1)
       const rootTrace = rootTraces[0]
 
-      expect(rootTrace.name).toBe('GET /stuff')
+      expect(rootTrace.name).toBe('GET /pages/params/stuff')
       expectSpanToHaveAttributes(rootTrace, {
-        'http.target': '/stuff',
-        'http.route': '/stuff',
+        'http.target': '/pages/params/stuff',
       })
+    })
+
+    it('should have rendering span', async () => {
+      await next.fetch('/pages')
+
+      const traces = await getTraces()
+      expect(traces.map((span) => span.name)).toContain('rendering /pages')
+    })
+
+    it('should have fetch span', async () => {
+      await next.fetch('/app/rsc-fetch')
+
+      const traces = await getTraces()
+      const fetchSpans = traces.filter((span) => span.name.startsWith('fetch'))
+
+      expect(fetchSpans).toHaveLength(1)
+      const fetchSpan = fetchSpans[0]
+
+      expect(fetchSpan.name).toBe('fetch GET https://vercel.com/')
+      expect(fetchSpan.kind).toBe(SpanKind.CLIENT)
+      expectSpanToHaveAttributes(fetchSpan, {
+        'http.method': 'GET',
+        'net.peer.name': 'vercel.com',
+      })
+    })
+
+    it('should have getServerSideProps span', async () => {
+      await next.fetch('/pages/getServerSideProps')
+
+      const traces = await getTraces()
+      const gsspSpans = traces.filter((span) =>
+        span.name.startsWith('getServerSideProps')
+      )
+
+      expect(gsspSpans).toHaveLength(1)
+      const gsspSpan = gsspSpans[0]
+
+      expect(gsspSpan.name).toBe('getServerSideProps /pages/getServerSideProps')
     })
   }
 )
