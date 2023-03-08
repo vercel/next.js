@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use futures::{prelude::*, Stream};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
-use turbo_tasks::{CollectiblesSource, State, TransientInstance};
+use turbo_tasks::{CollectiblesSource, IntoTraitRef, State, TraitRef, TransientInstance};
 use turbopack_core::{
     issue::{IssueVc, PlainIssueReadRef},
     version::{
@@ -99,7 +99,8 @@ async fn compute_update_stream(
 
 #[turbo_tasks::value]
 struct VersionState {
-    inner: State<VersionVc>,
+    #[turbo_tasks(trace_ignore)]
+    version: State<TraitRef<VersionVc>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -107,23 +108,21 @@ impl VersionStateVc {
     #[turbo_tasks::function]
     async fn get(self) -> Result<VersionVc> {
         let this = self.await?;
-        let version = *this.inner.get();
+        let version = TraitRef::cell(this.version.get().clone());
         Ok(version)
     }
 }
 
 impl VersionStateVc {
-    async fn new(inner: VersionVc) -> Result<Self> {
-        let inner = inner.cell_local().await?;
+    async fn new(version: VersionVc) -> Result<Self> {
         Ok(Self::cell(VersionState {
-            inner: State::new(inner),
+            version: State::new(version.into_trait_ref().await?),
         }))
     }
 
-    async fn set(&self, new_inner: VersionVc) -> Result<()> {
+    async fn set(&self, new_version: VersionVc) -> Result<()> {
         let this = self.await?;
-        let new_inner = new_inner.cell_local().await?;
-        this.inner.set(new_inner);
+        this.version.set(new_version.into_trait_ref().await?);
         Ok(())
     }
 }

@@ -18,6 +18,8 @@ use crate::{
 };
 
 pub trait Typed {
+    type Vc: From<RawVc>;
+
     fn get_value_type_id() -> ValueTypeId;
 }
 

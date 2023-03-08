@@ -6,7 +6,8 @@ use syn::{
     TraitItemMethod, TypeParamBound,
 };
 use turbo_tasks_macros_shared::{
-    get_ref_ident, get_trait_default_impl_function_ident, get_trait_type_ident, ValueTraitArguments,
+    get_ref_ident, get_trait_default_impl_function_ident, get_trait_ref_ident,
+    get_trait_type_ident, ValueTraitArguments,
 };
 
 use crate::{
@@ -83,6 +84,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         .collect();
 
     let ref_ident = get_ref_ident(ident);
+    let trait_ref_ident = get_trait_ref_ident(ident);
     let trait_type_ident = get_trait_type_ident(ident);
     let trait_type_id_ident = get_trait_type_id_ident(ident);
     let mut trait_fns = Vec::new();
@@ -145,6 +147,50 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
     }
+
+    let future_type = quote! {
+        turbo_tasks::ReadRawVcFuture<turbo_tasks::TraitCast<#ref_ident>>
+    };
+
+    let into_trait_ref = quote! {
+        impl turbo_tasks::IntoTraitRef for #ref_ident {
+            type TraitVc = #ref_ident;
+            type Future = #future_type;
+            fn into_trait_ref(self) -> Self::Future {
+                self.node.into_trait_read::<#ref_ident>()
+            }
+        }
+
+        impl turbo_tasks::IntoTraitRef for &#ref_ident {
+            type TraitVc = #ref_ident;
+            type Future = #future_type;
+            fn into_trait_ref(self) -> Self::Future {
+                self.node.into_trait_read::<#ref_ident>()
+            }
+        }
+    };
+
+    let strongly_consistent = {
+        let read = quote! {
+            self.node.into_strongly_consistent_trait_read::<#ref_ident>()
+        };
+        let doc = strongly_consistent_doccomment();
+        quote! {
+            #doc
+            #[must_use]
+            pub fn strongly_consistent(self) -> #future_type {
+                #read
+            }
+        }
+    };
+
+    let trait_ref = quote! {
+        turbo_tasks::TraitRef<#ref_ident>
+    };
+    let trait_ref = quote! {
+        /// see [turbo_tasks::TraitRef]
+        #vis type #trait_ref_ident = #trait_ref;
+    };
 
     let value_debug_impl = if debug {
         quote! {
@@ -223,6 +269,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             node: turbo_tasks::RawVc,
         }
 
+        #trait_ref
+
         impl #ref_ident {
             /// see [turbo_tasks::RawVc::resolve]
             pub async fn resolve(self) -> turbo_tasks::Result<Self> {
@@ -232,11 +280,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             /// see [turbo_tasks::RawVc::resolve_strongly_consistent]
             pub async fn resolve_strongly_consistent(self) -> turbo_tasks::Result<Self> {
                 Ok(Self { node: self.node.resolve_strongly_consistent().await? })
-            }
-
-            /// see [turbo_tasks::RawVc::cell_local]
-            pub async fn cell_local(self) -> turbo_tasks::Result<Self> {
-                Ok(Self { node: self.node.cell_local().await? })
             }
 
             pub async fn resolve_from(super_trait_vc: impl std::convert::Into<turbo_tasks::RawVc>) -> Result<Option<Self>, turbo_tasks::ResolveTypeError> {
@@ -249,6 +292,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
                 #ref_ident { node: raw_vc }
             }
+
+            #strongly_consistent
         }
 
         impl turbo_tasks::CollectiblesSource for #ref_ident {
@@ -267,6 +312,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 *#trait_type_id_ident
             }
         }
+
+        #into_trait_ref
 
         impl<T> #ident for T
         where

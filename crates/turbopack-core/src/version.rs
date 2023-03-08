@@ -4,6 +4,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     primitives::{JsonValueVc, StringVc},
     trace::TraceRawVcs,
+    IntoTraitRef,
 };
 use turbo_tasks_fs::{FileContent, FileContentReadRef, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -16,9 +17,8 @@ pub trait VersionedContent {
     /// The content of the [Asset].
     fn content(&self) -> AssetContentVc;
 
-    /// Get a unique identifier of the version as a string. There is no way
-    /// to convert a version identifier back to the original `VersionedContent`,
-    /// so the original object needs to be stored somewhere.
+    /// Get a [`Version`] implementor that contains enough information to
+    /// identify and diff a future [`VersionedContent`] against it.
     fn version(&self) -> VersionVc;
 
     /// Describes how to update the content from an earlier version to the
@@ -26,9 +26,19 @@ pub trait VersionedContent {
     async fn update(self_vc: VersionedContentVc, from: VersionVc) -> Result<UpdateVc> {
         // By default, since we can't make any assumptions about the versioning
         // scheme of the content, we ask for a full invalidation, except in the
-        // case where versions are the same. And we can't compare `VersionVc`s
-        // directly since `.cell_local()` breaks referential equality checks.
+        // case where versions are the same.
         let to = self_vc.version();
+        let from_ref = from.into_trait_ref().await?;
+        let to_ref = to.into_trait_ref().await?;
+
+        // Fast path: versions are the same.
+        if from_ref == to_ref {
+            return Ok(Update::None.into());
+        }
+
+        // The fast path might not always work since `self_vc` might have been converted
+        // from a `ReadRef` or a `ReadRef`, in which case `self_vc.version()` would
+        // return a new `VersionVc`. In this case, we need to compare version ids.
         let from_id = from.id();
         let to_id = to.id();
         let from_id = from_id.await?;

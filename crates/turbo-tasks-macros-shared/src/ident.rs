@@ -59,6 +59,14 @@ pub fn get_ref_ident(ident: &Ident) -> Ident {
     Ident::new(&(ident.to_string() + "Vc"), ident.span())
 }
 
+pub fn get_read_ref_ident(ident: &Ident) -> Ident {
+    Ident::new(&(ident.to_string() + "ReadRef"), ident.span())
+}
+
+pub fn get_trait_ref_ident(ident: &Ident) -> Ident {
+    Ident::new(&(ident.to_string() + "TraitRef"), ident.span())
+}
+
 pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
     Ident::new(
         &format!(

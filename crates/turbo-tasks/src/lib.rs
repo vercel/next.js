@@ -60,6 +60,7 @@ mod state;
 mod task_input;
 mod timed_future;
 pub mod trace;
+mod trait_ref;
 pub mod util;
 mod value;
 mod value_type;
@@ -80,10 +81,14 @@ pub use manager::{
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};
-pub use raw_vc::{CellId, CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use raw_vc::{
+    CellId, CollectiblesFuture, RawVc, ReadRawVcFuture, ResolveTypeError, TraitCast,
+    TransparentValueCast, ValueCast,
+};
 pub use read_ref::ReadRef;
 pub use state::State;
 pub use task_input::{FromTaskInput, SharedReference, SharedValue, TaskInput};
+pub use trait_ref::{IntoTraitRef, TraitRef};
 pub use turbo_tasks_macros::{function, value, value_impl, value_trait};
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{
