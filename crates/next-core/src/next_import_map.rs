@@ -270,7 +270,7 @@ pub fn get_next_client_resolved_map(
 }
 
 static NEXT_ALIASES: [(&str, &str); 23] = [
-    ("asset", "next/dist/compiled/assert"),
+    ("assert", "next/dist/compiled/assert"),
     ("buffer", "next/dist/compiled/buffer"),
     ("constants", "next/dist/compiled/constants-browserify"),
     ("crypto", "next/dist/compiled/crypto-browserify"),
