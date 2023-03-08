@@ -1352,7 +1352,7 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getFontLoaderManifest() {
+  protected getNextFontManifest() {
     return undefined
   }
 
@@ -1628,7 +1628,7 @@ export default class DevServer extends Server {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
-      this.fontLoaderManifest = super.getFontLoaderManifest()
+      this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might
       // have been patched previously to their original state so that we don't
       // patch on top of the previous patch, which would keep the context of the previous

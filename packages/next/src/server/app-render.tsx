@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../../types'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
@@ -188,7 +188,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
-  fontLoaderManifest?: FontLoaderManifest
+  nextFontManifest?: NextFontManifest
   isBot?: boolean
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
@@ -632,16 +632,16 @@ function getServerCSSForEntries(
 }
 
 /**
- * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
+ * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and next/font manifest. Only used when rendering to HTML.
  */
 function getPreloadedFontFilesInlineLinkTags(
   serverCSSManifest: FlightCSSManifest,
-  fontLoaderManifest: FontLoaderManifest | undefined,
+  nextFontManifest: NextFontManifest | undefined,
   serverCSSForEntries: string[],
   filePath: string | undefined,
   injectedFontPreloadTags: Set<string>
 ): string[] | null {
-  if (!fontLoaderManifest || !filePath) {
+  if (!nextFontManifest || !filePath) {
     return null
   }
   const layoutOrPageCss = serverCSSManifest[filePath]
@@ -656,7 +656,7 @@ function getPreloadedFontFilesInlineLinkTags(
   for (const css of layoutOrPageCss) {
     // We only include the CSS if it is used by this entrypoint.
     if (serverCSSForEntries.includes(css)) {
-      const preloadedFontFiles = fontLoaderManifest.app[css]
+      const preloadedFontFiles = nextFontManifest.app[css]
       if (preloadedFontFiles) {
         foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
@@ -762,7 +762,7 @@ export async function renderToHTMLOrFlight(
     serverCSSManifest = {},
     ComponentMod,
     dev,
-    fontLoaderManifest,
+    nextFontManifest,
     supportsDynamicHTML,
   } = renderOpts
 
@@ -1128,7 +1128,7 @@ export async function renderToHTMLOrFlight(
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
             serverCSSManifest!,
-            fontLoaderManifest,
+            nextFontManifest,
             serverCSSForEntries,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1426,7 +1426,7 @@ export async function renderToHTMLOrFlight(
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
-                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                    nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
                   }
                   rel="preconnect"
                   href="/"
@@ -1616,7 +1616,7 @@ export async function renderToHTMLOrFlight(
           )
           getPreloadedFontFilesInlineLinkTags(
             serverCSSManifest!,
-            fontLoaderManifest,
+            nextFontManifest,
             serverCSSForEntries,
             layoutPath,
             injectedFontPreloadTagsWithCurrentLayout
