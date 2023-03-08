@@ -98,6 +98,7 @@ import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
+import LRUCache from 'next/dist/compiled/lru-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -133,6 +134,10 @@ export default class DevServer extends Server {
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
   private originalFetch?: typeof fetch
+  private staticPathsCache: LRUCache<
+    string,
+    UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
+  >
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -186,6 +191,13 @@ export default class DevServer extends Server {
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
+    })
+    this.staticPathsCache = new LRUCache({
+      // 5MB
+      max: 5 * 1024 * 1024,
+      length(value) {
+        return JSON.stringify(value.staticPaths).length
+      },
     })
     ;(this.renderOpts as any).ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
@@ -1557,31 +1569,51 @@ export default class DevServer extends Server {
       })
       return pathsResult
     }
-    const { paths: staticPaths, fallback } = (
-      await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
-    ).value
+    const result = this.staticPathsCache.get(pathname)
 
-    if (this.nextConfig.output === 'export') {
-      if (fallback === 'blocking') {
-        throw new Error(
-          'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      } else if (fallback === true) {
-        throw new Error(
-          'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-    }
+    const nextInvoke = withCoalescedInvoke(__getStaticPaths)(
+      `staticPaths-${pathname}`,
+      []
+    )
+      .then((res) => {
+        const { paths: staticPaths = [], fallback } = res.value
+        if (this.nextConfig.output === 'export') {
+          if (fallback === 'blocking') {
+            throw new Error(
+              'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          } else if (fallback === true) {
+            throw new Error(
+              'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          }
+        }
+        const value: {
+          staticPaths: string[]
+          fallbackMode: 'blocking' | 'static' | false | undefined
+        } = {
+          staticPaths,
+          fallbackMode:
+            fallback === 'blocking'
+              ? 'blocking'
+              : fallback === true
+              ? 'static'
+              : fallback,
+        }
+        this.staticPathsCache.set(pathname, value)
+        return value
+      })
+      .catch((err) => {
+        this.staticPathsCache.del(pathname)
+        if (!result) throw err
+        Log.error(`Failed to generate static paths for ${pathname}:`)
+        console.error(err)
+      })
 
-    return {
-      staticPaths,
-      fallbackMode:
-        fallback === 'blocking'
-          ? 'blocking'
-          : fallback === true
-          ? 'static'
-          : fallback,
+    if (result) {
+      return result
     }
+    return nextInvoke as NonNullable<typeof result>
   }
 
   private persistPatchedGlobals(): void {
