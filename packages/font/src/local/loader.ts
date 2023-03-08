@@ -1,12 +1,16 @@
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import fontFromBuffer from '../fontkit'
+let fontFromBuffer: any
+try {
+  const mod = require('../fontkit').default
+  fontFromBuffer = mod.default || mod
+} catch {}
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'
-import { validateData } from './utils'
-import { calculateFallbackFontValues } from '../utils'
 import { pickFontFileForFallbackGeneration } from './pick-font-file-for-fallback-generation'
+import { getFallbackMetricsFromFontFile } from './get-fallback-metrics-from-font-file'
+import { validateLocalFontFunctionCall } from './validate-local-font-function-call'
 
 const nextFontLocalFontLoader: FontLoader = async ({
   functionName,
@@ -26,7 +30,7 @@ const nextFontLocalFontLoader: FontLoader = async ({
     declarations,
     weight: defaultWeight,
     style: defaultStyle,
-  } = validateData(functionName, data[0])
+  } = validateLocalFontFunctionCall(functionName, data[0])
 
   // Load all font files and emit them to the .next output directory
   // Also generate a @font-face CSS for each font file
@@ -45,7 +49,7 @@ const nextFontLocalFontLoader: FontLoader = async ({
       // The data is used to calculate the fallback font override values.
       let fontMetadata: any
       try {
-        fontMetadata = fontFromBuffer(fileBuffer)
+        fontMetadata = fontFromBuffer?.(fileBuffer)
       } catch (e) {
         console.error(`Failed to load font file: ${resolved}\n${e}`)
       }
@@ -85,7 +89,7 @@ const nextFontLocalFontLoader: FontLoader = async ({
   if (adjustFontFallback !== false) {
     const fallbackFontFile = pickFontFileForFallbackGeneration(fontFiles)
     if (fallbackFontFile.fontMetadata) {
-      adjustFontFallbackMetrics = calculateFallbackFontValues(
+      adjustFontFallbackMetrics = getFallbackMetricsFromFontFile(
         fallbackFontFile.fontMetadata,
         adjustFontFallback === 'Times New Roman' ? 'serif' : 'sans-serif'
       )
