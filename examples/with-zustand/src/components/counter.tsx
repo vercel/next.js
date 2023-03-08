@@ -1,17 +1,12 @@
 import { useStore } from '../lib/store'
-import shallow from 'zustand/shallow'
-const useCounter = () => {
-  const { count, increment, decrement, reset } = useStore(
-    (store) => ({
-      count: store.count,
-      increment: store.increment,
-      decrement: store.decrement,
-      reset: store.reset,
-    }),
-    shallow
-  )
 
-  return { count, increment, decrement, reset }
+const useCounter = () => {
+  return useStore(store => ({
+    count: store.count,
+    increment: store.increment,
+    decrement: store.decrement,
+    reset: store.reset
+  }))
 }
 
 const Counter = () => {
