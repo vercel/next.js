@@ -1,7 +1,6 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use once_cell::sync::Lazy;
 use turbo_tasks::{
     primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc},
     Value,
@@ -34,6 +33,7 @@ use crate::{
         options::FontDataEntry,
         util::{get_font_axes, get_stylesheet_url},
     },
+    util::load_next_json,
 };
 
 pub(crate) mod font_fallback;
@@ -44,11 +44,9 @@ pub(crate) mod stylesheet;
 pub(crate) mod util;
 
 pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2";
-static FONT_DATA: Lazy<FontData> = Lazy::new(|| {
-    parse_json_with_source_context(include_str!("__generated__/font-data.json")).unwrap()
-});
 
-type FontData = IndexMap<String, FontDataEntry>;
+#[turbo_tasks::value(transparent)]
+struct FontData(IndexMap<String, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
@@ -81,14 +79,15 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
+        let font_data = load_font_data(self.project_path);
         let query = &*query_vc.await?;
-        let options = font_options_from_query_map(*query_vc);
+        let options = font_options_from_query_map(*query_vc, font_data);
         let request_hash = get_request_hash(*query_vc);
         let fallback = get_font_fallback(self.project_path, options, request_hash);
         let properties = get_font_css_properties(options, fallback, request_hash).await?;
         let js_asset = VirtualAssetVc::new(
                 next_js_file_path("internal/font/google")
-                    .join(&format!("{}.js", get_request_id(*query_vc).await?)),
+                    .join(&format!("{}.js", get_request_id(*query_vc, font_data).await?)),
                 FileContent::Content(
                     formatdoc!(
                         r#"
@@ -165,15 +164,17 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         } = request else {
             return Ok(ImportMapResult::NoEntry.into());
         };
-        request.request();
 
-        let options = font_options_from_query_map(*query_vc);
-        let stylesheet_url = get_stylesheet_url_from_options(options);
+        let font_data = load_font_data(self.project_path);
+        let options = font_options_from_query_map(*query_vc, font_data);
+        let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
         let request_hash = get_request_hash(*query_vc);
         let scoped_font_family =
             get_scoped_font_family(FontFamilyType::WebFont.cell(), options, request_hash);
-        let css_virtual_path = next_js_file_path("internal/font/google")
-            .join(&format!("/{}.module.css", get_request_id(*query_vc).await?));
+        let css_virtual_path = next_js_file_path("internal/font/google").join(&format!(
+            "/{}.module.css",
+            get_request_id(*query_vc, font_data).await?
+        ));
 
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
@@ -246,6 +247,17 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 }
 
 #[turbo_tasks::function]
+async fn load_font_data(project_root: FileSystemPathVc) -> Result<FontDataVc> {
+    let data: FontData = load_next_json(
+        project_root,
+        "/dist/compiled/@next/font/dist/google/font-data.json",
+    )
+    .await?;
+
+    Ok(data.cell())
+}
+
+#[turbo_tasks::function]
 async fn update_stylesheet(
     stylesheet: StringVc,
     options: NextFontGoogleOptionsVc,
@@ -260,8 +272,8 @@ async fn update_stylesheet(
 }
 
 #[turbo_tasks::function]
-async fn get_request_id(query_vc: QueryMapVc) -> Result<StringVc> {
-    let options = font_options_from_query_map(query_vc).await?;
+async fn get_request_id(query_vc: QueryMapVc, font_data: FontDataVc) -> Result<StringVc> {
+    let options = font_options_from_query_map(query_vc, font_data).await?;
 
     Ok(StringVc::cell(format!(
         "{}_{:x?}",
@@ -288,7 +300,10 @@ async fn get_request_hash(query_vc: QueryMapVc) -> Result<U32Vc> {
 }
 
 #[turbo_tasks::function]
-async fn get_stylesheet_url_from_options(options: NextFontGoogleOptionsVc) -> Result<StringVc> {
+async fn get_stylesheet_url_from_options(
+    options: NextFontGoogleOptionsVc,
+    font_data: FontDataVc,
+) -> Result<StringVc> {
     #[allow(unused_mut, unused_assignments)] // This is used in test environments
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
@@ -306,7 +321,7 @@ async fn get_stylesheet_url_from_options(options: NextFontGoogleOptionsVc) -> Re
         css_url.as_deref().unwrap_or(GOOGLE_FONTS_STYLESHEET_URL),
         &options.font_family,
         &get_font_axes(
-            &FONT_DATA,
+            &*font_data.await?,
             &options.font_family,
             &options.weights,
             &options.styles,
@@ -369,7 +384,10 @@ async fn get_font_css_properties(
 }
 
 #[turbo_tasks::function]
-async fn font_options_from_query_map(query: QueryMapVc) -> Result<NextFontGoogleOptionsVc> {
+async fn font_options_from_query_map(
+    query: QueryMapVc,
+    font_data: FontDataVc,
+) -> Result<NextFontGoogleOptionsVc> {
     let query_map = &*query.await?;
     // These are invariants from the next/font swc transform. Regular errors instead
     // of Issues should be okay.
@@ -385,7 +403,7 @@ async fn font_options_from_query_map(query: QueryMapVc) -> Result<NextFontGoogle
             bail!("Expected one entry");
         };
 
-    self::options::options_from_request(&parse_json_with_source_context(json)?, &FONT_DATA)
+    self::options::options_from_request(&parse_json_with_source_context(json)?, &*font_data.await?)
         .map(|o| NextFontGoogleOptionsVc::new(Value::new(o)))
 }
 
