@@ -137,32 +137,40 @@ async function runOperation(renderData: RenderData) {
     tree = [info.segment, { children: tree }, components];
   }
 
-  const proxyMethodsForModule = (
-    id: string,
-    css: boolean
-  ): ProxyHandler<FlightManifest[""]> => ({
-    get(target, name, receiver) {
-      return {
-        id,
-        chunks: JSON.parse(id)[1],
-        name,
-      };
-    },
-  });
-  const proxyMethods = (css: boolean): ProxyHandler<FlightManifest> => {
+  const proxyMethods = (): ProxyHandler<FlightManifest> => {
     return {
-      get(target, name, receiver) {
-        if (name === "__ssr_module_mapping__") {
+      get(_target, key: string) {
+        if (key === "__ssr_module_mapping__") {
           return manifest;
         }
-        if (name === "__entry_css_files__") {
+        if (key === "__entry_css_files__") {
           return __entry_css_files__;
         }
-        return new Proxy({}, proxyMethodsForModule(name as string, css));
+
+        // The key is a `${file}#${name}`, but `file` can contain `#` itself.
+        // There are 3 possibilities:
+        //   "file"     => id = "file", name = "*"
+        //   "file#"    => id = "file", name = ""
+        //   "file#foo" => id = "file", name = "foo"
+        const pos = key.lastIndexOf("#");
+        let id = key;
+        let name = "";
+        if (pos === -1) {
+          name = "*";
+        } else {
+          id = key.slice(0, pos);
+          name = key.slice(pos + 1);
+        }
+
+        return {
+          id,
+          name,
+          chunks: JSON.parse(id)[1],
+        };
       },
     };
   };
-  const manifest: FlightManifest = new Proxy({} as any, proxyMethods(false));
+  const manifest: FlightManifest = new Proxy({} as any, proxyMethods());
   const serverCSSManifest: FlightCSSManifest = {};
   const __entry_css_files__: FlightManifest["__entry_css_files__"] = {};
   for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
