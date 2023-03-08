@@ -1924,7 +1924,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    return getTracer().trace(BaseServerSpan.renderToResponse, async () => {
+    return getTracer().trace(BaseServerSpan.renderToResponse, async (span) => {
+      if (span) {
+        span.setAttribute('path', ctx.pathname)
+      }
+
       return this.renderToResponseImpl(ctx)
     })
   }

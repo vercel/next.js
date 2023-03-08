@@ -64,10 +64,21 @@ export class NextServer {
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
-        const requestHandler = await this.getServerRequestHandler()
-        return requestHandler(req, res, parsedUrl)
-      })
+      return getTracer().trace(
+        NextServerSpan.getRequestHandler,
+        async (span) => {
+          if (span && req.method) {
+            span.setAttribute('method', req.method)
+          }
+
+          const requestHandler = await this.getServerRequestHandler()
+          await requestHandler(req, res, parsedUrl)
+
+          if (span) {
+            span.setAttribute('status', res.statusCode)
+          }
+        }
+      )
     }
   }
 
