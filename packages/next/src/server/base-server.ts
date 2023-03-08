@@ -1316,7 +1316,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (isAppDir && opts.dev && opts.supportsDynamicHTML === false) {
+    if (isAppPath && opts.dev && opts.supportsDynamicHTML === false) {
       opts.supportsDynamicHTML = true
     }
 
