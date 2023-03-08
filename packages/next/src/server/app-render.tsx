@@ -756,6 +756,18 @@ function parseFlightRouterState(stateHeader: string | string[] | undefined) {
   }
 }
 
+function validateURL(url: string | undefined): string {
+  if (!url) {
+    throw new Error('Invalid request URL')
+  }
+  try {
+    new URL(url, 'http://n')
+    return url
+  } catch {
+    throw new Error('Invalid request URL')
+  }
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -1762,8 +1774,7 @@ export async function renderToHTMLOrFlight(
       Uint8Array
     > = new TransformStream()
 
-    // TODO-APP: validate req.url as it gets passed to render.
-    const initialCanonicalUrl = req.url!
+    const initialCanonicalUrl = validateURL(req.url)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
