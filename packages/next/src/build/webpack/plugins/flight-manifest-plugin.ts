@@ -19,13 +19,6 @@ import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 
-// This is the module that will be used to anchor all client references to.
-// I.e. it will have all the client files as async deps from this point on.
-// We use the Flight client implementation because you can't get to these
-// without the client runtime so it's the first time in the loading sequence
-// you might want them.
-// const clientFileName = require.resolve('../');
-
 interface Options {
   dev: boolean
   appDir: string
@@ -80,8 +73,6 @@ export type ClientReferenceManifest = {
   cssModules: {
     [entryPathWithoutExtension: string]: string[]
   }
-} & {
-  [modulePath: string]: ManifestNode
 }
 
 export type ClientCSSReferenceManifest = {
@@ -212,10 +203,10 @@ export class ClientReferenceManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!moduleReferences[resource]) {
-            moduleReferences[resource] = {
+          if (!moduleReferences[resource + '#']) {
+            moduleReferences[resource + '#'] = {
               default: {
-                id,
+                id: id || '',
                 name: 'default',
                 chunks: chunkCSS,
               },
@@ -224,9 +215,9 @@ export class ClientReferenceManifestPlugin {
             // It is possible that there are multiple modules with the same resource,
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
-            moduleReferences[resource].default.chunks = [
+            moduleReferences[resource + '#'].default.chunks = [
               ...new Set([
-                ...moduleReferences[resource].default.chunks,
+                ...moduleReferences[resource + '#'].default.chunks,
                 ...chunkCSS,
               ]),
             ]
@@ -245,25 +236,29 @@ export class ClientReferenceManifestPlugin {
         const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
 
         const cjsExports = [
-          ...new Set([
-            ...mod.dependencies.map((dep) => {
-              // Match CommonJsSelfReferenceDependency
-              if (dep.type === 'cjs self exports reference') {
-                // @ts-expect-error: TODO: Fix Dependency type
-                if (dep.base === 'module.exports') {
-                  return 'default'
-                }
-
-                // `exports.foo = ...`, `exports.default = ...`
-                // @ts-expect-error: TODO: Fix Dependency type
-                if (dep.base === 'exports') {
+          ...new Set(
+            [
+              ...mod.dependencies.map((dep) => {
+                // Match CommonJsSelfReferenceDependency
+                if (dep.type === 'cjs self exports reference') {
                   // @ts-expect-error: TODO: Fix Dependency type
-                  return dep.names.filter((name: any) => name !== '__esModule')
+                  if (dep.base === 'module.exports') {
+                    return 'default'
+                  }
+
+                  // `exports.foo = ...`, `exports.default = ...`
+                  // @ts-expect-error: TODO: Fix Dependency type
+                  if (dep.base === 'exports') {
+                    // @ts-expect-error: TODO: Fix Dependency type
+                    return dep.names.filter(
+                      (name: any) => name !== '__esModule'
+                    )
+                  }
                 }
-              }
-              return null
-            }),
-          ]),
+                return null
+              }),
+            ].flat()
+          ),
         ]
 
         function getAppPathRequiredChunks() {
@@ -282,45 +277,65 @@ export class ClientReferenceManifestPlugin {
             })
             .filter(nonNullable)
         }
+        const requiredChunks = getAppPathRequiredChunks()
 
-        const moduleExports = moduleReferences[resource] || {}
-        const moduleExportedKeys = ['', '*']
-          .concat(
-            [...exportsInfo.exports]
-              .filter((exportInfo) => exportInfo.provided)
-              .map((exportInfo) => exportInfo.name),
-            ...cjsExports
-          )
-          .filter((name) => name !== null)
+        // The client compiler will always use the CJS Next.js build, so here we
+        // also add the mapping for the ESM build (Edge runtime) to consume.
+        const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
+          ? resource.replace(
+              /[\\/]next[\\/]dist[\\/]/,
+              '/next/dist/esm/'.replace(/\//g, path.sep)
+            )
+          : null
 
-        moduleExportedKeys.forEach((name) => {
-          // If the chunk is from `app/` chunkGroup, use it first.
-          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
-          if (
-            !moduleExports[name] ||
-            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
-          ) {
-            const requiredChunks = getAppPathRequiredChunks()
-
-            moduleExports[name] = {
+        function addClientReference(name: string) {
+          if (name === '*') {
+            manifest.clientModules[resource][name] = {
               id,
-              name,
               chunks: requiredChunks,
-              // E.g.
-              // page (server) -> local module (client) -> package (esm)
-              // The esm package will bubble up to make the entire chain till the client entry as async module.
+              name: '*',
               async: isAsyncModule,
             }
+            if (esmResource) {
+              manifest.edgeSSRModuleMapping[esmResource] =
+                manifest.clientModules[resource]
+            }
+          } else if (name === '') {
+            manifest.clientModules[resource + '#'][name] = {
+              id,
+              chunks: requiredChunks,
+              name: '',
+              async: isAsyncModule,
+            }
+            if (esmResource) {
+              manifest.edgeSSRModuleMapping[esmResource + '#'] =
+                manifest.clientModules[resource + '#']
+            }
+          } else {
+            manifest.clientModules[resource + '#' + name][name] = {
+              id,
+              chunks: requiredChunks,
+              name,
+              async: isAsyncModule,
+            }
+            if (esmResource) {
+              manifest.edgeSSRModuleMapping[esmResource + '#' + name] =
+                manifest.clientModules[resource + '#' + name]
+            }
           }
+        }
 
+        function addSSRIdMapping(name: string) {
+          const key = resource + (name === '*' ? '' : '#' + name)
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id][name] = {
-              ...moduleExports[name],
-              id: pluginState.serverModuleIds[ssrNamedModuleId],
+            const node: ManifestNode = {
+              ...manifest.clientModules[key],
             }
+            ;(node[id].id = pluginState.serverModuleIds[ssrNamedModuleId]),
+              (moduleIdMapping[id] = node)
           }
 
           if (
@@ -328,29 +343,43 @@ export class ClientReferenceManifestPlugin {
             'undefined'
           ) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id][name] = {
-              ...moduleExports[name],
-              id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
+            const node = {
+              ...manifest.edgeSSRModuleMapping[key],
             }
+            node[id].id = pluginState.edgeServerModuleIds[ssrNamedModuleId]
+            edgeModuleIdMapping[id] = node
           }
-        })
-
-        moduleReferences[resource] = moduleExports
-
-        // The client compiler will always use the CJS Next.js build, so here we
-        // also add the mapping for the ESM build (Edge runtime) to consume.
-        if (/[\\/]next[\\/]dist[\\/]/.test(resource)) {
-          moduleReferences[
-            resource.replace(
-              /[\\/]next[\\/]dist[\\/]/,
-              '/next/dist/esm/'.replace(/\//g, path.sep)
-            )
-          ] = moduleExports
         }
+
+        addClientReference('*')
+        addClientReference('')
+        addSSRIdMapping('*')
+        addSSRIdMapping('')
+
+        const moduleExportedKeys = [
+          ...[...exportsInfo.exports]
+            .filter((exportInfo) => exportInfo.provided)
+            .map((exportInfo) => exportInfo.name),
+          ...cjsExports,
+        ].filter((name) => name !== null)
+
+        moduleExportedKeys.forEach((name) => {
+          const key = resource + '#' + name
+
+          // If the chunk is from `app/` chunkGroup, use it first.
+          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
+          if (
+            !manifest.clientModules[key] ||
+            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
+          ) {
+            addClientReference(name)
+          }
+
+          addSSRIdMapping(name)
+        })
 
         manifest.ssrModuleMapping = moduleIdMapping
         manifest.edgeSSRModuleMapping = edgeModuleIdMapping
-        manifest.clientModules = moduleReferences
       }
 
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {

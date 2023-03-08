@@ -97,6 +97,7 @@ import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
+import { IncrementalCache } from '../lib/incremental-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -1511,9 +1512,11 @@ export default class DevServer extends Server {
   protected async getStaticPaths({
     pathname,
     originalAppPath,
+    requestHeaders,
   }: {
     pathname: string
     originalAppPath?: string
+    requestHeaders: IncrementalCache['requestHeaders']
   }): Promise<{
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
@@ -1545,6 +1548,12 @@ export default class DevServer extends Server {
         defaultLocale,
         originalAppPath,
         isAppPath: !!originalAppPath,
+        requestHeaders,
+        incrementalCacheHandlerPath:
+          this.nextConfig.experimental.incrementalCacheHandlerPath,
+        fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+        isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+        maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       })
       return pathsResult
     }

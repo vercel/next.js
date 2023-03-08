@@ -593,7 +593,7 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = clientReferenceManifest.clientModules[mod]
+        const modData = clientReferenceManifest.clientModules[mod + '#']
         if (modData) {
           for (const chunk of modData.default.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
@@ -1203,7 +1203,14 @@ export async function renderToHTMLOrFlight(
       }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
-        defaultRevalidate = layoutOrPageMod.revalidate
+        defaultRevalidate = layoutOrPageMod.revalidate as number
+
+        if (
+          typeof staticGenerationStore.revalidate === 'undefined' ||
+          staticGenerationStore.revalidate > defaultRevalidate
+        ) {
+          staticGenerationStore.revalidate = defaultRevalidate
+        }
 
         if (
           staticGenerationStore.isStaticGeneration &&

@@ -66,10 +66,11 @@ function formatOverrideValue(val: number) {
  *   size-adjust: 90%;
  * }
  *
- * Read more about this technique in this document by the Google Aurora team:
+ * Read more about this technique in these texts by the Google Aurora team:
+ * https://developer.chrome.com/blog/font-fallbacks/
  * https://docs.google.com/document/d/e/2PACX-1vRsazeNirATC7lIj2aErSHpK26hZ6dA9GsQ069GEbq5fyzXEhXbvByoftSfhG82aJXmrQ_sJCPBqcx_/pub
  */
-export function calculateFallbackFontValues(
+export function getFallbackMetricsFromFontFile(
   font: Font,
   category = 'serif'
 ): AdjustFontFallback {
@@ -91,10 +92,4 @@ export function calculateFallbackFontValues(
     fallbackFont: fallbackFont.name,
     sizeAdjust: formatOverrideValue(sizeAdjust),
   }
-}
-
-export function nextFontError(message: string): never {
-  const err = new Error(message)
-  err.name = 'NextFontError'
-  throw err
 }

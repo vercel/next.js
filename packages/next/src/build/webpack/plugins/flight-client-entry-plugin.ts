@@ -13,6 +13,7 @@ import {
   getInvalidator,
   getEntries,
   EntryTypes,
+  getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
@@ -627,7 +628,7 @@ export class ClientReferenceEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = COMPILER_NAMES.client + bundlePath
+      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
 
       if (!entries[pageKey]) {
         entries[pageKey] = {

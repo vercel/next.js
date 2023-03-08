@@ -413,12 +413,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
-      disableOptimizedLoading: this.nextConfig.experimental.runtime
-        ? true
-        : this.nextConfig.experimental.disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      runtime: this.nextConfig.experimental.runtime,
       serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -1099,6 +1097,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname,
   }: {
     pathname: string
+    requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
     originalAppPath?: string
   }): Promise<{
     staticPaths?: string[]
@@ -1165,6 +1164,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
+        requestHeaders: req.headers,
       })
 
       staticPaths = pathsResult.staticPaths
@@ -1610,7 +1610,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
-            ? await this.getStaticPaths({ pathname })
+            ? await this.getStaticPaths({
+                pathname,
+                requestHeaders: req.headers,
+              })
             : { staticPaths: undefined, fallbackMode: false })
         }
 
