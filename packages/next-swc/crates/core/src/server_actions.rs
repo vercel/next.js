@@ -491,11 +491,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ..
                     })) => {
                         let ids: Vec<Id> = collect_idents_in_var_decls(&var.decls);
-                        self.exported_idents.extend(
-                            ids.into_iter()
-                                .map(|id| (id, false))
-                                .collect::<Vec<(Id, bool)>>(),
-                        );
+                        self.exported_idents
+                            .extend(ids.into_iter().map(|id| (id, false)));
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
                         for spec in &named.specifiers {
