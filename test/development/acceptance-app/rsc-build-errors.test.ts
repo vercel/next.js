@@ -284,7 +284,7 @@ createNextDescribe(
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
 
       await cleanup()
@@ -314,7 +314,7 @@ createNextDescribe(
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
 
       await cleanup()
@@ -363,8 +363,8 @@ createNextDescribe(
            \`----
 
         Maybe one of these should be marked as a client entry with \\"use client\\":
-        app/editor-links/component.js
-        app/editor-links/page.js"
+        ./app/editor-links/component.js
+        ./app/editor-links/page.js"
       `)
 
       await browser.waitForElementByCss('[data-with-open-in-editor-link]')
@@ -447,7 +447,7 @@ createNextDescribe(
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/Component.js
+        "./app/Component.js
         ReactServerComponentsError:
 
         You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
@@ -457,11 +457,11 @@ createNextDescribe(
            :          ^^^^^^^^
            \`----
 
-        The error was caused by importing 'client-package/index.js' in 'app/Component.js'.
+        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
 
         Maybe one of these should be marked as a client entry with \\"use client\\":
-          app/Component.js
-          app/page.js"
+          ./app/Component.js
+          ./app/page.js"
       `)
 
       await cleanup()

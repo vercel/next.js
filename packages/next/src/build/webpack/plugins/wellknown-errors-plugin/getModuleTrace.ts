@@ -1,8 +1,15 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { relative } from 'path'
 
 function formatModule(compiler: webpack.Compiler, module: any) {
-  return relative(compiler.context, module.resource).replace(/\?.+$/, '')
+  const relativePath = relative(compiler.context, module.resource).replace(
+    /\?.+$/,
+    ''
+  )
+  return loaderUtils.isUrlRequest(relativePath)
+    ? loaderUtils.urlToRequest(relativePath)
+    : relativePath
 }
 
 export function formatModuleTrace(
