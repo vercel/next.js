@@ -414,7 +414,7 @@ createNextDescribe(
       await cleanup()
     })
 
-    it('should show error when React client hook is called in external package', async () => {
+    it('should show which import caused an error in node_modules', async () => {
       const { session, cleanup } = await sandbox(
         next,
         new Map([
@@ -452,7 +452,7 @@ createNextDescribe(
 
         You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
 
-           ,-[1:1]
+           ,----
          1 | import { useState } from 'react'
            :          ^^^^^^^^
            \`----
