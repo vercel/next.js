@@ -768,7 +768,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
-            Object.assign(parsedUrl.query, params)
+
+            if (this.hasAppDir) {
+              // params should not be present in the query
+              // for appDir. TODO: we should prefix routeKeys
+              // so that they don't overlap with actual query
+              // values passed through
+              for (const key of Object.keys(params)) {
+                delete parsedUrl.query[key]
+              }
+            } else {
+              Object.assign(parsedUrl.query, params)
+            }
           }
 
           if (pageIsDynamic || didRewrite) {
