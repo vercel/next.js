@@ -59,7 +59,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
-import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
+import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
@@ -686,17 +686,7 @@ export default async function getBaseWebpackConfig(
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
-        'You are using the experimental Edge Runtime with `experimental.runtime`.'
-      )
-    }
-    if (config.experimental.runtime === 'nodejs') {
-      Log.warn(
-        'You are using the experimental Node.js Runtime with `experimental.runtime`.'
-      )
-    }
-    if (config.experimental.typedRoutes && !hasAppDir) {
-      Log.warn(
-        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
+        'You ase using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
     }
   }
@@ -2220,7 +2210,7 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        new FontLoaderManifestPlugin({
+        new NextFontManifestPlugin({
           appDirEnabled: !!config.experimental.appDir,
         }),
       !dev &&
@@ -2392,7 +2382,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
-    runtime: config.experimental.runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.compiler?.removeConsole,
