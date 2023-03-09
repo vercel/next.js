@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -116,17 +116,28 @@ impl Asset for PageLoaderAsset {
         let this = &*self_vc.await?;
 
         let chunks = self_vc.get_page_chunks().await?;
+        let server_root = this.server_root.await?;
 
-        let mut data = Vec::with_capacity(chunks.len());
-        for chunk in chunks.iter() {
-            let path = chunk.path().await?;
-            data.push(serde_json::Value::String(path.path.clone()));
-        }
+        let chunk_paths: Vec<_> = chunks
+            .iter()
+            .map(|chunk| {
+                let server_root = server_root.clone();
+                async move {
+                    Ok(server_root
+                        .get_path_to(&*chunk.path().await?)
+                        .map(|path| path.to_string()))
+                }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect();
 
         let content = format!(
             "__turbopack_load_page_chunks__({}, {})\n",
             stringify_js(&this.pathname.await?),
-            serde_json::Value::Array(data)
+            stringify_js(&chunk_paths)
         );
 
         Ok(AssetContentVc::from(File::from(content)))

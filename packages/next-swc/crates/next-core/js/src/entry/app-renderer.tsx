@@ -37,7 +37,7 @@ import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import { parse, ParsedUrlQuery } from "node:querystring";
 
 globalThis.__next_require__ = (data) => {
-  const [, , ssr_id] = JSON.parse(data);
+  const [, , , ssr_id] = JSON.parse(data);
   return __turbopack_require__(ssr_id);
 };
 globalThis.__next_chunk_load__ = () => Promise.resolve();

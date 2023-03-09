@@ -346,7 +346,7 @@ async fn create_page_source_for_file(
         Value::new(ClientContextType::Pages { pages_dir }),
     );
 
-    let pathname = pathname_for_path(server_root, server_path, true);
+    let pathname = pathname_for_path(server_root, server_path, true, false);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
     Ok(if is_api_path {
@@ -370,8 +370,9 @@ async fn create_page_source_for_file(
             runtime_entries,
         )
     } else {
+        let data_pathname = pathname_for_path(server_root, server_path, true, true);
         let data_route_matcher =
-            NextPrefixSuffixParamsMatcherVc::new(pathname, "_next/data/development/", ".json");
+            NextPrefixSuffixParamsMatcherVc::new(data_pathname, "_next/data/development/", ".json");
 
         let ssr_entry = SsrEntry {
             context: server_context,

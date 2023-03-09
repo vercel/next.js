@@ -1,6 +1,10 @@
 import type {
+  ChunkListUpdate,
+  ChunkUpdate,
   ClientMessage,
-  HmrUpdateEntry,
+  EcmascriptMergedChunkUpdate,
+  EcmascriptMergedUpdate,
+  EcmascriptModuleEntry,
   Issue,
   ResourceIdentifier,
   ServerMessage,
@@ -56,8 +60,6 @@ export function connect({ assetPrefix }: ClientOptions) {
       subscribeToChunkUpdate(chunkPath, callback);
     }
   }
-
-  subscribeToInitialCssChunksUpdates(assetPrefix);
 }
 
 type UpdateCallbackSet = {
@@ -100,114 +102,332 @@ function handleSocketConnected() {
   }
 }
 
-type AggregatedUpdates = {
-  added: Record<ModuleId, HmrUpdateEntry>;
-  modified: Record<ModuleId, HmrUpdateEntry>;
-  deleted: Set<ModuleId>;
-};
-
-// we aggregate all updates until the issues are resolved
-const chunksWithUpdates: Map<ResourceKey, AggregatedUpdates> = new Map();
+// we aggregate all pending updates until the issues are resolved
+const chunkListsWithPendingUpdates: Map<
+  ResourceKey,
+  { update: ChunkListUpdate; resource: ResourceIdentifier }
+> = new Map();
 
 function aggregateUpdates(
   msg: ServerMessage,
-  hasCriticalIssues: boolean
+  aggregate: boolean
 ): ServerMessage {
   const key = resourceKey(msg.resource);
-  const aggregated = chunksWithUpdates.get(key);
-
-  if (msg.type === "issues" && aggregated == null && hasCriticalIssues) {
-    // add an empty record to make sure we don't call `onBuildOk`
-    chunksWithUpdates.set(key, {
-      added: {},
-      modified: {},
-      deleted: new Set(),
-    });
-  }
+  let aggregated = chunkListsWithPendingUpdates.get(key);
 
   if (msg.type === "issues" && aggregated != null) {
-    if (!hasCriticalIssues) {
-      chunksWithUpdates.delete(key);
+    if (!aggregate) {
+      chunkListsWithPendingUpdates.delete(key);
     }
 
     return {
       ...msg,
       type: "partial",
-      instruction: {
-        type: "EcmascriptChunkUpdate",
-        added: aggregated.added,
-        modified: aggregated.modified,
-        deleted: Array.from(aggregated.deleted),
-      },
+      instruction: aggregated.update,
     };
   }
 
   if (msg.type !== "partial") return msg;
 
   if (aggregated == null) {
-    if (hasCriticalIssues) {
-      chunksWithUpdates.set(key, {
-        added: msg.instruction.added,
-        modified: msg.instruction.modified,
-        deleted: new Set(msg.instruction.deleted),
+    if (aggregate) {
+      chunkListsWithPendingUpdates.set(key, {
+        resource: msg.resource,
+        update: msg.instruction,
       });
     }
 
     return msg;
   }
 
-  for (const [moduleId, entry] of Object.entries(msg.instruction.added)) {
-    const removedDeleted = aggregated.deleted.delete(moduleId);
-    if (aggregated.modified[moduleId] != null) {
-      console.error(
-        `impossible state aggregating updates: module "${moduleId}" was added, but previously modified`
-      );
-      location.reload();
-    }
+  aggregated = {
+    resource: msg.resource,
+    update: mergeChunkListUpdates(aggregated.update, msg.instruction),
+  };
 
-    if (removedDeleted) {
-      aggregated.modified[moduleId] = entry;
-    } else {
-      aggregated.added[moduleId] = entry;
-    }
-  }
-
-  for (const [moduleId, entry] of Object.entries(msg.instruction.modified)) {
-    if (aggregated.added[moduleId] != null) {
-      aggregated.added[moduleId] = entry;
-    } else {
-      aggregated.modified[moduleId] = entry;
-    }
-
-    if (aggregated.deleted.has(moduleId)) {
-      console.error(
-        `impossible state aggregating updates: module "${moduleId}" was modified, but previously deleted`
-      );
-      location.reload();
-    }
-  }
-
-  for (const moduleId of msg.instruction.deleted) {
-    delete aggregated.added[moduleId];
-    delete aggregated.modified[moduleId];
-    aggregated.deleted.add(moduleId);
-  }
-
-  if (!hasCriticalIssues) {
-    chunksWithUpdates.delete(key);
+  if (aggregate) {
+    chunkListsWithPendingUpdates.set(key, aggregated);
   } else {
-    chunksWithUpdates.set(key, aggregated);
+    // Once we receive a partial update with no critical issues, we can stop aggregating updates.
+    // The aggregated update will be applied.
+    chunkListsWithPendingUpdates.delete(key);
   }
 
   return {
     ...msg,
-    instruction: {
-      type: "EcmascriptChunkUpdate",
-      added: aggregated.added,
-      modified: aggregated.modified,
-      deleted: Array.from(aggregated.deleted),
-    },
+    instruction: aggregated.update,
   };
+}
+
+function mergeChunkListUpdates(
+  updateA: ChunkListUpdate,
+  updateB: ChunkListUpdate
+): ChunkListUpdate {
+  let chunks;
+  if (updateA.chunks != null) {
+    if (updateB.chunks == null) {
+      chunks = updateA.chunks;
+    } else {
+      chunks = mergeChunkListChunks(updateA.chunks, updateB.chunks);
+    }
+  } else if (updateB.chunks != null) {
+    chunks = updateB.chunks;
+  }
+
+  let merged;
+  if (updateA.merged != null) {
+    if (updateB.merged == null) {
+      merged = updateA.merged;
+    } else {
+      // Since `merged` is an array of updates, we need to merge them all into
+      // one, consistent update.
+      // Since there can only be `EcmascriptMergeUpdates` in the array, there is
+      // no need to key on the `type` field.
+      let update = updateA.merged[0];
+      for (let i = 1; i < updateA.merged.length; i++) {
+        update = mergeChunkListEcmascriptMergedUpdates(
+          update,
+          updateA.merged[i]
+        );
+      }
+
+      for (let i = 0; i < updateB.merged.length; i++) {
+        update = mergeChunkListEcmascriptMergedUpdates(
+          update,
+          updateB.merged[i]
+        );
+      }
+
+      merged = [update];
+    }
+  } else if (updateB.merged != null) {
+    merged = updateB.merged;
+  }
+
+  return {
+    type: "ChunkListUpdate",
+    chunks,
+    merged,
+  };
+}
+
+function mergeChunkListChunks(
+  chunksA: Record<ChunkPath, ChunkUpdate>,
+  chunksB: Record<ChunkPath, ChunkUpdate>
+): Record<ChunkPath, ChunkUpdate> {
+  const chunks: Record<ChunkPath, ChunkUpdate> = {};
+
+  for (const [chunkPath, chunkUpdateA] of Object.entries(chunksA)) {
+    const chunkUpdateB = chunksB[chunkPath];
+    if (chunkUpdateB != null) {
+      const mergedUpdate = mergeChunkUpdates(chunkUpdateA, chunkUpdateB);
+      if (mergedUpdate != null) {
+        chunks[chunkPath] = mergedUpdate;
+      }
+    } else {
+      chunks[chunkPath] = chunkUpdateA;
+    }
+  }
+
+  for (const [chunkPath, chunkUpdateB] of Object.entries(chunksB)) {
+    if (chunks[chunkPath] == null) {
+      chunks[chunkPath] = chunkUpdateB;
+    }
+  }
+
+  return chunks;
+}
+
+function mergeChunkUpdates(
+  updateA: ChunkUpdate,
+  updateB: ChunkUpdate
+): ChunkUpdate | undefined {
+  if (
+    (updateA.type === "added" && updateB.type === "deleted") ||
+    (updateA.type === "deleted" && updateB.type === "added")
+  ) {
+    return undefined;
+  }
+
+  if (updateA.type === "partial") {
+    invariant(updateA.instruction, "Partial updates are unsupported");
+  }
+
+  if (updateB.type === "partial") {
+    invariant(updateB.instruction, "Partial updates are unsupported");
+  }
+
+  return undefined;
+}
+
+function mergeChunkListEcmascriptMergedUpdates(
+  mergedA: EcmascriptMergedUpdate,
+  mergedB: EcmascriptMergedUpdate
+): EcmascriptMergedUpdate {
+  const entries = mergeEcmascriptChunkEntries(mergedA.entries, mergedB.entries);
+  const chunks = mergeEcmascriptChunksUpdates(mergedA.chunks, mergedB.chunks);
+
+  return {
+    type: "EcmascriptMergedUpdate",
+    entries,
+    chunks,
+  };
+}
+
+function mergeEcmascriptChunkEntries(
+  entriesA: Record<ModuleId, EcmascriptModuleEntry> | undefined,
+  entriesB: Record<ModuleId, EcmascriptModuleEntry> | undefined
+): Record<ModuleId, EcmascriptModuleEntry> {
+  return { ...entriesA, ...entriesB };
+}
+
+function mergeEcmascriptChunksUpdates(
+  chunksA: Record<ChunkPath, EcmascriptMergedChunkUpdate> | undefined,
+  chunksB: Record<ChunkPath, EcmascriptMergedChunkUpdate> | undefined
+): Record<ChunkPath, EcmascriptMergedChunkUpdate> | undefined {
+  if (chunksA == null) {
+    return chunksB;
+  }
+
+  if (chunksB == null) {
+    return chunksA;
+  }
+
+  const chunks: Record<ChunkPath, EcmascriptMergedChunkUpdate> = {};
+
+  for (const [chunkPath, chunkUpdateA] of Object.entries(chunksA)) {
+    const chunkUpdateB = chunksB[chunkPath];
+    if (chunkUpdateB != null) {
+      const mergedUpdate = mergeEcmascriptChunkUpdates(
+        chunkUpdateA,
+        chunkUpdateB
+      );
+      if (mergedUpdate != null) {
+        chunks[chunkPath] = mergedUpdate;
+      }
+    } else {
+      chunks[chunkPath] = chunkUpdateA;
+    }
+  }
+
+  for (const [chunkPath, chunkUpdateB] of Object.entries(chunksB)) {
+    if (chunks[chunkPath] == null) {
+      chunks[chunkPath] = chunkUpdateB;
+    }
+  }
+
+  if (Object.keys(chunks).length === 0) {
+    return undefined;
+  }
+
+  return chunks;
+}
+
+function mergeEcmascriptChunkUpdates(
+  updateA: EcmascriptMergedChunkUpdate,
+  updateB: EcmascriptMergedChunkUpdate
+): EcmascriptMergedChunkUpdate | undefined {
+  if (updateA.type === "added" && updateB.type === "deleted") {
+    // These two completely cancel each other out.
+    return undefined;
+  }
+
+  if (updateA.type === "deleted" && updateB.type === "added") {
+    const added = [];
+    const deleted = [];
+    const deletedModules = new Set(updateA.modules ?? []);
+    const addedModules = new Set(updateB.modules ?? []);
+
+    for (const moduleId of addedModules) {
+      if (!deletedModules.has(moduleId)) {
+        added.push(moduleId);
+      }
+    }
+
+    for (const moduleId of deletedModules) {
+      if (!addedModules.has(moduleId)) {
+        deleted.push(moduleId);
+      }
+    }
+
+    if (added.length === 0 && deleted.length === 0) {
+      return undefined;
+    }
+
+    return {
+      type: "partial",
+      added,
+      deleted,
+    };
+  }
+
+  if (updateA.type === "partial" && updateB.type === "partial") {
+    const added = new Set([...(updateA.added ?? []), ...(updateB.added ?? [])]);
+    const deleted = new Set([
+      ...(updateA.deleted ?? []),
+      ...(updateB.deleted ?? []),
+    ]);
+
+    if (updateB.added != null) {
+      for (const moduleId of updateB.added) {
+        deleted.delete(moduleId);
+      }
+    }
+
+    if (updateB.deleted != null) {
+      for (const moduleId of updateB.deleted) {
+        added.delete(moduleId);
+      }
+    }
+
+    return {
+      type: "partial",
+      added: [...added],
+      deleted: [...deleted],
+    };
+  }
+
+  if (updateA.type === "added" && updateB.type === "partial") {
+    const modules = new Set([
+      ...(updateA.modules ?? []),
+      ...(updateB.added ?? []),
+    ]);
+
+    for (const moduleId of updateB.deleted ?? []) {
+      modules.delete(moduleId);
+    }
+
+    return {
+      type: "added",
+      modules: [...modules],
+    };
+  }
+
+  if (updateA.type === "partial" && updateB.type === "deleted") {
+    // We could eagerly return `updateB` here, but this would potentially be
+    // incorrect if `updateA` has added modules.
+
+    const modules = new Set(updateB.modules ?? []);
+
+    if (updateA.added != null) {
+      for (const moduleId of updateA.added) {
+        modules.delete(moduleId);
+      }
+    }
+
+    return {
+      type: "deleted",
+      modules: [...modules],
+    };
+  }
+
+  // Any other update combination is invalid.
+
+  return undefined;
+}
+
+function invariant(never: never, message: string): never {
+  throw new Error(`Invariant: ${message}`);
 }
 
 const CRITICAL = ["bug", "error", "fatal"];
@@ -282,9 +502,14 @@ function handleSocketMessage(msg: ServerMessage) {
   sortIssues(msg.issues);
 
   const hasCriticalIssues = handleIssues(msg);
-  const aggregatedMsg = aggregateUpdates(msg, hasCriticalIssues);
 
-  const runHooks = chunksWithUpdates.size === 0;
+  // TODO(WEB-582) Disable update aggregation for now.
+  const aggregate = /* hasCriticalIssues */ false;
+  const aggregatedMsg = aggregateUpdates(msg, aggregate);
+
+  if (aggregate) return;
+
+  const runHooks = chunkListsWithPendingUpdates.size === 0;
 
   if (aggregatedMsg.type !== "issues") {
     if (runHooks) onBeforeRefresh();
@@ -354,6 +579,16 @@ function triggerUpdate(msg: ServerMessage) {
     for (const callback of callbackSet.callbacks) {
       callback(msg);
     }
+
+    if (msg.type === "notFound") {
+      // This indicates that the resource which we subscribed to either does not exist or
+      // has been deleted. In either case, we should clear all update callbacks, so if a
+      // new subscription is created for the same resource, it will send a new "subscribe"
+      // message to the server.
+      // No need to send an "unsubscribe" message to the server, it will have already
+      // dropped the update stream before sending the "notFound" message.
+      updateCallbackSets.delete(key);
+    }
   } catch (err) {
     console.error(
       `An error occurred during the update of resource \`${msg.resource.path}\``,
@@ -361,47 +596,4 @@ function triggerUpdate(msg: ServerMessage) {
     );
     location.reload();
   }
-}
-
-// Unlike ES chunks, CSS chunks cannot contain the logic to accept updates.
-// They must be reloaded here instead.
-function subscribeToInitialCssChunksUpdates(assetPrefix: string) {
-  const initialCssChunkLinks: NodeListOf<HTMLLinkElement> =
-    document.head.querySelectorAll(`link[rel="stylesheet"]`);
-
-  initialCssChunkLinks.forEach((link) => {
-    subscribeToCssChunkUpdates(assetPrefix, link);
-  });
-}
-
-export function subscribeToCssChunkUpdates(
-  assetPrefix: string,
-  link: HTMLLinkElement
-) {
-  const cssChunkPrefix = `${assetPrefix}/`;
-
-  const href = link.href;
-  if (href == null) {
-    return;
-  }
-
-  const { pathname, origin } = new URL(href);
-  if (origin !== location.origin || !pathname.startsWith(cssChunkPrefix)) {
-    return;
-  }
-
-  const chunkPath = pathname.slice(cssChunkPrefix.length);
-  subscribeToChunkUpdate(chunkPath, (update) => {
-    switch (update.type) {
-      case "restart": {
-        console.info(`Reloading CSS chunk \`${chunkPath}\``);
-        link.replaceWith(link);
-        break;
-      }
-      case "partial":
-        throw new Error(`partial CSS chunk updates are not supported`);
-      default:
-        throw new Error(`unknown update type \`${update}\``);
-    }
-  });
 }
