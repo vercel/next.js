@@ -189,8 +189,7 @@ export default class Router {
                   // not include dynamic matches.
                   skipDynamic: true,
                   i18n: this.localeNormalizer?.match(pathname, {
-                    // TODO: verify changing the default locale
-                    inferDefaultLocale: true,
+                    defaultLocale: parsedUrl.query.__nextDefaultLocale,
                   }),
                 }
 
@@ -276,8 +275,7 @@ export default class Router {
     // Normalize and detect the locale on the pathname.
     const options: MatchOptions = {
       i18n: this.localeNormalizer?.match(fsPathname, {
-        // TODO: verify changing the default locale
-        inferDefaultLocale: true,
+        defaultLocale: parsedUrl.query.__nextDefaultLocale,
       }),
     }
 

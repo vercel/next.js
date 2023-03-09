@@ -47,9 +47,6 @@ import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
-
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
@@ -1136,8 +1133,9 @@ export default class NextNodeServer extends BaseServer {
               pathname,
               this.nextConfig.i18n.locales
             )
-            const { defaultLocale } =
-              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+
+            const domainLocale =
+              this.localeNormalizer?.detectDomainLocale(hostname)
 
             let detectedLocale = ''
 
@@ -1148,7 +1146,7 @@ export default class NextNodeServer extends BaseServer {
 
             _parsedUrl.query.__nextLocale = detectedLocale
             _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || this.nextConfig.i18n.defaultLocale
+              domainLocale?.defaultLocale ?? this.nextConfig.i18n.defaultLocale
 
             if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
               _parsedUrl.query.__nextLocale =
@@ -1217,7 +1215,9 @@ export default class NextNodeServer extends BaseServer {
         pathname = removeTrailingSlash(pathname)
 
         const options: MatchOptions = {
-          i18n: this.localeNormalizer?.match(pathname),
+          i18n: this.localeNormalizer?.match(pathname, {
+            defaultLocale: query.__nextDefaultLocale,
+          }),
         }
         if (options.i18n?.detectedLocale) {
           parsedUrl.query.__nextLocale = options.i18n.detectedLocale
@@ -1753,7 +1753,11 @@ export default class NextNodeServer extends BaseServer {
     let url: string
 
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(normalizedPathname),
+      i18n: this.localeNormalizer?.match(normalizedPathname, {
+        defaultLocale: params.parsed.query.__nextDefaultLocale as
+          | string
+          | undefined,
+      }),
     }
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -2032,14 +2036,14 @@ export default class NextNodeServer extends BaseServer {
                 )
               }
 
-              if (this.nextConfig.i18n) {
-                const localePathResult = normalizeLocalePath(
-                  newUrl,
-                  this.nextConfig.i18n.locales
-                )
-                if (localePathResult.detectedLocale) {
-                  parsedDestination.query.__nextLocale =
-                    localePathResult.detectedLocale
+              if (this.localeNormalizer) {
+                const { detectedLocale } = this.localeNormalizer.match(newUrl, {
+                  defaultLocale: parsedUrl.query.__nextLocale as
+                    | string
+                    | undefined,
+                })
+                if (detectedLocale) {
+                  parsedDestination.query.__nextLocale = detectedLocale
                 }
               }
 

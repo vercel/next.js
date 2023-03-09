@@ -56,9 +56,7 @@ import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import isError, { getProperError } from '../lib/is-error'
@@ -365,10 +363,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // Configure the locale normalizer, it's used for routes inside `pages/`.
     this.localeNormalizer =
       this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
-        ? new LocaleRouteNormalizer(
-            this.nextConfig.i18n.locales,
-            this.nextConfig.i18n.defaultLocale
-          )
+        ? new LocaleRouteNormalizer(this.nextConfig.i18n)
         : undefined
 
     // Only serverRuntimeConfig needs the default
@@ -599,8 +594,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       this.attachRequestMeta(req, parsedUrl)
 
-      const domainLocale = detectDomainLocale(
-        this.nextConfig.i18n?.domains,
+      const domainLocale = this.localeNormalizer?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
       )
 
@@ -654,7 +648,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           // Perform locale detection and normalization.
           const options: MatchOptions = {
-            i18n: this.localeNormalizer?.match(matchedPath),
+            i18n: this.localeNormalizer?.match(matchedPath, {
+              defaultLocale,
+            }),
           }
           if (options.i18n?.detectedLocale) {
             parsedUrl.query.__nextLocale = options.i18n.detectedLocale
@@ -1351,10 +1347,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     urlPathname = removeTrailingSlash(urlPathname)
-    resolvedUrlPathname = normalizeLocalePath(
-      removeTrailingSlash(resolvedUrlPathname),
-      this.nextConfig.i18n?.locales
-    ).pathname
+    resolvedUrlPathname =
+      this.localeNormalizer?.normalize(resolvedUrlPathname) ??
+      removeTrailingSlash(resolvedUrlPathname)
 
     const handleRedirect = (pageData: any) => {
       const redirect = {
@@ -1861,9 +1856,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
-    if (this.nextConfig.i18n && stripLocale) {
-      const { locales } = this.nextConfig.i18n
-      return normalizeLocalePath(path, locales).pathname
+    if (this.localeNormalizer && stripLocale) {
+      return this.localeNormalizer.normalize(path)
     }
     return path
   }
@@ -1938,7 +1932,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(pathname),
+      i18n: this.localeNormalizer?.match(pathname, {
+        defaultLocale: query.__nextDefaultLocale,
+      }),
     }
 
     try {

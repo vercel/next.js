@@ -116,7 +116,9 @@ describe('PagesRouteMatcherProvider', () => {
         const provider = new PagesRouteMatcherProvider(
           '<root>',
           loader,
-          new LocaleRouteNormalizer(i18n.locales, i18n.defaultLocale)
+          // This assertion is needed because we can't tell jest that the
+          // argument is not readonly.
+          new LocaleRouteNormalizer(i18n as any)
         )
         const matchers = await provider.matchers()
 

@@ -17,7 +17,6 @@ import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -235,8 +234,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
               pathname,
               this.nextConfig.i18n.locales
             )
-            const { defaultLocale } =
-              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+            const domainLocale =
+              this.localeNormalizer?.detectDomainLocale(hostname)
 
             let detectedLocale = ''
 
@@ -247,7 +246,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
             _parsedUrl.query.__nextLocale = detectedLocale
             _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || this.nextConfig.i18n.defaultLocale
+              domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
 
             if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
               _parsedUrl.query.__nextLocale =

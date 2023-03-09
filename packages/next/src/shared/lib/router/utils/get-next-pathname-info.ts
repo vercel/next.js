@@ -71,9 +71,9 @@ export function getNextPathnameInfo(pathname: string, options: Options) {
   }
 
   if (i18n) {
+    // TODO: utilize locale route normalizer
     const pathLocale = normalizeLocalePath(info.pathname, i18n.locales)
     info.locale = pathLocale?.detectedLocale
-    info.pathname = pathLocale?.pathname || info.pathname
   }
 
   return info
