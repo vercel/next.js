@@ -1,7 +1,7 @@
 import { fileExists } from '../../lib/file-exists'
 import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
 import { nonNullable } from '../../lib/non-nullable'
-import { join, sep, normalize, basename } from 'path'
+import { join, sep, normalize } from 'path'
 import { promises } from 'fs'
 import { warn } from '../../build/output/log'
 import chalk from '../../lib/chalk'
