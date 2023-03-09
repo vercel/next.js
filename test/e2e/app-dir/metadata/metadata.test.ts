@@ -646,13 +646,24 @@ createNextDescribe(
 
     describe('static routes', () => {
       it('should support root dir robots.txt', async () => {
-        const content = await next.render('/robots.txt')
-        expect(content).toContain('User-Agent: *\nDisallow:')
-        const res = await next.fetch('/title/robots.txt')
-        expect(res.status).toBe(404)
+        const res = await next.fetch('/robots.txt')
+        expect(res.headers.get('content-type')).toBe('text/plain')
+        expect(await res.text()).toContain('User-Agent: *\nDisallow:')
+        const invalidRobotsResponse = await next.fetch('/title/robots.txt')
+        expect(invalidRobotsResponse.status).toBe(404)
       })
 
-      it('should support root dir robots.txt', async () => {})
+      it('should support root dir sitemap.xml', async () => {
+        const res = await next.fetch('/sitemap.xml')
+        expect(res.headers.get('content-type')).toBe('application/xml')
+        const sitemap = await res.text()
+        expect(sitemap).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+        expect(sitemap).toContain(
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        )
+        const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
+        expect(invalidSitemapResponse.status).toBe(404)
+      })
     })
 
     describe('react cache', () => {

@@ -87,8 +87,11 @@ export function createValidFileMatcher(
   )
   // TODO: support other metadata routes
   // regex for /robots.txt|((j|t)sx?)
+  // regex for /sitemap.xml|((j|t)sx?)
   const metadataRoutesRelativePathRegex = new RegExp(
-    `^[\\\\/](robots)\\.(?:${pageExtensions.concat('txt').join('|')})$`
+    `^[\\\\/](robots)\\.(?:${pageExtensions.concat('txt').join('|')})$` +
+      '|' +
+      `^[\\\\/](sitemap)\\.(?:${pageExtensions.concat('xml').join('|')})$`
   )
 
   function isMetadataRouteFile(filePath: string) {

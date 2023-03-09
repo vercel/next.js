@@ -29,7 +29,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     this.expression = new RegExp(
       `[/\\\\]route\\.(?:${extensions.join(
         '|'
-      )})$|[/\\\\]robots\\.(?:${extensions.concat('txt').join('|')})?$`
+      )})$|[/\\\\]robots\\.(?:${extensions
+        .concat('txt')
+        .join('|')})?$|[/\\\\]sitemap\\.(?:${extensions
+        .concat('xml')
+        .join('|')})?$`
     )
 
     const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
