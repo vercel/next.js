@@ -1058,9 +1058,6 @@ jobs:
       - id: get-week
         run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
-      - run: echo "TURBO_TOKEN=$(echo ${TURBO_TOKEN:-empty})" >> $GITHUB_OUTPUT
-        id: turbo-token
-
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
