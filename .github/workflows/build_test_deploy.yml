@@ -1022,6 +1022,10 @@ jobs:
   build-native-test:
     name: Build native binary for tests and metrics
     runs-on: ubuntu-latest
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: 'vercel'
+
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -1054,11 +1058,14 @@ jobs:
       - id: get-week
         run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
+      - run: echo "TURBO_TOKEN=$(echo ${TURBO_TOKEN:-empty})" >> $GITHUB_OUTPUT
+        id: turbo-token
+
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
         timeout-minutes: 5
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' && steps.turbo-token == 'empty' }}
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
@@ -1076,10 +1083,11 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          options: -e TURBO_TOKEN=${{ env.TURBO_TOKEN }} -e TURBO_TEAM=${{ env.TURBO_TEAM }} -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
           # turn on some optimization while building Rust codes to prevent tests timeout
           run: |
             set -e &&
+            if [ -z $TURBO_TOKEN ]; then echo "no turbo token"; else export TURBO_REMOTE_ONLY='true'; fi &&
             export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
