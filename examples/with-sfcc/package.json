@@ -6,7 +6,6 @@
     "start": "next start"
   },
   "dependencies": {
-    "@next/font": "latest",
     "commerce-sdk": "^2.8.0",
     "next": "latest",
     "react": "^18.2.0",

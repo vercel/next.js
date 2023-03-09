@@ -139,6 +139,18 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           />
         </React.Fragment>
       ) : undefined}
+
+      {error.componentStack ? (
+        <>
+          <h5>Component Stack</h5>
+          {error.componentStack.map((component, index) => (
+            <div key={index} data-nextjs-component-stack-frame>
+              <h6>{component}</h6>
+            </div>
+          ))}
+        </>
+      ) : null}
+
       {visibleCallStackFrames.length ? (
         <React.Fragment>
           <h5>Call Stack</h5>
@@ -147,6 +159,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           ))}
         </React.Fragment>
       ) : undefined}
+
       {canShowMore ? (
         <React.Fragment>
           <button
@@ -173,11 +186,13 @@ export const styles = css`
     color: var(--color-accents-3);
   }
 
-  [data-nextjs-call-stack-frame]:not(:last-child) {
+  [data-nextjs-call-stack-frame]:not(:last-child),
+  [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h6,
+  [data-nextjs-component-stack-frame] > h6 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
