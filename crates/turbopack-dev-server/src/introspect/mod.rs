@@ -1,7 +1,10 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{borrow::Cow, collections::HashSet, fmt::Display};
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, registry, CellId, RawVc, TryJoinIterExt};
+use turbo_tasks::{
+    primitives::{StringReadRef, StringVc},
+    registry, CellId, RawVc, TryJoinIterExt,
+};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
@@ -98,17 +101,29 @@ impl ContentSource for IntrospectionSource {
         } else {
             unreachable!()
         };
-        let ty = introspectable.ty().await?;
-        let title = introspectable.title().await?;
-        let details = introspectable.details().await?;
+        fn str_or_err(s: &Result<StringReadRef>) -> Cow<'_, str> {
+            s.as_ref().map_or_else(
+                |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),
+                |d| Cow::Borrowed(&**d),
+            )
+        }
+        let ty = introspectable.ty().await;
+        let ty = str_or_err(&ty);
+        let title = introspectable.title().await;
+        let title = str_or_err(&title);
+        let details = introspectable.details().await;
+        let details = str_or_err(&details);
         let children = introspectable.children().await?;
         let has_children = !children.is_empty();
         let children = children
             .iter()
             .map(|&(name, child)| async move {
-                let name = name.await?;
-                let ty = child.ty().await?;
-                let title = child.title().await?;
+                let name = name.await;
+                let name = str_or_err(&name);
+                let ty = child.ty().await;
+                let ty = str_or_err(&ty);
+                let title = child.title().await;
+                let title = str_or_err(&title);
                 let path = serde_json::to_string(&child)?;
                 Ok(format!(
                     "<li>{name} <!-- {title} --><a href=\"./{path}\">[{ty}] {title}</a></li>",

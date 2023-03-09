@@ -55,8 +55,8 @@ impl ValueToString for EsmModuleIdAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self, context: ChunkingContextVc) -> ChunkingTypeOptionVc {
-        self.inner.chunking_type(context)
+    fn chunking_type(&self) -> ChunkingTypeOptionVc {
+        self.inner.chunking_type()
     }
 }
 

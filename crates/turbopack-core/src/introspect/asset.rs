@@ -6,6 +6,10 @@ use turbo_tasks_fs::FileContent;
 use super::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 use crate::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    chunk::{
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ParallelChunkReference,
+        ParallelChunkReferenceVc,
+    },
     reference::{AssetReference, AssetReferencesVc},
     resolve::PrimaryResolveResult,
 };
@@ -31,6 +35,31 @@ fn asset_ty() -> StringVc {
 #[turbo_tasks::function]
 fn reference_ty() -> StringVc {
     StringVc::cell("reference".to_string())
+}
+
+#[turbo_tasks::function]
+fn placed_or_parallel_reference_ty() -> StringVc {
+    StringVc::cell("placed/parallel reference".to_string())
+}
+
+#[turbo_tasks::function]
+fn placed_reference_ty() -> StringVc {
+    StringVc::cell("placed reference".to_string())
+}
+
+#[turbo_tasks::function]
+fn parallel_reference_ty() -> StringVc {
+    StringVc::cell("parallel reference".to_string())
+}
+
+#[turbo_tasks::function]
+fn separate_reference_ty() -> StringVc {
+    StringVc::cell("separate reference".to_string())
+}
+
+#[turbo_tasks::function]
+fn async_reference_ty() -> StringVc {
+    StringVc::cell("async reference".to_string())
 }
 
 #[turbo_tasks::value_impl]
@@ -83,6 +112,22 @@ pub async fn children_from_asset_references(
     let mut children = IndexSet::new();
     let references = references.await?;
     for reference in &*references {
+        let mut key = key;
+        if let Some(chunkable) = ChunkableAssetReferenceVc::resolve_from(reference).await? {
+            match &*chunkable.chunking_type().await? {
+                None => {}
+                Some(ChunkingType::Placed) => key = placed_reference_ty(),
+                Some(ChunkingType::Parallel) => key = parallel_reference_ty(),
+                Some(ChunkingType::Separate) => key = separate_reference_ty(),
+                Some(ChunkingType::PlacedOrParallel) => key = placed_or_parallel_reference_ty(),
+                Some(ChunkingType::SeparateAsync) => key = async_reference_ty(),
+            }
+        } else if let Some(parallel) = ParallelChunkReferenceVc::resolve_from(reference).await? {
+            if *parallel.is_loaded_in_parallel().await? {
+                key = parallel_reference_ty();
+            }
+        }
+
         for result in reference.resolve_reference().await?.primary.iter() {
             if let PrimaryResolveResult::Asset(asset) = result {
                 children.insert((key, IntrospectableAssetVc::new(*asset)));

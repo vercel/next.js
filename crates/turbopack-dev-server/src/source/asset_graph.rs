@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    iter::once,
+};
 
 use anyhow::Result;
 use indexmap::{indexset, IndexSet};
@@ -188,23 +191,56 @@ impl Introspectable for AssetGraphContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+    async fn children(self_vc: AssetGraphContentSourceVc) -> Result<IntrospectableChildrenVc> {
+        let this = self_vc.await?;
         let key = StringVc::cell("root".to_string());
         let expanded_key = StringVc::cell("expanded".to_string());
 
-        let root_assets = self.root_assets.await?;
+        let root_assets = this.root_assets.await?;
         let root_assets = root_assets
             .iter()
             .map(|&asset| (key, IntrospectableAssetVc::new(asset)));
 
-        let expanded_assets =
-            expand(&*self.root_assets.await?, &*self.root_path.await?, None).await?;
-        let expanded_assets = expanded_assets
-            .iter()
-            .map(|(_k, &v)| (expanded_key, IntrospectableAssetVc::new(v)));
-
         Ok(IntrospectableChildrenVc::cell(
-            root_assets.chain(expanded_assets).collect(),
+            root_assets
+                .chain(once((expanded_key, FullyExpaned(self_vc).cell().into())))
+                .collect(),
         ))
+    }
+}
+
+#[turbo_tasks::function]
+fn fully_expaned_introspectable_type() -> StringVc {
+    StringVc::cell("fully expanded asset graph content source".to_string())
+}
+
+#[turbo_tasks::value]
+struct FullyExpaned(AssetGraphContentSourceVc);
+
+#[turbo_tasks::value_impl]
+impl Introspectable for FullyExpaned {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        fully_expaned_introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<StringVc> {
+        Ok(self.0.await?.root_path.to_string())
+    }
+
+    #[turbo_tasks::function]
+    async fn children(&self) -> Result<IntrospectableChildrenVc> {
+        let source = self.0.await?;
+        let key = StringVc::cell("asset".to_string());
+
+        let expanded_assets =
+            expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
+        let children = expanded_assets
+            .iter()
+            .map(|(_k, &v)| (key, IntrospectableAssetVc::new(v)))
+            .collect();
+
+        Ok(IntrospectableChildrenVc::cell(children))
     }
 }
