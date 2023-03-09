@@ -37,7 +37,7 @@ impl Emitter for IssueEmitter {
         } else {
             let mut message_split = message.split('\n');
             title = message_split.next().unwrap().to_string();
-            message = message_split.as_str().to_string();
+            message = message_split.remainder().unwrap_or("").to_string();
         }
 
         let source = db.span.primary_span().map(|span| {

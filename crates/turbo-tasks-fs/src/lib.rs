@@ -3,7 +3,6 @@
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
-#![feature(main_separator_str)]
 #![feature(box_syntax)]
 #![feature(round_char_boundary)]
 
