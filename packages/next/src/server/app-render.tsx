@@ -53,7 +53,10 @@ import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../client/components/not-found'
-import { isRedirectError } from '../client/components/redirect'
+import {
+  getURLFromRedirectError,
+  isRedirectError,
+} from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { patchFetch } from './lib/patch-fetch'
 import { AppRenderSpan } from './lib/trace/constants'
@@ -760,11 +763,6 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-  const actionId = req.headers[ACTION.toLowerCase()]
-  const isAction =
-    actionId !== undefined &&
-    typeof actionId === 'string' &&
-    req.method === 'POST'
 
   const {
     buildManifest,
@@ -1717,27 +1715,54 @@ export async function renderToHTMLOrFlight(
     }
 
     // For action requests, we handle them differently with a sepcial render result.
-    if (isAction) {
-      if (process.env.NEXT_RUNTIME !== 'edge') {
-        const workerName = 'app' + renderOpts.pathname
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
+    let actionId = req.headers[ACTION.toLowerCase()] as string
+    const isFormAction =
+      req.method === 'POST' &&
+      req.headers['content-type'] === 'application/x-www-form-urlencoded'
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
 
+    if (isFetchAction || isFormAction) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
         const { parseBody } =
           require('./api-utils/node') as typeof import('./api-utils/node')
         const actionData = (await parseBody(req, '1mb')) || {}
+        let bound = []
+
+        if (isFormAction) {
+          actionId = actionData.$$id as string
+          if (!actionId) {
+            throw new Error('Invariant: missing action ID.')
+          }
+          const formData = new URLSearchParams(actionData)
+          formData.delete('$$id')
+          bound = [formData]
+        } else {
+          bound = actionData.bound || []
+        }
+
+        const workerName = 'app' + renderOpts.pathname
+        const actionModId = serverActionsManifest[actionId].workers[workerName]
 
         const actionHandler =
           ComponentMod.__next_app_webpack_require__(actionModId)
 
         try {
           return new ActionRenderResult(
-            JSON.stringify(
-              await actionHandler(actionId, actionData.bound || [])
-            )
+            JSON.stringify([await actionHandler(actionId, bound)])
           )
         } catch (err) {
           if (isRedirectError(err)) {
-            throw new Error('Invariant: not implemented.')
+            if (isFetchAction) {
+              throw new Error('Invariant: not implemented.')
+            } else {
+              const redirectUrl = getURLFromRedirectError(err)
+              res.statusCode = 303
+              res.setHeader('Location', redirectUrl)
+              return new ActionRenderResult(JSON.stringify({}))
+            }
           }
           throw err
         }
