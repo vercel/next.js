@@ -137,26 +137,51 @@ async function runOperation(renderData: RenderData) {
     tree = [info.segment, { children: tree }, components];
   }
 
+  const proxyMethodsForModule = (
+    id: string
+  ): ProxyHandler<FlightManifest["__ssr_module_mapping__"][""]> => ({
+    get(_target, name) {
+      return {
+        id,
+        chunks: JSON.parse(id)[1],
+        name,
+      };
+    },
+  });
+  const proxyMethodsNested = (): ProxyHandler<
+    FlightManifest["__ssr_module_mapping__"]
+  > => {
+    return {
+      get(target, name, receiver) {
+        if (name === "__ssr_module_mapping__") {
+          return manifest;
+        }
+        if (name === "__entry_css_files__") {
+          return __entry_css_files__;
+        }
+        return new Proxy({}, proxyMethodsForModule(name as string));
+      },
+    };
+  };
   const proxyMethods = (): ProxyHandler<FlightManifest> => {
     return {
       get(_target, key: string) {
         if (key === "__ssr_module_mapping__") {
-          return manifest;
+          return new Proxy({} as any, proxyMethodsNested());
         }
         if (key === "__entry_css_files__") {
           return __entry_css_files__;
         }
 
         // The key is a `${file}#${name}`, but `file` can contain `#` itself.
-        // There are 3 possibilities:
-        //   "file"     => id = "file", name = "*"
+        // There are 2 possibilities:
         //   "file#"    => id = "file", name = ""
         //   "file#foo" => id = "file", name = "foo"
         const pos = key.lastIndexOf("#");
         let id = key;
         let name = "";
         if (pos === -1) {
-          name = "*";
+          throw new Error("key need to be in format of ${file}#${name}");
         } else {
           id = key.slice(0, pos);
           name = key.slice(pos + 1);
