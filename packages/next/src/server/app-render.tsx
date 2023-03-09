@@ -58,6 +58,7 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-erro
 import { patchFetch } from './lib/patch-fetch'
 import { AppRenderSpan } from './lib/trace/constants'
 import { getTracer } from './lib/trace/tracer'
+import zod from 'next/dist/compiled/zod'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -442,10 +443,14 @@ function createServerComponentRenderer(
 }
 
 type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
-// c = catchall
-// oc = optional catchall
-// d = dynamic
-export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
+
+const dynamicParamTypesSchema = zod.enum(['c', 'oc', 'd'])
+/**
+ * c = catchall
+ * oc = optional catchall
+ * d = dynamic
+ */
+export type DynamicParamTypesShort = zod.infer<typeof dynamicParamTypesSchema>
 
 /**
  * Shorten the dynamic param in order to make it smaller when transmitted to the browser.
@@ -465,13 +470,36 @@ function getShortDynamicParamType(
   }
 }
 
+const segmentSchema = zod.union([
+  zod.string(),
+  zod.tuple([zod.string(), zod.string(), dynamicParamTypesSchema]),
+])
 /**
  * Segment in the router state.
  */
-export type Segment =
-  | string
-  | [param: string, value: string, type: DynamicParamTypesShort]
+export type Segment = zod.infer<typeof segmentSchema>
 
+const flightRouterStateSchema: zod.ZodType<FlightRouterState> = zod.lazy(() => {
+  const parallelRoutesSchema = zod.record(flightRouterStateSchema)
+  const urlSchema = zod.string().nullable().optional()
+  const refreshSchema = zod.literal('refetch').nullable().optional()
+  const isRootLayoutSchema = zod.boolean().optional()
+
+  // Due to the lack of optional tuple types in Zod, we need to use union here.
+  // https://github.com/colinhacks/zod/issues/1465
+  return zod.union([
+    zod.tuple([
+      segmentSchema,
+      parallelRoutesSchema,
+      urlSchema,
+      refreshSchema,
+      isRootLayoutSchema,
+    ]),
+    zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema, refreshSchema]),
+    zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema]),
+    zod.tuple([segmentSchema, parallelRoutesSchema]),
+  ])
+})
 /**
  * Router state
  */
@@ -740,7 +768,9 @@ async function renderToString(element: React.ReactElement) {
   })
 }
 
-function parseFlightRouterState(stateHeader: string | string[] | undefined) {
+function parseAndValidateFlightRouterState(
+  stateHeader: string | string[] | undefined
+): FlightRouterState | undefined {
   if (typeof stateHeader === 'undefined') {
     return undefined
   }
@@ -750,8 +780,8 @@ function parseFlightRouterState(stateHeader: string | string[] | undefined) {
     )
   }
   try {
-    return JSON.parse(stateHeader)
-  } catch (err) {
+    return flightRouterStateSchema.parse(JSON.parse(stateHeader))
+  } catch {
     throw new Error('The router state header was sent but could not be parsed.')
   }
 }
@@ -862,8 +892,8 @@ export async function renderToHTMLOrFlight(
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
-    let providedFlightRouterState: FlightRouterState = isFlight
-      ? parseFlightRouterState(
+    let providedFlightRouterState = isFlight
+      ? parseAndValidateFlightRouterState(
           req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
         )
       : undefined
