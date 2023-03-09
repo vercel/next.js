@@ -275,17 +275,19 @@ export default async function exportApp(
       defaultPathMap[page] = { page }
     }
 
-    for (var [key, value] of Object.entries(appRoutePathManifest)) {
-      let val = value as string
-      if (
-        key.endsWith('/page') &&
-        !prerenderManifest?.routes[val] &&
-        !prerenderManifest?.dynamicRoutes[val]
-      ) {
-        defaultPathMap[val] = {
-          page: key,
-          // @ts-ignore
-          _isAppDir: true,
+    if (!options.buildExport) {
+      for (var [key, value] of Object.entries(appRoutePathManifest)) {
+        let val = value as string
+        if (
+          key.endsWith('/page') &&
+          !prerenderManifest?.routes[val] &&
+          !prerenderManifest?.dynamicRoutes[val]
+        ) {
+          defaultPathMap[val] = {
+            page: key,
+            // @ts-ignore
+            _isAppDir: true,
+          }
         }
       }
     }
