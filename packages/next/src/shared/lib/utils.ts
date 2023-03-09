@@ -46,7 +46,7 @@ export type NextWebVitalsMetric = {
   id: string
   startTime: number
   value: number
-  delta: number
+  delta?: number
   attribution?: { [key: string]: unknown }
 } & (
   | {
