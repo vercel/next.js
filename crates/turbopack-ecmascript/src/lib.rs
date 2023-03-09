@@ -2,7 +2,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(str_split_as_str)]
 #![feature(int_roundings)]
 #![feature(slice_group_by)]
 #![recursion_limit = "256"]
