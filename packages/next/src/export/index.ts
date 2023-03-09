@@ -735,11 +735,13 @@ export default async function exportApp(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
           let appSrcRoute = srcRoute
+          let isAppPath = false
           for (const [keyAppRoute, valueAppRoute] of Object.entries(
             appRoutePathManifest || {}
           )) {
             if (valueAppRoute === srcRoute) {
               appSrcRoute = keyAppRoute
+              isAppPath = true
             }
           }
           const pageName = appSrcRoute || route
@@ -751,7 +753,6 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const isAppPath = Boolean(appSrcRoute)
           const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
           const distPagesDir = join(
             pagePath,
