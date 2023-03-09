@@ -275,16 +275,19 @@ export default async function exportApp(
       defaultPathMap[page] = { page }
     }
 
+    const mapAppRouteToPage = new Map<string, string>()
     if (!options.buildExport && appRoutePathManifest) {
-      for (var [key, value] of Object.entries(appRoutePathManifest)) {
-        let val = value as string
+      for (const [pageName, routePath] of Object.entries(
+        appRoutePathManifest
+      )) {
+        mapAppRouteToPage.set(routePath, pageName)
         if (
-          key.endsWith('/page') &&
-          !prerenderManifest?.routes[val] &&
-          !prerenderManifest?.dynamicRoutes[val]
+          pageName.endsWith('/page') &&
+          !prerenderManifest?.routes[routePath] &&
+          !prerenderManifest?.dynamicRoutes[routePath]
         ) {
-          defaultPathMap[val] = {
-            page: key,
+          defaultPathMap[routePath] = {
+            page: pageName,
             // @ts-ignore
             _isAppDir: true,
           }
@@ -734,17 +737,9 @@ export default async function exportApp(
       await Promise.all(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
-          let appSrcRoute = srcRoute
-          let isAppPath = false
-          for (const [keyAppRoute, valueAppRoute] of Object.entries(
-            appRoutePathManifest || {}
-          )) {
-            if (valueAppRoute === srcRoute) {
-              appSrcRoute = keyAppRoute
-              isAppPath = true
-            }
-          }
-          const pageName = appSrcRoute || route
+          const appPageName = mapAppRouteToPage.get(srcRoute || '')
+          const pageName = appPageName || srcRoute || route
+          const isAppPath = Boolean(appPageName)
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
