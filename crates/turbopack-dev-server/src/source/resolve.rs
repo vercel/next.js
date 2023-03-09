@@ -87,17 +87,17 @@ pub async fn resolve_source_request(
                         data = ContentSourceData::default();
                     }
                     ContentSourceContent::NotFound => {
-                        break Ok(ResolveSourceRequestResult::NotFound.cell())
+                        break Ok(ResolveSourceRequestResult::NotFound.cell());
                     }
                     ContentSourceContent::Static(static_content) => {
                         break Ok(ResolveSourceRequestResult::Static(
                             *static_content,
                             HeaderListVc::new(response_header_overwrites),
                         )
-                        .cell())
+                        .cell());
                     }
                     ContentSourceContent::HttpProxy(proxy_result) => {
-                        break Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell())
+                        break Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell());
                     }
                 }
             }

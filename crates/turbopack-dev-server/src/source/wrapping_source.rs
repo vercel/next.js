@@ -6,6 +6,7 @@ use super::{
     ContentSourceResult, ContentSourceResultVc, ContentSourceVc, GetContentSourceContent,
     GetContentSourceContentVc, NeededData,
 };
+use crate::source::{ContentSourceContent, Rewrite};
 
 /// A ContentSourceProcessor handles the final processing of an eventual
 /// [ContentSourceContent].
@@ -75,6 +76,7 @@ impl ContentSource for WrappedContentSource {
                 ContentSourceResult::Result {
                     specificity: *specificity,
                     get_content: WrappedGetContentSourceContentVc::new(
+                        self.inner,
                         *get_content,
                         self.processor,
                     )
@@ -95,6 +97,7 @@ impl ContentSource for WrappedContentSource {
 /// ContentSourceResult.
 #[turbo_tasks::value]
 struct WrappedGetContentSourceContent {
+    inner_source: ContentSourceVc,
     inner: GetContentSourceContentVc,
     processor: ContentSourceProcessorVc,
 }
@@ -102,8 +105,17 @@ struct WrappedGetContentSourceContent {
 #[turbo_tasks::value_impl]
 impl WrappedGetContentSourceContentVc {
     #[turbo_tasks::function]
-    fn new(inner: GetContentSourceContentVc, processor: ContentSourceProcessorVc) -> Self {
-        WrappedGetContentSourceContent { inner, processor }.cell()
+    fn new(
+        inner_source: ContentSourceVc,
+        inner: GetContentSourceContentVc,
+        processor: ContentSourceProcessorVc,
+    ) -> Self {
+        WrappedGetContentSourceContent {
+            inner_source,
+            inner,
+            processor,
+        }
+        .cell()
     }
 }
 
@@ -117,6 +129,24 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
         let res = self.inner.get(data);
+        if let ContentSourceContent::Rewrite(rewrite) = &*res.await? {
+            let rewrite = rewrite.await?;
+            return Ok(ContentSourceContent::Rewrite(
+                Rewrite {
+                    path_and_query: rewrite.path_and_query.clone(),
+                    source: Some(
+                        WrappedContentSourceVc::new(
+                            rewrite.source.unwrap_or(self.inner_source),
+                            self.processor,
+                        )
+                        .into(),
+                    ),
+                    response_headers: rewrite.response_headers,
+                }
+                .cell(),
+            )
+            .cell());
+        }
         Ok(self.processor.process(res))
     }
 }

@@ -1,3 +1,5 @@
+use std::{borrow::Cow, iter::once};
+
 use anyhow::Result;
 use mime::APPLICATION_JSON;
 use turbo_tasks::{primitives::StringVc, Value};
@@ -13,7 +15,7 @@ use super::{
     wrapping_source::{ContentSourceProcessor, ContentSourceProcessorVc, WrappedContentSourceVc},
     ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
     ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
-    NeededData,
+    NeededData, RewriteBuilder,
 };
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
@@ -38,6 +40,17 @@ impl SourceMapContentSourceVc {
     pub fn new(asset_source: ContentSourceVc) -> SourceMapContentSourceVc {
         SourceMapContentSource { asset_source }.cell()
     }
+}
+
+fn encode_pathname_to_url(pathname: &str) -> String {
+    once(Cow::Borrowed("/"))
+        .chain(
+            pathname
+                .split('/')
+                .map(urlencoding::encode)
+                .intersperse(Cow::Borrowed("/")),
+        )
+        .collect()
 }
 
 #[turbo_tasks::value_impl]
@@ -76,9 +89,15 @@ impl ContentSource for SourceMapContentSource {
             self_vc.await?.asset_source,
             SourceMapContentProcessorVc::new(id).into(),
         );
-        Ok(wrapped
-            .as_content_source()
-            .get(pathname, Default::default()))
+        Ok(ContentSourceResultVc::exact(
+            ContentSourceContent::Rewrite(
+                RewriteBuilder::new(encode_pathname_to_url(pathname))
+                    .content_source(wrapped.as_content_source())
+                    .build(),
+            )
+            .cell()
+            .into(),
+        ))
     }
 }
 
