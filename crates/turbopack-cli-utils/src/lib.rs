@@ -1,7 +1,6 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(round_char_boundary)]
-#![feature(main_separator_str)]
 
 pub mod issue;
 
