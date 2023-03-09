@@ -1065,7 +1065,7 @@ jobs:
         id: turbo-cache
         uses: actions/cache@v3
         timeout-minutes: 5
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' && steps.turbo-token == 'empty' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: .turbo
           key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
