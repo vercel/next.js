@@ -1,6 +1,7 @@
 #![feature(min_specialization)]
 #![feature(trait_alias)]
 #![feature(array_chunks)]
+#![feature(iter_intersperse)]
 
 pub mod html;
 mod http;

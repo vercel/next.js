@@ -208,7 +208,7 @@ pub struct NeededData {
 /// Note that you might not receive information that has not been requested via
 /// `ContentSource::vary()`. So make sure to request all information that's
 /// needed.
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash, Default)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.

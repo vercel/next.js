@@ -27,6 +27,7 @@ turbopack-core = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 url = { workspace = true }
+urlencoding = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
