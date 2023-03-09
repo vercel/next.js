@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-import { getModuleTrace, getImportTraceForOverlay } from './getModuleTrace'
+import { getModuleTrace, formatModuleTrace } from './getModuleTrace'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function formatRSCErrorMessage(
@@ -141,12 +141,16 @@ export function getRscError(
     fileName
   )
 
+  const { formattedModuleTrace, lastInternalFileName, invalidImportMessage } =
+    formatModuleTrace(compiler, moduleTrace)
+
   const error = new SimpleWebpackError(
-    fileName,
+    lastInternalFileName,
     'ReactServerComponentsError:\n' +
       formattedError[0] +
+      invalidImportMessage +
       formattedError[1] +
-      getImportTraceForOverlay(compiler, moduleTrace)
+      formattedModuleTrace
   )
 
   // Delete the stack because it's created here.
