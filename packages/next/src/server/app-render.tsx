@@ -595,7 +595,7 @@ function getCssInlinedLinkTags(
       if (!injectedCSS.has(mod)) {
         const modData = clientReferenceManifest.clientModules[mod + '#']
         if (modData) {
-          for (const chunk of modData.default.chunks) {
+          for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
             // chunk, it means that it's actually used. We should include it.
             if (cssFilesForEntry.has(chunk)) {

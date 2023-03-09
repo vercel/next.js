@@ -32,6 +32,21 @@ type ModuleId = string | number /*| null*/
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
 
+/**
+ * filepath   export      manifest key
+ * "file"     '*'         "file"
+ * "file"     ''          "file#"
+ * "file"     '<named>'   "file#<named>"
+ *
+ * @param filepath file path to the module
+ * @param exports '' | '*' | '<named>'
+ */
+function getManifestExportName(filepath: string, exportName: string): string {
+  if (exportName === '*') return filepath
+  if (exportName === '') return filepath + '#'
+  return filepath + '#' + exportName
+}
+
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
@@ -61,9 +76,7 @@ interface ManifestNode {
 }
 
 export type ClientReferenceManifest = {
-  clientModules: {
-    [moduleId: string]: ManifestNode
-  }
+  clientModules: ManifestNode
   ssrModuleMapping: {
     [moduleId: string]: ManifestNode
   }
@@ -203,23 +216,19 @@ export class ClientReferenceManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!moduleReferences[resource + '#']) {
-            moduleReferences[resource + '#'] = {
-              default: {
-                id: id || '',
-                name: 'default',
-                chunks: chunkCSS,
-              },
+          const exportName = getManifestExportName(resource, '')
+          if (!moduleReferences[exportName]) {
+            moduleReferences[exportName] = {
+              id: id || '',
+              name: 'default',
+              chunks: chunkCSS,
             }
           } else {
             // It is possible that there are multiple modules with the same resource,
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
-            moduleReferences[resource + '#'].default.chunks = [
-              ...new Set([
-                ...moduleReferences[resource + '#'].default.chunks,
-                ...chunkCSS,
-              ]),
+            moduleReferences[exportName].chunks = [
+              ...new Set([...moduleReferences[exportName].chunks, ...chunkCSS]),
             ]
           }
 
@@ -289,53 +298,30 @@ export class ClientReferenceManifestPlugin {
           : null
 
         function addClientReference(name: string) {
-          if (name === '*') {
-            manifest.clientModules[resource][name] = {
-              id,
-              chunks: requiredChunks,
-              name: '*',
-              async: isAsyncModule,
-            }
-            if (esmResource) {
-              manifest.edgeSSRModuleMapping[esmResource] =
-                manifest.clientModules[resource]
-            }
-          } else if (name === '') {
-            manifest.clientModules[resource + '#'][name] = {
-              id,
-              chunks: requiredChunks,
-              name: '',
-              async: isAsyncModule,
-            }
-            if (esmResource) {
-              manifest.edgeSSRModuleMapping[esmResource + '#'] =
-                manifest.clientModules[resource + '#']
-            }
-          } else {
-            manifest.clientModules[resource + '#' + name][name] = {
-              id,
-              chunks: requiredChunks,
-              name,
-              async: isAsyncModule,
-            }
-            if (esmResource) {
-              manifest.edgeSSRModuleMapping[esmResource + '#' + name] =
-                manifest.clientModules[resource + '#' + name]
-            }
+          const exportName = getManifestExportName(resource, name)
+          manifest.clientModules[exportName] = {
+            id,
+            name,
+            chunks: requiredChunks,
+            async: isAsyncModule,
+          }
+          if (esmResource) {
+            const edgeExportName = getManifestExportName(esmResource, name)
+            manifest.clientModules[edgeExportName] =
+              manifest.clientModules[exportName]
           }
         }
 
         function addSSRIdMapping(name: string) {
-          const key = resource + (name === '*' ? '' : '#' + name)
+          const exportName = getManifestExportName(resource, name)
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
-            const node: ManifestNode = {
-              ...manifest.clientModules[key],
+            moduleIdMapping[id][name] = {
+              ...manifest.clientModules[exportName],
+              id: pluginState.serverModuleIds[ssrNamedModuleId],
             }
-            ;(node[id].id = pluginState.serverModuleIds[ssrNamedModuleId]),
-              (moduleIdMapping[id] = node)
           }
 
           if (
@@ -343,11 +329,10 @@ export class ClientReferenceManifestPlugin {
             'undefined'
           ) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            const node = {
-              ...manifest.edgeSSRModuleMapping[key],
+            edgeModuleIdMapping[id][name] = {
+              ...manifest.clientModules[exportName],
+              id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
             }
-            node[id].id = pluginState.edgeServerModuleIds[ssrNamedModuleId]
-            edgeModuleIdMapping[id] = node
           }
         }
 
@@ -378,6 +363,7 @@ export class ClientReferenceManifestPlugin {
           addSSRIdMapping(name)
         })
 
+        manifest.clientModules = moduleReferences
         manifest.ssrModuleMapping = moduleIdMapping
         manifest.edgeSSRModuleMapping = edgeModuleIdMapping
       }
