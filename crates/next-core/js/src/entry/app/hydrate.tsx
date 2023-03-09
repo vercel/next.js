@@ -19,7 +19,8 @@ window.next = {
 };
 
 globalThis.__next_require__ = (data) => {
-  const [client_id] = JSON.parse(data);
+  const [client_id, chunks, chunkListPath] = JSON.parse(data);
+  __turbopack_register_chunk_list__(chunkListPath, chunks);
   return __turbopack_require__(client_id);
 };
 globalThis.__next_chunk_load__ = __turbopack_load__;

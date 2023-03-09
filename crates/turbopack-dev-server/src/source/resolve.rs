@@ -85,7 +85,7 @@ pub async fn resolve_source_request(
                         }
                         current_asset_path = new_asset_path;
                         data = ContentSourceData::default();
-                    } // _ => ,
+                    }
                     ContentSourceContent::NotFound => {
                         break Ok(ResolveSourceRequestResult::NotFound.cell())
                     }

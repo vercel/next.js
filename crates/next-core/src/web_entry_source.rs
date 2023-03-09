@@ -66,18 +66,23 @@ pub async fn create_web_entry_source(
         })
         .try_join()
         .await?;
-    let chunks: Vec<_> = entries
+
+    let chunk_groups: Vec<_> = entries
         .into_iter()
         .flatten()
         .enumerate()
         .map(|(i, module)| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                Ok(ecmascript
-                    .as_evaluated_chunk(chunking_context, (i == 0).then_some(runtime_entries)))
+                let chunk = ecmascript
+                    .as_evaluated_chunk(chunking_context, (i == 0).then_some(runtime_entries));
+                let chunk_group = ChunkGroupVc::from_chunk(chunk);
+                Ok(chunk_group)
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
-                Ok(chunkable.as_chunk(chunking_context))
+                Ok(ChunkGroupVc::from_chunk(
+                    chunkable.as_chunk(chunking_context),
+                ))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(
@@ -89,11 +94,7 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(
-        server_root.join("index.html"),
-        chunks.into_iter().map(ChunkGroupVc::from_chunk).collect(),
-    )
-    .into();
+    let entry_asset = DevHtmlAssetVc::new(server_root.join("index.html"), chunk_groups).into();
 
     let graph = if eager_compile {
         AssetGraphContentSourceVc::new_eager(server_root, entry_asset)

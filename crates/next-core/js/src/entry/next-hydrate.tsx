@@ -97,7 +97,7 @@ function subscribeToPageManifest({ assetPrefix }: { assetPrefix: string }) {
       path: "_next/static/development/_devPagesManifest.json",
     },
     (update) => {
-      if (["restart", "partial"].includes(update.type)) {
+      if (["restart", "notFound", "partial"].includes(update.type)) {
         return;
       }
 

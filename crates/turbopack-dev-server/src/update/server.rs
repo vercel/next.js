@@ -85,7 +85,7 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                     }
                 }
                 Some((resource, update)) = streams.next() => {
-                    Self::send_update(&mut client, resource, &update).await?;
+                    Self::send_update(&mut client, &mut streams, resource, &update).await?;
                 }
                 else => break
             }
@@ -96,35 +96,46 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
 
     async fn send_update(
         client: &mut UpdateClient,
+        streams: &mut StreamMap<ResourceIdentifier, UpdateStream>,
         resource: ResourceIdentifier,
-        update: &UpdateStreamItem,
+        item: &UpdateStreamItem,
     ) -> Result<()> {
-        let issues = update
-            .issues
-            .iter()
-            .map(|p| (&**p).into())
-            .collect::<Vec<Issue<'_>>>();
-
-        match &*update.update {
-            Update::Partial(partial) => {
-                let partial_instruction = partial.instruction.await?;
+        match item {
+            UpdateStreamItem::NotFound => {
+                // If the resource was not found, we remove the stream and indicate that to the
+                // client.
+                streams.remove(&resource);
                 client
-                    .send(ClientUpdateInstruction::partial(
-                        &resource,
-                        &partial_instruction,
-                        &issues,
-                    ))
+                    .send(ClientUpdateInstruction::not_found(&resource))
                     .await?;
             }
-            Update::Total(_total) => {
-                client
-                    .send(ClientUpdateInstruction::restart(&resource, &issues))
-                    .await?;
-            }
-            Update::None => {
-                client
-                    .send(ClientUpdateInstruction::issues(&resource, &issues))
-                    .await?;
+            UpdateStreamItem::Found { update, issues } => {
+                let issues = issues
+                    .iter()
+                    .map(|p| (&**p).into())
+                    .collect::<Vec<Issue<'_>>>();
+                match &**update {
+                    Update::Partial(partial) => {
+                        let partial_instruction = partial.instruction.await?;
+                        client
+                            .send(ClientUpdateInstruction::partial(
+                                &resource,
+                                &partial_instruction,
+                                &issues,
+                            ))
+                            .await?;
+                    }
+                    Update::Total(_total) => {
+                        client
+                            .send(ClientUpdateInstruction::restart(&resource, &issues))
+                            .await?;
+                    }
+                    Update::None => {
+                        client
+                            .send(ClientUpdateInstruction::issues(&resource, &issues))
+                            .await?;
+                    }
+                }
             }
         }
 

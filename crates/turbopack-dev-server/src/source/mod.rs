@@ -202,12 +202,6 @@ pub struct NeededData {
     pub vary: ContentSourceDataVary,
 }
 
-impl From<VersionedContentVc> for ContentSourceContentVc {
-    fn from(content: VersionedContentVc) -> Self {
-        ContentSourceContentVc::static_content(content)
-    }
-}
-
 /// Additional info passed to the ContentSource. It was extracted from the http
 /// request.
 ///

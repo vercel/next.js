@@ -115,7 +115,7 @@ impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
     }
 }
 
-impl<T: TraceRawVcs> TraceRawVcs for HashSet<T> {
+impl<T: TraceRawVcs, S> TraceRawVcs for HashSet<T, S> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, context);
@@ -123,7 +123,7 @@ impl<T: TraceRawVcs> TraceRawVcs for HashSet<T> {
     }
 }
 
-impl<T: TraceRawVcs> TraceRawVcs for AutoSet<T> {
+impl<T: TraceRawVcs, S> TraceRawVcs for AutoSet<T, S> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, context);
@@ -139,7 +139,7 @@ impl<T: TraceRawVcs> TraceRawVcs for BTreeSet<T> {
     }
 }
 
-impl<T: TraceRawVcs> TraceRawVcs for IndexSet<T> {
+impl<T: TraceRawVcs, S> TraceRawVcs for IndexSet<T, S> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, context);
@@ -147,7 +147,7 @@ impl<T: TraceRawVcs> TraceRawVcs for IndexSet<T> {
     }
 }
 
-impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for HashMap<K, V> {
+impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for HashMap<K, V, S> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, context);
@@ -156,7 +156,7 @@ impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for HashMap<K, V> {
     }
 }
 
-impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for AutoMap<K, V> {
+impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for AutoMap<K, V, S> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, context);
@@ -174,7 +174,7 @@ impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for BTreeMap<K, V> {
     }
 }
 
-impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for IndexMap<K, V> {
+impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for IndexMap<K, V, S> {
     fn trace_raw_vcs(&self, context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, context);

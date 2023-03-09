@@ -112,6 +112,7 @@ impl Transition for NextEdgeTransition {
             asset: new_asset.into(),
             chunking_context: self.edge_chunking_context,
             base_path: self.output_path,
+            server_root: self.output_path,
             runtime_entries: None,
         };
 

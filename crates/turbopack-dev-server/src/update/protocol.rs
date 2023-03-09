@@ -56,6 +56,12 @@ impl<'a> ClientUpdateInstruction<'a> {
         Self::new(resource, ClientUpdateInstructionType::Restart, issues)
     }
 
+    /// Returns a [`ClientUpdateInstruction`] that indicates that the resource
+    /// was not found.
+    pub fn not_found(resource: &'a ResourceIdentifier) -> Self {
+        Self::new(resource, ClientUpdateInstructionType::NotFound, &[])
+    }
+
     pub fn partial(
         resource: &'a ResourceIdentifier,
         instruction: &'a Value,
@@ -85,6 +91,7 @@ impl<'a> ClientUpdateInstruction<'a> {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientUpdateInstructionType<'a> {
     Restart,
+    NotFound,
     Partial { instruction: &'a Value },
     Issues,
 }

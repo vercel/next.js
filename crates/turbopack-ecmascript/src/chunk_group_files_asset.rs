@@ -5,7 +5,7 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContextVc, ChunksVc,
+        ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
     },
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
@@ -33,13 +33,14 @@ pub struct ChunkGroupFilesAsset {
     pub asset: ChunkableAssetVc,
     pub chunking_context: ChunkingContextVc,
     pub base_path: FileSystemPathVc,
+    pub server_root: FileSystemPathVc,
     pub runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupFilesAssetVc {
     #[turbo_tasks::function]
-    async fn chunks(self) -> Result<ChunksVc> {
+    async fn chunk_group(self) -> Result<ChunkGroupVc> {
         let this = self.await?;
         let chunk_group =
             if let Some(ecma) = EcmascriptModuleAssetVc::resolve_from(this.asset).await? {
@@ -49,7 +50,13 @@ impl ChunkGroupFilesAssetVc {
             } else {
                 ChunkGroupVc::from_asset(this.asset, this.chunking_context)
             };
-        Ok(chunk_group.chunks())
+        Ok(chunk_group)
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_list_path(self) -> Result<FileSystemPathVc> {
+        let this = &*self.await?;
+        Ok(this.chunking_context.chunk_list_path(this.asset.ident()))
     }
 }
 
@@ -118,7 +125,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let chunks = self.inner.chunks();
+        let chunks = self.inner.chunk_group().chunks();
         let base_path = self.inner.await?.base_path.await?;
         let chunks_paths = chunks
             .await?
@@ -151,16 +158,17 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
-        let chunks = self.inner.chunks();
+        let chunk_group = self.inner.chunk_group();
+        let chunks = chunk_group.chunks();
 
-        Ok(AssetReferencesVc::cell(
-            chunks
-                .await?
-                .iter()
-                .copied()
-                .map(ChunkReferenceVc::new)
-                .map(Into::into)
-                .collect(),
-        ))
+        let references: Vec<_> = chunks
+            .await?
+            .iter()
+            .copied()
+            .map(ChunkReferenceVc::new)
+            .map(Into::into)
+            .collect();
+
+        Ok(AssetReferencesVc::cell(references))
     }
 }

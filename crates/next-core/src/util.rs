@@ -28,6 +28,7 @@ pub async fn pathname_for_path(
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
     has_extension: bool,
+    data: bool,
 ) -> Result<StringVc> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
@@ -46,10 +47,14 @@ pub async fn pathname_for_path(
     } else {
         path
     };
-    let path = if path == "index" {
-        ""
+    let path = if data {
+        path
     } else {
-        path.strip_suffix("/index").unwrap_or(path)
+        if path == "index" {
+            ""
+        } else {
+            path.strip_suffix("/index").unwrap_or(path)
+        }
     };
 
     Ok(StringVc::cell(path.to_string()))
