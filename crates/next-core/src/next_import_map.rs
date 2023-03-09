@@ -396,6 +396,7 @@ pub async fn insert_next_shared_aliases(
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
+    import_map.insert_singleton_alias("styled-jsx", get_next_package(project_path));
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
