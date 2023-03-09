@@ -1,6 +1,5 @@
 use anyhow::Result;
-use serde_json::Value;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -18,6 +17,7 @@ use crate::{
         EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
         EcmascriptChunkPlaceablesVc, EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
+    utils::stringify_js_pretty,
     EcmascriptModuleAssetVc,
 };
 
@@ -119,16 +119,23 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let chunks = self.inner.chunks();
-        let mut data = Vec::new();
         let base_path = self.inner.await?.base_path.await?;
-        for chunk in chunks.await?.iter() {
-            let path = chunk.path().await?;
-            if let Some(p) = base_path.get_path_to(&path) {
-                data.push(Value::String(p.to_string()));
-            }
-        }
+        let chunks_paths = chunks
+            .await?
+            .iter()
+            .map(|chunk| chunk.path())
+            .try_join()
+            .await?;
+        let chunks_paths: Vec<_> = chunks_paths
+            .iter()
+            .filter_map(|path| base_path.get_path_to(path))
+            .collect();
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!("__turbopack_export_value__({:#});\n", Value::Array(data)).into(),
+            inner_code: format!(
+                "__turbopack_export_value__({});\n",
+                stringify_js_pretty(&chunks_paths)
+            )
+            .into(),
             ..Default::default()
         }
         .cell())
