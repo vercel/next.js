@@ -8,11 +8,10 @@ export function register() {
     } = require('@opentelemetry/semantic-conventions')
     const { NodeTracerProvider, SimpleSpanProcessor } =
       require('@opentelemetry/sdk-trace-node') as typeof import('@opentelemetry/sdk-trace-node')
+
+    // You can use gRPC exporter instead
     const {
-      OTLPTraceExporter: OTLPTraceExporterGRPC,
-    } = require('@opentelemetry/exporter-trace-otlp-grpc')
-    const {
-      OTLPTraceExporter: OTLPTraceExporterHTTP,
+      OTLPTraceExporter,
     } = require('@opentelemetry/exporter-trace-otlp-http')
 
     // Next.js expects you to use to register TraceProvider. It won't work if you use NodeSDK instead.
@@ -23,9 +22,8 @@ export function register() {
       }),
     })
 
-    // Open Telemetry supports http and grpc exporters.
     provider.addSpanProcessor(
-      new SimpleSpanProcessor(new OTLPTraceExporterHTTP({}))
+      new SimpleSpanProcessor(new OTLPTraceExporter({}))
     )
 
     // Make sure to register you provider
