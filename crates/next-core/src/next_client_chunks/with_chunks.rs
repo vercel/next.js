@@ -1,4 +1,5 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
+use indoc::formatdoc;
 use serde_json::Value;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
@@ -13,14 +14,15 @@ use turbopack::ecmascript::{
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContextVc,
-        ChunkingType, ChunkingTypeOptionVc,
+        Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkListReferenceVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContext,
+        ChunkingContextVc, ChunkingType, ChunkingTypeOptionVc,
     },
     ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
+use turbopack_ecmascript::utils::stringify_js_pretty;
 
 use super::in_chunking_context_asset::InChunkingContextAsset;
 
@@ -94,6 +96,25 @@ struct WithChunksChunkItem {
 }
 
 #[turbo_tasks::value_impl]
+impl WithChunksChunkItemVc {
+    #[turbo_tasks::function]
+    async fn chunk_list_path(self) -> Result<FileSystemPathVc> {
+        let this = self.await?;
+        Ok(this.inner_context.chunk_list_path(this.inner.ident()))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_group(self) -> Result<ChunkGroupVc> {
+        let this = self.await?;
+        let inner = this.inner.await?;
+        Ok(ChunkGroupVc::from_asset(
+            inner.asset.into(),
+            this.inner_context,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithChunksChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
@@ -101,29 +122,40 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let inner = self.inner.await?;
-        let group = ChunkGroupVc::from_asset(inner.asset.into(), self.inner_context);
+    async fn content(self_vc: WithChunksChunkItemVc) -> Result<EcmascriptChunkItemContentVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
+        let group = self_vc.chunk_group();
         let chunks = group.chunks().await?;
         let server_root = inner.server_root.await?;
         let mut client_chunks = Vec::new();
+
+        let chunk_list_path = self_vc.chunk_list_path().await?;
+        let chunk_list_path = if let Some(path) = server_root.get_path_to(&chunk_list_path) {
+            path
+        } else {
+            bail!("could not get path to chunk list");
+        };
+
         for chunk_path in chunks.iter().map(|c| c.path()).try_join().await? {
             if let Some(path) = server_root.get_path_to(&chunk_path) {
                 client_chunks.push(Value::String(path.to_string()));
             }
         }
-        let module_id = stringify_js(&*inner.asset.as_chunk_item(self.inner_context).id().await?);
+        let module_id = stringify_js(&*inner.asset.as_chunk_item(this.inner_context).id().await?);
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "__turbopack_esm__({{
-  default: () => {},
-  chunks: () => chunks
-}});
-const chunks = {};
-",
+            inner_code: formatdoc! {
+                r#"
+                __turbopack_esm__({{
+                    default: () => {},
+                    chunks: () => {},
+                    chunkListPath: () => {},
+                }});
+                "#,
                 module_id,
-                Value::Array(client_chunks)
-            )
+                stringify_js_pretty(&client_chunks),
+                stringify_js(&chunk_list_path),
+            }
             .into(),
             ..Default::default()
         }
@@ -139,18 +171,27 @@ impl ChunkItem for WithChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
-        let inner = self.inner.await?;
-        Ok(AssetReferencesVc::cell(vec![WithChunksAssetReference {
-            asset: InChunkingContextAsset {
-                asset: inner.asset,
-                chunking_context: self.inner_context,
+    async fn references(self_vc: WithChunksChunkItemVc) -> Result<AssetReferencesVc> {
+        let this = self_vc.await?;
+        let inner = this.inner.await?;
+        Ok(AssetReferencesVc::cell(vec![
+            WithChunksAssetReference {
+                asset: InChunkingContextAsset {
+                    asset: inner.asset,
+                    chunking_context: this.inner_context,
+                }
+                .cell()
+                .into(),
             }
             .cell()
             .into(),
-        }
-        .cell()
-        .into()]))
+            ChunkListReferenceVc::new(
+                inner.server_root,
+                self_vc.chunk_group(),
+                self_vc.chunk_list_path(),
+            )
+            .into(),
+        ]))
     }
 }
 

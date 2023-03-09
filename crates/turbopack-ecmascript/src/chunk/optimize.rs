@@ -399,6 +399,7 @@ async fn optimize_ecmascript(
                         EcmascriptChunkEvaluate {
                             evaluate_entries: evaluate.evaluate_entries,
                             chunk_group: Some(chunk_group),
+                            chunk_list_path: evaluate.chunk_list_path,
                         }
                         .cell(),
                     ),

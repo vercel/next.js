@@ -73,10 +73,13 @@ interface Runtime {
   cache: Record<string, Module>;
 
   instantiateRuntimeModule: (moduleId: ModuleId) => Module;
+  registerChunkList: (chunkPath: ChunkPath, chunkPaths: ChunkPath[]) => void;
 }
 
 interface RuntimeBackend {
-  loadChunk: (chunkPath: ChunkPath, from: ModuleId) => Promise<void>;
+  loadChunk: (chunkPath: ChunkPath, from?: ModuleId) => Promise<void>;
+  reloadChunk?: (chunkPath: ChunkPath) => Promise<void>;
+  unloadChunk?: (chunkPath: ChunkPath) => void;
 
   restart: () => void;
 }

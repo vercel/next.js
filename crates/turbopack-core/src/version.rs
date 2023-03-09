@@ -127,6 +127,26 @@ pub trait Version {
     fn id(&self) -> StringVc;
 }
 
+/// This trait allows multiple `VersionedContent` to declare which
+/// [`VersionedContentMerger`] implementation should be used for merging.
+///
+/// [`MergeableVersionedContent`] which return the same merger will be merged
+/// together.
+#[turbo_tasks::value_trait]
+pub trait MergeableVersionedContent: VersionedContent {
+    fn get_merger(&self) -> VersionedContentMergerVc;
+}
+
+/// A [`VersionedContentMerger`] merges multiple [`VersionedContent`] into a
+/// single one.
+#[turbo_tasks::value_trait]
+pub trait VersionedContentMerger {
+    fn merge(&self, contents: VersionedContentsVc) -> VersionedContentVc;
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct VersionedContents(Vec<VersionedContentVc>);
+
 #[turbo_tasks::value]
 pub struct NotFoundVersion;
 

@@ -411,7 +411,7 @@ async fn create_app_source_for_directory(
                 segments: layouts,
             } => {
                 let LayoutSegment { target, .. } = *segment.await?;
-                let pathname = pathname_for_path(server_root, url, false);
+                let pathname = pathname_for_path(server_root, url, false, false);
                 let params_matcher = NextParamsMatcherVc::new(pathname);
 
                 sources.push(create_node_rendered_source(
@@ -443,7 +443,7 @@ async fn create_app_source_for_directory(
                 route,
                 ..
             } => {
-                let pathname = pathname_for_path(server_root, url, false);
+                let pathname = pathname_for_path(server_root, url, false, false);
                 let params_matcher = NextParamsMatcherVc::new(pathname);
 
                 sources.push(create_node_api_source(

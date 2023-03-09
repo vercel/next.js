@@ -3,6 +3,7 @@ pub(crate) mod context;
 pub(crate) mod evaluate;
 pub(crate) mod item;
 pub(crate) mod manifest;
+pub(crate) mod merged;
 pub(crate) mod module_factory;
 pub(crate) mod optimize;
 pub(crate) mod placeable;
@@ -24,8 +25,8 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
-        Chunk, ChunkGroupReferenceVc, ChunkItem, ChunkReferenceVc, ChunkVc, ChunkingContext,
-        ChunkingContextVc,
+        Chunk, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkListReferenceVc,
+        ChunkReferenceVc, ChunkVc, ChunkingContext, ChunkingContextVc,
     },
     ident::{AssetIdent, AssetIdentVc},
     introspect::{
@@ -111,6 +112,7 @@ impl EcmascriptChunkVc {
                 EcmascriptChunkEvaluate {
                     evaluate_entries: entries,
                     chunk_group: None,
+                    chunk_list_path: Some(context.chunk_list_path(main_entry.ident())),
                 }
                 .cell(),
             ),
@@ -392,6 +394,25 @@ impl Asset for EcmascriptChunk {
         }
         for chunk_group in content.async_chunk_groups.iter() {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
+        }
+        if let Some(evaluate) = this.evaluate {
+            let EcmascriptChunkEvaluate {
+                chunk_list_path,
+                chunk_group,
+                ..
+            } = *evaluate.await?;
+            if let Some(chunk_list_path) = chunk_list_path {
+                let chunk_group =
+                    chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(self_vc.into()));
+                references.push(
+                    ChunkListReferenceVc::new(
+                        this.context.output_root(),
+                        chunk_group,
+                        chunk_list_path,
+                    )
+                    .into(),
+                );
+            }
         }
         references.push(EcmascriptChunkSourceMapAssetReferenceVc::new(self_vc).into());
 

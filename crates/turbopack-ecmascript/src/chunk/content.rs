@@ -15,15 +15,18 @@ use turbopack_core::{
     environment::{ChunkLoading, EnvironmentVc},
     reference::AssetReferenceVc,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc, SourceMapVc},
-    version::{UpdateVc, VersionVc, VersionedContent, VersionedContentVc},
+    version::{
+        MergeableVersionedContent, MergeableVersionedContentVc, UpdateVc, VersionVc,
+        VersionedContent, VersionedContentMergerVc, VersionedContentVc,
+    },
 };
 
 use super::{
     evaluate::EcmascriptChunkContentEvaluateVc,
     item::{EcmascriptChunkItemVc, EcmascriptChunkItems, EcmascriptChunkItemsVc},
+    merged::merger::EcmascriptChunkContentMergerVc,
     placeable::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
     snapshot::EcmascriptChunkContentEntriesSnapshotReadRef,
-    update::update_ecmascript_chunk,
     version::{EcmascriptChunkVersion, EcmascriptChunkVersionVc},
 };
 use crate::utils::stringify_js;
@@ -174,7 +177,7 @@ impl EcmascriptChunkContentVc {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContentVc {
     #[turbo_tasks::function]
-    pub(super) async fn version(self) -> Result<EcmascriptChunkVersionVc> {
+    pub(super) async fn own_version(self) -> Result<EcmascriptChunkVersionVc> {
         let this = self.await?;
         let chunk_server_path = if let Some(path) = this.output_root.get_path_to(&this.chunk_path) {
             path
@@ -234,12 +237,29 @@ impl EcmascriptChunkContentVc {
                 .map(|id| async move {
                     let id = id.await?;
                     let id = stringify_js(&id);
-                    Ok(format!(r#"instantiateRuntimeModule({id});"#)) as Result<_>
+                    Ok(format!(r#"    instantiateRuntimeModule({id});"#)) as Result<_>
                 })
                 .try_join()
                 .await?
                 .join("\n");
 
+            let chunk_list_register = evaluate
+                .chunk_list_path
+                .as_deref()
+                .map(|path| {
+                    format!(
+                        r#"registerChunkList({}, {});"#,
+                        stringify_js(&path),
+                        stringify_js(
+                            &evaluate
+                                .ecma_chunks_server_paths
+                                .iter()
+                                .chain(&evaluate.other_chunks_server_paths)
+                                .collect::<Vec<_>>()
+                        )
+                    )
+                })
+                .unwrap_or_else(String::new);
             // Add a runnable to the chunk that requests the entry module to ensure it gets
             // executed when the chunk is evaluated.
             // The condition stops the entry module from being executed while chunks it
@@ -249,9 +269,10 @@ impl EcmascriptChunkContentVc {
             writedoc!(
                 code,
                 r#"
-                    , ({{ loadedChunks, instantiateRuntimeModule }}) => {{
-                        if(!(true{condition})) return true;
-                        {entries_instantiations}
+                    , ({{ loadedChunks, instantiateRuntimeModule, registerChunkList }}) => {{
+                        if (!(true{condition})) return true;
+                        {chunk_list_register}
+                    {entries_instantiations}
                     }}
                 "#
             )?;
@@ -322,12 +343,20 @@ impl VersionedContent for EcmascriptChunkContent {
 
     #[turbo_tasks::function]
     fn version(self_vc: EcmascriptChunkContentVc) -> VersionVc {
-        self_vc.version().into()
+        self_vc.own_version().into()
     }
 
     #[turbo_tasks::function]
-    fn update(self_vc: EcmascriptChunkContentVc, from_version: VersionVc) -> UpdateVc {
-        update_ecmascript_chunk(self_vc, from_version)
+    fn update(_self_vc: EcmascriptChunkContentVc, _from_version: VersionVc) -> Result<UpdateVc> {
+        bail!("EcmascriptChunkContent is not updateable")
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl MergeableVersionedContent for EcmascriptChunkContent {
+    #[turbo_tasks::function]
+    fn get_merger(&self) -> VersionedContentMergerVc {
+        EcmascriptChunkContentMergerVc::new().into()
     }
 }
 

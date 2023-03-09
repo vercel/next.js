@@ -102,32 +102,33 @@ pub async fn diff(path: FileSystemPathVc, actual: AssetContentVc) -> Result<()> 
     let path_str = &path.await?.path;
     let expected = path.read().into();
 
-    let actual = match get_contents(actual, path).await? {
-        Some(s) => s,
-        None => bail!("could not generate {} contents", path_str),
-    };
+    let actual = get_contents(actual, path).await?;
     let expected = get_contents(expected, path).await?;
 
-    if Some(&actual) != expected.as_ref() {
-        if *UPDATE {
-            let content = File::from(actual).into();
-            path.write(content).await?;
-            println!("updated contents of {}", path_str);
-        } else {
-            if expected.is_none() {
-                eprintln!("new file {path_str} detected:");
+    if actual != expected {
+        if let Some(actual) = actual {
+            if *UPDATE {
+                let content = File::from(actual).into();
+                path.write(content).await?;
+                println!("updated contents of {}", path_str);
             } else {
-                eprintln!("contents of {path_str} did not match:");
+                if expected.is_none() {
+                    eprintln!("new file {path_str} detected:");
+                } else {
+                    eprintln!("contents of {path_str} did not match:");
+                }
+                let expected = expected.unwrap_or_default();
+                let diff = TextDiff::from_lines(&expected, &actual);
+                eprintln!(
+                    "{}",
+                    diff.unified_diff()
+                        .context_radius(3)
+                        .header("expected", "actual")
+                );
+                bail!("contents of {path_str} did not match");
             }
-            let expected = expected.unwrap_or_default();
-            let diff = TextDiff::from_lines(&expected, &actual);
-            eprintln!(
-                "{}",
-                diff.unified_diff()
-                    .context_radius(3)
-                    .header("expected", "actual")
-            );
-            bail!("contents of {path_str} did not match");
+        } else {
+            bail!("{path_str} was not generated");
         }
     }
 

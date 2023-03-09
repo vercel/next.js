@@ -18,7 +18,7 @@ subscribeToUpdate(
     },
   },
   (update) => {
-    if (update.type === "restart") {
+    if (update.type === "restart" || update.type === "notFound") {
       location.reload();
     }
   }
