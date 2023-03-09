@@ -20,6 +20,18 @@ type Log = {
   error: (...args: any[]) => void
 }
 
+function replaceProcessEnv(sourceEnv: Env) {
+  Object.keys(process.env).forEach((key) => {
+    if (sourceEnv[key] === undefined || sourceEnv[key] === '') {
+      delete process.env[key]
+    }
+  })
+
+  Object.entries(sourceEnv).forEach(([key, value]) => {
+    process.env[key] = value
+  })
+}
+
 export function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
@@ -94,7 +106,7 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  process.env = Object.assign({}, initialEnv)
+  replaceProcessEnv(initialEnv)
   previousLoadedEnvFiles = cachedLoadedEnvFiles
   cachedLoadedEnvFiles = []
 
