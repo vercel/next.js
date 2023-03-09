@@ -1087,7 +1087,6 @@ jobs:
           # turn on some optimization while building Rust codes to prevent tests timeout
           run: |
             set -e &&
-            if [ -z $TURBO_TOKEN ]; then echo "no turbo token"; else export TURBO_REMOTE_ONLY='true'; fi &&
             export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
