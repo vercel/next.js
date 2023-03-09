@@ -887,7 +887,6 @@ export async function renderToHTMLOrFlight(
     const isPrefetch =
       req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
-    // TODO-APP: verify the tree is valid
     // TODO-APP: verify tree can't grow out of control
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
@@ -1548,7 +1547,6 @@ export async function renderToHTMLOrFlight(
     }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
-      // TODO-APP: throw on invalid flightRouterState
       /**
        * Use router state to decide at what common layout to render the page.
        * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.

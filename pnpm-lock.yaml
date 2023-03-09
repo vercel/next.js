@@ -691,6 +691,7 @@ importers:
       webpack-sources1: npm:webpack-sources@1.4.3
       webpack-sources3: npm:webpack-sources@3.2.3
       ws: 8.2.3
+      zod: 3.21.4
     dependencies:
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.14
@@ -897,6 +898,7 @@ importers:
       webpack-sources1: /webpack-sources/1.4.3
       webpack-sources3: /webpack-sources/3.2.3
       ws: 8.2.3
+      zod: 3.21.4
 
   packages/next-bundle-analyzer:
     specifiers:
