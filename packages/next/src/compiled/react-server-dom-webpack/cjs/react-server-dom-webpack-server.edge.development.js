@@ -56,7 +56,7 @@ function printWarning(level, format, args) {
 }
 
 function scheduleWork(callback) {
-  callback();
+  setTimeout(callback, 0);
 }
 
 var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
@@ -231,11 +231,11 @@ function resolveClientReferenceMetadata(config, clientReference) {
     return resolvedModuleData;
   }
 }
-function resolveServerReferenceMetadata(config, serverReference) {
-  return {
-    id: serverReference.$$id,
-    bound: Promise.resolve(serverReference.$$bound)
-  };
+function getServerReferenceId(config, serverReference) {
+  return serverReference.$$id;
+}
+function getServerReferenceBoundArguments(config, serverReference) {
+  return serverReference.$$bound;
 }
 
 // ATTENTION
@@ -1175,6 +1175,8 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+// Thenable<ReactClientValue>
+
 var PENDING = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
@@ -1600,7 +1602,11 @@ function serializeServerReference(request, parent, key, serverReference) {
     return serializeServerReferenceID(existingId);
   }
 
-  var serverReferenceMetadata = resolveServerReferenceMetadata(request.bundlerConfig, serverReference);
+  var bound = getServerReferenceBoundArguments(request.bundlerConfig, serverReference);
+  var serverReferenceMetadata = {
+    id: getServerReferenceId(request.bundlerConfig, serverReference),
+    bound: bound ? Promise.resolve(bound) : null
+  };
   request.pendingChunks++;
   var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
 
