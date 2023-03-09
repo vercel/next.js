@@ -239,7 +239,7 @@ export default async function exportApp(
       prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
     } catch (_) {}
 
-    let appRoutePathManifest: any | undefined = undefined
+    let appRoutePathManifest: Record<string, string> | undefined = undefined
     try {
       appRoutePathManifest = require(join(distDir, APP_PATH_ROUTES_MANIFEST))
     } catch (_) {}
@@ -275,7 +275,7 @@ export default async function exportApp(
       defaultPathMap[page] = { page }
     }
 
-    if (!options.buildExport) {
+    if (!options.buildExport && appRoutePathManifest) {
       for (var [key, value] of Object.entries(appRoutePathManifest)) {
         let val = value as string
         if (
@@ -736,7 +736,7 @@ export default async function exportApp(
           const { srcRoute } = prerenderManifest!.routes[route]
           let appSrcRoute = srcRoute
           for (const [keyAppRoute, valueAppRoute] of Object.entries(
-            appRoutePathManifest
+            appRoutePathManifest || {}
           )) {
             if (valueAppRoute === srcRoute) {
               appSrcRoute = keyAppRoute
