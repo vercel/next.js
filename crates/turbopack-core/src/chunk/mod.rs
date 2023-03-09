@@ -269,7 +269,7 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 /// specific interface is implemented.
 #[turbo_tasks::value_trait]
 pub trait ChunkableAssetReference: AssetReference + ValueToString {
-    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+    fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::default()))
     }
 }
@@ -437,7 +437,7 @@ where
         return Ok(vec![(None, ChunkContentGraphNode::ExternalAssetReference(reference))]);
     };
 
-    let Some(chunking_type) = *chunkable_asset_reference.chunking_type(context.chunking_context).await? else {
+    let Some(chunking_type) = *chunkable_asset_reference.chunking_type().await? else {
         return Ok(vec![(None, ChunkContentGraphNode::ExternalAssetReference(reference))]);
     };
 

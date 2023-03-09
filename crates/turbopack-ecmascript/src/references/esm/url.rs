@@ -101,7 +101,7 @@ impl ValueToString for UrlAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for UrlAssetReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+    fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::PlacedOrParallel))
     }
 }

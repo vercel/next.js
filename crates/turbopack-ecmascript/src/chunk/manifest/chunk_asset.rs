@@ -133,7 +133,7 @@ impl AssetReference for ManifestChunkAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for ManifestChunkAssetReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+    fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::Separate))
     }
 }

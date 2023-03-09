@@ -398,7 +398,7 @@ impl AssetReference for CssProxyToCssAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableAssetReference for CssProxyToCssAssetReference {
     #[turbo_tasks::function]
-    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+    fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::Parallel))
     }
 }
