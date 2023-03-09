@@ -1,13 +1,14 @@
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
 import { nextFontError } from '../next-font-error'
+import { getProxyAgent } from './get-proxy-agent'
 
 /**
  * Fetches the CSS containing the @font-face declarations from Google Fonts.
  * The fetch has a user agent header with a modern browser to ensure we'll get .woff2 files.
  *
  * The env variable NEXT_FONT_GOOGLE_MOCKED_RESPONSES may be set containing a path to mocked data.
- * It's used to defined mocked data to avoid hitting the Google Fonts API during tests.
+ * It's used to define mocked data to avoid hitting the Google Fonts API during tests.
  */
 export async function fetchCSSFromGoogleFonts(
   url: string,
@@ -32,6 +33,7 @@ export async function fetchCSSFromGoogleFonts(
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 3000)
     const res = await fetch(url, {
+      agent: getProxyAgent(),
       // Add a timeout in dev
       signal: isDev ? controller.signal : undefined,
       headers: {
