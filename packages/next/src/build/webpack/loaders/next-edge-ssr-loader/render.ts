@@ -3,8 +3,8 @@ import type { NextConfigComplete } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
+import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -32,7 +32,7 @@ export function getRender({
   serverActionsManifest,
   config,
   buildId,
-  fontLoaderManifest,
+  nextFontManifest,
   incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
@@ -54,7 +54,7 @@ export function getRender({
   appServerMod: any
   config: NextConfigComplete
   buildId: string
-  fontLoaderManifest: FontLoaderManifest
+  nextFontManifest: NextFontManifestPlugin
   incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
@@ -63,7 +63,7 @@ export function getRender({
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
-    fontLoaderManifest,
+    nextFontManifest,
     Document,
     App: appMod?.default as AppType,
   }

@@ -26,8 +26,8 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -249,7 +249,7 @@ export type RenderOptsPartial = {
   resolvedAsPath?: string
   clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: any
-  fontLoaderManifest?: FontLoaderManifest
+  nextFontManifest?: NextFontManifest
   distDir?: string
   locale?: string
   locales?: string[]
@@ -1417,7 +1417,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
-    fontLoaderManifest: renderOpts.fontLoaderManifest,
+    nextFontManifest: renderOpts.nextFontManifest,
   }
 
   const document = (
