@@ -602,6 +602,9 @@ export default async function exportPage({
         renderResult && !renderResult.isNull()
           ? renderResult.toUnchunkedString()
           : ''
+
+      let ampRenderResult: Awaited<ReturnType<typeof renderMethod>> | undefined
+
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -618,9 +621,6 @@ export default async function exportPage({
         try {
           await promises.access(ampHtmlFilepath)
         } catch (_) {
-          let ampRenderResult:
-            | Awaited<ReturnType<typeof renderMethod>>
-            | undefined
           // make sure it doesn't exist from manual mapping
           try {
             ampRenderResult = await renderMethod(
@@ -649,7 +649,9 @@ export default async function exportPage({
         }
       }
 
-      if ((curRenderOpts as any).pageData) {
+      const renderResultMeta =
+        renderResult?.metadata() || ampRenderResult?.metadata() || {}
+      if (renderResultMeta.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -658,19 +660,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify((curRenderOpts as any).pageData),
+          JSON.stringify(renderResultMeta.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify((curRenderOpts as any).pageData),
+            JSON.stringify(renderResultMeta.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
+      results.fromBuildExportRevalidate = renderResultMeta.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found
