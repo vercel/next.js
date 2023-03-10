@@ -845,7 +845,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           // Start preflight after server is listening and ignore errors:
           preflight().catch(() => {})
           // Finalize server bootup:
-          await app.prepare()
+          try {
+            await app.prepare()
+          } catch (err) {
+            console.log('cought error', err)
+          }
         })
         .catch((err) => {
           if (err.code === 'EADDRINUSE') {

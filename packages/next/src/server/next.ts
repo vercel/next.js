@@ -149,6 +149,14 @@ export class NextServer {
       resolve(this.options.dir || '.'),
       this.options.conf
     )
+      .then((val) => {
+        console.log('it worked')
+        return val
+      })
+      .catch((err) => {
+        console.log('Error loading config', err)
+        throw err
+      })
   }
 
   private async getServer() {

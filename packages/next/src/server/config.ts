@@ -721,165 +721,177 @@ export default async function loadConfig(
   rawConfig?: boolean,
   silent?: boolean
 ): Promise<NextConfigComplete> {
-  const curLog = silent
-    ? {
-        warn: () => {},
-        info: () => {},
-        error: () => {},
-      }
-    : Log
+  try {
+    const curLog = silent
+      ? {
+          warn: () => {},
+          info: () => {},
+          error: () => {},
+        }
+      : Log
 
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
+    await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
-  if (!customConfig) {
-    loadWebpackHook()
-  }
-
-  let configFileName = 'next.config.js'
-
-  if (customConfig) {
-    return assignDefaults(
-      dir,
-      {
-        configOrigin: 'server',
-        configFileName,
-        ...customConfig,
-      },
-      silent
-    ) as NextConfigComplete
-  }
-
-  const path = await findUp(CONFIG_FILES, { cwd: dir })
-
-  // If config file was found
-  if (path?.length) {
-    configFileName = basename(path)
-    let userConfigModule: any
-
-    try {
-      // `import()` expects url-encoded strings, so the path must be properly
-      // escaped and (especially on Windows) absolute paths must pe prefixed
-      // with the `file://` protocol
-      if (process.env.__NEXT_TEST_MODE === 'jest') {
-        // dynamic import does not currently work inside of vm which
-        // jest relies on so we fall back to require for this case
-        // https://github.com/nodejs/node/issues/35889
-        userConfigModule = require(path)
-      } else {
-        userConfigModule = await import(pathToFileURL(path).href)
-      }
-
-      if (rawConfig) {
-        return userConfigModule
-      }
-    } catch (err) {
-      curLog.error(
-        `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
-      )
-      throw err
+    if (!customConfig) {
+      loadWebpackHook()
     }
-    const userConfig = await normalizeConfig(
-      phase,
-      userConfigModule.default || userConfigModule
-    )
 
-    const validateResult = validateConfig(userConfig)
+    let configFileName = 'next.config.js'
 
-    if (!silent && validateResult.errors) {
-      // Only load @segment/ajv-human-errors when invalid config is detected
-      const { AggregateAjvError } =
-        require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
-      const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
-        fieldLabels: 'js',
-      })
+    if (customConfig) {
+      return assignDefaults(
+        dir,
+        {
+          configOrigin: 'server',
+          configFileName,
+          ...customConfig,
+        },
+        silent
+      ) as NextConfigComplete
+    }
 
-      let shouldExit = false
-      let messages = [`Invalid ${configFileName} options detected: `]
+    const path = await findUp(CONFIG_FILES, { cwd: dir })
 
-      for (const error of aggregatedAjvErrors) {
-        messages.push(`    ${error.message}`)
-        if (error.message.startsWith('The value at .images.')) {
-          shouldExit = true
+    // If config file was found
+    if (path?.length) {
+      configFileName = basename(path)
+      let userConfigModule: any
+
+      try {
+        // `import()` expects url-encoded strings, so the path must be properly
+        // escaped and (especially on Windows) absolute paths must pe prefixed
+        // with the `file://` protocol
+        if (process.env.__NEXT_TEST_MODE === 'jest') {
+          // dynamic import does not currently work inside of vm which
+          // jest relies on so we fall back to require for this case
+          // https://github.com/nodejs/node/issues/35889
+          userConfigModule = require(path)
+        } else {
+          userConfigModule = await import(pathToFileURL(path).href)
+        }
+
+        if (rawConfig) {
+          return userConfigModule
+        }
+      } catch (err) {
+        curLog.error(
+          `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
+        )
+        throw err
+      }
+      const userConfig = await normalizeConfig(
+        phase,
+        userConfigModule.default || userConfigModule
+      )
+
+      const validateResult = validateConfig(userConfig)
+
+      if (!silent && validateResult.errors) {
+        // Only load @segment/ajv-human-errors when invalid config is detected
+        const { AggregateAjvError } =
+          require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
+        const aggregatedAjvErrors = new AggregateAjvError(
+          validateResult.errors,
+          {
+            fieldLabels: 'js',
+          }
+        )
+
+        let shouldExit = false
+        let messages = [`Invalid ${configFileName} options detected: `]
+
+        for (const error of aggregatedAjvErrors) {
+          messages.push(`    ${error.message}`)
+          if (error.message.startsWith('The value at .images.')) {
+            shouldExit = true
+          }
+        }
+
+        messages.push(
+          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+        )
+
+        if (shouldExit) {
+          for (const message of messages) {
+            curLog.error(message)
+          }
+          await flushAndExit(1)
+        } else {
+          for (const message of messages) {
+            curLog.warn(message)
+          }
         }
       }
 
-      messages.push(
-        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-      )
+      if (Object.keys(userConfig).length === 0) {
+        curLog.warn(
+          `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
+        )
+      }
 
-      if (shouldExit) {
-        for (const message of messages) {
-          curLog.error(message)
-        }
-        await flushAndExit(1)
-      } else {
-        for (const message of messages) {
-          curLog.warn(message)
-        }
+      if (userConfig.target && userConfig.target !== 'server') {
+        throw new Error(
+          `The "target" property is no longer supported in ${configFileName}.\n` +
+            'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
+        )
+      }
+
+      if (userConfig.amp?.canonicalBase) {
+        const { canonicalBase } = userConfig.amp || ({} as any)
+        userConfig.amp = userConfig.amp || {}
+        userConfig.amp.canonicalBase =
+          (canonicalBase.endsWith('/')
+            ? canonicalBase.slice(0, -1)
+            : canonicalBase) || ''
+      }
+      try {
+        const completeConfig = assignDefaults(
+          dir,
+          {
+            configOrigin: relative(dir, path),
+            configFile: path,
+            configFileName,
+            ...userConfig,
+          },
+          silent
+        ) as NextConfigComplete
+        return completeConfig
+      } catch (e) {
+        console.log('This here', e)
+        throw e
+      }
+    } else {
+      const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
+      const nonJsPath = findUp.sync(
+        [
+          `${configBaseName}.jsx`,
+          `${configBaseName}.ts`,
+          `${configBaseName}.tsx`,
+          `${configBaseName}.json`,
+        ],
+        { cwd: dir }
+      )
+      if (nonJsPath?.length) {
+        throw new Error(
+          `Configuring Next.js via '${basename(
+            nonJsPath
+          )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
+        )
       }
     }
 
-    if (Object.keys(userConfig).length === 0) {
-      curLog.warn(
-        `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
-      )
-    }
-
-    if (userConfig.target && userConfig.target !== 'server') {
-      throw new Error(
-        `The "target" property is no longer supported in ${configFileName}.\n` +
-          'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
-      )
-    }
-
-    if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
-      userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
-          ? canonicalBase.slice(0, -1)
-          : canonicalBase) || ''
-    }
-
+    // always call assignDefaults to ensure settings like
+    // reactRoot can be updated correctly even with no next.config.js
     const completeConfig = assignDefaults(
       dir,
-      {
-        configOrigin: relative(dir, path),
-        configFile: path,
-        configFileName,
-        ...userConfig,
-      },
+      defaultConfig,
       silent
     ) as NextConfigComplete
+    completeConfig.configFileName = configFileName
+    setHttpClientAndAgentOptions(completeConfig, silent)
     return completeConfig
-  } else {
-    const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
-    const nonJsPath = findUp.sync(
-      [
-        `${configBaseName}.jsx`,
-        `${configBaseName}.ts`,
-        `${configBaseName}.tsx`,
-        `${configBaseName}.json`,
-      ],
-      { cwd: dir }
-    )
-    if (nonJsPath?.length) {
-      throw new Error(
-        `Configuring Next.js via '${basename(
-          nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
-      )
-    }
+  } catch (e) {
+    console.log('This here', e)
+    throw e
   }
-
-  // always call assignDefaults to ensure settings like
-  // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(
-    dir,
-    defaultConfig,
-    silent
-  ) as NextConfigComplete
-  completeConfig.configFileName = configFileName
-  setHttpClientAndAgentOptions(completeConfig, silent)
-  return completeConfig
 }
