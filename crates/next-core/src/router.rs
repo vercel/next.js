@@ -167,7 +167,9 @@ fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModu
         asset,
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+            use_define_for_class_fields: false,
+        }]),
         context.compile_time_info(),
     )
 }
@@ -250,7 +252,9 @@ fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
         next_asset("entry/router.ts"),
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+            use_define_for_class_fields: false,
+        }]),
         context.compile_time_info(),
         configs,
     )

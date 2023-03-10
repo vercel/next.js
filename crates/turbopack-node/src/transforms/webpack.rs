@@ -120,7 +120,9 @@ fn webpack_loaders_executor(context: AssetContextVc) -> AssetVc {
         SourceAssetVc::new(embed_file_path("transforms/webpack-loaders.ts")).into(),
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+            use_define_for_class_fields: false,
+        }]),
         context.compile_time_info(),
     )
     .into()

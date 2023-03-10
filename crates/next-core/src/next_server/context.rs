@@ -28,6 +28,7 @@ use crate::{
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
+    typescript::get_typescript_transform_options,
     util::foreign_code_context_condition,
 };
 
@@ -228,6 +229,8 @@ pub async fn get_server_module_options_context(
             .clone_if()
     };
 
+    let tsconfig = get_typescript_transform_options(project_path);
+
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             let module_options_context = ModuleOptionsContext {
@@ -239,7 +242,7 @@ pub async fn get_server_module_options_context(
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
-                enable_typescript_transform: true,
+                enable_typescript_transform: Some(tsconfig),
                 rules: vec![(
                     foreign_code_context_condition,
                     module_options_context.clone().cell(),
@@ -258,7 +261,7 @@ pub async fn get_server_module_options_context(
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
-                enable_typescript_transform: true,
+                enable_typescript_transform: Some(tsconfig),
                 rules: vec![(
                     foreign_code_context_condition,
                     module_options_context.clone().cell(),
@@ -279,7 +282,7 @@ pub async fn get_server_module_options_context(
                 enable_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
-                enable_typescript_transform: true,
+                enable_typescript_transform: Some(tsconfig),
                 rules: vec![(
                     foreign_code_context_condition,
                     module_options_context.clone().cell(),
@@ -296,7 +299,7 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_postcss_transform,
                 enable_webpack_loaders,
-                enable_typescript_transform: true,
+                enable_typescript_transform: Some(tsconfig),
                 rules: vec![(
                     foreign_code_context_condition,
                     module_options_context.clone().cell(),
@@ -315,7 +318,7 @@ pub async fn get_server_module_options_context(
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
-                enable_typescript_transform: true,
+                enable_typescript_transform: Some(tsconfig),
                 rules: vec![(
                     foreign_code_context_condition,
                     module_options_context.clone().cell(),
@@ -333,7 +336,7 @@ pub async fn get_server_module_options_context(
 #[turbo_tasks::function]
 pub fn get_build_module_options_context() -> ModuleOptionsContextVc {
     ModuleOptionsContext {
-        enable_typescript_transform: true,
+        enable_typescript_transform: Some(Default::default()),
         ..Default::default()
     }
     .cell()

@@ -183,7 +183,9 @@ fn postcss_executor(context: AssetContextVc, postcss_config_path: FileSystemPath
         .into(),
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+            use_define_for_class_fields: false,
+        }]),
         context.compile_time_info(),
         InnerAssetsVc::cell(indexmap! {
             "CONFIG".to_string() => config_asset

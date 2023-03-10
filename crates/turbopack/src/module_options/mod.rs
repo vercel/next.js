@@ -63,7 +63,7 @@ impl ModuleOptionsVc {
             enable_styled_jsx,
             enable_styled_components,
             enable_types,
-            enable_typescript_transform,
+            ref enable_typescript_transform,
             enable_mdx,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
@@ -107,11 +107,20 @@ impl ModuleOptionsVc {
             transforms.push(EcmascriptInputTransform::PresetEnv(env));
         }
 
+        let ts_transform = if let Some(options) = enable_typescript_transform {
+            let options = options.await?;
+            Some(EcmascriptInputTransform::TypeScript {
+                use_define_for_class_fields: options.use_define_for_class_fields,
+            })
+        } else {
+            None
+        };
+
         let app_transforms = EcmascriptInputTransformsVc::cell(transforms);
         let vendor_transforms =
             EcmascriptInputTransformsVc::cell(custom_ecmascript_transforms.clone());
-        let ts_app_transforms = if enable_typescript_transform {
-            let mut base_transforms = vec![EcmascriptInputTransform::TypeScript];
+        let ts_app_transforms = if let Some(transform) = ts_transform {
+            let mut base_transforms = vec![transform.clone()];
             base_transforms.extend(custom_ecmascript_transforms.iter().cloned());
             EcmascriptInputTransformsVc::cell(
                 base_transforms
@@ -126,11 +135,15 @@ impl ModuleOptionsVc {
 
         let css_transforms = CssInputTransformsVc::cell(vec![CssInputTransform::Nested]);
         let mdx_transforms = EcmascriptInputTransformsVc::cell(
-            vec![EcmascriptInputTransform::TypeScript]
-                .iter()
-                .chain(app_transforms.await?.iter())
-                .cloned()
-                .collect(),
+            if let Some(transform) = ts_transform {
+                vec![transform.clone()]
+            } else {
+                vec![]
+            }
+            .iter()
+            .chain(app_transforms.await?.iter())
+            .cloned()
+            .collect(),
         );
 
         let mut rules = vec![
