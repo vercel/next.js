@@ -91,18 +91,20 @@ async function runTests({
 
 describe('app dir with next export', () => {
   it.each([{ trailingSlash: false }, { trailingSlash: true }])(
-    "should correctly navigate between pages with trailingSlash '$trailingSlash'",
+    "should work with trailingSlash '$trailingSlash'",
     async ({ trailingSlash }) => {
       await runTests({ trailingSlash, dynamic: 'auto' })
     }
   )
   it.each([
     { dynamic: 'auto' },
-    { dynamic: 'force-static' },
     { dynamic: 'error' },
-    { dynamic: 'force-dynamic' },
-  ])(
-    "should correctly navigate between pages with dynamic '$dynamic'",
+    { dynamic: 'force-static' },
+  ])("should work with dynamic '$dynamic'", async ({ dynamic }) => {
+    await runTests({ trailingSlash: true, dynamic })
+  })
+  it.each([{ dynamic: 'force-dynamic' }])(
+    "should throw with dynamic '$dynamic'",
     async ({ dynamic }) => {
       await runTests({ trailingSlash: true, dynamic })
     }
