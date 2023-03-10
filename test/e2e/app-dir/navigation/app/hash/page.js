@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function HashPage() {
   // Create list of 5000 items that all have unique id
   const items = Array.from({ length: 5000 }, (_, i) => ({ id: i }))
@@ -5,6 +7,24 @@ export default function HashPage() {
   return (
     <div>
       <h1>Hash Page</h1>
+      <Link href="/hash#hash-6" id="link-to-6">
+        To 6
+      </Link>
+      <Link href="/hash#hash-50" id="link-to-50">
+        To 50
+      </Link>
+      <Link href="/hash#hash-160" id="link-to-160">
+        To 160
+      </Link>
+      <Link href="/hash#hash-300" id="link-to-300">
+        To 300
+      </Link>
+      <Link href="/hash#top" id="link-to-top">
+        To Top
+      </Link>
+      <Link href="/hash#non-existent" id="link-to-non-existent">
+        To non-existent
+      </Link>
       <ul>
         {items.map((item) => (
           <li key={item.id}>

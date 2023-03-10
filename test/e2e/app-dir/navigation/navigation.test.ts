@@ -33,6 +33,30 @@ createNextDescribe(
       })
     })
 
+    describe('hash', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(async () => {
+            const val = await browser.eval('window.pageYOffset')
+            return val.toString()
+          }, expectedScroll.toString())
+        }
+
+        await checkLink(6, 225)
+        await checkLink(50, 1039)
+        await checkLink(160, 3074)
+        await checkLink(300, 5664)
+        await checkLink('top', 0)
+        await checkLink('non-existent', 21)
+      })
+    })
+
     describe('not-found', () => {
       it('should trigger not-found in a server component', async () => {
         const browser = await next.browser('/not-found/servercomponent')
