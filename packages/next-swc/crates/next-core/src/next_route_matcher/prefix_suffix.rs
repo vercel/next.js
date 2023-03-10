@@ -27,7 +27,7 @@ where
         }
     }
 
-    fn strip_prefix_and_suffix<'a, 'b>(&'a self, path: &'b str) -> Option<&'b str> {
+    fn strip_prefix_and_suffix<'b>(&self, path: &'b str) -> Option<&'b str> {
         path.strip_prefix(self.prefix.as_str())?
             .strip_suffix(self.suffix.as_str())
     }

@@ -38,7 +38,6 @@ pub async fn get_typescript_transform_options(
 
     let ts_transform_options = TypescriptTransformOptions {
         use_define_for_class_fields,
-        ..Default::default()
     };
 
     Ok(ts_transform_options.cell())

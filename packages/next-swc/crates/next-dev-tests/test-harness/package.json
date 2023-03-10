@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "main": "./harness.ts",
   "dependencies": {
-    "expect": "^24.5.0",
-    "jest-circus": "^29.4.1",
+    "expect": "27.5.1",
+    "jest-circus": "27.5.1",
     "jest-circus-browser": "^1.0.7"
   }
 }

@@ -9,10 +9,10 @@
     "build:compiled": "node build.mjs"
   },
   "dependencies": {
-    "@vercel/turbopack-runtime": "latest",
+    "@vercel/turbopack-runtime": "https://gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94",
     "anser": "^2.1.1",
     "css.escape": "^1.5.1",
-    "next": "13.2.4-canary.7",
+    "next": "*",
     "platform": "1.3.6",
     "react-dom": "^18.2.0",
     "react": "^18.2.0",
