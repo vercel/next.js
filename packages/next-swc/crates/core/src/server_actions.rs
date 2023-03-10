@@ -393,11 +393,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        let (mut is_action_fn, is_exported, is_default_export) =
+        let (is_action_fn, is_exported, is_default_export) =
             self.get_action_info(f.ident.as_mut(), f.function.body.as_mut());
-        if !f.function.is_async {
-            is_action_fn = false;
-        }
 
         {
             // Visit children
@@ -457,11 +454,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        let (mut is_action_fn, is_exported, is_default_export) =
+        let (is_action_fn, is_exported, is_default_export) =
             self.get_action_info(Some(&mut f.ident), f.function.body.as_mut());
-        if !f.function.is_async {
-            is_action_fn = false;
-        }
 
         {
             // Visit children
@@ -542,7 +536,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 if let Pat::Ident(ident) = &mut decl.name {
                     if let Some(fn_expr) = init.as_mut_fn_expr() {
                         // Collect `const foo = async function () {}` declarations. For now we
-                        // ignore other types of assignments.
+                        // just ignore other types of assignments.
                         if fn_expr.function.is_async {
                             if self.in_prepass {
                                 self.async_fn_idents.push(ident.id.to_id());
