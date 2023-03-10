@@ -67,7 +67,7 @@ export interface StaticImageData {
   blurHeight?: number
 }
 
-interface StaticRequire {
+export interface StaticRequire {
   default: StaticImageData
 }
 
