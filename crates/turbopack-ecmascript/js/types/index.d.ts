@@ -33,6 +33,36 @@ interface Module {
   interopNamespace?: EsmInteropNamespace;
 }
 
+enum SourceType {
+  /**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   */
+  Runtime = 0,
+  /**
+   * The module was instantiated because a parent module imported it.
+   */
+  Parent = 1,
+  /**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   */
+  Update = 2,
+}
+
+type SourceInfo =
+  | {
+      type: SourceType.Runtime;
+    }
+  | {
+      type: SourceType.Parent;
+      parentId: ModuleId;
+    }
+  | {
+      type: SourceType.Update;
+      parents?: ModuleId[];
+    };
+
 type ModuleCache = Record<ModuleId, Module>;
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports;
