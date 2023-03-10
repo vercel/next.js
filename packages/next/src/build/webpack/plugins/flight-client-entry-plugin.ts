@@ -31,7 +31,10 @@ import {
 } from '../loaders/utils'
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import {
+  isAppRouteRoute,
+  isMetadataRoute,
+} from '../../../lib/is-app-route-route'
 import { getProxiedPluginState } from '../../build-context'
 
 interface Options {
@@ -181,7 +184,8 @@ export class FlightClientEntryPlugin {
         if (
           name.startsWith('pages/') ||
           // Skip for route.js entries
-          (name.startsWith('app/') && isAppRouteRoute(name))
+          (name.startsWith('app/') &&
+            (isAppRouteRoute(name) || isMetadataRoute(name)))
         ) {
           continue
         }

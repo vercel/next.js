@@ -1,5 +1,8 @@
 import path from '../../../shared/lib/isomorphic/path'
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import {
+  isAppRouteRoute,
+  isMetadataRoute,
+} from '../../../lib/is-app-route-route'
 import {
   APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
@@ -25,7 +28,9 @@ export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<A
     manifest: Manifest
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     // This matcher only matches app routes.
-    const pages = Object.keys(manifest).filter((page) => isAppRouteRoute(page))
+    const pages = Object.keys(manifest).filter(
+      (page) => isAppRouteRoute(page) || isMetadataRoute(page)
+    )
 
     // Format the routes.
     const matchers: Array<AppRouteRouteMatcher> = []

@@ -1277,6 +1277,10 @@ export default class NextNodeServer extends BaseServer {
             )
             if (handled) return { finished: true }
           }
+          // else if (match.definition.kind === RouteKind.METADATA_ROUTE) {
+          //   handled = await this.handlers.handle(match, req, res)
+          //   if (handled) return { finished: true }
+          // }
         }
 
         try {
