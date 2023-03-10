@@ -133,10 +133,11 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
       let domNode:
         | ReturnType<typeof getHashFragmentDomNode>
         | ReturnType<typeof findDOMNode> = null
+      let isHashScroll = false
 
       if (focusAndScrollRef.hashFragment) {
         domNode = getHashFragmentDomNode(focusAndScrollRef.hashFragment)
-        console.log('hashFragment', domNode)
+        isHashScroll = true
       }
 
       // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
@@ -156,6 +157,11 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
 
       handleSmoothScroll(
         () => {
+          // In case of hash scroll we need to scroll to the top of the element
+          if (isHashScroll) {
+            window.scrollTo(0, (domNode as HTMLElement).offsetTop)
+            return
+          }
           // Store the current viewport height because reading `clientHeight` causes a reflow,
           // and it won't change during this function.
           const htmlElement = document.documentElement
