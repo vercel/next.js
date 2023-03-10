@@ -142,11 +142,9 @@ export function detectContentType(buffer: Buffer) {
   ) {
     return AVIF
   }
-
-  if (buffer.length >= 4 && buffer[0] === 0x00 && buffer[1] === 0x00) {
+  if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
   }
-
   return null
 }
 
