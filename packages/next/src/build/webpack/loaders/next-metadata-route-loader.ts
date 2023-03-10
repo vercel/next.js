@@ -1,32 +1,35 @@
 import type webpack from 'webpack'
 import path from 'path'
-
-const staticFileRegex = /[\\/](robots\.txt|sitemap\.xml)/
-
-function isStaticRoute(resourcePath: string) {
-  return staticFileRegex.test(resourcePath)
-}
+import { stringifyRequest } from '../stringify-request'
+import { isStaticMetadataRoute } from '../../../lib/is-app-route-route'
 
 function getContentType(resourcePath: string) {
   const filename = path.basename(resourcePath)
-  const [name] = filename.split('.')
+  const [name, ext] = filename.split('.')
+  if (name === 'favicon' && ext === 'ico') return 'image/x-icon'
   if (name === 'sitemap') return 'application/xml'
   if (name === 'robots') return 'text/plain'
   return 'text/plain'
 }
 
-const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction = function (
-  content: string
-) {
+// `import.meta.url` is the resource name of the current module.
+// When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
+const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction = function () {
   const { resourcePath } = this
 
-  const code = isStaticRoute(resourcePath)
+  const code = isStaticMetadataRoute(resourcePath)
     ? `import { NextResponse } from 'next/server'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const content = ${JSON.stringify(content)}
+const filePath = ${stringifyRequest(this, resourcePath)}
+const relativePath = fileURLToPath(import.meta.url)
+const buffer = fs.readFileSync(relativePath)
+
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 export function GET() {
-  return new NextResponse(content, {
+  return new NextResponse(buffer, {
     status: 200,
     headers: {
       'Content-Type': contentType,

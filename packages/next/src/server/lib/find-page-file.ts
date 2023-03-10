@@ -89,14 +89,17 @@ export function createValidFileMatcher(
   // regex for /robots.txt|((j|t)sx?)
   // regex for /sitemap.xml|((j|t)sx?)
   const metadataRoutesRelativePathRegex = new RegExp(
-    `^[\\\\/](robots)\\.(?:${pageExtensions.concat('txt').join('|')})$` +
+    `^[\\\\/]robots\\.(?:${pageExtensions.concat('txt').join('|')})$` +
       '|' +
-      `^[\\\\/](sitemap)\\.(?:${pageExtensions.concat('xml').join('|')})$`
+      `^[\\\\/]sitemap\\.(?:${pageExtensions.concat('xml').join('|')})$` +
+      '|' +
+      `^[\\\\/]favicon\\.ico$`
   )
 
   function isMetadataRouteFile(filePath: string) {
     if (!appDirPath) return false
     const relativePath = filePath.replace(appDirPath, '')
+    // console.log('isMetadataRouteFile', filePath, relativePath, metadataRoutesRelativePathRegex.test(relativePath))
     return metadataRoutesRelativePathRegex.test(relativePath)
   }
 
