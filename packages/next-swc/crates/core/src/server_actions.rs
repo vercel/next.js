@@ -6,7 +6,7 @@ use next_binding::swc::core::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        BytePos, FileName, DUMMY_SP,
+        BytePos, FileName, Span, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -49,6 +49,7 @@ pub fn server_actions<C: Comments>(
         action_idents: Default::default(),
         async_fn_idents: Default::default(),
         exported_idents: Default::default(),
+        action_arrow_span: Default::default(),
 
         annotations: Default::default(),
         extra_items: Default::default(),
@@ -78,6 +79,10 @@ struct ServerActions<C: Comments> {
     action_idents: Vec<Name>,
     async_fn_idents: Vec<Id>,
 
+    // Since arrow functions don't have identifiers, we need to store the span
+    // to find the arrow function later.
+    action_arrow_span: Vec<Span>,
+
     // (ident, is default export)
     exported_idents: Vec<(Id, bool)>,
 
@@ -87,10 +92,11 @@ struct ServerActions<C: Comments> {
 }
 
 impl<C: Comments> ServerActions<C> {
+    // Check if the function or arrow function is an action function
     fn get_action_info(
         &mut self,
-        ident: &mut Ident,
-        function: &mut Box<Function>,
+        maybe_ident: Option<&mut Ident>,
+        maybe_body: Option<&mut BlockStmt>,
     ) -> (bool, bool, bool) {
         let mut is_action_fn = false;
         let mut is_exported = self.in_export_decl;
@@ -101,7 +107,7 @@ impl<C: Comments> ServerActions<C> {
             is_action_fn = true;
         } else {
             // Check if the function has `"use server"`
-            if let Some(body) = &mut function.body {
+            if let Some(body) = maybe_body {
                 let directive_index = get_server_directive_index_in_fn(&body.stmts);
                 if directive_index >= 0 {
                     is_action_fn = true;
@@ -109,15 +115,17 @@ impl<C: Comments> ServerActions<C> {
                 }
             }
 
-            // If it's exported via named export, it's a valid action.
-            let exported_ident = self
-                .exported_idents
-                .iter()
-                .find(|(id, _)| id == &ident.to_id());
-            if let Some((_, is_default)) = exported_ident {
-                is_action_fn = true;
-                is_exported = true;
-                is_default_export = *is_default;
+            if let Some(ident) = maybe_ident {
+                // If it's exported via named export, it's a valid action.
+                let exported_ident = self
+                    .exported_idents
+                    .iter()
+                    .find(|(id, _)| id == &ident.to_id());
+                if let Some((_, is_default)) = exported_ident {
+                    is_action_fn = true;
+                    is_exported = true;
+                    is_default_export = *is_default;
+                }
             }
         }
 
@@ -127,10 +135,11 @@ impl<C: Comments> ServerActions<C> {
     fn add_action_annotations(
         &mut self,
         ident: &Ident,
-        function: &mut Box<Function>,
+        function: Option<&mut Box<Function>>,
+        arrow: Option<&mut ArrowExpr>,
         is_exported: bool,
         is_default_export: bool,
-    ) -> Option<Box<Function>> {
+    ) -> (Option<Box<Function>>, Option<Box<ArrowExpr>>) {
         let need_rename_export = self.in_action_file && (self.in_export_decl || is_exported);
         let action_name: JsWord = if need_rename_export {
             ident.sym.clone()
@@ -175,7 +184,7 @@ impl<C: Comments> ServerActions<C> {
         self.annotations
             .push(annotate(ident, "$$id", hex_encode(result).into()));
 
-        if self.top_level {
+        if self.top_level && arrow.is_none() {
             // myAction.$$bound = [];
             self.annotations.push(annotate(
                 ident,
@@ -213,68 +222,122 @@ impl<C: Comments> ServerActions<C> {
 
             let closure_arg = private_ident!("closure");
 
-            function.body.visit_mut_with(&mut ClosureReplacer {
-                closure_arg: &closure_arg,
-                used_ids: &ids_from_closure,
-            });
+            if let Some(a) = arrow {
+                a.visit_mut_with(&mut ClosureReplacer {
+                    closure_arg: &closure_arg,
+                    used_ids: &ids_from_closure,
+                });
 
-            // myAction.$$bound = [id1, id2]
-            self.annotations.push(annotate(
-                ident,
-                "$$bound",
-                ArrayLit {
-                    span: DUMMY_SP,
-                    elems: ids_from_closure
-                        .iter()
-                        .cloned()
-                        .map(|id| Some(id.as_arg()))
-                        .collect(),
-                }
-                .into(),
-            ));
-
-            let call = CallExpr {
-                span: DUMMY_SP,
-                callee: action_ident.clone().as_callee(),
-                args: vec![ident.clone().make_member(quote_ident!("$$bound")).as_arg()],
-                type_args: Default::default(),
-            };
-
-            let new_fn = Box::new(Function {
-                params: function.params.clone(),
-                decorators: function.decorators.take(),
-                span: function.span,
-                body: Some(BlockStmt {
-                    span: DUMMY_SP,
-                    stmts: vec![Stmt::Return(ReturnStmt {
+                // myAction.$$bound = [id1, id2]
+                self.annotations.push(annotate(
+                    ident,
+                    "$$bound",
+                    ArrayLit {
                         span: DUMMY_SP,
-                        arg: Some(call.into()),
-                    })],
-                }),
-                is_generator: function.is_generator,
-                is_async: function.is_async,
-                type_params: Default::default(),
-                return_type: Default::default(),
-            });
-
-            self.extra_items
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: FnDecl {
-                        ident: action_ident,
-                        function: Box::new(Function {
-                            params: vec![closure_arg.into()],
-                            ..*function.take()
-                        }),
-                        declare: Default::default(),
+                        elems: ids_from_closure
+                            .iter()
+                            .cloned()
+                            .map(|id| Some(id.as_arg()))
+                            .collect(),
                     }
                     .into(),
-                })));
+                ));
 
-            return Some(new_fn);
+                let call = CallExpr {
+                    span: DUMMY_SP,
+                    callee: action_ident.clone().as_callee(),
+                    args: vec![ident.clone().make_member(quote_ident!("$$bound")).as_arg()],
+                    type_args: Default::default(),
+                };
+
+                let new_arrow = ArrowExpr {
+                    span: DUMMY_SP,
+                    params: a.params.clone(),
+                    body: BlockStmtOrExpr::Expr(Box::new(Expr::Call(call))),
+                    is_async: a.is_async,
+                    is_generator: a.is_generator,
+                    type_params: Default::default(),
+                    return_type: Default::default(),
+                };
+
+                self.extra_items
+                    .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                        span: DUMMY_SP,
+                        kind: VarDeclKind::Var,
+                        declare: Default::default(),
+                        decls: vec![VarDeclarator {
+                            span: DUMMY_SP,
+                            name: action_ident.into(),
+                            init: None,
+                            definite: Default::default(),
+                        }],
+                    })))));
+
+                return (None, Some(Box::new(new_arrow)));
+            } else if let Some(f) = function {
+                f.body.visit_mut_with(&mut ClosureReplacer {
+                    closure_arg: &closure_arg,
+                    used_ids: &ids_from_closure,
+                });
+
+                // myAction.$$bound = [id1, id2]
+                self.annotations.push(annotate(
+                    ident,
+                    "$$bound",
+                    ArrayLit {
+                        span: DUMMY_SP,
+                        elems: ids_from_closure
+                            .iter()
+                            .cloned()
+                            .map(|id| Some(id.as_arg()))
+                            .collect(),
+                    }
+                    .into(),
+                ));
+
+                let call = CallExpr {
+                    span: DUMMY_SP,
+                    callee: action_ident.clone().as_callee(),
+                    args: vec![ident.clone().make_member(quote_ident!("$$bound")).as_arg()],
+                    type_args: Default::default(),
+                };
+
+                let new_fn = Function {
+                    params: f.params.clone(),
+                    decorators: f.decorators.take(),
+                    span: f.span,
+                    body: Some(BlockStmt {
+                        span: DUMMY_SP,
+                        stmts: vec![Stmt::Return(ReturnStmt {
+                            span: DUMMY_SP,
+                            arg: Some(call.into()),
+                        })],
+                    }),
+                    is_generator: f.is_generator,
+                    is_async: f.is_async,
+                    type_params: Default::default(),
+                    return_type: Default::default(),
+                };
+
+                self.extra_items
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                        span: DUMMY_SP,
+                        decl: FnDecl {
+                            ident: action_ident,
+                            function: Box::new(Function {
+                                params: vec![closure_arg.into()],
+                                ..*f.take()
+                            }),
+                            declare: Default::default(),
+                        }
+                        .into(),
+                    })));
+
+                return (Some(Box::new(new_fn)), None);
+            }
         }
 
-        None
+        (None, None)
     }
 }
 
@@ -292,6 +355,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         self.in_export_decl = true;
         self.in_default_export_decl = true;
         decl.decl.visit_mut_with(self);
+        self.in_export_decl = old;
+        self.in_default_export_decl = old_default;
+    }
+
+    fn visit_mut_export_default_expr(&mut self, expr: &mut ExportDefaultExpr) {
+        let old = self.in_export_decl;
+        let old_default = self.in_default_export_decl;
+        self.in_export_decl = true;
+        self.in_default_export_decl = true;
+        expr.expr.visit_mut_with(self);
         self.in_export_decl = old;
         self.in_default_export_decl = old_default;
     }
@@ -321,7 +394,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let (is_action_fn, is_exported, is_default_export) =
-            self.get_action_info(f.ident.as_mut().unwrap(), &mut f.function);
+            self.get_action_info(f.ident.as_mut(), f.function.body.as_mut());
 
         {
             // Visit children
@@ -357,9 +430,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .emit();
             });
         } else {
-            let maybe_new_fn = self.add_action_annotations(
+            let (maybe_new_fn, _) = self.add_action_annotations(
                 f.ident.as_mut().unwrap(),
-                &mut f.function,
+                Some(&mut f.function),
+                None,
                 is_exported,
                 is_default_export,
             );
@@ -381,7 +455,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let (is_action_fn, is_exported, is_default_export) =
-            self.get_action_info(&mut f.ident, &mut f.function);
+            self.get_action_info(Some(&mut f.ident), f.function.body.as_mut());
 
         {
             // Visit children
@@ -414,9 +488,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .emit();
             });
         } else {
-            let maybe_new_fn = self.add_action_annotations(
+            let (maybe_new_fn, _) = self.add_action_annotations(
                 &f.ident,
-                &mut f.function,
+                Some(&mut f.function),
+                None,
                 is_exported,
                 is_default_export,
             );
@@ -425,6 +500,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 f.function = new_fn;
             }
         }
+    }
+
+    fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
+        // Arrow expressions need to be visited in prepass to determine if it's
+        // an action function or not.
+        if self.in_prepass {
+            let (is_action_fn, _, _) = self.get_action_info(
+                None,
+                if let BlockStmtOrExpr::BlockStmt(block) = &mut a.body {
+                    Some(block)
+                } else {
+                    None
+                },
+            );
+
+            // Store the span of the arrow expression if it's an action function.
+            if is_action_fn && a.is_async {
+                self.action_arrow_span.push(a.span);
+            }
+            return;
+        }
+
+        a.visit_mut_children_with(self);
     }
 
     fn visit_mut_var_decl(&mut self, n: &mut VarDecl) {
@@ -438,7 +536,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 if let Pat::Ident(ident) = &mut decl.name {
                     if let Some(fn_expr) = init.as_mut_fn_expr() {
                         // Collect `const foo = async function () {}` declarations. For now we
-                        // ignore other types of assignments.
+                        // just ignore other types of assignments.
                         if fn_expr.function.is_async {
                             if self.in_prepass {
                                 self.async_fn_idents.push(ident.id.to_id());
@@ -464,10 +562,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
                 }
             }
-
-            if self.in_prepass {
-                return;
-            }
         }
 
         n.visit_mut_children_with(self);
@@ -481,7 +575,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
         n.visit_mut_children_with(self);
 
-        if self.in_module || self.in_prepass {
+        if self.in_module {
             return;
         }
 
@@ -610,7 +704,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     if let Some(init) = &decl.init {
                                         match &**init {
                                             Expr::Fn(_f) => {}
-                                            Expr::Arrow(_f) => {}
+                                            Expr::Arrow(_a) => {}
                                             _ => {
                                                 disallowed_export_span = *span;
                                             }
@@ -652,21 +746,38 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             disallowed_export_span = *span;
                         }
                     },
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-                        expr,
-                        span,
-                        ..
-                    })) => match &**expr {
-                        Expr::Fn(_f) => {}
-                        Expr::Ident(ident) => {
-                            if !self.async_fn_idents.contains(&ident.to_id()) {
-                                disallowed_export_span = *span;
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(default_expr)) => {
+                        match &mut *default_expr.expr {
+                            Expr::Fn(_f) => {}
+                            Expr::Arrow(a) => {
+                                if !self.action_arrow_span.contains(&a.span) {
+                                    disallowed_export_span = default_expr.span;
+                                } else {
+                                    // We need to give a name to the arrow function
+                                    // action and hoist it to the top.
+                                    let action_name: JsWord =
+                                        format!("$ACTION_default_{}", self.action_index).into();
+                                    self.action_index += 1;
+                                    let ident = Ident::new(action_name, DUMMY_SP);
+                                    self.add_action_annotations(&ident, None, Some(a), true, true);
+                                    default_expr.expr = Box::new(Expr::Assign(AssignExpr {
+                                        span: DUMMY_SP,
+                                        left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.into()))),
+                                        op: op!("="),
+                                        right: Box::new(Expr::Arrow(a.clone())),
+                                    }));
+                                }
+                            }
+                            Expr::Ident(ident) => {
+                                if !self.async_fn_idents.contains(&ident.to_id()) {
+                                    disallowed_export_span = default_expr.span;
+                                }
+                            }
+                            _ => {
+                                disallowed_export_span = default_expr.span;
                             }
                         }
-                        _ => {
-                            disallowed_export_span = *span;
-                        }
-                    },
+                    }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll { span, .. })) => {
                         disallowed_export_span = *span;
                     }
