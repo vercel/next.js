@@ -1,4 +1,5 @@
 'use client'
+
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import { FlightRouterState, FlightData } from '../../../server/app-render'
 import {
@@ -33,24 +34,35 @@ export async function fetchServerResponse(
     headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 
-  const res = await fetch(url.toString(), {
-    // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
-    credentials: 'same-origin',
-    headers,
-  })
-  const canonicalUrl = res.redirected
-    ? urlToUrlWithoutFlightMarker(res.url)
-    : undefined
+  try {
+    const res = await fetch(url.toString(), {
+      // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
+      credentials: 'same-origin',
+      headers,
+    })
+    const canonicalUrl = res.redirected
+      ? urlToUrlWithoutFlightMarker(res.url)
+      : undefined
 
-  const isFlightResponse =
-    res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
+    const isFlightResponse =
+      res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
-  // If fetch returns something different than flight response handle it like a mpa navigation
-  if (!isFlightResponse) {
-    return [res.url, undefined]
+    // If fetch returns something different than flight response handle it like a mpa navigation
+    if (!isFlightResponse) {
+      return [res.url, undefined]
+    }
+
+    // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
+    const flightData: FlightData = await createFromFetch(Promise.resolve(res))
+    return [flightData, canonicalUrl]
+  } catch (err) {
+    console.error(
+      'Failed to fetch RSC payload. Falling back to browser navigation.',
+      err
+    )
+    // If fetch fails handle it like a mpa navigation
+    // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
+    // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
+    return [url.toString(), undefined]
   }
-
-  // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-  const flightData: FlightData = await createFromFetch(Promise.resolve(res))
-  return [flightData, canonicalUrl]
 }

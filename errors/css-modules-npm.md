@@ -21,4 +21,8 @@ imported by you, in your application.
 ---
 
 If this is **first party code**, try
-[including said monorepo package in the compilation pipeline](https://github.com/vercel/next.js/tree/canary/examples/with-yarn-workspaces).
+[including monorepo packages in the compilation pipeline](https://nextjs.org/docs/advanced-features/compiler#module-transpilation).
+
+---
+
+This limitation does not exist when using the `app` directory: [beta.nextjs.org/docs](https://beta.nextjs.org/docs).

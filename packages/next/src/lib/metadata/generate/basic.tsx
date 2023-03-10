@@ -7,23 +7,35 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return (
     <>
       <meta charSet="utf-8" />
-      {metadata.title !== null ? (
+      {metadata.title !== null && metadata.title.absolute ? (
         <title>{metadata.title.absolute}</title>
       ) : null}
       <Meta name="description" content={metadata.description} />
       <Meta name="application-name" content={metadata.applicationName} />
-      {metadata.authors &&
-        metadata.authors.map((author, index) => (
-          <React.Fragment key={index}>
-            {author.url && <link rel="author" href={author.url.toString()} />}
-            <Meta name="author" content={author.name} />
-          </React.Fragment>
-        ))}
-      <Meta name="manifest" content={metadata.manifest?.toString()} />
+      {metadata.authors
+        ? metadata.authors.map((author, index) => (
+            <React.Fragment key={index}>
+              {author.url && <link rel="author" href={author.url.toString()} />}
+              <Meta name="author" content={author.name} />
+            </React.Fragment>
+          ))
+        : null}
+      {metadata.manifest ? (
+        <link rel="manifest" href={metadata.manifest.toString()} />
+      ) : null}
       <Meta name="generator" content={metadata.generator} />
       <Meta name="keywords" content={metadata.keywords?.join(',')} />
       <Meta name="referrer" content={metadata.referrer} />
-      <Meta name="theme-color" content={metadata.themeColor} />
+      {metadata.themeColor
+        ? metadata.themeColor.map((themeColor, index) => (
+            <Meta
+              key={index}
+              name="theme-color"
+              content={themeColor.color}
+              media={themeColor.media}
+            />
+          ))
+        : null}
       <Meta name="color-scheme" content={metadata.colorScheme} />
       <Meta name="viewport" content={metadata.viewport} />
       <Meta name="creator" content={metadata.creator} />

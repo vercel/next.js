@@ -8,7 +8,7 @@ export function getNextFontError(
     const resourceResolveData = module.resourceResolveData
     if (
       !module.loaders.find((loader: any) =>
-        loader.loader.includes('next-font-loader/index.js')
+        /next-font-loader[/\\]index.js/.test(loader.loader)
       )
     ) {
       return false

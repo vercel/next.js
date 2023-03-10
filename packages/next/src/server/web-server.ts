@@ -26,6 +26,7 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { IncrementalCache } from './lib/incremental-cache'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -37,6 +38,7 @@ interface WebServerOptions extends Options {
       Pick<BaseServer['renderOpts'], 'buildId'>
     pagesRenderToHTML?: typeof import('./render').renderToHTML
     appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
+    incrementalCacheHandler?: any
   }
 }
 
@@ -52,8 +54,40 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
-  protected getIncrementalCache() {
-    return {} as any
+  protected getIncrementalCache({
+    requestHeaders,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+  }) {
+    const dev = !!this.renderOpts.dev
+    // incremental-cache is request specific with a shared
+    // although can have shared caches in module scope
+    // per-cache handler
+    return new IncrementalCache({
+      dev,
+      requestHeaders,
+      appDir: this.hasAppDir,
+      minimalMode: this.minimalMode,
+      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk: false,
+      CurCacheHandler:
+        this.serverOptions.webServerConfig.incrementalCacheHandler,
+      getPrerenderManifest: () => {
+        if (dev) {
+          return {
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }
+        } else {
+          return this.getPrerenderManifest()
+        }
+      },
+    })
   }
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
@@ -123,7 +157,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getPrerenderManifest() {
     return {
-      version: 3 as const,
+      version: 4 as const,
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
@@ -142,9 +176,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
-  protected getFontLoaderManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts
-      .fontLoaderManifest
+  protected getNextFontManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
   protected generateRoutes(): RouterOptions {

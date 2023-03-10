@@ -3,12 +3,11 @@ const v1 = 'v1';
 export function Item({ id1 , id2  }) {
     const v2 = id2;
     async function deleteItem() {
-        return $ACTION_deleteItem(deleteItem.$$closure);
+        return $ACTION_deleteItem(deleteItem.$$bound);
     }
     deleteItem.$$typeof = Symbol.for("react.server.reference");
-    deleteItem.$$filepath = "/app/item.js";
-    deleteItem.$$name = "$ACTION_deleteItem";
-    deleteItem.$$closure = [
+    deleteItem.$$id = "de52fdc8536c533b05b2e525bd43b18cf019cbb3";
+    deleteItem.$$bound = [
         id1,
         v2
     ];

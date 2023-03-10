@@ -18,12 +18,11 @@ export function y(p, [p1, { p2  }], ...p3) {
         const f8 = 1;
     }
     async function action() {
-        return $ACTION_action(action.$$closure);
+        return $ACTION_action(action.$$bound);
     }
     action.$$typeof = Symbol.for("react.server.reference");
-    action.$$filepath = "/app/item.js";
-    action.$$name = "$ACTION_action";
-    action.$$closure = [
+    action.$$id = "b3d2707f04906fa37fdc7bee4f53e41053034751";
+    action.$$bound = [
         f2,
         f2,
         f11,

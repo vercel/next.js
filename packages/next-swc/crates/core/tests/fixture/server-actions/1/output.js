@@ -1,12 +1,11 @@
 /* __next_internal_action_entry_do_not_use__ $ACTION_deleteItem */ import deleteFromDb from 'db'
 export function Item({ id1 , id2  }) {
     async function deleteItem() {
-        return $ACTION_deleteItem(deleteItem.$$closure);
+        return $ACTION_deleteItem(deleteItem.$$bound);
     }
     deleteItem.$$typeof = Symbol.for("react.server.reference");
-    deleteItem.$$filepath = "/app/item.js";
-    deleteItem.$$name = "$ACTION_deleteItem";
-    deleteItem.$$closure = [
+    deleteItem.$$id = "de52fdc8536c533b05b2e525bd43b18cf019cbb3";
+    deleteItem.$$bound = [
         id1,
         id2
     ];

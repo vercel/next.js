@@ -24,12 +24,13 @@ import {
   EXPORT_MARKER,
   CLIENT_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -397,17 +398,17 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextConfigOutput: nextConfig.output,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: hasAppDir,
-      fontLoaderManifest: require(join(
+      nextFontManifest: require(join(
         distDir,
         'server',
-        `${FONT_LOADER_MANIFEST}.json`
+        `${NEXT_FONT_MANIFEST}.json`
       )),
     }
 
@@ -443,13 +444,19 @@ export default async function exportApp(
       renderOpts.serverComponentManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
-        `${CLIENT_REFERENCE_MANIFEST}.json`
+        CLIENT_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
       // @ts-expect-error untyped
       renderOpts.serverCSSManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
         FLIGHT_SERVER_CSS_MANIFEST + '.json'
+      )) as PagesManifest
+      // @ts-expect-error untyped
+      renderOpts.serverActionsManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        SERVER_REFERENCE_MANIFEST + '.json'
       )) as PagesManifest
     }
 
@@ -481,7 +488,9 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) => !isAPIRoute(exportPathMap[route].page)
+      (route) =>
+        (exportPathMap[route] as any)._isAppDir ||
+        !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -649,6 +658,10 @@ export default async function exportApp(
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
+            isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+            fetchCache: nextConfig.experimental.appDir,
+            incrementalCacheHandlerPath:
+              nextConfig.experimental.incrementalCacheHandlerPath,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -669,6 +682,11 @@ export default async function exportApp(
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
               configuration.initialPageRevalidationMap[path] =
                 result.fromBuildExportRevalidate
+            }
+
+            if (typeof result.fromBuildExportMeta !== 'undefined') {
+              configuration.initialPageMetaMap[path] =
+                result.fromBuildExportMeta
             }
 
             if (result.ssgNotFound === true) {
@@ -701,7 +719,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir)
+          const pagePath = getPagePath(pageName, distDir, undefined, false)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

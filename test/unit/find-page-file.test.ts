@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import {
   findPageFile,
-  isLayoutsLeafPage,
+  createValidFileMatcher,
 } from 'next/dist/server/lib/find-page-file'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
 
@@ -45,26 +45,46 @@ describe('findPageFile', () => {
   })
 })
 
-describe('isLayoutsLeafPage', () => {
-  const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
-  it('should determine either server or client component page file as leaf node page', () => {
-    expect(isLayoutsLeafPage('page.js', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('./page.js', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('./page.jsx', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('/page.ts', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('/path/page.tsx', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('\\path\\page.tsx', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('.\\page.jsx', pageExtensions)).toBe(true)
-    expect(isLayoutsLeafPage('\\page.js', pageExtensions)).toBe(true)
+describe('createPageFileMatcher', () => {
+  describe('isAppRouterPage', () => {
+    const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+    const fileMatcher = createValidFileMatcher(pageExtensions, '')
+
+    it('should determine either server or client component page file as leaf node page', () => {
+      expect(fileMatcher.isAppRouterPage('page.js')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('./page.js')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('./page.jsx')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('/page.ts')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('/path/page.tsx')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('\\path\\page.tsx')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('.\\page.jsx')).toBe(true)
+      expect(fileMatcher.isAppRouterPage('\\page.js')).toBe(true)
+    })
+
+    it('should determine other files under layout routes as non leaf node', () => {
+      expect(fileMatcher.isAppRouterPage('./not-a-page.js')).toBe(false)
+      expect(fileMatcher.isAppRouterPage('not-a-page.js')).toBe(false)
+      expect(fileMatcher.isAppRouterPage('./page.component.jsx')).toBe(false)
+      expect(fileMatcher.isAppRouterPage('layout.js')).toBe(false)
+      expect(fileMatcher.isAppRouterPage('page')).toBe(false)
+    })
   })
 
-  it('should determine other files under layout routes as non leaf node', () => {
-    expect(isLayoutsLeafPage('./not-a-page.js', pageExtensions)).toBe(false)
-    expect(isLayoutsLeafPage('not-a-page.js', pageExtensions)).toBe(false)
-    expect(isLayoutsLeafPage('./page.component.jsx', pageExtensions)).toBe(
-      false
-    )
-    expect(isLayoutsLeafPage('layout.js', pageExtensions)).toBe(false)
-    expect(isLayoutsLeafPage('page', pageExtensions)).toBe(false)
+  describe('isMetadataRouteFile', () => {
+    const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+    const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
+    it('should determine top level metadata routes', () => {
+      expect(fileMatcher.isMetadataRouteFile('app/route.js')).toBe(false)
+      expect(fileMatcher.isMetadataRouteFile('app/page.js')).toBe(false)
+      expect(fileMatcher.isMetadataRouteFile('pages/index.js')).toBe(false)
+
+      expect(fileMatcher.isMetadataRouteFile('app/robots.txt')).toBe(true)
+      expect(fileMatcher.isMetadataRouteFile('app/path/robots.txt')).toBe(false)
+
+      expect(fileMatcher.isMetadataRouteFile('app/sitemap.xml')).toBe(true)
+      expect(fileMatcher.isMetadataRouteFile('app/path/sitemap.xml')).toBe(
+        false
+      )
+    })
   })
 })

@@ -26,7 +26,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
 
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
-    this.expression = new RegExp(`\\/page\\.(?:${extensions.join('|')})$`)
+    this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
 
     const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
 

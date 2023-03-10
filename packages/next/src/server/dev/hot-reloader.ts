@@ -32,7 +32,7 @@ import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { findPageFile } from '../lib/find-page-file'
 import {
   BUILDING,
-  entries,
+  getEntries,
   EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
@@ -49,7 +49,10 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
+import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
+import type { Telemetry } from '../../telemetry/storage'
+import { parseVersionInfo, VersionInfo } from './parse-version-info'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -179,6 +182,11 @@ export default class HotReloader {
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
+  private telemetry: Telemetry
+  private versionInfo: VersionInfo = {
+    staleness: 'unknown',
+    installed: '0.0.0',
+  }
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -194,6 +202,7 @@ export default class HotReloader {
       previewProps,
       rewrites,
       appDir,
+      telemetry,
     }: {
       config: NextConfigComplete
       pagesDir?: string
@@ -202,6 +211,7 @@ export default class HotReloader {
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
       appDir?: string
+      telemetry: Telemetry
     }
   ) {
     this.buildId = buildId
@@ -214,6 +224,7 @@ export default class HotReloader {
     this.serverStats = null
     this.edgeServerStats = null
     this.serverPrevDocumentHash = null
+    this.telemetry = telemetry
 
     this.config = config
     this.hasServerComponents = !!this.appDir
@@ -323,8 +334,8 @@ export default class HotReloader {
             case 'client-hmr-latency': {
               traceChild = {
                 name: payload.event,
-                startTime: BigInt(payload.startTime * 1000 * 1000),
-                endTime: BigInt(payload.endTime * 1000 * 1000),
+                startTime: BigInt(payload.startTime) * BigInt(1000 * 1000),
+                endTime: BigInt(payload.endTime) * BigInt(1000 * 1000),
               }
               break
             }
@@ -378,7 +389,24 @@ export default class HotReloader {
                   stackTrace
                 )?.[1]
                 if (file) {
-                  fileMessage = ` when ${file} changed`
+                  // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
+                  // If it's a webpack loader URL, it will start with '(app-client)/./'
+                  if (file.startsWith('(app-client)/./')) {
+                    const fileUrl = new URL(file, 'file://')
+                    const cwd = process.cwd()
+                    const modules = fileUrl.searchParams
+                      .getAll('modules')
+                      .map((filepath) => filepath.slice(cwd.length + 1))
+                      .filter(
+                        (filepath) => !filepath.startsWith('node_modules')
+                      )
+
+                    if (modules.length > 0) {
+                      fileMessage = ` when ${modules.join(', ')} changed`
+                    }
+                  } else {
+                    fileMessage = ` when ${file} changed`
+                  }
                 }
               }
 
@@ -413,6 +441,36 @@ export default class HotReloader {
       .traceAsyncFn(() =>
         recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
       )
+  }
+
+  private async getVersionInfo(span: Span, enabled: boolean) {
+    const versionInfoSpan = span.traceChild('get-version-info')
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
+      let installed = '0.0.0'
+
+      if (!enabled) {
+        return { installed, staleness: 'unknown' }
+      }
+
+      try {
+        installed = require('next/package.json').version
+
+        const registry = getRegistry()
+        const res = await fetch(`${registry}-/package/next/dist-tags`)
+
+        if (!res.ok) return { installed, staleness: 'unknown' }
+
+        const tags = await res.json()
+
+        return parseVersionInfo({
+          installed,
+          latest: tags.latest,
+          canary: tags.canary,
+        })
+      } catch {
+        return { installed, staleness: 'unknown' }
+      }
+    })
   }
 
   private async getWebpackConfig(span: Span) {
@@ -474,6 +532,8 @@ export default class HotReloader {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
+        originalRewrites: this.config._originalRewrites,
+        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
       }
@@ -531,6 +591,12 @@ export default class HotReloader {
         afterFiles: [],
         fallback: [],
       },
+      originalRewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
@@ -573,6 +639,11 @@ export default class HotReloader {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
+    this.versionInfo = await this.getVersionInfo(
+      startSpan,
+      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
+    )
+
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
     await fs.mkdir(this.distDir, { recursive: true })
@@ -587,6 +658,8 @@ export default class HotReloader {
     for (const config of this.activeConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
+        const outputPath = this.multiCompiler?.outputPath || ''
+        const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
@@ -599,8 +672,12 @@ export default class HotReloader {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
 
-            const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
-            const [, key, page] = result! // this match should always happen
+            const result =
+              /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
+                entryKey
+              )
+            const [, key /* pageType*/, , page] = result! // this match should always happen
+
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return
@@ -620,6 +697,19 @@ export default class HotReloader {
               }
             }
 
+            // For child entries, if it has an entry file and it's gone, remove it
+            if (isChildEntry) {
+              if (entryData.absoluteEntryFilePath) {
+                const pageExists =
+                  !dispose &&
+                  (await fileExists(entryData.absoluteEntryFilePath))
+                if (!pageExists) {
+                  delete entries[entryKey]
+                  return
+                }
+              }
+            }
+
             const hasAppDir = !!this.appDir
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
@@ -633,9 +723,15 @@ export default class HotReloader {
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+            const pageType = entryData.bundlePath.startsWith('pages/')
+              ? 'pages'
+              : entryData.bundlePath.startsWith('app/')
+              ? 'app'
+              : 'root'
             await runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
+              pageType,
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
@@ -716,7 +812,6 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
-
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
@@ -746,7 +841,6 @@ export default class HotReloader {
             })
           })
         )
-
         return entrypoints
       }
     }
@@ -1056,7 +1150,8 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      this.multiCompiler.compilers
+      this.multiCompiler.compilers,
+      this.versionInfo
     )
 
     let booted = false
@@ -1098,7 +1193,8 @@ export default class HotReloader {
   }
 
   public invalidate() {
-    return getInvalidator()?.invalidate()
+    const outputPath = this.multiCompiler?.outputPath
+    return outputPath && getInvalidator(outputPath)?.invalidate()
   }
 
   public async stop(): Promise<void> {

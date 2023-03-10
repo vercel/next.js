@@ -25,13 +25,10 @@ import {
   NextConfig,
 } from './config-shared'
 import { loadWebpackHook } from './config-utils'
-import {
-  ImageConfig,
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../shared/lib/image-config'
+import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
+import { flushAndExit } from '../telemetry/flush-and-exit'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -167,14 +164,20 @@ function assignDefaults(
             value
           ) as (keyof ExperimentalConfig)[]) {
             const featureValue = value[featureName]
-            if (
-              featureName === 'appDir' &&
-              featureValue === true &&
-              !isAboveNodejs16
-            ) {
-              throw new Error(
-                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-              )
+            if (featureName === 'appDir' && featureValue === true) {
+              if (!isAboveNodejs16) {
+                throw new Error(
+                  `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
+                )
+              }
+              // auto enable clientRouterFilter if not manually set
+              // when appDir is enabled
+              if (
+                typeof userConfig.experimental.clientRouterFilter ===
+                'undefined'
+              ) {
+                userConfig.experimental.clientRouterFilter = true
+              }
             }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
@@ -256,6 +259,29 @@ function assignDefaults(
   )
 
   const result = { ...defaultConfig, ...config }
+
+  if (result.output === 'export') {
+    if (result.i18n) {
+      throw new Error(
+        'Specified "i18n" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+    if (result.rewrites) {
+      throw new Error(
+        'Specified "rewrites" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+    if (result.redirects) {
+      throw new Error(
+        'Specified "redirects" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+    if (result.headers) {
+      throw new Error(
+        'Specified "headers" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+  }
 
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
@@ -344,126 +370,10 @@ function assignDefaults(
       if (config.assetPrefix?.startsWith('http')) {
         images.domains.push(new URL(config.assetPrefix).hostname)
       }
-
-      if (images.domains.length > 50) {
-        throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = images.domains.filter(
-        (d: unknown) => typeof d !== 'string'
-      )
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    const remotePatterns = result?.images?.remotePatterns
-    if (remotePatterns) {
-      if (!Array.isArray(remotePatterns)) {
-        throw new Error(
-          `Specified images.remotePatterns should be an Array received ${typeof remotePatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (remotePatterns.length > 50) {
-        throw new Error(
-          `Specified images.remotePatterns exceeds length of 50, received length (${remotePatterns.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const validProps = new Set(['protocol', 'hostname', 'pathname', 'port'])
-      const requiredProps = ['hostname']
-      const invalidPatterns = remotePatterns.filter(
-        (d: unknown) =>
-          !d ||
-          typeof d !== 'object' ||
-          Object.entries(d).some(
-            ([k, v]) => !validProps.has(k) || typeof v !== 'string'
-          ) ||
-          requiredProps.some((k) => !(k in d))
-      )
-      if (invalidPatterns.length > 0) {
-        throw new Error(
-          `Invalid images.remotePatterns values:\n${invalidPatterns
-            .map((item) => JSON.stringify(item))
-            .join(
-              '\n'
-            )}\n\nremotePatterns value must follow format { protocol: 'https', hostname: 'example.com', port: '', pathname: '/imgs/**' }.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    if (images.deviceSizes) {
-      const { deviceSizes } = images
-      if (!Array.isArray(deviceSizes)) {
-        throw new Error(
-          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (deviceSizes.length > 25) {
-        throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = deviceSizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 1 || d > 10000
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-    if (images.imageSizes) {
-      const { imageSizes } = images
-      if (!Array.isArray(imageSizes)) {
-        throw new Error(
-          `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (imageSizes.length > 25) {
-        throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = imageSizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 1 || d > 10000
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
     }
 
     if (!images.loader) {
       images.loader = 'default'
-    }
-
-    if (!VALID_LOADERS.includes(images.loader)) {
-      throw new Error(
-        `Specified images.loader should be one of (${VALID_LOADERS.join(
-          ', '
-        )}), received invalid value (${
-          images.loader
-        }).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
     }
 
     if (
@@ -506,69 +416,6 @@ function assignDefaults(
       images.loader = 'custom'
       images.loaderFile = absolutePath
     }
-
-    if (
-      images.minimumCacheTTL &&
-      (!Number.isInteger(images.minimumCacheTTL) || images.minimumCacheTTL < 0)
-    ) {
-      throw new Error(
-        `Specified images.minimumCacheTTL should be an integer 0 or more received (${images.minimumCacheTTL}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    if (images.formats) {
-      const { formats } = images
-      if (!Array.isArray(formats)) {
-        throw new Error(
-          `Specified images.formats should be an Array received ${typeof formats}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-      if (formats.length < 1 || formats.length > 2) {
-        throw new Error(
-          `Specified images.formats must be length 1 or 2, received length (${formats.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = formats.filter((f) => {
-        return f !== 'image/avif' && f !== 'image/webp'
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.formats should be an Array of mime type strings, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
-    if (
-      typeof images.dangerouslyAllowSVG !== 'undefined' &&
-      typeof images.dangerouslyAllowSVG !== 'boolean'
-    ) {
-      throw new Error(
-        `Specified images.dangerouslyAllowSVG should be a boolean received (${images.dangerouslyAllowSVG}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    if (
-      typeof images.contentSecurityPolicy !== 'undefined' &&
-      typeof images.contentSecurityPolicy !== 'string'
-    ) {
-      throw new Error(
-        `Specified images.contentSecurityPolicy should be a string received (${images.contentSecurityPolicy}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
-
-    const unoptimized = result?.images?.unoptimized
-    if (
-      typeof unoptimized !== 'undefined' &&
-      typeof unoptimized !== 'boolean'
-    ) {
-      throw new Error(
-        `Specified images.unoptimized should be a boolean, received (${unoptimized}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-      )
-    }
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
@@ -607,10 +454,10 @@ function assignDefaults(
     silent
   )
 
-  if (result.experimental?.swcMinifyDebugOptions) {
+  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
     if (!silent) {
       Log.warn(
-        'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+        'SWC minify debug option is not supported anymore, please remove it from your config.'
       )
     }
   }
@@ -939,21 +786,37 @@ export default async function loadConfig(
     const validateResult = validateConfig(userConfig)
 
     if (!silent && validateResult.errors) {
-      curLog.warn(`Invalid next.config.js options detected: `)
-
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
       const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
         fieldLabels: 'js',
       })
+
+      let shouldExit = false
+      let messages = [`Invalid ${configFileName} options detected: `]
+
       for (const error of aggregatedAjvErrors) {
-        console.error(`  - ${error.message}`)
+        messages.push(`    ${error.message}`)
+        if (error.message.startsWith('The value at .images.')) {
+          shouldExit = true
+        }
       }
 
-      console.error(
-        '\nSee more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      messages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
       )
+
+      if (shouldExit) {
+        for (const message of messages) {
+          curLog.error(message)
+        }
+        await flushAndExit(1)
+      } else {
+        for (const message of messages) {
+          curLog.warn(message)
+        }
+      }
     }
 
     if (Object.keys(userConfig).length === 0) {

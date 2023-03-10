@@ -21,6 +21,8 @@ import { fileExists } from '../lib/file-exists'
 import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { warn } from '../build/output/log'
+import { getPossibleInstrumentationHookFilenames } from '../build/utils'
+import { getNpxCommand } from '../lib/helpers/get-npx-command'
 
 let isTurboSession = false
 let sessionStopHandled = false
@@ -170,9 +172,10 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await Promise.resolve(
+    const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version')
-    )
+    )) as typeof import('../lib/get-package-version')
+
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -182,6 +185,24 @@ const nextDev: CliCommand = async (argv) => {
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
+      )
+    }
+
+    const { dependencies, devDependencies } = await getDependencies({
+      cwd: dir,
+    })
+
+    // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
+    if (
+      dependencies['@next/font'] ||
+      (devDependencies['@next/font'] &&
+        devDependencies['@next/font'] !== 'workspace:*')
+    ) {
+      const command = getNpxCommand(dir)
+      Log.warn(
+        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+          'The `@next/font` package will be removed in Next.js 14. ' +
+          `You can migrate by running \`${command} @next/codemod@latest built-in-next-font .\`. Read more: https://nextjs.org/docs/messages/built-in-next-font`
       )
     }
   }
@@ -249,7 +270,7 @@ const nextDev: CliCommand = async (argv) => {
     let babelrc = await getBabelConfigFile(dir)
     if (babelrc) babelrc = path.basename(babelrc)
 
-    let hasNonDefaultConfig
+    let nonSupportedConfig: string[] = []
     let rawNextConfig: NextConfig = {}
 
     try {
@@ -296,14 +317,14 @@ const nextDev: CliCommand = async (argv) => {
         }
       }
 
-      hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
+      nonSupportedConfig = Object.keys(rawNextConfig).filter((key) =>
         checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
       )
     } catch (e) {
       console.error('Unexpected error occurred while checking config', e)
     }
 
-    const hasWarningOrError = babelrc || hasNonDefaultConfig
+    const hasWarningOrError = babelrc || nonSupportedConfig.length
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
@@ -328,13 +349,17 @@ const nextDev: CliCommand = async (argv) => {
         `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
       )}`
     }
-    if (hasNonDefaultConfig) {
+    if (nonSupportedConfig.length) {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
         `The only configurations options supported are:\n${supportedTurbopackNextConfigOptions
           .map((name) => `    - ${chalk.cyan(name)}\n`)
-          .join('')}  To use Turbopack, remove other configuration options.`
+          .join(
+            ''
+          )}  To use Turbopack, remove the following configuration options:\n${nonSupportedConfig.map(
+          (name) => `    - ${chalk.red(name)}\n`
+        )}`
       )}   `
     }
 
@@ -440,7 +465,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})
 
-    await telemetry.flush()
+    if (!isCustomTurbopack) {
+      await telemetry.flush()
+    }
     return server
   } else {
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
@@ -450,22 +477,27 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       let config: NextConfig
       let childProcess: ChildProcess | null = null
 
-      const isDebugging = process.execArgv.some((localArg) =>
-        localArg.startsWith('--inspect')
-      )
+      const isDebugging =
+        process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+        process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
 
-      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
-        localArg.startsWith('--inspect-brk')
-      )
+      const isDebuggingWithBrk =
+        process.execArgv.some((localArg) =>
+          localArg.startsWith('--inspect-brk')
+        ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
 
       const debugPort = (() => {
-        const debugPortStr = process.execArgv
-          .find(
-            (localArg) =>
-              localArg.startsWith('--inspect') ||
-              localArg.startsWith('--inspect-brk')
-          )
-          ?.split('=')[1]
+        const debugPortStr =
+          process.execArgv
+            .find(
+              (localArg) =>
+                localArg.startsWith('--inspect') ||
+                localArg.startsWith('--inspect-brk')
+            )
+            ?.split('=')[1] ??
+          process.env.NODE_OPTIONS?.match?.(
+            /--inspect(-brk)?(=(\S+))?( |$)/
+          )?.[3]
         return debugPortStr ? parseInt(debugPortStr, 10) : 9229
       })()
 
@@ -495,8 +527,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
         return execArgv
       }
+      let childProcessExitUnsub: (() => void) | null = null
 
       const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
+        childProcessExitUnsub?.()
+        childProcess?.kill()
+
         const startDir = dir
         const [, script, ...nodeArgs] = process.argv
         let shouldFilter = false
@@ -562,10 +598,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           }
         }
         childProcess?.addListener('exit', callback)
-        return () => childProcess?.removeListener('exit', callback)
+        childProcessExitUnsub = () =>
+          childProcess?.removeListener('exit', callback)
       }
 
-      let childProcessExitUnsub = setupFork()
+      setupFork()
 
       config = await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
@@ -576,10 +613,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       )
 
       const handleProjectDirRename = (newDir: string) => {
-        childProcessExitUnsub()
-        childProcess?.kill()
         process.chdir(newDir)
-        childProcessExitUnsub = setupFork(
+        setupFork(
           {
             ...Object.keys(process.env).reduce((newEnv, key) => {
               newEnv[key] = process.env[key]?.replace(dir, newDir)
@@ -592,19 +627,83 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       }
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1
-      const previousItems = new Set()
+      const previousItems = new Set<string>()
 
-      const wp = new Watchpack({
+      const instrumentationFilePaths = !!config.experimental
+        ?.instrumentationHook
+        ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
+        : []
+
+      const instrumentationFileWatcher = new Watchpack({})
+
+      instrumentationFileWatcher.watch({
+        files: instrumentationFilePaths,
+        startTime: 0,
+      })
+
+      let instrumentationFileLastHash: string | undefined = undefined
+      const previousInstrumentationFiles = new Set<string>()
+      instrumentationFileWatcher.on('aggregated', async () => {
+        const knownFiles = instrumentationFileWatcher.getTimeInfoEntries()
+        const instrumentationFile = [...knownFiles.entries()].find(
+          ([key, value]) => instrumentationFilePaths.includes(key) && value
+        )?.[0]
+
+        if (instrumentationFile) {
+          const fs = require('fs') as typeof import('fs')
+          const instrumentationFileHash = (
+            require('crypto') as typeof import('crypto')
+          )
+            .createHash('sha256')
+            .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
+            .digest('hex')
+
+          if (
+            instrumentationFileLastHash &&
+            instrumentationFileHash !== instrumentationFileLastHash
+          ) {
+            warn(
+              `The instrumentation file has changed, restarting the server to apply changes.`
+            )
+            return setupFork()
+          } else {
+            if (
+              !instrumentationFileLastHash &&
+              previousInstrumentationFiles.size !== 0
+            ) {
+              warn(
+                'The instrumentation file was added, restarting the server to apply changes.'
+              )
+              return setupFork()
+            }
+            instrumentationFileLastHash = instrumentationFileHash
+          }
+        } else if (
+          [...previousInstrumentationFiles.keys()].find((key) =>
+            instrumentationFilePaths.includes(key)
+          )
+        ) {
+          warn(
+            `The instrumentation file has been removed, restarting the server to apply changes.`
+          )
+          instrumentationFileLastHash = undefined
+          return setupFork()
+        }
+
+        previousInstrumentationFiles.clear()
+        knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+      })
+
+      const projectFolderWatcher = new Watchpack({
         ignored: (entry: string) => {
-          // watch only one level
           return !(entry.split('/').length <= watchedEntryLength)
         },
       })
 
-      wp.watch({ directories: [parentDir], startTime: 0 })
+      projectFolderWatcher.watch({ directories: [parentDir], startTime: 0 })
 
-      wp.on('aggregated', () => {
-        const knownFiles = wp.getTimeInfoEntries()
+      projectFolderWatcher.on('aggregated', async () => {
+        const knownFiles = projectFolderWatcher.getTimeInfoEntries()
         const newFiles: string[] = []
         let hasPagesApp = false
 

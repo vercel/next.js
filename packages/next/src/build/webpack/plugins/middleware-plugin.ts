@@ -19,7 +19,8 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -29,6 +30,8 @@ import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import { NextBuildContext } from '../../build-context'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -90,11 +93,14 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
+      files.push(`server/${SERVER_REFERENCE_MANIFEST}.js`)
       files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
       files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       if (opts.sriEnabled) {
@@ -120,7 +126,11 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    files.push(`server/${NEXT_FONT_MANIFEST}.js`)
+
+    if (NextBuildContext!.hasInstrumentationHook) {
+      files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
+    }
   }
 
   files.push(
@@ -134,7 +144,9 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -159,14 +171,20 @@ function getCreateAssets(params: {
         continue
       }
 
-      const { namedRegex } = getNamedMiddlewareRegex(
-        metadata.edgeSSR?.isAppDir ? normalizeAppPath(page) : page,
-        {
-          catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
-        }
-      )
+      const matcherSource = metadata.edgeSSR?.isAppDir
+        ? normalizeAppPath(page)
+        : page
+
+      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+
+      const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
+        catchAll,
+      })
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        { regexp: namedRegex },
+        {
+          regexp: namedRegex,
+          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
+        },
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {

@@ -8,9 +8,11 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: {
       swr: '2.0.0-rc.0',
+      '@picocss/pico': '1.5.7',
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',
+      '@next/mdx': 'canary',
     },
   },
   ({ next, isNextDev: isDev }) => {
@@ -41,6 +43,15 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('#server-cssm')).color`
             )
           ).toBe('rgb(0, 128, 0)')
+        })
+
+        it('should support external css imports', async () => {
+          const browser = await next.browser('/css/css-external')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('main')).paddingTop`
+            )
+          ).toBe('80px')
         })
       })
 
@@ -218,6 +229,17 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('button')).fontSize`
             )
           ).toBe('50px')
+        })
+      })
+
+      describe('page extensions', () => {
+        it('should include css imported in MDX pages', async () => {
+          const browser = await next.browser('/mdx')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
         })
       })
 

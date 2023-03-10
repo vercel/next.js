@@ -40,6 +40,7 @@ const testFilters = {
   e2e: 'e2e/',
   production: 'production/',
   development: 'development/',
+  examples: 'examples/',
 }
 
 const mockTrace = () => ({
@@ -119,6 +120,10 @@ async function main() {
     }
     case 'e2e': {
       filterTestsBy = testFilters.e2e
+      break
+    }
+    case 'examples': {
+      filterTestsBy = testFilters.examples
       break
     }
     case 'all':
@@ -420,25 +425,10 @@ async function main() {
           }
         }
       }
+
       if (!passed) {
         console.error(`${test} failed to pass within ${numRetries} retries`)
         children.forEach((child) => child.kill())
-
-        if (isTestJob) {
-          try {
-            const testsOutput = await fs.readFile(
-              `${test}${RESULTS_EXT}`,
-              'utf8'
-            )
-            console.log(
-              `--test output start--`,
-              testsOutput,
-              `--test output end--`
-            )
-          } catch (err) {
-            console.log(`Failed to load test output`, err)
-          }
-        }
 
         if (!shouldContinueTestsOnError) {
           cleanUpAndExit(1)
@@ -448,6 +438,21 @@ async function main() {
           )
         }
       }
+
+      // Emit test output if test failed or if we're continuing tests on error
+      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
+        try {
+          const testsOutput = await fs.readFile(`${test}${RESULTS_EXT}`, 'utf8')
+          console.log(
+            `--test output start--`,
+            testsOutput,
+            `--test output end--`
+          )
+        } catch (err) {
+          console.log(`Failed to load test output`, err)
+        }
+      }
+
       sema.release()
       dirSema.release()
     })
