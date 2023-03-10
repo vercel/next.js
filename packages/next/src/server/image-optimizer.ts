@@ -33,6 +33,7 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
+const ICO = 'image/x-icon'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -141,6 +142,11 @@ export function detectContentType(buffer: Buffer) {
   ) {
     return AVIF
   }
+
+  if (buffer.length >= 4 && buffer[0] === 0x00 && buffer[1] === 0x00) {
+    return ICO
+  }
+
   return null
 }
 
