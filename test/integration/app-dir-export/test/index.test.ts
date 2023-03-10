@@ -23,11 +23,21 @@ async function runTests({
   trailingSlash,
   dynamic,
 }: {
-  trailingSlash: boolean
-  dynamic: string
+  trailingSlash?: boolean
+  dynamic?: string
 }) {
-  nextConfig.replace('trailingSlash: true,', `trailingSlash: ${trailingSlash},`)
-  slugPage.replace(`const dynamic = 'auto'`, `const dynamic = '${dynamic}'`)
+  if (trailingSlash) {
+    nextConfig.replace(
+      'trailingSlash: true,',
+      `trailingSlash: ${trailingSlash},`
+    )
+  }
+  if (dynamic) {
+    slugPage.replace(
+      `const dynamic = 'force-static'`,
+      `const dynamic = '${dynamic}'`
+    )
+  }
   await fs.remove(distDir)
   await fs.remove(exportDir)
   await nextBuild(appDir)
@@ -38,6 +48,7 @@ async function runTests({
 
   try {
     const a = (n: number) => `li:nth-child(${n}) a`
+    console.log('[navigate]')
     const browser = await webdriver(appPort, '/')
     expect(await browser.elementByCss('h1').text()).toBe('Home')
     expect(await browser.elementByCss(a(1)).text()).toBe(
@@ -93,7 +104,7 @@ describe('app dir with next export', () => {
   it.each([{ trailingSlash: false }, { trailingSlash: true }])(
     "should work with trailingSlash '$trailingSlash'",
     async ({ trailingSlash }) => {
-      await runTests({ trailingSlash, dynamic: 'auto' })
+      await runTests({ trailingSlash })
     }
   )
   it.each([
@@ -101,12 +112,12 @@ describe('app dir with next export', () => {
     { dynamic: 'error' },
     { dynamic: 'force-static' },
   ])("should work with dynamic '$dynamic'", async ({ dynamic }) => {
-    await runTests({ trailingSlash: true, dynamic })
+    await runTests({ dynamic })
   })
   it.each([{ dynamic: 'force-dynamic' }])(
     "should throw with dynamic '$dynamic'",
     async ({ dynamic }) => {
-      await runTests({ trailingSlash: true, dynamic })
+      await runTests({ dynamic })
     }
   )
 })
