@@ -17,8 +17,6 @@ const mimeTypeMap = {
   png: 'image/png',
   ico: 'image/x-icon',
   svg: 'image/svg+xml',
-  avif: 'image/avif',
-  webp: 'image/webp',
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
@@ -69,7 +67,10 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const stringifiedData = JSON.stringify(imageData)
 
-  this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
+  // TODO-METADATA: Move image generation to static app routes
+  if (!isFavIcon) {
+    this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
+  }
 
   return `export default ${stringifiedData};`
 }
