@@ -844,22 +844,17 @@ export default async function loadConfig(
             ? canonicalBase.slice(0, -1)
             : canonicalBase) || ''
       }
-      try {
-        const completeConfig = assignDefaults(
-          dir,
-          {
-            configOrigin: relative(dir, path),
-            configFile: path,
-            configFileName,
-            ...userConfig,
-          },
-          silent
-        ) as NextConfigComplete
-        return completeConfig
-      } catch (e) {
-        console.log('This here', e)
-        throw e
-      }
+      const completeConfig = assignDefaults(
+        dir,
+        {
+          configOrigin: relative(dir, path),
+          configFile: path,
+          configFileName,
+          ...userConfig,
+        },
+        silent
+      ) as NextConfigComplete
+      return completeConfig
     } else {
       const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
       const nonJsPath = findUp.sync(
@@ -891,7 +886,9 @@ export default async function loadConfig(
     setHttpClientAndAgentOptions(completeConfig, silent)
     return completeConfig
   } catch (e) {
-    console.log('This here', e)
+    console.log()
+    console.log()
+    console.log('There is error: ', e)
     throw e
   }
 }
