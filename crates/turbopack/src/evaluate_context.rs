@@ -37,7 +37,7 @@ pub async fn node_evaluate_asset_context(
         }
         .cell(),
         ModuleOptionsContext {
-            enable_typescript_transform: true,
+            enable_typescript_transform: Some(Default::default()),
             ..Default::default()
         }
         .cell(),

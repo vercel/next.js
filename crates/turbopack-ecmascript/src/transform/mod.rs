@@ -77,7 +77,12 @@ pub enum EcmascriptInputTransform {
     },
     StyledComponents,
     StyledJsx,
-    TypeScript,
+    // These options are subset of swc_core::ecma::transforms::typescript::Config, but
+    // it doesn't derive `Copy` so repeating values in here
+    TypeScript {
+        #[serde(default)]
+        use_define_for_class_fields: bool,
+    },
 }
 
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
@@ -198,9 +203,15 @@ impl EcmascriptInputTransform {
                     FileName::Anon,
                 ));
             }
-            EcmascriptInputTransform::TypeScript => {
-                use swc_core::ecma::transforms::typescript::strip;
-                program.visit_mut_with(&mut strip(top_level_mark));
+            EcmascriptInputTransform::TypeScript {
+                use_define_for_class_fields,
+            } => {
+                use swc_core::ecma::transforms::typescript::{strip_with_config, Config};
+                let config = Config {
+                    use_define_for_class_fields,
+                    ..Default::default()
+                };
+                program.visit_mut_with(&mut strip_with_config(config, top_level_mark));
             }
             EcmascriptInputTransform::ClientDirective(transition_name) => {
                 let transition_name = &*transition_name.await?;
