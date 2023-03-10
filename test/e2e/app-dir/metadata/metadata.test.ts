@@ -488,6 +488,12 @@ createNextDescribe(
         })
       })
 
+      it('should not hoist meta[itemProp] to head', async () => {
+        const $ = await next.render$('/')
+        expect($('head meta[itemProp]').length).toBe(0)
+        expect($('header meta[itemProp]').length).toBe(1)
+      })
+
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
         let $icon = $('link[rel="icon"]')
@@ -635,6 +641,28 @@ createNextDescribe(
           'twitter:app:url:ipad': 'https://ipad_url',
           'twitter:app:url:googleplay': undefined,
         })
+      })
+    })
+
+    describe('static routes', () => {
+      it('should support root dir robots.txt', async () => {
+        const res = await next.fetch('/robots.txt')
+        expect(res.headers.get('content-type')).toBe('text/plain')
+        expect(await res.text()).toContain('User-Agent: *\nDisallow:')
+        const invalidRobotsResponse = await next.fetch('/title/robots.txt')
+        expect(invalidRobotsResponse.status).toBe(404)
+      })
+
+      it('should support root dir sitemap.xml', async () => {
+        const res = await next.fetch('/sitemap.xml')
+        expect(res.headers.get('content-type')).toBe('application/xml')
+        const sitemap = await res.text()
+        expect(sitemap).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+        expect(sitemap).toContain(
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        )
+        const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
+        expect(invalidSitemapResponse.status).toBe(404)
       })
     })
 

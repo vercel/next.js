@@ -2,6 +2,9 @@
 const nextConfig = {
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
+  experimental: {
+    externalMiddlewareRewritesResolve: true,
+  },
   async redirects() {
     return [
       {

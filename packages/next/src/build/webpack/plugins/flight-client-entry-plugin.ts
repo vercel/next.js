@@ -13,6 +13,7 @@ import {
   getInvalidator,
   getEntries,
   EntryTypes,
+  getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
@@ -30,7 +31,10 @@ import {
 } from '../loaders/utils'
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import {
+  isAppRouteRoute,
+  isMetadataRoute,
+} from '../../../lib/is-app-route-route'
 import { getProxiedPluginState } from '../../build-context'
 
 interface Options {
@@ -180,7 +184,8 @@ export class FlightClientEntryPlugin {
         if (
           name.startsWith('pages/') ||
           // Skip for route.js entries
-          (name.startsWith('app/') && isAppRouteRoute(name))
+          (name.startsWith('app/') &&
+            (isAppRouteRoute(name) || isMetadataRoute(name)))
         ) {
           continue
         }
@@ -629,7 +634,7 @@ export class FlightClientEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = COMPILER_NAMES.client + bundlePath
+      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
 
       if (!entries[pageKey]) {
         entries[pageKey] = {

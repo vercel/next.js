@@ -138,6 +138,10 @@ export {
 
 export type PreviewData = string | false | object | undefined
 
+/**
+ * Context object passed into `getStaticProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-props#context-parameter
+ */
 export type GetStaticPropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
   Preview extends PreviewData = PreviewData
@@ -150,11 +154,26 @@ export type GetStaticPropsContext<
   defaultLocale?: string
 }
 
+/**
+ * The return type of `getStaticProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-props#getstaticprops-return-values
+ */
 export type GetStaticPropsResult<Props> =
   | { props: Props; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
   | { notFound: true; revalidate?: number | boolean }
 
+/**
+ * Static Site Generation feature for Next.js.
+ * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-props
+ * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @example
+ * ```ts
+ * export const getStaticProps: GetStaticProps = async (context) => {
+ *   // ...
+ * }
+ * ```
+ */
 export type GetStaticProps<
   Props extends { [key: string]: any } = { [key: string]: any },
   Params extends ParsedUrlQuery = ParsedUrlQuery,
@@ -173,6 +192,10 @@ export type GetStaticPathsContext = {
   defaultLocale?: string
 }
 
+/**
+ * The return type of `getStaticPaths`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#getstaticpaths-return-values
+ */
 export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery
 > = {
@@ -180,10 +203,25 @@ export type GetStaticPathsResult<
   fallback: boolean | 'blocking'
 }
 
+/**
+ * Define a list of paths to be statically generated if dynamic routes exist.
+ * @link https://nextjs.org/docs/basic-features/data-fetching/get-static-paths
+ * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @example
+ * ```ts
+ * export const getStaticPaths: GetStaticPaths = async () => {
+ *  // ...
+ * }
+ * ```
+ */
 export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
 ) => Promise<GetStaticPathsResult<Params>> | GetStaticPathsResult<Params>
 
+/**
+ * Context object passed into `getServerSideProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#context-parameter
+ */
 export type GetServerSidePropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
   Preview extends PreviewData = PreviewData
@@ -202,11 +240,25 @@ export type GetServerSidePropsContext<
   defaultLocale?: string
 }
 
+/**
+ * The return type of `getServerSideProps`.
+ * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#getserversideprops-return-values
+ */
 export type GetServerSidePropsResult<Props> =
   | { props: Props | Promise<Props> }
   | { redirect: Redirect }
   | { notFound: true }
 
+/**
+ * Server-side Rendering feature for Next.js.
+ * @link https://nextjs.org/docs/basic-features/data-fetching/get-server-side-props
+ * @link https://nextjs.org/docs/basic-features/typescript#static-generation-and-server-side-rendering
+ * @example
+ * ```ts
+ * export const getServerSideProps: GetServerSideProps = async (context) => {
+ *  // ...
+ * }
+ */
 export type GetServerSideProps<
   Props extends { [key: string]: any } = { [key: string]: any },
   Params extends ParsedUrlQuery = ParsedUrlQuery,

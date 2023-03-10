@@ -495,22 +495,27 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       let config: NextConfig
       let childProcess: ChildProcess | null = null
 
-      const isDebugging = process.execArgv.some((localArg) =>
-        localArg.startsWith('--inspect')
-      )
+      const isDebugging =
+        process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+        process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
 
-      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
-        localArg.startsWith('--inspect-brk')
-      )
+      const isDebuggingWithBrk =
+        process.execArgv.some((localArg) =>
+          localArg.startsWith('--inspect-brk')
+        ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
 
       const debugPort = (() => {
-        const debugPortStr = process.execArgv
-          .find(
-            (localArg) =>
-              localArg.startsWith('--inspect') ||
-              localArg.startsWith('--inspect-brk')
-          )
-          ?.split('=')[1]
+        const debugPortStr =
+          process.execArgv
+            .find(
+              (localArg) =>
+                localArg.startsWith('--inspect') ||
+                localArg.startsWith('--inspect-brk')
+            )
+            ?.split('=')[1] ??
+          process.env.NODE_OPTIONS?.match?.(
+            /--inspect(-brk)?(=(\S+))?( |$)/
+          )?.[3]
         return debugPortStr ? parseInt(debugPortStr, 10) : 9229
       })()
 
