@@ -718,7 +718,9 @@ impl SsrEntryVc {
                 this.context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::TypeScript,
+                    EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: false,
+                    },
                     EcmascriptInputTransform::React { refresh: false },
                 ]),
                 this.context.compile_time_info(),

@@ -28,6 +28,7 @@ pub mod react_refresh;
 pub mod router;
 pub mod router_source;
 mod runtime;
+mod typescript;
 mod util;
 mod web_entry_source;
 

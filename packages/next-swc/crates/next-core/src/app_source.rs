@@ -659,7 +659,9 @@ import BOOTSTRAP from {};
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
                     EcmascriptInputTransform::React { refresh: false },
-                    EcmascriptInputTransform::TypeScript,
+                    EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: false,
+                    },
                 ]),
                 context.compile_time_info(),
             ),
@@ -727,7 +729,9 @@ impl AppRouteVc {
                 virtual_asset.into(),
                 this.context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
-                EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+                EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+                    use_define_for_class_fields: false,
+                }]),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(indexmap! {
                     "ROUTE_CHUNK_GROUP".to_string() => entry

@@ -38,6 +38,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     react_refresh::assert_can_resolve_react_refresh,
+    typescript::get_typescript_transform_options,
     util::foreign_code_context_condition,
 };
 
@@ -128,6 +129,7 @@ pub async fn get_client_module_options_context(
             .await?
             .is_found();
 
+    let tsconfig = get_typescript_transform_options(project_path);
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
@@ -164,7 +166,7 @@ pub async fn get_client_module_options_context(
             ..Default::default()
         }),
         enable_webpack_loaders,
-        enable_typescript_transform: true,
+        enable_typescript_transform: Some(tsconfig),
         rules: vec![(
             foreign_code_context_condition(next_config).await?,
             module_options_context.clone().cell(),

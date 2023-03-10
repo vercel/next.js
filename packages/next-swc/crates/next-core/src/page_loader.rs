@@ -86,7 +86,9 @@ impl PageLoaderAssetVc {
             loader_entry_asset,
             this.client_context,
             Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
+                use_define_for_class_fields: false,
+            }]),
             this.client_context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
