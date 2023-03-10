@@ -114,19 +114,43 @@ function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   return rect.top >= 0 && rect.top <= viewportHeight
 }
 
-class ScrollAndFocusHandler extends React.Component<{
+function getHashFragmentDomNode(hashFragment: string) {
+  if (hashFragment === 'top') {
+    return document.body
+  }
+  return document.getElementById(hashFragment)
+}
+interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
-}> {
-  componentDidMount() {
+}
+class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+  handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
 
-    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-    // This already caused a bug where the first child was a <link/> in head.
-    const domNode = findDOMNode(this)
+    if (focusAndScrollRef.apply) {
+      let domNode:
+        | ReturnType<typeof getHashFragmentDomNode>
+        | ReturnType<typeof findDOMNode> = null
 
-    if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
+      if (focusAndScrollRef.hashFragment) {
+        domNode = getHashFragmentDomNode(focusAndScrollRef.hashFragment)
+        console.log('hashFragment', domNode)
+      }
+
+      // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+      // This already caused a bug where the first child was a <link/> in head.
+      if (!domNode) {
+        domNode = findDOMNode(this)
+        console.log('layoutDomNode', domNode)
+      }
+
+      // If there is no DOMNode this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (!(domNode instanceof HTMLElement)) {
+        return
+      }
+
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
 
@@ -138,7 +162,7 @@ class ScrollAndFocusHandler extends React.Component<{
           const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode, viewportHeight)) {
+          if (topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             return
           }
 
@@ -149,9 +173,9 @@ class ScrollAndFocusHandler extends React.Component<{
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode, viewportHeight)) {
+          if (!topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             // Scroll into view doesn't scroll horizontally by default when not needed
-            domNode.scrollIntoView()
+            ;(domNode as HTMLElement).scrollIntoView()
           }
         },
         {
@@ -162,6 +186,17 @@ class ScrollAndFocusHandler extends React.Component<{
 
       // Set focus on the element
       domNode.focus()
+    }
+  }
+
+  componentDidMount() {
+    this.handlePotentialScroll()
+  }
+
+  componentDidUpdate() {
+    // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
+    if (this.props.focusAndScrollRef.apply) {
+      this.handlePotentialScroll()
     }
   }
 
