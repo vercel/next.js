@@ -124,6 +124,11 @@ const BACKEND = {
 /** @typedef {import('../types').GetFirstModuleChunk} GetFirstModuleChunk */
 
 /** @typedef {import('../types').Module} Module */
+/** @typedef {import('../types').SourceInfo} SourceInfo */
+/** @typedef {import('../types').SourceType} SourceType */
+/** @typedef {import('../types').SourceType.Runtime} SourceTypeRuntime */
+/** @typedef {import('../types').SourceType.Parent} SourceTypeParent */
+/** @typedef {import('../types').SourceType.Update} SourceTypeUpdate */
 /** @typedef {import('../types').Exports} Exports */
 /** @typedef {import('../types').EsmInteropNamespace} EsmInteropNamespace */
 /** @typedef {import('../types').Runnable} Runnable */
@@ -402,48 +407,34 @@ function getOrCreateChunkLoader(chunkPath, from) {
   return chunkLoader;
 }
 
-/**
- * @enum {number}
- */
-const SourceType = {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   */
-  Runtime: 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   */
-  Parent: 1,
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   */
-  Update: 2,
-};
+/** @type {SourceTypeRuntime} */
+const SourceTypeRuntime = 0;
+/** @type {SourceTypeParent} */
+const SourceTypeParent = 1;
+/** @type {SourceTypeUpdate} */
+const SourceTypeUpdate = 2;
 
 /**
  *
  * @param {ModuleId} id
- * @param {SourceType} sourceType
- * @param {ModuleId} [sourceId]
+ * @param {SourceInfo} source
  * @returns {Module}
  */
-function instantiateModule(id, sourceType, sourceId) {
+function instantiateModule(id, source) {
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
     let instantiationReason;
-    switch (sourceType) {
-      case SourceType.Runtime:
+    switch (source.type) {
+      case SourceTypeRuntime:
         instantiationReason = "as a runtime entry";
         break;
-      case SourceType.Parent:
-        instantiationReason = `because it was required from module ${sourceId}`;
+      case SourceTypeParent:
+        instantiationReason = `because it was required from module ${source.parentId}`;
         break;
-      case SourceType.Update:
+      case SourceTypeUpdate:
         instantiationReason = "because of an HMR update";
         break;
     }
@@ -460,7 +451,7 @@ function instantiateModule(id, sourceType, sourceId) {
     exports: {},
     loaded: false,
     id,
-    parents: [],
+    parents: undefined,
     children: [],
     interopNamespace: undefined,
     hot,
@@ -468,13 +459,19 @@ function instantiateModule(id, sourceType, sourceId) {
   moduleCache[id] = module;
   moduleHotState.set(module, hotState);
 
-  if (sourceType === SourceType.Runtime) {
-    runtimeModules.add(id);
-  } else if (sourceType === SourceType.Parent) {
-    module.parents.push(sourceId);
-
-    // No need to add this module as a child of the parent module here, this
-    // has already been taken care of in `getOrInstantiateModuleFromParent`.
+  switch (source.type) {
+    case SourceTypeRuntime:
+      runtimeModules.add(id);
+      module.parents = [];
+      break;
+    case SourceTypeParent:
+      // No need to add this module as a child of the parent module here, this
+      // has already been taken care of in `getOrInstantiateModuleFromParent`.
+      module.parents = [source.parentId];
+      break;
+    case SourceTypeUpdate:
+      module.parents = source.parents || [];
+      break;
   }
 
   runModuleExecutionHooks(module, () => {
@@ -561,7 +558,10 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
     return module;
   }
 
-  return instantiateModule(id, SourceType.Parent, sourceModule.id);
+  return instantiateModule(id, {
+    type: SourceTypeParent,
+    parentId: sourceModule.id,
+  });
 }
 
 /**
@@ -734,6 +734,7 @@ function updateChunksPhase(chunksAddedModules, chunksDeletedModules) {
 /**
  * @param {Iterable<ModuleId>} outdatedModules
  * @param {Set<ModuleId>} disposedModules
+ * @return {{ outdatedModuleParents: Map<ModuleId, Array<ModuleId>> }}
  */
 function disposePhase(outdatedModules, disposedModules) {
   for (const moduleId of outdatedModules) {
@@ -744,8 +745,19 @@ function disposePhase(outdatedModules, disposedModules) {
     disposeModule(moduleId, "clear");
   }
 
+  // Removing modules from the module cache is a separate step.
+  // We also want to keep track of previous parents of the outdated modules.
+  const outdatedModuleParents = new Map();
+  for (const moduleId of outdatedModules) {
+    const oldModule = moduleCache[moduleId];
+    outdatedModuleParents.set(moduleId, oldModule?.parents);
+    delete moduleCache[moduleId];
+  }
+
   // TODO(alexkirsz) Dependencies: remove outdated dependency from module
   // children.
+
+  return { outdatedModuleParents };
 }
 
 /**
@@ -753,6 +765,13 @@ function disposePhase(outdatedModules, disposedModules) {
  *
  * Returns the persistent hot data that should be kept for the next module
  * instance.
+ *
+ * NOTE: mode = "replace" will not remove modules from the moduleCache.
+ * This must be done in a separate step afterwards.
+ * This is important because all modules need to be diposed to update the
+ * parent/child relationships before they are actually removed from the moduleCache.
+ * If this would be done in this method, following disposeModulecalls won't find
+ * the module from the module id in the cache.
  *
  * @param {ModuleId} moduleId
  * @param {"clear" | "replace"} mode
@@ -776,7 +795,6 @@ function disposeModule(moduleId, mode) {
   // module is still importing other modules.
   module.hot.active = false;
 
-  delete moduleCache[module.id];
   moduleHotState.delete(module);
 
   // TODO(alexkirsz) Dependencies: delete the module from outdated deps.
@@ -798,6 +816,7 @@ function disposeModule(moduleId, mode) {
 
   switch (mode) {
     case "clear":
+      delete moduleCache[module.id];
       moduleHotData.delete(module.id);
       break;
     case "replace":
@@ -812,8 +831,13 @@ function disposeModule(moduleId, mode) {
  *
  * @param {{ moduleId: ModuleId, errorHandler: true | Function }[]} outdatedSelfAcceptedModules
  * @param {Map<ModuleId, ModuleFactory>} newModuleFactories
+ * @param {Map<ModuleId, Array<ModuleId>>} outdatedModuleParents
  */
-function applyPhase(outdatedSelfAcceptedModules, newModuleFactories) {
+function applyPhase(
+  outdatedSelfAcceptedModules,
+  newModuleFactories,
+  outdatedModuleParents
+) {
   // Update module factories.
   for (const [moduleId, factory] of newModuleFactories.entries()) {
     moduleFactories[moduleId] = factory;
@@ -826,7 +850,10 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories) {
   // Re-instantiate all outdated self-accepted modules.
   for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules) {
     try {
-      instantiateModule(moduleId, SourceType.Update);
+      instantiateModule(moduleId, {
+        type: SourceTypeUpdate,
+        parents: outdatedModuleParents.get(moduleId),
+      });
     } catch (err) {
       if (typeof errorHandler === "function") {
         try {
@@ -927,8 +954,15 @@ function applyEcmascriptMergedUpdate(chunkPath, update) {
   const outdatedSelfAcceptedModules =
     computeOutdatedSelfAcceptedModules(outdatedModules);
   const { disposedModules } = updateChunksPhase(chunksAdded, chunksDeleted);
-  disposePhase(outdatedModules, disposedModules);
-  applyPhase(outdatedSelfAcceptedModules, newModuleFactories);
+  const { outdatedModuleParents } = disposePhase(
+    outdatedModules,
+    disposedModules
+  );
+  applyPhase(
+    outdatedSelfAcceptedModules,
+    newModuleFactories,
+    outdatedModuleParents
+  );
 }
 
 /**
@@ -1350,7 +1384,7 @@ function disposeChunk(chunkPath) {
  * @returns {Module}
  */
 function instantiateRuntimeModule(moduleId) {
-  return instantiateModule(moduleId, SourceType.Runtime);
+  return instantiateModule(moduleId, { type: SourceTypeRuntime });
 }
 
 /**
