@@ -6,7 +6,7 @@ const ANNOUNCER_TYPE = 'next-route-announcer'
 const ANNOUNCER_ID = '__next-route-announcer__'
 
 function getAnnouncerNode() {
-  const existingAnnouncer = document.getElementsByName(ANNOUNCER_ID)[0]
+  const existingAnnouncer = document.getElementsByName(ANNOUNCER_TYPE)[0]
   if (existingAnnouncer?.shadowRoot?.childNodes[0]) {
     return existingAnnouncer.shadowRoot.childNodes[0] as HTMLElement
   } else {
