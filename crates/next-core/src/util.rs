@@ -47,14 +47,10 @@ pub async fn pathname_for_path(
     } else {
         path
     };
-    let path = if data {
-        path
+    let path = if path == "index" && !data {
+        ""
     } else {
-        if path == "index" {
-            ""
-        } else {
-            path.strip_suffix("/index").unwrap_or(path)
-        }
+        path.strip_suffix("/index").unwrap_or(path)
     };
 
     Ok(StringVc::cell(path.to_string()))
