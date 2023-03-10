@@ -1,16 +1,15 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
-import type { Icon, IconDescriptor, Icons } from '../types/metadata-types'
+import type { Icon, IconDescriptor } from '../types/metadata-types'
 import type { FieldResolver } from '../types/resolvers'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { isStringOrURL } from './resolve-url'
+import { IconKeys } from '../constants'
 
 export function resolveIcon(icon: Icon): IconDescriptor {
   if (isStringOrURL(icon)) return { url: icon }
   else if (Array.isArray(icon)) return icon
   return icon
 }
-
-const IconKeys = ['icon', 'shortcut', 'apple', 'other'] as (keyof Icons)[]
 
 export const resolveIcons: FieldResolver<'icons'> = (icons) => {
   if (!icons) {

@@ -28,7 +28,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -215,6 +215,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
+    nextConfigOutput: 'standalone' | 'export'
     nextScriptWorkers: any
     locale?: string
     locales?: string[]
@@ -229,7 +230,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentManifest?: any
     serverCSSManifest?: any
     serverActionsManifest?: any
-    fontLoaderManifest?: FontLoaderManifest
+    nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
@@ -242,7 +243,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
   protected serverCSSManifest?: any
-  protected fontLoaderManifest?: FontLoaderManifest
+  protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number
 
@@ -267,7 +268,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
   protected abstract getServerCSSManifest(): any
-  protected abstract getFontLoaderManifest(): FontLoaderManifest | undefined
+  protected abstract getNextFontManifest(): NextFontManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
@@ -391,7 +392,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.serverCSSManifest = serverComponents
       ? this.getServerCSSManifest()
       : undefined
-    this.fontLoaderManifest = this.getFontLoaderManifest()
+    this.nextFontManifest = this.getNextFontManifest()
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -409,13 +410,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
-      disableOptimizedLoading: this.nextConfig.experimental.runtime
-        ? true
-        : this.nextConfig.experimental.disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      runtime: this.nextConfig.experimental.runtime,
       serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -1096,6 +1096,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname,
   }: {
     pathname: string
+    requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
     originalAppPath?: string
   }): Promise<{
     staticPaths?: string[]
@@ -1162,6 +1163,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
+        requestHeaders: req.headers,
       })
 
       staticPaths = pathsResult.staticPaths
@@ -1194,7 +1196,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
     // unexpected SSR invocations
-    if (!isSSG && req.headers['x-middleware-prefetch']) {
+    if (
+      !isSSG &&
+      req.headers['x-middleware-prefetch'] &&
+      !(is404Page || pathname === '/_error')
+    ) {
       res.setHeader('x-middleware-skip', '1')
       res.body('{}').send()
       return null
@@ -1550,7 +1556,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
-      if (isAppPath && isSSG && isrRevalidate === 0) {
+      // we don't throw static to dynamic errors in dev as isSSG
+      // is a best guess in dev since we don't have the prerender pass
+      // to know whether the path is actually static or not
+      if (isAppPath && isSSG && isrRevalidate === 0 && !this.renderOpts.dev) {
         const staticBailoutInfo: {
           stack?: string
           description?: string
@@ -1600,7 +1609,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
-            ? await this.getStaticPaths({ pathname })
+            ? await this.getStaticPaths({
+                pathname,
+                requestHeaders: req.headers,
+              })
             : { staticPaths: undefined, fallbackMode: false })
         }
 

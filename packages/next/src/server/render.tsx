@@ -26,7 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
 import ReactDOMServer from 'react-dom/server.browser'
@@ -241,20 +241,21 @@ export type RenderOptsPartial = {
   optimizeFonts: FontConfig
   fontManifest?: FontManifest
   optimizeCss: any
+  nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
   serverComponentManifest?: any
   serverCSSManifest?: any
-  fontLoaderManifest?: FontLoaderManifest
+  nextFontManifest?: NextFontManifest
   distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -465,6 +466,12 @@ export async function renderToHTML(
 
   if (getServerSideProps && isSSG) {
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
+  }
+
+  if (getServerSideProps && renderOpts.nextConfigOutput === 'export') {
+    throw new Error(
+      'getServerSideProps cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+    )
   }
 
   if (getStaticPaths && !pageIsDynamic) {
@@ -846,6 +853,11 @@ export async function renderToHTML(
     }
 
     if ('revalidate' in data) {
+      if (data.revalidate && renderOpts.nextConfigOutput === 'export') {
+        throw new Error(
+          'ISR cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
       if (typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
@@ -1400,10 +1412,11 @@ export async function renderToHTML(
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
     optimizeFonts: renderOpts.optimizeFonts,
+    nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
-    fontLoaderManifest: renderOpts.fontLoaderManifest,
+    nextFontManifest: renderOpts.nextFontManifest,
   }
 
   const document = (

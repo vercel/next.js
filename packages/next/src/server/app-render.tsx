@@ -1,7 +1,7 @@
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../../types'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
@@ -45,8 +45,8 @@ import type { StaticGenerationAsyncStorage } from '../client/components/static-g
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
 import { MetadataTree } from '../lib/metadata/metadata'
-import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
-import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { RequestAsyncStorageWrapper } from './async-storage/request-async-storage-wrapper'
+import { StaticGenerationAsyncStorageWrapper } from './async-storage/static-generation-async-storage-wrapper'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
@@ -184,11 +184,11 @@ export type RenderOptsPartial = {
   dev?: boolean
   serverComponentManifest?: FlightManifest
   serverCSSManifest?: FlightCSSManifest
-  supportsDynamicHTML?: boolean
+  supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
-  fontLoaderManifest?: FontLoaderManifest
+  nextFontManifest?: NextFontManifest
   isBot?: boolean
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
@@ -336,6 +336,7 @@ function useFlightResponse(
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
+  const textDecoder = new TextDecoder()
 
   function read() {
     forwardReader.read().then(({ done, value }) => {
@@ -357,7 +358,7 @@ function useFlightResponse(
         flightResponseRef.current = null
         writer.close()
       } else {
-        const responsePartial = decodeText(value)
+        const responsePartial = decodeText(value, textDecoder)
         const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([1, responsePartial])
         )})</script>`
@@ -591,9 +592,9 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest[mod]
+        const modData = serverComponentManifest[mod + '#']
         if (modData) {
-          for (const chunk of modData.default.chunks) {
+          for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
             // chunk, it means that it's actually used. We should include it.
             if (cssFilesForEntry.has(chunk)) {
@@ -631,22 +632,19 @@ function getServerCSSForEntries(
 }
 
 /**
- * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and font loader manifest. Only used when rendering to HTML.
+ * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and next/font manifest. Only used when rendering to HTML.
  */
 function getPreloadedFontFilesInlineLinkTags(
-  serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
-  fontLoaderManifest: FontLoaderManifest | undefined,
+  nextFontManifest: NextFontManifest | undefined,
   serverCSSForEntries: string[],
   filePath: string | undefined,
   injectedFontPreloadTags: Set<string>
 ): string[] | null {
-  if (!fontLoaderManifest || !filePath) {
+  if (!nextFontManifest || !filePath) {
     return null
   }
-  const layoutOrPageCss =
-    serverCSSManifest[filePath] ||
-    serverComponentManifest.__client_css_manifest__?.[filePath]
+  const layoutOrPageCss = serverCSSManifest[filePath]
 
   if (!layoutOrPageCss) {
     return null
@@ -658,7 +656,7 @@ function getPreloadedFontFilesInlineLinkTags(
   for (const css of layoutOrPageCss) {
     // We only include the CSS if it is used by this entrypoint.
     if (serverCSSForEntries.includes(css)) {
-      const preloadedFontFiles = fontLoaderManifest.app[css]
+      const preloadedFontFiles = nextFontManifest.app[css]
       if (preloadedFontFiles) {
         foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
@@ -742,6 +740,34 @@ async function renderToString(element: React.ReactElement) {
   })
 }
 
+function parseFlightRouterState(stateHeader: string | string[] | undefined) {
+  if (typeof stateHeader === 'undefined') {
+    return undefined
+  }
+  if (Array.isArray(stateHeader)) {
+    throw new Error(
+      'Multiple router state headers were sent. This is not allowed.'
+    )
+  }
+  try {
+    return JSON.parse(stateHeader)
+  } catch (err) {
+    throw new Error('The router state header was sent but could not be parsed.')
+  }
+}
+
+function validateURL(url: string | undefined): string {
+  if (!url) {
+    throw new Error('Invalid request URL')
+  }
+  try {
+    new URL(url, 'http://n')
+    return url
+  } catch {
+    throw new Error('Invalid request URL')
+  }
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -764,7 +790,7 @@ export async function renderToHTMLOrFlight(
     serverCSSManifest = {},
     ComponentMod,
     dev,
-    fontLoaderManifest,
+    nextFontManifest,
     supportsDynamicHTML,
   } = renderOpts
 
@@ -825,23 +851,21 @@ export async function renderToHTMLOrFlight(
     }
 
     // don't modify original query object
-    query = Object.assign({}, query)
+    query = { ...query }
+    stripInternalQueries(query)
 
     const isPrefetch =
       req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
     // TODO-APP: verify the tree is valid
-    // TODO-APP: verify query param is single value (not an array)
     // TODO-APP: verify tree can't grow out of control
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
     let providedFlightRouterState: FlightRouterState = isFlight
-      ? req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-        ? JSON.parse(
-            req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()] as string
-          )
-        : undefined
+      ? parseFlightRouterState(
+          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+        )
       : undefined
 
     /**
@@ -860,8 +884,6 @@ export async function renderToHTMLOrFlight(
         : require('next/dist/compiled/nanoid').nanoid()
 
     const searchParamsProps = { searchParams: query }
-
-    stripInternalQueries(query)
 
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
@@ -1129,9 +1151,8 @@ export async function renderToHTMLOrFlight(
       )
       const preloadedFontFiles = layoutOrPagePath
         ? getPreloadedFontFilesInlineLinkTags(
-            serverComponentManifest,
             serverCSSManifest!,
-            fontLoaderManifest,
+            nextFontManifest,
             serverCSSForEntries,
             layoutOrPagePath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1204,7 +1225,14 @@ export async function renderToHTMLOrFlight(
       }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
-        defaultRevalidate = layoutOrPageMod.revalidate
+        defaultRevalidate = layoutOrPageMod.revalidate as number
+
+        if (
+          typeof staticGenerationStore.revalidate === 'undefined' ||
+          staticGenerationStore.revalidate > defaultRevalidate
+        ) {
+          staticGenerationStore.revalidate = defaultRevalidate
+        }
 
         if (
           staticGenerationStore.isStaticGeneration &&
@@ -1422,7 +1450,7 @@ export async function renderToHTMLOrFlight(
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
-                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                    nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
                   }
                   rel="preconnect"
                   href="/"
@@ -1476,10 +1504,11 @@ export async function renderToHTMLOrFlight(
       renderResult: RenderResult
     ): Promise<string> => {
       const renderChunks: string[] = []
+      const textDecoder = new TextDecoder()
 
       const writable = {
         write(chunk: any) {
-          renderChunks.push(decodeText(chunk))
+          renderChunks.push(decodeText(chunk, textDecoder))
         },
         end() {},
         destroy() {},
@@ -1610,9 +1639,8 @@ export async function renderToHTMLOrFlight(
             true
           )
           getPreloadedFontFilesInlineLinkTags(
-            serverComponentManifest,
             serverCSSManifest!,
-            fontLoaderManifest,
+            nextFontManifest,
             serverCSSForEntries,
             layoutPath,
             injectedFontPreloadTagsWithCurrentLayout
@@ -1701,20 +1729,33 @@ export async function renderToHTMLOrFlight(
     }
 
     // For action requests, we handle them differently with a sepcial render result.
-    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
-      const workerName = 'app' + renderOpts.pathname
-      const actionModId = serverActionsManifest[actionId].workers[workerName]
+    if (isAction) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
+        const workerName = 'app' + renderOpts.pathname
+        const actionModId = serverActionsManifest[actionId].workers[workerName]
 
-      const { parseBody } =
-        require('./api-utils/node') as typeof import('./api-utils/node')
-      const actionData = (await parseBody(req, '1mb')) || {}
+        const { parseBody } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        const actionData = (await parseBody(req, '1mb')) || {}
 
-      const actionHandler =
-        ComponentMod.__next_app_webpack_require__(actionModId).default
+        const actionHandler =
+          ComponentMod.__next_app_webpack_require__(actionModId)
 
-      return new ActionRenderResult(
-        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
-      )
+        try {
+          return new ActionRenderResult(
+            JSON.stringify(
+              await actionHandler(actionId, actionData.bound || [])
+            )
+          )
+        } catch (err) {
+          if (isRedirectError(err)) {
+            throw new Error('Invariant: not implemented.')
+          }
+          throw err
+        }
+      } else {
+        throw new Error('Not implemented in Edge Runtime.')
+      }
     }
 
     // Below this line is handling for rendering to HTML.
@@ -1733,8 +1774,7 @@ export async function renderToHTMLOrFlight(
       Uint8Array
     > = new TransformStream()
 
-    // TODO-APP: validate req.url as it gets passed to render.
-    const initialCanonicalUrl = req.url!
+    const initialCanonicalUrl = validateURL(req.url)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
@@ -1999,11 +2039,11 @@ export async function renderToHTMLOrFlight(
     return renderResult
   }
 
-  return runWithRequestAsyncStorage(
+  return RequestAsyncStorageWrapper.wrap(
     requestAsyncStorage,
     { req, res, renderOpts },
     () =>
-      runWithStaticGenerationAsyncStorage(
+      StaticGenerationAsyncStorageWrapper.wrap(
         staticGenerationAsyncStorage,
         { pathname, renderOpts },
         () => wrappedRender()

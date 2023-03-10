@@ -24,7 +24,7 @@ const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId: any) => {
-  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+  return encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
 }
 
 // Ignore the module ID transform in client.
@@ -150,7 +150,28 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
     },
   })
 
-  const newResponse = createFromReadableStream(readable)
+  const newResponse = createFromReadableStream(readable, {
+    async callServer(id: string, args: any[]) {
+      console.log('callServer', id, args)
+
+      const actionId = id
+
+      // Fetching the current url with the action header.
+      // TODO: Refactor this to look up from a manifest.
+      const res = await fetch('', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Next-Action': actionId,
+        },
+        body: JSON.stringify({
+          bound: args,
+        }),
+      })
+
+      return res.json()
+    },
+  })
 
   rscCache.set(cacheKey, newResponse)
   return newResponse

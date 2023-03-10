@@ -1,7 +1,7 @@
 import type { Route, Metadata } from 'next'
 import Link from 'next/link'
 
-export function Card<T>({ href }: { href: Route<T> | URL }) {
+export function Card<T extends string>({ href }: { href: Route<T> | URL }) {
   return (
     <Link href={href}>
       <div>My Card</div>
@@ -25,10 +25,10 @@ export default function page() {
       <Link href="/blog/a#1/b">test</Link>
       <Link href="/blog/v/w/z">test</Link>
       <Link href="/(newroot)/dashboard/another" />
-      <Link href="/dashboard/">test</Link>
+      <Link href="/dashboard">test</Link>
       <Link href={`/blog/a/${test}`}>test</Link>
       <Link href="/rewrite-any">test</Link>
-      <Link href="/rewrite-one-or-more/">test</Link>
+      <Link href="/rewrite-one-or-more">test</Link>
       <Link href="/rewrite-param/page">test</Link>
       <Link href="/rewrite-param/x/page1">test</Link>
     </>

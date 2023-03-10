@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var ReactVersion = '18.3.0-next-bfb9cbd8c-20230223';
+var ReactVersion = '18.3.0-next-3706edb81-20230308';
 
 var Internals = {
   usingClientEntryPoint: false,
@@ -24,12 +24,22 @@ var Internals = {
   }
 };
 
-function preinit() {
+function prefetchDNS() {
   var dispatcher = Internals.Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preinit.apply(this, arguments);
-  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+    dispatcher.prefetchDNS.apply(this, arguments);
+  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preconnect() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preconnect.apply(this, arguments);
+  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
@@ -40,6 +50,16 @@ function preload() {
   if (dispatcher) {
     dispatcher.preload.apply(this, arguments);
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preinit() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinit.apply(this, arguments);
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
@@ -55,6 +75,8 @@ function flushSync() {
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal;
 exports.flushSync = flushSync;
+exports.preconnect = preconnect;
+exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
 exports.preload = preload;
 exports.version = ReactVersion;

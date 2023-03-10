@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Client from './client'
 
 export default function Page() {
   return (
@@ -11,6 +12,7 @@ export default function Page() {
       <Link href="/title-template/extra/inner" id="to-nested">
         to /title-template/extra/inner
       </Link>
+      <Client />
     </div>
   )
 }

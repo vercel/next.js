@@ -405,6 +405,45 @@ createNextDescribe(
         expect(res.status).toEqual(200)
         expect(await res.text()).toContain('hello, world')
       })
+
+      it('returns a response when headers are accessed', async () => {
+        const meta = { ping: 'pong' }
+        const res = await next.fetch('/edge/headers', {
+          headers: withRequestMeta(meta),
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.json()).toEqual(meta)
+      })
+    })
+
+    describe('dynamic = "force-static"', () => {
+      it('strips search, headers, and domain from request', async () => {
+        const res = await next.fetch('/dynamic?query=true', {
+          headers: {
+            accept: 'application/json',
+            cookie: 'session=true',
+          },
+        })
+
+        const url = 'http://localhost:3000/dynamic'
+
+        expect(res.status).toEqual(200)
+        expect(await res.json()).toEqual({
+          nextUrl: {
+            href: url,
+            search: '',
+            searchParams: null,
+            clone: url,
+          },
+          req: {
+            url,
+            headers: null,
+          },
+          headers: null,
+          cookies: null,
+        })
+      })
     })
 
     if (isNextDev) {

@@ -1,5 +1,4 @@
 import path from '../../../shared/lib/isomorphic/path'
-import type { ResolvedMetadata } from '../types/metadata-interface'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -30,16 +29,4 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-function resolveUrlValuesOfObject(
-  obj: Record<string, string | URL | null> | null | undefined,
-  metadataBase: ResolvedMetadata['metadataBase']
-): null | Record<string, URL | null> {
-  if (!obj) return null
-  const result: Record<string, URL | null> = {}
-  for (const [key, value] of Object.entries(obj)) {
-    result[key as keyof typeof obj] = resolveUrl(value, metadataBase)
-  }
-  return result
-}
-
-export { isStringOrURL, resolveUrl, resolveUrlValuesOfObject }
+export { isStringOrURL, resolveUrl }

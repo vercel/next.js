@@ -13,22 +13,11 @@ import {
 } from '../../../shared/lib/constants'
 import { relative, sep } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
-
-import {
-  edgeServerModuleIds,
-  serverModuleIds,
-} from './flight-client-entry-plugin'
+import { getProxiedPluginState } from '../../build-context'
 
 import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
-
-// This is the module that will be used to anchor all client references to.
-// I.e. it will have all the client files as async deps from this point on.
-// We use the Flight client implementation because you can't get to these
-// without the client runtime so it's the first time in the loading sequence
-// you might want them.
-// const clientFileName = require.resolve('../');
 
 interface Options {
   dev: boolean
@@ -42,6 +31,12 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
+
+const pluginState = getProxiedPluginState({
+  serverModuleIds: {} as Record<string, string | number>,
+  edgeServerModuleIds: {} as Record<string, string | number>,
+  ASYNC_CLIENT_MODULES: [] as string[],
+})
 
 interface ManifestNode {
   [moduleExport: string]: {
@@ -67,17 +62,15 @@ interface ManifestNode {
 
 export type FlightManifest = {
   __ssr_module_mapping__: {
-    [moduleId: string]: ManifestNode
+    [modulePath: string]: ManifestNode
   }
   __edge_ssr_module_mapping__: {
-    [moduleId: string]: ManifestNode
+    [modulePath: string]: ManifestNode
   }
   __entry_css_files__: {
     [entryPathWithoutExtension: string]: string[]
   }
-} & {
-  [modulePath: string]: ManifestNode
-}
+} & ManifestNode
 
 export type FlightCSSManifest = {
   [modulePath: string]: string[]
@@ -89,18 +82,15 @@ export type FlightCSSManifest = {
 
 const PLUGIN_NAME = 'FlightManifestPlugin'
 
-// Collect modules from server/edge compiler in client layer,
-// and detect if it's been used, and mark it as `async: true` for react.
-// So that react could unwrap the async module from promise and render module itself.
-export const ASYNC_CLIENT_MODULES = new Set<string>()
-
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
+  ASYNC_CLIENT_MODULES: Set<string>
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
+    this.ASYNC_CLIENT_MODULES = new Set(pluginState.ASYNC_CLIENT_MODULES)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -136,6 +126,7 @@ export class FlightManifestPlugin {
     compilation: webpack.Compilation,
     context: string
   ) {
+    // @ts-ignore
     const manifest: FlightManifest = {
       __ssr_module_mapping__: {},
       __edge_ssr_module_mapping__: {},
@@ -158,11 +149,11 @@ export class FlightManifestPlugin {
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      function recordModule(
+      const recordModule = (
         id: ModuleId,
         mod: webpack.NormalModule,
         chunkCSS: string[]
-      ) {
+      ) => {
         const isCSSModule =
           regexCSS.test(mod.resource) ||
           mod.type === 'css/mini-extract' ||
@@ -192,7 +183,6 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleExports = manifest[resource] || {}
         const moduleIdMapping = manifest.__ssr_module_mapping__
         const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
 
@@ -208,20 +198,18 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!manifest[resource]) {
-            manifest[resource] = {
-              default: {
-                id,
-                name: 'default',
-                chunks: chunkCSS,
-              },
+          if (!manifest[resource + '#']) {
+            manifest[resource + '#'] = {
+              id: id || '',
+              name: '',
+              chunks: chunkCSS,
             }
           } else {
             // It is possible that there are multiple modules with the same resource,
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
-            manifest[resource].default.chunks = [
-              ...new Set([...manifest[resource].default.chunks, ...chunkCSS]),
+            manifest[resource + '#'].chunks = [
+              ...new Set([...manifest[resource + '#'].chunks, ...chunkCSS]),
             ]
           }
 
@@ -235,28 +223,32 @@ export class FlightManifestPlugin {
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const isAsyncModule = ASYNC_CLIENT_MODULES.has(mod.resource)
+        const isAsyncModule = this.ASYNC_CLIENT_MODULES.has(mod.resource)
 
         const cjsExports = [
-          ...new Set([
-            ...mod.dependencies.map((dep) => {
-              // Match CommonJsSelfReferenceDependency
-              if (dep.type === 'cjs self exports reference') {
-                // @ts-expect-error: TODO: Fix Dependency type
-                if (dep.base === 'module.exports') {
-                  return 'default'
-                }
-
-                // `exports.foo = ...`, `exports.default = ...`
-                // @ts-expect-error: TODO: Fix Dependency type
-                if (dep.base === 'exports') {
+          ...new Set(
+            [
+              ...mod.dependencies.map((dep) => {
+                // Match CommonJsSelfReferenceDependency
+                if (dep.type === 'cjs self exports reference') {
                   // @ts-expect-error: TODO: Fix Dependency type
-                  return dep.names.filter((name: any) => name !== '__esModule')
+                  if (dep.base === 'module.exports') {
+                    return 'default'
+                  }
+
+                  // `exports.foo = ...`, `exports.default = ...`
+                  // @ts-expect-error: TODO: Fix Dependency type
+                  if (dep.base === 'exports') {
+                    // @ts-expect-error: TODO: Fix Dependency type
+                    return dep.names.filter(
+                      (name: any) => name !== '__esModule'
+                    )
+                  }
                 }
-              }
-              return null
-            }),
-          ]),
+                return null
+              }),
+            ].flat()
+          ),
         ]
 
         function getAppPathRequiredChunks() {
@@ -275,65 +267,102 @@ export class FlightManifestPlugin {
             })
             .filter(nonNullable)
         }
-
-        const moduleExportedKeys = ['', '*']
-          .concat(
-            [...exportsInfo.exports]
-              .filter((exportInfo) => exportInfo.provided)
-              .map((exportInfo) => exportInfo.name),
-            ...cjsExports
-          )
-          .filter((name) => name !== null)
-
-        moduleExportedKeys.forEach((name) => {
-          // If the chunk is from `app/` chunkGroup, use it first.
-          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
-          if (
-            !moduleExports[name] ||
-            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
-          ) {
-            const requiredChunks = getAppPathRequiredChunks()
-
-            moduleExports[name] = {
-              id,
-              name,
-              chunks: requiredChunks,
-              // E.g.
-              // page (server) -> local module (client) -> package (esm)
-              // The esm package will bubble up to make the entire chain till the client entry as async module.
-              async: isAsyncModule,
-            }
-          }
-
-          if (serverModuleIds.has(ssrNamedModuleId)) {
-            moduleIdMapping[id] = moduleIdMapping[id] || {}
-            moduleIdMapping[id][name] = {
-              ...moduleExports[name],
-              id: serverModuleIds.get(ssrNamedModuleId)!,
-            }
-          }
-
-          if (edgeServerModuleIds.has(ssrNamedModuleId)) {
-            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
-            edgeModuleIdMapping[id][name] = {
-              ...moduleExports[name],
-              id: edgeServerModuleIds.get(ssrNamedModuleId)!,
-            }
-          }
-        })
-
-        manifest[resource] = moduleExports
+        const requiredChunks = getAppPathRequiredChunks()
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
-        if (/[\\/]next[\\/]dist[\\/]/.test(resource)) {
-          manifest[
-            resource.replace(
+        const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
+          ? resource.replace(
               /[\\/]next[\\/]dist[\\/]/,
               '/next/dist/esm/'.replace(/\//g, path.sep)
             )
-          ] = moduleExports
+          : null
+
+        function addClientReference(name: string) {
+          if (name === '*') {
+            manifest[resource] = {
+              id,
+              chunks: requiredChunks,
+              name: '*',
+              async: isAsyncModule,
+            }
+            if (esmResource) {
+              manifest[esmResource] = manifest[resource]
+            }
+          } else if (name === '') {
+            manifest[resource + '#'] = {
+              id,
+              chunks: requiredChunks,
+              name: '',
+              async: isAsyncModule,
+            }
+            if (esmResource) {
+              manifest[esmResource + '#'] = manifest[resource + '#']
+            }
+          } else {
+            manifest[resource + '#' + name] = {
+              id,
+              chunks: requiredChunks,
+              name,
+              async: isAsyncModule,
+            }
+            if (esmResource) {
+              manifest[esmResource + '#' + name] =
+                manifest[resource + '#' + name]
+            }
+          }
         }
+
+        function addSSRIdMapping(name: string) {
+          const key = resource + (name === '*' ? '' : '#' + name)
+          if (
+            typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
+          ) {
+            moduleIdMapping[id] = moduleIdMapping[id] || {}
+            moduleIdMapping[id][name] = {
+              ...manifest[key],
+              id: pluginState.serverModuleIds[ssrNamedModuleId],
+            }
+          }
+
+          if (
+            typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
+            'undefined'
+          ) {
+            edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
+            edgeModuleIdMapping[id][name] = {
+              ...manifest[key],
+              id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
+            }
+          }
+        }
+
+        addClientReference('*')
+        addClientReference('')
+        addSSRIdMapping('*')
+        addSSRIdMapping('')
+
+        const moduleExportedKeys = [
+          ...[...exportsInfo.exports]
+            .filter((exportInfo) => exportInfo.provided)
+            .map((exportInfo) => exportInfo.name),
+          ...cjsExports,
+        ].filter((name) => name !== null)
+
+        moduleExportedKeys.forEach((name) => {
+          const key = resource + '#' + name
+
+          // If the chunk is from `app/` chunkGroup, use it first.
+          // This make sure not to load the overlapped chunk from `pages/` chunkGroup
+          if (
+            !manifest[key] ||
+            (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
+          ) {
+            addClientReference(name)
+          }
+
+          addSSRIdMapping(name)
+        })
 
         manifest.__ssr_module_mapping__ = moduleIdMapping
         manifest.__edge_ssr_module_mapping__ = edgeModuleIdMapping
@@ -374,7 +403,12 @@ export class FlightManifestPlugin {
         if (entryName?.startsWith('app/')) {
           // The `key` here should be the absolute file path but without extension.
           // We need to replace the separator in the entry name to match the system separator.
-          const key = this.appDir + entryName.slice(3).replace(/\//g, sep)
+          const key =
+            this.appDir +
+            entryName
+              .slice(3)
+              .replace(/\//g, sep)
+              .replace(/\.[^\\/.]+$/, '')
           entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
         }
       }
@@ -395,7 +429,7 @@ export class FlightManifestPlugin {
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST
     const json = JSON.stringify(manifest, null, this.dev ? 2 : undefined)
 
-    ASYNC_CLIENT_MODULES.clear()
+    pluginState.ASYNC_CLIENT_MODULES = []
 
     assets[file + '.js'] = new sources.RawSource(
       'self.__RSC_MANIFEST=' + json

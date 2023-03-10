@@ -422,24 +422,29 @@ type Languages<T> = {
   [s in HrefLang]?: T
 }
 
+export type AlternateLinkDescriptor = {
+  title?: string
+  url: string | URL
+}
+
 export type AlternateURLs = {
-  canonical?: null | string | URL
-  languages?: Languages<null | string | URL>
+  canonical?: null | string | URL | AlternateLinkDescriptor
+  languages?: Languages<null | string | URL | AlternateLinkDescriptor[]>
   media?: {
-    [media: string]: null | string | URL
+    [media: string]: null | string | URL | AlternateLinkDescriptor[]
   }
   types?: {
-    [types: string]: null | string | URL
+    [types: string]: null | string | URL | AlternateLinkDescriptor[]
   }
 }
 
 export type ResolvedAlternateURLs = {
-  canonical: null | URL
-  languages: null | Languages<null | URL>
+  canonical: null | AlternateLinkDescriptor
+  languages: null | Languages<AlternateLinkDescriptor[]>
   media: null | {
-    [media: string]: null | URL
+    [media: string]: null | AlternateLinkDescriptor[]
   }
   types: null | {
-    [types: string]: null | URL
+    [types: string]: null | AlternateLinkDescriptor[]
   }
 }

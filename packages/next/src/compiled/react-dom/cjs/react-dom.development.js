@@ -195,7 +195,7 @@ var internalEventHandlersKey = '__reactEvents$' + randomKey;
 var internalEventHandlerListenersKey = '__reactListeners$' + randomKey;
 var internalEventHandlesSetKey = '__reactHandles$' + randomKey;
 var internalRootNodeResourcesKey = '__reactResources$' + randomKey;
-var internalResourceMarker = '__reactMarker$' + randomKey;
+var internalHoistableMarker = '__reactMarker$' + randomKey;
 function detachDeletedInstance(node) {
   // TODO: This function is only called on host components. I don't think all of
   // these fields are relevant.
@@ -371,11 +371,14 @@ function getResourcesFromRoot(root) {
 
   return resources;
 }
-function isMarkedResource(node) {
-  return !!node[internalResourceMarker];
+function isMarkedHoistable(node) {
+  return !!node[internalHoistableMarker];
 }
-function markNodeAsResource(node) {
-  node[internalResourceMarker] = true;
+function markNodeAsHoistable(node) {
+  node[internalHoistableMarker] = true;
+}
+function isOwnedInstance(node) {
+  return !!(node[internalHoistableMarker] || node[internalInstanceKey]);
 }
 
 var allNativeEvents = new Set();
@@ -5054,7 +5057,7 @@ var LowPriority = Scheduler.unstable_LowPriority;
 var IdlePriority = Scheduler.unstable_IdlePriority; // this doesn't actually exist on the scheduler, but it *does*
 // on scheduler/unstable_mock, which we'll need for internal testing
 
-var unstable_yieldValue = Scheduler.unstable_yieldValue;
+var log$1 = Scheduler.log;
 var unstable_setDisableYieldValue = Scheduler.unstable_setDisableYieldValue;
 
 var rendererID = null;
@@ -5205,8 +5208,8 @@ function onCommitUnmount(fiber) {
 }
 function setIsStrictModeForDevtools(newIsStrictMode) {
   {
-    if (typeof unstable_yieldValue === 'function') {
-      // We're in a test because Scheduler.unstable_yieldValue only exists
+    if (typeof log$1 === 'function') {
+      // We're in a test because Scheduler.log only exists
       // in SchedulerMock. To reduce the noise in strict mode tests,
       // suppress warnings and disable scheduler yielding during the double render
       unstable_setDisableYieldValue(newIsStrictMode);
@@ -10102,87 +10105,97 @@ function updateDOMProperties(domElement, updatePayload, wasCustomComponentTag, i
       setValueForProperty(domElement, propKey, propValue, isCustomComponentTag);
     }
   }
+} // creates a script element that won't execute
+
+
+function createPotentiallyInlineScriptElement(ownerDocument) {
+  // Create the script via .innerHTML so its "parser-inserted" flag is
+  // set to true and it does not execute
+  var div = ownerDocument.createElement('div');
+
+  div.innerHTML = '<script><' + '/script>'; // eslint-disable-line
+  // This is guaranteed to yield a script element.
+
+  var firstChild = div.firstChild;
+  var element = div.removeChild(firstChild);
+  return element;
 }
+function createSelectElement(props, ownerDocument) {
+  var element;
 
-function createElement(type, props, rootContainerElement, parentNamespace) {
-  var isCustomComponentTag; // We create tags in the namespace of their parent container, except HTML
-  // tags get no namespace.
-
-  var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerElement);
-  var domElement;
-  var namespaceURI = parentNamespace;
-
-  if (namespaceURI === HTML_NAMESPACE) {
-    namespaceURI = getIntrinsicNamespace(type);
+  if (typeof props.is === 'string') {
+    element = ownerDocument.createElement('select', {
+      is: props.is
+    });
+  } else {
+    // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
+    // See discussion in https://github.com/facebook/react/pull/6896
+    // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
+    element = ownerDocument.createElement('select');
   }
 
-  if (namespaceURI === HTML_NAMESPACE) {
-    {
-      isCustomComponentTag = isCustomComponent(type, props); // Should this check be gated by parent namespace? Not sure we want to
-      // allow <SVG> or <mATH>.
+  if (props.multiple) {
+    element.multiple = true;
+  } else if (props.size) {
+    // Setting a size greater than 1 causes a select to behave like `multiple=true`, where
+    // it is possible that no option is selected.
+    //
+    // This is only necessary when a select in "single selection mode".
+    element.size = props.size;
+  }
 
-      if (!isCustomComponentTag && type !== type.toLowerCase()) {
-        error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
-      }
+  return element;
+} // Creates elements in the HTML namesapce
+
+function createHTMLElement(type, props, ownerDocument) {
+  {
+    switch (type) {
+      case 'script':
+      case 'select':
+        error('createHTMLElement was called with a "%s" type. This type has special creation logic in React and should use the create function implemented specifically for it. This is a bug in React.', type);
+
+        break;
+
+      case 'svg':
+      case 'math':
+        error('createHTMLElement was called with a "%s" type. This type must be created with Document.createElementNS which this method does not implement. This is a bug in React.', type);
+
     }
+  }
 
-    if (type === 'script') {
-      // Create the script via .innerHTML so its "parser-inserted" flag is
-      // set to true and it does not execute
-      var div = ownerDocument.createElement('div');
+  var isCustomComponentTag;
+  var element;
 
-      div.innerHTML = '<script><' + '/script>'; // eslint-disable-line
-      // This is guaranteed to yield a script element.
+  {
+    isCustomComponentTag = isCustomComponent(type, props); // Should this check be gated by parent namespace? Not sure we want to
+    // allow <SVG> or <mATH>.
 
-      var firstChild = div.firstChild;
-      domElement = div.removeChild(firstChild);
-    } else if (typeof props.is === 'string') {
-      domElement = ownerDocument.createElement(type, {
-        is: props.is
-      });
-    } else {
-      // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
-      // See discussion in https://github.com/facebook/react/pull/6896
-      // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
-      domElement = ownerDocument.createElement(type); // Normally attributes are assigned in `setInitialDOMProperties`, however the `multiple` and `size`
-      // attributes on `select`s needs to be added before `option`s are inserted.
-      // This prevents:
-      // - a bug where the `select` does not scroll to the correct option because singular
-      //  `select` elements automatically pick the first item #13222
-      // - a bug where the `select` set the first item as selected despite the `size` attribute #14239
-      // See https://github.com/facebook/react/issues/13222
-      // and https://github.com/facebook/react/issues/14239
-
-      if (type === 'select') {
-        var node = domElement;
-
-        if (props.multiple) {
-          node.multiple = true;
-        } else if (props.size) {
-          // Setting a size greater than 1 causes a select to behave like `multiple=true`, where
-          // it is possible that no option is selected.
-          //
-          // This is only necessary when a select in "single selection mode".
-          node.size = props.size;
-        }
-      }
+    if (!isCustomComponentTag && type !== type.toLowerCase()) {
+      error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
     }
+  }
+
+  if (typeof props.is === 'string') {
+    element = ownerDocument.createElement(type, {
+      is: props.is
+    });
   } else {
-    domElement = ownerDocument.createElementNS(namespaceURI, type);
+    // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
+    // See discussion in https://github.com/facebook/react/pull/6896
+    // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
+    element = ownerDocument.createElement(type);
   }
 
   {
-    if (namespaceURI === HTML_NAMESPACE) {
-      if (!isCustomComponentTag && // $FlowFixMe[method-unbinding]
-      Object.prototype.toString.call(domElement) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
-        warnedUnknownTags[type] = true;
+    if (!isCustomComponentTag && // $FlowFixMe[method-unbinding]
+    Object.prototype.toString.call(element) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
+      warnedUnknownTags[type] = true;
 
-        error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
-      }
+      error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
     }
   }
 
-  return domElement;
+  return element;
 }
 function createTextNode(text, rootContainerElement) {
   return getOwnerDocumentFromRootContainer(rootContainerElement).createTextNode(text);
@@ -10539,7 +10552,7 @@ function getPossibleStandardName(propName) {
   }
 }
 
-function diffHydratedProperties(domElement, tag, rawProps, parentNamespace, isConcurrentMode, shouldWarnDev) {
+function diffHydratedProperties(domElement, tag, rawProps, isConcurrentMode, shouldWarnDev, parentNamespaceDev) {
   var isCustomComponentTag;
   var extraAttributeNames;
 
@@ -10742,13 +10755,13 @@ function diffHydratedProperties(domElement, tag, rawProps, parentNamespace, isCo
           extraAttributeNames.delete(propertyInfo.attributeName);
           serverValue = getValueForProperty(domElement, propKey, nextProp, propertyInfo);
         } else {
-          var ownNamespace = parentNamespace;
+          var ownNamespaceDev = parentNamespaceDev;
 
-          if (ownNamespace === HTML_NAMESPACE) {
-            ownNamespace = getIntrinsicNamespace(tag);
+          if (ownNamespaceDev === HTML_NAMESPACE) {
+            ownNamespaceDev = getIntrinsicNamespace(tag);
           }
 
-          if (ownNamespace === HTML_NAMESPACE) {
+          if (ownNamespaceDev === HTML_NAMESPACE) {
             // $FlowFixMe - Should be inferred as not undefined.
             extraAttributeNames.delete(propKey.toLowerCase());
           } else {
@@ -11227,126 +11240,6 @@ var updatedAncestorInfoDev = function () {};
   };
 }
 
-function validateLinkPropsForStyleResource(props) {
-  {
-    // This should only be called when we know we are opting into Resource semantics (i.e. precedence is not null)
-    var href = props.href,
-        onLoad = props.onLoad,
-        onError = props.onError,
-        disabled = props.disabled;
-    var includedProps = [];
-    if (onLoad) includedProps.push('`onLoad`');
-    if (onError) includedProps.push('`onError`');
-    if (disabled != null) includedProps.push('`disabled`');
-    var includedPropsPhrase = propNamesListJoin(includedProps, 'and');
-    includedPropsPhrase += includedProps.length === 1 ? ' prop' : ' props';
-    var withArticlePhrase = includedProps.length === 1 ? 'an ' + includedPropsPhrase : 'the ' + includedPropsPhrase;
-
-    if (includedProps.length) {
-      error('React encountered a <link rel="stylesheet" href="%s" ... /> with a `precedence` prop that' + ' also included %s. The presence of loading and error handlers indicates an intent to manage' + ' the stylesheet loading state from your from your Component code and React will not hoist or' + ' deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet' + ' using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.', href, withArticlePhrase, includedPropsPhrase);
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function propNamesListJoin(list, combinator) {
-  switch (list.length) {
-    case 0:
-      return '';
-
-    case 1:
-      return list[0];
-
-    case 2:
-      return list[0] + ' ' + combinator + ' ' + list[1];
-
-    default:
-      return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
-  }
-}
-
-function validatePreloadArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preload() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preload() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        // Font specific validation of options
-        case 'font':
-          {
-            if (options.crossOrigin === 'use-credentials') {
-              error('ReactDOM.preload() was called with an "as" type of "font" and with a "crossOrigin" option of "use-credentials".' + ' Fonts preloading must use crossOrigin "anonymous" to be functional. Please update your font preload to omit' + ' the crossOrigin option or change it to any other value than "use-credentials" (Browsers default all other values' + ' to anonymous mode). The href for the preload call where this warning originated is "%s"', href);
-            }
-
-            break;
-          }
-
-        case 'script':
-        case 'style':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preload() expected a valid "as" type in the options (second) argument but found %s instead.' + ' Please use one of the following valid values instead: %s. The href for the preload call where this' + ' warning originated is "%s".', typeOfAs, '"style", "font", or "script"', href);
-          }
-      }
-    }
-  }
-}
-function validatePreinitArguments(href, options) {
-  {
-    if (!href || typeof href !== 'string') {
-      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
-
-      error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
-    } else if (typeof options !== 'object' || options === null) {
-      var _typeOfArg2 = getValueDescriptorExpectingObjectForWarning(options);
-
-      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg2, href);
-    } else {
-      var as = options.as;
-
-      switch (as) {
-        case 'style':
-        case 'script':
-          {
-            break;
-          }
-        // We have an invalid as type and need to warn
-
-        default:
-          {
-            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
-
-            error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. Currently, valid resource types for for preinit are "style"' + ' and "script". The href for the preinit call where this warning originated is "%s".', typeOfAs, href);
-          }
-      }
-    }
-  }
-}
-function getValueDescriptorExpectingObjectForWarning(thing) {
-  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
-}
-function getValueDescriptorExpectingEnumForWarning(thing) {
-  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
-}
-
 var valueStack = [];
 var fiberStack;
 
@@ -11476,6 +11369,126 @@ function popHostContext(fiber) {
   pop(contextFiberStackCursor, fiber);
 }
 
+function validateLinkPropsForStyleResource(props) {
+  {
+    // This should only be called when we know we are opting into Resource semantics (i.e. precedence is not null)
+    var href = props.href,
+        onLoad = props.onLoad,
+        onError = props.onError,
+        disabled = props.disabled;
+    var includedProps = [];
+    if (onLoad) includedProps.push('`onLoad`');
+    if (onError) includedProps.push('`onError`');
+    if (disabled != null) includedProps.push('`disabled`');
+    var includedPropsPhrase = propNamesListJoin(includedProps, 'and');
+    includedPropsPhrase += includedProps.length === 1 ? ' prop' : ' props';
+    var withArticlePhrase = includedProps.length === 1 ? 'an ' + includedPropsPhrase : 'the ' + includedPropsPhrase;
+
+    if (includedProps.length) {
+      error('React encountered a <link rel="stylesheet" href="%s" ... /> with a `precedence` prop that' + ' also included %s. The presence of loading and error handlers indicates an intent to manage' + ' the stylesheet loading state from your from your Component code and React will not hoist or' + ' deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet' + ' using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.', href, withArticlePhrase, includedPropsPhrase);
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function propNamesListJoin(list, combinator) {
+  switch (list.length) {
+    case 0:
+      return '';
+
+    case 1:
+      return list[0];
+
+    case 2:
+      return list[0] + ' ' + combinator + ' ' + list[1];
+
+    default:
+      return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
+  }
+}
+
+function validatePreloadArguments(href, options) {
+  {
+    if (!href || typeof href !== 'string') {
+      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
+
+      error('ReactDOM.preload() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
+    } else if (typeof options !== 'object' || options === null) {
+      var _typeOfArg = getValueDescriptorExpectingObjectForWarning(options);
+
+      error('ReactDOM.preload() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg, href);
+    } else {
+      var as = options.as;
+
+      switch (as) {
+        // Font specific validation of options
+        case 'font':
+          {
+            if (options.crossOrigin === 'use-credentials') {
+              error('ReactDOM.preload() was called with an "as" type of "font" and with a "crossOrigin" option of "use-credentials".' + ' Fonts preloading must use crossOrigin "anonymous" to be functional. Please update your font preload to omit' + ' the crossOrigin option or change it to any other value than "use-credentials" (Browsers default all other values' + ' to anonymous mode). The href for the preload call where this warning originated is "%s"', href);
+            }
+
+            break;
+          }
+
+        case 'script':
+        case 'style':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preload() expected a valid "as" type in the options (second) argument but found %s instead.' + ' Please use one of the following valid values instead: %s. The href for the preload call where this' + ' warning originated is "%s".', typeOfAs, '"style", "font", or "script"', href);
+          }
+      }
+    }
+  }
+}
+function validatePreinitArguments(href, options) {
+  {
+    if (!href || typeof href !== 'string') {
+      var typeOfArg = getValueDescriptorExpectingObjectForWarning(href);
+
+      error('ReactDOM.preinit() expected the first argument to be a string representing an href but found %s instead.', typeOfArg);
+    } else if (typeof options !== 'object' || options === null) {
+      var _typeOfArg2 = getValueDescriptorExpectingObjectForWarning(options);
+
+      error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. The href for the preload call where this warning originated is "%s".', _typeOfArg2, href);
+    } else {
+      var as = options.as;
+
+      switch (as) {
+        case 'style':
+        case 'script':
+          {
+            break;
+          }
+        // We have an invalid as type and need to warn
+
+        default:
+          {
+            var typeOfAs = getValueDescriptorExpectingEnumForWarning(as);
+
+            error('ReactDOM.preinit() expected the second argument to be an options argument containing at least an "as" property' + ' specifying the Resource type. It found %s instead. Currently, valid resource types for for preinit are "style"' + ' and "script". The href for the preinit call where this warning originated is "%s".', typeOfAs, href);
+          }
+      }
+    }
+  }
+}
+function getValueDescriptorExpectingObjectForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : "something with type \"" + typeof thing + "\"";
+}
+function getValueDescriptorExpectingEnumForWarning(thing) {
+  return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
+}
+
 var Dispatcher$1 = Internals.Dispatcher;
 // In the future this may need to change, especially when modules / scripts are supported
 // It is valid to preload even when we aren't actively rendering. For cases where Float functions are
@@ -11496,16 +11509,22 @@ function prepareToRenderResources(rootContainer) {
 function cleanupAfterRenderResources() {
   Dispatcher$1.current = previousDispatcher;
   previousDispatcher = null;
+}
+function prepareToCommitHoistables() {
+  tagCaches = null;
 } // We want this to be the default dispatcher on ReactDOMSharedInternals but we don't want to mutate
 // internals in Module scope. Instead we export it and Internals will import it. There is already a cycle
 // from Internals -> ReactDOM -> FloatClient -> Internals so this doesn't introduce a new one.
 
 var ReactDOMClientDispatcher = {
+  prefetchDNS: prefetchDNS$1,
+  preconnect: preconnect$1,
   preload: preload$1,
   preinit: preinit$1
-}; // global maps of Resources
+}; // global collections of Resources
 
-var preloadPropsMap = new Map(); // getRootNode is missing from IE and old jsdom versions
+var preloadPropsMap = new Map();
+var preconnectsSet = new Set(); // getRootNode is missing from IE and old jsdom versions
 
 function getHoistableRoot(container) {
   // $FlowFixMe[method-unbinding]
@@ -11542,8 +11561,74 @@ function getDocumentForPreloads() {
 
 function getDocumentFromRoot(root) {
   return root.ownerDocument || root;
+}
+
+function preconnectAs(rel, crossOrigin, href) {
+  var ownerDocument = getDocumentForPreloads();
+
+  if (typeof href === 'string' && href && ownerDocument) {
+    var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
+    var key = "link[rel=\"" + rel + "\"][href=\"" + limitedEscapedHref + "\"]";
+
+    if (typeof crossOrigin === 'string') {
+      key += "[crossorigin=\"" + crossOrigin + "\"]";
+    }
+
+    if (!preconnectsSet.has(key)) {
+      preconnectsSet.add(key);
+      var preconnectProps = {
+        rel: rel,
+        crossOrigin: crossOrigin,
+        href: href
+      };
+
+      if (null === ownerDocument.querySelector(key)) {
+        var preloadInstance = ownerDocument.createElement('link');
+        setInitialProperties(preloadInstance, 'link', preconnectProps);
+        markNodeAsHoistable(preloadInstance);
+        ownerDocument.head.appendChild(preloadInstance);
+      }
+    }
+  }
 } // --------------------------------------
-//      ReactDOM.Preload
+//      ReactDOM.prefetchDNS
+// --------------------------------------
+
+
+function prefetchDNS$1(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.prefetchDNS(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null) {
+      if (typeof options === 'object' && hasOwnProperty.call(options, 'crossOrigin')) {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. It looks like the you are attempting to set a crossOrigin property for this DNS lookup hint. Browsers do not perform DNS queries using CORS and setting this attribute on the resource hint has no effect. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      } else {
+        error('ReactDOM.prefetchDNS(): Expected only one argument, `href`, but encountered %s as a second argument instead. This argument is reserved for future options and is currently disallowed. Try calling ReactDOM.prefetchDNS() with just a single string argument, `href`.', getValueDescriptorExpectingEnumForWarning(options));
+      }
+    }
+  }
+
+  preconnectAs('dns-prefetch', null, href);
+} // --------------------------------------
+//      ReactDOM.preconnect
+// --------------------------------------
+
+
+function preconnect$1(href, options) {
+  {
+    if (typeof href !== 'string' || !href) {
+      error('ReactDOM.preconnect(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.', getValueDescriptorExpectingObjectForWarning(href));
+    } else if (options != null && typeof options !== 'object') {
+      error('ReactDOM.preconnect(): Expected the `options` argument (second) to be an object but encountered %s instead. The only supported option at this time is `crossOrigin` which accepts a string.', getValueDescriptorExpectingEnumForWarning(options));
+    } else if (options != null && typeof options.crossOrigin !== 'string') {
+      error('ReactDOM.preconnect(): Expected the `crossOrigin` option (second argument) to be a string but encountered %s instead. Try removing this option or passing a string value instead.', getValueDescriptorExpectingObjectForWarning(options.crossOrigin));
+    }
+  }
+
+  var crossOrigin = options == null || typeof options.crossOrigin !== 'string' ? null : options.crossOrigin === 'use-credentials' ? 'use-credentials' : '';
+  preconnectAs('preconnect', crossOrigin, href);
+} // --------------------------------------
+//      ReactDOM.preload
 // --------------------------------------
 
 
@@ -11575,9 +11660,9 @@ function preload$1(href, options) {
       preloadPropsMap.set(key, preloadProps);
 
       if (null === ownerDocument.querySelector(preloadKey)) {
-        var preloadInstance = createElement('link', preloadProps, ownerDocument, HTML_NAMESPACE);
+        var preloadInstance = ownerDocument.createElement('link');
         setInitialProperties(preloadInstance, 'link', preloadProps);
-        markNodeAsResource(preloadInstance);
+        markNodeAsHoistable(preloadInstance);
         ownerDocument.head.appendChild(preloadInstance);
       }
     }
@@ -11590,7 +11675,8 @@ function preloadPropsFromPreloadOptions(href, as, options) {
     rel: 'preload',
     as: as,
     crossOrigin: as === 'font' ? '' : options.crossOrigin,
-    integrity: options.integrity
+    integrity: options.integrity,
+    type: options.type
   };
 } // --------------------------------------
 //      ReactDOM.preinit
@@ -11634,9 +11720,9 @@ function preinit$1(href, options) {
             preloadPropsMap.set(key, preloadProps);
 
             if (null === preloadDocument.querySelector(preloadKey)) {
-              var preloadInstance = createElement('link', preloadProps, preloadDocument, HTML_NAMESPACE);
+              var preloadInstance = preloadDocument.createElement('link');
               setInitialProperties(preloadInstance, 'link', preloadProps);
-              markNodeAsResource(preloadInstance);
+              markNodeAsHoistable(preloadInstance);
               preloadDocument.head.appendChild(preloadInstance);
             }
           }
@@ -11676,8 +11762,9 @@ function preinit$1(href, options) {
               adoptPreloadPropsForStylesheet(stylesheetProps, _preloadProps);
             }
 
-            instance = createElement('link', stylesheetProps, resourceRoot, HTML_NAMESPACE);
-            markNodeAsResource(instance);
+            var ownerDocument = getDocumentFromRoot(resourceRoot);
+            instance = ownerDocument.createElement('link');
+            markNodeAsHoistable(instance);
             setInitialProperties(instance, 'link', stylesheetProps);
             insertStylesheet(instance, precedence, resourceRoot);
           } // Construct a Resource and cache it
@@ -11721,10 +11808,13 @@ function preinit$1(href, options) {
               adoptPreloadPropsForScript(scriptProps, _preloadProps2);
             }
 
-            _instance = createElement('script', scriptProps, resourceRoot, HTML_NAMESPACE);
-            markNodeAsResource(_instance);
+            var _ownerDocument = getDocumentFromRoot(resourceRoot);
+
+            _instance = _ownerDocument.createElement('script');
+            markNodeAsHoistable(_instance);
             setInitialProperties(_instance, 'link', scriptProps);
-            getDocumentFromRoot(resourceRoot).head.appendChild(_instance);
+
+            _ownerDocument.head.appendChild(_instance);
           } // Construct a Resource and cache it
 
 
@@ -11893,7 +11983,7 @@ function styleTagPropsFromRawProps(rawProps) {
 
 function getStyleKey(href) {
   var limitedEscapedHref = escapeSelectorAttributeValueInsideDoubleQuotes(href);
-  return "href=\"" + limitedEscapedHref + "\"";
+  return "href~=\"" + limitedEscapedHref + "\"";
 }
 
 function getStyleTagSelectorFromKey(key) {
@@ -11923,9 +12013,9 @@ function preloadStylesheet(ownerDocument, key, preloadProps) {
     // We will insert a preload now to kick off loading because
     // we expect this stylesheet to commit
     if (null === ownerDocument.querySelector(getPreloadStylesheetSelectorFromKey(key))) {
-      var preloadInstance = createElement('link', preloadProps, ownerDocument, HTML_NAMESPACE);
+      var preloadInstance = ownerDocument.createElement('link');
       setInitialProperties(preloadInstance, 'link', preloadProps);
-      markNodeAsResource(preloadInstance);
+      markNodeAsHoistable(preloadInstance);
       ownerDocument.head.appendChild(preloadInstance);
     }
   }
@@ -11970,12 +12060,14 @@ function acquireResource(hoistableRoot, resource, props) {
 
           if (instance) {
             resource.instance = instance;
+            markNodeAsHoistable(instance);
             return instance;
           }
 
           var styleProps = styleTagPropsFromRawProps(props);
-          instance = createElement('style', styleProps, hoistableRoot, HTML_NAMESPACE);
-          markNodeAsResource(instance);
+          var ownerDocument = getDocumentFromRoot(hoistableRoot);
+          instance = ownerDocument.createElement('style');
+          markNodeAsHoistable(instance);
           setInitialProperties(instance, 'style', styleProps);
           insertStylesheet(instance, qualifiedProps.precedence, hoistableRoot);
           resource.instance = instance;
@@ -11996,6 +12088,7 @@ function acquireResource(hoistableRoot, resource, props) {
 
           if (_instance2) {
             resource.instance = _instance2;
+            markNodeAsHoistable(_instance2);
             return _instance2;
           }
 
@@ -12007,8 +12100,10 @@ function acquireResource(hoistableRoot, resource, props) {
           } // Construct and insert a new instance
 
 
-          _instance2 = createElement('link', stylesheetProps, hoistableRoot, HTML_NAMESPACE);
-          markNodeAsResource(_instance2);
+          var _ownerDocument2 = getDocumentFromRoot(hoistableRoot);
+
+          _instance2 = _ownerDocument2.createElement('link');
+          markNodeAsHoistable(_instance2);
           var linkInstance = _instance2;
           linkInstance._p = new Promise(function (resolve, reject) {
             linkInstance.onload = resolve;
@@ -12038,6 +12133,7 @@ function acquireResource(hoistableRoot, resource, props) {
 
           if (_instance3) {
             resource.instance = _instance3;
+            markNodeAsHoistable(_instance3);
             return _instance3;
           }
 
@@ -12051,10 +12147,14 @@ function acquireResource(hoistableRoot, resource, props) {
           } // Construct and insert a new instance
 
 
-          _instance3 = createElement('script', scriptProps, hoistableRoot, HTML_NAMESPACE);
-          markNodeAsResource(_instance3);
+          var _ownerDocument3 = getDocumentFromRoot(hoistableRoot);
+
+          _instance3 = _ownerDocument3.createElement('script');
+          markNodeAsHoistable(_instance3);
           setInitialProperties(_instance3, 'link', scriptProps);
-          getDocumentFromRoot(hoistableRoot).head.appendChild(_instance3);
+
+          _ownerDocument3.head.appendChild(_instance3);
+
           resource.instance = _instance3;
           return _instance3;
         }
@@ -12119,168 +12219,153 @@ function adoptPreloadPropsForScript(scriptProps, preloadProps) {
 // --------------------------------------
 
 
+var tagCaches = null;
 function hydrateHoistable(hoistableRoot, type, props, internalInstanceHandle) {
   var ownerDocument = getDocumentFromRoot(hoistableRoot);
-  var nodes = ownerDocument.getElementsByTagName(type);
-  var children = props.children;
-  var child, childString;
+  var instance = null;
 
-  if (Array.isArray(children)) {
-    child = children.length === 1 ? children[0] : null;
-  } else {
-    child = children;
-  }
+  getInstance: switch (type) {
+    case 'title':
+      {
+        instance = ownerDocument.getElementsByTagName('title')[0];
 
-  if (typeof child !== 'function' && typeof child !== 'symbol' && child !== null && child !== undefined) {
-    {
-      checkPropStringCoercion(child, 'children');
-    }
+        if (!instance || isOwnedInstance(instance) || instance.namespaceURI === SVG_NAMESPACE || instance.hasAttribute('itemprop')) {
+          instance = ownerDocument.createElement(type);
+          ownerDocument.head.insertBefore(instance, ownerDocument.querySelector('head > title'));
+        }
 
-    childString = '' + child;
-  } else {
-    childString = '';
-  }
-
-  nodeLoop: for (var i = 0; i < nodes.length; i++) {
-    var node = nodes[i];
-
-    if (isMarkedResource(node) || node.namespaceURI === SVG_NAMESPACE || node.textContent !== childString) {
-      continue;
-    }
-
-    var checkedAttributes = 0;
-
-    for (var propName in props) {
-      var propValue = props[propName];
-
-      if (!props.hasOwnProperty(propName)) {
-        continue;
+        setInitialProperties(instance, type, props);
+        precacheFiberNode(internalInstanceHandle, instance);
+        markNodeAsHoistable(instance);
+        return instance;
       }
 
-      switch (propName) {
-        // Reserved props will never have an attribute partner
-        case 'children':
-        case 'defaultValue':
-        case 'dangerouslySetInnerHTML':
-        case 'defaultChecked':
-        case 'innerHTML':
-        case 'suppressContentEditableWarning':
-        case 'suppressHydrationWarning':
-        case 'style':
-          // we advance to the next prop
-          continue;
-        // Name remapped props used by hoistable tag types
+    case 'link':
+      {
+        var cache = getHydratableHoistableCache('link', 'href', ownerDocument);
+        var key = type + (props.href || '');
+        var maybeNodes = cache.get(key);
 
-        case 'className':
-          {
-            {
-              checkAttributeStringCoercion(propValue, propName);
+        if (maybeNodes) {
+          var nodes = maybeNodes;
+
+          for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+
+            if (node.getAttribute('href') !== (props.href == null ? null : props.href) || node.getAttribute('rel') !== (props.rel == null ? null : props.rel) || node.getAttribute('title') !== (props.title == null ? null : props.title) || node.getAttribute('crossorigin') !== (props.crossOrigin == null ? null : props.crossOrigin)) {
+              // mismatch, try the next node;
+              continue;
             }
 
-            if (node.getAttribute('class') !== '' + propValue) continue nodeLoop;
-            break;
+            instance = node;
+            nodes.splice(i, 1);
+            break getInstance;
           }
+        }
 
-        case 'httpEquiv':
-          {
-            {
-              checkAttributeStringCoercion(propValue, propName);
-            }
-
-            if (node.getAttribute('http-equiv') !== '' + propValue) continue nodeLoop;
-            break;
-          }
-        // Booleanish props used by hoistable tag types
-
-        case 'contentEditable':
-        case 'draggable':
-        case 'spellCheck':
-          {
-            {
-              checkAttributeStringCoercion(propValue, propName);
-            }
-
-            if (node.getAttribute(propName) !== '' + propValue) continue nodeLoop;
-            break;
-          }
-        // Boolean props used by hoistable tag types
-
-        case 'async':
-        case 'defer':
-        case 'disabled':
-        case 'hidden':
-        case 'noModule':
-        case 'scoped':
-        case 'itemScope':
-          if (propValue !== node.hasAttribute(propName)) continue nodeLoop;
-          break;
-        // The following properties are left out because they do not apply to
-        // the current set of hoistable types. They may have special handling
-        // requirements if they end up applying to a hoistable type in the future
-        // case 'acceptCharset':
-        // case 'value':
-        // case 'allowFullScreen':
-        // case 'autoFocus':
-        // case 'autoPlay':
-        // case 'controls':
-        // case 'default':
-        // case 'disablePictureInPicture':
-        // case 'disableRemotePlayback':
-        // case 'formNoValidate':
-        // case 'loop':
-        // case 'noValidate':
-        // case 'open':
-        // case 'playsInline':
-        // case 'readOnly':
-        // case 'required':
-        // case 'reversed':
-        // case 'seamless':
-        // case 'multiple':
-        // case 'selected':
-        // case 'capture':
-        // case 'download':
-        // case 'cols':
-        // case 'rows':
-        // case 'size':
-        // case 'span':
-        // case 'rowSpan':
-        // case 'start':
-
-        default:
-          if (isAttributeNameSafe(propName)) {
-            var attributeName = propName;
-            if (propValue == null && node.hasAttribute(attributeName)) continue nodeLoop;
-
-            {
-              checkAttributeStringCoercion(propValue, attributeName);
-            }
-
-            if (node.getAttribute(attributeName) !== '' + propValue) continue nodeLoop;
-          }
-
+        instance = ownerDocument.createElement(type);
+        setInitialProperties(instance, type, props);
+        ownerDocument.head.appendChild(instance);
+        break;
       }
 
-      checkedAttributes++;
-    }
+    case 'meta':
+      {
+        var _cache = getHydratableHoistableCache('meta', 'content', ownerDocument);
 
-    if (node.attributes.length !== checkedAttributes) {
-      // We didn't match ever attribute so we abandon this node
-      continue nodeLoop;
-    } // We found a matching instance. We can return early after marking it
+        var _key7 = type + (props.content || '');
+
+        var _maybeNodes = _cache.get(_key7);
+
+        if (_maybeNodes) {
+          var _nodes = _maybeNodes;
+
+          for (var _i = 0; _i < _nodes.length; _i++) {
+            var _node = _nodes[_i]; // We coerce content to string because it is the most likely one to
+            // use a `toString` capable value. For the rest we just do identity match
+            // passing non-strings here is not really valid anyway.
+
+            {
+              checkAttributeStringCoercion(props.content, 'content');
+            }
+
+            if (_node.getAttribute('content') !== (props.content == null ? null : '' + props.content) || _node.getAttribute('name') !== (props.name == null ? null : props.name) || _node.getAttribute('property') !== (props.property == null ? null : props.property) || _node.getAttribute('http-equiv') !== (props.httpEquiv == null ? null : props.httpEquiv) || _node.getAttribute('charset') !== (props.charSet == null ? null : props.charSet)) {
+              // mismatch, try the next node;
+              continue;
+            }
+
+            instance = _node;
+
+            _nodes.splice(_i, 1);
+
+            break getInstance;
+          }
+        }
+
+        instance = ownerDocument.createElement(type);
+        setInitialProperties(instance, type, props);
+        ownerDocument.head.appendChild(instance);
+        break;
+      }
+
+    default:
+      throw new Error("getNodesForType encountered a type it did not expect: \"" + type + "\". This is a bug in React.");
+  } // This node is a match
 
 
-    markNodeAsResource(node);
-    return node;
-  } // There is no matching instance to hydrate, we create it now
-
-
-  var instance = createElement(type, props, ownerDocument, HTML_NAMESPACE);
-  setInitialProperties(instance, type, props);
   precacheFiberNode(internalInstanceHandle, instance);
-  markNodeAsResource(instance);
-  ownerDocument.head.insertBefore(instance, type === 'title' ? ownerDocument.querySelector('head > title') : null);
+  markNodeAsHoistable(instance);
   return instance;
 }
+
+function getHydratableHoistableCache(type, keyAttribute, ownerDocument) {
+  var cache;
+  var caches;
+
+  if (tagCaches === null) {
+    cache = new Map();
+    caches = tagCaches = new Map();
+    caches.set(ownerDocument, cache);
+  } else {
+    caches = tagCaches;
+    var maybeCache = caches.get(ownerDocument);
+
+    if (!maybeCache) {
+      cache = new Map();
+      caches.set(ownerDocument, cache);
+    } else {
+      cache = maybeCache;
+    }
+  }
+
+  if (cache.has(type)) {
+    // We use type as a special key that signals that this cache has been seeded for this type
+    return cache;
+  } // Mark this cache as seeded for this type
+
+
+  cache.set(type, null);
+  var nodes = ownerDocument.getElementsByTagName(type);
+
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+
+    if (!isOwnedInstance(node) && (type !== 'link' || node.getAttribute('rel') !== 'stylesheet') && node.namespaceURI !== SVG_NAMESPACE) {
+      var nodeKey = node.getAttribute(keyAttribute) || '';
+      var key = type + nodeKey;
+      var existing = cache.get(key);
+
+      if (existing) {
+        existing.push(node);
+      } else {
+        cache.set(key, [node]);
+      }
+    }
+  }
+
+  return cache;
+}
+
 function mountHoistable(hoistableRoot, type, instance) {
   var ownerDocument = getDocumentFromRoot(hoistableRoot);
   ownerDocument.head.insertBefore(instance, type === 'title' ? ownerDocument.querySelector('head > title') : null);
@@ -12372,15 +12457,16 @@ function resetAfterCommit(containerInfo) {
   selectionInformation = null;
 }
 function createHoistableInstance(type, props, rootContainerInstance, internalInstanceHandle) {
-  var domElement = createElement(type, props, rootContainerInstance, HTML_NAMESPACE);
+  var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
+  var domElement = createHTMLElement(type, props, ownerDocument);
   precacheFiberNode(internalInstanceHandle, domElement);
   updateFiberProps(domElement, props);
   setInitialProperties(domElement, type, props);
-  markNodeAsResource(domElement);
+  markNodeAsHoistable(domElement);
   return domElement;
 }
 function createInstance(type, props, rootContainerInstance, hostContext, internalInstanceHandle) {
-  var parentNamespace;
+  var namespace;
 
   {
     // TODO: take namespace into account when validating.
@@ -12393,10 +12479,42 @@ function createInstance(type, props, rootContainerInstance, hostContext, interna
       validateDOMNesting(null, string, ownAncestorInfo);
     }
 
-    parentNamespace = hostContextDev.namespace;
+    namespace = hostContextDev.namespace;
   }
 
-  var domElement = createElement(type, props, rootContainerInstance, parentNamespace);
+  var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
+  var domElement;
+
+  switch (namespace) {
+    case SVG_NAMESPACE:
+    case MATH_NAMESPACE:
+      domElement = ownerDocument.createElementNS(namespace, type);
+      break;
+
+    default:
+      switch (type) {
+        case 'svg':
+          domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
+          break;
+
+        case 'math':
+          domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
+          break;
+
+        case 'script':
+          domElement = createPotentiallyInlineScriptElement(ownerDocument);
+          break;
+
+        case 'select':
+          domElement = createSelectElement(props, ownerDocument);
+          break;
+
+        default:
+          domElement = createHTMLElement(type, props, ownerDocument);
+      }
+
+  }
+
   precacheFiberNode(internalInstanceHandle, domElement);
   updateFiberProps(domElement, props);
   return domElement;
@@ -12706,15 +12824,9 @@ function clearContainerSparingly(container) {
 } // Making this so we can eventually move all of the instance caching to the commit phase.
 // inserted without breaking hydration
 
-function isHydratable(type, props) {
+function isHydratableType(type, props) {
   {
-    if (type === 'link') {
-      if (props.rel === 'stylesheet' && typeof props.precedence !== 'string') {
-        return true;
-      }
-
-      return false;
-    } else if (type === 'script') {
+    if (type === 'script') {
       var async = props.async,
           onLoad = props.onLoad,
           onError = props.onError;
@@ -12724,16 +12836,121 @@ function isHydratable(type, props) {
     return true;
   }
 }
+function isHydratableText(text) {
+  return text !== '';
+}
+function shouldSkipHydratableForInstance(instance, type, props) {
+  if (instance.nodeType !== ELEMENT_NODE) {
+    // This is a suspense boundary or Text node.
+    // Suspense Boundaries are never expected to be injected by 3rd parties. If we see one it should be matched
+    // and this is a hydration error.
+    // Text Nodes are also not expected to be injected by 3rd parties. This is less of a guarantee for <body>
+    // but it seems reasonable and conservative to reject this as a hydration error as well
+    return false;
+  } else if (instance.nodeName.toLowerCase() !== type.toLowerCase() || isMarkedHoistable(instance)) {
+    // We are either about to
+    return true;
+  } else {
+    // We have an Element with the right type.
+    var element = instance;
+    var anyProps = props; // We are going to try to exclude it if we can definitely identify it as a hoisted Node or if
+    // we can guess that the node is likely hoisted or was inserted by a 3rd party script or browser extension
+    // using high entropy attributes for certain types. This technique will fail for strange insertions like
+    // extension prepending <div> in the <body> but that already breaks before and that is an edge case.
+
+    switch (type) {
+      // case 'title':
+      //We assume all titles are matchable. You should only have one in the Document, at least in a hoistable scope
+      // and if you are a HostComponent with type title we must either be in an <svg> context or this title must have an `itemProp` prop.
+      case 'meta':
+        {
+          // The only way to opt out of hoisting meta tags is to give it an itemprop attribute. We assume there will be
+          // not 3rd party meta tags that are prepended, accepting the cases where this isn't true because meta tags
+          // are usually only functional for SSR so even in a rare case where we did bind to an injected tag the runtime
+          // implications are minimal
+          if (!element.hasAttribute('itemprop')) {
+            // This is a Hoistable
+            return true;
+          }
+
+          break;
+        }
+
+      case 'link':
+        {
+          // Links come in many forms and we do expect 3rd parties to inject them into <head> / <body>. We exclude known resources
+          // and then use high-entroy attributes like href which are almost always used and almost always unique to filter out unlikely
+          // matches.
+          var rel = element.getAttribute('rel');
+
+          if (rel === 'stylesheet' && element.hasAttribute('data-precedence')) {
+            // This is a stylesheet resource
+            return true;
+          } else if (rel !== anyProps.rel || element.getAttribute('href') !== (anyProps.href == null ? null : anyProps.href) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin) || element.getAttribute('title') !== (anyProps.title == null ? null : anyProps.title)) {
+            // rel + href should usually be enough to uniquely identify a link however crossOrigin can vary for rel preconnect
+            // and title could vary for rel alternate
+            return true;
+          }
+
+          break;
+        }
+
+      case 'style':
+        {
+          // Styles are hard to match correctly. We can exclude known resources but otherwise we accept the fact that a non-hoisted style tags
+          // in <head> or <body> are likely never going to be unmounted given their position in the document and the fact they likely hold global styles
+          if (element.hasAttribute('data-precedence')) {
+            // This is a style resource
+            return true;
+          }
+
+          break;
+        }
+
+      case 'script':
+        {
+          // Scripts are a little tricky, we exclude known resources and then similar to links try to use high-entropy attributes
+          // to reject poor matches. One challenge with scripts are inline scripts. We don't attempt to check text content which could
+          // in theory lead to a hydration error later if a 3rd party injected an inline script before the React rendered nodes.
+          // Falling back to client rendering if this happens should be seemless though so we will try this hueristic and revisit later
+          // if we learn it is problematic
+          var srcAttr = element.getAttribute('src');
+
+          if (srcAttr && element.hasAttribute('async') && !element.hasAttribute('itemprop')) {
+            // This is an async script resource
+            return true;
+          } else if (srcAttr !== (anyProps.src == null ? null : anyProps.src) || element.getAttribute('type') !== (anyProps.type == null ? null : anyProps.type) || element.getAttribute('crossorigin') !== (anyProps.crossOrigin == null ? null : anyProps.crossOrigin)) {
+            // This script is for a different src
+            return true;
+          }
+
+          break;
+        }
+    } // We have excluded the most likely cases of mismatch between hoistable tags, 3rd party script inserted tags,
+    // and browser extension inserted tags. While it is possible this is not the right match it is a decent hueristic
+    // that should work in the vast majority of cases.
+
+
+    return false;
+  }
+}
+function shouldSkipHydratableForTextInstance(instance) {
+  return instance.nodeType === ELEMENT_NODE;
+}
+function shouldSkipHydratableForSuspenseInstance(instance) {
+  return instance.nodeType === ELEMENT_NODE;
+}
 function canHydrateInstance(instance, type, props) {
-  if (instance.nodeType !== ELEMENT_NODE || type.toLowerCase() !== instance.nodeName.toLowerCase()) {
+  if (instance.nodeType !== ELEMENT_NODE || instance.nodeName.toLowerCase() !== type.toLowerCase()) {
     return null;
-  } // This has now been refined to an element node.
-
-
-  return instance;
+  } else {
+    return instance;
+  }
 }
 function canHydrateTextInstance(instance, text) {
-  if (text === '' || instance.nodeType !== TEXT_NODE) {
+  if (text === '') return null;
+
+  if (instance.nodeType !== TEXT_NODE) {
     // Empty strings are not parsed by HTML so there won't be a correct match here.
     return null;
   } // This has now been refined to a text node.
@@ -12743,7 +12960,6 @@ function canHydrateTextInstance(instance, text) {
 }
 function canHydrateSuspenseInstance(instance) {
   if (instance.nodeType !== COMMENT_NODE) {
-    // Empty strings are not parsed by HTML so there won't be a correct match here.
     return null;
   } // This has now been refined to a suspense node.
 
@@ -12786,72 +13002,8 @@ function getNextHydratable(node) {
   for (; node != null; node = node.nextSibling) {
     var nodeType = node.nodeType;
 
-    {
-      if (nodeType === ELEMENT_NODE) {
-        var element = node;
-
-        switch (element.tagName) {
-          // This is subtle. in SVG scope the title tag is case sensitive. we don't want to skip
-          // titles in svg but we do want to skip them outside of svg. there is an edge case where
-          // you could do `React.createElement('TITLE', ...)` inside an svg scope but the SSR serializer
-          // will still emit lowercase. Practically speaking the only time the DOM will have a non-uppercased
-          // title tagName is if it is inside an svg.
-          // Other Resource types like META, BASE, LINK, and SCRIPT should be treated as resources even inside
-          // svg scope because they are invalid otherwise. We still don't need to handle the lowercase variant
-          // because if they are present in the DOM already they would have been hoisted outside the SVG scope
-          // as Resources. So while it would be correct to skip a <link> inside <svg> and this algorithm won't
-          // skip that link because the tagName will not be uppercased it functionally is irrelevant. If one
-          // tries to render incompatible types such as a non-resource stylesheet inside an svg the server will
-          // emit that invalid html and hydration will fail. In Dev this will present warnings guiding the
-          // developer on how to fix.
-          case 'TITLE':
-          case 'META':
-          case 'HTML':
-          case 'HEAD':
-          case 'BODY':
-            {
-              continue;
-            }
-
-          case 'LINK':
-            {
-              var linkEl = element; // All links that are server rendered are resources except
-              // stylesheets that do not have a precedence
-
-              if (linkEl.rel === 'stylesheet' && !linkEl.hasAttribute('data-precedence')) {
-                break;
-              }
-
-              continue;
-            }
-
-          case 'STYLE':
-            {
-              var styleEl = element;
-
-              if (styleEl.hasAttribute('data-precedence')) {
-                continue;
-              }
-
-              break;
-            }
-
-          case 'SCRIPT':
-            {
-              var scriptEl = element;
-
-              if (scriptEl.hasAttribute('async')) {
-                continue;
-              }
-
-              break;
-            }
-        }
-
-        break;
-      } else if (nodeType === TEXT_NODE) {
-        break;
-      }
+    if (nodeType === ELEMENT_NODE || nodeType === TEXT_NODE) {
+      break;
     }
 
     if (nodeType === COMMENT_NODE) {
@@ -12886,18 +13038,18 @@ function hydrateInstance(instance, type, props, hostContext, internalInstanceHan
   precacheFiberNode(internalInstanceHandle, instance); // TODO: Possibly defer this until the commit phase where all the events
   // get attached.
 
-  updateFiberProps(instance, props);
+  updateFiberProps(instance, props); // TODO: Temporary hack to check if we're in a concurrent root. We can delete
+  // when the legacy root API is removed.
+
+  var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
   var parentNamespace;
 
   {
     var hostContextDev = hostContext;
     parentNamespace = hostContextDev.namespace;
-  } // TODO: Temporary hack to check if we're in a concurrent root. We can delete
-  // when the legacy root API is removed.
+  }
 
-
-  var isConcurrentMode = (internalInstanceHandle.mode & ConcurrentMode) !== NoMode;
-  return diffHydratedProperties(instance, type, props, parentNamespace, isConcurrentMode, shouldWarnDev);
+  return diffHydratedProperties(instance, type, props, isConcurrentMode, shouldWarnDev, parentNamespace);
 }
 function hydrateTextInstance(textInstance, text, internalInstanceHandle, shouldWarnDev) {
   precacheFiberNode(internalInstanceHandle, textInstance); // TODO: Temporary hack to check if we're in a concurrent root. We can delete
@@ -13068,18 +13220,29 @@ function isHostHoistableType(type, props, hostContext) {
 
     outsideHostContainerContext = !hostContextDev.ancestorInfo.containerTagInScope;
     namespace = hostContextDev.namespace;
+  } // Global opt out of hoisting for anything in SVG Namespace or anything with an itemProp inside an itemScope
+
+
+  if (namespace === SVG_NAMESPACE || props.itemProp != null) {
+    {
+      if (outsideHostContainerContext && props.itemProp != null && (type === 'meta' || type === 'title' || type === 'style' || type === 'link' || type === 'script')) {
+        error('Cannot render a <%s> outside the main document if it has an `itemProp` prop. `itemProp` suggests the tag belongs to an' + ' `itemScope` which can appear anywhere in the DOM. If you were intending for React to hoist this <%s> remove the `itemProp` prop.' + ' Otherwise, try moving this tag into the <head> or <body> of the Document.', type, type);
+      }
+    }
+
+    return false;
   }
 
   switch (type) {
     case 'meta':
     case 'title':
       {
-        return namespace !== SVG_NAMESPACE;
+        return true;
       }
 
     case 'style':
       {
-        if (typeof props.precedence !== 'string' || typeof props.href !== 'string' || props.href === '' || namespace === SVG_NAMESPACE) {
+        if (typeof props.precedence !== 'string' || typeof props.href !== 'string' || props.href === '') {
           {
             if (outsideHostContainerContext) {
               error('Cannot render a <style> outside the main document without knowing its precedence and a unique href key.' + ' React can hoist and deduplicate <style> tags if you provide a `precedence` prop along with an `href` prop that' + ' does not conflic with the `href` values used in any other hoisted <style> or <link rel="stylesheet" ...> tags. ' + ' Note that hoisting <style> tags is considered an advanced feature that most will not use directly.' + ' Consider moving the <style> tag to the <head> or consider adding a `precedence="default"` and `href="some unique resource identifier"`, or move the <style>' + ' to the <style> tag.');
@@ -13094,7 +13257,7 @@ function isHostHoistableType(type, props, hostContext) {
 
     case 'link':
       {
-        if (typeof props.rel !== 'string' || typeof props.href !== 'string' || props.href === '' || props.onLoad || props.onError || namespace === SVG_NAMESPACE) {
+        if (typeof props.rel !== 'string' || typeof props.href !== 'string' || props.href === '' || props.onLoad || props.onError) {
           {
             if (props.rel === 'stylesheet' && typeof props.precedence === 'string') {
               validateLinkPropsForStyleResource(props);
@@ -13138,7 +13301,7 @@ function isHostHoistableType(type, props, hostContext) {
 
     case 'script':
       {
-        if (props.async !== true || props.onLoad || props.onError || typeof props.src !== 'string' || !props.src || namespace === SVG_NAMESPACE) {
+        if (props.async !== true || props.onLoad || props.onError || typeof props.src !== 'string' || !props.src) {
           {
             if (outsideHostContainerContext) {
               if (props.async !== true) {
@@ -13187,8 +13350,9 @@ function isHostSingletonType(type) {
 }
 function resolveSingletonInstance(type, props, rootContainerInstance, hostContext, validateDOMNestingDev) {
   {
+    var hostContextDev = hostContext;
+
     if (validateDOMNestingDev) {
-      var hostContextDev = hostContext;
       validateDOMNesting(type, null, hostContextDev.ancestorInfo);
     }
   }
@@ -13287,7 +13451,7 @@ function clearSingleton(instance) {
     var nextNode = node.nextSibling;
     var nodeName = node.nodeName;
 
-    if (isMarkedResource(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
+    if (isMarkedHoistable(node) || nodeName === 'HEAD' || nodeName === 'BODY' || nodeName === 'STYLE' || nodeName === 'LINK' && node.rel.toLowerCase() === 'stylesheet') ; else {
       element.removeChild(node);
     }
 
@@ -13876,6 +14040,7 @@ var isHydrating = false; // This flag allows for warning supression when we expe
 var didSuspendOrErrorDEV = false; // Hydration errors that were thrown inside this boundary
 
 var hydrationErrors = null;
+var rootOrSingletonContext = false;
 
 function warnIfHydrating() {
   {
@@ -13904,6 +14069,7 @@ function enterHydrationState(fiber) {
   isHydrating = true;
   hydrationErrors = null;
   didSuspendOrErrorDEV = false;
+  rootOrSingletonContext = true;
   return true;
 }
 
@@ -13914,6 +14080,7 @@ function reenterHydrationStateFromDehydratedSuspenseInstance(fiber, suspenseInst
   isHydrating = true;
   hydrationErrors = null;
   didSuspendOrErrorDEV = false;
+  rootOrSingletonContext = false;
 
   if (treeContext !== null) {
     restoreSuspendedTreeContext(fiber, treeContext);
@@ -14059,72 +14226,63 @@ function insertNonHydratedInstance(returnFiber, fiber) {
   warnNonhydratedInstance(returnFiber, fiber);
 }
 
-function tryHydrate(fiber, nextInstance) {
-  switch (fiber.tag) {
-    // HostSingleton is intentionally omitted. the hydration pathway for singletons is non-fallible
-    // you can find it inlined in claimHydratableSingleton
-    case HostComponent:
-      {
-        var type = fiber.type;
-        var instance = canHydrateInstance(nextInstance, type);
+function tryHydrateInstance(fiber, nextInstance) {
+  // fiber is a HostComponent Fiber
+  var instance = canHydrateInstance(nextInstance, fiber.type);
 
-        if (instance !== null) {
-          fiber.stateNode = instance;
-          hydrationParentFiber = fiber;
-          nextHydratableInstance = getFirstHydratableChild(instance);
-          return true;
-        }
-
-        return false;
-      }
-
-    case HostText:
-      {
-        var text = fiber.pendingProps;
-        var textInstance = canHydrateTextInstance(nextInstance, text);
-
-        if (textInstance !== null) {
-          fiber.stateNode = textInstance;
-          hydrationParentFiber = fiber; // Text Instances don't have children so there's nothing to hydrate.
-
-          nextHydratableInstance = null;
-          return true;
-        }
-
-        return false;
-      }
-
-    case SuspenseComponent:
-      {
-        var suspenseInstance = canHydrateSuspenseInstance(nextInstance);
-
-        if (suspenseInstance !== null) {
-          var suspenseState = {
-            dehydrated: suspenseInstance,
-            treeContext: getSuspendedTreeContext(),
-            retryLane: OffscreenLane
-          };
-          fiber.memoizedState = suspenseState; // Store the dehydrated fragment as a child fiber.
-          // This simplifies the code for getHostSibling and deleting nodes,
-          // since it doesn't have to consider all Suspense boundaries and
-          // check if they're dehydrated ones or not.
-
-          var dehydratedFragment = createFiberFromDehydratedFragment(suspenseInstance);
-          dehydratedFragment.return = fiber;
-          fiber.child = dehydratedFragment;
-          hydrationParentFiber = fiber; // While a Suspense Instance does have children, we won't step into
-          // it during the first pass. Instead, we'll reenter it later.
-
-          nextHydratableInstance = null;
-          return true;
-        }
-
-        return false;
-      }
-
-    default:
-      return false;
+  if (instance !== null) {
+    fiber.stateNode = instance;
+    hydrationParentFiber = fiber;
+    nextHydratableInstance = getFirstHydratableChild(instance);
+    rootOrSingletonContext = false;
+    return true;
   }
+
+  return false;
+}
+
+function tryHydrateText(fiber, nextInstance) {
+  // fiber is a HostText Fiber
+  var text = fiber.pendingProps;
+  var textInstance = canHydrateTextInstance(nextInstance, text);
+
+  if (textInstance !== null) {
+    fiber.stateNode = textInstance;
+    hydrationParentFiber = fiber; // Text Instances don't have children so there's nothing to hydrate.
+
+    nextHydratableInstance = null;
+    return true;
+  }
+
+  return false;
+}
+
+function tryHydrateSuspense(fiber, nextInstance) {
+  // fiber is a SuspenseComponent Fiber
+  var suspenseInstance = canHydrateSuspenseInstance(nextInstance);
+
+  if (suspenseInstance !== null) {
+    var suspenseState = {
+      dehydrated: suspenseInstance,
+      treeContext: getSuspendedTreeContext(),
+      retryLane: OffscreenLane
+    };
+    fiber.memoizedState = suspenseState; // Store the dehydrated fragment as a child fiber.
+    // This simplifies the code for getHostSibling and deleting nodes,
+    // since it doesn't have to consider all Suspense boundaries and
+    // check if they're dehydrated ones or not.
+
+    var dehydratedFragment = createFiberFromDehydratedFragment(suspenseInstance);
+    dehydratedFragment.return = fiber;
+    fiber.child = dehydratedFragment;
+    hydrationParentFiber = fiber; // While a Suspense Instance does have children, we won't step into
+    // it during the first pass. Instead, we'll reenter it later.
+
+    nextHydratableInstance = null;
+    return true;
+  }
+
+  return false;
 }
 
 function shouldClientRenderOnMismatch(fiber) {
@@ -14145,7 +14303,33 @@ function claimHydratableSingleton(fiber) {
     var currentHostContext = getHostContext();
     var instance = fiber.stateNode = resolveSingletonInstance(fiber.type, fiber.pendingProps, currentRootContainer, currentHostContext, false);
     hydrationParentFiber = fiber;
+    rootOrSingletonContext = true;
     nextHydratableInstance = getFirstHydratableChild(instance);
+  }
+}
+
+function advanceToFirstAttemptableInstance(fiber) {
+  // fiber is HostComponent Fiber
+  while (nextHydratableInstance && shouldSkipHydratableForInstance(nextHydratableInstance, fiber.type, fiber.pendingProps)) {
+    // Flow doesn't understand that inside this block nextHydratableInstance is not null
+    var instance = nextHydratableInstance;
+    nextHydratableInstance = getNextHydratableSibling(instance);
+  }
+}
+
+function advanceToFirstAttemptableTextInstance() {
+  while (nextHydratableInstance && shouldSkipHydratableForTextInstance(nextHydratableInstance)) {
+    // Flow doesn't understand that inside this block nextHydratableInstance is not null
+    var instance = nextHydratableInstance;
+    nextHydratableInstance = getNextHydratableSibling(instance);
+  }
+}
+
+function advanceToFirstAttemptableSuspenseInstance() {
+  while (nextHydratableInstance && shouldSkipHydratableForSuspenseInstance(nextHydratableInstance)) {
+    // Flow doesn't understand that inside this block nextHydratableInstance is not null
+    var instance = nextHydratableInstance;
+    nextHydratableInstance = getNextHydratableSibling(instance);
   }
 }
 
@@ -14154,12 +14338,21 @@ function tryToClaimNextHydratableInstance(fiber) {
     return;
   }
 
-  if (!isHydratable(fiber.type, fiber.pendingProps)) {
-    // This fiber never hydrates from the DOM and always does an insert
-    fiber.flags = fiber.flags & ~Hydrating | Placement;
-    isHydrating = false;
-    hydrationParentFiber = fiber;
-    return;
+  {
+    if (!isHydratableType(fiber.type, fiber.pendingProps)) {
+      // This fiber never hydrates from the DOM and always does an insert
+      fiber.flags = fiber.flags & ~Hydrating | Placement;
+      isHydrating = false;
+      hydrationParentFiber = fiber;
+      return;
+    }
+  }
+
+  var initialInstance = nextHydratableInstance;
+
+  if (rootOrSingletonContext) {
+    // We may need to skip past certain nodes in these contexts
+    advanceToFirstAttemptableInstance(fiber);
   }
 
   var nextInstance = nextHydratableInstance;
@@ -14174,12 +14367,13 @@ function tryToClaimNextHydratableInstance(fiber) {
     insertNonHydratedInstance(hydrationParentFiber, fiber);
     isHydrating = false;
     hydrationParentFiber = fiber;
+    nextHydratableInstance = initialInstance;
     return;
   }
 
   var firstAttemptedInstance = nextInstance;
 
-  if (!tryHydrate(fiber, nextInstance)) {
+  if (!tryHydrateInstance(fiber, nextInstance)) {
     if (shouldClientRenderOnMismatch(fiber)) {
       warnNonhydratedInstance(hydrationParentFiber, fiber);
       throwOnHydrationMismatch();
@@ -14188,14 +14382,154 @@ function tryToClaimNextHydratableInstance(fiber) {
     // might be flawed or unnecessary.
 
 
-    nextInstance = getNextHydratableSibling(firstAttemptedInstance);
+    nextHydratableInstance = getNextHydratableSibling(nextInstance);
     var prevHydrationParentFiber = hydrationParentFiber;
 
-    if (!nextInstance || !tryHydrate(fiber, nextInstance)) {
+    if (rootOrSingletonContext) {
+      // We may need to skip past certain nodes in these contexts
+      advanceToFirstAttemptableInstance(fiber);
+    }
+
+    if (!nextHydratableInstance || !tryHydrateInstance(fiber, nextHydratableInstance)) {
       // Nothing to hydrate. Make it an insertion.
       insertNonHydratedInstance(hydrationParentFiber, fiber);
       isHydrating = false;
       hydrationParentFiber = fiber;
+      nextHydratableInstance = initialInstance;
+      return;
+    } // We matched the next one, we'll now assume that the first one was
+    // superfluous and we'll delete it. Since we can't eagerly delete it
+    // we'll have to schedule a deletion. To do that, this node needs a dummy
+    // fiber associated with it.
+
+
+    deleteHydratableInstance(prevHydrationParentFiber, firstAttemptedInstance);
+  }
+}
+
+function tryToClaimNextHydratableTextInstance(fiber) {
+  if (!isHydrating) {
+    return;
+  }
+
+  var text = fiber.pendingProps;
+  var isHydratable = isHydratableText(text);
+  var initialInstance = nextHydratableInstance;
+
+  if (rootOrSingletonContext && isHydratable) {
+    // We may need to skip past certain nodes in these contexts.
+    // We don't skip if the text is not hydratable because we know no hydratables
+    // exist which could match this Fiber
+    advanceToFirstAttemptableTextInstance();
+  }
+
+  var nextInstance = nextHydratableInstance;
+
+  if (!nextInstance || !isHydratable) {
+    // We exclude non hydrabable text because we know there are no matching hydratables.
+    // We either throw or insert depending on the render mode.
+    if (shouldClientRenderOnMismatch(fiber)) {
+      warnNonhydratedInstance(hydrationParentFiber, fiber);
+      throwOnHydrationMismatch();
+    } // Nothing to hydrate. Make it an insertion.
+
+
+    insertNonHydratedInstance(hydrationParentFiber, fiber);
+    isHydrating = false;
+    hydrationParentFiber = fiber;
+    nextHydratableInstance = initialInstance;
+    return;
+  }
+
+  var firstAttemptedInstance = nextInstance;
+
+  if (!tryHydrateText(fiber, nextInstance)) {
+    if (shouldClientRenderOnMismatch(fiber)) {
+      warnNonhydratedInstance(hydrationParentFiber, fiber);
+      throwOnHydrationMismatch();
+    } // If we can't hydrate this instance let's try the next one.
+    // We use this as a heuristic. It's based on intuition and not data so it
+    // might be flawed or unnecessary.
+
+
+    nextHydratableInstance = getNextHydratableSibling(nextInstance);
+    var prevHydrationParentFiber = hydrationParentFiber;
+
+    if (rootOrSingletonContext && isHydratable) {
+      // We may need to skip past certain nodes in these contexts
+      advanceToFirstAttemptableTextInstance();
+    }
+
+    if (!nextHydratableInstance || !tryHydrateText(fiber, nextHydratableInstance)) {
+      // Nothing to hydrate. Make it an insertion.
+      insertNonHydratedInstance(hydrationParentFiber, fiber);
+      isHydrating = false;
+      hydrationParentFiber = fiber;
+      nextHydratableInstance = initialInstance;
+      return;
+    } // We matched the next one, we'll now assume that the first one was
+    // superfluous and we'll delete it. Since we can't eagerly delete it
+    // we'll have to schedule a deletion. To do that, this node needs a dummy
+    // fiber associated with it.
+
+
+    deleteHydratableInstance(prevHydrationParentFiber, firstAttemptedInstance);
+  }
+}
+
+function tryToClaimNextHydratableSuspenseInstance(fiber) {
+  if (!isHydrating) {
+    return;
+  }
+
+  var initialInstance = nextHydratableInstance;
+
+  if (rootOrSingletonContext) {
+    // We may need to skip past certain nodes in these contexts
+    advanceToFirstAttemptableSuspenseInstance();
+  }
+
+  var nextInstance = nextHydratableInstance;
+
+  if (!nextInstance) {
+    if (shouldClientRenderOnMismatch(fiber)) {
+      warnNonhydratedInstance(hydrationParentFiber, fiber);
+      throwOnHydrationMismatch();
+    } // Nothing to hydrate. Make it an insertion.
+
+
+    insertNonHydratedInstance(hydrationParentFiber, fiber);
+    isHydrating = false;
+    hydrationParentFiber = fiber;
+    nextHydratableInstance = initialInstance;
+    return;
+  }
+
+  var firstAttemptedInstance = nextInstance;
+
+  if (!tryHydrateSuspense(fiber, nextInstance)) {
+    if (shouldClientRenderOnMismatch(fiber)) {
+      warnNonhydratedInstance(hydrationParentFiber, fiber);
+      throwOnHydrationMismatch();
+    } // If we can't hydrate this instance let's try the next one.
+    // We use this as a heuristic. It's based on intuition and not data so it
+    // might be flawed or unnecessary.
+
+
+    nextHydratableInstance = getNextHydratableSibling(nextInstance);
+    var prevHydrationParentFiber = hydrationParentFiber;
+
+    if (rootOrSingletonContext) {
+      // We may need to skip past certain nodes in these contexts
+      advanceToFirstAttemptableSuspenseInstance();
+    }
+
+    if (!nextHydratableInstance || !tryHydrateSuspense(fiber, nextHydratableInstance)) {
+      // Nothing to hydrate. Make it an insertion.
+      insertNonHydratedInstance(hydrationParentFiber, fiber);
+      isHydrating = false;
+      hydrationParentFiber = fiber;
+      nextHydratableInstance = initialInstance;
       return;
     } // We matched the next one, we'll now assume that the first one was
     // superfluous and we'll delete it. Since we can't eagerly delete it
@@ -14291,13 +14625,24 @@ function skipPastDehydratedSuspenseInstance(fiber) {
 }
 
 function popToNextHostParent(fiber) {
-  var parent = fiber.return;
+  hydrationParentFiber = fiber.return;
 
-  while (parent !== null && parent.tag !== HostComponent && parent.tag !== HostRoot && parent.tag !== SuspenseComponent && (parent.tag !== HostSingleton)) {
-    parent = parent.return;
+  while (hydrationParentFiber) {
+    switch (hydrationParentFiber.tag) {
+      case HostRoot:
+      case HostSingleton:
+        rootOrSingletonContext = true;
+        return;
+
+      case HostComponent:
+      case SuspenseComponent:
+        rootOrSingletonContext = false;
+        return;
+
+      default:
+        hydrationParentFiber = hydrationParentFiber.return;
+    }
   }
-
-  hydrationParentFiber = parent;
 }
 
 function popHydrationState(fiber) {
@@ -14913,7 +15258,6 @@ function processUpdateQueue(workInProgress, props, instance, renderLanes) {
   hasForceUpdate = false;
 
   {
-    // $FlowFixMe[escaped-generic] discovered when updating Flow
     currentlyProcessingQueue = queue.shared;
   }
 
@@ -17242,7 +17586,6 @@ function replaySuspendedComponentWithHooks(current, workInProgress, Component, p
   // only get reset when the component either completes (finishRenderingHooks)
   // or unwinds (resetHooksOnUnwind).
   {
-    hookTypesDev = current !== null ? current._debugHookTypes : null;
     hookTypesUpdateIndexDev = -1; // Used for hot reloading:
 
     ignorePreviousDependencies = current !== null && current.type !== workInProgress.type;
@@ -17268,8 +17611,14 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
   var children;
 
   do {
-    didScheduleRenderPhaseUpdateDuringThisPass = false;
+    if (didScheduleRenderPhaseUpdateDuringThisPass) {
+      // It's possible that a use() value depended on a state that was updated in
+      // this rerender, so we need to watch for different thenables this time.
+      thenableState = null;
+    }
+
     thenableIndexCounter = 0;
+    didScheduleRenderPhaseUpdateDuringThisPass = false;
 
     if (numberOfReRenders >= RE_RENDER_LIMIT) {
       throw new Error('Too many re-renders. React limits the number of renders to prevent ' + 'an infinite loop.');
@@ -17397,8 +17746,7 @@ function updateWorkInProgressHook() {
   // This function is used both for updates and for re-renders triggered by a
   // render phase update. It assumes there is either a current hook we can
   // clone, or a work-in-progress hook from a previous render pass that we can
-  // use as a base. When we reach the end of the base list, we must switch to
-  // the dispatcher used for mounts.
+  // use as a base.
   var nextCurrentHook;
 
   if (currentHook === null) {
@@ -17434,14 +17782,8 @@ function updateWorkInProgressHook() {
       if (currentFiber === null) {
         // This is the initial render. This branch is reached when the component
         // suspends, resumes, then renders an additional hook.
-        var _newHook = {
-          memoizedState: null,
-          baseState: null,
-          baseQueue: null,
-          queue: null,
-          next: null
-        };
-        nextCurrentHook = _newHook;
+        // Should never be reached because we should switch to the mount dispatcher first.
+        throw new Error('Update hook called on initial render. This is likely a bug in React. Please file an issue.');
       } else {
         // This is an update. We should always have a current hook.
         throw new Error('Rendered more hooks than during the previous render.');
@@ -17497,7 +17839,19 @@ function use(usable) {
         thenableState = createThenableState();
       }
 
-      return trackUsedThenable(thenableState, thenable, index);
+      var result = trackUsedThenable(thenableState, thenable, index);
+
+      if (currentlyRenderingFiber$1.alternate === null && (workInProgressHook === null ? currentlyRenderingFiber$1.memoizedState === null : workInProgressHook.next === null)) {
+        // Initial render, and either this is the first time the component is
+        // called, or there were no Hooks called after this use() the previous
+        // time (perhaps because it threw). Subsequent Hook calls should use the
+        // mount dispatcher.
+        {
+          ReactCurrentDispatcher$1.current = HooksDispatcherOnMountInDEV;
+        }
+      }
+
+      return result;
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext(context);
@@ -18036,7 +18390,7 @@ function mountEffectImpl(fiberFlags, hookFlags, create, deps) {
 function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
-  var destroy = undefined;
+  var destroy = undefined; // currentHook is null when rerendering after a render phase state update.
 
   if (currentHook !== null) {
     var prevEffect = currentHook.memoizedState;
@@ -18165,13 +18519,11 @@ function updateCallback(callback, deps) {
   var nextDeps = deps === undefined ? null : deps;
   var prevState = hook.memoizedState;
 
-  if (prevState !== null) {
-    if (nextDeps !== null) {
-      var prevDeps = prevState[1];
+  if (nextDeps !== null) {
+    var prevDeps = prevState[1];
 
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        return prevState[0];
-      }
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      return prevState[0];
     }
   }
 
@@ -18195,16 +18547,13 @@ function mountMemo(nextCreate, deps) {
 function updateMemo(nextCreate, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
-  var prevState = hook.memoizedState;
+  var prevState = hook.memoizedState; // Assume these are defined. If they're not, areHookInputsEqual will warn.
 
-  if (prevState !== null) {
-    // Assume these are defined. If they're not, areHookInputsEqual will warn.
-    if (nextDeps !== null) {
-      var prevDeps = prevState[1];
+  if (nextDeps !== null) {
+    var prevDeps = prevState[1];
 
-      if (areHookInputsEqual(nextDeps, prevDeps)) {
-        return prevState[0];
-      }
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      return prevState[0];
     }
   }
 
@@ -22057,7 +22406,7 @@ function updateHostSingleton(current, workInProgress, renderLanes) {
 
 function updateHostText$1(current, workInProgress) {
   if (current === null) {
-    tryToClaimNextHydratableInstance(workInProgress);
+    tryToClaimNextHydratableTextInstance(workInProgress);
   } // Nothing to do here. This is terminal. We'll do the completion step
   // immediately after.
 
@@ -22469,7 +22818,7 @@ function updateSuspenseComponent(current, workInProgress, renderLanes) {
         pushFallbackTreeSuspenseHandler(workInProgress);
       }
 
-      tryToClaimNextHydratableInstance(workInProgress); // This could've been a dehydrated suspense component.
+      tryToClaimNextHydratableSuspenseInstance(workInProgress); // This could've been a dehydrated suspense component.
 
       var suspenseState = workInProgress.memoizedState;
 
@@ -27644,6 +27993,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
     case HostRoot:
       {
         {
+          prepareToCommitHoistables();
           var previousHoistableRoot = currentHoistableRoot;
           currentHoistableRoot = getHoistableRoot(root.containerInfo);
           recursivelyTraverseMutationEffects(root, finishedWork);
@@ -29018,7 +29368,7 @@ var SuspendedOnError = 1;
 var SuspendedOnData = 2;
 var SuspendedOnImmediate = 3;
 var SuspendedOnDeprecatedThrowPromise = 4;
-var SuspendedAndReadyToUnwind = 5;
+var SuspendedAndReadyToContinue = 5;
 var SuspendedOnHydration = 6; // When this is true, the work-in-progress fiber just suspended (or errored) and
 // we've yet to unwind the stack. In some cases, we may yield to the main thread
 // after this happens. If the fiber is pinged before we resume, we can retry
@@ -29326,6 +29676,15 @@ function ensureRootIsScheduled(root, currentTime) {
     root.callbackNode = null;
     root.callbackPriority = NoLane;
     return;
+  } // If this root is currently suspended and waiting for data to resolve, don't
+  // schedule a task to render it. We'll either wait for a ping, or wait to
+  // receive an update.
+
+
+  if (workInProgressSuspendedReason === SuspendedOnData && workInProgressRoot === root) {
+    root.callbackPriority = NoLane;
+    root.callbackNode = null;
+    return;
   } // We use the highest priority lane to represent the priority of the callback.
 
 
@@ -29555,18 +29914,6 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
   if (root.callbackNode === originalCallbackNode) {
     // The task node scheduled for this root is the same one that's
     // currently executed. Need to return a continuation.
-    if (workInProgressSuspendedReason === SuspendedOnData && workInProgressRoot === root) {
-      // Special case: The work loop is currently suspended and waiting for
-      // data to resolve. Unschedule the current task.
-      //
-      // TODO: The factoring is a little weird. Arguably this should be checked
-      // in ensureRootIsScheduled instead. I went back and forth, not totally
-      // sure yet.
-      root.callbackPriority = NoLane;
-      root.callbackNode = null;
-      return null;
-    }
-
     return performConcurrentWorkOnRoot.bind(null, root);
   }
 
@@ -30128,11 +30475,22 @@ function handleThrow(root, thrownValue) {
   {
     markComponentRenderStopped();
 
-    if (workInProgressSuspendedReason !== SuspendedOnError) {
-      var wakeable = thrownValue;
-      markComponentSuspended(erroredWork, wakeable, workInProgressRootRenderLanes);
-    } else {
-      markComponentErrored(erroredWork, thrownValue, workInProgressRootRenderLanes);
+    switch (workInProgressSuspendedReason) {
+      case SuspendedOnError:
+        {
+          markComponentErrored(erroredWork, thrownValue, workInProgressRootRenderLanes);
+          break;
+        }
+
+      case SuspendedOnData:
+      case SuspendedOnImmediate:
+      case SuspendedOnDeprecatedThrowPromise:
+      case SuspendedAndReadyToContinue:
+        {
+          var wakeable = thrownValue;
+          markComponentSuspended(erroredWork, wakeable, workInProgressRootRenderLanes);
+          break;
+        }
     }
   }
 }
@@ -30438,6 +30796,15 @@ function renderRootConcurrent(root, lanes) {
 
 
               var onResolution = function () {
+                // Check if the root is still suspended on this promise.
+                if (workInProgressSuspendedReason === SuspendedOnData && workInProgressRoot === root) {
+                  // Mark the root as ready to continue rendering.
+                  workInProgressSuspendedReason = SuspendedAndReadyToContinue;
+                } // Ensure the root is scheduled. We should do this even if we're
+                // currently working on a different root, so that we resume
+                // rendering later.
+
+
                 ensureRootIsScheduled(root, now$1());
               };
 
@@ -30450,11 +30817,11 @@ function renderRootConcurrent(root, lanes) {
               // If this fiber just suspended, it's possible the data is already
               // cached. Yield to the main thread to give it a chance to ping. If
               // it does, we can retry immediately without unwinding the stack.
-              workInProgressSuspendedReason = SuspendedAndReadyToUnwind;
+              workInProgressSuspendedReason = SuspendedAndReadyToContinue;
               break outer;
             }
 
-          case SuspendedAndReadyToUnwind:
+          case SuspendedAndReadyToContinue:
             {
               var _thenable = thrownValue;
 
@@ -30502,7 +30869,17 @@ function renderRootConcurrent(root, lanes) {
         }
       }
 
-      workLoopConcurrent();
+      if (true && ReactCurrentActQueue.current !== null) {
+        // `act` special case: If we're inside an `act` scope, don't consult
+        // `shouldYield`. Always keep working until the render is complete.
+        // This is not just an optimization: in a unit test environment, we
+        // can't trust the result of `shouldYield`, because the host I/O is
+        // likely mocked.
+        workLoopSync();
+      } else {
+        workLoopConcurrent();
+      }
+
       break;
     } catch (thrownValue) {
       handleThrow(root, thrownValue);
@@ -32960,7 +33337,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-bfb9cbd8c-20230223';
+var ReactVersion = '18.3.0-next-3706edb81-20230308';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -33055,7 +33432,7 @@ function findHostInstanceWithWarning(component, methodName) {
       }
     }
 
-    return hostFiber.stateNode;
+    return getPublicInstance(hostFiber.stateNode);
   }
 }
 
@@ -33252,7 +33629,7 @@ function findHostInstanceWithNoPortals(fiber) {
     return null;
   }
 
-  return hostFiber.stateNode;
+  return getPublicInstance(hostFiber.stateNode);
 }
 
 var shouldErrorImpl = function (fiber) {
@@ -34027,12 +34404,22 @@ function unmountComponentAtNode(container) {
   }
 }
 
-function preinit() {
+function prefetchDNS() {
   var dispatcher = Internals.Dispatcher.current;
 
   if (dispatcher) {
-    dispatcher.preinit.apply(this, arguments);
-  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
+    dispatcher.prefetchDNS.apply(this, arguments);
+  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preconnect() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preconnect.apply(this, arguments);
+  } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
@@ -34043,6 +34430,16 @@ function preload() {
   if (dispatcher) {
     dispatcher.preload.apply(this, arguments);
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
+  // and the runtime may not be capable of responding. The function is optimistic and not critical
+  // so we favor silent bailout over warning or erroring.
+
+}
+function preinit() {
+  var dispatcher = Internals.Dispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinit.apply(this, arguments);
+  } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
 
@@ -34145,6 +34542,8 @@ exports.findDOMNode = findDOMNode;
 exports.flushSync = flushSync;
 exports.hydrate = hydrate;
 exports.hydrateRoot = hydrateRoot;
+exports.preconnect = preconnect;
+exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
 exports.preload = preload;
 exports.render = render;

@@ -1,59 +1,140 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, hasRedbox, getRedboxDescription } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
+import cheerio from 'cheerio'
 
 createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
+    skipDeployment: true,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
-    if (isNextDeploy) {
-      it('should skip for deploy currently', () => {})
-      return
-    }
-
+  ({ next, isNextDev }) => {
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
-    async function queryMetaProps(
-      browser: BrowserInterface,
-      tag: string,
-      query: string,
-      selectedKeys: string[]
-    ) {
-      return await browser.eval(`
-          const res = {}
-          const el = document.querySelector('${tag}[${query}]')
-          for (const k of ${JSON.stringify(selectedKeys)}) {
-            res[k] = el?.getAttribute(k)
-          }
-          res`)
-    }
-
     async function checkMeta(
       browser: BrowserInterface,
-      name: string,
-      content: string | string[],
-      property: string = 'property',
+      queryValue: string,
+      expected: string | string[],
+      queryKey: string = 'property',
       tag: string = 'meta',
-      field: string = 'content'
+      domAttributeField: string = 'content'
     ) {
       const values = await browser.eval(
-        `[...document.querySelectorAll('${tag}[${property}="${name}"]')].map((el) => el.getAttribute("${field}"))`
+        `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
       )
-      if (Array.isArray(content)) {
-        expect(values).toEqual(content)
+      if (Array.isArray(expected)) {
+        expect(values).toEqual(expected)
       } else {
-        expect(values[0]).toBe(content)
+        expect(values[0]).toBe(expected)
       }
     }
 
-    const checkMetaPropertyContentPair = (
-      browser: BrowserInterface,
-      name: string,
-      content: string | string[]
-    ) => checkMeta(browser, name, content, 'property')
+    function createDomMatcher(browser: BrowserInterface) {
+      /**
+       * @param tag - tag name, e.g. 'meta'
+       * @param query - query string, e.g. 'name="description"'
+       * @param expectedObject - expected object, e.g. { content: 'my description' }
+       * @returns {Promise<void>} - promise that resolves when the check is done
+       *
+       * @example
+       * const matchDom = createDomMatcher(browser)
+       * await matchDom('meta', 'name="description"', { content: 'description' })
+       */
+      return async (
+        tag: string,
+        query: string,
+        expectedObject: Record<string, string>
+      ) => {
+        const props = await browser.eval(`
+          const el = document.querySelector('${tag}[${query}]');
+          const res = {}
+          const keys = ${JSON.stringify(Object.keys(expectedObject))}
+          for (const k of keys) {
+            res[k] = el?.getAttribute(k)
+          }
+          res
+        `)
+        expect(props).toEqual(expectedObject)
+      }
+    }
+
+    function createMultiHtmlMatcher($: ReturnType<typeof cheerio.load>) {
+      /**
+       * @param tag - tag name, e.g. 'meta'
+       * @param queryKey - query key, e.g. 'property'
+       * @param domAttributeField - dom attribute field, e.g. 'content'
+       * @param expected - expected object, e.g. { description: 'my description' }
+       * @returns {Promise<void>} - promise that resolves when the check is done
+       *
+       * @example
+       *
+       * const $ = await next.render$('html')
+       * const matchHtml = createHtmlMatcher($)
+       * await matchHtml('meta', 'name', 'property', {
+       *   description: 'description',
+       *   og: 'og:description'
+       * })
+       *
+       */
+      return (
+        tag: string,
+        queryKey: string,
+        domAttributeField: string,
+        expected: Record<string, string | string[]>
+      ) => {
+        const res = {}
+        for (const key of Object.keys(expected)) {
+          const el = $(`${tag}[${queryKey}="${key}"]`)
+          if (el.length > 1) {
+            res[key] = el.toArray().map((el) => el.attribs[domAttributeField])
+          } else {
+            res[key] = el.attr(domAttributeField)
+          }
+        }
+        expect(res).toEqual(expected)
+      }
+    }
+
+    function createMultiDomMatcher(browser: BrowserInterface) {
+      /**
+       * @param tag - tag name, e.g. 'meta'
+       * @param queryKey - query key, e.g. 'property'
+       * @param domAttributeField - dom attribute field, e.g. 'content'
+       * @param expected - expected object, e.g. { description: 'my description' }
+       * @returns {Promise<void>} - promise that resolves when the check is done
+       *
+       * @example
+       * const matchMultiDom = createMultiDomMatcher(browser)
+       * await matchMultiDom('meta', 'property', 'content', {
+       *   description: 'description',
+       *   'og:title': 'title',
+       *   'twitter:title': 'title'
+       * })
+       *
+       */
+      return async (
+        tag: string,
+        queryKey: string,
+        domAttributeField: string,
+        expected: Record<string, string | string[]>
+      ) => {
+        await Promise.all(
+          Object.keys(expected).map(async (key) => {
+            return checkMeta(
+              browser,
+              key,
+              expected[key],
+              queryKey,
+              tag,
+              domAttributeField
+            )
+          })
+        )
+      }
+    }
+
     const checkMetaNameContentPair = (
       browser: BrowserInterface,
       name: string,
@@ -110,101 +191,73 @@ createNextDescribe(
 
       it('should support other basic tags', async () => {
         const browser = await next.browser('/basic')
-        await checkMetaNameContentPair(browser, 'generator', 'next.js')
-        await checkMetaNameContentPair(browser, 'application-name', 'test')
-        await checkLink(browser, 'manifest', 'https://github.com/manifest.json')
+        const matchDom = createDomMatcher(browser)
+        const matchMultiDom = createMultiDomMatcher(browser)
 
-        await checkMetaNameContentPair(
-          browser,
-          'referrer',
-          'origin-when-cross-origin'
-        )
-        await checkMetaNameContentPair(
-          browser,
-          'keywords',
-          'next.js,react,javascript'
-        )
-        await checkMetaNameContentPair(browser, 'author', ['huozhi', 'tree'])
-        await checkLink(browser, 'author', 'https://tree.com')
+        await matchMultiDom('meta', 'name', 'content', {
+          generator: 'next.js',
+          'application-name': 'test',
+          referrer: 'origin-when-cross-origin',
+          keywords: 'next.js,react,javascript',
+          author: ['huozhi', 'tree'],
+          'color-scheme': 'dark',
+          viewport:
+            'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual',
+          creator: 'shu',
+          publisher: 'vercel',
+          robots: 'index, follow',
+          'format-detection': 'telephone=no, address=no, email=no',
+        })
 
-        await checkMeta(browser, 'theme-color', 'cyan', 'name')
-        await checkMeta(
-          browser,
-          'theme-color',
-          '(prefers-color-scheme: dark)',
-          'name',
-          'meta',
-          'media'
-        )
+        await matchMultiDom('link', 'rel', 'href', {
+          manifest: 'https://github.com/manifest.json',
+          author: 'https://tree.com',
+          preconnect: '/preconnect-url',
+          preload: '/preload-url',
+          'dns-prefetch': '/dns-prefetch-url',
+        })
 
-        await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
-        await checkMetaNameContentPair(
-          browser,
-          'viewport',
-          'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual'
-        )
-        await checkMetaNameContentPair(browser, 'creator', 'shu')
-        await checkMetaNameContentPair(browser, 'publisher', 'vercel')
-        await checkMetaNameContentPair(browser, 'robots', 'index, follow')
-
-        await checkMetaNameContentPair(
-          browser,
-          'format-detection',
-          'telephone=no, address=no, email=no'
-        )
+        await matchDom('meta', 'name="theme-color"', {
+          media: '(prefers-color-scheme: dark)',
+          content: 'cyan',
+        })
       })
 
       it('should support apple related tags `itunes` and `appWebApp`', async () => {
         const browser = await next.browser('/apple')
-        await checkMetaNameContentPair(
-          browser,
-          'apple-itunes-app',
-          'app-id=myAppStoreID, app-argument=myAppArgument'
-        )
-        await checkMetaNameContentPair(
-          browser,
-          'apple-mobile-web-app-capable',
-          'yes'
-        )
-        await checkMetaNameContentPair(
-          browser,
-          'apple-mobile-web-app-title',
-          'Apple Web App'
-        )
-        await checkMetaNameContentPair(
-          browser,
-          'apple-mobile-web-app-status-bar-style',
-          'black-translucent'
-        )
+        const matchMultiDom = createMultiDomMatcher(browser)
 
-        expect(
-          await queryMetaProps(
-            browser,
-            'link',
-            'href="/assets/startup/apple-touch-startup-image-768x1004.png"',
-            ['rel', 'media']
-          )
-        ).toEqual({
-          rel: 'apple-touch-startup-image',
-          media: null,
+        await matchMultiDom('meta', 'name', 'content', {
+          'apple-itunes-app': 'app-id=myAppStoreID, app-argument=myAppArgument',
+          'apple-mobile-web-app-capable': 'yes',
+          'apple-mobile-web-app-title': 'Apple Web App',
+          'apple-mobile-web-app-status-bar-style': 'black-translucent',
         })
 
-        expect(
-          await queryMetaProps(
-            browser,
-            'link',
-            'href="/assets/startup/apple-touch-startup-image-1536x2008.png"',
-            ['rel', 'media']
-          )
-        ).toEqual({
-          rel: 'apple-touch-startup-image',
-          media: '(device-width: 768px) and (device-height: 1024px)',
-        })
+        const matchDom = createDomMatcher(browser)
+
+        await matchDom(
+          'link',
+          'href="/assets/startup/apple-touch-startup-image-768x1004.png"',
+          {
+            rel: 'apple-touch-startup-image',
+            media: null,
+          }
+        )
+
+        await matchDom(
+          'link',
+          'href="/assets/startup/apple-touch-startup-image-1536x2008.png"',
+          {
+            rel: 'apple-touch-startup-image',
+            media: '(device-width: 768px) and (device-height: 1024px)',
+          }
+        )
       })
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com/')
+        await checkLink(browser, 'canonical', 'https://example.com')
         await checkMeta(
           browser,
           'en-US',
@@ -224,75 +277,55 @@ createNextDescribe(
         await checkMeta(
           browser,
           'only screen and (max-width: 600px)',
-          'https://example.com/mobile',
+          '/mobile',
           'media',
           'link',
           'href'
         )
-        await checkMeta(
-          browser,
-          'application/rss+xml',
-          'https://example.com/rss',
-          'type',
-          'link',
-          'href'
-        )
+        const matchDom = createDomMatcher(browser)
+
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'blog/js.rss',
+        })
+        await matchDom('link', 'title="rss"', {
+          type: 'application/rss+xml',
+          href: 'blog.rss',
+        })
       })
 
       it('should support robots tags', async () => {
-        const browser = await next.browser('/robots')
-        await checkMetaNameContentPair(
-          browser,
-          'robots',
-          'noindex, follow, nocache'
-        )
-        await checkMetaNameContentPair(
-          browser,
-          'googlebot',
-          'index, nofollow, noimageindex, max-video-preview:standard, max-image-preview:-1, max-snippet:-1'
-        )
+        const $ = await next.render$('/robots')
+        const matchMultiDom = createMultiHtmlMatcher($)
+
+        await matchMultiDom('meta', 'name', 'content', {
+          robots: 'noindex, follow, nocache',
+          googlebot:
+            'index, nofollow, noimageindex, max-video-preview:standard, max-image-preview:-1, max-snippet:-1',
+        })
       })
 
       it('should support verification tags', async () => {
-        const browser = await next.browser('/verification')
-
-        await checkMetaNameContentPair(
-          browser,
-          'google-site-verification',
-          'google'
-        )
-        await checkMetaNameContentPair(browser, 'y_key', 'yahoo')
-        await checkMetaNameContentPair(browser, 'yandex-verification', 'yandex')
-        await checkMetaNameContentPair(browser, 'me', ['my-email', 'my-link'])
+        const $ = await next.render$('/verification')
+        const matchMultiDom = createMultiHtmlMatcher($)
+        await matchMultiDom('meta', 'name', 'content', {
+          'google-site-verification': 'google',
+          y_key: 'yahoo',
+          'yandex-verification': 'yandex',
+          me: ['my-email', 'my-link'],
+        })
       })
 
       it('should support appLinks tags', async () => {
         const browser = await next.browser('/app-links')
-        await checkMetaPropertyContentPair(
-          browser,
-          'al:ios:url',
-          'https://example.com/ios'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'al:ios:app_store_id',
-          'app_store_id'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'al:android:package',
-          'com.example.android/package'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'al:android:app_name',
-          'app_name_android'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'al:web:should_fallback',
-          'true'
-        )
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'property', 'content', {
+          'al:ios:url': 'https://example.com/ios',
+          'al:ios:app_store_id': 'app_store_id',
+          'al:android:package': 'com.example.android/package',
+          'al:android:app_name': 'app_name_android',
+          'al:web:should_fallback': 'true',
+        })
       })
 
       it('should apply metadata when navigating client-side', async () => {
@@ -342,40 +375,6 @@ createNextDescribe(
         expect(resRedirect.status).toBe(307)
       })
 
-      if (isNextDev) {
-        it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
-          const pagePath = 'app/mutate/page.tsx'
-          const content = `export default function page(props) {
-            return <p>mutate</p>
-          }
-
-          export async function generateMetadata(props, parent) {
-            const parentMetadata = await parent
-            parentMetadata.x = 1
-            return {
-              ...parentMetadata,
-            }
-          }`
-
-          try {
-            await next.patchFile(pagePath, content)
-
-            const browser = await next.browser('/mutate')
-            await check(
-              async () =>
-                (await hasRedbox(browser, true)) ? 'success' : 'fail',
-              /success/
-            )
-
-            expect(await getRedboxDescription(browser)).toContain(
-              'Cannot add property x, object is not extensible'
-            )
-          } finally {
-            await next.deleteFile(pagePath)
-          }
-        })
-      }
-
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
         const url$ = await next.render$('/metadata-base/url')
@@ -396,75 +395,39 @@ createNextDescribe(
     describe('opengraph', () => {
       it('should support opengraph tags', async () => {
         const browser = await next.browser('/opengraph')
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:title',
-          'My custom title'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:description',
-          'My custom description'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:url',
-          'https://example.com/'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:site_name',
-          'My custom site name'
-        )
-        await checkMetaPropertyContentPair(browser, 'og:locale', 'en-US')
-        await checkMetaPropertyContentPair(browser, 'og:type', 'website')
-        await checkMetaPropertyContentPair(browser, 'og:image:url', [
-          'https://example.com/image.png',
-          'https://example.com/image2.png',
-        ])
-        await checkMetaPropertyContentPair(browser, 'og:image:width', [
-          '800',
-          '1800',
-        ])
-        await checkMetaPropertyContentPair(browser, 'og:image:height', [
-          '600',
-          '1600',
-        ])
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:image:alt',
-          'My custom alt'
-        )
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'property', 'content', {
+          'og:title': 'My custom title',
+          'og:description': 'My custom description',
+          'og:url': 'https://example.com/',
+          'og:site_name': 'My custom site name',
+          'og:locale': 'en-US',
+          'og:type': 'website',
+          'og:image': [
+            'https://example.com/image.png',
+            'https://example.com/image2.png',
+          ],
+          'og:image:width': ['800', '1800'],
+          'og:image:height': ['600', '1600'],
+          'og:image:alt': 'My custom alt',
+        })
       })
 
       it('should support opengraph with article type', async () => {
         const browser = await next.browser('/opengraph/article')
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:title',
-          'My custom title'
-        )
-        await checkMetaPropertyContentPair(
-          browser,
-          'og:description',
-          'My custom description'
-        )
-        await checkMetaPropertyContentPair(browser, 'og:type', 'article')
-        await checkMetaPropertyContentPair(
-          browser,
-          'article:published_time',
-          '2023-01-01T00:00:00.000Z'
-        )
-        await checkMetaPropertyContentPair(browser, 'article:author', [
-          'author1',
-          'author2',
-          'author3',
-        ])
+        const matchMultiDom = createMultiDomMatcher(browser)
+        await matchMultiDom('meta', 'property', 'content', {
+          'og:title': 'My custom title',
+          'og:description': 'My custom description',
+          'og:type': 'article',
+          'article:published_time': '2023-01-01T00:00:00.000Z',
+          'article:author': ['author1', 'author2', 'author3'],
+        })
       })
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image:url"]').attr('content')).toMatch(
+        expect($('[property="og:image"]').attr('content')).toMatch(
           /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
@@ -505,6 +468,7 @@ createNextDescribe(
 
       it('should support basic complex descriptor icons field', async () => {
         const browser = await next.browser('/icons/descriptor')
+        const matchDom = createDomMatcher(browser)
 
         await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
         await checkLink(browser, 'icon', [
@@ -518,12 +482,16 @@ createNextDescribe(
 
         await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
 
-        expect(
-          await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [
-            'sizes',
-            'type',
-          ])
-        ).toEqual({ sizes: '180x180', type: 'image/png' })
+        await matchDom('link', 'href="/apple-icon-x3.png"', {
+          sizes: '180x180',
+          type: 'image/png',
+        })
+      })
+
+      it('should not hoist meta[itemProp] to head', async () => {
+        const $ = await next.render$('/')
+        expect($('head meta[itemProp]').length).toBe(0)
+        expect($('header meta[itemProp]').length).toBe(1)
       })
 
       it('should support root level of favicon.ico', async () => {
@@ -601,110 +569,100 @@ createNextDescribe(
     describe('twitter', () => {
       it('should support default twitter summary card', async () => {
         const browser = await next.browser('/twitter')
-        const expected = {
-          title: 'Twitter Title',
-          description: 'Twitter Description',
-          'site:id': 'siteId',
-          creator: 'creator',
-          'creator:id': 'creatorId',
-          image: 'https://twitter.com/image.png',
-          card: 'summary',
-        }
+        const matchMultiDom = createMultiDomMatcher(browser)
 
-        await Promise.all(
-          Object.keys(expected).map(async (key) => {
-            return checkMetaNameContentPair(
-              browser,
-              `twitter:${key}`,
-              expected[key]
-            )
-          })
-        )
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:title': 'Twitter Title',
+          'twitter:description': 'Twitter Description',
+          'twitter:site:id': 'siteId',
+          'twitter:creator': 'creator',
+          'twitter:creator:id': 'creatorId',
+          'twitter:image': 'https://twitter.com/image.png',
+          'twitter:card': 'summary',
+        })
       })
 
       it('should support default twitter summary_large_image card', async () => {
         const browser = await next.browser('/twitter/large-image')
-        const expected = {
-          title: 'Twitter Title',
-          description: 'Twitter Description',
-          'site:id': 'siteId',
-          creator: 'creator',
-          'creator:id': 'creatorId',
-          image: 'https://twitter.com/image.png',
-          'image:alt': 'image-alt',
-          card: 'summary_large_image',
-        }
+        const matchMultiDom = createMultiDomMatcher(browser)
 
-        await Promise.all(
-          Object.keys(expected).map((key) => {
-            return checkMetaNameContentPair(
-              browser,
-              `twitter:${key}`,
-              expected[key]
-            )
-          })
-        )
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:title': 'Twitter Title',
+          'twitter:description': 'Twitter Description',
+          'twitter:site:id': 'siteId',
+          'twitter:creator': 'creator',
+          'twitter:creator:id': 'creatorId',
+          'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image:alt': 'image-alt',
+          'twitter:card': 'summary_large_image',
+        })
       })
 
       it('should support default twitter player card', async () => {
         const browser = await next.browser('/twitter/player')
-        const expected = {
-          title: 'Twitter Title',
-          description: 'Twitter Description',
-          'site:id': 'siteId',
-          creator: 'creator',
-          'creator:id': 'creatorId',
-          image: 'https://twitter.com/image.png',
-          // player properties
-          card: 'player',
-          player: 'https://twitter.com/player',
-          'player:stream': 'https://twitter.com/stream',
-          'player:width': '100',
-          'player:height': '100',
-        }
+        const matchMultiDom = createMultiDomMatcher(browser)
 
-        await Promise.all(
-          Object.keys(expected).map((key) => {
-            return checkMetaNameContentPair(
-              browser,
-              `twitter:${key}`,
-              expected[key]
-            )
-          })
-        )
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:title': 'Twitter Title',
+          'twitter:description': 'Twitter Description',
+          'twitter:site:id': 'siteId',
+          'twitter:creator': 'creator',
+          'twitter:creator:id': 'creatorId',
+          'twitter:image': 'https://twitter.com/image.png',
+          // player properties
+          'twitter:card': 'player',
+          'twitter:player': 'https://twitter.com/player',
+          'twitter:player:stream': 'https://twitter.com/stream',
+          'twitter:player:width': '100',
+          'twitter:player:height': '100',
+        })
       })
 
       it('should support default twitter app card', async () => {
         const browser = await next.browser('/twitter/app')
-        const expected = {
-          title: 'Twitter Title',
-          description: 'Twitter Description',
-          'site:id': 'siteId',
-          creator: 'creator',
-          'creator:id': 'creatorId',
-          image: [
+        const matchMultiDom = createMultiDomMatcher(browser)
+
+        await matchMultiDom('meta', 'name', 'content', {
+          'twitter:title': 'Twitter Title',
+          'twitter:description': 'Twitter Description',
+          'twitter:site:id': 'siteId',
+          'twitter:creator': 'creator',
+          'twitter:creator:id': 'creatorId',
+          'twitter:image': [
             'https://twitter.com/image-100x100.png',
             'https://twitter.com/image-200x200.png',
           ],
           // app properties
-          card: 'app',
-          'app:id:iphone': 'twitter_app://iphone',
-          'app:id:ipad': 'twitter_app://ipad',
-          'app:id:googleplay': 'twitter_app://googleplay',
-          'app:url:iphone': 'https://iphone_url',
-          'app:url:ipad': 'https://ipad_url',
-          'app:url:googleplay': undefined,
-        }
+          'twitter:card': 'app',
+          'twitter:app:id:iphone': 'twitter_app://iphone',
+          'twitter:app:id:ipad': 'twitter_app://ipad',
+          'twitter:app:id:googleplay': 'twitter_app://googleplay',
+          'twitter:app:url:iphone': 'https://iphone_url',
+          'twitter:app:url:ipad': 'https://ipad_url',
+          'twitter:app:url:googleplay': undefined,
+        })
+      })
+    })
 
-        await Promise.all(
-          Object.keys(expected).map((key) => {
-            return checkMetaNameContentPair(
-              browser,
-              `twitter:${key}`,
-              expected[key]
-            )
-          })
+    describe('static routes', () => {
+      it('should support root dir robots.txt', async () => {
+        const res = await next.fetch('/robots.txt')
+        expect(res.headers.get('content-type')).toBe('text/plain')
+        expect(await res.text()).toContain('User-Agent: *\nDisallow:')
+        const invalidRobotsResponse = await next.fetch('/title/robots.txt')
+        expect(invalidRobotsResponse.status).toBe(404)
+      })
+
+      it('should support root dir sitemap.xml', async () => {
+        const res = await next.fetch('/sitemap.xml')
+        expect(res.headers.get('content-type')).toBe('application/xml')
+        const sitemap = await res.text()
+        expect(sitemap).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+        expect(sitemap).toContain(
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
         )
+        const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
+        expect(invalidSitemapResponse.status).toBe(404)
       })
     })
 
