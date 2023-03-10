@@ -185,6 +185,7 @@ function processErrorChunkDev(request, id, digest, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(model, request.toJSON);
   var row = id.toString(16) + ':' + json + '\n';
   return stringToChunk(row);
@@ -195,6 +196,7 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processImportChunk(request, id, clientReferenceMetadata) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(clientReferenceMetadata);
   var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
@@ -204,7 +206,7 @@ function processImportChunk(request, id, clientReferenceMetadata) {
 var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
 var SERVER_REFERENCE_TAG = Symbol.for('react.server.reference');
 function getClientReferenceKey(reference) {
-  return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
+  return reference.$$async ? reference.$$id + '#async' : reference.$$id;
 }
 function isClientReference(reference) {
   return reference.$$typeof === CLIENT_REFERENCE_TAG;
@@ -213,9 +215,9 @@ function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
 }
 function resolveClientReferenceMetadata(config, clientReference) {
-  var resolvedModuleData = config[clientReference.filepath][clientReference.name];
+  var resolvedModuleData = config[clientReference.$$id];
 
-  if (clientReference.async) {
+  if (clientReference.$$async) {
     return {
       id: resolvedModuleData.id,
       chunks: resolvedModuleData.chunks,
@@ -226,12 +228,11 @@ function resolveClientReferenceMetadata(config, clientReference) {
     return resolvedModuleData;
   }
 }
-function resolveServerReferenceMetadata(config, serverReference) {
-  return {
-    id: serverReference.$$filepath,
-    name: serverReference.$$name,
-    bound: Promise.resolve(serverReference.$$bound)
-  };
+function getServerReferenceId(config, serverReference) {
+  return serverReference.$$id;
+}
+function getServerReferenceBoundArguments(config, serverReference) {
+  return serverReference.$$bound;
 }
 
 // ATTENTION
@@ -249,6 +250,21 @@ var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
+var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var FAUX_ITERATOR_SYMBOL = '@@iterator';
+function getIteratorFn(maybeIterable) {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
+    return null;
+  }
+
+  var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
+
+  if (typeof maybeIterator === 'function') {
+    return maybeIterator;
+  }
+
+  return null;
+}
 
 // It is handled by React separately and shouldn't be written to the DOM.
 
@@ -550,7 +566,7 @@ function isArray(a) {
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(p,q,w){function r(l){this.s=l}for(var t=$RC,m=$RM,u=new Map,n=new Map,g=document,h,e,f=g.querySelectorAll("template[data-precedence]"),c=0;e=f[c++];){for(var b=e.content.firstChild;b;b=b.nextSibling)u.set(b.getAttribute("data-href"),b);e.parentNode.removeChild(e)}f=g.querySelectorAll("link[data-precedence],style[data-precedence]");for(c=0;e=f[c++];)m.set(e.getAttribute("STYLE"===e.nodeName?"data-href":"href"),e),n.set(e.dataset.precedence,h=e);e=0;f=[];for(var d,\nv,a;d=w[e++];){var k=0;b=d[k++];if(!(a=m.get(b))){if(a=u.get(b))c=a.getAttribute("data-precedence");else{a=g.createElement("link");a.href=b;a.rel="stylesheet";for(a.dataset.precedence=c=d[k++];v=d[k++];)a.setAttribute(v,d[k++]);d=a._p=new Promise(function(l,x){a.onload=l;a.onerror=x});d.then(r.bind(d,"l"),r.bind(d,"e"))}m.set(b,a);b=n.get(c)||h;b===h&&(h=a);n.set(c,a);b?b.parentNode.insertBefore(a,b.nextSibling):(c=g.head,c.insertBefore(a,c.firstChild))}d=a._p;c=a.getAttribute("media");!d||"l"===\nd.s||c&&!matchMedia(c).matches||f.push(d)}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};';
+var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(t,u,y){function v(n){this.s=n}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=y[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var e=f[m++];if(a=p.get(e)){var d=a._p;c=!0}else{a=r.createElement("link");a.href=e;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];d=f[m++];)a.setAttribute(d,f[m++]);d=a._p=new Promise(function(n,z){a.onload=n;a.onerror=z});d.then(v.bind(d,"l"),v.bind(d,"e"));p.set(e,a)}e=a.getAttribute("media");!d||"l"===d.s||e&&!matchMedia(e).matches||h.push(d);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
 
 stringToPrecomputedChunk('"></template>');
@@ -650,11 +666,16 @@ stringToPrecomputedChunk('" data-dgst="');
 stringToPrecomputedChunk('" data-msg="');
 stringToPrecomputedChunk('" data-stck="');
 
-stringToPrecomputedChunk('<template data-precedence="">');
-stringToPrecomputedChunk('</template>'); // Tracks whether we wrote any late style tags. We use this to determine
-stringToPrecomputedChunk('<style data-precedence="');
-stringToPrecomputedChunk('"></style>');
+stringToPrecomputedChunk('<style media="not all" data-precedence="');
+stringToPrecomputedChunk('" data-href="');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</style>'); // Tracks whether the boundary currently flushing is flushign style tags or has any
 
+stringToPrecomputedChunk('<style data-precedence="');
+stringToPrecomputedChunk('" data-href="');
+stringToPrecomputedChunk(' ');
+stringToPrecomputedChunk('">');
+stringToPrecomputedChunk('</style>');
 stringToPrecomputedChunk('[');
 stringToPrecomputedChunk(',[');
 stringToPrecomputedChunk(',');
@@ -1146,6 +1167,8 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+// Thenable<ReactClientValue>
+
 var PENDING = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
@@ -1271,7 +1294,8 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    // TODO: Is it safe to directly emit these without being inside a retry?
+    newTask.status = ERRORED; // TODO: We should ideally do this inside performWork so it's scheduled
+
     var digest = logRecoverableError(request, reason);
 
     {
@@ -1280,6 +1304,10 @@ function serializeThenable(request, thenable) {
           _stack = _getErrorMessageAndSt2.stack;
 
       emitErrorChunkDev(request, newTask.id, digest, _message, _stack);
+    }
+
+    if (request.destination !== null) {
+      flushCompletedChunks(request, request.destination);
     }
   });
   return newTask.id;
@@ -1566,7 +1594,11 @@ function serializeServerReference(request, parent, key, serverReference) {
     return serializeServerReferenceID(existingId);
   }
 
-  var serverReferenceMetadata = resolveServerReferenceMetadata(request.bundlerConfig, serverReference);
+  var bound = getServerReferenceBoundArguments(request.bundlerConfig, serverReference);
+  var serverReferenceMetadata = {
+    id: getServerReferenceId(request.bundlerConfig, serverReference),
+    bound: bound ? Promise.resolve(bound) : null
+  };
   request.pendingChunks++;
   var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
 
@@ -2032,6 +2064,14 @@ function resolveModelToJSON(request, parent, key, value) {
       }
 
       return undefined;
+    }
+
+    if (!isArray(value)) {
+      var iteratorFn = getIteratorFn(value);
+
+      if (iteratorFn) {
+        return Array.from(value);
+      }
     }
 
     {

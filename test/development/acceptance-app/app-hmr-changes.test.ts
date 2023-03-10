@@ -1,5 +1,5 @@
 import { createNextDescribe, FileRef } from 'e2e-utils'
-import { check, hasRedbox, waitFor } from 'next-test-utils'
+import { check, hasRedbox, waitFor, retry } from 'next-test-utils'
 import path from 'path'
 
 createNextDescribe(
@@ -21,7 +21,11 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should handle successive HMR changes with errors correctly', async () => {
-      const browser = await next.browser('/2020/develop-preview-test')
+      const browser = await retry(
+        () => next.browser('/2020/develop-preview-test'),
+        1000,
+        500
+      )
 
       await check(
         () => browser.eval('document.documentElement.innerHTML'),

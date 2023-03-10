@@ -62,34 +62,6 @@ export interface TwoHashesIntAndString {
 export type HashableInput = string | ArrayBuffer | Buffer
 
 /**
- * BufferError
- */
-export const BufferError =
-  'The buffer class must be available, if you are a browser user use the buffer package (https://www.npmjs.com/package/buffer)'
-
-/**
- * Create a new array fill with a base value
- * @param size - The size of the array
- * @param defaultValue - The default value used to fill the array. If it's a function, it will be invoked to get the default value.
- * @return A newly allocated array
- * @memberof Utils
- */
-export function allocateArray<T>(
-  size: number,
-  defaultValue: T | (() => T)
-): Array<T> {
-  const array: Array<T> = new Array<T>(size)
-  const getDefault =
-    typeof defaultValue === 'function'
-      ? (defaultValue as () => T)
-      : () => defaultValue
-  for (let ind = 0; ind < size; ind++) {
-    array[ind] = getDefault()
-  }
-  return array
-}
-
-/**
  * Return a number to its Hex format by padding zeroes if length mod 4 != 0
  * @param elem the element to transform in HEX
  * @returns the HEX number padded of zeroes
@@ -123,52 +95,6 @@ export function randomInt(
   max = Math.floor(max)
   const rn = random()
   return Math.floor(rn * (max - min + 1)) + min
-}
-
-/**
- * Return the non-destructive XOR of two buffers
- * @param a - The buffer to copy, then to xor with b
- * @param b - The buffer to xor with
- * @return The results of the XOR between the two buffers
- * @author Arnaud Grall
- */
-export function xorBuffer(a: Buffer, b: Buffer): Buffer {
-  const length = Math.max(a.length, b.length)
-  const buffer = Buffer.allocUnsafe(length).fill(0)
-  for (let i = 0; i < length; ++i) {
-    if (i < a.length && i < b.length) {
-      buffer[length - i - 1] = a[a.length - i - 1] ^ b[b.length - i - 1]
-    } else if (i < a.length && i >= b.length) {
-      buffer[length - i - 1] ^= a[a.length - i - 1]
-    } else if (i < b.length && i >= a.length) {
-      buffer[length - i - 1] ^= b[b.length - i - 1]
-    }
-  }
-  // now need to remove leading zeros in the buffer if any
-  let start = 0
-  const it = buffer.values()
-  let value = it.next()
-  while (!value.done && value.value === 0) {
-    start++
-    value = it.next()
-  }
-  return buffer.slice(start)
-}
-
-/**
- * Return true if the buffer is empty, i.e., all value are equals to 0.
- * @param  buffer - The buffer to inspect
- * @return True if the buffer only contains zero, False otherwise
- * @author Arnaud Grall
- */
-export function isEmptyBuffer(buffer: Buffer | null): boolean {
-  if (buffer === null || !buffer) return true
-  for (const value of buffer) {
-    if (value !== 0) {
-      return false
-    }
-  }
-  return true
 }
 
 /**
