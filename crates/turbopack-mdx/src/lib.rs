@@ -6,7 +6,10 @@ use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
-    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetVc, ChunkingContextVc,
+    },
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
@@ -116,8 +119,17 @@ impl Asset for MdxModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for MdxModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: MdxModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context, self_vc.as_ecmascript_chunk_placeable()).into()
+    fn as_chunk(
+        self_vc: MdxModuleAssetVc,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc {
+        EcmascriptChunkVc::new(
+            context,
+            self_vc.as_ecmascript_chunk_placeable(),
+            availability_info,
+        )
+        .into()
     }
 }
 

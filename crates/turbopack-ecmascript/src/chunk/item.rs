@@ -1,12 +1,13 @@
 use anyhow::Result;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt};
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Value};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     asset::AssetVc,
     chunk::{
-        ChunkItem, ChunkItemVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
+        availability_info::AvailabilityInfo, available_assets::AvailableAssetsVc, ChunkItem,
+        ChunkItemVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleIdVc,
     },
 };
 
@@ -60,9 +61,28 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
     async fn from_async_asset(
         context: ChunkingContextVc,
         asset: ChunkableAssetVc,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Self>> {
-        let chunk = ManifestChunkAssetVc::new(asset, context);
-        Ok(Some(ManifestLoaderItemVc::new(context, chunk).into()))
+        let next_availability_info = match availability_info.into_value() {
+            AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
+            AvailabilityInfo::Root {
+                current_availability_root,
+            } => AvailabilityInfo::Inner {
+                available_assets: AvailableAssetsVc::new(vec![current_availability_root]),
+                current_availability_root: asset.as_asset(),
+            },
+            AvailabilityInfo::Inner {
+                available_assets,
+                current_availability_root,
+            } => AvailabilityInfo::Inner {
+                available_assets: available_assets.with_roots(vec![current_availability_root]),
+                current_availability_root: asset.as_asset(),
+            },
+        };
+        let manifest_asset =
+            ManifestChunkAssetVc::new(asset, context, Value::new(next_availability_info));
+        let manifest_loader = ManifestLoaderItemVc::new(manifest_asset);
+        Ok(Some(manifest_loader.into()))
     }
 }
 

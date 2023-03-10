@@ -17,8 +17,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 
 }.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule, registerChunkList }) => {
-    if (!(true)) return true;
-    registerChunkList("output/crates_turbopack-tests_tests_snapshot_import-meta_cjs_input_index.js_f5704b._.json", []);
+    if (!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_import-meta_cjs_input_index_32cfb4.js"))) return true;
+    registerChunkList("output/crates_turbopack-tests_tests_snapshot_import-meta_cjs_input_index_746b39.js.chunk-list.json", ["output/crates_turbopack-tests_tests_snapshot_import-meta_cjs_input_index_32cfb4.js"]);
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/index.js (ecmascript)");
 }
 ]);

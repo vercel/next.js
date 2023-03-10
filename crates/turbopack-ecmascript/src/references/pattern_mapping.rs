@@ -7,7 +7,10 @@ use swc_core::{
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc, Value, ValueToString};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset, ModuleId},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableAssetVc, ChunkingContextVc,
+        FromChunkableAsset, ModuleId,
+    },
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
@@ -157,8 +160,15 @@ impl PatternMappingVc {
 
         if let Some(chunkable) = ChunkableAssetVc::resolve_from(asset).await? {
             if *resolve_type == ResolveType::EsmAsync {
-                if let Some(loader) =
-                    EcmascriptChunkItemVc::from_async_asset(context, chunkable).await?
+                // Passing [AvailabilityInfo::Untracked] works here because the manifest loader
+                // has an id that is independent of them. So luckily we don't need chunk
+                // dependent code generation.
+                if let Some(loader) = EcmascriptChunkItemVc::from_async_asset(
+                    context,
+                    chunkable,
+                    Value::new(AvailabilityInfo::Untracked),
+                )
+                .await?
                 {
                     return Ok(PatternMappingVc::cell(PatternMapping::Single(
                         loader.id().await?.clone_value(),

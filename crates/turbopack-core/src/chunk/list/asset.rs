@@ -22,22 +22,16 @@ use crate::{
 pub(super) struct ChunkListAsset {
     server_root: FileSystemPathVc,
     chunk_group: ChunkGroupVc,
-    path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkListAssetVc {
     /// Creates a new [`ChunkListAsset`].
     #[turbo_tasks::function]
-    pub fn new(
-        server_root: FileSystemPathVc,
-        chunk_group: ChunkGroupVc,
-        path: FileSystemPathVc,
-    ) -> Self {
+    pub fn new(server_root: FileSystemPathVc, chunk_group: ChunkGroupVc) -> Self {
         ChunkListAsset {
             server_root,
             chunk_group,
-            path,
         }
         .cell()
     }
@@ -61,7 +55,7 @@ impl ChunkListAssetVc {
 impl Asset for ChunkListAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
-        AssetIdentVc::from_path(self.path)
+        AssetIdentVc::from_path(self.chunk_group.chunk_list_path())
     }
 
     #[turbo_tasks::function]

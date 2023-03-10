@@ -25,6 +25,14 @@ pub struct U32(u32);
 #[turbo_tasks::value(transparent)]
 pub struct U64(u64);
 
+#[turbo_tasks::value_impl]
+impl ValueToString for U64 {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        StringVc::cell(self.0.to_string())
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionString(Option<std::string::String>);
 

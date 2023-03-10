@@ -4,7 +4,7 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
-    chunk::{ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
+    chunk::{availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
@@ -80,9 +80,12 @@ pub async fn create_web_entry_source(
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
-                Ok(ChunkGroupVc::from_chunk(
-                    chunkable.as_chunk(chunking_context),
-                ))
+                Ok(ChunkGroupVc::from_chunk(chunkable.as_chunk(
+                    chunking_context,
+                    Value::new(AvailabilityInfo::Root {
+                        current_availability_root: module,
+                    }),
+                )))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(

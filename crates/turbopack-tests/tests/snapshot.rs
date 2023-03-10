@@ -27,7 +27,10 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{dev::DevChunkingContextVc, ChunkableAsset, ChunkableAssetVc},
+    chunk::{
+        availability_info::AvailabilityInfo, dev::DevChunkingContextVc, ChunkableAsset,
+        ChunkableAssetVc,
+    },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
@@ -248,7 +251,12 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
                 // TODO: Load runtime entries from snapshots
                 Ok(ecmascript.as_evaluated_chunk(chunking_context, runtime_entries))
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                Ok(chunkable.as_chunk(chunking_context))
+                Ok(chunkable.as_chunk(
+                    chunking_context,
+                    Value::new(AvailabilityInfo::Root {
+                        current_availability_root: chunkable.into(),
+                    }),
+                ))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(

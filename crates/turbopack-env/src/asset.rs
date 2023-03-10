@@ -1,11 +1,15 @@
 use std::fmt::Write as _;
 
 use anyhow::Result;
+use turbo_tasks::Value;
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetVc, ChunkingContextVc,
+    },
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
@@ -58,8 +62,12 @@ impl Asset for ProcessEnvAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for ProcessEnvAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: ProcessEnvAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context, self_vc.into()).into()
+    fn as_chunk(
+        self_vc: ProcessEnvAssetVc,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc {
+        EcmascriptChunkVc::new(context, self_vc.into(), availability_info).into()
     }
 }
 

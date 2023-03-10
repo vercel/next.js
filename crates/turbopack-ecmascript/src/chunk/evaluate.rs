@@ -1,5 +1,4 @@
 use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::chunk::{
     chunk_in_group::ChunkInGroupVc, Chunk, ChunkGroupVc, ChunkingContext, ChunkingContextVc,
     ModuleIdVc,
@@ -21,9 +20,6 @@ pub struct EcmascriptChunkEvaluate {
     /// All chunks of this chunk group need to be ready for execution to start.
     /// When None, it will use a chunk group created from the current chunk.
     pub chunk_group: Option<ChunkGroupVc>,
-    /// The path to the chunk list asset. This will be used to register the
-    /// chunk list when this chunk is evaluated.
-    pub chunk_list_path: Option<FileSystemPathVc>,
 }
 
 #[turbo_tasks::value_impl]
@@ -37,7 +33,6 @@ impl EcmascriptChunkEvaluateVc {
         let &EcmascriptChunkEvaluate {
             evaluate_entries,
             chunk_group,
-            chunk_list_path,
         } = &*self.await?;
         let chunk_group =
             chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(origin_chunk.into()));
@@ -68,14 +63,10 @@ impl EcmascriptChunkEvaluateVc {
             .iter()
             .map(|entry| entry.as_chunk_item(context).id())
             .collect();
-        let chunk_list_path = if let Some(chunk_list_path) = chunk_list_path {
-            let chunk_list_path = chunk_list_path.await?;
-            output_root
-                .get_path_to(&chunk_list_path)
-                .map(|path| path.to_string())
-        } else {
-            None
-        };
+        let chunk_list_path = chunk_group.chunk_list_path().await?;
+        let chunk_list_path = output_root
+            .get_path_to(&chunk_list_path)
+            .map(|path| path.to_string());
         Ok(EcmascriptChunkContentEvaluate {
             ecma_chunks_server_paths,
             other_chunks_server_paths,

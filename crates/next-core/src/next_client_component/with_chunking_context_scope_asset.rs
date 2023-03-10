@@ -1,12 +1,15 @@
 use anyhow::Result;
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{primitives::StringVc, Value};
 use turbopack::ecmascript::chunk::{
     EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
     EcmascriptExportsVc,
 };
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+        ChunkingContext, ChunkingContextVc,
+    },
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
@@ -43,8 +46,17 @@ impl Asset for WithChunkingContextScopeAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for WithChunkingContextScopeAsset {
     #[turbo_tasks::function]
-    fn as_chunk(&self, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context.with_layer(&self.layer), self.asset).into()
+    fn as_chunk(
+        &self,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc {
+        EcmascriptChunkVc::new(
+            context.with_layer(&self.layer),
+            self.asset,
+            availability_info,
+        )
+        .into()
     }
 }
 
