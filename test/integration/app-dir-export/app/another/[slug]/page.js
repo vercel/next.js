@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export const dynamic = 'error'
+export const dynamic = 'auto'
 
 export function generateStaticParams() {
   return [{ slug: 'first' }, { slug: 'second' }]
