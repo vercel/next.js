@@ -428,7 +428,7 @@ createNextDescribe(
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
         expect($('[property="og:image"]').attr('content')).toMatch(
-          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -437,7 +437,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.png/
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
@@ -445,9 +445,7 @@ createNextDescribe(
 
         // favicon shouldn't be overridden
         const $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toMatch(
-          /_next\/static\/media\/metadata\/favicon.\w+.ico/
-        )
+        expect($icon.attr('href')).toBe('/favicon.ico')
       })
     })
 
@@ -497,17 +495,13 @@ createNextDescribe(
       it('should support root level of favicon.ico', async () => {
         let $ = await next.render$('/')
         let $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toMatch(
-          /_next\/static\/media\/metadata\/favicon.\w+.ico/
-        )
+        expect($icon.attr('href')).toBe('/favicon.ico')
         expect($icon.attr('type')).toBe('image/x-icon')
         expect($icon.attr('sizes')).toBe('any')
 
         $ = await next.render$('/basic')
         $icon = $('link[rel="icon"]')
-        expect($icon.attr('href')).toMatch(
-          /_next\/static\/media\/metadata\/favicon.\w+.ico/
-        )
+        expect($icon.attr('href')).toBe('/favicon.ico')
         expect($icon.attr('sizes')).toBe('any')
       })
     })
@@ -520,12 +514,12 @@ createNextDescribe(
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/icon1\.\w+\.png/
+          /\/_next\/static\/media\/metadata\/icon1\.png/
         )
         expect($icon.attr('sizes')).toBe('32x32')
         expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/apple-icon\.\w+\.png/
+          /\/_next\/static\/media\/metadata\/apple-icon\.png/
         )
         expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
@@ -538,7 +532,7 @@ createNextDescribe(
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/icon\.\w+\.png/
+          /\/_next\/static\/media\/metadata\/icon\.png/
         )
         expect($icon.attr('sizes')).toBe('114x114')
 
@@ -556,7 +550,7 @@ createNextDescribe(
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
-          }, /\/_next\/static\/media\/metadata\/icon2\.\w+\.png/)
+          }, /\/_next\/static\/media\/metadata\/icon2\.png/)
 
           await next.renameFile(
             'app/icons/static/icon2.png',
