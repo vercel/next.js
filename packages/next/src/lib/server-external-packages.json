@@ -12,6 +12,7 @@
   "firebase-admin",
   "jest",
   "lodash",
+  "mdx-bundler",
   "mongodb",
   "next-mdx-remote",
   "next-seo",
