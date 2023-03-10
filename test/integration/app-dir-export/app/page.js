@@ -4,7 +4,9 @@ export default function Home() {
   return (
     <main>
       <h1>Home</h1>
-      <Link href="/another">Visit another page</Link>
+      <Link href="/another">Visit without trailingslash</Link>
+      <br />
+      <Link href="/another/">Visit with trailingslash</Link>
     </main>
   )
 }
