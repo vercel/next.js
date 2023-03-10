@@ -691,6 +691,7 @@ importers:
       webpack-sources1: npm:webpack-sources@1.4.3
       webpack-sources3: npm:webpack-sources@3.2.3
       ws: 8.2.3
+      zod: 3.21.4
     dependencies:
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.14
@@ -897,6 +898,7 @@ importers:
       webpack-sources1: /webpack-sources/1.4.3
       webpack-sources3: /webpack-sources/3.2.3
       ws: 8.2.3
+      zod: 3.21.4
 
   packages/next-bundle-analyzer:
     specifiers:
@@ -24895,6 +24897,10 @@ packages:
 
   /yoga-wasm-web/0.1.2:
     resolution: {integrity: sha512-8SkgawHcA0RUbMrnhxbaQkZDBi8rMed8pQHixkFF9w32zGhAwZ9/cOHWlpYfr6RCx42Yp3siV45/jPEkJxsk6w==}
+    dev: true
+
+  /zod/3.21.4:
+    resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
     dev: true
 
   /zwitch/1.0.5:
