@@ -6,8 +6,8 @@ console.log("hello world");
 
 }.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule, registerChunkList }) => {
-    if (!(true)) return true;
-    registerChunkList("output/a587c_tests_snapshot_evaluated_entrry_runtime_entry_input_index.js_f5704b._.json", []);
+    if (!(true && loadedChunks.has("output/a587c_tests_snapshot_evaluated_entrry_runtime_entry_input_index_51926d.js"))) return true;
+    registerChunkList("output/a587c_tests_snapshot_evaluated_entrry_runtime_entry_input_index_19edf2.js.chunk-list.json", ["output/a587c_tests_snapshot_evaluated_entrry_runtime_entry_input_index_51926d.js"]);
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/evaluated_entrry/runtime_entry/input/index.js (ecmascript)");
 }
 ]);

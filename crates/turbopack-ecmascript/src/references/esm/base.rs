@@ -161,6 +161,7 @@ impl ChunkableAssetReference for EsmAssetReference {
                 match chunking_type {
                     "separate" => Some(ChunkingType::Separate),
                     "parallel" => Some(ChunkingType::Parallel),
+                    "isolatedParallel" => Some(ChunkingType::IsolatedParallel),
                     "none" => None,
                     _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
                 }

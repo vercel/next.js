@@ -24,6 +24,7 @@ use turbo_tasks_fs::FileSystemPathOptionVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
+        availability_info::AvailabilityInfo,
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
         Chunk, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkListReferenceVc,
         ChunkReferenceVc, ChunkVc, ChunkingContext, ChunkingContextVc,
@@ -62,6 +63,7 @@ pub struct EcmascriptChunk {
     main_entries: EcmascriptChunkPlaceablesVc,
     omit_entries: Option<EcmascriptChunkPlaceablesVc>,
     evaluate: Option<EcmascriptChunkEvaluateVc>,
+    availability_info: AvailabilityInfo,
 }
 
 #[turbo_tasks::value_impl]
@@ -72,23 +74,30 @@ impl EcmascriptChunkVc {
         main_entries: EcmascriptChunkPlaceablesVc,
         omit_entries: Option<EcmascriptChunkPlaceablesVc>,
         evaluate: Option<EcmascriptChunkEvaluateVc>,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Self {
         EcmascriptChunk {
             context,
             main_entries,
             omit_entries,
             evaluate,
+            availability_info: availability_info.into_value(),
         }
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn new(context: ChunkingContextVc, main_entry: EcmascriptChunkPlaceableVc) -> Self {
+    pub fn new(
+        context: ChunkingContextVc,
+        main_entry: EcmascriptChunkPlaceableVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Self {
         Self::new_normalized(
             context,
             EcmascriptChunkPlaceablesVc::cell(vec![main_entry]),
             None,
             None,
+            availability_info,
         )
     }
 
@@ -112,10 +121,12 @@ impl EcmascriptChunkVc {
                 EcmascriptChunkEvaluate {
                     evaluate_entries: entries,
                     chunk_group: None,
-                    chunk_list_path: Some(context.chunk_list_path(main_entry.ident())),
                 }
                 .cell(),
             ),
+            Value::new(AvailabilityInfo::Root {
+                current_availability_root: main_entry.as_asset(),
+            }),
         ))
     }
 
@@ -154,8 +165,18 @@ impl EcmascriptChunkVc {
         let a = left.await?;
         let b = right.await?;
 
-        let a = ecmascript_chunk_content(a.context, a.main_entries, a.omit_entries);
-        let b = ecmascript_chunk_content(b.context, b.main_entries, b.omit_entries);
+        let a = ecmascript_chunk_content(
+            a.context,
+            a.main_entries,
+            a.omit_entries,
+            Value::new(a.availability_info),
+        );
+        let b = ecmascript_chunk_content(
+            b.context,
+            b.main_entries,
+            b.omit_entries,
+            Value::new(b.availability_info),
+        );
 
         let a = a.await?.chunk_items.to_set();
         let b = b.await?.chunk_items.to_set();
@@ -191,7 +212,12 @@ pub struct EcmascriptChunkComparison {
 }
 
 #[turbo_tasks::value_impl]
-impl Chunk for EcmascriptChunk {}
+impl Chunk for EcmascriptChunk {
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> ChunkingContextVc {
+        self.context
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl OptimizableChunk for EcmascriptChunk {
@@ -263,6 +289,7 @@ impl EcmascriptChunkVc {
             this.context,
             this.main_entries,
             this.omit_entries,
+            Value::new(this.availability_info),
         ))
     }
 
@@ -295,6 +322,7 @@ impl EcmascriptChunkVc {
             this.omit_entries,
             chunk_path,
             evaluate,
+            Value::new(this.availability_info),
         );
         Ok(content)
     }
@@ -336,25 +364,48 @@ impl Asset for EcmascriptChunk {
             }
         }
 
+        // Current availability root is included
+        if let Some(current_availability_root) = this.availability_info.current_availability_root()
+        {
+            let ident = current_availability_root.ident();
+            let need_root = if let [(_, main_entry)] = &assets[..] {
+                main_entry.resolve().await? != ident.resolve().await?
+            } else {
+                false
+            };
+            if need_root {
+                let availability_root_key = StringVc::cell("current_availability_root".to_string());
+                assets.push((availability_root_key, ident));
+            }
+        }
+
         // Evaluate info is included
         let mut modifiers = Vec::new();
         if let Some(evaluate) = this.evaluate {
-            let evaluate = evaluate.content(this.context, self_vc).await?;
+            let evaluate = evaluate.await?;
             modifiers.extend(
                 evaluate
-                    .ecma_chunks_server_paths
+                    .evaluate_entries
+                    .await?
                     .iter()
-                    .cloned()
-                    .map(StringVc::cell),
+                    .map(|entry| entry.ident().to_string()),
             );
-            modifiers.extend(
-                evaluate
-                    .other_chunks_server_paths
-                    .iter()
-                    .cloned()
-                    .map(StringVc::cell),
-            );
-            modifiers.extend(evaluate.entry_modules_ids.iter().map(|id| id.to_string()));
+            // When the chunk group has changed, e.g. due to optimization, we want to
+            // include the information too. Since the optimization is
+            // deterministic, it's enough to include the entry chunk which is the only
+            // factor that influences the chunk group chunks.
+            // We want to avoid a cycle when this chunk is the entry chunk.
+            if let Some(chunk_group) = evaluate.chunk_group {
+                let entry = chunk_group.entry().resolve().await?;
+                if entry != self_vc.into() {
+                    modifiers.push(entry.ident().to_string());
+                }
+            }
+        }
+
+        // Available assets are included
+        if let Some(available_assets) = this.availability_info.available_assets() {
+            modifiers.push(available_assets.hash().to_string());
         }
 
         // Simplify when it's only a single main entry without extra info
@@ -383,8 +434,13 @@ impl Asset for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn references(self_vc: EcmascriptChunkVc) -> Result<AssetReferencesVc> {
         let this = self_vc.await?;
-        let content =
-            ecmascript_chunk_content(this.context, this.main_entries, this.omit_entries).await?;
+        let content = ecmascript_chunk_content(
+            this.context,
+            this.main_entries,
+            this.omit_entries,
+            Value::new(this.availability_info),
+        )
+        .await?;
         let mut references = Vec::new();
         for r in content.external_asset_references.iter() {
             references.push(*r);
@@ -396,23 +452,11 @@ impl Asset for EcmascriptChunk {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
         if let Some(evaluate) = this.evaluate {
-            let EcmascriptChunkEvaluate {
-                chunk_list_path,
-                chunk_group,
-                ..
-            } = *evaluate.await?;
-            if let Some(chunk_list_path) = chunk_list_path {
-                let chunk_group =
-                    chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(self_vc.into()));
-                references.push(
-                    ChunkListReferenceVc::new(
-                        this.context.output_root(),
-                        chunk_group,
-                        chunk_list_path,
-                    )
-                    .into(),
-                );
-            }
+            let EcmascriptChunkEvaluate { chunk_group, .. } = *evaluate.await?;
+            let chunk_group =
+                chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(self_vc.into()));
+            references
+                .push(ChunkListReferenceVc::new(this.context.output_root(), chunk_group).into());
         }
         references.push(EcmascriptChunkSourceMapAssetReferenceVc::new(self_vc).into());
 
@@ -452,8 +496,13 @@ impl Introspectable for EcmascriptChunk {
         let content = content_to_details(self_vc.content());
         let mut details = String::new();
         let this = self_vc.await?;
-        let chunk_content =
-            ecmascript_chunk_content(this.context, this.main_entries, this.omit_entries).await?;
+        let chunk_content = ecmascript_chunk_content(
+            this.context,
+            this.main_entries,
+            this.omit_entries,
+            Value::new(this.availability_info),
+        )
+        .await?;
         let chunk_items = chunk_content.chunk_items.await?;
         details += "Chunk items:\n\n";
         for chunk in chunk_items.iter() {

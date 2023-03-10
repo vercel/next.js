@@ -30,8 +30,8 @@ p.env.NODE_ENV == 'production' && console.log('production');
 
 }.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule, registerChunkList }) => {
-    if (!(true)) return true;
-    registerChunkList("output/crates_turbopack-tests_tests_snapshot_comptime_define_input_index.js_f5704b._.json", []);
+    if (!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_comptime_define_input_index_ffcac3.js"))) return true;
+    registerChunkList("output/crates_turbopack-tests_tests_snapshot_comptime_define_input_index_68d56d.js.chunk-list.json", ["output/crates_turbopack-tests_tests_snapshot_comptime_define_input_index_ffcac3.js"]);
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js (ecmascript)");
 }
 ]);

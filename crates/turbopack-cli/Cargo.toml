@@ -1,0 +1,55 @@
+[package]
+name = "turbopack-cli"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[[bin]]
+name = "turbopack-cli"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[features]
+# By default, we enable native-tls for reqwest via downstream transitive features.
+# This is for the convenience of running daily dev workflows, i.e running
+# `cargo xxx` without explicitly specifying features, not that we want to
+# promote this as default backend. Actual configuration is done when building next-swc,
+# and also turbopack standalone when we have it.
+default = ["custom_allocator", "native-tls"]
+serializable = []
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+profile = []
+custom_allocator = ["turbo-malloc/custom_allocator"]
+native-tls = ["next-core/native-tls"]
+rustls-tls = ["next-core/rustls-tls"]
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+clap = { workspace = true, features = ["derive", "env"] }
+console-subscriber = { workspace = true, optional = true }
+dunce = { workspace = true }
+futures = { workspace = true }
+mime = { workspace = true }
+owo-colors = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-malloc = { workspace = true, default-features = false }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-dev-server = { workspace = true }
+turbopack-node = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

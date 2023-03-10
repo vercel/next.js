@@ -8,8 +8,8 @@ var __TURBOPACK__external__node$3a$fs__ = __turbopack_external_require__("node:f
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule, registerChunkList }) => {
-    if (!(true)) return true;
-    registerChunkList("output/a587c_tests_snapshot_node_node_protocol_external_input_index.js_f5704b._.json", []);
+    if (!(true && loadedChunks.has("output/79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_46dd5f.js"))) return true;
+    registerChunkList("output/79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_69be78.js.chunk-list.json", ["output/79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_46dd5f.js"]);
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/node/node_protocol_external/input/index.js (ecmascript)");
 }
 ]);

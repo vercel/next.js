@@ -1,3 +1,5 @@
+pub mod availability_info;
+pub mod available_assets;
 pub mod chunk_in_group;
 pub mod dev;
 pub(crate) mod list;
@@ -20,13 +22,15 @@ use turbo_tasks::{
     },
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
-    TryJoinIterExt, ValueToString, ValueToStringVc,
+    TryJoinIterExt, Value, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::list::reference::{ChunkListReference, ChunkListReferenceVc};
-use self::{chunk_in_group::ChunkInGroupVc, optimize::optimize};
+use self::{
+    availability_info::AvailabilityInfo, chunk_in_group::ChunkInGroupVc, optimize::optimize,
+};
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     environment::EnvironmentVc,
@@ -85,9 +89,9 @@ pub trait ChunkingContext {
 
     fn chunk_path(&self, ident: AssetIdentVc, extension: &str) -> FileSystemPathVc;
 
-    /// Returns the path to the chunk list file for the given entry module
-    /// ident.
-    fn chunk_list_path(&self, ident: AssetIdentVc) -> FileSystemPathVc;
+    /// Returns the path to the chunk list file for the given unoptimized entry
+    /// chunk path.
+    fn chunk_list_path(&self, entry_chunk_path: FileSystemPathVc) -> FileSystemPathVc;
 
     fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> BoolVc;
 
@@ -107,7 +111,11 @@ pub trait ChunkingContext {
 /// An [Asset] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
 pub trait ChunkableAsset: Asset {
-    fn as_chunk(&self, context: ChunkingContextVc) -> ChunkVc;
+    fn as_chunk(
+        &self,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc;
 }
 
 #[turbo_tasks::value]
@@ -122,14 +130,34 @@ pub struct Chunks(Vec<ChunkVc>);
 impl ChunkGroupVc {
     /// Creates a chunk group from an asset as entrypoint
     #[turbo_tasks::function]
-    pub fn from_asset(asset: ChunkableAssetVc, context: ChunkingContextVc) -> Self {
-        Self::from_chunk(asset.as_chunk(context))
+    pub fn from_asset(
+        asset: ChunkableAssetVc,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Self {
+        Self::from_chunk(asset.as_chunk(context, availability_info))
     }
 
     /// Creates a chunk group from an chunk as entrypoint
     #[turbo_tasks::function]
     pub fn from_chunk(chunk: ChunkVc) -> Self {
         Self::cell(ChunkGroup { entry: chunk })
+    }
+
+    /// Returns the entry chunk of this chunk group.
+    #[turbo_tasks::function]
+    pub async fn entry(self) -> Result<ChunkVc> {
+        Ok(self.await?.entry)
+    }
+
+    /// Returns the chunk list path for this chunk group.
+    #[turbo_tasks::function]
+    pub async fn chunk_list_path(self) -> Result<FileSystemPathVc> {
+        let this = self.await?;
+        Ok(this
+            .entry
+            .chunking_context()
+            .chunk_list_path(this.entry.ident().path()))
     }
 
     /// Lists all chunks that are in this chunk group.
@@ -153,7 +181,7 @@ impl ChunkGroupVc {
             chunks
                 .await?
                 .iter()
-                .map(|&chunk| ChunkInGroupVc::new(chunk).as_chunk())
+                .map(|&chunk| chunk.in_group(self))
                 .collect(),
         );
 
@@ -219,12 +247,18 @@ impl ValueToString for ChunkGroup {
 /// same chunk group.
 #[turbo_tasks::value_trait]
 pub trait Chunk: Asset {
+    fn chunking_context(&self) -> ChunkingContextVc;
     // TODO Once output assets have their own trait, this path() method will move
     // into that trait and ident() will be removed from that. Assets on the
     // output-level only have a path and no complex ident.
     /// The path of the chunk.
     fn path(&self) -> FileSystemPathVc {
         self.ident().path()
+    }
+    /// Returns a variant of the chunk which is placed in a certain chunk group.
+    /// Should return the same chunk type.
+    fn in_group(&self, _chunk_group: ChunkGroupVc) -> ChunkVc {
+        ChunkInGroupVc::new(*self).into()
     }
 }
 
@@ -248,6 +282,10 @@ pub enum ChunkingType {
     PlacedOrParallel,
     /// Asset is always placed in a separate chunk that is loaded in parallel.
     Parallel,
+    /// Asset is always placed in a separate chunk that is loaded in parallel.
+    /// Referenced asset will not inherit the available modules, but form a
+    /// new availability root.
+    IsolatedParallel,
     /// Asset is placed in a separate chunk group that is referenced from the
     /// referencing chunk group, but not loaded.
     /// Note: Separate chunks need to be loaded by something external to current
@@ -380,6 +418,7 @@ pub trait FromChunkableAsset: ChunkItem + Sized + Debug {
     async fn from_async_asset(
         context: ChunkingContextVc,
         asset: ChunkableAssetVc,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Result<Option<Self>>;
 }
 
@@ -387,11 +426,12 @@ pub async fn chunk_content_split<I>(
     context: ChunkingContextVc,
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
+    availability_info: Value<AvailabilityInfo>,
 ) -> Result<ChunkContentResult<I>>
 where
     I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
 {
-    chunk_content_internal_parallel(context, entry, additional_entries, true)
+    chunk_content_internal_parallel(context, entry, additional_entries, availability_info, true)
         .await
         .map(|o| o.unwrap())
 }
@@ -400,17 +440,21 @@ pub async fn chunk_content<I>(
     context: ChunkingContextVc,
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
+    availability_info: Value<AvailabilityInfo>,
 ) -> Result<Option<ChunkContentResult<I>>>
 where
     I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
 {
-    chunk_content_internal_parallel(context, entry, additional_entries, false).await
+    chunk_content_internal_parallel(context, entry, additional_entries, availability_info, false)
+        .await
 }
 
 #[derive(Eq, PartialEq, Clone, Hash)]
 enum ChunkContentGraphNode<I> {
     // Chunk items that are placed into the current chunk
     ChunkItem(I),
+    // Asset that is already available and doesn't need to be included
+    AvailableAsset(AssetVc),
     // Chunks that are loaded in parallel to the current chunk
     Chunk(ChunkVc),
     // Chunk groups that are referenced from the current chunk, but
@@ -423,6 +467,7 @@ enum ChunkContentGraphNode<I> {
 struct ChunkContentContext {
     chunking_context: ChunkingContextVc,
     entry: AssetVc,
+    availability_info: Value<AvailabilityInfo>,
     split: bool,
 }
 
@@ -455,6 +500,16 @@ where
     let mut graph_nodes = vec![];
 
     for asset in assets {
+        if let Some(available_assets) = context.availability_info.available_assets() {
+            if *available_assets.includes(asset).await? {
+                graph_nodes.push((
+                    Some((asset, chunking_type)),
+                    ChunkContentGraphNode::AvailableAsset(asset),
+                ));
+                continue;
+            }
+        }
+
         let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
             Some(chunkable_asset) => chunkable_asset,
             _ => {
@@ -481,7 +536,20 @@ where
                 }
             }
             ChunkingType::Parallel => {
-                let chunk = chunkable_asset.as_chunk(context.chunking_context);
+                let chunk =
+                    chunkable_asset.as_chunk(context.chunking_context, context.availability_info);
+                graph_nodes.push((
+                    Some((asset, chunking_type)),
+                    ChunkContentGraphNode::Chunk(chunk),
+                ));
+            }
+            ChunkingType::IsolatedParallel => {
+                let chunk = chunkable_asset.as_chunk(
+                    context.chunking_context,
+                    Value::new(AvailabilityInfo::Root {
+                        current_availability_root: chunkable_asset.into(),
+                    }),
+                );
                 graph_nodes.push((
                     Some((asset, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
@@ -506,7 +574,8 @@ where
                     }
                 }
 
-                let chunk = chunkable_asset.as_chunk(context.chunking_context);
+                let chunk =
+                    chunkable_asset.as_chunk(context.chunking_context, context.availability_info);
                 graph_nodes.push((
                     Some((asset, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
@@ -518,12 +587,17 @@ where
                     ChunkContentGraphNode::AsyncChunkGroup(ChunkGroupVc::from_asset(
                         chunkable_asset,
                         context.chunking_context,
+                        context.availability_info,
                     )),
                 ));
             }
             ChunkingType::SeparateAsync => {
-                if let Some(manifest_loader_item) =
-                    I::from_async_asset(context.chunking_context, chunkable_asset).await?
+                if let Some(manifest_loader_item) = I::from_async_asset(
+                    context.chunking_context,
+                    chunkable_asset,
+                    context.availability_info,
+                )
+                .await?
                 {
                     graph_nodes.push((
                         Some((asset, chunking_type)),
@@ -625,6 +699,7 @@ async fn chunk_content_internal_parallel<I>(
     chunking_context: ChunkingContextVc,
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
+    availability_info: Value<AvailabilityInfo>,
     split: bool,
 ) -> Result<Option<ChunkContentResult<I>>>
 where
@@ -654,6 +729,7 @@ where
         chunking_context,
         entry,
         split,
+        availability_info,
     };
 
     let visit = ChunkContentVisit {
@@ -677,6 +753,7 @@ where
 
     for graph_node in graph_nodes {
         match graph_node {
+            ChunkContentGraphNode::AvailableAsset(_asset) => {}
             ChunkContentGraphNode::ChunkItem(chunk_item) => {
                 chunk_items.push(chunk_item);
             }

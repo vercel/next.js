@@ -12,9 +12,9 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetReference,
-        ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContextVc, ChunkingType,
-        ChunkingTypeOptionVc,
+        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContextVc,
+        ChunkingType, ChunkingTypeOptionVc,
     },
     context::AssetContextVc,
     ident::AssetIdentVc,
@@ -199,8 +199,12 @@ impl ModuleCssModuleAssetVc {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for ModuleCssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: ModuleCssModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(context, self_vc.into()).into()
+    fn as_chunk(
+        self_vc: ModuleCssModuleAssetVc,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc {
+        EcmascriptChunkVc::new(context, self_vc.into(), availability_info).into()
     }
 }
 
@@ -442,8 +446,12 @@ impl Asset for CssProxyModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for CssProxyModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: CssProxyModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        CssChunkVc::new(context, self_vc.into()).into()
+    fn as_chunk(
+        self_vc: CssProxyModuleAssetVc,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc {
+        CssChunkVc::new(context, self_vc.into(), availability_info).into()
     }
 }
 

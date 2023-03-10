@@ -5,8 +5,8 @@ use turbo_tasks_fs::FileSystemPathVc;
 use super::asset::ChunkListAssetVc;
 use crate::{
     chunk::{
-        ChunkGroupVc, ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc,
-        ChunkingType, ChunkingTypeOptionVc,
+        ChunkGroupVc, ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType,
+        ChunkingTypeOptionVc,
     },
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
@@ -22,22 +22,16 @@ use crate::{
 pub struct ChunkListReference {
     server_root: FileSystemPathVc,
     chunk_group: ChunkGroupVc,
-    path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkListReferenceVc {
     /// Creates a new [`ChunkListReference`].
     #[turbo_tasks::function]
-    pub fn new(
-        server_root: FileSystemPathVc,
-        chunk_group: ChunkGroupVc,
-        path: FileSystemPathVc,
-    ) -> Self {
+    pub fn new(server_root: FileSystemPathVc, chunk_group: ChunkGroupVc) -> Self {
         ChunkListReference {
             server_root,
             chunk_group,
-            path,
         }
         .cell()
     }
@@ -49,7 +43,7 @@ impl ValueToString for ChunkListReference {
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(
             "referenced chunk list {}",
-            self.path.to_string().await?
+            self.chunk_group.chunk_list_path().to_string().await?
         )))
     }
 }
@@ -58,10 +52,8 @@ impl ValueToString for ChunkListReference {
 impl AssetReference for ChunkListReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::asset(
-            ChunkListAssetVc::new(self.server_root, self.chunk_group, self.path).into(),
-        )
-        .cell()
+        ResolveResult::asset(ChunkListAssetVc::new(self.server_root, self.chunk_group).into())
+            .cell()
     }
 }
 

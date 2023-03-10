@@ -11,7 +11,10 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
+        ChunkableAssetVc, ChunkingContextVc,
+    },
     context::AssetContextVc,
     ident::AssetIdentVc,
     reference::{AssetReference, AssetReferencesVc},
@@ -115,8 +118,12 @@ impl Asset for CssModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableAsset for CssModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk(self_vc: CssModuleAssetVc, context: ChunkingContextVc) -> ChunkVc {
-        CssChunkVc::new(context, self_vc.into()).into()
+    fn as_chunk(
+        self_vc: CssModuleAssetVc,
+        context: ChunkingContextVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> ChunkVc {
+        CssChunkVc::new(context, self_vc.into(), availability_info).into()
     }
 }
 

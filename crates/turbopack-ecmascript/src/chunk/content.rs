@@ -3,13 +3,13 @@ use std::io::Write as _;
 use anyhow::{anyhow, bail, Result};
 use indexmap::IndexSet;
 use indoc::{indoc, writedoc};
-use turbo_tasks::TryJoinIterExt;
+use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::{embed_file, File, FileContent, FileSystemPathReadRef, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetContentVc,
     chunk::{
-        chunk_content, chunk_content_split, ChunkContentResult, ChunkGroupVc, ChunkVc,
-        ChunkingContext, ChunkingContextVc, ModuleId,
+        availability_info::AvailabilityInfo, chunk_content, chunk_content_split,
+        ChunkContentResult, ChunkGroupVc, ChunkVc, ChunkingContext, ChunkingContextVc, ModuleId,
     },
     code_builder::{CodeBuilder, CodeVc},
     environment::{ChunkLoading, EnvironmentVc},
@@ -64,10 +64,13 @@ pub(crate) fn ecmascript_chunk_content(
     context: ChunkingContextVc,
     main_entries: EcmascriptChunkPlaceablesVc,
     omit_entries: Option<EcmascriptChunkPlaceablesVc>,
+    availability_info: Value<AvailabilityInfo>,
 ) -> EcmascriptChunkContentResultVc {
-    let mut chunk_content = ecmascript_chunk_content_internal(context, main_entries);
+    let mut chunk_content =
+        ecmascript_chunk_content_internal(context, main_entries, availability_info);
     if let Some(omit_entries) = omit_entries {
-        let omit_chunk_content = ecmascript_chunk_content_internal(context, omit_entries);
+        let omit_chunk_content =
+            ecmascript_chunk_content_internal(context, omit_entries, availability_info);
         chunk_content = chunk_content.filter(omit_chunk_content);
     }
     chunk_content
@@ -77,12 +80,13 @@ pub(crate) fn ecmascript_chunk_content(
 async fn ecmascript_chunk_content_internal(
     context: ChunkingContextVc,
     entries: EcmascriptChunkPlaceablesVc,
+    availability_info: Value<AvailabilityInfo>,
 ) -> Result<EcmascriptChunkContentResultVc> {
     let entries = entries.await?;
     let entries = entries.iter().copied();
 
     let contents = entries
-        .map(|entry| ecmascript_chunk_content_single_entry(context, entry))
+        .map(|entry| ecmascript_chunk_content_single_entry(context, entry, availability_info))
         .collect::<Vec<_>>();
 
     if contents.len() == 1 {
@@ -124,14 +128,18 @@ async fn ecmascript_chunk_content_internal(
 async fn ecmascript_chunk_content_single_entry(
     context: ChunkingContextVc,
     entry: EcmascriptChunkPlaceableVc,
+    availability_info: Value<AvailabilityInfo>,
 ) -> Result<EcmascriptChunkContentResultVc> {
     let asset = entry.as_asset();
 
     Ok(EcmascriptChunkContentResultVc::cell(
-        if let Some(res) = chunk_content::<EcmascriptChunkItemVc>(context, asset, None).await? {
+        if let Some(res) =
+            chunk_content::<EcmascriptChunkItemVc>(context, asset, None, availability_info).await?
+        {
             res
         } else {
-            chunk_content_split::<EcmascriptChunkItemVc>(context, asset, None).await?
+            chunk_content_split::<EcmascriptChunkItemVc>(context, asset, None, availability_info)
+                .await?
         }
         .into(),
     ))
@@ -155,10 +163,12 @@ impl EcmascriptChunkContentVc {
         omit_entries: Option<EcmascriptChunkPlaceablesVc>,
         chunk_path: FileSystemPathVc,
         evaluate: Option<EcmascriptChunkContentEvaluateVc>,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Result<Self> {
         // TODO(alexkirsz) All of this should be done in a transition, otherwise we run
         // the risks of values not being strongly consistent with each other.
-        let chunk_content = ecmascript_chunk_content(context, main_entries, omit_entries);
+        let chunk_content =
+            ecmascript_chunk_content(context, main_entries, omit_entries, availability_info);
         let chunk_content = chunk_content.await?;
         let chunk_path = chunk_path.await?;
         let module_factories = chunk_content.chunk_items.to_entry_snapshot().await?;

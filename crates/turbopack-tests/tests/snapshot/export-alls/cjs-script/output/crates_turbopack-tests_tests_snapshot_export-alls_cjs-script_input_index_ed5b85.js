@@ -27,8 +27,8 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
 }.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule, registerChunkList }) => {
-    if (!(true)) return true;
-    registerChunkList("output/79fb1_turbopack-tests_tests_snapshot_export-alls_cjs-script_input_index.js_f5704b._.json", []);
+    if (!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-script_input_index_f76046.js"))) return true;
+    registerChunkList("output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-script_input_index_ed5b85.js.chunk-list.json", ["output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-script_input_index_f76046.js"]);
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/index.js (ecmascript)");
 }
 ]);

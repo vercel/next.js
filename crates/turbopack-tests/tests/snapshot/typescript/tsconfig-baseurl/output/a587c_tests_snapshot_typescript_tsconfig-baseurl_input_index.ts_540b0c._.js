@@ -21,8 +21,8 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule, registerChunkList }) => {
-    if (!(true)) return true;
-    registerChunkList("output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index.ts_f5704b._.json", []);
+    if (!(true && loadedChunks.has("output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index.ts_58f3de._.js"))) return true;
+    registerChunkList("output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index.ts_540b0c._.js.chunk-list.json", ["output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index.ts_58f3de._.js"]);
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/index.ts (ecmascript)");
 }
 ]);

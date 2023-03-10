@@ -1,10 +1,10 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use indexmap::IndexSet;
 use indoc::formatdoc;
 use turbo_tasks::ValueToString;
 use turbopack_core::{
     asset::Asset,
-    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkingContext, ChunkingContextVc},
+    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkingContext, ChunkingContextVc},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
@@ -36,7 +36,9 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let chunks = self.manifest.chunk_group().chunks().await?;
+        let chunk_group = self.manifest.chunk_group();
+        let chunks = chunk_group.chunks().await?;
+        let output_root = self.context.output_root().await?;
 
         let mut chunk_server_paths = IndexSet::new();
         for chunk in chunks.iter() {
@@ -45,7 +47,6 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             // item is one of several that are contained in that chunk file.
             let chunk_path = &*chunk.path().await?;
             // The pathname is the file path necessary to load the chunk from the server.
-            let output_root = self.context.output_root().await?;
             let chunk_server_path = if let Some(path) = output_root.get_path_to(chunk_path) {
                 path
             } else {
@@ -58,11 +59,17 @@ impl EcmascriptChunkItem for ManifestChunkItem {
             chunk_server_paths.insert(chunk_server_path.to_string());
         }
 
+        let chunk_list_path = chunk_group.chunk_list_path().await?;
+        let chunk_list_path = output_root
+            .get_path_to(&*chunk_list_path)
+            .ok_or(anyhow!("chunk list path is not in output root"))?;
+
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({chunk_paths});
+                __turbopack_export_value__({{ chunks: {chunk_paths}, list: {chunk_list_path} }});
             "#,
-            chunk_paths = stringify_js_pretty(&chunk_server_paths)
+            chunk_paths = stringify_js_pretty(&chunk_server_paths),
+            chunk_list_path = stringify_js_pretty(&chunk_list_path),
         };
 
         Ok(EcmascriptChunkItemContent {
@@ -81,17 +88,7 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
-        let chunks = self.manifest.chunk_group().chunks();
-
-        Ok(AssetReferencesVc::cell(
-            chunks
-                .await?
-                .iter()
-                .copied()
-                .map(ChunkReferenceVc::new)
-                .map(Into::into)
-                .collect(),
-        ))
+    fn references(&self) -> AssetReferencesVc {
+        self.manifest.references()
     }
 }
