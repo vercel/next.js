@@ -39,7 +39,7 @@ import {
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
@@ -856,7 +856,7 @@ export default class NextNodeServer extends BaseServer {
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
     renderOpts.serverComponentManifest = this.serverComponentManifest
     renderOpts.serverCSSManifest = this.serverCSSManifest
-    renderOpts.fontLoaderManifest = this.fontLoaderManifest
+    renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
@@ -1058,8 +1058,8 @@ export default class NextNodeServer extends BaseServer {
     ))
   }
 
-  protected getFontLoaderManifest() {
-    return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+  protected getNextFontManifest() {
+    return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
   }
 
   protected getFallback(page: string): Promise<string> {
@@ -1277,6 +1277,10 @@ export default class NextNodeServer extends BaseServer {
             )
             if (handled) return { finished: true }
           }
+          // else if (match.definition.kind === RouteKind.METADATA_ROUTE) {
+          //   handled = await this.handlers.handle(match, req, res)
+          //   if (handled) return { finished: true }
+          // }
         }
 
         try {

@@ -151,11 +151,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: npm:react@17.0.2
-      react-builtin: npm:react@18.3.0-next-703c67560-20230307
+      react-builtin: npm:react@18.3.0-next-3706edb81-20230308
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-builtin: npm:react-dom@18.3.0-next-703c67560-20230307
-      react-server-dom-webpack: 18.3.0-next-703c67560-20230307
+      react-dom-builtin: npm:react-dom@18.3.0-next-3706edb81-20230308
+      react-server-dom-webpack: 18.3.0-next-3706edb81-20230308
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -327,11 +327,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: /react/17.0.2
-      react-builtin: /react/18.3.0-next-703c67560-20230307
+      react-builtin: /react/18.3.0-next-3706edb81-20230308
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-builtin: /react-dom/18.3.0-next-703c67560-20230307_react@18.2.0
-      react-server-dom-webpack: 18.3.0-next-703c67560-20230307_4ifzx734of5j5ymg4ksx54vtqi
+      react-dom-builtin: /react-dom/18.3.0-next-3706edb81-20230308_react@18.2.0
+      react-server-dom-webpack: 18.3.0-next-3706edb81-20230308_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -440,7 +440,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.2.4-canary.6
+      '@next/eslint-plugin-next': 13.2.4
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -513,12 +513,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.2.4-canary.6
-      '@next/polyfill-module': 13.2.4-canary.6
-      '@next/polyfill-nomodule': 13.2.4-canary.6
-      '@next/react-dev-overlay': 13.2.4-canary.6
-      '@next/react-refresh-utils': 13.2.4-canary.6
-      '@next/swc': 13.2.4-canary.6
+      '@next/env': 13.2.4
+      '@next/polyfill-module': 13.2.4
+      '@next/polyfill-nomodule': 13.2.4
+      '@next/react-dev-overlay': 13.2.4
+      '@next/react-refresh-utils': 13.2.4
+      '@next/swc': 13.2.4
       '@opentelemetry/api': 1.4.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
@@ -607,7 +607,9 @@ importers:
       glob: 7.1.7
       gzip-size: 5.1.1
       http-proxy: 1.18.1
+      http-proxy-agent: 5.0.0
       https-browserify: 1.0.0
+      https-proxy-agent: 5.0.1
       icss-utils: 5.1.0
       ignore-loader: 0.1.2
       image-size: 1.0.0
@@ -817,7 +819,9 @@ importers:
       glob: 7.1.7
       gzip-size: 5.1.1
       http-proxy: 1.18.1
+      http-proxy-agent: 5.0.0
       https-browserify: 1.0.0
+      https-proxy-agent: 5.0.1
       icss-utils: 5.1.0_postcss@8.4.14
       ignore-loader: 0.1.2
       image-size: 1.0.0
@@ -5832,7 +5836,7 @@ packages:
     hasBin: true
     dependencies:
       detect-libc: 1.0.3
-      https-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
       make-dir: 3.1.0
       node-fetch: 2.6.7
       nopt: 5.0.0
@@ -6717,6 +6721,11 @@ packages:
   /@tootallnate/once/1.1.2:
     resolution: {integrity: sha512-RbzJvlNzmRq5c3O09UipeuXno4tA1FE6ikOjxZK0tuxVv3412l64l5t1W5pj4+rJq9vpkm/kwiR07aZXnsKPxw==}
     engines: {node: '>= 6'}
+
+  /@tootallnate/once/2.0.0:
+    resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
+    engines: {node: '>= 10'}
+    dev: true
 
   /@trysound/sax/0.2.0:
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
@@ -13904,6 +13913,17 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
+  /http-proxy-agent/5.0.0:
+    resolution: {integrity: sha512-n2hY8YdoRE1i7r6M0w9DIw5GgZN0G25P8zLCRQ8rjXtTU3vsNFBI/vWK/UIeE6g5MUUz6avwAPXmL6Fy9D/90w==}
+    engines: {node: '>= 6'}
+    dependencies:
+      '@tootallnate/once': 2.0.0
+      agent-base: 6.0.2
+      debug: 4.3.4
+    transitivePeerDependencies:
+      - supports-color
+    dev: true
+
   /http-proxy/1.18.1:
     resolution: {integrity: sha512-7mz/721AbnJwIVbnaSv1Cz3Am0ZLT/UBwkC92VlxhXv/k/BBQfM2fXElQNC27BVGr0uwUpplYPQM9LnaBMR5NQ==}
     engines: {node: '>=8.0.0'}
@@ -13944,6 +13964,16 @@ packages:
 
   /https-proxy-agent/5.0.0:
     resolution: {integrity: sha512-EkYm5BcKUGiduxzSt3Eppko+PiNWNEpa4ySk9vTC6wDsQJW9rHSa+UhGNJoRYp7bz6Ht1eaRIa6QaJqO5rCFbA==}
+    engines: {node: '>= 6'}
+    dependencies:
+      agent-base: 6.0.2
+      debug: 4.3.4
+    transitivePeerDependencies:
+      - supports-color
+    dev: true
+
+  /https-proxy-agent/5.0.1:
+    resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
     engines: {node: '>= 6'}
     dependencies:
       agent-base: 6.0.2
@@ -15732,7 +15762,7 @@ packages:
       form-data: 3.0.1
       html-encoding-sniffer: 2.0.1
       http-proxy-agent: 4.0.1
-      https-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.0
       parse5: 6.0.1
@@ -16603,7 +16633,7 @@ packages:
       cacache: 15.3.0
       http-cache-semantics: 4.1.0
       http-proxy-agent: 4.0.1
-      https-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
       is-lambda: 1.0.1
       lru-cache: 6.0.0
       minipass: 3.1.3
@@ -16627,7 +16657,7 @@ packages:
       cacache: 15.3.0
       http-cache-semantics: 4.1.0
       http-proxy-agent: 4.0.1
-      https-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
       is-lambda: 1.0.1
       lru-cache: 6.0.0
       minipass: 3.1.3
@@ -20671,14 +20701,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom/18.3.0-next-703c67560-20230307_react@18.2.0:
-    resolution: {integrity: sha512-1OEpar4mor/95foRRUa1HYRDY42wBWr3lPFQZR1wh+4U9mwYwrgp9md1f7dGm2UazTpCrmG5aFlhqPoAhiJsoQ==}
+  /react-dom/18.3.0-next-3706edb81-20230308_react@18.2.0:
+    resolution: {integrity: sha512-/dmOoCPVy8n7ed1HkuV2jhkuSsXUgWCnHJzl/XUTzUiQs1AxAGrQfT5ykRDpVyZmmVT3KjHWmkdFBH7ySlPYZw==}
     peerDependencies:
-      react: 18.3.0-next-703c67560-20230307
+      react: 18.3.0-next-3706edb81-20230308
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-next-703c67560-20230307
+      scheduler: 0.24.0-next-3706edb81-20230308
     dev: true
 
   /react-is/16.13.1:
@@ -20701,12 +20731,12 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /react-server-dom-webpack/18.3.0-next-703c67560-20230307_4ifzx734of5j5ymg4ksx54vtqi:
-    resolution: {integrity: sha512-kcjixMIEyJA8vJF0/jOOfqjuP58wwDNxNFHHzM+pQAoMwMwNyPZXL+y611lu2oKNhsgBQo2ujrzYqtuxQ33KFQ==}
+  /react-server-dom-webpack/18.3.0-next-3706edb81-20230308_4ifzx734of5j5ymg4ksx54vtqi:
+    resolution: {integrity: sha512-U5Hr5k1CVSkSUWTGDLhL2dViM9x7AzzJLJuXW4IF8FMo+G6/wYpd9dZhMpzzde06a1osG8qsTaexk70S6sxy5A==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-next-703c67560-20230307
-      react-dom: 18.3.0-next-703c67560-20230307
+      react: 18.3.0-next-3706edb81-20230308
+      react-dom: 18.3.0-next-3706edb81-20230308
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
@@ -20757,8 +20787,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react/18.3.0-next-703c67560-20230307:
-    resolution: {integrity: sha512-ZrK8lKs6I7oERCGHVYDlyMGBkfa9kvUrXaX6d0P+sCH2SDHBABTBLwxslzkY6IIMZWHZFF2Aijd+cKzhdQDigQ==}
+  /react/18.3.0-next-3706edb81-20230308:
+    resolution: {integrity: sha512-alG7ODnlIURG6b6jA+FTUV3zkxX1qz8+uXQNc4OABKG7ds+r+SvD9bdNC3eH6FJCw2QjSUhTRU8Tmf5OkZpdwQ==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -21811,8 +21841,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler/0.24.0-next-703c67560-20230307:
-    resolution: {integrity: sha512-qA3fJeje89j5efUOomPOejnNJt5PxU0mBMorMSuSIl5E3TQwWEWLgQh92kILJeYna2SPyTEBlYfKwJBjkl22Zw==}
+  /scheduler/0.24.0-next-3706edb81-20230308:
+    resolution: {integrity: sha512-KXiw/i2R2ERsp4I+jVSj2Jh7hwzdZWriaaVuKJ/lH9+Sh4j2rN6Ii6+EDiwQjxsP1SCCRs75BpkcXhoYlQ2F9w==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
