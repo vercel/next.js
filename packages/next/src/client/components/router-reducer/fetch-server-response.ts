@@ -42,7 +42,7 @@ export async function fetchServerResponse(
       if (cloneUrl.pathname.endsWith('/')) {
         cloneUrl.pathname += 'index.txt'
       } else {
-        cloneUrl.pathname += +'.txt'
+        cloneUrl.pathname += '.txt'
       }
     }
     const res = await fetch(cloneUrl, {
@@ -54,10 +54,10 @@ export async function fetchServerResponse(
       ? urlToUrlWithoutFlightMarker(res.url)
       : undefined
 
-    const contentType = res.headers.get('content-type')
+    const contentType = res.headers.get('content-type') || ''
     const isFlightResponse =
       contentType === RSC_CONTENT_TYPE_HEADER ||
-      (isNextExport && contentType === 'text/plain')
+      (isNextExport && contentType.startsWith('text/plain'))
 
     // If fetch returns something different than flight response handle it like a mpa navigation
     if (!isFlightResponse) {
