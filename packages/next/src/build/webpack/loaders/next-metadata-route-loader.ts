@@ -1,6 +1,5 @@
 import type webpack from 'webpack'
 import path from 'path'
-import { stringifyRequest } from '../stringify-request'
 import { isStaticMetadataRoute } from '../../../lib/is-app-route-route'
 
 function getContentType(resourcePath: string) {
@@ -23,11 +22,9 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-const filePath = ${stringifyRequest(this, resourcePath)}
-const relativePath = fileURLToPath(import.meta.url)
-const buffer = fs.readFileSync(relativePath)
-
+const buffer = fs.readFileSync(fileURLToPath(import.meta.url))
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
+
 export function GET() {
   return new NextResponse(buffer, {
     status: 200,
