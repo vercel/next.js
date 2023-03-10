@@ -31,56 +31,34 @@ describe('app dir with next export', () => {
     await stopApp(app)
   })
 
-  describe('trailingSlash true', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// replace-me', 'trailingSlash: true,')
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-    })
-    it('should correctly navigate between pages', async () => {
-      const browser = await webdriver(appPort, '/')
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-      expect(await browser.elementByCss('a').text()).toBe(
-        'Visit without trailingslash'
-      )
-      await browser.elementByCss('a').click()
-      expect(await browser.elementByCss('h1').text()).toBe('Another')
-      expect(await browser.elementByCss('a').text()).toBe('Visit the home page')
-      await browser.elementByCss('a').click()
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-      expect(await browser.elementByCss('a:last-of-type').text()).toBe(
-        'Visit with trailingslash'
-      )
-      await browser.elementByCss('a:last-of-type').click()
-      expect(await browser.elementByCss('h1').text()).toBe('Another')
-      expect(await browser.elementByCss('a').text()).toBe('Visit the home page')
-    })
-  })
-  describe('trailingSlash false', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// replace-me', 'trailingSlash: false,')
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-    })
-    it('should correctly navigate between pages', async () => {
-      const browser = await webdriver(appPort, '/')
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-      expect(await browser.elementByCss('a').text()).toBe(
-        'Visit without trailingslash'
-      )
-      await browser.elementByCss('a').click()
-      expect(await browser.elementByCss('h1').text()).toBe('Another')
-      expect(await browser.elementByCss('a').text()).toBe('Visit the home page')
-      await browser.elementByCss('a').click()
-      expect(await browser.elementByCss('h1').text()).toBe('Home')
-      expect(await browser.elementByCss('a:last-of-type').text()).toBe(
-        'Visit with trailingslash'
-      )
-      await browser.elementByCss('a:last-of-type').click()
-      expect(await browser.elementByCss('h1').text()).toBe('Another')
-      expect(await browser.elementByCss('a').text()).toBe('Visit the home page')
-    })
-  })
+  it.each([{ trailingSlash: false }, { trailingSlash: true }])(
+    "should correctly navigate between pages with trailingSlash '$trailingSlash'",
+    async ({ trailingSlash }) => {
+      nextConfig.replace('// replace-me', `trailingSlash: ${trailingSlash},`)
+      try {
+        const browser = await webdriver(appPort, '/')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        expect(await browser.elementByCss('a').text()).toBe(
+          'Visit without trailingslash'
+        )
+        await browser.elementByCss('a').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Another')
+        expect(await browser.elementByCss('a').text()).toBe(
+          'Visit the home page'
+        )
+        await browser.elementByCss('a').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        expect(await browser.elementByCss('a:last-of-type').text()).toBe(
+          'Visit with trailingslash'
+        )
+        await browser.elementByCss('a:last-of-type').click()
+        expect(await browser.elementByCss('h1').text()).toBe('Another')
+        expect(await browser.elementByCss('a').text()).toBe(
+          'Visit the home page'
+        )
+      } finally {
+        nextConfig.restore()
+      }
+    }
+  )
 })
