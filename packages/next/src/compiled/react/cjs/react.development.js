@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-703c67560-20230307';
+          var ReactVersion = '18.3.0-next-3706edb81-20230308';
 
 // ATTENTION
 // When adding new symbols to this file,
