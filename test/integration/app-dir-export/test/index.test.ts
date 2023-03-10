@@ -36,55 +36,55 @@ describe('app dir with next export', () => {
     async ({ trailingSlash }) => {
       nextConfig.replace('// replace-me', `trailingSlash: ${trailingSlash},`)
       try {
-        const child = (n: number) => `li:nth-child(${n}) a`
+        const a = (n: number) => `li:nth-child(${n}) a`
         const browser = await webdriver(appPort, '/')
         expect(await browser.elementByCss('h1').text()).toBe('Home')
-        expect(await browser.elementByCss(child(1)).text()).toBe(
+        expect(await browser.elementByCss(a(1)).text()).toBe(
           'another no trailingslash'
         )
-        await browser.elementByCss(child(1)).click()
+        await browser.elementByCss(a(1)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('Another')
-        expect(await browser.elementByCss(child(1)).text()).toBe(
+        expect(await browser.elementByCss(a(1)).text()).toBe(
           'Visit the home page'
         )
-        await browser.elementByCss(child(1)).click()
+        await browser.elementByCss(a(1)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('Home')
-        expect(await browser.elementByCss(child(2)).text()).toBe(
+        expect(await browser.elementByCss(a(2)).text()).toBe(
           'another has trailingslash'
         )
-        await browser.elementByCss(child(2)).click()
+        await browser.elementByCss(a(2)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('Another')
-        expect(await browser.elementByCss(child(1)).text()).toBe(
+        expect(await browser.elementByCss(a(1)).text()).toBe(
           'Visit the home page'
         )
-        await browser.elementByCss(child(1)).click()
+        await browser.elementByCss(a(1)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('Home')
-        expect(await browser.elementByCss(child(3)).text()).toBe(
+        expect(await browser.elementByCss(a(3)).text()).toBe(
           'another first page'
         )
-        await browser.elementByCss(child(3)).click()
+        await browser.elementByCss(a(3)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('first')
-        expect(await browser.elementByCss(child(1)).text()).toBe(
+        expect(await browser.elementByCss(a(1)).text()).toBe(
           'Visit another page'
         )
-        await browser.elementByCss(child(1)).click()
+        await browser.elementByCss(a(1)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('Another')
-        expect(await browser.elementByCss(child(4)).text()).toBe(
+        expect(await browser.elementByCss(a(4)).text()).toBe(
           'another second page'
         )
-        await browser.elementByCss(child(4)).click()
+        await browser.elementByCss(a(4)).click()
 
         expect(await browser.elementByCss('h1').text()).toBe('second')
-        expect(await browser.elementByCss(child(1)).text()).toBe(
+        expect(await browser.elementByCss(a(1)).text()).toBe(
           'Visit another page'
         )
-        await browser.elementByCss(child(1)).click()
+        await browser.elementByCss(a(1)).click()
       } finally {
         nextConfig.restore()
       }
