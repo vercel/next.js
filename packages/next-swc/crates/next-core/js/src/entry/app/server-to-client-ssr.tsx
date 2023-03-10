@@ -1,6 +1,6 @@
 import { createProxy } from "next/dist/build/webpack/loaders/next-flight-loader/module-proxy";
 
-("TURBOPACK { chunking-type: parallel }");
+("TURBOPACK { chunking-type: isolatedParallel }");
 // @ts-expect-error CLIENT_MODULE is provided by rust
 import { __turbopack_module_id__ as id } from "CLIENT_MODULE";
 

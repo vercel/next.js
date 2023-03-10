@@ -593,7 +593,7 @@ impl AppRendererVc {
 
         for (_, imports) in segments.iter() {
             for (p, identifier, chunks_identifier) in imports.values() {
-                result += r#"("TURBOPACK { transition: next-layout-entry; chunking-type: parallel }");
+                result += r#"("TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }");
 "#;
                 writeln!(
                     result,
