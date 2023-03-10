@@ -39,10 +39,10 @@ tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230309.2" }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230309.2" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230309.2" }
-next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230309.2", features = [
+turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230310.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230310.2" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230310.2" }
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230310.2", features = [
   "__swc_core_binding_napi",
   "__turbo_next_dev_server",
   "__turbo_node_file_trace",
@@ -51,7 +51,7 @@ next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-2
 
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230309.2" }
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230310.2" }
 
 # There are few build targets we can't use native-tls which default features rely on,
 # allow to specify alternative (rustls) instead via features.
