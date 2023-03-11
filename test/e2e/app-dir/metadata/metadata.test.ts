@@ -662,7 +662,7 @@ createNextDescribe(
       if (isNextStart) {
         it('should build favicon.ico as a custom route', async () => {
           const appPathsManifest = JSON.parse(
-            await next.readFile('.next/app-paths-manifest.json')
+            await next.readFile('.next/server/app-paths-manifest.json')
           )
           expect(appPathsManifest['/robots.txt/route']).toBe(
             'app/robots.txt/route.js'
