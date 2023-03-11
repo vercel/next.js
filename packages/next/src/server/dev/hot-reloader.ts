@@ -679,10 +679,6 @@ export default class HotReloader {
               )
             const [, key /* pageType*/, , page] = result! // this match should always happen
 
-            const outputBundlePath = isMetadataRoute(page)
-              ? bundlePath
-              : `${bundlePath}/route`
-
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return
@@ -761,14 +757,14 @@ export default class HotReloader {
                   : undefined
 
                 entries[entryKey].status = BUILDING
-                entrypoints[outputBundlePath] = finalizeEntrypoint({
+                entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,
                     rootDir: this.dir,
                     buildId: this.buildId,
-                    bundlePath: outputBundlePath,
+                    bundlePath: bundlePath,
                     config: this.config,
                     isDev: true,
                     page,
@@ -817,7 +813,7 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
-                entrypoints[outputBundlePath] = finalizeEntrypoint({
+                entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,

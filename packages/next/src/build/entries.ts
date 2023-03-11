@@ -374,8 +374,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
 
-      const outputServerBundlePath = serverBundlePath
-
       // Handle paths that have aliases
       const pageFilePath = (() => {
         if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
@@ -445,7 +443,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         onServer: () => {
           if (pagesType === 'app' && appDir) {
             const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
-            server[outputServerBundlePath] = getAppEntry({
+            server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir,
@@ -455,13 +453,13 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             })
           } else {
             if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[outputServerBundlePath.replace('src/', '')] = {
+              server[serverBundlePath.replace('src/', '')] = {
                 import: mappings[page],
                 // the '../' is needed to make sure the file is not chunked
                 filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
               }
             } else {
-              server[outputServerBundlePath] = [mappings[page]]
+              server[serverBundlePath] = [mappings[page]]
             }
           }
         },

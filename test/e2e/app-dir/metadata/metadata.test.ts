@@ -9,7 +9,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     const getTitle = (browser: BrowserInterface) =>
       browser.elementByCss('title').text()
 
@@ -658,6 +658,20 @@ createNextDescribe(
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
         expect(invalidSitemapResponse.status).toBe(404)
       })
+
+      if (isNextStart) {
+        it('should build favicon.ico as a custom route', async () => {
+          const appPathsManifest = JSON.parse(
+            await next.readFile('.next/app-paths-manifest.json')
+          )
+          expect(appPathsManifest['/robots.txt/route']).toBe(
+            'app/robots.txt/route.js'
+          )
+          expect(appPathsManifest['/sitemap.xml/route']).toBe(
+            'app/sitemap.xml/route.js'
+          )
+        })
+      }
     })
 
     describe('react cache', () => {
