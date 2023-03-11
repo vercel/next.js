@@ -57,8 +57,8 @@ export function handleMutable(
         // Empty hash should trigger default behavior of scrolling layout into view.
         // #top is handled in layout-router.
         mutable.hashFragment && mutable.hashFragment !== ''
-          ? // Remove leading #.
-            mutable.hashFragment.slice(1)
+          ? // Remove leading # and decode hash to make non-latin hashes work.
+            decodeURIComponent(mutable.hashFragment.slice(1))
           : null,
     },
     // Apply cache.

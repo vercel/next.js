@@ -114,11 +114,24 @@ function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   return rect.top >= 0 && rect.top <= viewportHeight
 }
 
+/**
+ * Find the DOM node for a hash fragment.
+ * If `top` the page has to scroll to the top of the page. This mirrors the browser's behavior.
+ * If the hash fragment is an id, the page has to scroll to the element with that id.
+ * If the hash fragment is a name, the page has to scroll to the first element with that name.
+ */
 function getHashFragmentDomNode(hashFragment: string) {
+  // If the hash fragment is `top` the page has to scroll to the top of the page.
   if (hashFragment === 'top') {
     return document.body
   }
-  return document.getElementById(hashFragment)
+
+  // If the hash fragment is an id, the page has to scroll to the element with that id.
+  return (
+    document.getElementById(hashFragment) ??
+    // If the hash fragment is a name, the page has to scroll to the first element with that name.
+    document.getElementsByName(hashFragment)[0]
+  )
 }
 interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
