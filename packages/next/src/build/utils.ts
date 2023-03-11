@@ -1479,6 +1479,19 @@ export async function isPageStatic({
           },
           {}
         )
+        if (!appConfig.dynamic) {
+          appConfig.dynamic = 'auto'
+        }
+
+        if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+          if (appConfig.dynamic === 'auto') {
+            appConfig.dynamic = 'error'
+          } else if (appConfig.dynamic === 'force-dynamic') {
+            throw new Error(
+              'export const dynamic = "force-dynamic" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          }
+        }
 
         if (appConfig.dynamic === 'force-dynamic') {
           appConfig.revalidate = 0
