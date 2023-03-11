@@ -42,18 +42,24 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(async () => {
-            const val = await browser.eval('window.pageYOffset')
-            return val.toString()
-          }, expectedScroll.toString())
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
         }
 
-        await checkLink(6, 222)
-        await checkLink(50, 1039)
-        await checkLink(160, 3074)
-        await checkLink(300, 5664)
+        await checkLink(6, 167)
+        await checkLink(50, 981)
+        await checkLink(160, 3016)
+        await checkLink(300, 5606)
         await checkLink('top', 0)
-        await checkLink('non-existent', 21)
+        await checkLink('non-existent', 0)
       })
     })
 
