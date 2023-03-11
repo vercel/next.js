@@ -53,7 +53,6 @@ import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
-import { isMetadataRoute } from '../../lib/is-app-route-route'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
