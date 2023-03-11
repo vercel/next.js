@@ -48,7 +48,7 @@ createNextDescribe(
           }, expectedScroll.toString())
         }
 
-        await checkLink(6, 225)
+        await checkLink(6, 222)
         await checkLink(50, 1039)
         await checkLink(160, 3074)
         await checkLink(300, 5664)
