@@ -64,17 +64,10 @@ async function createAppRouteCode({
   pagePath: string
   resolver: PathResolver
 }): Promise<string> {
-  // Split based on any specific path separators (both `/` and `\`)...
-  const routePath = name.replace(/^app/, '')
-  const splittedPath = pagePath.split(/[\\/]/)
-  // Then join all but the last part with the same separator, `/`...
-  const segmentPath = splittedPath.slice(0, -1).join('/')
-  // Then add the `/route` suffix...
-  const matchedPagePath = `${segmentPath}/${routePath}`
-
+  const routePath = pagePath.replace(/[\\/]/, '/')
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  let resolvedPagePath = (await resolver(matchedPagePath))!
+  let resolvedPagePath = (await resolver(routePath))!
 
   if (isMetadataRoute(name)) {
     resolvedPagePath = `next-metadata-route-loader!${resolvedPagePath}`

@@ -47,7 +47,7 @@ import { ServerRuntime } from '../../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isAppRouteRoute, isMetadataRoute } from '../lib/is-app-route-route'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -99,7 +99,7 @@ export function createPagesMapping({
         previousPages[pageKey] = pagePath
       }
 
-      result[pageKey] = normalizePathSep(
+      const normalizedPath = normalizePathSep(
         join(
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
@@ -109,6 +109,11 @@ export function createPagesMapping({
           pagePath
         )
       )
+
+      // Map metadata routes to /<metadata-route>/route, e.g. /robots.txt/route.
+      // This is to mark it as app route path that could be picked up like other custom app routes.
+      result[isMetadataRoute(pageKey) ? `${pageKey}/route` : pageKey] =
+        normalizedPath
       return result
     },
     {}
@@ -369,6 +374,8 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
 
+      const outputServerBundlePath = serverBundlePath
+
       // Handle paths that have aliases
       const pageFilePath = (() => {
         if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
@@ -438,7 +445,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         onServer: () => {
           if (pagesType === 'app' && appDir) {
             const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
-            server[serverBundlePath] = getAppEntry({
+            server[outputServerBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir,
@@ -448,13 +455,13 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             })
           } else {
             if (isInstrumentationHookFile(page) && pagesType === 'root') {
-              server[serverBundlePath.replace('src/', '')] = {
+              server[outputServerBundlePath.replace('src/', '')] = {
                 import: mappings[page],
                 // the '../' is needed to make sure the file is not chunked
                 filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
               }
             } else {
-              server[serverBundlePath] = [mappings[page]]
+              server[outputServerBundlePath] = [mappings[page]]
             }
           }
         },
