@@ -53,6 +53,7 @@ import { getRegistry } from '../../lib/helpers/get-registry'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
 import { parseVersionInfo, VersionInfo } from './parse-version-info'
+import { isMetadataRoute } from '../../lib/is-app-route-route'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -678,6 +679,10 @@ export default class HotReloader {
               )
             const [, key /* pageType*/, , page] = result! // this match should always happen
 
+            const outputBundlePath = isMetadataRoute(page)
+              ? bundlePath
+              : `${bundlePath}/route`
+
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return
@@ -756,14 +761,14 @@ export default class HotReloader {
                   : undefined
 
                 entries[entryKey].status = BUILDING
-                entrypoints[bundlePath] = finalizeEntrypoint({
+                entrypoints[outputBundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
                   name: bundlePath,
                   value: getEdgeServerEntry({
                     absolutePagePath: entryData.absolutePagePath,
                     rootDir: this.dir,
                     buildId: this.buildId,
-                    bundlePath,
+                    bundlePath: outputBundlePath,
                     config: this.config,
                     isDev: true,
                     page,
@@ -812,7 +817,7 @@ export default class HotReloader {
                 ) {
                   relativeRequest = `./${relativeRequest}`
                 }
-                entrypoints[bundlePath] = finalizeEntrypoint({
+                entrypoints[outputBundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
                   isServerComponent,
