@@ -7,7 +7,7 @@ createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
-    skipDeployment: true,
+    // skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
     const getTitle = (browser: BrowserInterface) =>
