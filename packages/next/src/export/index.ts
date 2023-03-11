@@ -288,7 +288,6 @@ export default async function exportApp(
         ) {
           defaultPathMap[routePath] = {
             page: pageName,
-            // @ts-ignore
             _isAppDir: true,
           }
         }
