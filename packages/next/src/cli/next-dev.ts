@@ -630,8 +630,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         )
       }
 
-      await reloadConfig()
       setupFork()
+      await reloadConfig()
 
       let instrumentationWatcherCleanup = () => {}
       const instrumentationWatcher = () => {
