@@ -26,13 +26,13 @@ export default function HashPage() {
       <Link href="/hash#non-existent" id="link-to-non-existent">
         To non-existent
       </Link>
-      <ul>
+      <div>
         {items.map((item) => (
-          <li key={item.id}>
+          <div key={item.id}>
             <div id={`hash-${item.id}`}>{item.id}</div>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }
