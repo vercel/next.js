@@ -6,7 +6,7 @@ export default function HashPage() {
   const items = Array.from({ length: 5000 }, (_, i) => ({ id: i }))
 
   return (
-    <div style={{ fontFamily: 'sans-serif' }}>
+    <div style={{ fontFamily: 'sans-serif', fontSize: '16px' }}>
       <h1>Hash Page</h1>
       <Link href="/hash#hash-6" id="link-to-6">
         To 6
