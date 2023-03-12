@@ -116,7 +116,7 @@ impl<C: Comments> ServerActions<C> {
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> (Option<Box<Function>>, Option<Box<ArrowExpr>>) {
-        let action_name: JsWord = gen_ident(&mut self.ident_cnt).into();
+        let action_name: JsWord = gen_ident(&mut self.ident_cnt);
         let action_ident = private_ident!(action_name.clone());
 
         let export_name: JsWord = if self.in_default_export_decl {
@@ -338,22 +338,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .struct_span_err(f.function.span, "Server actions must be async functions")
                     .emit();
             });
-        } else {
-            if !self.in_action_file {
-                if f.ident.is_none() {
-                    let action_name = gen_ident(&mut self.ident_cnt);
-                    f.ident = Some(Ident::new(action_name, DUMMY_SP));
-                }
+        } else if !self.in_action_file {
+            if f.ident.is_none() {
+                let action_name = gen_ident(&mut self.ident_cnt);
+                f.ident = Some(Ident::new(action_name, DUMMY_SP));
+            }
 
-                let (maybe_new_fn, _) = self.add_action_annotations_and_maybe_hoist(
-                    f.ident.as_mut().unwrap(),
-                    Some(&mut f.function),
-                    None,
-                );
+            let (maybe_new_fn, _) = self.add_action_annotations_and_maybe_hoist(
+                f.ident.as_mut().unwrap(),
+                Some(&mut f.function),
+                None,
+            );
 
-                if let Some(new_fn) = maybe_new_fn {
-                    f.function = new_fn;
-                }
+            if let Some(new_fn) = maybe_new_fn {
+                f.function = new_fn;
             }
         }
     }
@@ -391,17 +389,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .struct_span_err(f.ident.span, "Server actions must be async functions")
                     .emit();
             });
-        } else {
-            if !self.in_action_file {
-                let (maybe_new_fn, _) = self.add_action_annotations_and_maybe_hoist(
-                    &f.ident,
-                    Some(&mut f.function),
-                    None,
-                );
+        } else if !self.in_action_file {
+            let (maybe_new_fn, _) =
+                self.add_action_annotations_and_maybe_hoist(&f.ident, Some(&mut f.function), None);
 
-                if let Some(new_fn) = maybe_new_fn {
-                    f.function = new_fn;
-                }
+            if let Some(new_fn) = maybe_new_fn {
+                f.function = new_fn;
             }
         }
     }
@@ -442,14 +435,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             return;
         }
 
-        if !a.is_async {
-            if !self.in_action_file {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(a.span, "Server actions must be async functions")
-                        .emit();
-                });
-            }
+        if !a.is_async && !self.in_action_file {
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(a.span, "Server actions must be async functions")
+                    .emit();
+            });
         }
     }
 
@@ -539,8 +530,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         },
                         &mut self.extra_items,
                     );
-
-                    return;
                 }
             }
         }
@@ -818,7 +807,7 @@ fn attach_name_to_arrow(ident: Ident, arrow: ArrowExpr, extra_items: &mut Vec<Mo
             span: DUMMY_SP,
             left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.into()))),
             op: op!("="),
-            right: Box::new(Expr::Arrow(arrow.clone())),
+            right: Box::new(Expr::Arrow(arrow)),
         })),
     })
 }
