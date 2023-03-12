@@ -620,6 +620,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           childProcess?.removeListener('exit', callback)
       }
 
+      /**
+       * Reading config can fail. Make sure that we call setupFork before calling this.
+       * We report any config errors in forked process.
+       */
       const reloadConfig = async () => {
         config = await loadConfig(
           PHASE_DEVELOPMENT_SERVER,
