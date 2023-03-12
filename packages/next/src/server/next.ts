@@ -148,15 +148,11 @@ export class NextServer {
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
       resolve(this.options.dir || '.'),
       this.options.conf
-    )
-      .then((val) => {
-        console.log('it worked')
-        return val
-      })
-      .catch((err) => {
-        console.log('Error loading config', err)
-        throw err
-      })
+    ).catch((err) => {
+      console.log('error war here')
+      throw new Error('something here happened')
+      throw err
+    })
   }
 
   private async getServer() {

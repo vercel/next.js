@@ -719,7 +719,8 @@ export default async function loadConfig(
   dir: string,
   customConfig?: object | null,
   rawConfig?: boolean,
-  silent?: boolean
+  silent?: boolean,
+  _source?: string
 ): Promise<NextConfigComplete> {
   try {
     const curLog = silent
@@ -885,10 +886,10 @@ export default async function loadConfig(
     completeConfig.configFileName = configFileName
     setHttpClientAndAgentOptions(completeConfig, silent)
     return completeConfig
-  } catch (e) {
+  } catch (err) {
     console.log()
     console.log()
-    console.log('There is error: ', e)
-    throw e
+    console.log(`It failed in '${_source}'`, err)
+    throw err
   }
 }
