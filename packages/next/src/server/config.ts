@@ -29,7 +29,6 @@ import { ImageConfig, imageConfigDefault } from '../shared/lib/image-config'
 import { loadEnvConfig } from '@next/env'
 import { gte as semverGte } from 'next/dist/compiled/semver'
 import { flushAndExit } from '../telemetry/flush-and-exit'
-import fs from 'fs'
 
 export { DomainLocale, NextConfig, normalizeConfig } from './config-shared'
 
@@ -720,8 +719,7 @@ export default async function loadConfig(
   dir: string,
   customConfig?: object | null,
   rawConfig?: boolean,
-  silent?: boolean,
-  _source?: string
+  silent?: boolean
 ): Promise<NextConfigComplete> {
   const curLog = silent
     ? {
@@ -766,9 +764,6 @@ export default async function loadConfig(
         // dynamic import does not currently work inside of vm which
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
-        const content = await fs.promises.readFile(path, { encoding: 'utf8' })
-        console.log('next.config.js')
-        console.log(content.toString())
         userConfigModule = require(path)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
@@ -845,6 +840,7 @@ export default async function loadConfig(
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
     }
+
     const completeConfig = assignDefaults(
       dir,
       {
