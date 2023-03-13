@@ -958,8 +958,15 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    return getTracer().trace(NextNodeServerSpan.findPageComponents, () =>
-      this.findPageComponentsImpl({ pathname, query, params, isAppPath })
+    return getTracer().trace(
+      NextNodeServerSpan.findPageComponents,
+      {
+        tracerName: `resolving route ${pathname}`,
+        attributes: {
+          'next.route': pathname,
+        },
+      },
+      () => this.findPageComponentsImpl({ pathname, query, params, isAppPath })
     )
   }
 

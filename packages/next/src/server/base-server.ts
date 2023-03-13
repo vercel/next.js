@@ -1929,7 +1929,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       {
         tracerName: `rendering ${ctx.pathname}`,
         attributes: {
-          pathname: ctx.pathname,
+          'next.pathname': ctx.pathname,
         },
       },
       async () => {
