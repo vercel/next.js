@@ -306,7 +306,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null>
+  ): Promise<RenderResult>
 
   protected abstract handleCompression(
     req: BaseNextRequest,
@@ -1488,7 +1488,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       let pageData: any
-      let body: RenderResult | null
+      let body: RenderResult
       let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
@@ -1550,11 +1550,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
 
       body = renderResult
-      // TODO: change this to a different passing mechanism
-      pageData = (renderOpts as any).pageData
-      isrRevalidate = (renderOpts as any).revalidate
-      isNotFound = (renderOpts as any).isNotFound
-      isRedirect = (renderOpts as any).isRedirect
+
+      const renderResultMeta = renderResult.metadata()
+
+      pageData = renderResultMeta.pageData
+      isrRevalidate = renderResultMeta.revalidate
+      isNotFound = renderResultMeta.isNotFound
+      isRedirect = renderResultMeta.isRedirect
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
@@ -1563,7 +1565,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const staticBailoutInfo: {
           stack?: string
           description?: string
-        } = (renderOpts as any).staticBailoutInfo || {}
+        } = renderResultMeta.staticBailoutInfo || {}
 
         const err = new Error(
           `Page changed from static to dynamic at runtime ${urlPathname}${
@@ -1588,7 +1590,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        if (!body) {
+        if (body.isNull()) {
           return null
         }
         value = { kind: 'PAGE', html: body, pageData }

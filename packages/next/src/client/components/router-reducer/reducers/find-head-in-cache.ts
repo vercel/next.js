@@ -1,5 +1,5 @@
-import { FlightRouterState } from '../../../../server/app-render'
-import { ChildSegmentMap } from '../../../../shared/lib/app-router-context'
+import type { FlightRouterState } from '../../../../server/app-render'
+import type { ChildSegmentMap } from '../../../../shared/lib/app-router-context'
 
 export function findHeadInCache(
   childSegmentMap: ChildSegmentMap,

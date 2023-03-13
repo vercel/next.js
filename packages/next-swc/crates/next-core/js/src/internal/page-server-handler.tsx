@@ -239,17 +239,17 @@ export default function startHandler({
     );
 
     // Set when `getStaticProps` returns `notFound: true`.
-    const isNotFound = (renderOpts as any).isNotFound;
+    const isNotFound = renderResult.metadata().isNotFound;
 
     if (isNotFound) {
       return createNotFoundResponse(isDataReq);
     }
 
     // Set when `getStaticProps` returns `redirect: { destination, permanent, statusCode }`.
-    const isRedirect = (renderOpts as any).isRedirect;
+    const isRedirect = renderResult.metadata().isRedirect;
 
     if (isRedirect && !isDataReq) {
-      const pageProps = (renderOpts as any).pageData.pageProps;
+      const pageProps = renderResult.metadata().pageData.pageProps;
       const redirect = {
         destination: pageProps.__N_REDIRECT,
         statusCode: pageProps.__N_REDIRECT_STATUS,
@@ -283,7 +283,7 @@ export default function startHandler({
 
     if (isDataReq) {
       // TODO(from next.js): change this to a different passing mechanism
-      const pageData = (renderOpts as any).pageData;
+      const pageData = renderResult.metadata().pageData;
       return {
         type: "response",
         statusCode,
@@ -293,14 +293,14 @@ export default function startHandler({
       };
     }
 
-    if (!renderResult) {
+    if (!renderResult || renderResult.isNull()) {
       throw new Error("no render result returned");
     }
 
     const body = renderResult.toUnchunkedString();
 
     // TODO: handle revalidate
-    // const sprRevalidate = (renderOpts as any).revalidate;
+    // const sprRevalidate = renderResult.metadata().revalidate;
 
     return {
       type: "response",

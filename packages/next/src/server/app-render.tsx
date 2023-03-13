@@ -12,7 +12,7 @@ import { NotFound as DefaultNotFound } from '../client/components/error'
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
-import RenderResult from './render-result'
+import RenderResult, { type RenderResultMetadata } from './render-result'
 import {
   readableStreamTee,
   encodeText,
@@ -808,7 +808,7 @@ export async function renderToHTMLOrFlight(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult | null> {
+): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const {
@@ -2082,22 +2082,20 @@ export async function renderToHTMLOrFlight(
         staticGenerationStore.revalidate = 0
       }
 
-      // TODO: investigate why `pageData` is not in RenderOpts
-      ;(renderOpts as any).pageData = filteredFlightData
-
-      // TODO: investigate why `revalidate` is not in RenderOpts
-      ;(renderOpts as any).revalidate =
-        staticGenerationStore.revalidate ?? defaultRevalidate
+      const extraRenderResultMeta: RenderResultMetadata = {
+        pageData: filteredFlightData,
+        revalidate: staticGenerationStore.revalidate ?? defaultRevalidate,
+      }
 
       // provide bailout info for debugging
-      if ((renderOpts as any).revalidate === 0) {
-        ;(renderOpts as any).staticBailoutInfo = {
+      if (extraRenderResultMeta.revalidate === 0) {
+        extraRenderResultMeta.staticBailoutInfo = {
           description: staticGenerationStore.dynamicUsageDescription,
           stack: staticGenerationStore.dynamicUsageStack,
         }
       }
 
-      return new RenderResult(htmlResult)
+      return new RenderResult(htmlResult, { ...extraRenderResultMeta })
     }
 
     return renderResult
