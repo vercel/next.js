@@ -125,5 +125,17 @@ createNextDescribe(
 
       expect(gsspSpan.name).toBe('getServerSideProps /pages/getServerSideProps')
     })
+
+    it('should have root span for api handlers in pages', async () => {
+      await next.fetch('/api/pages/basic')
+
+      const traces = await getTraces()
+      const rootSpans = traces.filter((span) => !span.parentId)
+
+      expect(rootSpans).toHaveLength(1)
+      const rootSpan = rootSpans[0]
+
+      expect(rootSpan.name).toBe('get /api/pages/basic')
+    })
   }
 )
