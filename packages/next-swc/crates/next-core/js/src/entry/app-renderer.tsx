@@ -22,8 +22,8 @@ declare global {
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
-  FlightCSSManifest,
-  FlightManifest,
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
 } from "next/dist/build/webpack/plugins/flight-manifest-plugin";
 import type { RenderData } from "types/turbopack";
 
@@ -139,7 +139,7 @@ async function runOperation(renderData: RenderData) {
 
   const proxyMethodsForModule = (
     id: string
-  ): ProxyHandler<FlightManifest["__ssr_module_mapping__"][""]> => ({
+  ): ProxyHandler<ClientReferenceManifest["ssrModuleMapping"][""]> => ({
     get(_target, name) {
       return {
         id,
@@ -149,28 +149,28 @@ async function runOperation(renderData: RenderData) {
     },
   });
   const proxyMethodsNested = (): ProxyHandler<
-    FlightManifest["__ssr_module_mapping__"]
+    ClientReferenceManifest["ssrModuleMapping"]
   > => {
     return {
       get(target, name, receiver) {
-        if (name === "__ssr_module_mapping__") {
+        if (name === "ssrModuleMapping") {
           return manifest;
         }
-        if (name === "__entry_css_files__") {
-          return __entry_css_files__;
+        if (name === "cssModules") {
+          return cssModules;
         }
         return new Proxy({}, proxyMethodsForModule(name as string));
       },
     };
   };
-  const proxyMethods = (): ProxyHandler<FlightManifest> => {
+  const proxyMethods = (): ProxyHandler<ClientReferenceManifest> => {
     return {
       get(_target, key: string) {
-        if (key === "__ssr_module_mapping__") {
+        if (key === "ssrModuleMapping") {
           return new Proxy({} as any, proxyMethodsNested());
         }
         if (key === "__entry_css_files__") {
-          return __entry_css_files__;
+          return cssModules;
         }
 
         // The key is a `${file}#${name}`, but `file` can contain `#` itself.
@@ -195,18 +195,21 @@ async function runOperation(renderData: RenderData) {
       },
     };
   };
-  const manifest: FlightManifest = new Proxy({} as any, proxyMethods());
-  const serverCSSManifest: FlightCSSManifest = {};
-  const __entry_css_files__: FlightManifest["__entry_css_files__"] = {};
+  const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods());
+  const serverCSSManifest: ClientCSSReferenceManifest = {
+    cssImports: {},
+    cssModules: {},
+  };
+  const cssModules: ClientReferenceManifest["cssModules"] = {};
   for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
     const cssChunks = chunks.filter((path) => path.endsWith(".css"));
-    serverCSSManifest[`${key}.js`] = cssChunks.map((chunk) =>
+    serverCSSManifest.cssImports[`${key}.js`] = cssChunks.map((chunk) =>
       JSON.stringify([chunk, [chunk]])
     );
-    __entry_css_files__[key] = cssChunks;
+    cssModules[key] = cssChunks;
   }
-  serverCSSManifest.__entry_css_mods__ = {
-    page: serverCSSManifest["page.js"],
+  serverCSSManifest.cssModules = {
+    page: serverCSSManifest.cssImports["page.js"],
   };
   const req: IncomingMessage = {
     url: renderData.url,
