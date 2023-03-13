@@ -53,11 +53,15 @@ import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../client/components/not-found'
-import { isRedirectError } from '../client/components/redirect'
+import {
+  getURLFromRedirectError,
+  isRedirectError,
+} from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { patchFetch } from './lib/patch-fetch'
 import { AppRenderSpan } from './lib/trace/constants'
 import { getTracer } from './lib/trace/tracer'
+import zod from 'next/dist/compiled/zod'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -442,10 +446,14 @@ function createServerComponentRenderer(
 }
 
 type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
-// c = catchall
-// oc = optional catchall
-// d = dynamic
-export type DynamicParamTypesShort = 'c' | 'oc' | 'd'
+
+const dynamicParamTypesSchema = zod.enum(['c', 'oc', 'd'])
+/**
+ * c = catchall
+ * oc = optional catchall
+ * d = dynamic
+ */
+export type DynamicParamTypesShort = zod.infer<typeof dynamicParamTypesSchema>
 
 /**
  * Shorten the dynamic param in order to make it smaller when transmitted to the browser.
@@ -465,13 +473,36 @@ function getShortDynamicParamType(
   }
 }
 
+const segmentSchema = zod.union([
+  zod.string(),
+  zod.tuple([zod.string(), zod.string(), dynamicParamTypesSchema]),
+])
 /**
  * Segment in the router state.
  */
-export type Segment =
-  | string
-  | [param: string, value: string, type: DynamicParamTypesShort]
+export type Segment = zod.infer<typeof segmentSchema>
 
+const flightRouterStateSchema: zod.ZodType<FlightRouterState> = zod.lazy(() => {
+  const parallelRoutesSchema = zod.record(flightRouterStateSchema)
+  const urlSchema = zod.string().nullable().optional()
+  const refreshSchema = zod.literal('refetch').nullable().optional()
+  const isRootLayoutSchema = zod.boolean().optional()
+
+  // Due to the lack of optional tuple types in Zod, we need to use union here.
+  // https://github.com/colinhacks/zod/issues/1465
+  return zod.union([
+    zod.tuple([
+      segmentSchema,
+      parallelRoutesSchema,
+      urlSchema,
+      refreshSchema,
+      isRootLayoutSchema,
+    ]),
+    zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema, refreshSchema]),
+    zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema]),
+    zod.tuple([segmentSchema, parallelRoutesSchema]),
+  ])
+})
 /**
  * Router state
  */
@@ -740,7 +771,9 @@ async function renderToString(element: React.ReactElement) {
   })
 }
 
-function parseFlightRouterState(stateHeader: string | string[] | undefined) {
+function parseAndValidateFlightRouterState(
+  stateHeader: string | string[] | undefined
+): FlightRouterState | undefined {
   if (typeof stateHeader === 'undefined') {
     return undefined
   }
@@ -750,8 +783,8 @@ function parseFlightRouterState(stateHeader: string | string[] | undefined) {
     )
   }
   try {
-    return JSON.parse(stateHeader)
-  } catch (err) {
+    return flightRouterStateSchema.parse(JSON.parse(stateHeader))
+  } catch {
     throw new Error('The router state header was sent but could not be parsed.')
   }
 }
@@ -776,11 +809,6 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-  const actionId = req.headers[ACTION.toLowerCase()]
-  const isAction =
-    actionId !== undefined &&
-    typeof actionId === 'string' &&
-    req.method === 'POST'
 
   const {
     buildManifest,
@@ -857,13 +885,12 @@ export async function renderToHTMLOrFlight(
     const isPrefetch =
       req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
-    // TODO-APP: verify the tree is valid
     // TODO-APP: verify tree can't grow out of control
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
-    let providedFlightRouterState: FlightRouterState = isFlight
-      ? parseFlightRouterState(
+    let providedFlightRouterState = isFlight
+      ? parseAndValidateFlightRouterState(
           req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
         )
       : undefined
@@ -1518,7 +1545,6 @@ export async function renderToHTMLOrFlight(
     }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
-      // TODO-APP: throw on invalid flightRouterState
       /**
        * Use router state to decide at what common layout to render the page.
        * This can either be the common layout between two pages or a specific place to start rendering from using the "refetch" marker in the tree.
@@ -1729,27 +1755,54 @@ export async function renderToHTMLOrFlight(
     }
 
     // For action requests, we handle them differently with a sepcial render result.
-    if (isAction) {
-      if (process.env.NEXT_RUNTIME !== 'edge') {
-        const workerName = 'app' + renderOpts.pathname
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
+    let actionId = req.headers[ACTION.toLowerCase()] as string
+    const isFormAction =
+      req.method === 'POST' &&
+      req.headers['content-type'] === 'application/x-www-form-urlencoded'
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
 
+    if (isFetchAction || isFormAction) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
         const { parseBody } =
           require('./api-utils/node') as typeof import('./api-utils/node')
         const actionData = (await parseBody(req, '1mb')) || {}
+        let bound = []
+
+        if (isFormAction) {
+          actionId = actionData.$$id as string
+          if (!actionId) {
+            throw new Error('Invariant: missing action ID.')
+          }
+          const formData = new URLSearchParams(actionData)
+          formData.delete('$$id')
+          bound = [formData]
+        } else {
+          bound = actionData.bound || []
+        }
+
+        const workerName = 'app' + renderOpts.pathname
+        const actionModId = serverActionsManifest[actionId].workers[workerName]
 
         const actionHandler =
           ComponentMod.__next_app_webpack_require__(actionModId)
 
         try {
           return new ActionRenderResult(
-            JSON.stringify(
-              await actionHandler(actionId, actionData.bound || [])
-            )
+            JSON.stringify([await actionHandler(actionId, bound)])
           )
         } catch (err) {
           if (isRedirectError(err)) {
-            throw new Error('Invariant: not implemented.')
+            if (isFetchAction) {
+              throw new Error('Invariant: not implemented.')
+            } else {
+              const redirectUrl = getURLFromRedirectError(err)
+              res.statusCode = 303
+              res.setHeader('Location', redirectUrl)
+              return new ActionRenderResult(JSON.stringify({}))
+            }
           }
           throw err
         }
