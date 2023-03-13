@@ -101,11 +101,9 @@ async function runTests({
 
     expect(await browser.elementByCss('h1').text()).toBe('Image Import')
     expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
-    expect(await browser.elementByCss(a(2)).href()).toContain(
+    expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
       '/test.3f1a293b.png'
     )
-    await browser.elementByCss(a(2)).click()
-    await waitFor(delay)
   } finally {
     await stopApp(app)
     nextConfig.restore()

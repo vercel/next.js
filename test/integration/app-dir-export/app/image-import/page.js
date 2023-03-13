@@ -10,7 +10,7 @@ export default function ImageImport() {
           <Link href="/">Visit the home page</Link>
         </li>
         <li>
-          <Link href={img.src}>View the image</Link>
+          <a href={img.src}>View the image</a>
         </li>
       </ul>
     </main>
