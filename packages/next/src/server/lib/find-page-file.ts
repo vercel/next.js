@@ -79,19 +79,33 @@ export function createValidFileMatcher(
   pageExtensions: string[],
   appDirPath: string | undefined
 ) {
+  const getExtensionRegexString = (
+    extensions: string[],
+    ...extraExtensions: string[]
+  ) => `(?:${extensions.concat(extraExtensions).join('|')})`
+
   const validExtensionFileRegex = new RegExp(
-    `\\.+(?:${pageExtensions.join('|')})$`
+    '\\.' + getExtensionRegexString(pageExtensions) + '$'
   )
   const leafOnlyPageFileRegex = new RegExp(
-    `(^(page|route)|[\\\\/](page|route))\\.(?:${pageExtensions.join('|')})$`
+    `(^(page|route)|[\\\\/](page|route))\\.${getExtensionRegexString(
+      pageExtensions
+    )}$`
   )
-  // TODO: support other metadata routes
-  // regex for /robots.txt|((j|t)sx?)
-  // regex for /sitemap.xml|((j|t)sx?)
+  /** TODO-METADATA: support other metadata routes
+   *  regex for:
+   *
+   *  /robots.txt|((j|t)sx?)
+   *  /sitemap.xml|((j|t)sx?)
+   *  /favicon.ico
+   *
+   */
   const metadataRoutesRelativePathRegex = new RegExp(
-    `^[\\\\/](robots)\\.(?:${pageExtensions.concat('txt').join('|')})$` +
+    `^[\\\\/]((robots\\.${getExtensionRegexString(pageExtensions, 'txt')})` +
       '|' +
-      `^[\\\\/](sitemap)\\.(?:${pageExtensions.concat('xml').join('|')})$`
+      `(sitemap\\.${getExtensionRegexString(pageExtensions, 'xml')})` +
+      '|' +
+      `(favicon\\.ico))$`
   )
 
   function isMetadataRouteFile(filePath: string) {
