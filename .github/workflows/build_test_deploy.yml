@@ -1136,7 +1136,7 @@ jobs:
     runs-on: ubuntu-latest-16-core-oss
 
     env:
-      CARGO_PROFILE_RELEASE_LTO: 0
+      CARGO_PROFILE_RELEASE_LTO: false
 
     steps:
       - uses: actions/checkout@v3
