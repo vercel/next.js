@@ -51,6 +51,7 @@ export function connectHMR(options: {
     let timer: NodeJS.Timeout
     function handleDisconnect() {
       clearInterval(timer)
+      source.onerror = null
       source.close()
       setTimeout(init, options.timeout)
     }
