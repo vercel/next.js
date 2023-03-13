@@ -99,6 +99,10 @@ import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import {
+  isMetadataRoute,
+  isStaticMetadataRoute,
+} from '../../lib/is-app-route-route'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -477,6 +481,7 @@ export default class DevServer extends Server {
             meta?.accuracy === undefined ||
             !validFileMatcher.isPageFile(fileName)
           ) {
+            if (/sitemap|favicon/.test(fileName)) console.log('skip2', fileName)
             continue
           }
 
@@ -545,15 +550,35 @@ export default class DevServer extends Server {
 
           if (isAppPath) {
             if (!validFileMatcher.isAppRouterPage(fileName)) {
+              if (/sitemap|favicon/.test(fileName))
+                console.log('skip1', fileName)
               continue
             }
 
-            const originalPageName = pageName
+            // Develope mode format for pages mapping
+            let pageRoute = pageName
             pageName = normalizeAppPath(pageName)
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
-            appPaths[pageName].push(originalPageName)
+
+            if (isMetadataRoute(pageRoute)) {
+              if (!isStaticMetadataRoute(pageRoute)) {
+                if (pageRoute === '/sitemap') {
+                  pageRoute = '/sitemap.xml'
+                }
+                if (pageRoute === '/robots') {
+                  pageRoute = '/robots.txt'
+                }
+                if (pageRoute === '/favicon') {
+                  pageRoute = '/favicon.ico'
+                }
+              }
+              pageRoute = `${pageRoute}/route`
+              console.log('pageName', pageName, pageRoute)
+            }
+
+            appPaths[pageName].push(pageRoute)
 
             if (routedPages.includes(pageName)) {
               continue

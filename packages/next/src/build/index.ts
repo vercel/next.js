@@ -2440,9 +2440,7 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportConfig.initialPageRevalidationMap[page] === 0
 
-            const isRouteHandler =
-              isAppRouteRoute(originalAppPath) ||
-              isMetadataRoute(originalAppPath)
+            const isRouteHandler = isAppRouteRoute(originalAppPath)
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return

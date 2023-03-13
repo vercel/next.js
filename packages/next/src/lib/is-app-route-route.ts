@@ -1,21 +1,45 @@
+import path from 'path'
+
+const regexMetadataRoutes = [
+  /^robots(\.txt)?/,
+  /^sitemap(\.xml)?/,
+  /^favicon(\.ico)?/,
+]
+const staticRegexMetadataRoutes = [
+  /^robots\.txt/,
+  /^sitemap\.xml/,
+  /^favicon\.ico/,
+]
+
 export function isAppRouteRoute(route: string): boolean {
   return route.endsWith('/route')
 }
 
 // Match routes that are metadata routes, e.g. /sitemap.xml, /favicon.<ext>, /<icon>.<ext>, etc.
 // TODO-METADATA: support more metadata routes with more extensions
-const staticMetadataRoutes = [/robots\.txt/, /sitemap\.xml/, /favicon\.ico/]
 export function isMetadataRoute(route: string): boolean {
   // Remove the 'app/' or '/' prefix, only check the route name since they're only allowed in root app directory
-  const filename = route
+  const baseName = route
     .replace(/^app\//, '')
     .replace(/^\//, '')
     .replace(/\/route$/, '')
-  return staticMetadataRoutes.some((r) => r.test(filename))
+
+  if (!regexMetadataRoutes.some((r) => r.test(baseName))) {
+    console.log('not metadata', route)
+  } else {
+    console.log('is metadata', route)
+  }
+  return regexMetadataRoutes.some((r) => r.test(baseName))
 }
 
 // Only match the static metadata files
 // TODO-METADATA: support static metadata files under nested routes folders
 export function isStaticMetadataRoute(resourcePath: string) {
-  return staticMetadataRoutes.some((r) => r.test(resourcePath))
+  const filename = path.basename(resourcePath)
+  console.log(
+    'isStaticMetadataRoute',
+    filename,
+    staticRegexMetadataRoutes.some((r) => r.test(filename))
+  )
+  return staticRegexMetadataRoutes.some((r) => r.test(filename))
 }

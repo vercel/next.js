@@ -69,6 +69,7 @@ async function createAppRouteCode({
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
 
+  console.log('createAppRouteCode', name, isMetadataRoute(name))
   if (isMetadataRoute(name)) {
     resolvedPagePath = `next-metadata-route-loader!${resolvedPagePath}`
   }
@@ -83,13 +84,13 @@ async function createAppRouteCode({
     export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-  
+
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
-    
+
     export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
-    
+
     export * as headerHooks from 'next/dist/client/components/headers'
-  
+
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
   `
 }
@@ -350,7 +351,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
-  if (isAppRouteRoute(name) || isMetadataRoute(name)) {
+  console.log('load:name', name, isAppRouteRoute(name), isMetadataRoute(name))
+  if (isAppRouteRoute(name)) {
     return createAppRouteCode({ name, pagePath, resolver })
   }
 
@@ -416,7 +418,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-    
+
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'

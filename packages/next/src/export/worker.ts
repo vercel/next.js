@@ -167,8 +167,7 @@ export default async function exportPage({
       let renderAmpPath = ampPath
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
-      const isRouteHandler =
-        isAppDir && (isAppRouteRoute(page) || isMetadataRoute(page))
+      const isRouteHandler = isAppDir && isAppRouteRoute(page)
 
       if (isAppDir) {
         outDir = join(distDir, 'server/app')

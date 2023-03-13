@@ -8,6 +8,10 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
+import {
+  isMetadataRoute,
+  isStaticMetadataRoute,
+} from '../../../../lib/is-app-route-route'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly expression: RegExp
@@ -60,12 +64,44 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
+      if (!this.expression.test(filename)) {
+        continue
+      }
 
-      const page = this.normalizers.page.normalize(filename)
-      const pathname = this.normalizers.pathname.normalize(filename)
-      const bundlePath = this.normalizers.bundlePath.normalize(filename)
+      let page = this.normalizers.page.normalize(filename)
+      let pathname = this.normalizers.pathname.normalize(filename)
+      let bundlePath = this.normalizers.bundlePath.normalize(filename)
 
+      // let routeKey = page
+      if (isMetadataRoute(page)) {
+        if (!isStaticMetadataRoute(page)) {
+          if (pathname === '/sitemap') {
+            pathname += '.xml'
+            bundlePath += '.xml'
+          }
+          if (pathname === '/robots') {
+            pathname += '.txt'
+            bundlePath += '.txt'
+          }
+          if (pathname === '/favicon') {
+            pathname += '.ico'
+            bundlePath += '.ico'
+          }
+        }
+        page = `${page}/route`
+        // pathname = `${pathname}`
+        bundlePath = `${bundlePath}/route`
+      }
+
+      if (filename.includes('sitemap') || filename.includes('api')) {
+        console.log(
+          'dev:transform:matched',
+          page,
+          pathname,
+          bundlePath,
+          isMetadataRoute(page)
+        )
+      }
       matchers.push(
         new AppRouteRouteMatcher({
           kind: RouteKind.APP_ROUTE,
