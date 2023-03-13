@@ -855,7 +855,7 @@ fn annotate_ident_as_action(
     ));
 }
 
-const DIRECTIVE_TYPOS: &'static [&'static str] = &[
+const DIRECTIVE_TYPOS: &[&str] = &[
     "use servers",
     "use-server",
     "use sevrer",
