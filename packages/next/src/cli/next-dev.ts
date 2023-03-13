@@ -299,6 +299,12 @@ const nextDev: CliCommand = async (argv) => {
           ) {
             return false
           }
+
+          // experimental options are checked separately
+          if (configKey === 'experimental') {
+            return false
+          }
+
           let userValue = parentUserConfig?.[configKey]
           let defaultValue = parentDefaultConfig?.[configKey]
 
@@ -317,9 +323,20 @@ const nextDev: CliCommand = async (argv) => {
         }
       }
 
-      nonSupportedConfig = Object.keys(rawNextConfig).filter((key) =>
-        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
-      )
+      nonSupportedConfig = [
+        ...Object.keys(rawNextConfig).filter((key) =>
+          checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
+        ),
+        ...Object.keys(rawNextConfig.experimental)
+          .filter((key) =>
+            checkUnsupportedCustomConfig(
+              key,
+              rawNextConfig?.experimental,
+              defaultConfig?.experimental
+            )
+          )
+          .map((key) => `experimental.${key}`),
+      ]
     } catch (e) {
       console.error('Unexpected error occurred while checking config', e)
     }
@@ -353,13 +370,13 @@ const nextDev: CliCommand = async (argv) => {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
-        `The only configurations options supported are:\n${supportedTurbopackNextConfigOptions
-          .map((name) => `    - ${chalk.cyan(name)}\n`)
+        `To use Turbopack, remove the following configuration options:\n${nonSupportedConfig
+          .map((name) => `    - ${chalk.red(name)}\n`)
           .join(
             ''
-          )}  To use Turbopack, remove the following configuration options:\n${nonSupportedConfig.map(
-          (name) => `    - ${chalk.red(name)}\n`
-        )}`
+          )}  The only supported configurations options are:\n${supportedTurbopackNextConfigOptions
+          .map((name) => `    - ${chalk.cyan(name)}\n`)
+          .join('')}  `
       )}   `
     }
 
