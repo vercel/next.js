@@ -308,10 +308,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         ),
         renderOpts
       )
+      const renderResultMeta = result.metadata()
 
       if (!renderMode) {
         if (_nextData || getStaticProps || getServerSideProps) {
-          if (renderOpts.isNotFound) {
+          if (renderResultMeta.isNotFound) {
             res.statusCode = 404
 
             if (_nextData) {
@@ -343,22 +344,24 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             sendRenderResult({
               req,
               res,
-              result: result2 ?? RenderResult.empty,
+              result: result2.isNull() ? RenderResult.empty : result2,
               type: 'html',
               generateEtags,
               poweredByHeader,
               options: {
                 private: isPreviewMode || page === '/404',
                 stateful: !!getServerSideProps,
-                revalidate: renderOpts.revalidate,
+                revalidate: renderResultMeta.revalidate,
               },
             })
             return null
-          } else if (renderOpts.isRedirect && !_nextData) {
+          } else if (renderResultMeta.isRedirect && !_nextData) {
             const redirect = {
-              destination: renderOpts.pageData.pageProps.__N_REDIRECT,
-              statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS,
-              basePath: renderOpts.pageData.pageProps.__N_REDIRECT_BASE_PATH,
+              destination: renderResultMeta.pageData.pageProps.__N_REDIRECT,
+              statusCode:
+                renderResultMeta.pageData.pageProps.__N_REDIRECT_STATUS,
+              basePath:
+                renderResultMeta.pageData.pageProps.__N_REDIRECT_BASE_PATH,
             }
             const statusCode = getRedirectStatus(redirect)
 
@@ -383,15 +386,19 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
               req,
               res,
               result: _nextData
-                ? RenderResult.fromStatic(JSON.stringify(renderOpts.pageData))
-                : result ?? RenderResult.empty,
+                ? RenderResult.fromStatic(
+                    JSON.stringify(renderResultMeta.pageData)
+                  )
+                : result.isNull()
+                ? RenderResult.empty
+                : result,
               type: _nextData ? 'json' : 'html',
               generateEtags,
               poweredByHeader,
               options: {
                 private: isPreviewMode || renderOpts.is404Page,
                 stateful: !!getServerSideProps,
-                revalidate: renderOpts.revalidate,
+                revalidate: renderResultMeta.revalidate,
               },
             })
             return null
@@ -405,7 +412,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
 
       if (renderMode) return { html: result, renderOpts }
-      return result ? result.toUnchunkedString() : null
+      return result.isNull() ? null : result.toUnchunkedString()
     } catch (err) {
       if (!parsedUrl!) {
         parsedUrl = parseUrl(req.url!, true)
@@ -467,7 +474,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           err: res.statusCode === 404 ? undefined : err,
         })
       )
-      return result2 ? result2.toUnchunkedString() : null
+      return result2.isNull() ? null : result2.toUnchunkedString()
     }
   }
 
