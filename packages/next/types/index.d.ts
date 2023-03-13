@@ -31,9 +31,8 @@ export { NextConfig } from '../dist/server/config'
 export type {
   Metadata,
   RobotsFile,
-  SitemapFile,
-} from // @ts-ignore This path is generated at build time and conflicts otherwise
-'../dist/lib/metadata/types/metadata-interface'
+  SitemapFile, // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/lib/metadata/types/metadata-interface'
 
 // Extend the React types with missing properties
 declare module 'react' {
