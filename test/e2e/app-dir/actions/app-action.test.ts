@@ -43,5 +43,16 @@ createNextDescribe(
         return res.includes('Mozilla') ? 'UA' : ''
       }, 'UA')
     })
+
+    it('should support formData and redirect', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.eval(`document.getElementById('name').value = 'test'`)
+      await browser.elementByCss('#submit').click()
+
+      await check(() => {
+        return browser.eval('window.location.pathname + window.location.search')
+      }, '/header?name=test')
+    })
   }
 )
