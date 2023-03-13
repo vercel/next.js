@@ -1928,6 +1928,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       BaseServerSpan.renderToResponse,
       {
         tracerName: `rendering ${ctx.pathname}`,
+        attributes: {
+          pathname: ctx.pathname,
+        },
       },
       async () => {
         return this.renderToResponseImpl(ctx)

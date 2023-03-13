@@ -24,6 +24,9 @@ const isPromise = <T>(p: any): p is Promise<T> => {
 }
 
 const closeSpanWithError = (span: Span, error?: Error) => {
+  if (error) {
+    span.recordException(error)
+  }
   span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   span.end()
 }
