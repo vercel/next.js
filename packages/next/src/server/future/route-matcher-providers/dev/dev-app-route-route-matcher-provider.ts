@@ -33,7 +33,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         .concat('txt')
         .join('|')})?$|[/\\\\]sitemap\\.(?:${extensions
         .concat('xml')
-        .join('|')})?$`
+        .join('|')})?$|[/\\\\]favicon\\.ico$`
     )
 
     const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)

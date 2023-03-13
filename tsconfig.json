@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "baseUrl": ".",
+    "types": ["react", "jest", "node", "trusted-types"],
     "paths": {
       "next-test-utils": ["test/lib/next-test-utils"],
       "amp-test-utils": ["test/lib/amp-test-utils"],

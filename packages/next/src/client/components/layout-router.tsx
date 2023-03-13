@@ -173,7 +173,7 @@ class ScrollAndFocusHandler extends React.Component<{
 /**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
-export function InnerLayoutRouter({
+function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,

@@ -1,0 +1,7 @@
+
+  x The "use server" directive must be at the top of the file.
+   ,-[input.js:2:1]
+ 2 | 
+ 3 | 'use server'
+   : ^^^^^^^^^^^^
+   `----
