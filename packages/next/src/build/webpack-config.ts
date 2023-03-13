@@ -2076,6 +2076,11 @@ export default async function getBaseWebpackConfig(
           clientRouterFilters,
         })
       ),
+      isEdgeServer &&
+        new webpack.NormalModuleReplacementPlugin(
+          /^node:buffer$/,
+          require.resolve('./polyfills/edge/node-buffer')
+        ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
