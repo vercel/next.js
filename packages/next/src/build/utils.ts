@@ -1329,6 +1329,7 @@ export async function isPageStatic({
   isrFlushToDisk,
   maxMemoryCacheSize,
   incrementalCacheHandlerPath,
+  nextConfigOutput,
 }: {
   page: string
   distDir: string
@@ -1347,6 +1348,7 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   incrementalCacheHandlerPath?: string
+  nextConfigOutput: 'standalone' | 'export'
 }): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -1479,12 +1481,9 @@ export async function isPageStatic({
           },
           {}
         )
-        if (!appConfig.dynamic) {
-          appConfig.dynamic = 'auto'
-        }
 
-        if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-          if (appConfig.dynamic === 'auto') {
+        if (nextConfigOutput === 'export') {
+          if (!appConfig.dynamic || appConfig.dynamic === 'auto') {
             appConfig.dynamic = 'error'
           } else if (appConfig.dynamic === 'force-dynamic') {
             throw new Error(

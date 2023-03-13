@@ -1282,6 +1282,7 @@ export default async function build(
               enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
+              nextConfigOutput: config.output,
             })
         )
 
@@ -1466,6 +1467,7 @@ export default async function build(
                           isrFlushToDisk: config.experimental.isrFlushToDisk,
                           maxMemoryCacheSize:
                             config.experimental.isrMemoryCacheSize,
+                          nextConfigOutput: config.output,
                         })
                       }
                     )
