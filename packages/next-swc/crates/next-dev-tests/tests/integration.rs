@@ -2,6 +2,7 @@
 #![cfg(test)]
 extern crate test_generator;
 
+use dunce::canonicalize;
 use std::{
     env,
     fmt::Write,
@@ -171,13 +172,21 @@ async fn run_test(resource: &str) -> JestRunResult {
     );
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = package_root
+    let cargo_workspace_root = package_root
         .parent()
         .unwrap()
         .parent()
         .unwrap()
         .to_path_buf();
-    let test_dir = workspace_root.join(resource);
+    let test_dir = cargo_workspace_root.join(resource);
+    let workspace_root = canonicalize(PathBuf::from(env!("PNPM_WORKSPACE_DIR"))).unwrap();
+    println!(
+        "workspace_root = {}, test_dir = {}, cargo_workspace_root = {}, package_root = {}",
+        workspace_root.display(),
+        test_dir.display(),
+        cargo_workspace_root.display(),
+        package_root.display()
+    );
     let project_dir = test_dir.join("input");
     let requested_addr = get_free_local_addr().unwrap();
 
@@ -241,7 +250,7 @@ async fn run_test(resource: &str) -> JestRunResult {
         snapshot_issues(
             issues.iter().cloned(),
             issues_fs.root(),
-            &workspace_root.to_string_lossy(),
+            &cargo_workspace_root.to_string_lossy(),
         )
         .await?;
 
