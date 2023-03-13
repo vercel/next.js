@@ -8,10 +8,6 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
-import {
-  isMetadataRoute,
-  isStaticMetadataRoute,
-} from '../../../../lib/is-app-route-route'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly expression: RegExp
@@ -66,22 +62,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         continue
       }
 
-      let page = this.normalizers.page.normalize(filename)
-      if (isMetadataRoute(page)) {
-        if (!isStaticMetadataRoute(page)) {
-          if (page === '/sitemap') {
-            page += '.xml'
-          }
-          if (page === '/robots') {
-            page += '.txt'
-          }
-          if (page === '/favicon') {
-            page += '.ico'
-          }
-        }
-        page = `${page}/route`
-      }
-
+      const page = this.normalizers.page.normalize(filename)
       const pathname = this.normalizers.pathname.normalize(page)
       const bundlePath = this.normalizers.bundlePath.normalize(page)
 

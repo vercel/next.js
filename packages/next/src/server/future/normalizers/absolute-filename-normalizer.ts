@@ -1,4 +1,6 @@
+import { getMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
+import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { removePagePathTail } from '../../../shared/lib/page-path/remove-page-path-tail'
@@ -21,12 +23,10 @@ export class AbsoluteFilenameNormalizer implements Normalizer {
   ) {}
 
   public normalize(pathname: string): string {
-    return removePagePathTail(
-      normalizePathSep(ensureLeadingSlash(path.relative(this.dir, pathname))),
-      {
-        extensions: this.extensions,
-        keepIndex: false,
-      }
-    )
+    return absolutePathToPage(pathname, {
+      extensions: this.extensions,
+      keepIndex: false,
+      pagesDir: this.dir,
+    })
   }
 }

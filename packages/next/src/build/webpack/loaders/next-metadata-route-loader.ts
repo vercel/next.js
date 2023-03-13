@@ -1,6 +1,6 @@
 import type webpack from 'webpack'
 import path from 'path'
-import { isStaticMetadataRoute } from '../../../lib/is-app-route-route'
+import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 function getContentType(resourcePath: string) {
   const filename = path.basename(resourcePath)
@@ -15,11 +15,6 @@ function getContentType(resourcePath: string) {
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction = function () {
   const { resourcePath } = this
-  console.log(
-    'isStaticMetadataRoute()',
-    isStaticMetadataRoute(resourcePath),
-    getContentType(resourcePath)
-  )
   const code = isStaticMetadataRoute(resourcePath)
     ? `import { NextResponse } from 'next/server'
 import fs from 'fs'

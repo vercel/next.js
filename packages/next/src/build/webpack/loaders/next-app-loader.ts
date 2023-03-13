@@ -10,10 +10,8 @@ import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
-import {
-  isAppRouteRoute,
-  isMetadataRoute,
-} from '../../../lib/is-app-route-route'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 export type AppLoaderOptions = {
   name: string
@@ -69,7 +67,6 @@ async function createAppRouteCode({
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
 
-  console.log('createAppRouteCode', name, isMetadataRoute(name))
   if (isMetadataRoute(name)) {
     resolvedPagePath = `next-metadata-route-loader!${resolvedPagePath}`
   }
@@ -351,7 +348,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
-  console.log('load:name', name, isAppRouteRoute(name), isMetadataRoute(name))
   if (isAppRouteRoute(name)) {
     return createAppRouteCode({ name, pagePath, resolver })
   }

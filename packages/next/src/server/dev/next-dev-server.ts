@@ -99,10 +99,6 @@ import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import {
-  isMetadataRoute,
-  isStaticMetadataRoute,
-} from '../../lib/is-app-route-route'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -496,6 +492,7 @@ export default class DevServer extends Server {
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
             extensions: this.nextConfig.pageExtensions,
+            keepIndex: false,
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -548,21 +545,6 @@ export default class DevServer extends Server {
           }
 
           if (isAppPath) {
-            if (isMetadataRoute(pageName)) {
-              if (!isStaticMetadataRoute(pageName)) {
-                if (pageName === '/sitemap') {
-                  pageName = '/sitemap.xml'
-                }
-                if (pageName === '/robots') {
-                  pageName = '/robots.txt'
-                }
-                if (pageName === '/favicon') {
-                  pageName = '/favicon.ico'
-                }
-              }
-              pageName = `${pageName}/route`
-            }
-
             if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }

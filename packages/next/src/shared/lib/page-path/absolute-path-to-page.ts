@@ -2,6 +2,7 @@ import { ensureLeadingSlash } from './ensure-leading-slash'
 import { normalizePathSep } from './normalize-path-sep'
 import path from '../isomorphic/path'
 import { removePagePathTail } from './remove-page-path-tail'
+import { getMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 
 /**
  * Given the absolute path to the pages folder, an absolute file path for a
@@ -17,12 +18,12 @@ import { removePagePathTail } from './remove-page-path-tail'
 export function absolutePathToPage(
   pagePath: string,
   options: {
-    extensions: string[]
-    keepIndex?: boolean
+    extensions: string[] | readonly string[]
+    keepIndex: boolean
     pagesDir: string
   }
 ) {
-  return removePagePathTail(
+  const page = removePagePathTail(
     normalizePathSep(
       ensureLeadingSlash(path.relative(options.pagesDir, pagePath))
     ),
@@ -31,4 +32,5 @@ export function absolutePathToPage(
       keepIndex: options.keepIndex,
     }
   )
+  return getMetadataRoute(page)
 }

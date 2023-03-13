@@ -47,11 +47,8 @@ import { ServerRuntime } from '../../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
-import {
-  isAppRouteRoute,
-  isMetadataRoute,
-  isStaticMetadataRoute,
-} from '../lib/is-app-route-route'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { getMetadataRoute } from '../lib/metadata/get-metadata-route'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -118,22 +115,8 @@ export function createPagesMapping({
       // This is to mark it as app route path that could be picked up like other custom app routes.
 
       // Production build format for pages mapping
-      let routeKey = pageKey
-      if (isMetadataRoute(pageKey)) {
-        if (!isStaticMetadataRoute(routeKey)) {
-          if (routeKey === '/sitemap') {
-            routeKey = '/sitemap.xml'
-          }
-          if (routeKey === '/robots') {
-            routeKey = '/robots.txt'
-          }
-          if (routeKey === '/favicon') {
-            routeKey = '/favicon.ico'
-          }
-        }
-        routeKey = `${routeKey}/route`
-      }
-      result[routeKey] = normalizedPath
+      const route = getMetadataRoute(pageKey)
+      result[route] = normalizedPath
       return result
     },
     {}
