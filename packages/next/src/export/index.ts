@@ -410,6 +410,7 @@ export default async function exportApp(
         'server',
         `${NEXT_FONT_MANIFEST}.json`
       )),
+      images: nextConfig.images,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

@@ -69,7 +69,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
-import RenderResult from './render-result'
+import RenderResult, { type RenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
   streamFromArray,
@@ -373,11 +373,13 @@ export async function renderToHTML(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult | null> {
+): Promise<RenderResult> {
+  const renderResultMeta: RenderResultMetadata = {}
+
   // In dev we invalidate the cache by appending a timestamp to the resource URL.
   // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
   // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
+  renderResultMeta.devOnlyCacheBusterQueryString = renderOpts.dev
     ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
     : ''
 
@@ -399,11 +401,13 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
-    devOnlyCacheBusterQueryString,
     images,
     runtime: globalRuntime,
     App,
   } = renderOpts
+
+  const devOnlyCacheBusterQueryString =
+    renderResultMeta.devOnlyCacheBusterQueryString
 
   let Document = renderOpts.Document
 
@@ -815,7 +819,7 @@ export async function renderToHTML(
         )
       }
 
-      ;(renderOpts as any).isNotFound = true
+      renderResultMeta.isNotFound = true
     }
 
     if (
@@ -839,12 +843,12 @@ export async function renderToHTML(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
-      ;(renderOpts as any).isRedirect = true
+      renderResultMeta.isRedirect = true
     }
 
     if (
       (dev || isBuildTimeSSG) &&
-      !(renderOpts as any).isNotFound &&
+      !renderResultMeta.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -910,14 +914,13 @@ export async function renderToHTML(
     )
 
     // pass up revalidate and props for export
-    // TODO: change this to a different passing mechanism
-    ;(renderOpts as any).revalidate =
+    renderResultMeta.revalidate =
       'revalidate' in data ? data.revalidate : undefined
-    ;(renderOpts as any).pageData = props
+    renderResultMeta.pageData = props
 
-    // this must come after revalidate is added to renderOpts
-    if ((renderOpts as any).isNotFound) {
-      return null
+    // this must come after revalidate is added to renderResultMeta
+    if (renderResultMeta.isNotFound) {
+      return new RenderResult(null, renderResultMeta)
     }
   }
 
@@ -1023,8 +1026,8 @@ export async function renderToHTML(
         )
       }
 
-      ;(renderOpts as any).isNotFound = true
-      return null
+      renderResultMeta.isNotFound = true
+      return new RenderResult(null, renderResultMeta)
     }
 
     if ('redirect' in data && typeof data.redirect === 'object') {
@@ -1036,7 +1039,7 @@ export async function renderToHTML(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
-      ;(renderOpts as any).isRedirect = true
+      renderResultMeta.isRedirect = true
     }
 
     if (deferredContent) {
@@ -1054,7 +1057,7 @@ export async function renderToHTML(
     }
 
     props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
-    ;(renderOpts as any).pageData = props
+    renderResultMeta.pageData = props
   }
 
   if (
@@ -1071,8 +1074,8 @@ export async function renderToHTML(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
-    return RenderResult.fromStatic(JSON.stringify(props))
+  if ((isDataReq && !isSSG) || renderResultMeta.isRedirect) {
+    return new RenderResult(JSON.stringify(props), renderResultMeta)
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1082,7 +1085,7 @@ export async function renderToHTML(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSSG) return null
+  if (isResSent(res) && !isSSG) return new RenderResult(null, renderResultMeta)
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1325,7 +1328,7 @@ export async function renderToHTML(
     async () => renderDocument()
   )
   if (!documentResult) {
-    return null
+    return new RenderResult(null, renderResultMeta)
   }
 
   const dynamicImportsIds = new Set<string | number>()
@@ -1480,13 +1483,14 @@ export async function renderToHTML(
   if (generateStaticHTML) {
     const html = await streamToString(chainStreams(streams))
     const optimizedHtml = await postOptimize(html)
-    return new RenderResult(optimizedHtml)
+    return new RenderResult(optimizedHtml, renderResultMeta)
   }
 
   return new RenderResult(
     chainStreams(streams).pipeThrough(
       createBufferedTransformStream(postOptimize)
-    )
+    ),
+    renderResultMeta
   )
 }
 

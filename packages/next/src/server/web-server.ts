@@ -377,7 +377,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null> {
+  ): Promise<RenderResult> {
     const { pagesRenderToHTML, appRenderToHTML } =
       this.serverOptions.webServerConfig
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML

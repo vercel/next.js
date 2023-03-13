@@ -32,6 +32,24 @@ createNextDescribe(
       }
     })
 
+    if (isDev) {
+      it('should error correctly for invalid params from generateStaticParams', async () => {
+        await next.patchFile(
+          'app/invalid/[slug]/page.js',
+          `
+            export function generateStaticParams() {
+              return [{slug: { invalid: true }}]
+            }
+          `
+        )
+        const html = await next.render('/invalid/first')
+        await next.deleteFile('app/invalid/[slug]/page.js')
+        expect(html).toContain(
+          'A required parameter (slug) was not provided as a string received object'
+        )
+      })
+    }
+
     if (isNextStart) {
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
