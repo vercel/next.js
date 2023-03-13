@@ -9,7 +9,7 @@ import { isMetadataRoute, isStaticMetadataRoute } from './is-metadata-route'
  * @param page
  * @returns
  */
-export function getMetadataRoute(page: string) {
+export function normalizeMetadataRoute(page: string) {
   let route = page
   if (isMetadataRoute(page)) {
     if (!isStaticMetadataRoute(route)) {

@@ -1,4 +1,4 @@
-import { getMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
