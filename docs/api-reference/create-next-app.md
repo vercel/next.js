@@ -45,6 +45,10 @@ Options:
 
     Initialize as a JavaScript project.
 
+  --tailwind
+
+    Initialize with Tailwind CSS config.
+
   --eslint
 
     Initialize with eslint config.
