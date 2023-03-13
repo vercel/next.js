@@ -606,7 +606,7 @@ function getCssInlinedLinkTags(
 
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
   const cssFilesForEntry = new Set(
-    clientReferenceManifest.cssModules?.[filePathWithoutExt] || []
+    clientReferenceManifest.cssFiles?.[filePathWithoutExt] || []
   )
 
   if (!layoutOrPageCssModules || !cssFilesForEntry.size) {

@@ -83,7 +83,7 @@ export type ClientReferenceManifest = {
   edgeSSRModuleMapping: {
     [moduleId: string]: ManifestNode
   }
-  cssModules: {
+  cssFiles: {
     [entryPathWithoutExtension: string]: string[]
   }
 }
@@ -146,7 +146,7 @@ export class ClientReferenceManifestPlugin {
     const manifest: ClientReferenceManifest = {
       ssrModuleMapping: {},
       edgeSSRModuleMapping: {},
-      cssModules: {},
+      cssFiles: {},
       clientModules: {},
     }
     const dev = this.dev
@@ -394,8 +394,7 @@ export class ClientReferenceManifestPlugin {
         }
       })
 
-      const entryCSSFiles: { [key: string]: string[] } =
-        manifest.cssModules || {}
+      const entryCSSFiles: { [key: string]: string[] } = manifest.cssFiles || {}
 
       const addCSSFilesToEntry = (
         files: string[],
@@ -424,7 +423,7 @@ export class ClientReferenceManifestPlugin {
         })
       }
 
-      manifest.cssModules = entryCSSFiles
+      manifest.cssFiles = entryCSSFiles
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST

@@ -156,8 +156,8 @@ async function runOperation(renderData: RenderData) {
         if (name === "ssrModuleMapping") {
           return manifest;
         }
-        if (name === "cssModules") {
-          return cssModules;
+        if (name === "cssFiles") {
+          return cssFiles;
         }
         return new Proxy({}, proxyMethodsForModule(name as string));
       },
@@ -170,7 +170,7 @@ async function runOperation(renderData: RenderData) {
           return new Proxy({} as any, proxyMethodsNested());
         }
         if (key === "__entry_css_files__") {
-          return cssModules;
+          return cssFiles;
         }
 
         // The key is a `${file}#${name}`, but `file` can contain `#` itself.
@@ -200,13 +200,13 @@ async function runOperation(renderData: RenderData) {
     cssImports: {},
     cssModules: {},
   };
-  const cssModules: ClientReferenceManifest["cssModules"] = {};
+  const cssFiles: ClientReferenceManifest["cssFiles"] = {};
   for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
     const cssChunks = chunks.filter((path) => path.endsWith(".css"));
     serverCSSManifest.cssImports[`${key}.js`] = cssChunks.map((chunk) =>
       JSON.stringify([chunk, [chunk]])
     );
-    cssModules[key] = cssChunks;
+    cssFiles[key] = cssChunks;
   }
   serverCSSManifest.cssModules = {
     page: serverCSSManifest.cssImports["page.js"],
@@ -246,7 +246,7 @@ async function runOperation(renderData: RenderData) {
       tree,
       pages: ["page.js"],
     },
-    serverComponentManifest: manifest,
+    clientReferenceManifest: manifest,
     serverCSSManifest,
     runtime: "nodejs",
     serverComponents: true,
