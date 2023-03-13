@@ -9,25 +9,7 @@ createNextDescribe(
   'opentelemetry',
   {
     files: __dirname,
-    nextConfig: {
-      experimental: {
-        instrumentationHook: true,
-        appDir: true,
-      },
-    },
-    dependencies: {
-      '@opentelemetry/api': '^1.0.0',
-      '@opentelemetry/core': '^1.0.0',
-      '@opentelemetry/resources': '^1.0.0',
-      '@opentelemetry/sdk-trace-base': '^1.0.0',
-      '@opentelemetry/sdk-trace-node': '^1.0.0',
-      '@opentelemetry/semantic-conventions': '^1.0.0',
-      'fs-extra': '^8.0.0',
-      '@types/fs-extra': '^8.0.0',
-    },
-    env: {
-      // NEXT_OTEL_VERBOSE: '1',
-    },
+    packageJson: require('./package.json'),
   },
   ({ next }) => {
     const getTraces = async (): Promise<SavedSpan[]> => {
