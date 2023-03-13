@@ -135,7 +135,7 @@ createNextDescribe(
       expect(rootSpans).toHaveLength(1)
       const rootSpan = rootSpans[0]
 
-      expect(rootSpan.name).toBe('get /api/pages/basic')
+      expect(rootSpan.name).toBe('GET /api/pages/basic')
     })
   }
 )
