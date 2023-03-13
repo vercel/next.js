@@ -562,16 +562,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const urlParts = (req.url || '').split('?')
       const urlNoQuery = urlParts[0]
 
-      // this normalizes repeated slashes in the path e.g. hello//world ->
-      // hello/world or backslashes to forward slashes, this does not
-      // handle trailing slash as that is handled the same as a next.config.js
-      // redirect
-      if (urlNoQuery?.match(/(\\|\/\/)/)) {
-        const cleanUrl = normalizeRepeatedSlashes(req.url!)
-        res.redirect(cleanUrl, 308).body(cleanUrl).send()
-        return
-      }
-
       setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
       // Parse url if parsedUrl not provided
