@@ -14,7 +14,6 @@ turbopack = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-next-core = { workspace = true, features = ['native-tls'] }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -30,8 +29,3 @@ turbopack-test-utils = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
-
-[features]
-default = ["native-tls"]
-native-tls = ["next-core/native-tls"]
-rustls-tls = ["next-core/rustls-tls"]

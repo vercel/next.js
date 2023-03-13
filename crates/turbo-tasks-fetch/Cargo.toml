@@ -9,6 +9,7 @@ edition = "2021"
 bench = false
 
 [features]
+default = ["native-tls"]
 # Allow to configure specific tls backend for reqwest.
 # See top level Cargo.toml for more details.
 native-tls = ["reqwest/native-tls"]
