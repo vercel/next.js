@@ -35,15 +35,16 @@ export async function fetchServerResponse(
   }
 
   try {
-    let cloneUrl = new URL(url)
+    let fetchUrl = url
     if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (cloneUrl.pathname.endsWith('/')) {
-        cloneUrl.pathname += 'index.txt'
+      fetchUrl = new URL(url) // clone
+      if (fetchUrl.pathname.endsWith('/')) {
+        fetchUrl.pathname += 'index.txt'
       } else {
-        cloneUrl.pathname += '.txt'
+        fetchUrl.pathname += '.txt'
       }
     }
-    const res = await fetch(cloneUrl, {
+    const res = await fetch(fetchUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',
       headers,
