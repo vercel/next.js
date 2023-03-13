@@ -92,6 +92,7 @@ import { ServerManifestLoader } from './future/route-matcher-providers/helpers/m
 import { getTracer } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { sendResponse } from './future/route-handlers/app-route-route-handler'
+import { I18NProvider } from './future/helpers/i18n-provider'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -327,6 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   // TODO-APP(@wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
+  protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   public constructor(options: ServerOptions) {
@@ -360,11 +362,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
+    this.i18nProvider = this.nextConfig.i18n?.locales
+      ? new I18NProvider(this.nextConfig.i18n)
+      : undefined
+
     // Configure the locale normalizer, it's used for routes inside `pages/`.
-    this.localeNormalizer =
-      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
-        ? new LocaleRouteNormalizer(this.nextConfig.i18n)
-        : undefined
+    this.localeNormalizer = this.i18nProvider
+      ? new LocaleRouteNormalizer(this.i18nProvider)
+      : undefined
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -475,7 +480,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       new PagesRouteMatcherProvider(
         this.distDir,
         manifestLoader,
-        this.localeNormalizer
+        this.i18nProvider
       )
     )
 
@@ -484,7 +489,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       new PagesAPIRouteMatcherProvider(
         this.distDir,
         manifestLoader,
-        this.localeNormalizer
+        this.i18nProvider
       )
     )
 
@@ -594,7 +599,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       this.attachRequestMeta(req, parsedUrl)
 
-      const domainLocale = this.localeNormalizer?.detectDomainLocale(
+      const domainLocale = this.i18nProvider?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
       )
 
@@ -604,8 +609,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
       const pathnameInfo = getNextPathnameInfo(url.pathname, {
         nextConfig: this.nextConfig,
+        i18nProvider: this.i18nProvider,
       })
-
       url.pathname = pathnameInfo.pathname
 
       if (pathnameInfo.basePath) {
@@ -678,11 +683,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             basePath: this.nextConfig.basePath,
             rewrites: this.customRoutes.rewrites,
           })
-          // ensure parsedUrl.pathname includes URL before processing
-          // rewrites or they won't match correctly
+
+          // Ensure parsedUrl.pathname includes locale before processing
+          // rewrites or they won't match correctly.
           if (defaultLocale && !pathnameInfo.locale) {
             parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
+
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParams = utils.handleRewrites(req, parsedUrl)
           const rewriteParamKeys = Object.keys(rewriteParams)

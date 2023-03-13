@@ -1134,8 +1134,7 @@ export default class NextNodeServer extends BaseServer {
               this.nextConfig.i18n.locales
             )
 
-            const domainLocale =
-              this.localeNormalizer?.detectDomainLocale(hostname)
+            const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
 
             let detectedLocale = ''
 
@@ -1211,27 +1210,29 @@ export default class NextNodeServer extends BaseServer {
           throw new Error('pathname is undefined')
         }
 
+        const bubbleNoFallback = Boolean(query._nextBubbleNoFallback)
+
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
         const options: MatchOptions = {
-          i18n: this.localeNormalizer?.match(pathname, {
+          i18n: this.i18nProvider?.analyze(pathname, {
             defaultLocale: query.__nextDefaultLocale,
           }),
         }
+
         if (options.i18n?.detectedLocale) {
           parsedUrl.query.__nextLocale = options.i18n.detectedLocale
         }
 
-        const bubbleNoFallback = !!query._nextBubbleNoFallback
         const match = await this.matchers.match(pathname, options)
-
-        if (match) {
-          addRequestMeta(req, '_nextMatch', match)
-        }
 
         // Try to handle the given route with the configured handlers.
         if (match) {
+          // Add the match to the request so we don't have to re-run the matcher
+          // for the same request.
+          addRequestMeta(req, '_nextMatch', match)
+
           // TODO-APP: move this to a route handler
           const edgeFunctionsPages = this.getEdgeFunctionsPages()
           for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -1312,7 +1313,7 @@ export default class NextNodeServer extends BaseServer {
       useFileSystemPublicRoutes,
       matchers: this.matchers,
       nextConfig: this.nextConfig,
-      localeNormalizer: this.localeNormalizer,
+      i18nProvider: this.i18nProvider,
     }
   }
 
@@ -1753,7 +1754,7 @@ export default class NextNodeServer extends BaseServer {
     let url: string
 
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(normalizedPathname, {
+      i18n: this.i18nProvider?.analyze(normalizedPathname, {
         defaultLocale: params.parsed.query.__nextDefaultLocale as
           | string
           | undefined,
@@ -1886,6 +1887,7 @@ export default class NextNodeServer extends BaseServer {
             const parsedUrl = parseUrl(initUrl)
             const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
               nextConfig: this.nextConfig,
+              i18nProvider: this.i18nProvider,
             })
 
             parsedUrl.pathname = pathnameInfo.pathname
@@ -2036,8 +2038,8 @@ export default class NextNodeServer extends BaseServer {
                 )
               }
 
-              if (this.localeNormalizer) {
-                const { detectedLocale } = this.localeNormalizer.match(newUrl, {
+              if (this.i18nProvider) {
+                const { detectedLocale } = this.i18nProvider.analyze(newUrl, {
                   defaultLocale: parsedUrl.query.__nextLocale as
                     | string
                     | undefined,

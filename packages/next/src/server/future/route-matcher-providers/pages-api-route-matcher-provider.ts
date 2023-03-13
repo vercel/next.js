@@ -12,13 +12,13 @@ import {
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
-import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
+import { I18NProvider } from '../helpers/i18n-provider'
 
 export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesAPIRouteMatcher> {
   constructor(
     private readonly distDir: string,
     manifestLoader: ManifestLoader,
-    private readonly localeNormalizer?: LocaleRouteNormalizer
+    private readonly i18nProvider?: I18NProvider
   ) {
     super(PAGES_MANIFEST, manifestLoader)
   }
@@ -34,9 +34,9 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
     const matchers: Array<PagesAPIRouteMatcher> = []
 
     for (const page of pathnames) {
-      if (this.localeNormalizer) {
+      if (this.i18nProvider) {
         // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.localeNormalizer.match(page, {
+        const { detectedLocale, pathname } = this.i18nProvider.analyze(page, {
           // We don't need to assume a default locale here, since we're
           // generating the routes which either should support a specific locale
           // or any locale.

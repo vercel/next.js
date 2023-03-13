@@ -234,8 +234,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
               pathname,
               this.nextConfig.i18n.locales
             )
-            const domainLocale =
-              this.localeNormalizer?.detectDomainLocale(hostname)
+            const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
 
             let detectedLocale = ''
 
@@ -309,16 +308,13 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.nextConfig.i18n?.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-          }
+        if (this.i18nProvider) {
+          const { detectedLocale } = await this.i18nProvider.analyze(pathname, {
+            defaultLocale: undefined,
+          })
+          parsedUrl.query.__nextLocale = detectedLocale
         }
+
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (isAPIRoute(pathname)) {
