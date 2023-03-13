@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@kiwicom/orbit-components": "latest",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "styled-components": "^5.3.0"
+  },
+  "devDependencies": {
+    "@kiwicom/babel-plugin-orbit-components": "latest",
+    "babel-plugin-styled-components": "^1.8.0"
+  }
+}

@@ -1,0 +1,16 @@
+fragment PostsParts on Posts {
+  title
+  excerpt
+  coverImage
+  date
+  author {
+    __typename
+    name
+    picture
+  }
+  ogImage {
+    __typename
+    url
+  }
+  body
+}

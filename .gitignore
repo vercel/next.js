@@ -1,0 +1,53 @@
+# build output
+dist
+.next
+target
+packages/next/wasm/@next
+packages/*/packed-*.tgz
+
+# dependencies
+node_modules
+package-lock.json
+yarn.lock
+!/yarn.lock
+test/node_modules
+.pnpm-store/
+
+# logs & pids
+*.log
+pids
+*.cpuprofile
+
+# coverage
+.nyc_output
+coverage
+
+# test output
+test/**/out*
+test/**/next-env.d.ts
+.DS_Store
+/e2e-tests
+test/tmp/**
+test/.trace
+test/traces
+
+# Editors
+**/.idea
+**/.#*
+.nvmrc
+
+# examples
+examples/**/out
+examples/**/.env*.local
+
+pr-stats.md
+test-timings.json
+
+# Vercel
+.vercel
+.now
+
+# Cache
+*.tsbuildinfo
+.swc/
+.turbo

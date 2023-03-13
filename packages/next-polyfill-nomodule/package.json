@@ -1,0 +1,23 @@
+{
+  "name": "@next/polyfill-nomodule",
+  "version": "13.2.5-canary.1",
+  "description": "A polyfill for non-dead, nomodule browsers.",
+  "main": "dist/polyfill-nomodule.js",
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-polyfill-nomodule"
+  },
+  "scripts": {
+    "build": "microbundle -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main",
+    "dev": "pnpm build",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "test-pack": "cd ../../ && pnpm test-pack next-polyfill-nomodule"
+  },
+  "devDependencies": {
+    "core-js": "3.6.5",
+    "microbundle": "0.15.0",
+    "object-assign": "4.1.1",
+    "whatwg-fetch": "3.0.0"
+  }
+}

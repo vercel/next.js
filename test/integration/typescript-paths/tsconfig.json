@@ -1,0 +1,33 @@
+/* This is a single line comment to check if that works */
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "isomorphic-unfetch": ["types/unfetch.d.ts"],
+      "@c/*": ["components/*"],
+      "@lib/*": ["lib/a/*", "lib/b/*"],
+      "@mycomponent": ["components/hello.tsx"],
+      "d-ts-alias": [
+        "components/alias-to-d-ts.d.ts",
+        "components/alias-to-d-ts.tsx"
+      ]
+      // This is a single line comment to check if that works
+    },
+    "esModuleInterop": true,
+    "module": "esnext",
+    "jsx": "preserve",
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "exclude": ["node_modules"],
+  "include": ["next-env.d.ts", "components", "pages"]
+}

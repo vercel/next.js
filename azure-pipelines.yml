@@ -1,0 +1,182 @@
+trigger:
+  # Only run latest commit for branches:
+  batch: true
+  # Do not run Azure CI for docs-only/example-only changes:
+  paths:
+    include:
+      - '*'
+    exclude:
+      - bench
+      - docs
+      - errors
+      - examples
+  # Do not run Azure on `canary`, `main`, or release tags. This unnecessarily
+  # increases the backlog, and the change was already tested on the PR.
+  branches:
+    include:
+      - '*'
+    exclude:
+      - canary
+      - main
+      - refs/tags/*
+
+pr:
+  # Do not run Azure CI for docs-only/example-only changes:
+  paths:
+    include:
+      - '*'
+    exclude:
+      - bench
+      - docs
+      - errors
+      - examples
+
+variables:
+  PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
+  PNPM_VERSION: 7.24.3
+  NEXT_TELEMETRY_DISABLED: '1'
+  node_14_version: ^14.19.0
+  node_16_version: ^16.8.0
+
+stages:
+  - stage: Test
+    jobs:
+      - job: test_integration
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_14_version)
+            displayName: 'Install Node.js'
+
+          - bash: |
+              node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+            displayName: 'Check Docs Only Change'
+
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm install && pnpm run build
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Install and build'
+
+          - script: npx playwright@1.28.1 install chromium
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: |
+              node run-tests.js -c 1 test/integration/production/test/index.test.js test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Run tests'
+
+      - job: test_unit
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - script: |
+              wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
+            displayName: 'List Chrome version'
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_14_version)
+            displayName: 'Install Node.js'
+
+          - bash: |
+              node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+            displayName: 'Check Docs Only Change'
+
+          - script: npm i -g pnpm@$(PNPM_VERSION)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm store path
+            condition: eq(variables['isDocsOnly'], 'No')
+
+          - script: pnpm install && pnpm run build
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Install and build'
+
+          - script: node run-tests.js --type unit
+            condition: eq(variables['isDocsOnly'], 'No')
+            displayName: 'Run tests'
+
+      # - job: test_e2e_dev
+      #   pool:
+      #     vmImage: 'windows-2019'
+      #   steps:
+      #     - task: NodeTool@0
+      #       inputs:
+      #         versionSpec: $(node_16_version)
+      #       displayName: 'Install Node.js'
+
+      #     - bash: |
+      #         node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+      #       displayName: 'Check Docs Only Change'
+
+      #     - script: npm i -g pnpm@$(PNPM_VERSION)
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: pnpm store path
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: pnpm install && pnpm run build
+      #       condition: eq(variables['isDocsOnly'], 'No')
+      #       displayName: 'Install and build'
+
+      #     - script: npx playwright@1.28.1 install chromium
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: |
+      #         node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts
+      #       condition: eq(variables['isDocsOnly'], 'No')
+      #       displayName: 'Run tests (E2E Development)'
+      #       env:
+      #         NEXT_TEST_MODE: 'dev'
+
+      # - job: test_e2e_prod
+      #   pool:
+      #     vmImage: 'windows-2019'
+      #   steps:
+      #     - task: NodeTool@0
+      #       inputs:
+      #         versionSpec: $(node_16_version)
+      #       displayName: 'Install Node.js'
+
+      #     - bash: |
+      #         node scripts/run-for-change.js --not --type docs --exec echo "##vso[task.setvariable variable=isDocsOnly]No"
+      #       displayName: 'Check Docs Only Change'
+
+      #     - script: npm i -g pnpm@$(PNPM_VERSION)
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: pnpm config set store-dir $(PNPM_CACHE_FOLDER)
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: pnpm store path
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: pnpm install && pnpm run build
+      #       condition: eq(variables['isDocsOnly'], 'No')
+      #       displayName: 'Install and build'
+
+      #     - script: npx playwright@1.28.1 install chromium
+      #       condition: eq(variables['isDocsOnly'], 'No')
+
+      #     - script: |
+      #         node run-tests.js -c 1 --debug test/e2e/app-dir/app/index.test.ts
+      #       condition: eq(variables['isDocsOnly'], 'No')
+      #       displayName: 'Run tests (E2E Production)'
+      #       env:
+      #         NEXT_TEST_MODE: 'start'

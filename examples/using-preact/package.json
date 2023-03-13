@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "next-plugin-preact": "latest",
+    "preact": "^10.10.6",
+    "preact-render-to-string": "^5.2.3",
+    "react": "npm:@preact/compat@^17.1.1",
+    "react-dom": "npm:@preact/compat@^17.1.1",
+    "react-ssr-prepass": "npm:preact-ssr-prepass@1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.15",
+    "@types/react": "16.9.17",
+    "typescript": "4.8.2"
+  }
+}

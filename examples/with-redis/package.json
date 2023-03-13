@@ -1,0 +1,29 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.0.4",
+    "clsx": "^1.1.1",
+    "ioredis": "^4.23.0",
+    "next": "latest",
+    "postcss": "^8.1.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^1.0.2",
+    "swr": "^2.0.0",
+    "tailwindcss": "^2.0.2",
+    "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/jit": "0.1.1",
+    "@types/ioredis": "4.28.8",
+    "@types/node": "^16.11.25",
+    "@types/react": "^17.0.2",
+    "@types/uuid": "8.3.4",
+    "typescript": "^4.5.5"
+  }
+}

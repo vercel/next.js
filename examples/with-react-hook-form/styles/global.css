@@ -1,0 +1,95 @@
+:root {
+  --white: #fff;
+  --light-border: #ccc;
+  --danger: #ff0000;
+  --primary-color: #a4a4f7;
+  --primary-color-light: #7373f9;
+  --secondary-color: #f0f8ff;
+  --shadow-color: #ddd;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
+}
+
+.row {
+  margin: 10px 20px;
+}
+
+.row-remember {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--light-border);
+  padding: 0 0 15px 0;
+}
+
+.container form {
+  background-color: var(--secondary-color);
+  padding: 2rem;
+  border-radius: 5px;
+  box-shadow: 12px 12px 10px var(--shadow-color);
+  flex: 1;
+}
+
+@media screen and (min-width: 768px) {
+  .container form {
+    flex: 0.5;
+    max-width: 600px;
+  }
+}
+
+.form-header {
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.form-field {
+  width: 100%;
+  padding: 10px;
+  outline: none;
+  border: 1px solid var(--light-border);
+  border-radius: 5px;
+}
+
+.form-field.has-error {
+  border: 1px solid var(--danger);
+}
+
+.error-label {
+  color: var(--danger);
+}
+
+.remember-label {
+  margin: 0 10px;
+}
+
+.btn {
+  width: 100%;
+  height: 3rem;
+  border: 1px solid var(--light-border);
+  border-radius: 5px;
+}
+
+.btn:hover {
+  background-color: var(--primary-color-light);
+}
+
+.login-btn {
+  background-color: var(--primary-color);
+  color: var(--white);
+}
+
+.hello-user {
+  font-size: 2rem;
+}

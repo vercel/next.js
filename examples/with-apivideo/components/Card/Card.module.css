@@ -1,0 +1,48 @@
+.container {
+  border: 1px solid rgb(215, 219, 236);
+  border-radius: 0.25rem;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.5rem;
+  font-size: 0.5rem;
+  position: relative;
+  box-shadow: rgb(0 0 0 / 5%) 0px 2px 4px;
+}
+.container > p {
+  letter-spacing: 0.05rem;
+}
+
+.method {
+  color: #ffffff;
+  padding: 0.3rem;
+  border-radius: 2px;
+  font-weight: 500;
+}
+.get {
+  composes: method;
+  background-color: green;
+}
+.post {
+  composes: method;
+  background-color: blue;
+}
+
+.image_container {
+  position: absolute;
+  bottom: -25px;
+  right: -105px;
+  display: flex;
+  gap: 5px;
+  align-items: flex-end;
+}
+.image_container > p {
+  margin-bottom: -3px;
+  font-size: 0.5rem;
+}
+
+#foo {
+  font-size: large;
+}

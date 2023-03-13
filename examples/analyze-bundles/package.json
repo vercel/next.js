@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "analyze": "cross-env ANALYZE=true yarn build",
+    "serve": "serve .next/analyze"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^7.3.0",
+    "@next/bundle-analyzer": "^12.1.6",
+    "cross-env": "^7.0.3",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/react": "^18.0.14",
+    "@types/react-dom": "^18.0.5",
+    "serve": "^13.0.2",
+    "typescript": "^4.7.4"
+  }
+}

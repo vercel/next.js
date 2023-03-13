@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "noEmit": true,
+    "allowJs": true,
+    "jsx": "react",
+    "module": "esnext",
+    "target": "ESNext",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "next-test-utils": ["test/lib/next-test-utils"],
+      "amp-test-utils": ["test/lib/amp-test-utils"],
+      "next-webdriver": ["test/lib/next-webdriver"],
+      "e2e-utils": ["test/lib/e2e-utils"]
+    }
+  },
+  "include": [
+    "test/jest.d.ts",
+    "test/**/*.test.ts",
+    "test/**/*.test.tsx",
+    "test/**/test/*",
+    "packages/next/types/webpack.d.ts"
+  ]
+}

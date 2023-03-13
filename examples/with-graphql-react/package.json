@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "dependencies": {
+    "graphql-react": "^11.0.1",
+    "next": "latest",
+    "next-graphql-react": "^8.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}

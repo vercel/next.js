@@ -1,0 +1,4 @@
+.className {
+  background: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20649%2087.5%22%20xmlns%3Av%3D%22https%3A%2F%2Fvecta.io%2Fnano%22%3E%3Cpath%20d%3D%22M0%200h649v87.5H0z%22%20fill%3D%22%230b3647%22%2F%3E%3Cpath%20d%3D%22M0%204.03h649v76.22H0z%22%20fill%3D%22%23104f68%22%2F%3E%3Cpath%20d%3D%22M0%200h649v8.07H0z%22%20fill%3D%22%231a6184%22%2F%3E%3C%2Fsvg%3E')
+    0 0 no-repeat;
+}

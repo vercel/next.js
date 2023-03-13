@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "slate": "^0.82.0",
+    "slate-history": "0.66.0",
+    "slate-react": "^0.82.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.5",
+    "@types/react": "18.0.17",
+    "typescript": "4.7.4"
+  }
+}

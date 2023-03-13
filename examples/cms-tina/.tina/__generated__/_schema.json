@@ -1,0 +1,85 @@
+{
+  "version": {
+    "fullVersion": "0.60.1",
+    "major": "0",
+    "minor": "60",
+    "patch": "1"
+  },
+  "meta": {},
+  "collections": [
+    {
+      "label": "Blog Posts",
+      "name": "posts",
+      "path": "_posts",
+      "fields": [
+        {
+          "type": "string",
+          "label": "Title",
+          "name": "title",
+          "namespace": ["posts", "title"]
+        },
+        {
+          "type": "string",
+          "label": "Excerpt",
+          "name": "excerpt",
+          "namespace": ["posts", "excerpt"]
+        },
+        {
+          "type": "string",
+          "label": "Cover Image",
+          "name": "coverImage",
+          "namespace": ["posts", "coverImage"]
+        },
+        {
+          "type": "string",
+          "label": "Date",
+          "name": "date",
+          "namespace": ["posts", "date"]
+        },
+        {
+          "type": "object",
+          "label": "author",
+          "name": "author",
+          "fields": [
+            {
+              "type": "string",
+              "label": "Name",
+              "name": "name",
+              "namespace": ["posts", "author", "name"]
+            },
+            {
+              "type": "string",
+              "label": "Picture",
+              "name": "picture",
+              "namespace": ["posts", "author", "picture"]
+            }
+          ],
+          "namespace": ["posts", "author"]
+        },
+        {
+          "type": "object",
+          "label": "OG Image",
+          "name": "ogImage",
+          "fields": [
+            {
+              "type": "string",
+              "label": "Url",
+              "name": "url",
+              "namespace": ["posts", "ogImage", "url"]
+            }
+          ],
+          "namespace": ["posts", "ogImage"]
+        },
+        {
+          "type": "string",
+          "label": "Blog Post Body",
+          "name": "body",
+          "isBody": true,
+          "ui": { "component": "textarea" },
+          "namespace": ["posts", "body"]
+        }
+      ],
+      "namespace": ["posts"]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "scripts": {
+    "prepare": "rimraf components && mkdir components && node ./fuzzponent.js -d 2 -s 206 -o components",
+    "dev": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 node ../../node_modules/next/dist/bin/next dev",
+    "build": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 node ../../node_modules/next/dist/bin/next build",
+    "start": "cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 node ../../node_modules/next/dist/bin/next start",
+    "dev-nocache": "rimraf .next && yarn dev",
+    "dev-cpuprofile-nocache": "rimraf .next && cross-env NEXT_PRIVATE_LOCAL_WEBPACK=1 node --cpu-prof ../../node_modules/next/dist/bin/next",
+    "build-nocache": "rimraf .next && yarn build"
+  },
+  "devDependencies": {
+    "@babel/types": "7.18.0",
+    "@babel/generator": "7.18.0",
+    "random-seed": "0.3.0",
+    "cross-env": "^7.0.3",
+    "pretty-ms": "^7.0.1",
+    "rimraf": "^3.0.2",
+    "yargs": "16.2.0"
+  }
+}

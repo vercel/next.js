@@ -1,0 +1,13 @@
+# Invalid External Rewrite
+
+#### Why This Error Occurred
+
+A rewrite was defined with both `basePath: false` and an internal `destination`. Rewrites that capture urls outside of the `basePath` must route externally, as they are intended for proxying in the case of incremental adoption of Next.js in a project.
+
+#### Possible Ways to Fix It
+
+Look for any rewrite where `basePath` is `false` and make sure its `destination` starts with `http://` or `https://`.
+
+### Useful Links
+
+- [Rewrites section in Documentation](https://nextjs.org/docs/api-reference/next.config.js/rewrites)

@@ -1,0 +1,14 @@
+/* this should pass through untransformed */
+@media (480px <= width < 768px) {
+  a::before {
+    content: '';
+  }
+  ::placeholder {
+    color: green;
+  }
+}
+
+/* this should be transformed to width/height */
+.video {
+  -xyz-max-size: 400rem 300rem;
+}

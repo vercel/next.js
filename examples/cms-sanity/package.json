@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "studio:dev": "npm --prefix studio run start",
+    "studio:deploy": "npx vercel env pull && npm --prefix studio run deploy"
+  },
+  "dependencies": {
+    "@portabletext/react": "^2.0.1",
+    "@sanity/image-url": "^1.0.2",
+    "@sanity/webhook": "^2.0.0",
+    "classnames": "^2.3.1",
+    "date-fns": "^2.29.3",
+    "next": "latest",
+    "next-sanity": "^4.1.2",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.13",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.2.4"
+  }
+}

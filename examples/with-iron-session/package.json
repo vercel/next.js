@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "iron-session": "latest",
+    "next": "latest",
+    "octokit": "^1.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "swr": "^2.0.0"
+  },
+  "devDependencies": {
+    "@octokit/types": "^6.34.0",
+    "@types/react": "^17.0.34",
+    "typescript": "^4.4.4"
+  }
+}

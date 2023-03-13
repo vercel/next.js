@@ -1,0 +1,24 @@
+# Learn how to add code owners here:
+# https://help.github.com/en/articles/about-code-owners
+
+*          @timneutkens @ijjk @shuding @huozhi @feedthejim
+/.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @balazsorban44 @jankaifer
+/docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44 @jankaifer
+/errors/   @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44 @jankaifer
+/examples/ @timneutkens @ijjk @shuding @leerob @steven-tey @balazsorban44 @jankaifer
+
+# SWC Build & Telemetry (@padmaia)
+
+/packages/next/build/   @timneutkens @ijjk @shuding @padmaia @huozhi
+/packages/next/telemetry/ @timneutkens @ijjk @shuding @padmaia
+/packages/next-swc/ @timneutkens @ijjk @shuding @vercel/web-tooling
+/packages/next/build/swc/ @timneutkens @ijjk @shuding @vercel/web-tooling
+
+# Image Component (@styfle)
+
+/**/*image*                                                  @timneutkens @ijjk @shuding @styfle
+/**/*image*/**                                               @timneutkens @ijjk @shuding @styfle
+/packages/next/client/use-intersection.tsx                   @timneutkens @ijjk @shuding @styfle
+/packages/next/server/lib/squoosh/                           @timneutkens @ijjk @shuding @styfle
+/packages/next/server/serve-static.ts                        @timneutkens @ijjk @shuding @styfle
+/packages/next/server/config.ts                              @timneutkens @ijjk @shuding @styfle

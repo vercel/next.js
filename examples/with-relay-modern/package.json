@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
+    "schema": "graphql get-schema -e dev"
+  },
+  "dependencies": {
+    "graphql": "^14.6.0",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-relay": "^9.0.0"
+  },
+  "devDependencies": {
+    "babel-plugin-relay": "^9.0.0",
+    "graphql-cli": "^3.0.14",
+    "relay-compiler": "^9.0.0"
+  }
+}

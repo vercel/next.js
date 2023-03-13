@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.0.0",
+    "deepmerge": "^4.2.2",
+    "graphql": "14.5.8",
+    "lodash": "4.17.20",
+    "next": "latest",
+    "prop-types": "^15.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^7.1.1",
+    "redux": "^4.0.1",
+    "redux-devtools-extension": "2.13.8"
+  }
+}

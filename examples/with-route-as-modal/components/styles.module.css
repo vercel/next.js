@@ -1,0 +1,31 @@
+.postCardGridWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.postCardGrid {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-gap: 10px;
+  grid-auto-rows: minmax(100px, auto);
+}
+
+.postCard {
+  width: 150px;
+  height: 150px;
+  background-color: lightblue;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: black solid 1px;
+}
+
+.post {
+  width: 100%;
+  height: 100%;
+  background-color: darkcyan;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
