@@ -1,10 +1,10 @@
-/* __next_internal_action_entry_do_not_use__ default,$ACTION_fn_1 */ const foo = async function $ACTION_fn_0() {};
-$ACTION_fn_0.$$typeof = Symbol.for("react.server.reference");
-$ACTION_fn_0.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
-$ACTION_fn_0.$$bound = [];
+/* __next_internal_action_entry_do_not_use__ default,bar */ const foo = async function() {};
 export default foo;
-const bar = async function $ACTION_fn_1() {};
-$ACTION_fn_1.$$typeof = Symbol.for("react.server.reference");
-$ACTION_fn_1.$$id = "5bde18329eb1c98fc2d6dea0a22639861a18ce65";
-$ACTION_fn_1.$$bound = [];
+const bar = async function() {};
 export { bar };
+foo.$$typeof = Symbol.for("react.server.reference");
+foo.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
+foo.$$bound = [];
+bar.$$typeof = Symbol.for("react.server.reference");
+bar.$$id = "ac840dcaf5e8197cb02b7f3a43c119b7a770b272";
+bar.$$bound = [];
