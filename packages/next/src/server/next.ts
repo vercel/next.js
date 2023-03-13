@@ -15,7 +15,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
-import { getTracer, SpanKind } from './lib/trace/tracer'
+import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 
 loadRequireHook()
@@ -64,25 +64,10 @@ export class NextServer {
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      return getTracer().trace(
-        NextServerSpan.rootRequestHandler,
-        {
-          tracerName: [req.method, req.url].join(' '),
-          kind: SpanKind.SERVER,
-          attributes: {
-            'http.method': req.method,
-            'http.target': req.url,
-          },
-        },
-        async (span) => {
-          const requestHandler = await this.getServerRequestHandler()
-          await requestHandler(req, res, parsedUrl)
-
-          span?.setAttributes({
-            'http.status_code': res.statusCode,
-          })
-        }
-      )
+      return getTracer().trace(NextServerSpan.rootRequestHandler, async () => {
+        const requestHandler = await this.getServerRequestHandler()
+        await requestHandler(req, res, parsedUrl)
+      })
     }
   }
 

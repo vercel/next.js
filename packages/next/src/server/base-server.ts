@@ -91,7 +91,7 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
-import { getTracer } from './lib/trace/tracer'
+import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { sendResponse } from './future/route-handlers/app-route-route-handler'
 
@@ -519,7 +519,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     return getTracer().trace(
       BaseServerSpan.handleRequest,
-      async () => await this.handleRequestImpl(req, res, parsedUrl)
+      {
+        tracerName: [req.method, req.url].join(' '),
+        kind: SpanKind.SERVER,
+        attributes: {
+          'http.method': req.method,
+          'http.target': req.url,
+        },
+      },
+      async (span) => {
+        try {
+          await this.handleRequestImpl(req, res, parsedUrl)
+        } finally {
+          span?.setAttributes({
+            'http.status_code': res.statusCode,
+          })
+        }
+      }
     )
   }
 
