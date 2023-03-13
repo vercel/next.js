@@ -1,5 +1,5 @@
-import { CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightRouterState } from '../../../server/app-render'
+import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { FlightRouterState } from '../../../server/app-render'
 
 /**
  * Invalidate cache one level down from the router state.
