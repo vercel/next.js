@@ -855,21 +855,98 @@ fn annotate_ident_as_action(
     ));
 }
 
+const DIRECTIVE_TYPOS: &'static [&'static str] = &[
+    "use servers",
+    "use-server",
+    "use sevrer",
+    "use srever",
+    "use servre",
+    "user server",
+];
+
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
     has_action: &mut bool,
 ) {
+    let mut is_directive = true;
+
     stmts.retain(|stmt| {
-        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-            expr: box Expr::Lit(Lit::Str(Str { value, .. })),
-            ..
-        })) = stmt
-        {
-            if value == "use server" {
-                *in_action_file = true;
-                *has_action = true;
-                return false;
+        match stmt {
+            ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
+                ..
+            })) => {
+                if value == "use server" {
+                    if is_directive {
+                        *in_action_file = true;
+                        *has_action = true;
+                        return false;
+                    } else {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "The \"use server\" directive must be at the top of the file.",
+                                )
+                                .emit();
+                        });
+                    }
+                } else {
+                    // Detect typo of "use server"
+                    if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    format!(
+                                        "Did you mean \"use server\"? \"{}\" is not a supported \
+                                         directive name.",
+                                        value
+                                    )
+                                    .as_str(),
+                                )
+                                .emit();
+                        });
+                    }
+                }
+            }
+            ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                expr:
+                    box Expr::Paren(ParenExpr {
+                        expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                        ..
+                    }),
+                span,
+                ..
+            })) => {
+                // Match `("use server")`.
+                if value == "use server" || DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    if is_directive {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "The \"use server\" directive cannot be wrapped in \
+                                     parentheses.",
+                                )
+                                .emit();
+                        })
+                    } else {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "The \"use server\" directive must be at the top of the file, \
+                                     and cannot be wrapped in parentheses.",
+                                )
+                                .emit();
+                        })
+                    }
+                }
+            }
+            _ => {
+                is_directive = false;
             }
         }
         true
@@ -881,18 +958,51 @@ fn remove_server_directive_index_in_fn(
     remove_directive: bool,
     is_action_fn: &mut bool,
 ) {
+    let mut is_directive = true;
+
     stmts.retain(|stmt| {
         if let Stmt::Expr(ExprStmt {
-            expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+            expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
             ..
         }) = stmt
         {
             if value == "use server" {
-                *is_action_fn = true;
-                if remove_directive {
-                    return false;
+                if is_directive {
+                    *is_action_fn = true;
+                    if remove_directive {
+                        return false;
+                    }
+                } else {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                *span,
+                                "The \"use server\" directive must be at the top of the function \
+                                 body.",
+                            )
+                            .emit();
+                    });
+                }
+            } else {
+                // Detect typo of "use server"
+                if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                *span,
+                                format!(
+                                    "Did you mean \"use server\"? \"{}\" is not a supported \
+                                     directive name.",
+                                    value
+                                )
+                                .as_str(),
+                            )
+                            .emit();
+                    });
                 }
             }
+        } else {
+            is_directive = false;
         }
         true
     });
