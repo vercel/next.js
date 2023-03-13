@@ -1,5 +1,5 @@
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
-import { FlightDataPath } from '../../../server/app-render'
+import type { FlightDataPath } from '../../../server/app-render'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 
