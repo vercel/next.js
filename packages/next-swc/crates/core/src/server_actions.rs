@@ -97,13 +97,11 @@ impl<C: Comments> ServerActions<C> {
         } else {
             // Check if the function has `"use server"`
             if let Some(body) = maybe_body {
-                let directive_index = get_server_directive_index_in_fn(&body.stmts);
-                if directive_index >= 0 {
-                    is_action_fn = true;
-                    if remove_directive {
-                        body.stmts.remove(directive_index.try_into().unwrap());
-                    }
-                }
+                remove_server_directive_index_in_fn(
+                    &mut body.stmts,
+                    remove_directive,
+                    &mut is_action_fn,
+                );
             }
         }
 
@@ -536,12 +534,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
-        let directive_index = get_server_directive_index_in_module(stmts);
-        if directive_index >= 0 {
-            self.in_action_file = true;
-            self.has_action = true;
-            stmts.remove(directive_index.try_into().unwrap());
-        }
+        remove_server_directive_index_in_module(
+            stmts,
+            &mut self.in_action_file,
+            &mut self.has_action,
+        );
 
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
@@ -857,40 +854,47 @@ fn annotate_ident_as_action(
     ));
 }
 
-fn get_server_directive_index_in_module(stmts: &[ModuleItem]) -> i32 {
-    for (i, stmt) in stmts.iter().enumerate() {
-        if let ModuleItem::Stmt(Stmt::Expr(first)) = stmt {
-            match &*first.expr {
-                Expr::Lit(Lit::Str(Str { value, .. })) => {
-                    if value == "use server" {
-                        return i as i32;
-                    }
-                }
-                _ => return -1,
+fn remove_server_directive_index_in_module(
+    stmts: &mut Vec<ModuleItem>,
+    in_action_file: &mut bool,
+    has_action: &mut bool,
+) {
+    stmts.retain(|stmt| {
+        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+            expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+            ..
+        })) = stmt
+        {
+            if value == "use server" {
+                *in_action_file = true;
+                *has_action = true;
+                return false;
             }
-        } else {
-            return -1;
         }
-    }
-    -1
+        true
+    });
 }
 
-fn get_server_directive_index_in_fn(stmts: &[Stmt]) -> i32 {
-    for (i, stmt) in stmts.iter().enumerate() {
-        if let Stmt::Expr(first) = stmt {
-            match &*first.expr {
-                Expr::Lit(Lit::Str(Str { value, .. })) => {
-                    if value == "use server" {
-                        return i as i32;
-                    }
+fn remove_server_directive_index_in_fn(
+    stmts: &mut Vec<Stmt>,
+    remove_directive: bool,
+    is_action_fn: &mut bool,
+) {
+    stmts.retain(|stmt| {
+        if let Stmt::Expr(ExprStmt {
+            expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+            ..
+        }) = stmt
+        {
+            if value == "use server" {
+                *is_action_fn = true;
+                if remove_directive {
+                    return false;
                 }
-                _ => return -1,
             }
-        } else {
-            return -1;
         }
-    }
-    -1
+        true
+    });
 }
 
 fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<Id> {
