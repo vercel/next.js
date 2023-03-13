@@ -1005,7 +1005,7 @@ export async function buildStaticPaths({
           // If from appDir and not all params were provided from
           // generateStaticParams we can just filter this entry out
           // as it's meant to be generated at runtime
-          if (appDir) {
+          if (appDir && typeof paramValue === 'undefined') {
             builtPage = ''
             encodedBuiltPage = ''
             return
@@ -1014,7 +1014,7 @@ export async function buildStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in ${
+            } received ${typeof paramValue} in ${
               appDir ? 'generateStaticParams' : 'getStaticPaths'
             } for ${page}`
           )
