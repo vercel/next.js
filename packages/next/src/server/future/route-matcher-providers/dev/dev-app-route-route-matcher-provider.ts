@@ -41,11 +41,13 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     this.normalizers = {
       page: pageNormalizer,
       pathname: new Normalizers([
+        pageNormalizer,
         // The pathname to match should have the trailing `/route` and other route
         // group information stripped from it.
         wrapNormalizerFn(normalizeAppPath),
       ]),
       bundlePath: new Normalizers([
+        pageNormalizer,
         // Prefix the bundle path with `app/`.
         new PrefixingNormalizer('app'),
       ]),
@@ -58,13 +60,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) {
-        continue
-      }
+      if (!this.expression.test(filename)) continue
 
       const page = this.normalizers.page.normalize(filename)
-      const pathname = this.normalizers.pathname.normalize(page)
-      const bundlePath = this.normalizers.bundlePath.normalize(page)
+      const pathname = this.normalizers.pathname.normalize(filename)
+      const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       matchers.push(
         new AppRouteRouteMatcher({

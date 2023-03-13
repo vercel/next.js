@@ -1,9 +1,4 @@
-import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import path from '../../../shared/lib/isomorphic/path'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
-import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { removePagePathTail } from '../../../shared/lib/page-path/remove-page-path-tail'
 import { Normalizer } from './normalizer'
 
 /**

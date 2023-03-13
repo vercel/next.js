@@ -20,7 +20,10 @@ export function isMetadataRoute(route: string): boolean {
     .replace(/^\//, '')
     .replace(/\/route$/, '')
 
-  return regexMetadataRoutes.some((r) => r.test(baseName))
+  return (
+    !baseName.endsWith('/page') &&
+    regexMetadataRoutes.some((r) => r.test(baseName))
+  )
 }
 
 // Only match the static metadata files

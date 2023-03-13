@@ -549,16 +549,14 @@ export default class DevServer extends Server {
               continue
             }
 
-            // Develope mode format for pages mapping
-            // let pageRoute = pageName
-            const pageKey = normalizeAppPath(pageName)
-            if (!appPaths[pageKey]) {
-              appPaths[pageKey] = []
+            const originalPageName = pageName
+            pageName = normalizeAppPath(pageName)
+            if (!appPaths[pageName]) {
+              appPaths[pageName] = []
             }
+            appPaths[pageName].push(originalPageName)
 
-            appPaths[pageKey].push(pageName)
-
-            if (routedPages.includes(pageKey)) {
+            if (routedPages.includes(pageName)) {
               continue
             }
           } else {
