@@ -180,13 +180,6 @@ async fn run_test(resource: &str) -> JestRunResult {
         .to_path_buf();
     let test_dir = cargo_workspace_root.join(resource);
     let workspace_root = canonicalize(PathBuf::from(env!("PNPM_WORKSPACE_DIR"))).unwrap();
-    println!(
-        "workspace_root = {}, test_dir = {}, cargo_workspace_root = {}, package_root = {}",
-        workspace_root.display(),
-        test_dir.display(),
-        cargo_workspace_root.display(),
-        package_root.display()
-    );
     let project_dir = test_dir.join("input");
     let requested_addr = get_free_local_addr().unwrap();
 
