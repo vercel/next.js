@@ -1,15 +1,11 @@
 import type webpack from 'webpack'
 import type { AppLoaderOptions } from '../next-app-loader'
-import type { CollectingMetadata } from './types'
+import type {
+  CollectingMetadata,
+  PossibleImageFileNameConvention,
+} from './types'
 import path from 'path'
 import { stringify } from 'querystring'
-
-type PossibleImageFileNameConvention =
-  | 'icon'
-  | 'apple'
-  | 'favicon'
-  | 'twitter'
-  | 'opengraph'
 
 const METADATA_TYPE = 'metadata'
 
@@ -127,6 +123,7 @@ export async function discoverStaticMetadataFiles(
             ...metadataImageLoaderOptions,
             numericSizes:
               type === 'twitter' || type === 'opengraph' ? '1' : undefined,
+            type,
           })}!` +
             filepath +
             METADATA_IMAGE_RESOURCE_QUERY
