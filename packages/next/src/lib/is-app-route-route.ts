@@ -24,11 +24,6 @@ export function isMetadataRoute(route: string): boolean {
     .replace(/^\//, '')
     .replace(/\/route$/, '')
 
-  if (!regexMetadataRoutes.some((r) => r.test(baseName))) {
-    console.log('not metadata', route)
-  } else {
-    console.log('is metadata', route)
-  }
   return regexMetadataRoutes.some((r) => r.test(baseName))
 }
 
@@ -36,10 +31,5 @@ export function isMetadataRoute(route: string): boolean {
 // TODO-METADATA: support static metadata files under nested routes folders
 export function isStaticMetadataRoute(resourcePath: string) {
   const filename = path.basename(resourcePath)
-  console.log(
-    'isStaticMetadataRoute',
-    filename,
-    staticRegexMetadataRoutes.some((r) => r.test(filename))
-  )
   return staticRegexMetadataRoutes.some((r) => r.test(filename))
 }

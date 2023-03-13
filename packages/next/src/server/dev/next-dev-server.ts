@@ -481,7 +481,6 @@ export default class DevServer extends Server {
             meta?.accuracy === undefined ||
             !validFileMatcher.isPageFile(fileName)
           ) {
-            if (/sitemap|favicon/.test(fileName)) console.log('skip2', fileName)
             continue
           }
 
@@ -549,38 +548,35 @@ export default class DevServer extends Server {
           }
 
           if (isAppPath) {
+            if (isMetadataRoute(pageName)) {
+              if (!isStaticMetadataRoute(pageName)) {
+                if (pageName === '/sitemap') {
+                  pageName = '/sitemap.xml'
+                }
+                if (pageName === '/robots') {
+                  pageName = '/robots.txt'
+                }
+                if (pageName === '/favicon') {
+                  pageName = '/favicon.ico'
+                }
+              }
+              pageName = `${pageName}/route`
+            }
+
             if (!validFileMatcher.isAppRouterPage(fileName)) {
-              if (/sitemap|favicon/.test(fileName))
-                console.log('skip1', fileName)
               continue
             }
 
             // Develope mode format for pages mapping
-            let pageRoute = pageName
-            pageName = normalizeAppPath(pageName)
-            if (!appPaths[pageName]) {
-              appPaths[pageName] = []
+            // let pageRoute = pageName
+            const pageKey = normalizeAppPath(pageName)
+            if (!appPaths[pageKey]) {
+              appPaths[pageKey] = []
             }
 
-            if (isMetadataRoute(pageRoute)) {
-              if (!isStaticMetadataRoute(pageRoute)) {
-                if (pageRoute === '/sitemap') {
-                  pageRoute = '/sitemap.xml'
-                }
-                if (pageRoute === '/robots') {
-                  pageRoute = '/robots.txt'
-                }
-                if (pageRoute === '/favicon') {
-                  pageRoute = '/favicon.ico'
-                }
-              }
-              pageRoute = `${pageRoute}/route`
-              console.log('pageName', pageName, pageRoute)
-            }
+            appPaths[pageKey].push(pageName)
 
-            appPaths[pageName].push(pageRoute)
-
-            if (routedPages.includes(pageName)) {
+            if (routedPages.includes(pageKey)) {
               continue
             }
           } else {

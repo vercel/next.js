@@ -1448,13 +1448,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? getRequestMeta(req, '_nextMatch')
           : undefined
 
-      console.trace(
-        'doRender',
-        pathname,
-        !!match,
-        getRequestMeta(req, '_nextMatch')
-      )
-
       if (match) {
         const context = {
           supportsDynamicHTML,
@@ -1879,7 +1872,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // map the route to the actual bundle name
   protected getOriginalAppPaths(route: string) {
-    console.log('this.appPathRoutes', this.appPathRoutes)
     if (this.hasAppDir) {
       const originalAppPath = this.appPathRoutes?.[route]
 
@@ -1899,7 +1891,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { query, pathname } = ctx
 
     const appPaths = this.getOriginalAppPaths(pathname)
-    console.log('appPaths', appPaths)
     const isAppPath = Array.isArray(appPaths)
 
     let page = pathname

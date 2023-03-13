@@ -132,7 +132,6 @@ export function createPagesMapping({
           }
         }
         routeKey = `${routeKey}/route`
-        console.log('routeKey', routeKey)
       }
       result[routeKey] = normalizedPath
       return result

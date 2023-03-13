@@ -45,13 +45,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     this.normalizers = {
       page: pageNormalizer,
       pathname: new Normalizers([
-        pageNormalizer,
         // The pathname to match should have the trailing `/route` and other route
         // group information stripped from it.
         wrapNormalizerFn(normalizeAppPath),
       ]),
       bundlePath: new Normalizers([
-        pageNormalizer,
         // Prefix the bundle path with `app/`.
         new PrefixingNormalizer('app'),
       ]),
@@ -69,39 +67,24 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       }
 
       let page = this.normalizers.page.normalize(filename)
-      let pathname = this.normalizers.pathname.normalize(filename)
-      let bundlePath = this.normalizers.bundlePath.normalize(filename)
-
-      // let routeKey = page
       if (isMetadataRoute(page)) {
         if (!isStaticMetadataRoute(page)) {
-          if (pathname === '/sitemap') {
-            pathname += '.xml'
-            bundlePath += '.xml'
+          if (page === '/sitemap') {
+            page += '.xml'
           }
-          if (pathname === '/robots') {
-            pathname += '.txt'
-            bundlePath += '.txt'
+          if (page === '/robots') {
+            page += '.txt'
           }
-          if (pathname === '/favicon') {
-            pathname += '.ico'
-            bundlePath += '.ico'
+          if (page === '/favicon') {
+            page += '.ico'
           }
         }
         page = `${page}/route`
-        // pathname = `${pathname}`
-        bundlePath = `${bundlePath}/route`
       }
 
-      if (filename.includes('sitemap') || filename.includes('api')) {
-        console.log(
-          'dev:transform:matched',
-          page,
-          pathname,
-          bundlePath,
-          isMetadataRoute(page)
-        )
-      }
+      const pathname = this.normalizers.pathname.normalize(page)
+      const bundlePath = this.normalizers.bundlePath.normalize(page)
+
       matchers.push(
         new AppRouteRouteMatcher({
           kind: RouteKind.APP_ROUTE,
