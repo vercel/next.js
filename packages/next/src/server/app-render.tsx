@@ -53,7 +53,7 @@ import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
-import { isNotFoundError, notFound } from '../client/components/not-found'
+import { isNotFoundError } from '../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
