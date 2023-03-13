@@ -78,7 +78,7 @@ export class NextServer {
           const requestHandler = await this.getServerRequestHandler()
           await requestHandler(req, res, parsedUrl)
 
-          span.setAttributes({
+          span?.setAttributes({
             'http.status_code': res.statusCode,
           })
         }

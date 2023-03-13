@@ -56,21 +56,21 @@ interface NextTracer {
    */
   trace<T>(
     name: SpanNames,
-    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
     name: SpanNames,
-    fn: (span: Span, done?: (error?: Error) => any) => T
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
     name: SpanNames,
     options: TracerSpanOptions,
-    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
     name: SpanNames,
     options: TracerSpanOptions,
-    fn: (span: Span, done?: (error?: Error) => any) => T
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
 
   /**
@@ -139,21 +139,21 @@ class NextTracerImpl implements NextTracer {
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
     type: SpanNames,
-    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
     type: SpanNames,
-    fn: (span: Span, done?: (error?: Error) => any) => T
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
     type: SpanNames,
     options: TracerSpanOptions,
-    fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
+    fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
     type: SpanNames,
     options: TracerSpanOptions,
-    fn: (span: Span, done?: (error?: Error) => any) => T
+    fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
