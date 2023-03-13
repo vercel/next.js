@@ -152,8 +152,6 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
 
   const newResponse = createFromReadableStream(readable, {
     async callServer(id: string, args: any[]) {
-      console.log('callServer', id, args)
-
       const actionId = id
 
       // Fetching the current url with the action header.
@@ -169,7 +167,7 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
         }),
       })
 
-      return res.json()
+      return (await res.json())[0]
     },
   })
 
