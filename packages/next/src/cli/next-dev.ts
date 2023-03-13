@@ -327,7 +327,7 @@ const nextDev: CliCommand = async (argv) => {
         ...Object.keys(rawNextConfig).filter((key) =>
           checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
         ),
-        ...Object.keys(rawNextConfig.experimental)
+        ...Object.keys(rawNextConfig.experimental ?? {})
           .filter((key) =>
             checkUnsupportedCustomConfig(
               key,
