@@ -270,7 +270,7 @@ const nextDev: CliCommand = async (argv) => {
     let babelrc = await getBabelConfigFile(dir)
     if (babelrc) babelrc = path.basename(babelrc)
 
-    let nonSupportedConfig: string[] = []
+    let unsupportedConfig: string[] = []
     let rawNextConfig: NextConfig = {}
 
     try {
@@ -323,11 +323,11 @@ const nextDev: CliCommand = async (argv) => {
         }
       }
 
-      nonSupportedConfig = [
+      unsupportedConfig = [
         ...Object.keys(rawNextConfig).filter((key) =>
           checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
         ),
-        ...Object.keys(rawNextConfig.experimental ?? {})
+        ...Object.keys(rawNextConfig.experimental)
           .filter((key) =>
             checkUnsupportedCustomConfig(
               key,
@@ -341,7 +341,7 @@ const nextDev: CliCommand = async (argv) => {
       console.error('Unexpected error occurred while checking config', e)
     }
 
-    const hasWarningOrError = babelrc || nonSupportedConfig.length
+    const hasWarningOrError = babelrc || unsupportedConfig.length
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
@@ -366,11 +366,11 @@ const nextDev: CliCommand = async (argv) => {
         `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
       )}`
     }
-    if (nonSupportedConfig.length) {
+    if (unsupportedConfig.length) {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
-        `To use Turbopack, remove the following configuration options:\n${nonSupportedConfig
+        `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
           .map((name) => `    - ${chalk.red(name)}\n`)
           .join(
             ''
