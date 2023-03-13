@@ -763,7 +763,7 @@ export default class HotReloader {
                     absolutePagePath: entryData.absolutePagePath,
                     rootDir: this.dir,
                     buildId: this.buildId,
-                    bundlePath,
+                    bundlePath: bundlePath,
                     config: this.config,
                     isDev: true,
                     page,

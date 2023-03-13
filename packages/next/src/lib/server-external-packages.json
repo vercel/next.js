@@ -14,6 +14,7 @@
   "jest",
   "jsdom",
   "lodash",
+  "mdx-bundler",
   "mongodb",
   "next-mdx-remote",
   "next-seo",

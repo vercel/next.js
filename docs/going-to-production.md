@@ -109,7 +109,7 @@ Since Next.js runs on both the client and server, there are multiple forms of lo
 - `console.log` in the browser
 - `stdout` on the server
 
-If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations#logging?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) compatible with Next.js.
+If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
 
 ## Error Handling
 
