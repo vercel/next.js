@@ -4,7 +4,7 @@ export default function Another() {
   return (
     <main>
       <h1>Another</h1>
-      <url>
+      <ul>
         <li>
           <Link href="/">Visit the home page</Link>
         </li>
@@ -17,7 +17,10 @@ export default function Another() {
         <li>
           <Link href="/another/second">another second page</Link>
         </li>
-      </url>
+        <li>
+          <Link href="/image-import">image import page</Link>
+        </li>
+      </ul>
     </main>
   )
 }

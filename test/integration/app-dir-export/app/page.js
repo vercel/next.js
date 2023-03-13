@@ -17,6 +17,9 @@ export default function Home() {
         <li>
           <Link href="/another/second">another second page</Link>
         </li>
+        <li>
+          <Link href="/image-import">image import page</Link>
+        </li>
       </ul>
     </main>
   )

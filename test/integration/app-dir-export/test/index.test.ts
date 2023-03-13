@@ -93,6 +93,19 @@ async function runTests({
     expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
     await browser.elementByCss(a(1)).click()
     await waitFor(delay)
+
+    expect(await browser.elementByCss('h1').text()).toBe('Another')
+    expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
+    await browser.elementByCss(a(5)).click()
+    await waitFor(delay)
+
+    expect(await browser.elementByCss('h1').text()).toBe('Image Import')
+    expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
+    expect(await browser.elementByCss(a(2)).href()).toContain(
+      '/test.3f1a293b.png'
+    )
+    await browser.elementByCss(a(2)).click()
+    await waitFor(delay)
   } finally {
     await stopApp(app)
     nextConfig.restore()

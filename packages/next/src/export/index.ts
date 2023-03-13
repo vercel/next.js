@@ -739,6 +739,14 @@ export default async function exportApp(
           const pageName = appPageName || srcRoute || route
           const isAppPath = Boolean(appPageName)
 
+          if (appPageName && !appPageName.endsWith('/page')) {
+            const srcFile = join(dir, 'app', appPageName)
+            const destFile = join(outDir, appPageName)
+            await promises.mkdir(dirname(destFile), { recursive: true })
+            await promises.copyFile(srcFile, destFile)
+            return
+          }
+
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
           if (prerenderManifest!.notFoundRoutes.includes(route)) {
