@@ -1,4 +1,5 @@
 import B from 'node:buffer'
+import { NextResponse } from 'next/server'
 
 /**
  * @param {Request} req
@@ -6,12 +7,11 @@ import B from 'node:buffer'
 export async function POST(req) {
   const text = await req.text()
   const buf = B.Buffer.from(text)
-  return new Response(
-    JSON.stringify({
-      encoded: buf.toString('base64'),
-      exposedKeys: Object.keys(B),
-    })
-  )
+  return NextResponse.json({
+    'Buffer === B.Buffer': B.Buffer === Buffer,
+    encoded: buf.toString('base64'),
+    exposedKeys: Object.keys(B),
+  })
 }
 
 export const runtime = 'edge'

@@ -2078,7 +2078,7 @@ export default async function getBaseWebpackConfig(
       ),
       isEdgeServer &&
         new webpack.NormalModuleReplacementPlugin(
-          /^node:buffer$/,
+          /^(node:)?buffer$/,
           require.resolve('./polyfills/edge/node-buffer')
         ),
       isClient &&

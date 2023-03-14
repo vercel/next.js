@@ -13,6 +13,7 @@ createNextDescribe(
       })
       const json = await res.json()
       expect(json).toEqual({
+        'Buffer === B.Buffer': true,
         encoded: Buffer.from('Hello, world!').toString('base64'),
         exposedKeys: [
           'constants',
