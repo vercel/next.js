@@ -7,7 +7,7 @@ export default function HashPage() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', fontSize: '16px' }}>
-      <h1>Hash Page</h1>
+      <p>Hash Page</p>
       <Link href="/hash#hash-6" id="link-to-6">
         To 6
       </Link>

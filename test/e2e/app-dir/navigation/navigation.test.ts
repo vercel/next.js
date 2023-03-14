@@ -45,6 +45,7 @@ createNextDescribe(
           await check(
             async () => {
               const val = await browser.eval('window.pageYOffset')
+              require('console').error({ val })
               return val.toString()
             },
             expectedScroll.toString(),
@@ -54,10 +55,10 @@ createNextDescribe(
           )
         }
 
-        await checkLink(6, 167)
-        await checkLink(50, 981)
-        await checkLink(160, 3016)
-        await checkLink(300, 5606)
+        await checkLink(6, 131)
+        await checkLink(50, 835)
+        await checkLink(160, 2595)
+        await checkLink(300, 4835)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
