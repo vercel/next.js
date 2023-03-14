@@ -56,6 +56,41 @@ export const projectSpecification: ProjectSpecification = {
       devDeps: [],
     },
   },
+  'default-tw': {
+    js: {
+      files: [
+        'pages/index.js',
+        'pages/_app.js',
+        'pages/api/hello.js',
+        'jsconfig.json',
+        'tailwind.config.js',
+        'postcss.config.js',
+      ],
+      deps: ['tailwindcss', 'postcss', 'autoprefixer'],
+      devDeps: [],
+    },
+    ts: {
+      files: [
+        'pages/index.tsx',
+        'pages/_app.tsx',
+        'pages/api/hello.ts',
+        'tsconfig.json',
+        'next-env.d.ts',
+        'tailwind.config.js',
+        'postcss.config.js',
+      ],
+      deps: [
+        '@types/node',
+        '@types/react',
+        '@types/react-dom',
+        'typescript',
+        'tailwindcss',
+        'postcss',
+        'autoprefixer',
+      ],
+      devDeps: [],
+    },
+  },
   app: {
     js: {
       deps: [],
@@ -76,6 +111,41 @@ export const projectSpecification: ProjectSpecification = {
         'app/api/hello/route.ts',
         'tsconfig.json',
         'next-env.d.ts',
+      ],
+    },
+  },
+  'app-tw': {
+    js: {
+      deps: ['tailwindcss', 'postcss', 'autoprefixer'],
+      devDeps: [],
+      files: [
+        'app/page.js',
+        'app/layout.js',
+        'app/api/hello/route.js',
+        'jsconfig.json',
+        'tailwind.config.js',
+        'postcss.config.js',
+      ],
+    },
+    ts: {
+      deps: [
+        '@types/node',
+        '@types/react',
+        '@types/react-dom',
+        'typescript',
+        'tailwindcss',
+        'postcss',
+        'autoprefixer',
+      ],
+      devDeps: [],
+      files: [
+        'app/page.tsx',
+        'app/layout.tsx',
+        'app/api/hello/route.ts',
+        'tsconfig.json',
+        'next-env.d.ts',
+        'tailwind.config.js',
+        'postcss.config.js',
       ],
     },
   },
