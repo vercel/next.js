@@ -32,12 +32,17 @@ export function handleMutable(
         typeof mutable.applyFocusAndScroll !== 'undefined'
           ? mutable.applyFocusAndScroll
           : state.focusAndScrollRef.apply,
+      hashFragment:
+        // Empty hash should trigger default behavior of scrolling layout into view.
+        // #top is handled in layout-router.
+        mutable.hashFragment && mutable.hashFragment !== ''
+          ? // Remove leading # and decode hash to make non-latin hashes work.
+            decodeURIComponent(mutable.hashFragment.slice(1))
+          : null,
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
-    prefetchCache: mutable.prefetchCache
-      ? mutable.prefetchCache
-      : state.prefetchCache,
+    prefetchCache: state.prefetchCache,
     // Apply patched router state.
     tree:
       typeof mutable.patchedTree !== 'undefined'
