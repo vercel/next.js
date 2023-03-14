@@ -194,8 +194,6 @@ export interface ExperimentalConfig {
    */
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: Array<{ loader: string; options?: any }>
-
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
   turbo?: ExperimentalTurboOptions

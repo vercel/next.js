@@ -12,7 +12,7 @@ import { NotFound as DefaultNotFound } from '../client/components/error'
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from './request-meta'
-import RenderResult from './render-result'
+import RenderResult, { type RenderResultMetadata } from './render-result'
 import {
   readableStreamTee,
   encodeText,
@@ -782,6 +782,16 @@ function parseAndValidateFlightRouterState(
       'Multiple router state headers were sent. This is not allowed.'
     )
   }
+
+  // We limit the size of the router state header to ~40kb. This is to prevent
+  // a malicious user from sending a very large header and slowing down the
+  // resolving of the router state.
+  // This is around 2,000 nested or parallel route segment states:
+  // '{"children":["",{}]}'.length === 20.
+  if (stateHeader.length > 20 * 2000) {
+    throw new Error('The router state header was too large.')
+  }
+
   try {
     return flightRouterStateSchema.parse(JSON.parse(stateHeader))
   } catch {
@@ -807,7 +817,7 @@ export async function renderToHTMLOrFlight(
   pathname: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-): Promise<RenderResult | null> {
+): Promise<RenderResult> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const {
@@ -885,7 +895,6 @@ export async function renderToHTMLOrFlight(
     const isPrefetch =
       req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
-    // TODO-APP: verify tree can't grow out of control
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
@@ -2071,22 +2080,20 @@ export async function renderToHTMLOrFlight(
         staticGenerationStore.revalidate = 0
       }
 
-      // TODO: investigate why `pageData` is not in RenderOpts
-      ;(renderOpts as any).pageData = filteredFlightData
-
-      // TODO: investigate why `revalidate` is not in RenderOpts
-      ;(renderOpts as any).revalidate =
-        staticGenerationStore.revalidate ?? defaultRevalidate
+      const extraRenderResultMeta: RenderResultMetadata = {
+        pageData: filteredFlightData,
+        revalidate: staticGenerationStore.revalidate ?? defaultRevalidate,
+      }
 
       // provide bailout info for debugging
-      if ((renderOpts as any).revalidate === 0) {
-        ;(renderOpts as any).staticBailoutInfo = {
+      if (extraRenderResultMeta.revalidate === 0) {
+        extraRenderResultMeta.staticBailoutInfo = {
           description: staticGenerationStore.dynamicUsageDescription,
           stack: staticGenerationStore.dynamicUsageStack,
         }
       }
 
-      return new RenderResult(htmlResult)
+      return new RenderResult(htmlResult, { ...extraRenderResultMeta })
     }
 
     return renderResult

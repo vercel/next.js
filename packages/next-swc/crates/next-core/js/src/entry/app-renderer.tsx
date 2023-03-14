@@ -259,7 +259,8 @@ async function runOperation(renderData: RenderData) {
     renderOpt as any as RenderOpts
   );
 
-  if (!result) throw new Error("rendering was not successful");
+  if (!result || result.isNull())
+    throw new Error("rendering was not successful");
 
   let body;
   if (result.isDynamic()) {
