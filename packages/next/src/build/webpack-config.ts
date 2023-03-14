@@ -35,6 +35,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
 import MiddlewarePlugin, {
+  getEdgePolyfilledModules,
   handleWebpackExternalForEdgeRuntime,
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -1450,6 +1451,7 @@ export default async function getBaseWebpackConfig(
                     './cjs/react-dom-server-legacy.browser.development.js':
                       '{}',
                   },
+                  getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
                 ]
               : []),
@@ -2061,7 +2063,7 @@ export default async function getBaseWebpackConfig(
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
           // Avoid process being overridden when in web run time
-          ...(isClient && { process: [require.resolve('process')] }),
+          process: [require.resolve('process')],
         }),
       new webpack.DefinePlugin(
         getDefineEnv({
@@ -2076,11 +2078,6 @@ export default async function getBaseWebpackConfig(
           clientRouterFilters,
         })
       ),
-      isEdgeServer &&
-        new webpack.NormalModuleReplacementPlugin(
-          /^(node:)?buffer$/,
-          require.resolve('./polyfills/edge/node-buffer')
-        ),
       isClient &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,

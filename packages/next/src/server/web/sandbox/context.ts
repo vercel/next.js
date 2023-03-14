@@ -140,6 +140,21 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
   }
 }
 
+const NativeModuleMap = new Map([
+  [
+    'node:buffer',
+    {
+      ...pick(BufferImplementation, [
+        'constants',
+        'kMaxLength',
+        'kStringMaxLength',
+        'Buffer',
+        'SlowBuffer',
+      ]),
+    },
+  ],
+])
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -156,16 +171,14 @@ async function createModuleContext(options: ModuleContextOptions) {
     extend: (context) => {
       context.process = createProcessPolyfill(options)
 
-      Object.defineProperty(context, '__nextjs__node_compat__', {
+      Object.defineProperty(context, 'require', {
         enumerable: false,
-        value: {
-          buffer: pick(BufferImplementation, [
-            'constants',
-            'kMaxLength',
-            'kStringMaxLength',
-            'Buffer',
-            'SlowBuffer',
-          ]),
+        value: (id: string) => {
+          const value = NativeModuleMap.get(id)
+          if (!value) {
+            throw TypeError('Native module not found: ' + id)
+          }
+          return value
         },
       })
 

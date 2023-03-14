@@ -6,7 +6,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    it('supports node:buffer', async () => {
+    it('[app] supports node:buffer', async () => {
       const res = await next.fetch('/buffer', {
         method: 'POST',
         body: 'Hello, world!',
@@ -21,7 +21,29 @@ createNextDescribe(
           'kStringMaxLength',
           'Buffer',
           'SlowBuffer',
-          'default',
+        ],
+      })
+    })
+
+    it('[pages/api] supports node:buffer', async () => {
+      const res = await next.fetch('/api/buffer', {
+        method: 'POST',
+        body: 'Hello, world!',
+      })
+      const json = await res.json()
+      expect(json).toEqual({
+        'B2.Buffer === B.Buffer': true,
+        'Buffer === B.Buffer': true,
+        'typeof B.Buffer': 'function',
+        'typeof B2.Buffer': 'function',
+        'typeof Buffer': 'function',
+        encoded: 'SGVsbG8sIHdvcmxkIQ==',
+        exposedKeys: [
+          'constants',
+          'kMaxLength',
+          'kStringMaxLength',
+          'Buffer',
+          'SlowBuffer',
         ],
       })
     })
