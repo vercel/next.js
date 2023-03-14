@@ -1819,7 +1819,7 @@ export async function renderToHTMLOrFlight(
     if (isFetchAction || isFormAction) {
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { parseBody } =
-          require('./api-utils/node') as typeof import('../api-utils/node')
+          require('../api-utils/node') as typeof import('../api-utils/node')
         const actionData = (await parseBody(req, '1mb')) || {}
         let bound = []
 
