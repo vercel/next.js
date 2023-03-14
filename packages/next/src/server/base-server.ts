@@ -520,7 +520,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return getTracer().trace(
       BaseServerSpan.handleRequest,
       {
-        tracerName: [req.method, req.url].join(' '),
+        spanName: [req.method, req.url].join(' '),
         kind: SpanKind.SERVER,
         attributes: {
           'http.method': req.method,
@@ -1945,7 +1945,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return getTracer().trace(
       BaseServerSpan.renderToResponse,
       {
-        tracerName: `rendering ${ctx.pathname}`,
+        spanName: `rendering ${ctx.pathname}`,
         attributes: {
           'next.pathname': ctx.pathname,
         },

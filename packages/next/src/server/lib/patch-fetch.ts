@@ -38,7 +38,7 @@ export function patchFetch({
       AppRenderSpan.fetch,
       {
         kind: SpanKind.CLIENT,
-        tracerName: ['fetch', method, url?.toString() ?? input.toString()]
+        spanName: ['fetch', method, url?.toString() ?? input.toString()]
           .filter(Boolean)
           .join(' '),
         attributes: {

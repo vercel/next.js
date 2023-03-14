@@ -964,7 +964,7 @@ export async function renderToHTML(
       data = await getTracer().trace(
         RenderSpan.getServerSideProps,
         {
-          tracerName: `getServerSideProps ${pathname}`,
+          spanName: `getServerSideProps ${pathname}`,
         },
         async () =>
           getServerSideProps({
