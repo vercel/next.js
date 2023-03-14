@@ -80,6 +80,7 @@ describe('create-next-app templates', () => {
       const childProcess = createNextApp(
         [
           projectName,
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -125,6 +126,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -151,6 +153,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--eslint',
           '--src-dir',
           '--no-experimental-app',
@@ -178,7 +181,7 @@ describe('create-next-app templates', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'typescript-test'
       const childProcess = createNextApp(
-        [projectName, '--ts', '--eslint'],
+        [projectName, '--ts', '--no-tailwind', '--eslint'],
         {
           cwd,
           env: {
@@ -204,6 +207,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -232,6 +236,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--src-dir',
           '--no-experimental-app',
@@ -269,6 +274,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -327,6 +333,7 @@ describe('create-next-app --experimental-app', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--experimental-app',
           '--eslint',
           '--no-src-dir',
@@ -356,6 +363,7 @@ describe('create-next-app --experimental-app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--experimental-app',
           '--eslint',
           '--no-src-dir',
@@ -386,6 +394,7 @@ describe('create-next-app --experimental-app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--experimental-app',
           '--eslint',
           '--src-dir',
