@@ -1251,11 +1251,11 @@ export async function renderToHTMLOrFlight(
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod?.dynamic === 'error') {
+        if (layoutOrPageMod.dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod?.dynamic === 'force-static') {
+          if (layoutOrPageMod.dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
