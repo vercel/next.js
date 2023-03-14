@@ -129,7 +129,7 @@ describe('app dir with next export', () => {
     await runTests({ dynamic })
     const opts = { cwd: exportDir, nodir: true }
     const files = ((await glob('**/*', opts)) as string[])
-      .filter((f) => !f.startsWith('_next/static/chunks/main-app-'))
+      .filter((f) => !f.startsWith('_next/static/chunks/main-'))
       .sort()
     expect(files).toEqual([
       '404.html',
@@ -140,7 +140,6 @@ describe('app dir with next export', () => {
       '_next/static/chunks/app/image-import/page-46c0dca97a7a5cb8.js',
       '_next/static/chunks/app/layout-aea7b0f4dfb75fb2.js',
       '_next/static/chunks/app/page-73a72272c0754b1f.js',
-      '_next/static/chunks/main-25b24f330fc66c8e.js',
       '_next/static/chunks/pages/_app-5b5607d0f696b287.js',
       '_next/static/chunks/pages/_error-e2f15669af03eac8.js',
       '_next/static/chunks/polyfills-c67a75d1b6f99dc8.js',

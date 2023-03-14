@@ -738,19 +738,21 @@ export default async function exportApp(
           const { srcRoute } = prerenderManifest!.routes[route]
           const appPageName = mapAppRouteToPage.get(srcRoute || '')
           const pageName = appPageName || srcRoute || route
-          const isAppPath = Boolean(appPageName)
+          let isAppPath = false
 
-          if (
-            appPageName &&
-            !appPageName.endsWith('/page') &&
-            !appPageName.endsWith('/route')
-          ) {
-            // Since `app` dir doesn't have `public`, we need to copy static assets
-            const srcFile = join(dir, 'app', appPageName)
-            const destFile = join(outDir, appPageName)
-            await promises.mkdir(dirname(destFile), { recursive: true })
-            await promises.copyFile(srcFile, destFile)
-            return
+          if (appPageName) {
+            isAppPath = true
+            // TODO: Correctly handle API routes
+            // See https://github.com/vercel/next.js/blob/7457be0c74e64b4d0617943ed27f4d557cc916be/packages/next/src/server/future/route-handlers/app-route-route-handler.ts#L462-L468
+            if (appPageName.endsWith('/route')) {
+              // Since `app` dir doesn't have `public`, we need to copy static assets
+              const filename = appPageName.slice(0, -6)
+              const srcFile = join(dir, 'app', filename)
+              const destFile = join(outDir, filename)
+              await promises.mkdir(dirname(destFile), { recursive: true })
+              await promises.copyFile(srcFile, destFile)
+              return
+            }
           }
 
           // returning notFound: true from getStaticProps will not
