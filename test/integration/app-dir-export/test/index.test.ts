@@ -134,7 +134,8 @@ describe('app dir with next export', () => {
     expect(files).toEqual([
       '404.html',
       '404/index.html',
-      '_next/static/media/favicon.603d046c.ico', // TODO: should this be here?
+      // TODO-METADATA: favicon.ico should not be here
+      '_next/static/media/favicon.603d046c.ico',
       '_next/static/media/test.3f1a293b.png',
       '_next/static/test-build-id/_buildManifest.js',
       '_next/static/test-build-id/_ssgManifest.js',
@@ -170,7 +171,7 @@ describe('app dir with next export', () => {
     }
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(
-      'export const dynamic = "force-dynamic" cannot be used with "output: export".'
+      'export const dynamic = "force-dynamic" on page "/another/[slug]" cannot be used with "output: export".'
     )
   })
 })

@@ -1487,7 +1487,7 @@ export async function isPageStatic({
             appConfig.dynamic = 'error'
           } else if (appConfig.dynamic === 'force-dynamic') {
             throw new Error(
-              'export const dynamic = "force-dynamic" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+              `export const dynamic = "force-dynamic" on page "${page}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
             )
           }
         }
