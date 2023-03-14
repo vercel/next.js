@@ -992,7 +992,7 @@ importers:
       '@types/react': ^18.0.26
       '@types/react-dom': ^18.0.9
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-runtime': https://gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94
+      '@vercel/turbopack-dev-runtime': https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?alexkirsz/web-700-customizable-runtime-in-ecmascript
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1004,7 +1004,7 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-runtime': '@gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94_react-refresh@0.12.0'
+      '@vercel/turbopack-dev-runtime': '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?alexkirsz/web-700-customizable-runtime-in-ecmascript_react-refresh@0.12.0'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -25414,10 +25414,10 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94}
-    id: '@gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94'
-    name: '@vercel/turbopack-runtime'
+  '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?alexkirsz/web-700-customizable-runtime-in-ecmascript_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?alexkirsz/web-700-customizable-runtime-in-ecmascript}
+    id: '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?alexkirsz/web-700-customizable-runtime-in-ecmascript'
+    name: '@vercel/turbopack-dev-runtime'
     version: 0.0.0
     dependencies:
       '@next/react-refresh-utils': 13.2.4_react-refresh@0.12.0
