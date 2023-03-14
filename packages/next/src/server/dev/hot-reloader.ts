@@ -676,7 +676,7 @@ export default class HotReloader {
               /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
                 entryKey
               )
-            const [, key /* pageType*/, , page] = result! // this match should always happen
+            const [, key /* pageType */, , page] = result! // this match should always happen
 
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)

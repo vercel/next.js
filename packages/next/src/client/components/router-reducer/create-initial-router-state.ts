@@ -43,7 +43,7 @@ export function createInitialRouterState({
     cache,
     prefetchCache: new Map(),
     pushRef: { pendingPush: false, mpaNavigation: false },
-    focusAndScrollRef: { apply: false },
+    focusAndScrollRef: { apply: false, hashFragment: null },
     canonicalUrl:
       // location.href is read as the initial value for canonicalUrl in the browser
       // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.

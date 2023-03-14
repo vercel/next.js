@@ -1127,7 +1127,7 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
 
-      - run: cd packages/next-swc && cargo test
+      - run: cd packages/next-swc && cargo test --workspace --exclude next-dev-tests
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
 
   test-wasm:

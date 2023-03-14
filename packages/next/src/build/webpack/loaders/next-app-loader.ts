@@ -10,10 +10,8 @@ import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
-import {
-  isAppRouteRoute,
-  isMetadataRoute,
-} from '../../../lib/is-app-route-route'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 export type AppLoaderOptions = {
   name: string
@@ -64,17 +62,10 @@ async function createAppRouteCode({
   pagePath: string
   resolver: PathResolver
 }): Promise<string> {
-  // Split based on any specific path separators (both `/` and `\`)...
-  const routeName = name.split('/').pop()!
-  const splittedPath = pagePath.split(/[\\/]/)
-  // Then join all but the last part with the same separator, `/`...
-  const segmentPath = splittedPath.slice(0, -1).join('/')
-  // Then add the `/route` suffix...
-  const matchedPagePath = `${segmentPath}/${routeName}`
-
+  const routePath = pagePath.replace(/[\\/]/, '/')
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  let resolvedPagePath = (await resolver(matchedPagePath))!
+  let resolvedPagePath = (await resolver(routePath))!
 
   if (isMetadataRoute(name)) {
     resolvedPagePath = `next-metadata-route-loader!${resolvedPagePath}`
@@ -90,13 +81,13 @@ async function createAppRouteCode({
     export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-  
+
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
-    
+
     export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
-    
+
     export * as headerHooks from 'next/dist/client/components/headers'
-  
+
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
   `
 }
@@ -357,7 +348,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   }
 
-  if (isAppRouteRoute(name) || isMetadataRoute(name)) {
+  if (isAppRouteRoute(name)) {
     return createAppRouteCode({ name, pagePath, resolver })
   }
 
@@ -423,7 +414,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-    
+
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'

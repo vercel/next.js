@@ -8,12 +8,8 @@
   },
   "dependencies": {
     "@opentelemetry/api": "1.4.0",
-    "@opentelemetry/auto-instrumentations-node": "0.36.3",
-    "@opentelemetry/exporter-trace-otlp-grpc": "0.35.1",
     "@opentelemetry/exporter-trace-otlp-http": "0.35.1",
-    "@opentelemetry/instrumentation-fetch": "0.35.1",
     "@opentelemetry/resources": "1.9.1",
-    "@opentelemetry/sdk-node": "0.35.1",
     "@opentelemetry/sdk-trace-base": "1.9.1",
     "@opentelemetry/semantic-conventions": "1.9.1",
     "next": "latest",

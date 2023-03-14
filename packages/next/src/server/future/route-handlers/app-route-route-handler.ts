@@ -273,8 +273,12 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
         const result = handleForceStatic(target.href, prop)
         if (result !== undefined) return result
       }
+      const value = (target as any)[prop]
 
-      return (target as any)[prop]
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
     },
     set(target, prop, value) {
       handleNextUrlBailout(prop)
@@ -320,8 +324,12 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
         const result = handleForceStatic(target.url, prop)
         if (result !== undefined) return result
       }
+      const value = (target as any)[prop]
 
-      return (target as any)[prop]
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
     },
     set(target, prop, value) {
       handleReqBailout(prop)

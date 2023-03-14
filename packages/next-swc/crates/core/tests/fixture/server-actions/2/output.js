@@ -1,10 +1,10 @@
-/* __next_internal_action_entry_do_not_use__ $ACTION_myAction */ async function myAction(a, b, c) {
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ async function myAction(a, b, c) {
     console.log('a');
 }
 myAction.$$typeof = Symbol.for("react.server.reference");
-myAction.$$id = "c67fa6a80e65945a14b1fac181d282d79bba49b7";
+myAction.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
 myAction.$$bound = [];
-export const $ACTION_myAction = myAction;
+export const $$ACTION_0 = myAction;
 export default function Page() {
     return <Button action={myAction}>Delete</Button>;
 }
