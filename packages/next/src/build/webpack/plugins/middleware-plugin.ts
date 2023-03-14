@@ -19,7 +19,7 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
@@ -126,7 +126,7 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    files.push(`server/${NEXT_FONT_MANIFEST}.js`)
 
     if (NextBuildContext!.hasInstrumentationHook) {
       files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
@@ -171,14 +171,20 @@ function getCreateAssets(params: {
         continue
       }
 
-      const { namedRegex } = getNamedMiddlewareRegex(
-        metadata.edgeSSR?.isAppDir ? normalizeAppPath(page) : page,
-        {
-          catchAll: !metadata.edgeSSR && !metadata.edgeApiFunction,
-        }
-      )
+      const matcherSource = metadata.edgeSSR?.isAppDir
+        ? normalizeAppPath(page)
+        : page
+
+      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+
+      const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
+        catchAll,
+      })
       const matchers = metadata?.edgeMiddleware?.matchers ?? [
-        { regexp: namedRegex },
+        {
+          regexp: namedRegex,
+          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
+        },
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {

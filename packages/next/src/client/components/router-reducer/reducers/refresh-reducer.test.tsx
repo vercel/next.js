@@ -151,6 +151,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking',
       cache: {
@@ -307,6 +308,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking',
       cache: {
@@ -487,6 +489,7 @@ describe('refreshReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking',
       cache: {

@@ -24,7 +24,7 @@ import {
   EXPORT_MARKER,
   CLIENT_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
@@ -398,18 +398,19 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
+      nextConfigOutput: nextConfig.output,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: hasAppDir,
-      fontLoaderManifest: require(join(
+      nextFontManifest: require(join(
         distDir,
         'server',
-        `${FONT_LOADER_MANIFEST}.json`
+        `${NEXT_FONT_MANIFEST}.json`
       )),
+      images: nextConfig.images,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -719,7 +720,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir)
+          const pagePath = getPagePath(pageName, distDir, undefined, false)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs

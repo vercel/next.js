@@ -38,6 +38,7 @@ import {
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
+import { AppRouterAnnouncer } from './app-router-announcer'
 
 const isServer = typeof window === 'undefined'
 
@@ -307,7 +308,12 @@ function Router({
     }
   }, [onPopState])
 
-  const content = <>{cache.subTreeData}</>
+  const content = (
+    <>
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </>
+  )
 
   return (
     <PathnameContext.Provider value={pathname}>

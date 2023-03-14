@@ -176,9 +176,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
-  protected getFontLoaderManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts
-      .fontLoaderManifest
+  protected getNextFontManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
   protected generateRoutes(): RouterOptions {
@@ -378,7 +377,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null> {
+  ): Promise<RenderResult> {
     const { pagesRenderToHTML, appRenderToHTML } =
       this.serverOptions.webServerConfig
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML

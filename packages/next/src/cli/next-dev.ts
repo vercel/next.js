@@ -270,7 +270,7 @@ const nextDev: CliCommand = async (argv) => {
     let babelrc = await getBabelConfigFile(dir)
     if (babelrc) babelrc = path.basename(babelrc)
 
-    let nonSupportedConfig: string[] = []
+    let unsupportedConfig: string[] = []
     let rawNextConfig: NextConfig = {}
 
     try {
@@ -299,6 +299,12 @@ const nextDev: CliCommand = async (argv) => {
           ) {
             return false
           }
+
+          // experimental options are checked separately
+          if (configKey === 'experimental') {
+            return false
+          }
+
           let userValue = parentUserConfig?.[configKey]
           let defaultValue = parentDefaultConfig?.[configKey]
 
@@ -317,14 +323,25 @@ const nextDev: CliCommand = async (argv) => {
         }
       }
 
-      nonSupportedConfig = Object.keys(rawNextConfig).filter((key) =>
-        checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
-      )
+      unsupportedConfig = [
+        ...Object.keys(rawNextConfig).filter((key) =>
+          checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
+        ),
+        ...Object.keys(rawNextConfig.experimental ?? {})
+          .filter((key) =>
+            checkUnsupportedCustomConfig(
+              key,
+              rawNextConfig?.experimental,
+              defaultConfig?.experimental
+            )
+          )
+          .map((key) => `experimental.${key}`),
+      ]
     } catch (e) {
       console.error('Unexpected error occurred while checking config', e)
     }
 
-    const hasWarningOrError = babelrc || nonSupportedConfig.length
+    const hasWarningOrError = babelrc || unsupportedConfig.length
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
@@ -349,17 +366,17 @@ const nextDev: CliCommand = async (argv) => {
         `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
       )}`
     }
-    if (nonSupportedConfig.length) {
+    if (unsupportedConfig.length) {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
-        `The only configurations options supported are:\n${supportedTurbopackNextConfigOptions
-          .map((name) => `    - ${chalk.cyan(name)}\n`)
+        `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
+          .map((name) => `    - ${chalk.red(name)}\n`)
           .join(
             ''
-          )}  To use Turbopack, remove the following configuration options:\n${nonSupportedConfig.map(
-          (name) => `    - ${chalk.red(name)}\n`
-        )}`
+          )}  The only supported configurations options are:\n${supportedTurbopackNextConfigOptions
+          .map((name) => `    - ${chalk.cyan(name)}\n`)
+          .join('')}  `
       )}   `
     }
 
@@ -477,22 +494,27 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       let config: NextConfig
       let childProcess: ChildProcess | null = null
 
-      const isDebugging = process.execArgv.some((localArg) =>
-        localArg.startsWith('--inspect')
-      )
+      const isDebugging =
+        process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
+        process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
 
-      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
-        localArg.startsWith('--inspect-brk')
-      )
+      const isDebuggingWithBrk =
+        process.execArgv.some((localArg) =>
+          localArg.startsWith('--inspect-brk')
+        ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
 
       const debugPort = (() => {
-        const debugPortStr = process.execArgv
-          .find(
-            (localArg) =>
-              localArg.startsWith('--inspect') ||
-              localArg.startsWith('--inspect-brk')
-          )
-          ?.split('=')[1]
+        const debugPortStr =
+          process.execArgv
+            .find(
+              (localArg) =>
+                localArg.startsWith('--inspect') ||
+                localArg.startsWith('--inspect-brk')
+            )
+            ?.split('=')[1] ??
+          process.env.NODE_OPTIONS?.match?.(
+            /--inspect(-brk)?(=(\S+))?( |$)/
+          )?.[3]
         return debugPortStr ? parseInt(debugPortStr, 10) : 9229
       })()
 

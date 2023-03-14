@@ -123,6 +123,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -283,6 +284,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {

@@ -23,7 +23,7 @@ By using `next/dynamic`, the header component will not be included in the page's
 import dynamic from 'next/dynamic'
 
 const DynamicHeader = dynamic(() => import('../components/header'), {
-  loading: () => 'Loading...',
+  loading: () => <p>Loading...</p>,
 })
 
 export default function Home() {

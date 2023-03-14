@@ -258,7 +258,7 @@ interface Metadata extends DeprecatedMetadataFields {
   icons?: null | IconURL | Array<Icon> | Icons
 
   /**
-   * The manifest.json file is the only file that every extension using WebExtension APIs must contain
+   * A web application manifest, as defined in the Web Application Manifest specification.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
    * @example
@@ -534,5 +534,30 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
       } & DeprecatedMetadataFields)
 }
 
+type RobotsFile = {
+  // Apply rules for all
+  rules:
+    | {
+        userAgent?: undefined | '*'
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }
+    // Apply rules for specific user agents
+    | Array<{
+        userAgent: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }>
+  sitemap?: string | string[]
+  host?: string
+}
+
+type SitemapFile = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+
 export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata }
+export { Metadata, ResolvedMetadata, RobotsFile, SitemapFile }

@@ -149,7 +149,10 @@ export class IncrementalCache {
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
-  async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
+  async fetchCacheKey(
+    url: string,
+    init: RequestInit | Request = {}
+  ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
     const MAIN_KEY_PREFIX = 'v1'
@@ -240,7 +243,6 @@ export class IncrementalCache {
       init.referrer,
       init.referrerPolicy,
       init.integrity,
-      init.next,
       init.cache,
       bodyChunks,
     ])

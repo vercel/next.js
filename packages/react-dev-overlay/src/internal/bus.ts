@@ -18,6 +18,7 @@ export type UnhandledError = {
   type: typeof TYPE_UNHANDLED_ERROR
   reason: Error
   frames: StackFrame[]
+  componentStack?: string[]
 }
 export type UnhandledRejection = {
   type: typeof TYPE_UNHANDLED_REJECTION

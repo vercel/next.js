@@ -25,9 +25,6 @@ describe('next/font/google without-preloaded-fonts without _app', () => {
         'pages/without-fonts.js': new FileRef(
           join(__dirname, 'without-preloaded-fonts/pages/without-fonts.js')
         ),
-        'next.config.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/next.config.js')
-        ),
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
@@ -81,9 +78,6 @@ describe('next/font/google no preloads with _app', () => {
         ),
         'pages/without-fonts.js': new FileRef(
           join(__dirname, 'without-preloaded-fonts/pages/without-fonts.js')
-        ),
-        'next.config.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/next.config.js')
         ),
       },
       env: {

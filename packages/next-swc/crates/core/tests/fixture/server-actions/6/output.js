@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ $ACTION_action */ import f, { f1, f2 } from 'foo';
+/* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ import f, { f1, f2 } from 'foo';
 const f3 = 1;
 var f4;
 let f5;
@@ -18,13 +18,11 @@ export function y(p, [p1, { p2  }], ...p3) {
         const f8 = 1;
     }
     async function action() {
-        return $ACTION_action(action.$$bound);
+        return $$ACTION_0(action.$$bound);
     }
     action.$$typeof = Symbol.for("react.server.reference");
-    action.$$filepath = "/app/item.js";
-    action.$$name = "$ACTION_action";
+    action.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
     action.$$bound = [
-        f2,
         f2,
         f11,
         p,
@@ -34,11 +32,11 @@ export function y(p, [p1, { p2  }], ...p3) {
     ];
     return <Button action={action}>Delete</Button>;
 }
-export async function $ACTION_action(closure) {
+export async function $$ACTION_0(closure) {
     const f17 = 1;
     if (true) {
         const f18 = 1;
         const f19 = 1;
     }
-    console.log(f, f1, closure[0], f3, f4, f5, f6, f7, f8, closure[0](f9), f12, closure[2], f16.x, f17, f18, closure[3], closure[4], closure[5], closure[6], g19, g20, globalThis);
+    console.log(f, f1, closure[0], f3, f4, f5, f6, f7, f8, closure[0](f9), f12, closure[1], f16.x, f17, f18, closure[2], closure[3], closure[4], closure[5], g19, g20, globalThis);
 }

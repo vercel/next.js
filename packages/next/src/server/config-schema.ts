@@ -253,6 +253,9 @@ const configSchema = {
         clientRouterFilter: {
           type: 'boolean',
         },
+        clientRouterFilterRedirects: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },
@@ -417,20 +420,6 @@ const configSchema = {
         workerThreads: {
           type: 'boolean',
         },
-        fontLoaders: {
-          items: {
-            additionalProperties: false,
-            properties: {
-              loader: {
-                type: 'string',
-              },
-              options: {},
-            },
-            type: 'object',
-            required: ['loader'],
-          },
-          type: 'array',
-        } as any,
         webVitalsAttribution: {
           type: 'array',
           items: {
@@ -701,7 +690,7 @@ const configSchema = {
     },
     output: {
       // automatic typing doesn't like enum
-      enum: ['standalone'] as any,
+      enum: ['standalone', 'export'] as any,
       type: 'string',
     },
     outputFileTracing: {

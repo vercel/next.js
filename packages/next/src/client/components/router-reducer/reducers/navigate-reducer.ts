@@ -10,7 +10,7 @@ import { createOptimisticTree } from '../create-optimistic-tree'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import {
+import type {
   Mutable,
   NavigateAction,
   ReadonlyReducerState,
@@ -47,7 +47,7 @@ export function navigateReducer(
     mutable,
     forceOptimisticNavigation,
   } = action
-  const { pathname, search } = url
+  const { pathname, search, hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
 
@@ -142,6 +142,7 @@ export function navigateReducer(
         ? createHrefFromUrl(canonicalUrlOverride)
         : href
       mutable.pendingPush = pendingPush
+      mutable.hashFragment = hash
 
       return handleMutable(state, mutable)
     }
@@ -180,6 +181,7 @@ export function navigateReducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = optimisticTree
       mutable.pendingPush = pendingPush
+      mutable.hashFragment = hash
       mutable.applyFocusAndScroll = true
       mutable.cache = cache
       mutable.canonicalUrl = href
@@ -239,6 +241,7 @@ export function navigateReducer(
   mutable.patchedTree = newTree
   mutable.applyFocusAndScroll = true
   mutable.pendingPush = pendingPush
+  mutable.hashFragment = hash
 
   const applied = applyFlightData(state, cache, flightDataPath)
   if (applied) {
