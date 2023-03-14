@@ -761,10 +761,10 @@ export default async function exportApp(
           )
 
           const orig = join(distPagesDir, route)
+          const handlerSrc = `${orig}.body`
+          const handlerDest = join(outDir, route)
 
-          if (isAppRouteHandler) {
-            const handlerSrc = `${orig}.body`
-            const handlerDest = join(outDir, route)
+          if (isAppRouteHandler && (await exists(handlerSrc))) {
             await promises.mkdir(dirname(handlerDest), { recursive: true })
             await promises.copyFile(handlerSrc, handlerDest)
             return

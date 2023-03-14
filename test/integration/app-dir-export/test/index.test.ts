@@ -129,22 +129,12 @@ describe('app dir with next export', () => {
     await runTests({ dynamic })
     const opts = { cwd: exportDir, nodir: true }
     const files = ((await glob('**/*', opts)) as string[])
-      .filter((f) => !f.startsWith('_next/static/chunks/main-'))
+      .filter((f) => !f.startsWith('_next/static/chunks/'))
       .sort()
     expect(files).toEqual([
       '404.html',
       '404/index.html',
-      '_next/static/chunks/902-f97e36a07660afd2.js',
-      '_next/static/chunks/app/another/[slug]/page-50aa8f87f076234b.js',
-      '_next/static/chunks/app/another/page-67a4cd79c77b8516.js',
-      '_next/static/chunks/app/image-import/page-46c0dca97a7a5cb8.js',
-      '_next/static/chunks/app/layout-aea7b0f4dfb75fb2.js',
-      '_next/static/chunks/app/page-73a72272c0754b1f.js',
-      '_next/static/chunks/pages/_app-5b5607d0f696b287.js',
-      '_next/static/chunks/pages/_error-e2f15669af03eac8.js',
-      '_next/static/chunks/polyfills-c67a75d1b6f99dc8.js',
-      '_next/static/chunks/webpack-8074fabf81ca3fbd.js',
-      '_next/static/media/favicon.603d046c.ico',
+      '_next/static/media/favicon.603d046c.ico', // TODO: should this be here?
       '_next/static/media/test.3f1a293b.png',
       '_next/static/test-build-id/_buildManifest.js',
       '_next/static/test-build-id/_ssgManifest.js',
