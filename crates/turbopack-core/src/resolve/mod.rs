@@ -864,7 +864,7 @@ async fn resolve_into_folder(
         match resolve_into_package {
             ResolveIntoPackage::Default(req) => {
                 let str = "./".to_string()
-                    + &normalize_path(req).ok_or_else(|| {
+                    + &*normalize_path(req).ok_or_else(|| {
                         anyhow!(
                             "ResolveIntoPackage::Default can't be used with a request that \
                              escapes the current directory"

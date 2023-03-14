@@ -1025,7 +1025,7 @@ impl VisitAstPath for Analyzer<'_> {
                                         Some(path)
                                     }
                                     Expr::Arrow(ArrowExpr {
-                                        body: BlockStmtOrExpr::BlockStmt(_),
+                                        body: box BlockStmtOrExpr::BlockStmt(_),
                                         ..
                                     }) => {
                                         let mut path = as_parent_path(ast_path);
@@ -1040,7 +1040,7 @@ impl VisitAstPath for Analyzer<'_> {
                                         Some(path)
                                     }
                                     Expr::Arrow(ArrowExpr {
-                                        body: BlockStmtOrExpr::Expr(_),
+                                        body: box BlockStmtOrExpr::Expr(_),
                                         ..
                                     }) => {
                                         let mut path = as_parent_path(ast_path);
@@ -1239,7 +1239,7 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast ArrowExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let value = match &expr.body {
+        let value = match &*expr.body {
             BlockStmtOrExpr::BlockStmt(_block) => {
                 let old = replace(
                     &mut self.cur_fn_return_values,
