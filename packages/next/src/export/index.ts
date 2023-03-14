@@ -54,6 +54,7 @@ import {
 import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
+import isError from '../lib/is-error'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -244,7 +245,19 @@ export default async function exportApp(
     let appRoutePathManifest: Record<string, string> | undefined = undefined
     try {
       appRoutePathManifest = require(join(distDir, APP_PATH_ROUTES_MANIFEST))
-    } catch (_) {}
+    } catch (err) {
+      if (
+        isError(err) &&
+        (err.code === 'ENOENT' || err.code === 'MODULE_NOT_FOUND')
+      ) {
+        // the manifest doesn't exist which will happen when using
+        // "pages" dir instead of "app" dir.
+        appRoutePathManifest = undefined
+      } else {
+        // the manifest is malformed (invalid json)
+        throw err
+      }
+    }
 
     const excludedPrerenderRoutes = new Set<string>()
     const pages = options.pages || Object.keys(pagesManifest)
