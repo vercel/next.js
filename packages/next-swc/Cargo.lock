@@ -3183,6 +3183,7 @@ dependencies = [
  "anyhow",
  "chromiumoxide",
  "console-subscriber",
+ "dunce",
  "futures",
  "httpmock",
  "lazy_static",
