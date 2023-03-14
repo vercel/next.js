@@ -70,7 +70,12 @@ export function patchFetch({
         let revalidate: number | undefined | false = undefined
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
-        let curRevalidate = init?.next?.revalidate
+        let curRevalidate =
+          typeof init?.next?.revalidate !== 'undefined'
+            ? init?.next?.revalidate
+            : isRequestInput
+            ? (input as any).next?.revalidate
+            : undefined
         const _cache = getRequestMeta('cache')
 
         if (_cache === 'force-cache') {
@@ -93,34 +98,21 @@ export function patchFetch({
             ? _headers
             : new Headers(_headers || {})
 
-        try {
-          await staticGenerationStore.incrementalCache.set(
-            cacheKey,
-            {
-              kind: 'FETCH',
-              data: {
-                headers: Object.fromEntries(res.headers.entries()),
-                body: base64Body,
-                status: res.status,
-              },
-              revalidate,
-            },
-            revalidate,
-            true
-          )
-        } catch (err) {
-          console.warn(`Failed to set fetch cache`, input, err)
-        }
+        const hasUnCacheableHeader =
+          initHeaders.get('authorization') || initHeaders.get('cookie')
 
         const isUnCacheableMethod = !['get', 'head'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'
         )
 
-        const autoNoCache = hasUnCacheableHeader || isUnCacheableMethod
+        // if there are authorized headers or a POST method and
+        // dynamic data usage was present above the tree we bail
+        // e.g. if cookies() is used before an authed/POST fetch
+        const autoNoCache =
+          (hasUnCacheableHeader || isUnCacheableMethod) &&
+          staticGenerationStore.revalidate === 0
 
         if (typeof revalidate === 'undefined') {
-          // if there are uncacheable headers and the cache value
-          // wasn't overridden then we must bail static generation
           if (autoNoCache) {
             revalidate = 0
           } else {
@@ -135,7 +127,7 @@ export function patchFetch({
         if (
           // we don't consider autoNoCache to switch to dynamic during
           // revalidate although if it occurs during build we do
-          (!autoNoCache || staticGenerationStore.isPrerendering) &&
+          !autoNoCache &&
           (typeof staticGenerationStore.revalidate === 'undefined' ||
             (typeof revalidate === 'number' &&
               revalidate < staticGenerationStore.revalidate))

@@ -206,7 +206,7 @@ class NextTracerImpl implements NextTracer {
           return fn(span, (err?: Error) => closeSpanWithError(span, err))
         }
 
-        let result = fn(span)
+        const result = fn(span)
 
         if (!isPromise(result)) {
           span.end()
