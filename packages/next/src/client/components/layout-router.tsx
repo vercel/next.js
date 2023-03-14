@@ -114,31 +114,72 @@ function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   return rect.top >= 0 && rect.top <= viewportHeight
 }
 
-class ScrollAndFocusHandler extends React.Component<{
+/**
+ * Find the DOM node for a hash fragment.
+ * If `top` the page has to scroll to the top of the page. This mirrors the browser's behavior.
+ * If the hash fragment is an id, the page has to scroll to the element with that id.
+ * If the hash fragment is a name, the page has to scroll to the first element with that name.
+ */
+function getHashFragmentDomNode(hashFragment: string) {
+  // If the hash fragment is `top` the page has to scroll to the top of the page.
+  if (hashFragment === 'top') {
+    return document.body
+  }
+
+  // If the hash fragment is an id, the page has to scroll to the element with that id.
+  return (
+    document.getElementById(hashFragment) ??
+    // If the hash fragment is a name, the page has to scroll to the first element with that name.
+    document.getElementsByName(hashFragment)[0]
+  )
+}
+interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
-}> {
-  componentDidMount() {
+}
+class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+  handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
 
-    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-    // This already caused a bug where the first child was a <link/> in head.
-    const domNode = findDOMNode(this)
+    if (focusAndScrollRef.apply) {
+      let domNode:
+        | ReturnType<typeof getHashFragmentDomNode>
+        | ReturnType<typeof findDOMNode> = null
+      const hashFragment = focusAndScrollRef.hashFragment
 
-    if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
+      if (hashFragment) {
+        domNode = getHashFragmentDomNode(hashFragment)
+      }
+
+      // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+      // This already caused a bug where the first child was a <link/> in head.
+      if (!domNode) {
+        domNode = findDOMNode(this)
+      }
+
+      // If there is no DOMNode this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (!(domNode instanceof HTMLElement)) {
+        return
+      }
+
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
 
       handleSmoothScroll(
         () => {
+          // In case of hash scroll we need to scroll to the top of the element
+          if (hashFragment) {
+            window.scrollTo(0, (domNode as HTMLElement).offsetTop)
+            return
+          }
           // Store the current viewport height because reading `clientHeight` causes a reflow,
           // and it won't change during this function.
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode, viewportHeight)) {
+          if (topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             return
           }
 
@@ -149,9 +190,9 @@ class ScrollAndFocusHandler extends React.Component<{
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode, viewportHeight)) {
+          if (!topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             // Scroll into view doesn't scroll horizontally by default when not needed
-            domNode.scrollIntoView()
+            ;(domNode as HTMLElement).scrollIntoView()
           }
         },
         {
@@ -162,6 +203,17 @@ class ScrollAndFocusHandler extends React.Component<{
 
       // Set focus on the element
       domNode.focus()
+    }
+  }
+
+  componentDidMount() {
+    this.handlePotentialScroll()
+  }
+
+  componentDidUpdate() {
+    // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
+    if (this.props.focusAndScrollRef.apply) {
+      this.handlePotentialScroll()
     }
   }
 

@@ -16,6 +16,7 @@ export interface Mutable {
   applyFocusAndScroll?: boolean
   pendingPush?: boolean
   cache?: CacheNode
+  hashFragment?: string
 }
 
 /**
@@ -132,6 +133,10 @@ export type FocusAndScrollRef = {
    * If focus and scroll should be set in the layout-router's useEffect()
    */
   apply: boolean
+  /**
+   * The hash fragment that should be scrolled to.
+   */
+  hashFragment: string | null
 }
 
 /**
