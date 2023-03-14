@@ -72,6 +72,7 @@
     "@next/polyfill-module": "workspace:*",
     "@next/polyfill-nomodule": "workspace:*",
     "@next/swc": "workspace:*",
+    "@opentelemetry/api": "1.4.1",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.2.203",
@@ -240,7 +241,5 @@
     "node": ">=14.6.0"
   },
   "packageManager": "pnpm@7.24.3",
-  "dependencies": {
-    "@opentelemetry/api": "1.4.0"
-  }
+  "dependencies": {}
 }
