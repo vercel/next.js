@@ -1,11 +1,11 @@
 import { useStore } from '../lib/store'
 
 const useCounter = () => {
-  return useStore(store => ({
+  return useStore((store) => ({
     count: store.count,
     increment: store.increment,
     decrement: store.decrement,
-    reset: store.reset
+    reset: store.reset,
   }))
 }
 

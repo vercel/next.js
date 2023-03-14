@@ -16,7 +16,7 @@ export const getServerSideProps: GetServerSideProps = async () => {
     props: {
       // the "stringify and then parse again" piece is required as next.js
       // isn't able to serialize it to JSON properly
-      initialZustandState: JSON.parse(JSON.stringify(zustandStore.getState()))
-    }
+      initialZustandState: JSON.parse(JSON.stringify(zustandStore.getState())),
+    },
   }
 }

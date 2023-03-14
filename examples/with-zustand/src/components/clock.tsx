@@ -1,7 +1,10 @@
 import { useStore } from '../lib/store'
 
 const useClock = () => {
-  return useStore(store => ({ lastUpdate: store.lastUpdate, light: store.light }))
+  return useStore((store) => ({
+    lastUpdate: store.lastUpdate,
+    light: store.light,
+  }))
 }
 
 const formatTime = (time: number) => {

@@ -6,10 +6,10 @@ const LinkStyle: CSSProperties = { marginRight: '25px' }
 const Nav = () => {
   return (
     <nav>
-      <Link href='/ssg' style={LinkStyle}>
+      <Link href="/ssg" style={LinkStyle}>
         SSG
       </Link>
-      <Link href='/' style={LinkStyle}>
+      <Link href="/" style={LinkStyle}>
         SSR
       </Link>
     </nav>

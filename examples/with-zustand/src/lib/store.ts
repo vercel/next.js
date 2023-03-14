@@ -14,7 +14,7 @@ interface StoreInterface {
 const getDefaultInitialState = () => ({
   lastUpdate: Date.now(),
   light: false,
-  count: 0
+  count: 0,
 })
 
 export type StoreType = ReturnType<typeof initializeStore>
@@ -31,30 +31,32 @@ export const useStore = <T>(selector: (state: StoreInterface) => T) => {
   return useZustandStore(store, selector)
 }
 
-export const initializeStore = (preloadedState: Partial<StoreInterface> = {}) => {
+export const initializeStore = (
+  preloadedState: Partial<StoreInterface> = {}
+) => {
   return createStore<StoreInterface>((set, get) => ({
     ...getDefaultInitialState(),
     ...preloadedState,
     tick: (lastUpdate, light) => {
       set({
         lastUpdate,
-        light: !!light
+        light: !!light,
       })
     },
     increment: () => {
       set({
-        count: get().count + 1
+        count: get().count + 1,
       })
     },
     decrement: () => {
       set({
-        count: get().count - 1
+        count: get().count - 1,
       })
     },
     reset: () => {
       set({
-        count: getDefaultInitialState().count
+        count: getDefaultInitialState().count,
       })
-    }
+    },
   }))
 }

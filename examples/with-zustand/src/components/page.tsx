@@ -5,7 +5,7 @@ import Nav from './nav'
 import { useStore } from '../lib/store'
 
 export default function Page() {
-  const tick = useStore(store => store.tick)
+  const tick = useStore((store) => store.tick)
 
   // Tick the time every second
   useInterval(() => {
