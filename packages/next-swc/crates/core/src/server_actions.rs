@@ -704,7 +704,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             stmt.visit_mut_with(self);
 
-            if self.config.is_server {
+            if self.config.is_server || !self.in_action_file {
                 new.push(stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
@@ -723,25 +723,47 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     export_name.to_string(),
                 );
                 if !self.config.is_server {
+                    let params_ident = private_ident!("args");
+                    let noop_fn = Box::new(Function {
+                        params: vec![Param {
+                            span: DUMMY_SP,
+                            decorators: Default::default(),
+                            pat: Pat::Rest(RestPat {
+                                span: DUMMY_SP,
+                                dot3_token: DUMMY_SP,
+                                arg: Box::new(Pat::Ident(params_ident.clone().into())),
+                                type_ann: None,
+                            }),
+                        }],
+                        decorators: Vec::new(),
+                        span: DUMMY_SP,
+                        body: Some(BlockStmt {
+                            span: DUMMY_SP,
+                            stmts: vec![Stmt::Return(ReturnStmt {
+                                span: DUMMY_SP,
+                                arg: Some(Box::new(Expr::Call(CallExpr {
+                                    span: DUMMY_SP,
+                                    callee: Callee::Expr(Box::new(Expr::Ident(private_ident!(
+                                        "__build_action__"
+                                    )))),
+                                    args: vec![ident.clone().as_arg(), params_ident.as_arg()],
+                                    type_args: None,
+                                }))),
+                            })],
+                        }),
+                        is_generator: false,
+                        is_async: true,
+                        type_params: None,
+                        return_type: None,
+                    });
+
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Fn(FnExpr {
                                     ident: Some(ident),
-                                    function: Box::new(Function {
-                                        params: Vec::new(),
-                                        decorators: Vec::new(),
-                                        span: DUMMY_SP,
-                                        body: Some(BlockStmt {
-                                            span: DUMMY_SP,
-                                            stmts: Vec::new(),
-                                        }),
-                                        is_generator: false,
-                                        is_async: true,
-                                        type_params: None,
-                                        return_type: None,
-                                    }),
+                                    function: noop_fn,
                                 })),
                             },
                         ));
@@ -753,19 +775,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 decl: Decl::Fn(FnDecl {
                                     ident,
                                     declare: false,
-                                    function: Box::new(Function {
-                                        params: Vec::new(),
-                                        decorators: Vec::new(),
-                                        span: DUMMY_SP,
-                                        body: Some(BlockStmt {
-                                            span: DUMMY_SP,
-                                            stmts: Vec::new(),
-                                        }),
-                                        is_generator: false,
-                                        is_async: true,
-                                        type_params: None,
-                                        return_type: None,
-                                    }),
+                                    function: noop_fn,
                                 }),
                             }));
                         new.push(export_expr);

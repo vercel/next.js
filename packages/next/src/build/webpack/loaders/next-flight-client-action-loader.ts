@@ -14,13 +14,21 @@ export default async function transformSource(
   const callback = this.async()
 
   // Assign the RSC meta information to buildInfo.
-  // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.rsc = getRSCModuleInformation(source, false)
 
-  // TODO: This should only allow file-level "use server", not per-function.
-  if (buildInfo.rsc.actions) {
-    console.log(this.resourcePath, buildInfo.rsc)
+  // This is a server action entry module in the client layer. We need to attach
+  // noop exports of `callServer` wrappers for each action.
+  if (buildInfo.rsc?.actions) {
+    source = `
+import { callServer } from 'next/dist/client/app-call-server'
+
+function __build_action__(action, args) {
+  return callServer(action.$$id, args)
+}
+
+${source}
+`
   }
 
   return callback(null, source, sourceMap)
