@@ -26,8 +26,12 @@ jobs:
         run: sudo apt install moreutils
       - name: Check examples
         run: ./scripts/check-examples.sh
+      - name: Install Vercel CLI
+        run: npm i -g vercel@28.16.15
       - name: Deploy examples
-        run: npm i -g vercel@28.16.15 && ./scripts/deploy-examples.sh
+        run: ./scripts/deploy-examples.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
 
   build:
     runs-on: ubuntu-latest
