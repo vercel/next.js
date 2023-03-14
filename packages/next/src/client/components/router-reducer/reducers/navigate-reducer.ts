@@ -62,27 +62,51 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchValues = state.prefetchCache.get(href)
+  const prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
   if (prefetchValues) {
     // The one before last item is the router state tree patch
-    const { flightData, tree: newTree, canonicalUrlOverride } = prefetchValues
+    const { treeAtTimeOfPrefetch, data } = prefetchValues
+
+    // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
+    const [flightData, canonicalUrlOverride] = readRecordValue(data!)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {
       return handleExternalUrl(state, mutable, flightData, pendingPush)
     }
 
+    // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
+    const flightDataPath = flightData[0]
+    const flightSegmentPath = flightDataPath.slice(
+      0,
+      -3
+    ) as unknown as FlightSegmentPath
+    // The one before last item is the router state tree patch
+    const [treePatch] = flightDataPath.slice(-3)
+
+    // Create new tree based on the flightSegmentPath and router state patch
+    let newTree = applyRouterStatePatchToTree(
+      // TODO-APP: remove ''
+      ['', ...flightSegmentPath],
+      state.tree,
+      treePatch
+    )
+
+    // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
+    // TODO-APP: This should instead fill in the missing pieces in `state.tree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
+    if (newTree === null) {
+      newTree = applyRouterStatePatchToTree(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        treeAtTimeOfPrefetch,
+        treePatch
+      )
+    }
+
     if (newTree !== null) {
       if (isNavigatingToNewRootLayout(state.tree, newTree)) {
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
-
-      // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-      const flightDataPath = flightData[0]
-      const flightSegmentPath = flightDataPath.slice(
-        0,
-        -3
-      ) as unknown as FlightSegmentPath
 
       const applied = applyFlightData(state, cache, flightDataPath)
 

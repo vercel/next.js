@@ -113,8 +113,6 @@ export interface ServerPatchAction {
 export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
-  tree: FlightRouterState
-  serverResponse: Awaited<ReturnType<typeof fetchServerResponse>>
 }
 
 interface PushRef {
@@ -157,9 +155,8 @@ export type AppRouterState = {
   prefetchCache: Map<
     string,
     {
-      flightData: FlightData
-      tree: FlightRouterState
-      canonicalUrlOverride: URL | undefined
+      treeAtTimeOfPrefetch: FlightRouterState
+      data: ReturnType<typeof fetchServerResponse> | null
     }
   >
   /**
