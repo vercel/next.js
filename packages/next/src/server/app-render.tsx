@@ -21,6 +21,7 @@ import {
   createBufferedTransformStream,
   continueFromInitialStream,
   streamToString,
+  streamToBufferedResult,
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { matchSegment } from '../client/components/match-segments'
@@ -381,8 +382,8 @@ function useFlightResponse(
  * Create a component that renders the Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
-function createServerComponentRenderer(
-  ComponentToRender: any,
+function createServerComponentRenderer<Props>(
+  ComponentToRender: (props: Props) => any,
   ComponentMod: {
     renderToReadableStream: any
     __next_app_webpack_require__?: any
@@ -402,7 +403,7 @@ function createServerComponentRenderer(
   },
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
-): () => JSX.Element {
+): (props: Props) => JSX.Element {
   // We need to expose the `__webpack_require__` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app_webpack_require__) {
@@ -414,10 +415,10 @@ function createServerComponentRenderer(
   }
 
   let RSCStream: ReadableStream<Uint8Array>
-  const createRSCStream = () => {
+  const createRSCStream = (props: Props) => {
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
-        <ComponentToRender />,
+        <ComponentToRender {...(props as any)} />,
         serverComponentManifest,
         {
           context: serverContexts,
@@ -431,8 +432,8 @@ function createServerComponentRenderer(
   const flightResponseRef: FlightResponseRef = { current: null }
 
   const writable = transformStream.writable
-  return function ServerComponentWrapper(): JSX.Element {
-    const reqStream = createRSCStream()
+  return function ServerComponentWrapper(props: Props): JSX.Element {
+    const reqStream = createRSCStream(props)
     const response = useFlightResponse(
       writable,
       reqStream,
@@ -1150,6 +1151,7 @@ export async function renderToHTMLOrFlight(
       rootLayoutIncluded,
       injectedCSS,
       injectedFontPreloadTags,
+      asNotFound,
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
@@ -1158,6 +1160,7 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
+      asNotFound?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
       const [segment, parallelRoutes, components] = tree
       const {
@@ -1437,6 +1440,7 @@ export async function renderToHTMLOrFlight(
                 templateStyles={templateStyles}
                 notFound={NotFound ? <NotFound /> : undefined}
                 notFoundStyles={notFoundStyles}
+                asNotFound={asNotFound}
                 childProp={childProp}
               />,
             ]
@@ -1536,22 +1540,6 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    const streamToBufferedResult = async (
-      renderResult: RenderResult
-    ): Promise<string> => {
-      const renderChunks: string[] = []
-      const textDecoder = new TextDecoder()
-
-      const writable = {
-        write(chunk: any) {
-          renderChunks.push(decodeText(chunk, textDecoder))
-        },
-        end() {},
-        destroy() {},
-      }
-      await renderResult.pipe(writable as any)
-      return renderChunks.join('')
-    }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
       /**
@@ -1763,63 +1751,6 @@ export async function renderToHTMLOrFlight(
       return generateFlight()
     }
 
-    // For action requests, we handle them differently with a sepcial render result.
-    let actionId = req.headers[ACTION.toLowerCase()] as string
-    const isFormAction =
-      req.method === 'POST' &&
-      req.headers['content-type'] === 'application/x-www-form-urlencoded'
-    const isFetchAction =
-      actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-
-    if (isFetchAction || isFormAction) {
-      if (process.env.NEXT_RUNTIME !== 'edge') {
-        const { parseBody } =
-          require('./api-utils/node') as typeof import('./api-utils/node')
-        const actionData = (await parseBody(req, '1mb')) || {}
-        let bound = []
-
-        if (isFormAction) {
-          actionId = actionData.$$id as string
-          if (!actionId) {
-            throw new Error('Invariant: missing action ID.')
-          }
-          const formData = new URLSearchParams(actionData)
-          formData.delete('$$id')
-          bound = [formData]
-        } else {
-          bound = actionData.bound || []
-        }
-
-        const workerName = 'app' + renderOpts.pathname
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
-
-        const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId)
-
-        try {
-          return new ActionRenderResult(
-            JSON.stringify([await actionHandler(actionId, bound)])
-          )
-        } catch (err) {
-          if (isRedirectError(err)) {
-            if (isFetchAction) {
-              throw new Error('Invariant: not implemented.')
-            } else {
-              const redirectUrl = getURLFromRedirectError(err)
-              res.statusCode = 303
-              res.setHeader('Location', redirectUrl)
-              return new ActionRenderResult(JSON.stringify({}))
-            }
-          }
-          throw err
-        }
-      } else {
-        throw new Error('Not implemented in Edge Runtime.')
-      }
-    }
-
     // Below this line is handling for rendering to HTML.
 
     // AppRouter is provided by next-app-loader
@@ -1867,8 +1798,10 @@ export async function renderToHTMLOrFlight(
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
      */
-    const ServerComponentsRenderer = createServerComponentRenderer(
-      async () => {
+    const ServerComponentsRenderer = createServerComponentRenderer<{
+      asNotFound: boolean
+    }>(
+      async (props) => {
         // Create full component tree from root to leaf.
         const { Component: ComponentTree } = await createComponentTree({
           createSegmentPath: (child) => child,
@@ -1878,6 +1811,7 @@ export async function renderToHTMLOrFlight(
           injectedCSS: new Set(),
           injectedFontPreloadTags: new Set(),
           rootLayoutIncluded: false,
+          asNotFound: props.asNotFound,
         })
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
@@ -1936,7 +1870,16 @@ export async function renderToHTMLOrFlight(
 
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
-      async () => {
+      async ({
+        asNotFound,
+      }: {
+        /**
+         * This option is used to indicate that the page should be rendered as
+         * if it was not found. When it's enabled, instead of rendering the
+         * page component, it renders the not-found segment.
+         */
+        asNotFound?: boolean
+      }) => {
         const polyfills = buildManifest.polyfillFiles
           .filter(
             (polyfill) =>
@@ -1949,7 +1892,7 @@ export async function renderToHTMLOrFlight(
 
         const content = (
           <InsertedHTML>
-            <ServerComponentsRenderer />
+            <ServerComponentsRenderer asNotFound={!!asNotFound} />
           </InsertedHTML>
         )
 
@@ -2055,7 +1998,75 @@ export async function renderToHTMLOrFlight(
         }
       }
     )
-    const renderResult = new RenderResult(await bodyResult())
+
+    // For action requests, we handle them differently with a sepcial render result.
+    let actionId = req.headers[ACTION.toLowerCase()] as string
+    const isFormAction =
+      req.method === 'POST' &&
+      req.headers['content-type'] === 'application/x-www-form-urlencoded'
+    const isFetchAction =
+      actionId !== undefined &&
+      typeof actionId === 'string' &&
+      req.method === 'POST'
+
+    if (isFetchAction || isFormAction) {
+      if (process.env.NEXT_RUNTIME !== 'edge') {
+        const { parseBody } =
+          require('./api-utils/node') as typeof import('./api-utils/node')
+        const actionData = (await parseBody(req, '1mb')) || {}
+        let bound = []
+
+        if (isFormAction) {
+          actionId = actionData.$$id as string
+          if (!actionId) {
+            throw new Error('Invariant: missing action ID.')
+          }
+          const formData = new URLSearchParams(actionData)
+          formData.delete('$$id')
+          bound = [formData]
+        } else {
+          bound = actionData.bound || []
+        }
+
+        const workerName = 'app' + renderOpts.pathname
+        const actionModId = serverActionsManifest[actionId].workers[workerName]
+
+        const actionHandler =
+          ComponentMod.__next_app_webpack_require__(actionModId)
+
+        try {
+          const result = new ActionRenderResult(
+            JSON.stringify([await actionHandler(actionId, bound)])
+          )
+          // For form actions, we need to continue rendering the page.
+          if (isFetchAction) {
+            return result
+          }
+        } catch (err) {
+          if (isRedirectError(err)) {
+            if (isFetchAction) {
+              throw new Error('Invariant: not implemented.')
+            }
+            const redirectUrl = getURLFromRedirectError(err)
+            res.statusCode = 303
+            res.setHeader('Location', redirectUrl)
+            return new ActionRenderResult(JSON.stringify({}))
+          } else if (isNotFoundError(err)) {
+            if (isFetchAction) {
+              throw new Error('Invariant: not implemented.')
+            }
+            res.statusCode = 404
+            return new RenderResult(await bodyResult({ asNotFound: true }))
+          }
+          throw err
+        }
+      } else {
+        throw new Error('Not implemented in Edge Runtime.')
+      }
+    }
+    // End of action request handling.
+
+    const renderResult = new RenderResult(await bodyResult({}))
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
