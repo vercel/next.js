@@ -154,10 +154,23 @@ describe('app dir with next export', () => {
       'robots.txt',
     ])
   })
-  it.each([{ dynamic: 'force-dynamic' }])(
-    "should throw with dynamic '$dynamic'",
-    async ({ dynamic }) => {
-      expect('todo not implemented yet').toBe('todo not implemented yet')
+  it("should throw when dynamic 'force-dynamic'", async () => {
+    slugPage.replace(
+      `const dynamic = 'force-static'`,
+      `const dynamic = 'force-dynamic'`
+    )
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    let result = { code: 0, stderr: '' }
+    try {
+      result = await nextBuild(appDir, [], { stderr: true })
+    } finally {
+      nextConfig.restore()
+      slugPage.restore()
     }
-  )
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'export const dynamic = "force-dynamic" cannot be used with "output: export".'
+    )
+  })
 })
