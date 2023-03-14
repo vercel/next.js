@@ -5,6 +5,9 @@ const nextConfig = {
   experimental: {
     appDir: true,
   },
+  generateBuildId() {
+    return 'test-build-id'
+  },
 }
 
 module.exports = nextConfig
