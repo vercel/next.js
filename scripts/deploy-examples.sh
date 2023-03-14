@@ -3,7 +3,8 @@
 CHANGED_EXAMPLES=$(node scripts/run-for-change.js --type deploy-examples --listChangedDirectories)
 
 for CWD in $CHANGED_EXAMPLES ; do
-  PROJECT=$(echo $CWD | tr '/' '-')
+  HYPHENS=$(echo $CWD | tr '/' '-')
+  PROJECT="nextjs-$HYPHENS"
   echo "Deploying directory $CWD as $PROJECT to Vercel..."
   vercel link --cwd $CWD --scope vercel --project "$PROJECT" --token "$VERCEL_API_TOKEN"
   vercel deploy --cwd $CWD --token "$VERCEL_API_TOKEN"
