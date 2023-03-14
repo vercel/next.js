@@ -1247,17 +1247,15 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
-      const dynamic = layoutOrPageMod?.dynamic || 'auto'
-
-      if (dynamic !== 'auto') {
+      if (typeof layoutOrPageMod?.dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (dynamic === 'error') {
+        if (layoutOrPageMod?.dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (dynamic === 'force-static') {
+          if (layoutOrPageMod?.dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
