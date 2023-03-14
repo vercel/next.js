@@ -53,7 +53,13 @@ export async function createApp({
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = experimentalApp ? 'app' : 'default'
+  const template: TemplateType = experimentalApp
+    ? tailwind
+      ? 'app-tw'
+      : 'app'
+    : tailwind
+    ? 'default-tw'
+    : 'default'
 
   if (example) {
     let repoUrl: URL | undefined

@@ -56,7 +56,7 @@ const program = new Commander.Command(packageJson.name)
     '--tailwind',
     `
 
-  Initialize with Tailwind CSS config.
+  Initialize with Tailwind CSS config. (default)
 `
   )
   .option(
@@ -229,9 +229,9 @@ async function run(): Promise<void> {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: true,
+      tailwind: true,
       srcDir: false,
       importAlias: '@/*',
-      tailwind: true,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -243,7 +243,7 @@ async function run(): Promise<void> {
         program.typescript = false
         program.javascript = true
       } else {
-        const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+        const styledTypeScript = chalk.hex('#0645ad')('TypeScript')
         const { typescript } = await prompts(
           {
             type: 'toggle',
@@ -280,7 +280,7 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.eslint = true
       } else {
-        const styledEslint = chalk.hex('#007acc')('ESLint')
+        const styledEslint = chalk.hex('#4b32c3')('ESLint')
         const { eslint } = await prompts({
           onState: onPromptState,
           type: 'toggle',
@@ -292,6 +292,28 @@ async function run(): Promise<void> {
         })
         program.eslint = Boolean(eslint)
         preferences.eslint = Boolean(eslint)
+      }
+    }
+
+    if (
+      !process.argv.includes('--tailwind') &&
+      !process.argv.includes('--no-tailwind')
+    ) {
+      if (ciInfo.isCI) {
+        program.tailwind = false
+      } else {
+        const tw = chalk.hex('#38BDF8')('Tailwind CSS')
+        const { tailwind } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'tailwind',
+          message: `Would you like to use ${tw} with this project?`,
+          initial: getPrefOrDefault('tailwind'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.tailwind = Boolean(tailwind)
+        preferences.tailwind = Boolean(tailwind)
       }
     }
 
@@ -314,28 +336,6 @@ async function run(): Promise<void> {
         })
         program.srcDir = Boolean(srcDir)
         preferences.srcDir = Boolean(srcDir)
-      }
-    }
-
-    if (
-      !process.argv.includes('--tailwind') &&
-      !process.argv.includes('--no-tailwind')
-    ) {
-      if (ciInfo.isCI) {
-        program.tailwind = false
-      } else {
-        const tw = chalk.hex('#38BDF8')('Tailwind CSS')
-        const { tailwind } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'tailwind',
-          message: `Would you like to use ${tw} with this project?`,
-          initial: getPrefOrDefault('srcDir'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.tailwind = Boolean(tailwind)
-        preferences.tailwind = Boolean(tailwind)
       }
     }
 

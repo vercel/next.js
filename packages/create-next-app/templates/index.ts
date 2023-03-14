@@ -48,7 +48,11 @@ export const installTemplate = async ({
    */
   console.log('\nInitializing project with template:', template, '\n')
   const templatePath = path.join(__dirname, template, mode)
-  await cpy('**', root, {
+  const copySource = ['**']
+  if (!eslint) copySource.push('!eslintrc.json')
+  if (!tailwind) copySource.push('!tailwind.config.js', '!postcss.config.js')
+
+  await cpy(copySource, root, {
     parents: true,
     cwd: templatePath,
     rename: (name) => {
@@ -136,11 +140,6 @@ export const installTemplate = async ({
     )
   }
 
-  if (!eslint) {
-    // remove un-necessary template file if eslint is not desired
-    await fs.promises.unlink(path.join(root, '.eslintrc.json'))
-  }
-
   /**
    * Create a package.json for the new project.
    */
@@ -155,6 +154,7 @@ export const installTemplate = async ({
       lint: 'next lint',
     },
   }
+
   /**
    * Write it to disk.
    */
@@ -162,11 +162,13 @@ export const installTemplate = async ({
     path.join(root, 'package.json'),
     JSON.stringify(packageJson, null, 2) + os.EOL
   )
+
   /**
    * These flags will be passed to `install()`, which calls the package manager
    * install process.
    */
   const installFlags = { packageManager, isOnline }
+
   /**
    * Default dependencies.
    */
@@ -179,6 +181,7 @@ export const installTemplate = async ({
         : ''
     }`,
   ]
+
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
@@ -191,8 +194,11 @@ export const installTemplate = async ({
     )
   }
 
+  /**
+   * Add Tailwind CSS dependencies.
+   */
   if (tailwind) {
-    dependencies.push('tailwindcss postcss autoprefixer')
+    dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
   }
 
   /**
