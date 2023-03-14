@@ -1,4 +1,4 @@
-import { NextVanillaSpanAllowlist, SpanNames } from './constants'
+import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
 
 import type { ContextAPI, Span, SpanOptions, Tracer } from '@opentelemetry/api'
 
@@ -33,7 +33,7 @@ const closeSpanWithError = (span: Span, error?: Error) => {
 
 type TracerSpanOptions = SpanOptions & {
   parentSpan?: Span
-  tracerName?: string
+  spanName?: string
 }
 
 interface NextTracer {
@@ -55,20 +55,20 @@ interface NextTracer {
    *
    */
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
@@ -87,14 +87,14 @@ interface NextTracer {
    * * The function doesn't accept a callback and doesn't return a promise, in
    * which case the span will finish at the end of the function execution.
    */
-  wrap<T = (...args: Array<any>) => any>(name: SpanNames, fn: T): T
+  wrap<T = (...args: Array<any>) => any>(name: SpanTypes, fn: T): T
   wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: T
   ): T
   wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
@@ -107,8 +107,8 @@ interface NextTracer {
    * context via `tracer.getContext().with`. `trace`, or `wrap` is generally recommended as it gracefully
    * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
-  startSpan(name: SpanNames): Span
-  startSpan(name: SpanNames, options: TracerSpanOptions): Span
+  startSpan(name: SpanTypes): Span
+  startSpan(name: SpanTypes, options: TracerSpanOptions): Span
 
   /**
    * Returns currently activated span if current context is in the scope of the span.
@@ -138,25 +138,25 @@ class NextTracerImpl implements NextTracer {
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
-    type: SpanNames,
+    type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    type: SpanNames,
+    type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
-    type: SpanNames,
+    type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    type: SpanNames,
+    type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
-    const [name, fnOrOptions, fnOrEmpty] = args
+    const [type, fnOrOptions, fnOrEmpty] = args
 
     // coerce options form overload
     const {
@@ -173,32 +173,38 @@ class NextTracerImpl implements NextTracer {
           }
         : {
             fn: fnOrEmpty,
-            options: fnOrOptions,
+            options: { ...fnOrOptions },
           }
 
     if (
-      !NextVanillaSpanAllowlist.includes(name) &&
+      !NextVanillaSpanAllowlist.includes(type) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn()
     }
 
-    const traceName = options.tracerName ?? name
+    const spanName = options.spanName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     const spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
 
+    options.attributes = {
+      'next.span_name': options.spanName,
+      'next.span_type': type,
+      ...options.attributes,
+    }
+
     const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
       spanContext
         ? this.getTracerInstance().startActiveSpan(
-            traceName,
+            spanName,
             options,
             spanContext,
             actualFn
           )
-        : this.getTracerInstance().startActiveSpan(traceName, options, actualFn)
+        : this.getTracerInstance().startActiveSpan(spanName, options, actualFn)
 
     return runWithContext((span: Span) => {
       try {
@@ -229,14 +235,14 @@ class NextTracerImpl implements NextTracer {
     })
   }
 
-  public wrap<T = (...args: Array<any>) => any>(name: SpanNames, fn: T): T
+  public wrap<T = (...args: Array<any>) => any>(name: SpanTypes, fn: T): T
   public wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: T
   ): T
   public wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
@@ -277,8 +283,8 @@ class NextTracerImpl implements NextTracer {
     }
   }
 
-  public startSpan(name: SpanNames): Span
-  public startSpan(name: SpanNames, options: TracerSpanOptions): Span
+  public startSpan(name: SpanTypes): Span
+  public startSpan(name: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
     const [name, options]: [string, TracerSpanOptions | undefined] = args as any
 

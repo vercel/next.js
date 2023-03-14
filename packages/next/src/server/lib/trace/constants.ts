@@ -88,7 +88,7 @@ enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
 
-type SpanNames =
+type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
   | `${NextServerSpan}`
@@ -113,7 +113,7 @@ export {
   NextServerSpan,
   NextNodeServerSpan,
   StartServerSpan,
-  SpanNames,
+  SpanTypes,
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
