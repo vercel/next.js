@@ -10,8 +10,6 @@
     "@types/node": "18.14.6",
     "@types/react": "18.0.28",
     "@types/react-dom": "18.0.11",
-    "eslint": "8.35.0",
-    "eslint-config-next": "latest",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
