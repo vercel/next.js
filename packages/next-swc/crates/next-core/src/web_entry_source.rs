@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use turbo_binding::{
     turbo::{
         tasks::{TryJoinIterExt, Value},
+        tasks_env::ProcessEnvVc,
         tasks_fs::FileSystemPathVc,
     },
     turbopack::{
@@ -13,8 +14,7 @@ use turbo_binding::{
                 BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
             },
             reference_type::{EntryReferenceSubType, ReferenceType},
-            resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
-            source_asset::SourceAssetVc,
+            resolve::{origin::PlainResolveOriginVc, parse::RequestVc, pattern::Pattern},
         },
         dev_server::{
             html::DevHtmlAssetVc,
@@ -24,15 +24,17 @@ use turbo_binding::{
         turbopack::ecmascript::EcmascriptModuleAssetVc,
     },
 };
+use turbo_tasks_fs::FileSystem;
 
 use crate::{
-    embed_js::next_js_file_path,
+    embed_js::next_js_fs,
+    mode::NextMode,
     next_client::{
         context::{
-            get_client_asset_context, get_client_chunking_context,
-            get_client_resolve_options_context, ClientContextType,
+            get_client_asset_context, get_client_compile_time_info,
+            get_dev_client_chunking_context, ClientContextType,
         },
-        runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
+        get_client_resolve_options_context, RuntimeEntriesVc, RuntimeEntry,
     },
     next_config::NextConfigVc,
     react_refresh::assert_can_resolve_react_refresh,
@@ -67,21 +69,19 @@ pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
 #[turbo_tasks::function]
 pub async fn get_web_runtime_entries(
     project_root: FileSystemPathVc,
+    ty: Value<ClientContextType>,
+    mode: Value<NextMode>,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<RuntimeEntriesVc> {
-    let resolve_options_context = get_client_resolve_options_context(
-        project_root,
-        Value::new(ClientContextType::Other),
-        next_config,
-        execution_context,
-    );
+    let mut runtime_entries = vec![];
+
+    let resolve_options_context =
+        get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_root, resolve_options_context)
             .await?
             .as_request();
-
-    let mut runtime_entries = Vec::new();
 
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
@@ -91,8 +91,13 @@ pub async fn get_web_runtime_entries(
     };
 
     runtime_entries.push(
-        RuntimeEntry::Source(SourceAssetVc::new(next_js_file_path("dev/bootstrap.ts")).into())
-            .cell(),
+        RuntimeEntry::Request(
+            RequestVc::parse(Value::new(Pattern::Constant(
+                "./dev/bootstrap.ts".to_string(),
+            ))),
+            next_js_fs().root().join("_"),
+        )
+        .cell(),
     );
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
@@ -100,34 +105,36 @@ pub async fn get_web_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    project_path: FileSystemPathVc,
+    project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     entry_requests: Vec<RequestVc>,
-    server_root: FileSystemPathVc,
+    client_root: FileSystemPathVc,
     eager_compile: bool,
     browserslist_query: &str,
     next_config: NextConfigVc,
 ) -> Result<ContentSourceVc> {
     let ty = Value::new(ClientContextType::Other);
-    let compile_time_info = get_compile_time_info(browserslist_query);
+    let mode = Value::new(NextMode::Development);
+    let compile_time_info = get_client_compile_time_info(mode, browserslist_query);
     let context = get_client_asset_context(
-        project_path,
+        project_root,
         execution_context,
         compile_time_info,
         ty,
+        mode,
         next_config,
     );
-    let chunking_context = get_client_chunking_context(
-        project_path,
-        server_root,
+    let chunking_context = get_dev_client_chunking_context(
+        project_root,
+        client_root,
         compile_time_info.environment(),
         ty,
     );
-    let entries = get_web_runtime_entries(project_path, next_config, execution_context);
+    let entries = get_web_runtime_entries(project_root, ty, mode, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
 
-    let origin = PlainResolveOriginVc::new(context, project_path.join("_")).as_resolve_origin();
+    let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
@@ -167,12 +174,12 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(server_root.join("index.html"), chunk_groups).into();
+    let entry_asset = DevHtmlAssetVc::new(client_root.join("index.html"), chunk_groups).into();
 
     let graph = if eager_compile {
-        AssetGraphContentSourceVc::new_eager(server_root, entry_asset)
+        AssetGraphContentSourceVc::new_eager(client_root, entry_asset)
     } else {
-        AssetGraphContentSourceVc::new_lazy(server_root, entry_asset)
+        AssetGraphContentSourceVc::new_lazy(client_root, entry_asset)
     }
     .into();
     Ok(graph)

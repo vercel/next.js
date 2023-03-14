@@ -18,6 +18,7 @@ const nextBuild: CliCommand = (argv) => {
     '--no-mangling': Boolean,
     '--experimental-app-only': Boolean,
     '--experimental-turbo': Boolean,
+    '--experimental-turbo-root': String,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -78,7 +79,8 @@ const nextBuild: CliCommand = (argv) => {
     !args['--no-lint'],
     args['--no-mangling'],
     args['--experimental-app-only'],
-    args['--experimental-turbo']
+    args['--experimental-turbo'],
+    args['--experimental-turbo-root']
   ).catch((err) => {
     console.error('')
     if (

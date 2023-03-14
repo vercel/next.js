@@ -46,6 +46,7 @@ use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     embed_js::{next_asset, next_js_file},
+    mode::NextMode,
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -288,6 +289,7 @@ fn edge_transition_map(
         project_path,
         execution_context,
         Value::new(ServerContextType::Middleware),
+        Value::new(NextMode::Development),
         next_config,
     );
 
@@ -358,39 +360,40 @@ async fn route_internal(
     routes_changed: CompletionVc,
 ) -> Result<RouterResultVc> {
     let ExecutionContext {
-        project_path,
+        project_root,
         chunking_context,
         env,
     } = *execution_context.await?;
 
     let context = node_evaluate_asset_context(
-        project_path,
+        project_root,
         Some(get_next_build_import_map()),
         Some(edge_transition_map(
             server_addr,
-            project_path,
+            project_root,
             chunking_context.output_root(),
             next_config,
             execution_context,
         )),
+        "development".to_string(),
     );
 
-    let configs = config_assets(context, project_path, next_config.page_extensions());
+    let configs = config_assets(context, project_root, next_config.page_extensions());
     let router_asset = route_executor(context, configs);
 
     // This invalidates the router when the next config changes
-    let next_config_changed = next_config_changed(context, project_path);
+    let next_config_changed = next_config_changed(context, project_root);
 
     let request = serde_json::value::to_value(&*request.await?)?;
-    let Some(dir) = to_sys_path(project_path).await? else {
+    let Some(dir) = to_sys_path(project_root).await? else {
         bail!("Next.js requires a disk path to check for valid routes");
     };
     let server_addr = server_addr.await?;
     let result = evaluate(
         router_asset,
-        project_path,
+        project_root,
         env,
-        AssetIdentVc::from_path(project_path),
+        AssetIdentVc::from_path(project_root),
         context,
         chunking_context.with_layer("router"),
         None,
@@ -463,7 +466,7 @@ async fn route_internal(
                     error,
                     router_asset,
                     chunking_context.output_root(),
-                    project_path
+                    project_root
                 )
                 .await?
             )),

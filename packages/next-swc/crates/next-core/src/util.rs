@@ -27,37 +27,22 @@ use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString
 use crate::next_config::NextConfigVc;
 
 /// Converts a filename within the server root into a next pathname.
+/// TODO(alexkirsz) This is broken atm with `index`.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
-    has_extension: bool,
-    data: bool,
 ) -> Result<StringVc> {
     let server_path_value = &*server_path.await?;
-    let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
-        path
+    if let Some(path) = server_root.await?.get_path_to(server_path_value) {
+        Ok(StringVc::cell(path.to_string()))
     } else {
         bail!(
             "server_path ({}) is not in server_root ({})",
             server_path.to_string().await?,
             server_root.to_string().await?
         )
-    };
-    let path = if has_extension {
-        path.rsplit_once('.')
-            .ok_or_else(|| anyhow!("path ({}) has no extension", path))?
-            .0
-    } else {
-        path
-    };
-    let path = if path == "index" && !data {
-        ""
-    } else {
-        path.strip_suffix("/index").unwrap_or(path)
-    };
-
-    Ok(StringVc::cell(path.to_string()))
+    }
 }
 
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/shared/lib/router/utils/get-asset-path-from-route.ts

@@ -67,11 +67,12 @@ use crate::{
     embed_js::{next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
+    mode::NextMode,
     next_client::{
         context::{
-            get_client_assets_path, get_client_chunking_context, get_client_compile_time_info,
-            get_client_module_options_context, get_client_resolve_options_context,
-            get_client_runtime_entries, ClientContextType,
+            get_client_compile_time_info, get_client_module_options_context,
+            get_client_resolve_options_context, get_client_runtime_entries,
+            get_dev_client_assets_path, get_dev_client_chunking_context, ClientContextType,
         },
         transition::NextClientTransition,
     },
@@ -130,7 +131,8 @@ async fn next_client_transition(
     next_config: NextConfigVc,
 ) -> Result<TransitionVc> {
     let ty = Value::new(ClientContextType::App { app_dir });
-    let client_chunking_context = get_client_chunking_context(
+    let mode = Value::new(NextMode::Development);
+    let client_chunking_context = get_dev_client_chunking_context(
         project_path,
         server_root,
         client_compile_time_info.environment(),
@@ -141,12 +143,13 @@ async fn next_client_transition(
         execution_context,
         client_compile_time_info.environment(),
         ty,
+        mode,
         next_config,
     );
     let client_runtime_entries =
-        get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
+        get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
     let client_resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, next_config, execution_context);
+        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
 
     Ok(NextClientTransition {
         is_app: true,
@@ -170,16 +173,19 @@ fn next_ssr_client_module_transition(
     server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
+    let mode = Value::new(NextMode::Development);
     NextSSRClientModuleTransition {
         ssr_module_options_context: get_server_module_options_context(
             project_path,
             execution_context,
             ty,
+            mode,
             next_config,
         ),
         ssr_resolve_options_context: get_server_resolve_options_context(
             project_path,
             ty,
+            mode,
             next_config,
             execution_context,
         ),
@@ -200,11 +206,12 @@ fn next_layout_entry_transition(
     server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
+    let mode = Value::new(NextMode::Development);
     let rsc_compile_time_info = get_server_compile_time_info(ty, process_env, server_addr);
     let rsc_resolve_options_context =
-        get_server_resolve_options_context(project_path, ty, next_config, execution_context);
+        get_server_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let rsc_module_options_context =
-        get_server_module_options_context(project_path, execution_context, ty, next_config);
+        get_server_module_options_context(project_path, execution_context, ty, mode, next_config);
 
     NextServerComponentTransition {
         rsc_compile_time_info,
@@ -238,7 +245,7 @@ fn next_route_transition(
         project_path,
         output_path.join("edge"),
         output_path.join("edge/chunks"),
-        get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
+        get_dev_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
         edge_compile_time_info.environment(),
     )
     .reference_chunk_source_maps(false)
@@ -275,6 +282,7 @@ fn app_context(
     output_path: FileSystemPathVc,
 ) -> AssetContextVc {
     let next_server_to_client_transition = NextServerToClientTransition { ssr }.cell().into();
+    let mode = Value::new(NextMode::Development);
 
     let mut transitions = HashMap::new();
     transitions.insert(
@@ -324,6 +332,7 @@ fn app_context(
             project_path,
             execution_context,
             client_ty,
+            mode,
             server_root,
             client_compile_time_info,
             next_config,
@@ -346,8 +355,20 @@ fn app_context(
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
         get_server_compile_time_info(ssr_ty, env, server_addr),
-        get_server_module_options_context(project_path, execution_context, ssr_ty, next_config),
-        get_server_resolve_options_context(project_path, ssr_ty, next_config, execution_context),
+        get_server_module_options_context(
+            project_path,
+            execution_context,
+            ssr_ty,
+            mode,
+            next_config,
+        ),
+        get_server_resolve_options_context(
+            project_path,
+            ssr_ty,
+            mode,
+            next_config,
+            execution_context,
+        ),
     )
     .into()
 }
@@ -371,7 +392,8 @@ pub async fn create_app_source(
     };
     let entrypoints = get_entrypoints(app_dir, next_config.page_extensions());
 
-    let client_compile_time_info = get_client_compile_time_info(browserslist_query);
+    let client_compile_time_info =
+        get_client_compile_time_info(Value::new(NextMode::Development), browserslist_query);
 
     let context_ssr = app_context(
         project_path,
@@ -760,6 +782,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
                     EcmascriptInputTransform::React {
+                        development: true,
                         refresh: false,
                         import_source: OptionStringVc::cell(None),
                         runtime: OptionStringVc::cell(None),
@@ -773,8 +796,8 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 InnerAssetsVc::cell(inner_assets),
             ),
             chunking_context,
-            intermediate_output_path,
-            output_root: intermediate_output_path.root(),
+            node_path: intermediate_output_path,
+            node_root: intermediate_output_path.root(),
             project_dir: project_path,
         }
         .cell())
@@ -856,8 +879,8 @@ impl AppRouteVc {
                 }),
             ),
             chunking_context,
-            intermediate_output_path: this.intermediate_output_path,
-            output_root: this.output_root,
+            node_path: this.intermediate_output_path,
+            node_root: this.output_root,
             project_dir: this.project_path,
         }
         .cell())

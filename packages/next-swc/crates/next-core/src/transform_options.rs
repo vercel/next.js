@@ -7,11 +7,14 @@ use turbo_binding::turbopack::{
     },
     ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
     turbopack::module_options::{
-        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
-        JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, ReactTransformOptions,
+        ReactTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
     },
 };
+use turbo_tasks::Value;
 use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
+
+use crate::{mode::NextMode, react_refresh::assert_can_resolve_react_refresh};
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
@@ -115,12 +118,14 @@ pub async fn get_decorators_transform_options(
 }
 
 #[turbo_tasks::function]
-pub async fn get_jsx_transform_options(
+pub async fn get_react_transform(
     project_path: FileSystemPathVc,
-) -> Result<JsxTransformOptionsVc> {
+    enable_react_refresh: bool,
+    mode: Value<NextMode>,
+) -> Result<ReactTransformOptionsVc> {
     let tsconfig = get_typescript_options(project_path).await;
 
-    let react_transform_options = if let Some(tsconfig) = tsconfig {
+    let react_transform = if let Some(tsconfig) = tsconfig {
         read_from_tsconfigs(&tsconfig, |json, _| {
             let jsx_import_source = json["compilerOptions"]["jsxImportSource"]
                 .as_str()
@@ -139,9 +144,14 @@ pub async fn get_jsx_transform_options(
                 None
             };
 
-            Some(JsxTransformOptions {
+            Some(ReactTransformOptions {
+                enable_react_refresh,
                 import_source: jsx_import_source,
                 runtime,
+                development: match mode.into_value() {
+                    NextMode::Development => true,
+                    NextMode::Build => false,
+                },
             })
         })
         .await?
@@ -150,5 +160,5 @@ pub async fn get_jsx_transform_options(
         Default::default()
     };
 
-    Ok(react_transform_options.cell())
+    Ok(react_transform.cell())
 }

@@ -1,35 +1,43 @@
 use turbo_binding::turbo::{
-    tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi},
+    tasks::{run_once, TransientInstance, TurboTasks},
     tasks_memory::MemoryBackend,
 };
 
-pub fn register() {
-    turbo_binding::turbo::tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
+pub mod build_options;
+pub(crate) mod next_build;
+pub(crate) mod next_pages;
 
-pub struct NextBuildOptions {
-    pub dir: Option<String>,
-    pub memory_limit: Option<usize>,
-    pub full_stats: Option<bool>,
-}
+use anyhow::Result;
 
-pub async fn next_build(options: NextBuildOptions) -> anyhow::Result<()> {
+pub use crate::build_options::BuildOptions;
+
+pub async fn build(options: BuildOptions) -> Result<()> {
+    #[cfg(feature = "tokio_console")]
+    console_subscriber::init();
     register();
+
     let tt = TurboTasks::new(MemoryBackend::new(
         options.memory_limit.map_or(usize::MAX, |l| l * 1024 * 1024),
     ));
-    let stats_type = match options.full_stats {
-        Some(true) => StatsType::Full,
-        _ => StatsType::Essential,
-    };
-    tt.set_stats_type(stats_type);
-    let task = tt.spawn_root_task(move || {
-        Box::pin(async move {
-            // run next build here
-            Ok(NothingVc::new().into())
-        })
-    });
-    tt.wait_task_completion(task, true).await?;
+
+    run_once(tt, async move {
+        next_build::next_build(TransientInstance::new(options)).await?;
+
+        Ok(())
+    })
+    .await?;
+
     Ok(())
+}
+
+pub fn register() {
+    turbo_binding::turbo::tasks::register();
+    turbo_binding::turbo::tasks_fs::register();
+    turbo_binding::turbopack::turbopack::register();
+    turbo_binding::turbopack::core::register();
+    turbo_binding::turbopack::node::register();
+    turbo_binding::turbopack::dev::register();
+    turbo_binding::turbopack::build::register();
+    next_core::register();
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

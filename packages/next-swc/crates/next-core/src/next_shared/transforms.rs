@@ -96,7 +96,7 @@ pub async fn get_next_dynamic_transform_rule(
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![dynamic_transform]),
+            EcmascriptInputTransformsVc::cell(vec![/*dynamic_transform*/]),
         )],
     ))
 }

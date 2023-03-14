@@ -15,7 +15,7 @@ use turbo_binding::{
         turbopack::{
             module_options::{
                 ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions,
-                WebpackLoadersOptions,
+                ReactTransformOptions, WebpackLoadersOptions,
             },
             resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
         },
@@ -28,12 +28,12 @@ use super::{
 };
 use crate::{
     babel::maybe_add_babel_loader,
+    mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
     transform_options::{
-        get_decorators_transform_options, get_jsx_transform_options,
-        get_typescript_transform_options,
+        get_decorators_transform_options, get_react_transform, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -53,6 +53,7 @@ pub enum ServerContextType {
 pub async fn get_server_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
+    mode: Value<NextMode>,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> Result<ResolveOptionsContextVc> {
@@ -73,7 +74,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 plugins: vec![external_cjs_modules_plugin.into()],
                 ..Default::default()
@@ -94,7 +95,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 ..Default::default()
             };
@@ -114,7 +115,14 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 enable_node_native_modules: true,
                 module: true,
-                custom_conditions: vec!["development".to_string(), "react-server".to_string()],
+                custom_conditions: vec![
+                    match mode.into_value() {
+                        NextMode::Development => "development",
+                        NextMode::Build => "production",
+                    }
+                    .to_string(),
+                    "react-server".to_string(),
+                ],
                 import_map: Some(next_server_import_map),
                 ..Default::default()
             };
@@ -132,7 +140,7 @@ pub async fn get_server_resolve_options_context(
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: Some(root_dir),
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 import_map: Some(next_server_import_map),
                 ..Default::default()
             };
@@ -151,7 +159,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_modules: Some(root_dir),
                 enable_node_externals: true,
                 module: true,
-                custom_conditions: vec!["development".to_string()],
+                custom_conditions: vec![mode.node_env().to_string()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -207,6 +215,7 @@ pub async fn get_server_module_options_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     ty: Value<ServerContextType>,
+    mode: Value<NextMode>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
     let custom_rules = get_next_server_transforms_rules(ty.into_value()).await?;
@@ -234,7 +243,7 @@ pub async fn get_server_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let react_transform = Some(get_react_transform(project_path, false, mode));
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -243,7 +252,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: Some(jsx_runtime_options),
+                react_transform,
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -268,7 +277,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: Some(jsx_runtime_options),
+                react_transform,
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -299,7 +308,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: Some(jsx_runtime_options),
+                react_transform,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -336,7 +345,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: Some(jsx_runtime_options),
+                react_transform,
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,

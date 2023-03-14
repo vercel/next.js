@@ -21,9 +21,10 @@ use turbo_binding::{
 use turbo_tasks::Value;
 
 use crate::{
+    mode::NextMode,
     next_client::context::{
-        get_client_chunking_context, get_client_module_options_context,
-        get_client_resolve_options_context, get_client_runtime_entries, ClientContextType,
+        get_client_module_options_context, get_client_resolve_options_context,
+        get_client_runtime_entries, get_dev_client_chunking_context, ClientContextType,
     },
     next_config::NextConfigVc,
     next_import_map::insert_next_shared_aliases,
@@ -40,22 +41,25 @@ pub async fn get_fallback_page(
     next_config: NextConfigVc,
 ) -> Result<DevHtmlAssetVc> {
     let ty = Value::new(ClientContextType::Fallback);
+    let mode = Value::new(NextMode::Development);
     let resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, next_config, execution_context);
+        get_client_resolve_options_context(project_path, ty, mode, next_config, execution_context);
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
         client_compile_time_info.environment(),
         ty,
+        mode,
         next_config,
     );
-    let chunking_context = get_client_chunking_context(
+    let chunking_context = get_dev_client_chunking_context(
         project_path,
         dev_server_root,
         client_compile_time_info.environment(),
         ty,
     );
-    let entries = get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
+    let entries =
+        get_client_runtime_entries(project_path, env, ty, mode, next_config, execution_context);
 
     let mut import_map = ImportMap::empty();
     insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;

@@ -207,7 +207,8 @@ export default async function build(
   runLint = true,
   noMangling = false,
   appDirOnly = false,
-  turboNextBuild = false
+  turboNextBuild = false,
+  turboNextBuildRoot = null
 ): Promise<void> {
   let hasAppDir = false
   try {
@@ -532,6 +533,22 @@ export default async function build(
         pages: pagesPageKeys,
         app: appPageKeys.length > 0 ? appPageKeys : undefined,
       }
+
+      // TODO(alexkirsz) Filter out pages.
+      pageKeys.pages = pageKeys.pages.filter((page) => {
+        if (process.env.TURBOPACK_DEBUG) {
+          console.log(page)
+        }
+        return (
+          page === '/' ||
+          page === '/enterprise' ||
+          page === '/404' ||
+          page === '/_app' ||
+          page === '/_document' ||
+          page === '/_error'
+        )
+      })
+      pageKeys.app = undefined
 
       const numConflictingAppPaths = conflictingAppPagePaths.length
       if (mappedAppPages && numConflictingAppPaths > 0) {
@@ -923,7 +940,31 @@ export default async function build(
 
       async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()
-        await binding.turbo.nextBuild(NextBuildContext)
+
+        const turboJson = findUp.sync('turbo.json', { cwd: dir })
+        // eslint-disable-next-line no-shadow
+        const packagePath = findUp.sync('package.json', { cwd: dir })
+
+        let root =
+          turboNextBuildRoot ??
+          (turboJson
+            ? path.dirname(turboJson)
+            : packagePath
+            ? path.dirname(packagePath)
+            : undefined)
+        if (process.env.TURBOPACK_DEBUG) {
+          console.log('Calling nextBuild with', {
+            dir: NextBuildContext.dir,
+            buildId: NextBuildContext.buildId,
+            root,
+          })
+        }
+        await binding.turbo.nextBuild({
+          dir: NextBuildContext.dir,
+          buildId: NextBuildContext.buildId,
+          root,
+        })
+
         const [duration] = process.hrtime(turboNextBuildStart)
         return { duration, turbotraceContext: null }
       }
@@ -1588,6 +1629,7 @@ export default async function build(
                       err.message !== 'INVALID_DEFAULT_EXPORT'
                     )
                       throw err
+                    console.error(err)
                     invalidPages.add(page)
                   }
                 }
@@ -2028,6 +2070,7 @@ export default async function build(
         (!hasNonStaticErrorPage || hasPages404 || hasApp404)
 
       if (invalidPages.size > 0) {
+        console.error(invalidPages)
         const err = new Error(
           `Build optimization failed: found page${
             invalidPages.size === 1 ? '' : 's'

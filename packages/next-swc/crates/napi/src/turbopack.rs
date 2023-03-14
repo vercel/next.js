@@ -1,7 +1,10 @@
-use std::convert::TryFrom;
+use std::{
+    convert::{TryFrom, TryInto},
+    path::PathBuf,
+};
 
 use napi::bindgen_prelude::*;
-use next_build::{next_build as turbo_next_build, NextBuildOptions};
+use next_build::{build as turbo_next_build, BuildOptions as NextBuildOptions};
 use next_dev::{devserver_options::DevServerOptions, start_server};
 
 use crate::util::MapErr;
@@ -15,12 +18,16 @@ pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
 pub struct NextBuildContext {
+    // Added by Next.js for next build --turbo specifically.
+    pub root: Option<String>,
+
     pub dir: Option<String>,
-    pub app_dir: Option<String>,
-    pub pages_dir: Option<String>,
-    pub rewrites: Option<Rewrites>,
-    pub original_rewrites: Option<Rewrites>,
-    pub original_redirects: Option<Vec<Redirect>>,
+    pub build_id: Option<String>,
+    // pub app_dir: Option<String>,
+    // pub pages_dir: Option<String>,
+    // pub rewrites: Option<Rewrites>,
+    // pub original_rewrites: Option<Rewrites>,
+    // pub original_redirects: Option<Vec<Redirect>>,
 }
 
 #[napi(object, object_to_js = false)]
@@ -93,17 +100,25 @@ impl FromNapiValue for RouteHas {
     }
 }
 
-impl From<NextBuildContext> for NextBuildOptions {
-    fn from(value: NextBuildContext) -> Self {
-        Self {
-            dir: value.dir,
+impl TryFrom<NextBuildContext> for NextBuildOptions {
+    type Error = napi::Error;
+
+    fn try_from(value: NextBuildContext) -> Result<Self> {
+        Ok(Self {
+            dir: value.dir.map(PathBuf::try_from).transpose()?,
+            root: value.root.map(PathBuf::try_from).transpose()?,
+            build_id: value.build_id,
+            display_version: false,
+            log_level: None,
+            show_all: true,
+            log_detail: true,
+            full_stats: true,
             memory_limit: None,
-            full_stats: None,
-        }
+        })
     }
 }
 
 #[napi]
 pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
-    turbo_next_build(ctx.into()).await.convert_err()
+    turbo_next_build(ctx.try_into()?).await.convert_err()
 }

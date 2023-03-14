@@ -20,7 +20,7 @@ use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use next_core::{
     app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
-    create_web_entry_source, env::load_env, manifest::DevManifestContentSource,
+    create_web_entry_source, env::load_env, manifest::DevManifestContentSource, mode::NextMode,
     next_config::load_next_config, next_image::NextImageContentSourceVc,
     pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
     source_map::NextSourceMapTraceContentSourceVc,
@@ -294,7 +294,10 @@ async fn source(
 
     let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
 
-    let next_config = load_next_config(execution_context.with_layer("next_config"));
+    let next_config = load_next_config(
+        execution_context.with_layer("next_config"),
+        Value::new(NextMode::Development),
+    );
 
     let output_root = output_fs.root().join(".next/server");
     let server_addr = ServerAddr::new(*server_addr).cell();
