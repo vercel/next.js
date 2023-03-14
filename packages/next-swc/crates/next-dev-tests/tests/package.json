@@ -8,7 +8,7 @@
     "autoprefixer": "10.4.4",
     "babel-loader": "9.1.2",
     "loader-runner": "4.3.0",
-    "next": "link:../../../../next",
+    "next": "*",
     "postcss": "8.4.14",
     "react-test-renderer": "18.2.0",
     "tailwindcss": "1.1.3"
