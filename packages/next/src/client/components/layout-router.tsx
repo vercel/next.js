@@ -156,7 +156,6 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
       // This already caused a bug where the first child was a <link/> in head.
       if (!domNode) {
         domNode = findDOMNode(this)
-        console.log('layoutDomNode', domNode)
       }
 
       // If there is no DOMNode this layout-router level is skipped. It'll be handled higher-up in the tree.
