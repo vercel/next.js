@@ -32,6 +32,7 @@ jobs:
         run: ./scripts/deploy-examples.sh
         env:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: production
 
   build:
     runs-on: ubuntu-latest
