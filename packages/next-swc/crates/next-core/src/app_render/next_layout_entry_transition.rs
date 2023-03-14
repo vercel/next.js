@@ -69,7 +69,10 @@ impl Transition for NextLayoutEntryTransition {
                 EcmascriptInputTransform::TypeScript {
                     use_define_for_class_fields: false,
                 },
-                EcmascriptInputTransform::React { refresh: false },
+                EcmascriptInputTransform::React {
+                    refresh: false,
+                    development: true,
+                },
             ]),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {

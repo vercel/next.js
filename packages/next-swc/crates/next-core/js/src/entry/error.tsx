@@ -4,4 +4,4 @@ export {
   getStaticProps,
   __N_SSG,
   __N_SSP,
-} from "@vercel/turbopack-next/internal/_error";
+} from '@vercel/turbopack-next/pages/_error'

@@ -117,7 +117,8 @@ export function requirePage(
       throw new MissingStaticPage(page, err.message)
     })
   }
-  return require(pagePath)
+  const exp = require(pagePath)
+  return exp
 }
 
 export function requireFontManifest(distDir: string) {

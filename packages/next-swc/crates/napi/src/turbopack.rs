@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, path::PathBuf};
 
 use crate::util::MapErr;
 use napi::bindgen_prelude::*;
@@ -13,6 +13,9 @@ pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
 pub struct NextBuildContext {
+    // Added by Next.js for next build --turbo specifically.
+    pub root: Option<String>,
+
     pub dir: Option<String>,
     pub app_dir: Option<String>,
     pub pages_dir: Option<String>,
@@ -93,6 +96,16 @@ impl FromNapiValue for RouteHas {
 
 #[napi]
 pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
-    println!("ctx: {:?}", ctx);
-    Ok(())
+    next_binding::turbo::next_build::build(next_binding::turbo::next_build::BuildOptions {
+        dir: ctx.dir.map(|path| PathBuf::from(path)),
+        root: ctx.root.map(|path| PathBuf::from(path)),
+        display_version: false,
+        log_level: None,
+        show_all: true,
+        log_detail: true,
+        full_stats: true,
+        memory_limit: None,
+    })
+    .await
+    .convert_err()
 }

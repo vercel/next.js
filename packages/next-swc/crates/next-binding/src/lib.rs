@@ -23,6 +23,8 @@ pub mod swc {
 pub mod turbo {
     #[cfg(feature = "__turbo_next_dev_server")]
     pub use next_dev;
+    #[cfg(feature = "__turbo_next_build")]
+    pub use next_build;
     #[cfg(feature = "__turbo_node_file_trace")]
     pub use node_file_trace;
 }

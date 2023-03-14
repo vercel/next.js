@@ -8,7 +8,7 @@ use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack::{
     module_options::{
         module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        PostCssTransformOptions, WebpackLoadersOptions,
+        PostCssTransformOptions, ReactTransform, WebpackLoadersOptions,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
@@ -31,6 +31,7 @@ use crate::{
     babel::maybe_add_babel_loader,
     embed_js::next_js_fs,
     env::env_for_js,
+    mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
     next_config::NextConfigVc,
@@ -120,15 +121,21 @@ pub async fn get_client_module_options_context(
     execution_context: ExecutionContextVc,
     env: EnvironmentVc,
     ty: Value<ClientContextType>,
+    mode: Value<NextMode>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
+    let mode = mode.into_value();
     let custom_rules = get_next_client_transforms_rules(ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
-    let enable_react_refresh =
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
-            .await?
-            .is_found();
+    let enable_react_refresh = match mode {
+        NextMode::Development => {
+            assert_can_resolve_react_refresh(project_path, resolve_options_context)
+                .await?
+                .is_found()
+        }
+        NextMode::Build => false,
+    };
 
     let tsconfig = get_typescript_transform_options(project_path);
     let enable_webpack_loaders = {
@@ -157,7 +164,13 @@ pub async fn get_client_module_options_context(
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
-        enable_jsx: true,
+        react_transform: ReactTransform::Enabled {
+            enable_react_refresh,
+            development: match mode {
+                NextMode::Development => true,
+                NextMode::Build => false,
+            },
+        },
         enable_emotion: true,
         enable_react_refresh,
         enable_styled_components: true,
@@ -186,6 +199,7 @@ pub fn get_client_asset_context(
     execution_context: ExecutionContextVc,
     compile_time_info: CompileTimeInfoVc,
     ty: Value<ClientContextType>,
+    mode: Value<NextMode>,
     next_config: NextConfigVc,
 ) -> AssetContextVc {
     let resolve_options_context =
@@ -195,6 +209,7 @@ pub fn get_client_asset_context(
         execution_context,
         compile_time_info.environment(),
         ty,
+        mode,
         next_config,
     );
 
@@ -210,7 +225,7 @@ pub fn get_client_asset_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
+pub fn get_dev_client_chunking_context(
     project_path: FileSystemPathVc,
     server_root: FileSystemPathVc,
     environment: EnvironmentVc,
@@ -225,7 +240,7 @@ pub fn get_client_chunking_context(
             }
             ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_chunks"),
         },
-        get_client_assets_path(server_root, ty),
+        get_dev_client_assets_path(server_root, ty),
         environment,
     )
     .hot_module_replacement()
@@ -233,15 +248,28 @@ pub fn get_client_chunking_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_client_assets_path(
-    server_root: FileSystemPathVc,
+pub fn get_dev_client_assets_path(
+    client_root: FileSystemPathVc,
     ty: Value<ClientContextType>,
 ) -> FileSystemPathVc {
     match ty.into_value() {
         ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-            server_root.join("/_next/static/assets")
+            client_root.join("/static/assets")
         }
-        ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_assets"),
+        ClientContextType::Fallback | ClientContextType::Other => client_root.join("/_assets"),
+    }
+}
+
+#[turbo_tasks::function]
+pub fn get_build_client_assets_path(
+    client_root: FileSystemPathVc,
+    ty: Value<ClientContextType>,
+) -> FileSystemPathVc {
+    match ty.into_value() {
+        ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
+            client_root.join("/static")
+        }
+        ClientContextType::Fallback | ClientContextType::Other => client_root.join("/static"),
     }
 }
 

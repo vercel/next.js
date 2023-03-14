@@ -15,44 +15,47 @@ use turbopack_dev_server::{
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::{
+    mode::NextMode,
     next_client::context::{
-        get_client_asset_context, get_client_chunking_context, get_client_compile_time_info,
-        get_client_runtime_entries, ClientContextType,
+        get_client_asset_context, get_client_compile_time_info, get_client_runtime_entries,
+        get_dev_client_chunking_context, ClientContextType,
     },
     next_config::NextConfigVc,
 };
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    project_path: FileSystemPathVc,
+    project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     entry_requests: Vec<RequestVc>,
-    server_root: FileSystemPathVc,
+    client_root: FileSystemPathVc,
     env: ProcessEnvVc,
     eager_compile: bool,
     browserslist_query: &str,
     next_config: NextConfigVc,
 ) -> Result<ContentSourceVc> {
     let ty = Value::new(ClientContextType::Other);
+    let mode = Value::new(NextMode::Development);
     let compile_time_info = get_client_compile_time_info(browserslist_query);
     let context = get_client_asset_context(
-        project_path,
+        project_root,
         execution_context,
         compile_time_info,
         ty,
+        mode,
         next_config,
     );
-    let chunking_context = get_client_chunking_context(
-        project_path,
-        server_root,
+    let chunking_context = get_dev_client_chunking_context(
+        project_root,
+        client_root,
         compile_time_info.environment(),
         ty,
     );
-    let entries = get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
+    let entries = get_client_runtime_entries(project_root, env, ty, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
 
-    let origin = PlainResolveOriginVc::new(context, project_path.join("_")).as_resolve_origin();
+    let origin = PlainResolveOriginVc::new(context, project_root.join("_")).as_resolve_origin();
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
@@ -97,12 +100,12 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(server_root.join("index.html"), chunk_groups).into();
+    let entry_asset = DevHtmlAssetVc::new(client_root.join("index.html"), chunk_groups).into();
 
     let graph = if eager_compile {
-        AssetGraphContentSourceVc::new_eager(server_root, entry_asset)
+        AssetGraphContentSourceVc::new_eager(client_root, entry_asset)
     } else {
-        AssetGraphContentSourceVc::new_lazy(server_root, entry_asset)
+        AssetGraphContentSourceVc::new_lazy(client_root, entry_asset)
     }
     .into();
     Ok(graph)

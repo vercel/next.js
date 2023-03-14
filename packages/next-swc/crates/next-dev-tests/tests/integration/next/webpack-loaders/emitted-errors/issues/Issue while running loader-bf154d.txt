@@ -1,0 +1,21 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/hello.emit",
+    category: "loaders",
+    title: "Issue while running loader",
+    description: "Error: Error!\n  at Object.module.exports (crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/node_modules/emit-loader/index.js:4:18)\n  at LOADER_EXECUTION (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4134)\n  at runSyncOrAsync (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4145)\n  at iterateNormalLoaders (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:5782)\n  at <unknown> (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:5426)\n  at readResource (crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/.next/build/webpack_loaders/chunks/[turbopack-node]_transforms_webpack-loaders.ts._.js:57:17)\n  at <unknown> (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:6160)\n  at processResource (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:5308)\n  at iteratePitchingLoaders (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4667)\n  at iteratePitchingLoaders (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4764)\n  at <unknown> (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4896)\n  at handleResult (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:1424)\n  at loadLoader (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:963)\n  at iteratePitchingLoaders (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:4794)\n  at runLoaders (node_modules/.pnpm/next@13.2.4-canary.6_pjwopsidmaokadturxaafygjp4/node_modules/next/dist/compiled/loader-runner/LoaderRunner.js:1:8590)\n  at <unknown> (crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/.next/build/webpack_loaders/chunks/[turbopack-node]_transforms_webpack-loaders.ts._.js:37:9)\n  at <anonymous>\n  at Module.transform (crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/.next/build/webpack_loaders/chunks/[turbopack-node]_transforms_webpack-loaders.ts._.js:30:12)\n  at <unknown> (crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/.next/build/webpack_loaders/chunks/[turbopack-node]__e6a2b6._.js:15:212)\n  at Module.run (crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/.next/build/webpack_loaders/chunks/[turbopack-node]_ipc_evaluate.ts._.js:174:45)\n  at processTicksAndRejections (node:internal/process/task_queues:96:5)\n",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/index.js",
+                ),
+                description: "Next.js pages directory",
+            },
+        ],
+    ),
+}

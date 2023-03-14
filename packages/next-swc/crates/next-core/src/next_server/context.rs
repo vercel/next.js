@@ -4,7 +4,7 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     module_options::{
-        ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions,
+        ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions, ReactTransform,
         WebpackLoadersOptions,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
@@ -25,6 +25,7 @@ use super::{
 };
 use crate::{
     babel::maybe_add_babel_loader,
+    mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
@@ -204,8 +205,10 @@ pub async fn get_server_module_options_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     ty: Value<ServerContextType>,
+    mode: Value<NextMode>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
+    let mode = mode.into_value();
     let custom_rules = get_next_server_transforms_rules(ty.into_value()).await?;
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
@@ -231,6 +234,14 @@ pub async fn get_server_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
 
+    let react_transform = ReactTransform::Enabled {
+        enable_react_refresh: false,
+        development: match mode {
+            NextMode::Development => true,
+            NextMode::Build => false,
+        },
+    };
+
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
             let module_options_context = ModuleOptionsContext {
@@ -238,7 +249,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                react_transform,
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -257,7 +268,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                react_transform,
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -279,7 +290,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                react_transform,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -314,7 +325,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                react_transform,
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,

@@ -5,6 +5,7 @@ members = [
   "crates/napi",
   "crates/wasm",
   "crates/next-binding",
+  "crates/next-build",
   "crates/next-core",
   "crates/next-dev",
   "crates/next-dev-tests",
@@ -26,7 +27,8 @@ lto = true
 [workspace.dependencies]
 # Workspace crates
 next-binding = { path = "crates/next-binding" }
-next-core = { path = "crates/next-core", default-features = false }
+next-build = { path = "crates/next-build" }
+next-core = { path = "crates/next-core", default-features = false  }
 next-dev = { path = "crates/next-dev" }
 next-dev-tests = { path = "crates/next-dev-tests" }
 next-transform-font = { path = "crates/next-transform-font" }
@@ -45,37 +47,38 @@ swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbo-updater = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-dev = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
-turbopack-tests = { git = "https://github.com/vercel/turbo.git", rev = "alexkirsz/web-700-customizable-runtime-in-ecmascript" }
+auto-hash-map = { path = "../../../turbo-crates/crates/auto-hash-map" }
+node-file-trace = { path = "../../../turbo-crates/crates/node-file-trace" }
+swc-ast-explorer = { path = "../../../turbo-crates/crates/swc-ast-explorer" }
+turbo-malloc = { default-features = false, path = "../../../turbo-crates/crates/turbo-malloc" }
+turbo-tasks = { path = "../../../turbo-crates/crates/turbo-tasks" }
+turbo-tasks-build = { path = "../../../turbo-crates/crates/turbo-tasks-build" }
+turbo-tasks-env = { path = "../../../turbo-crates/crates/turbo-tasks-env" }
+turbo-tasks-fetch = { path = "../../../turbo-crates/crates/turbo-tasks-fetch" }
+turbo-tasks-fs = { path = "../../../turbo-crates/crates/turbo-tasks-fs" }
+turbo-tasks-hash = { path = "../../../turbo-crates/crates/turbo-tasks-hash" }
+turbo-tasks-macros = { path = "../../../turbo-crates/crates/turbo-tasks-macros" }
+turbo-tasks-macros-shared = { path = "../../../turbo-crates/crates/turbo-tasks-macros-shared" }
+turbo-tasks-memory = { path = "../../../turbo-crates/crates/turbo-tasks-memory" }
+turbo-tasks-testing = { path = "../../../turbo-crates/crates/turbo-tasks-testing" }
+turbo-updater = { path = "../../../turbo-crates/crates/turbo-updater" }
+turbopack = { path = "../../../turbo-crates/crates/turbopack" }
+turbopack-build = { path = "../../../turbo-crates/crates/turbopack-build" }
+turbopack-cli-utils = { path = "../../../turbo-crates/crates/turbopack-cli-utils" }
+turbopack-core = { path = "../../../turbo-crates/crates/turbopack-core" }
+turbopack-create-test-app = { path = "../../../turbo-crates/crates/turbopack-create-test-app" }
+turbopack-css = { path = "../../../turbo-crates/crates/turbopack-css" }
+turbopack-dev = { path = "../../../turbo-crates/crates/turbopack-dev" }
+turbopack-dev-server = { path = "../../../turbo-crates/crates/turbopack-dev-server" }
+turbopack-ecmascript = { path = "../../../turbo-crates/crates/turbopack-ecmascript" }
+turbopack-env = { path = "../../../turbo-crates/crates/turbopack-env" }
+turbopack-json = { path = "../../../turbo-crates/crates/turbopack-json" }
+turbopack-mdx = { path = "../../../turbo-crates/crates/turbopack-mdx" }
+turbopack-node = { path = "../../../turbo-crates/crates/turbopack-node" }
+turbopack-static = { path = "../../../turbo-crates/crates/turbopack-static" }
+turbopack-swc-utils = { path = "../../../turbo-crates/crates/turbopack-swc-utils" }
+turbopack-test-utils = { path = "../../../turbo-crates/crates/turbopack-test-utils" }
+turbopack-tests = { path = "../../../turbo-crates/crates/turbopack-tests" }
 
 # General Deps
 
