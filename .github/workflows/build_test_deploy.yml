@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
       - name: Install moreutils
         run: sudo apt install moreutils
       - name: Check examples
