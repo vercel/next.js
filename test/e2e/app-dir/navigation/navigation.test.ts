@@ -55,10 +55,10 @@ createNextDescribe(
           )
         }
 
-        await checkLink(6, 131)
-        await checkLink(50, 835)
-        await checkLink(160, 2595)
-        await checkLink(300, 4835)
+        await checkLink(6, 114)
+        await checkLink(50, 730)
+        await checkLink(160, 2270)
+        await checkLink(300, 4230)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
