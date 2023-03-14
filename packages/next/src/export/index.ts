@@ -740,7 +740,12 @@ export default async function exportApp(
           const pageName = appPageName || srcRoute || route
           const isAppPath = Boolean(appPageName)
 
-          if (appPageName && !appPageName.endsWith('/page')) {
+          if (
+            appPageName &&
+            !appPageName.endsWith('/page') &&
+            !appPageName.endsWith('/route')
+          ) {
+            // Since `app` dir doesn't have `public`, we need to copy static assets
             const srcFile = join(dir, 'app', appPageName)
             const destFile = join(outDir, appPageName)
             await promises.mkdir(dirname(destFile), { recursive: true })
