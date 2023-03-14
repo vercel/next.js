@@ -52,6 +52,7 @@ import {
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
 import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -739,7 +740,7 @@ export default async function exportApp(
           const appPageName = mapAppRouteToPage.get(srcRoute || '')
           const pageName = appPageName || srcRoute || route
           const isAppPath = Boolean(appPageName)
-          const isAppRouteHandler = appPageName?.endsWith('/route')
+          const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
