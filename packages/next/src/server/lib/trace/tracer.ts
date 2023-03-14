@@ -213,7 +213,7 @@ class NextTracerImpl implements NextTracer {
           return result
         }
 
-        result
+        return result
           .then((value) => {
             span.end()
             return value
@@ -222,8 +222,6 @@ class NextTracerImpl implements NextTracer {
             closeSpanWithError(span, err)
             throw err
           })
-
-        return result
       } catch (err: any) {
         closeSpanWithError(span, err)
         throw err
