@@ -156,7 +156,7 @@ class NextTracerImpl implements NextTracer {
     fn: (span?: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
-    const [type, fnOrOptions, fnOrEmpty] = args
+    const [name, fnOrOptions, fnOrEmpty] = args
 
     // coerce options form overload
     const {
@@ -177,13 +177,13 @@ class NextTracerImpl implements NextTracer {
           }
 
     if (
-      !NextVanillaSpanAllowlist.includes(type) &&
+      !NextVanillaSpanAllowlist.includes(name) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn()
     }
 
-    const traceName = options.tracerName ?? type
+    const traceName = options.tracerName ?? name
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     const spanContext = this.getSpanContext(
