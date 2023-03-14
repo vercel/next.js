@@ -24,6 +24,7 @@ anyhow = { workspace = true }
 chromiumoxide = { workspace = true, features = [
   "tokio-runtime",
 ], default-features = false }
+dunce = { workspace = true }
 futures = { workspace = true }
 httpmock = { workspace = true, features = ["standalone"] }
 lazy_static = { workspace = true }

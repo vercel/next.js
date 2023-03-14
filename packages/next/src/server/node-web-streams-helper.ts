@@ -2,6 +2,7 @@ import type { FlightRouterState } from './app-render'
 import { nonNullable } from '../lib/non-nullable'
 import { getTracer } from './lib/trace/tracer'
 import { AppRenderSpan } from './lib/trace/constants'
+import type RenderResult from './render-result'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
@@ -19,6 +20,23 @@ export function decodeText(
   textDecoder: TextDecoder
 ) {
   return textDecoder.decode(input, { stream: true })
+}
+
+export const streamToBufferedResult = async (
+  renderResult: RenderResult
+): Promise<string> => {
+  const renderChunks: string[] = []
+  const textDecoder = new TextDecoder()
+
+  const writable = {
+    write(chunk: any) {
+      renderChunks.push(decodeText(chunk, textDecoder))
+    },
+    end() {},
+    destroy() {},
+  }
+  await renderResult.pipe(writable as any)
+  return renderChunks.join('')
 }
 
 export function readableStreamTee<T = any>(
