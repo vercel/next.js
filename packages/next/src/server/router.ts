@@ -24,7 +24,7 @@ import {
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import type { I18NProvider } from './future/helpers/i18n-provider'
 import { getTracer } from './lib/trace/tracer'
 import { RouterSpan } from './lib/trace/constants'
 
@@ -33,6 +33,14 @@ type RouteResult = {
   pathname?: string
   query?: ParsedUrlQuery
 }
+
+type RouteFn = (
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  params: Params,
+  parsedUrl: NextUrlWithParsedQuery,
+  upgradeHead?: Buffer
+) => Promise<RouteResult> | RouteResult
 
 export type Route = {
   match: RouteMatchFn
@@ -47,13 +55,7 @@ export type Route = {
   matchesLocaleAPIRoutes?: true
   matchesTrailingSlash?: true
   internal?: true
-  fn: (
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    params: Params,
-    parsedUrl: NextUrlWithParsedQuery,
-    upgradeHead?: Buffer
-  ) => Promise<RouteResult> | RouteResult
+  fn: RouteFn
 }
 
 export type RouterOptions = {
@@ -70,7 +72,7 @@ export type RouterOptions = {
   matchers: RouteMatcherManager
   useFileSystemPublicRoutes: boolean
   nextConfig: NextConfig
-  localeNormalizer?: LocaleRouteNormalizer
+  i18nProvider?: I18NProvider
 }
 
 export type PageChecker = (pathname: string) => Promise<boolean>
@@ -87,10 +89,10 @@ export default class Router {
     fallback: ReadonlyArray<Route>
   }
   private readonly catchAllRoute: Route
-  private readonly matchers: Pick<RouteMatcherManager, 'test'>
+  private readonly matchers: RouteMatcherManager
   private readonly useFileSystemPublicRoutes: boolean
   private readonly nextConfig: NextConfig
-  private readonly localeNormalizer?: LocaleRouteNormalizer
+  private readonly i18nProvider?: I18NProvider
   private compiledRoutes: ReadonlyArray<Route>
   private needsRecompilation: boolean
 
@@ -108,7 +110,7 @@ export default class Router {
     matchers,
     useFileSystemPublicRoutes,
     nextConfig,
-    localeNormalizer,
+    i18nProvider,
   }: RouterOptions) {
     this.nextConfig = nextConfig
     this.headers = headers
@@ -119,7 +121,7 @@ export default class Router {
     this.catchAllMiddleware = catchAllMiddleware
     this.matchers = matchers
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
-    this.localeNormalizer = localeNormalizer
+    this.i18nProvider = i18nProvider
 
     // Perform the initial route compilation.
     this.compiledRoutes = this.compileRoutes()
@@ -188,13 +190,16 @@ export default class Router {
                   // step we're processing the afterFiles rewrites which must
                   // not include dynamic matches.
                   skipDynamic: true,
-                  i18n: this.localeNormalizer?.match(pathname, {
+                  i18n: this.i18nProvider?.analyze(pathname, {
                     defaultLocale: parsedUrl.query.__nextDefaultLocale,
                   }),
                 }
 
-                const match = await this.matchers.test(pathname, options)
+                const match = await this.matchers.match(pathname, options)
                 if (!match) return { finished: false }
+
+                // Add the match so we can get it later.
+                addRequestMeta(req, '_nextMatch', match)
 
                 return this.catchAllRoute.fn(
                   req,
@@ -274,7 +279,7 @@ export default class Router {
 
     // Normalize and detect the locale on the pathname.
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(fsPathname, {
+      i18n: this.i18nProvider?.analyze(fsPathname, {
         defaultLocale: parsedUrl.query.__nextDefaultLocale,
       }),
     }
@@ -349,23 +354,27 @@ export default class Router {
         continue
       }
 
+      // Update the `basePath` if the request had a `basePath`.
       if (getRequestMeta(req, '_nextHadBasePath')) {
         pathnameInfo.basePath = this.basePath
       }
 
+      // Create a copy of the `basePath` so we can modify it for the next
+      // request if the route doesn't match with the `basePath`.
       const basePath = pathnameInfo.basePath
       if (!route.matchesBasePath) {
         pathnameInfo.basePath = ''
       }
 
-      if (
-        route.matchesLocale &&
-        parsedUrlUpdated.query.__nextLocale &&
-        !pathnameInfo.locale
-      ) {
-        pathnameInfo.locale = parsedUrlUpdated.query.__nextLocale
+      // Add the locale to the information if the route supports matching
+      // locales and the locale is not present in the info.
+      const locale = parsedUrlUpdated.query.__nextLocale
+      if (route.matchesLocale && locale && !pathnameInfo.locale) {
+        pathnameInfo.locale = locale
       }
 
+      // If the route doesn't support matching locales and the locale is the
+      // default locale then remove it from the info.
       if (
         !route.matchesLocale &&
         pathnameInfo.locale === this.nextConfig.i18n?.defaultLocale &&
@@ -374,6 +383,8 @@ export default class Router {
         pathnameInfo.locale = undefined
       }
 
+      // If the route doesn't support trailing slashes and the request had a
+      // trailing slash then remove it from the info.
       if (
         route.matchesTrailingSlash &&
         getRequestMeta(req, '__nextHadTrailingSlash')
@@ -381,6 +392,7 @@ export default class Router {
         pathnameInfo.trailingSlash = true
       }
 
+      // Construct a new pathname based on the info.
       const matchPathname = formatNextPathnameInfo({
         ignorePrefix: true,
         ...pathnameInfo,
@@ -401,11 +413,9 @@ export default class Router {
         }
       }
 
-      /**
-       * If it is a matcher that doesn't match the basePath (like the public
-       * directory) but Next.js is configured to use a basePath that was
-       * never there, we consider this an invalid match and keep routing.
-       */
+      // If it is a matcher that doesn't match the basePath (like the public
+      // directory) but Next.js is configured to use a basePath that was
+      // never there, we consider this an invalid match and keep routing.
       if (
         params &&
         this.basePath &&
@@ -438,6 +448,8 @@ export default class Router {
           return true
         }
 
+        // If the result includes a pathname then we need to update the
+        // parsed url pathname to continue routing.
         if (result.pathname) {
           parsedUrlUpdated.pathname = result.pathname
         } else {
@@ -446,6 +458,8 @@ export default class Router {
           parsedUrlUpdated.pathname = originalPathname
         }
 
+        // Copy over only internal query parameters from the original query and
+        // merge with the result query.
         if (result.query) {
           parsedUrlUpdated.query = {
             ...getNextInternalQuery(parsedUrlUpdated.query),

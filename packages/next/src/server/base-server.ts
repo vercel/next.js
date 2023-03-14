@@ -605,6 +605,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       const defaultLocale =
         domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
+      parsedUrl.query.__nextDefaultLocale = defaultLocale
 
       const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
       const pathnameInfo = getNextPathnameInfo(url.pathname, {
@@ -653,7 +654,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           // Perform locale detection and normalization.
           const options: MatchOptions = {
-            i18n: this.localeNormalizer?.match(matchedPath, {
+            i18n: this.i18nProvider?.analyze(matchedPath, {
               defaultLocale,
             }),
           }
@@ -953,12 +954,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async pipe(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: BaseNextRequest
-      res: BaseNextResponse
-      pathname: string
-      query: NextParsedUrlQuery
-    }
+    partialContext: Omit<RequestContext, 'renderOpts'>
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.pipe, async () =>
       this.pipeImpl(fn, partialContext)
@@ -967,22 +963,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async pipeImpl(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: BaseNextRequest
-      res: BaseNextResponse
-      pathname: string
-      query: NextParsedUrlQuery
-    }
+    partialContext: Omit<RequestContext, 'renderOpts'>
   ): Promise<void> {
     const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
-    const ctx = {
+    const ctx: RequestContext = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
         isBot: !!isBotRequest,
       },
-    } as const
+    }
     const payload = await fn(ctx)
     if (payload === null) {
       return
@@ -1007,20 +998,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async getStaticHTML(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: BaseNextRequest
-      res: BaseNextResponse
-      pathname: string
-      query: ParsedUrlQuery
-    }
+    partialContext: Omit<RequestContext, 'renderOpts'>
   ): Promise<string | null> {
-    const payload = await fn({
+    const ctx: RequestContext = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: false,
       },
-    })
+    }
+    const payload = await fn(ctx)
     if (payload === null) {
       return null
     }
@@ -1786,15 +1773,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.renderOpts.dev) {
           query.__nextNotFoundSrcPage = pathname
         }
-        await this.render404(
-          req,
-          res,
-          {
-            pathname,
-            query,
-          } as UrlWithParsedQuery,
-          false
-        )
+        await this.render404(req, res, { pathname, query }, false)
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
@@ -1939,7 +1918,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(pathname, {
+      i18n: this.i18nProvider?.analyze(pathname, {
         defaultLocale: query.__nextDefaultLocale,
       }),
     }
@@ -2305,18 +2284,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public async render404(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query }: NextUrlWithParsedQuery = parsedUrl
-      ? parsedUrl
-      : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
 
     if (this.nextConfig.i18n) {
-      query.__nextLocale =
-        query.__nextLocale || this.nextConfig.i18n.defaultLocale
-      query.__nextDefaultLocale =
-        query.__nextDefaultLocale || this.nextConfig.i18n.defaultLocale
+      query.__nextLocale ||= this.nextConfig.i18n.defaultLocale
+      query.__nextDefaultLocale ||= this.nextConfig.i18n.defaultLocale
     }
 
     res.statusCode = 404
