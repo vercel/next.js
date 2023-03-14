@@ -782,6 +782,16 @@ function parseAndValidateFlightRouterState(
       'Multiple router state headers were sent. This is not allowed.'
     )
   }
+
+  // We limit the size of the router state header to ~40kb. This is to prevent
+  // a malicious user from sending a very large header and slowing down the
+  // resolving of the router state.
+  // This is around 2,000 nested or parallel route segment states:
+  // '{"children":["",{}]}'.length === 20.
+  if (stateHeader.length > 20 * 2000) {
+    throw new Error('The router state header was too large.')
+  }
+
   try {
     return flightRouterStateSchema.parse(JSON.parse(stateHeader))
   } catch {
@@ -885,7 +895,6 @@ export async function renderToHTMLOrFlight(
     const isPrefetch =
       req.headers[NEXT_ROUTER_PREFETCH.toLowerCase()] !== undefined
 
-    // TODO-APP: verify tree can't grow out of control
     /**
      * Router state provided from the client-side router. Used to handle rendering from the common layout down.
      */
