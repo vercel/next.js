@@ -38,7 +38,7 @@ async function runTests({
   if (dynamic) {
     slugPage.replace(
       `const dynamic = 'force-static'`,
-      `const dynamic = '${dynamic}'`
+      `const dynamic = ${dynamic}`
     )
   }
   await fs.remove(distDir)
@@ -122,10 +122,10 @@ describe('app dir with next export', () => {
     }
   )
   it.each([
-    { dynamic: 'auto' },
-    { dynamic: 'error' },
-    { dynamic: 'force-static' },
-  ])("should work with dynamic '$dynamic'", async ({ dynamic }) => {
+    { dynamic: 'undefined' },
+    { dynamic: "'error'" },
+    { dynamic: "'force-static'" },
+  ])('should work with dynamic $dynamic', async ({ dynamic }) => {
     await runTests({ dynamic })
     const opts = { cwd: exportDir, nodir: true }
     const files = ((await glob('**/*', opts)) as string[])
