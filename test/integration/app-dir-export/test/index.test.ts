@@ -154,6 +154,8 @@ describe('app dir with next export', () => {
       'another/index.txt',
       'another/second/index.html',
       'another/second/index.txt',
+      'api/json',
+      'api/txt',
       'favicon.ico',
       'image-import/index.html',
       'image-import/index.txt',
