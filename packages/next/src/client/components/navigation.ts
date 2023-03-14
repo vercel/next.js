@@ -1,7 +1,7 @@
 // useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
 
 import { useContext, useMemo } from 'react'
-import type { FlightRouterState } from '../../server/app-render'
+import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
   LayoutRouterContext,
