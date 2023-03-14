@@ -191,6 +191,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -373,6 +374,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -558,6 +560,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
       cache: {
@@ -714,6 +717,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
       cache: {
@@ -867,6 +871,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -1088,6 +1093,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -1314,6 +1320,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/parallel-tab-bar/demographics',
       cache: {
