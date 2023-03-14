@@ -1,5 +1,5 @@
 /* chunk [workspace]/crates/turbopack-tests/tests/snapshot/css/css/output/crates_turbopack-tests_tests_snapshot_css_css_input_style.module_b5a149.css */
-@layer s\[project\]\/crates\/turbopack-tests\/tests\/snapshot\/css\/css\/input\/style\.module\.css\ \(css\,\ css\ module\) {
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css (css, css module) */
 .module-style__style__9bcf751c {
   color: magenta;
 }
@@ -13,8 +13,6 @@
 .another-composed-module-style__style__9bcf751c {
   color: yellow;
 }
-}
-
 
 
 /*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_css_input_style.module_b5a149.css.map*/
