@@ -106,13 +106,6 @@ type LoaderTree = [
   components: ComponentsType
 ];
 
-type ServerComponentsManifest = {
-  [id: string]: ServerComponentsManifestModule;
-};
-type ServerComponentsManifestModule = {
-  [exportName: string]: { id: string; chunks: string[]; name: string };
-};
-
 async function runOperation(renderData: RenderData) {
   const layoutInfoChunks: Record<string, string[]> = {};
   const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
@@ -154,7 +147,7 @@ async function runOperation(renderData: RenderData) {
     return {
       get(target, name, receiver) {
         if (name === "ssrModuleMapping") {
-          return manifest;
+          return manifest.ssrModuleMapping;
         }
         if (name === "cssFiles") {
           return cssFiles;
@@ -169,7 +162,7 @@ async function runOperation(renderData: RenderData) {
         if (key === "ssrModuleMapping") {
           return new Proxy({} as any, proxyMethodsNested());
         }
-        if (key === "__entry_css_files__") {
+        if (key === "cssFiles") {
           return cssFiles;
         }
 
