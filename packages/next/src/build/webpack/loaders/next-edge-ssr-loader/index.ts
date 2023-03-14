@@ -134,7 +134,7 @@ export default async function edgeSSRLoader(this: any) {
     const subresourceIntegrityManifest = ${
       sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
     }
-    const fontLoaderManifest = self.__FONT_LOADER_MANIFEST
+    const nextFontManifest = self.__NEXT_FONT_MANIFEST
 
     const render = getRender({
       pageType,
@@ -155,7 +155,7 @@ export default async function edgeSSRLoader(this: any) {
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
-      fontLoaderManifest,
+      nextFontManifest,
       incrementalCacheHandler,
     })
 

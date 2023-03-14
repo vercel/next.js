@@ -1,5 +1,5 @@
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
-import { FlightRouterState } from '../../../server/app-render'
+import type { FlightRouterState } from '../../../server/app-render'
 
 export function fillLazyItemsTillLeafWithHead(
   newCache: CacheNode,

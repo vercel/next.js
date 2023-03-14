@@ -18,7 +18,7 @@ var React = require('react');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-next-49f741046-20230305';
+var ReactVersion = '18.3.0-next-3706edb81-20230308';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2925,7 +2925,7 @@ function pushStartTextArea(target, props) {
 
 function pushMeta(target, props, responseState, textEmbedded, insertionMode, noscriptTagInScope) {
   {
-    if (insertionMode === SVG_MODE || noscriptTagInScope) {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null) {
       return pushSelfClosing(target, props, 'meta');
     } else {
       if (textEmbedded) {
@@ -2949,7 +2949,7 @@ function pushLink(target, props, responseState, resources, textEmbedded, inserti
     var href = props.href;
     var precedence = props.precedence;
 
-    if (insertionMode === SVG_MODE || noscriptTagInScope || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof rel !== 'string' || typeof href !== 'string' || href === '') {
       {
         if (rel === 'stylesheet' && typeof props.precedence === 'string') {
           if (typeof href !== 'string' || !href) {
@@ -3174,7 +3174,7 @@ function pushStyle(target, props, resources, textEmbedded, insertionMode, noscri
     var precedence = props.precedence;
     var href = props.href;
 
-    if (insertionMode === SVG_MODE || noscriptTagInScope || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof precedence !== 'string' || typeof href !== 'string' || href === '') {
       // This style tag is not able to be turned into a Style Resource
       return pushStyleImpl(target, props);
     }
@@ -3389,7 +3389,7 @@ function pushTitle(target, props, responseState, insertionMode, noscriptTagInSco
   }
 
   {
-    if (insertionMode !== SVG_MODE && !noscriptTagInScope) {
+    if (insertionMode !== SVG_MODE && !noscriptTagInScope && props.itemProp == null) {
       pushTitleImpl(responseState.hoistableChunks, props);
       return null;
     } else {
@@ -3470,7 +3470,7 @@ function pushStartHtml(target, props, responseState, insertionMode) {
 
 function pushScript(target, props, resources, textEmbedded, insertionMode, noscriptTagInScope) {
   {
-    if (insertionMode === SVG_MODE || noscriptTagInScope || typeof props.src !== 'string' || !props.src) {
+    if (insertionMode === SVG_MODE || noscriptTagInScope || props.itemProp != null || typeof props.src !== 'string' || !props.src) {
       // This script will not be a resource nor can it be preloaded, we bailout early
       // and emit it in place.
       return pushScriptImpl(target, props);
@@ -3480,28 +3480,31 @@ function pushScript(target, props, resources, textEmbedded, insertionMode, noscr
     var key = getResourceKey('script', src);
 
     if (props.async !== true || props.onLoad || props.onError) {
-      // We can't resourcify scripts with load listeners. To avoid ambiguity with
-      // other Resourcified async scripts on the server we omit them from the server
-      // stream and expect them to be inserted during hydration on the client.
-      // We can still preload them however so the client can start fetching the script
-      // as soon as possible
-      var resource = resources.preloadsMap.get(key);
+      // we don't want to preload nomodule scripts
+      if (props.noModule !== true) {
+        // We can't resourcify scripts with load listeners. To avoid ambiguity with
+        // other Resourcified async scripts on the server we omit them from the server
+        // stream and expect them to be inserted during hydration on the client.
+        // We can still preload them however so the client can start fetching the script
+        // as soon as possible
+        var resource = resources.preloadsMap.get(key);
 
-      if (!resource) {
-        resource = {
-          type: 'preload',
-          chunks: [],
-          state: NoState,
-          props: preloadAsScriptPropsFromProps(props.src, props)
-        };
-        resources.preloadsMap.set(key, resource);
+        if (!resource) {
+          resource = {
+            type: 'preload',
+            chunks: [],
+            state: NoState,
+            props: preloadAsScriptPropsFromProps(props.src, props)
+          };
+          resources.preloadsMap.set(key, resource);
 
-        {
-          markAsImplicitResourceDEV(resource, props, resource.props);
+          {
+            markAsImplicitResourceDEV(resource, props, resource.props);
+          }
+
+          resources.usedScripts.add(resource);
+          pushLinkImpl(resource.chunks, resource.props);
         }
-
-        resources.usedScripts.add(resource);
-        pushLinkImpl(resource.chunks, resource.props);
       }
 
       if (props.async !== true) {
