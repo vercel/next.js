@@ -24,6 +24,8 @@ jobs:
         run: sudo apt install moreutils
       - name: Check examples
         run: ./scripts/check-examples.sh
+      - name: Deploy examples
+        run: npm i -g vercel@28.16.15 && ./scripts/deploy-examples.sh
 
   build:
     runs-on: ubuntu-latest
