@@ -50,6 +50,21 @@ createNextDescribe(
       })
     }
 
+    it('should include statusCode in cache', async () => {
+      const $ = await next.render$('/variable-revalidate/status-code')
+      const origData = JSON.parse($('#page-data').text())
+
+      expect(origData.status).toBe(404)
+
+      await check(async () => {
+        const new$ = await next.render$('/variable-revalidate/status-code')
+        const newData = JSON.parse(new$('#page-data').text())
+        expect(newData.status).toBe(origData.status)
+        expect(newData.text).not.toBe(origData.text)
+        return 'success'
+      }, 'success')
+    })
+
     if (isNextStart) {
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
@@ -170,6 +185,9 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/status-code.html',
+          'variable-revalidate/status-code.rsc',
+          'variable-revalidate/status-code/page.js',
         ])
       })
 
@@ -373,6 +391,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
+          },
+          '/variable-revalidate/status-code': {
+            dataRoute: '/variable-revalidate/status-code.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/status-code',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({

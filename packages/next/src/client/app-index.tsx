@@ -237,6 +237,7 @@ export function hydrate() {
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              hashFragment: null,
             },
           }}
         >

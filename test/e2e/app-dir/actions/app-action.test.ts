@@ -54,5 +54,15 @@ createNextDescribe(
         return browser.eval('window.location.pathname + window.location.search')
       }, '/header?name=test')
     })
+
+    it('should support notFound', async () => {
+      const browser = await next.browser('/server')
+
+      await browser.elementByCss('#nowhere').click()
+
+      await check(() => {
+        return browser.elementByCss('h1').text()
+      }, 'my-not-found')
+    })
   }
 )

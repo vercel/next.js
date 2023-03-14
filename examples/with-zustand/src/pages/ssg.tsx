@@ -1,14 +1,15 @@
+import { GetStaticProps } from 'next'
 import Page from '../components/page'
 import { initializeStore } from '../lib/store'
 
-export default function SSR() {
+export default function SSG() {
   return <Page />
 }
 
-// The date returned here will be different for every request that hits the page,
-// that is because the page becomes a serverless function instead of being statically
-// exported when you use `getServerSideProps` or `getInitialProps`
-export function getServerSideProps() {
+// If you build and start the app, the date returned here will have the same
+// value for all requests, as this method gets executed at build time.
+// You will not see this while in development mode though.
+export const getStaticProps: GetStaticProps = () => {
   const zustandStore = initializeStore()
   return {
     props: {
