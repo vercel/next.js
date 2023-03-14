@@ -1159,12 +1159,17 @@ jobs:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           profile: minimal
 
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
       - name: Build tests
-        run: cd packages/next-swc && cargo test -p next-dev-tests --release --no-run
+        timeout-minutes: 60
+        run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-run
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
 
       - name: Run tests
-        run: cd packages/next-swc && cargo test -p next-dev-tests --release -j 2
+        timeout-minutes: 20
+        run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-fail-fast
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
 
   test-wasm:
