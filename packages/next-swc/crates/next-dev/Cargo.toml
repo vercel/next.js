@@ -1,0 +1,91 @@
+[package]
+name = "next-dev"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[[bin]]
+name = "next-dev"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[[bench]]
+name = "mod"
+harness = false
+
+[features]
+# By default, we enable native-tls for reqwest via downstream transitive features.
+# This is for the convenience of running daily dev workflows, i.e running
+# `cargo xxx` without explicitly specifying features, not that we want to
+# promote this as default backend. Actual configuration is done when building next-swc,
+# and also turbopack standalone when we have it.
+default = ["cli", "custom_allocator", "native-tls"]
+cli = ["clap"]
+serializable = []
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+profile = []
+custom_allocator = ["turbo-malloc/custom_allocator"]
+next-font-local = ["next-core/next-font-local"]
+native-tls = ["next-core/native-tls"]
+rustls-tls = ["next-core/rustls-tls"]
+# Internal only. Enabled when building for the Next.js integration test suite.
+__internal_nextjs_integration_test = [
+  "next-core/__internal_nextjs_integration_test",
+]
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+clap = { workspace = true, features = ["derive", "env"], optional = true }
+console-subscriber = { workspace = true, optional = true }
+dunce = { workspace = true }
+futures = { workspace = true }
+mime = { workspace = true }
+next-core = { workspace = true }
+owo-colors = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-malloc = { workspace = true, default-features = false }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-dev-server = { workspace = true }
+turbopack-node = { workspace = true }
+webbrowser = { workspace = true }
+
+[dev-dependencies]
+chromiumoxide = { workspace = true, features = [
+  "tokio-runtime",
+], default-features = false }
+criterion = { workspace = true, features = ["async_tokio"] }
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+portpicker = "0.1.1"
+rand = { workspace = true }
+regex = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tungstenite = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-create-test-app = { workspace = true }
+url = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+nix = "0.26.1"
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+vergen = { version = "7.3.2", default-features = false, features = [
+  "cargo",
+  "build",
+] }

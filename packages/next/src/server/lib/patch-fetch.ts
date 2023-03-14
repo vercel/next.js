@@ -93,8 +93,24 @@ export function patchFetch({
             ? _headers
             : new Headers(_headers || {})
 
-        const hasUnCacheableHeader =
-          initHeaders.get('authorization') || initHeaders.get('cookie')
+        try {
+          await staticGenerationStore.incrementalCache.set(
+            cacheKey,
+            {
+              kind: 'FETCH',
+              data: {
+                headers: Object.fromEntries(res.headers.entries()),
+                body: base64Body,
+                status: res.status,
+              },
+              revalidate,
+            },
+            revalidate,
+            true
+          )
+        } catch (err) {
+          console.warn(`Failed to set fetch cache`, input, err)
+        }
 
         const isUnCacheableMethod = !['get', 'head'].includes(
           getRequestMeta('method')?.toLowerCase() || 'get'

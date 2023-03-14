@@ -1,0 +1,60 @@
+[package]
+name = "next-dev-tests"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+# don't publish this crate
+publish = false
+
+[features]
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+
+[dependencies]
+console-subscriber = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+chromiumoxide = { workspace = true, features = [
+  "tokio-runtime",
+], default-features = false }
+futures = { workspace = true }
+httpmock = { workspace = true, features = ["standalone"] }
+lazy_static = { workspace = true }
+mime = { workspace = true }
+next-core = { workspace = true }
+next-dev = { path = "../next-dev" }
+owo-colors = { workspace = true }
+parking_lot = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+test-generator = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+# For matching on errors from chromiumoxide. Keep in
+# sync with chromiumoxide's tungstenite requirement.
+tungstenite = { workspace = true }
+turbo-malloc = { workspace = true, default-features = false, features = [
+  "custom_allocator",
+] }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true, features = ["issue_path"] }
+turbopack-dev-server = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-test-utils = { workspace = true }
+url = { workspace = true }
+webbrowser = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

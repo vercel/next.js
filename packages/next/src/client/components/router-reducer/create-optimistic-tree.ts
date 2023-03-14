@@ -1,4 +1,4 @@
-import { FlightRouterState } from '../../../server/app-render'
+import type { FlightRouterState } from '../../../server/app-render'
 import { matchSegment } from '../match-segments'
 
 /**

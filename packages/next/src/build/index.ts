@@ -132,7 +132,7 @@ import {
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
-import { isAppRouteRoute, isMetadataRoute } from '../lib/is-app-route-route'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 
@@ -2440,9 +2440,7 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportConfig.initialPageRevalidationMap[page] === 0
 
-            const isRouteHandler =
-              isAppRouteRoute(originalAppPath) ||
-              isMetadataRoute(originalAppPath)
+            const isRouteHandler = isAppRouteRoute(originalAppPath)
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return

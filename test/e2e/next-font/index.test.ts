@@ -31,9 +31,6 @@ describe('next/font', () => {
           pages: new FileRef(join(__dirname, `${fixture}/pages`)),
           components: new FileRef(join(__dirname, `${fixture}/components`)),
           fonts: new FileRef(join(__dirname, `${fixture}/fonts`)),
-          'next.config.js': new FileRef(
-            join(__dirname, `${fixture}/next.config.js`)
-          ),
         },
         dependencies: {
           '@next/font': 'canary',
