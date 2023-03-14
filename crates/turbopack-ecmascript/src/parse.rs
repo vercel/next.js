@@ -216,6 +216,7 @@ async fn parse_content(
                             import_assertions: true,
                             allow_super_outside_method: true,
                             allow_return_outside_function: true,
+                            auto_accessors: true,
                         }),
                         EcmascriptModuleAssetType::Typescript
                         | EcmascriptModuleAssetType::TypescriptWithTypes => {
@@ -224,6 +225,7 @@ async fn parse_content(
                                 dts: false,
                                 no_early_errors: true,
                                 tsx: true,
+                                disallow_ambiguous_jsx_like: false,
                             })
                         }
                         EcmascriptModuleAssetType::TypescriptDeclaration => {
@@ -232,6 +234,7 @@ async fn parse_content(
                                 dts: true,
                                 no_early_errors: true,
                                 tsx: true,
+                                disallow_ambiguous_jsx_like: false,
                             })
                         }
                     },

@@ -35,6 +35,7 @@ fn main() -> Result<()> {
         decorators: false,
         dts: false,
         no_early_errors: true,
+        disallow_ambiguous_jsx_like: false,
     });
 
     let compiler = Compiler::new(sm.clone());
