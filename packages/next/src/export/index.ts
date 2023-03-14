@@ -53,6 +53,7 @@ import {
 } from '../build/webpack/require-hook'
 import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isAppPageRoute } from '../lib/is-app-page-route'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -283,7 +284,7 @@ export default async function exportApp(
       )) {
         mapAppRouteToPage.set(routePath, pageName)
         if (
-          pageName.endsWith('/page') &&
+          isAppPageRoute(pageName) &&
           !prerenderManifest?.routes[routePath] &&
           !prerenderManifest?.dynamicRoutes[routePath]
         ) {
