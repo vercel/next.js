@@ -10,7 +10,9 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
+    asset::AssetVc,
+    chunk::{ChunkingContext, ChunkingContextVc},
+    compile_time_info::CompileTimeInfoVc,
     context::AssetContext,
 };
 use turbopack_ecmascript::{
@@ -95,9 +97,10 @@ impl Transition for NextClientTransition {
 
         let asset = ChunkGroupFilesAsset {
             asset: asset.into(),
+            // This ensures that the chunk group files asset will strip out the _next prefix from
+            // all chunk paths, which is what the Next.js renderer code expects.
+            client_root: self.client_chunking_context.output_root().join("_next"),
             chunking_context: self.client_chunking_context,
-            base_path: self.server_root.join("_next"),
-            server_root: self.server_root,
             runtime_entries: Some(runtime_entries),
         };
 

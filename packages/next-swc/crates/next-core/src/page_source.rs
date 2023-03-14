@@ -11,12 +11,13 @@ use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::AssetVc,
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    chunk::ChunkingContextVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{

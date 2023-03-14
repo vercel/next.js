@@ -13,7 +13,7 @@ use turbopack::{evaluate_context::node_evaluate_asset_context, transition::Trans
 use turbopack_core::{
     asset::AssetVc,
     changed::any_content_changed,
-    chunk::dev::DevChunkingContextVc,
+    chunk::{ChunkingContext, ChunkingContextVc},
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention::Middleware, ServerAddrVc},
     ident::AssetIdentVc,
@@ -269,20 +269,11 @@ fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
 fn edge_transition_map(
     server_addr: ServerAddrVc,
     project_path: FileSystemPathVc,
-    output_path: FileSystemPathVc,
+    edge_chunking_context: ChunkingContextVc,
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
     let edge_compile_time_info = get_edge_compile_time_info(server_addr, Value::new(Middleware));
-
-    let edge_chunking_context = DevChunkingContextVc::builder(
-        project_path,
-        output_path.join("edge"),
-        output_path.join("edge/chunks"),
-        output_path.join("edge/assets"),
-        edge_compile_time_info.environment(),
-    )
-    .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
         project_path,
@@ -303,7 +294,7 @@ fn edge_transition_map(
         edge_chunking_context,
         edge_module_options_context: Some(server_module_options_context),
         edge_resolve_options_context,
-        output_path: output_path.root(),
+        output_path: edge_chunking_context.output_root(),
         base_path: project_path,
         bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
         entry_name: "middleware".to_string(),
@@ -354,10 +345,9 @@ async fn route_internal(
 ) -> Result<RouterResultVc> {
     let ExecutionContext {
         project_path,
-        intermediate_output_path,
+        chunking_context,
         env,
     } = *execution_context.await?;
-    let intermediate_output_path = intermediate_output_path.join("router");
 
     let context = node_evaluate_asset_context(
         project_path,
@@ -365,7 +355,7 @@ async fn route_internal(
         Some(edge_transition_map(
             server_addr,
             project_path,
-            intermediate_output_path,
+            chunking_context.with_layer("edge"),
             next_config,
             execution_context,
         )),
@@ -382,13 +372,12 @@ async fn route_internal(
         bail!("Next.js requires a disk path to check for valid routes");
     };
     let result = evaluate(
-        project_path,
         router_asset,
         project_path,
         env,
         AssetIdentVc::from_path(project_path),
         context,
-        intermediate_output_path,
+        chunking_context.with_layer("router"),
         None,
         vec![
             JsonValueVc::cell(request),

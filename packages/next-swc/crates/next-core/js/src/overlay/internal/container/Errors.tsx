@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import { Issue } from '@vercel/turbopack-runtime/types/protocol'
+import { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
 
 import {
   TYPE_UNHANDLED_ERROR,
@@ -459,8 +459,8 @@ export function Errors({ issues, errors }: ErrorsProps) {
                 {tabs.length > 3
                   ? tab.title.short
                   : tab.items.length > 1
-                  ? tab.title.many
-                  : tab.title.one}
+                    ? tab.title.many
+                    : tab.title.one}
               </Tab>
             ))}
           </DialogHeaderTabList>
