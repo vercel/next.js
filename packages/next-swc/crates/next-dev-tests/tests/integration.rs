@@ -10,6 +10,8 @@ use std::{
     net::SocketAddr,
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     path::{Path, PathBuf},
+    process::Command,
+    sync::Once,
     time::Duration,
 };
 
@@ -71,6 +73,8 @@ lazy_static! {
     // `TURBOPACK_DEBUG_BROWSER=1 cargo test -p next-dev-tests -- test_my_pattern --nocapture`
     static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
 }
+
+static BUILD: Once = Once::new();
 
 fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -158,6 +162,17 @@ fn test_skipped_fails(resource: &str) {
 
 async fn run_test(resource: &str) -> JestRunResult {
     register();
+
+    BUILD.call_once(|| {
+        let cwd = std::env::current_dir().expect("expected a PWD inside packages/next-swc");
+        let next_dir = cwd.parent().unwrap().parent().unwrap();
+        Command::new("pnpm")
+            .args(["build"])
+            .current_dir(next_dir)
+            .spawn()
+            .expect("failed to build next");
+    });
+
     let path = Path::new(resource)
         // test_resources matches and returns relative paths from the workspace root,
         // but pwd in cargo tests is the crate under test.
