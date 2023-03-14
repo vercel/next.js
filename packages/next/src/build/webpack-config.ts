@@ -785,12 +785,21 @@ export default async function getBaseWebpackConfig(
 
   const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
-      ? getSwcLoader({ isServerLayer: true })
+      ? [getSwcLoader({ isServerLayer: true })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
+    : []
+  const swcLoaderForClientLayer = hasServerComponents
+    ? useSWCLoader
+      ? [getSwcLoader({ isServerLayer: false })]
+      : // When using Babel, we will have to add the SWC loader
+        // as an additional pass to handle RSC correctly.
+        // This will cause some performance overhead but
+        // acceptable as Babel will not be recommended.
+        [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
     : []
 
   // Loader for API routes needs to be differently configured as it shouldn't
@@ -1698,6 +1707,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-loader',
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
+        'next-flight-client-action-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1896,6 +1906,19 @@ export default async function getBaseWebpackConfig(
                     resourceQuery: /__edge_ssr_entry__/,
                     use: swcLoaderForServerLayer,
                   },
+                  // {
+                  //   test: codeCondition.test,
+                  //   issuerLayer: {
+                  //     or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                  //   },
+                  //   exclude: [staticGenerationAsyncStorageRegex],
+                  //   use: [
+                  //     {
+                  //       loader: 'next-flight-client-action-loader',
+                  //     },
+                  //     ...swcLoaderForClientLayer,
+                  //   ],
+                  // },
                 ]
               : []),
             {

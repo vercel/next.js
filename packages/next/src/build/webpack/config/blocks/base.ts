@@ -48,6 +48,8 @@ export const base = curry(function base(
     config.module = { rules: [] }
   }
 
+  config.devtool = false
+
   // TODO: add codemod for "Should not import the named export" with JSON files
   // config.module.strictExportPresence = !isWebpack5
 
