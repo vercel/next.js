@@ -3,6 +3,7 @@
 extern crate test_generator;
 
 use dunce::canonicalize;
+use regex::{Captures, Regex, Replacer};
 use std::{
     env,
     fmt::Write,
@@ -33,19 +34,22 @@ use serde::Deserialize;
 use test_generator::test_resources;
 use tokio::{
     net::TcpSocket,
-    sync::mpsc::{channel, Sender},
+    sync::mpsc::{unbounded_channel, UnboundedSender},
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::{
     debug::{ValueDebug, ValueDebugStringReadRef},
-    primitives::BoolVc,
+    primitives::{BoolVc, StringVc},
     NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystem};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbo_tasks_testing::retry::retry_async;
-use turbopack_core::issue::{CapturedIssues, IssueReporter, IssueReporterVc, PlainIssueReadRef};
+use turbopack_core::issue::{
+    CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc, IssuesVc,
+    OptionIssueSourceVc, PlainIssueReadRef,
+};
 use turbopack_test_utils::snapshot::snapshot_issues;
 
 fn register() {
@@ -187,7 +191,7 @@ async fn run_test(resource: &str) -> JestRunResult {
     let mock_dir = path.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
 
-    let (issue_tx, mut issue_rx) = channel(u16::MAX as usize);
+    let (issue_tx, mut issue_rx) = unbounded_channel();
     let issue_tx = TransientInstance::new(issue_tx);
 
     let tt = TurboTasks::new(MemoryBackend::default());
@@ -472,14 +476,14 @@ async fn get_mock_server_future(mock_dir: &Path) -> Result<(), String> {
 #[turbo_tasks::value(shared)]
 struct TestIssueReporter {
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    pub issue_tx: State<Sender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
+    pub issue_tx: State<UnboundedSender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TestIssueReporterVc {
     #[turbo_tasks::function]
     fn new(
-        issue_tx: TransientInstance<Sender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
+        issue_tx: TransientInstance<UnboundedSender<(PlainIssueReadRef, ValueDebugStringReadRef)>>,
     ) -> Self {
         TestIssueReporter {
             issue_tx: State::new((*issue_tx).clone()),
@@ -498,10 +502,78 @@ impl IssueReporter for TestIssueReporter {
     ) -> Result<BoolVc> {
         let issue_tx = self.issue_tx.get_untracked().clone();
         for (issue, path) in captured_issues.iter_with_shortest_path() {
-            let plain = issue.into_plain(path);
-            issue_tx.send((plain.await?, plain.dbg().await?)).await?;
+            let plain = NormalizedIssue(issue).cell().as_issue().into_plain(path);
+            issue_tx.send((plain.await?, plain.dbg().await?))?;
         }
-
         Ok(BoolVc::cell(false))
+    }
+}
+
+struct StackTraceReplacer;
+
+impl Replacer for StackTraceReplacer {
+    fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
+        let code = caps.get(2).map_or("", |m| m.as_str());
+        if code.starts_with("node:") {
+            return;
+        }
+        let mut name = caps.get(1).map_or("", |m| m.as_str());
+        name = name.strip_prefix("Object.").unwrap_or(name);
+        write!(dst, "\n at {} ({})", name, code).unwrap();
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+struct NormalizedIssue(IssueVc);
+
+#[turbo_tasks::value_impl]
+impl Issue for NormalizedIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        self.0.severity()
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.0.context()
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        self.0.category()
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        self.0.title()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        let str = self.0.description().await?;
+        let regex = Regex::new(r"\n  at (.+) \((.+)\)").unwrap();
+        Ok(StringVc::cell(
+            regex.replace_all(&str, StackTraceReplacer).to_string(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn detail(&self) -> StringVc {
+        self.0.detail()
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> StringVc {
+        self.0.documentation_link()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> OptionIssueSourceVc {
+        self.0.source()
+    }
+
+    #[turbo_tasks::function]
+    fn sub_issues(&self) -> IssuesVc {
+        self.0.sub_issues()
     }
 }
