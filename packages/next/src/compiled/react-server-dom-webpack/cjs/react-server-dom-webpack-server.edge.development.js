@@ -56,7 +56,7 @@ function printWarning(level, format, args) {
 }
 
 function scheduleWork(callback) {
-  callback();
+  setTimeout(callback, 0);
 }
 
 var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
@@ -188,6 +188,7 @@ function processErrorChunkDev(request, id, digest, message, stack) {
   return stringToChunk(row);
 }
 function processModelChunk(request, id, model) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(model, request.toJSON);
   var row = id.toString(16) + ':' + json + '\n';
   return stringToChunk(row);
@@ -198,6 +199,7 @@ function processReferenceChunk(request, id, reference) {
   return stringToChunk(row);
 }
 function processImportChunk(request, id, clientReferenceMetadata) {
+  // $FlowFixMe[incompatible-type] stringify can return null
   var json = stringify(clientReferenceMetadata);
   var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
@@ -229,11 +231,11 @@ function resolveClientReferenceMetadata(config, clientReference) {
     return resolvedModuleData;
   }
 }
-function resolveServerReferenceMetadata(config, serverReference) {
-  return {
-    id: serverReference.$$id,
-    bound: Promise.resolve(serverReference.$$bound)
-  };
+function getServerReferenceId(config, serverReference) {
+  return serverReference.$$id;
+}
+function getServerReferenceBoundArguments(config, serverReference) {
+  return serverReference.$$bound;
 }
 
 // ATTENTION
@@ -1173,6 +1175,8 @@ function getOrCreateServerContext(globalName) {
   return ContextRegistry[globalName];
 }
 
+// Thenable<ReactClientValue>
+
 var PENDING = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
@@ -1598,7 +1602,11 @@ function serializeServerReference(request, parent, key, serverReference) {
     return serializeServerReferenceID(existingId);
   }
 
-  var serverReferenceMetadata = resolveServerReferenceMetadata(request.bundlerConfig, serverReference);
+  var bound = getServerReferenceBoundArguments(request.bundlerConfig, serverReference);
+  var serverReferenceMetadata = {
+    id: getServerReferenceId(request.bundlerConfig, serverReference),
+    bound: bound ? Promise.resolve(bound) : null
+  };
   request.pendingChunks++;
   var metadataId = request.nextChunkId++; // We assume that this object doesn't suspend.
 

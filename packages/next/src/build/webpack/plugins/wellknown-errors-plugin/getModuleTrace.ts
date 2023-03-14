@@ -1,18 +1,59 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { relative } from 'path'
 
-export function formatModule(compiler: webpack.Compiler, module: any) {
-  return relative(compiler.context, module.resource).replace(/\?.+$/, '')
+function formatModule(compiler: webpack.Compiler, module: any) {
+  const relativePath = relative(compiler.context, module.resource).replace(
+    /\?.+$/,
+    ''
+  )
+  return loaderUtils.isUrlRequest(relativePath)
+    ? loaderUtils.urlToRequest(relativePath)
+    : relativePath
 }
 
-export function getImportTraceForOverlay(
+export function formatModuleTrace(
   compiler: webpack.Compiler,
   moduleTrace: any[]
 ) {
-  return moduleTrace
-    .map((m) => (m.resource ? '  ' + formatModule(compiler, m) : ''))
-    .filter(Boolean)
-    .join('\n')
+  let importTrace: string[] = []
+  let firstExternalModule: any
+  for (let i = moduleTrace.length - 1; i >= 0; i--) {
+    const mod = moduleTrace[i]
+    if (!mod.resource) continue
+
+    if (!mod.resource.includes('node_modules/')) {
+      importTrace.unshift(formatModule(compiler, mod))
+    } else {
+      firstExternalModule = mod
+      break
+    }
+  }
+
+  let invalidImportMessage = ''
+  if (firstExternalModule) {
+    const firstExternalPackageName =
+      firstExternalModule.resourceResolveData?.descriptionFileData?.name
+
+    if (firstExternalPackageName === 'styled-jsx') {
+      invalidImportMessage += `\n\nThe error was caused by using 'styled-jsx' in '${importTrace[0]}'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+    } else {
+      let formattedExternalFile =
+        firstExternalModule.resource.split('node_modules')
+      formattedExternalFile =
+        formattedExternalFile[formattedExternalFile.length - 1]
+
+      invalidImportMessage += `\n\nThe error was caused by importing '${formattedExternalFile.slice(
+        1
+      )}' in '${importTrace[0]}'.`
+    }
+  }
+
+  return {
+    lastInternalFileName: importTrace[0],
+    invalidImportMessage,
+    formattedModuleTrace: `${importTrace.map((mod) => '  ' + mod).join('\n')}`,
+  }
 }
 
 export function getModuleTrace(

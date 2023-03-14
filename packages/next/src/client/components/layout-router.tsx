@@ -173,7 +173,7 @@ class ScrollAndFocusHandler extends React.Component<{
 /**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
-export function InnerLayoutRouter({
+function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,
@@ -422,6 +422,7 @@ function RedirectBoundary({ children }: { children: React.ReactNode }) {
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
   notFoundStyles?: React.ReactNode
+  asNotFound?: boolean
   children: React.ReactNode
 }
 
@@ -431,7 +432,7 @@ class NotFoundErrorBoundary extends React.Component<
 > {
   constructor(props: NotFoundBoundaryProps) {
     super(props)
-    this.state = { notFoundTriggered: false }
+    this.state = { notFoundTriggered: !!props.asNotFound }
   }
 
   static getDerivedStateFromError(error: any) {
@@ -460,10 +461,15 @@ class NotFoundErrorBoundary extends React.Component<
 function NotFoundBoundary({
   notFound,
   notFoundStyles,
+  asNotFound,
   children,
 }: NotFoundBoundaryProps) {
   return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound} notFoundStyles={notFoundStyles}>
+    <NotFoundErrorBoundary
+      notFound={notFound}
+      notFoundStyles={notFoundStyles}
+      asNotFound={asNotFound}
+    >
       {children}
     </NotFoundErrorBoundary>
   ) : (
@@ -488,6 +494,7 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
+  asNotFound,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -501,6 +508,7 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
+  asNotFound?: boolean
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -562,6 +570,7 @@ export default function OuterLayoutRouter({
                   <NotFoundBoundary
                     notFound={notFound}
                     notFoundStyles={notFoundStyles}
+                    asNotFound={asNotFound}
                   >
                     <RedirectBoundary>
                       <InnerLayoutRouter
