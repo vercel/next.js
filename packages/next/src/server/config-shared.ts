@@ -240,7 +240,11 @@ export interface ExperimentalConfig {
 }
 
 export type ExportPathMap = {
-  [path: string]: { page: string; query?: Record<string, string | string[]> }
+  [path: string]: {
+    page: string
+    query?: Record<string, string | string[]>
+    _isAppDir?: boolean
+  }
 }
 
 /**

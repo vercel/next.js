@@ -12,7 +12,10 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { reducer } from './router-reducer/router-reducer'
 import {

@@ -1,5 +1,5 @@
 import { CacheStates } from '../../../../shared/lib/app-router-context'
-import type { FlightSegmentPath } from '../../../../server/app-render'
+import type { FlightSegmentPath } from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'

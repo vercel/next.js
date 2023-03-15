@@ -1,5 +1,8 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../../server/app-render/types'
 import { fetchServerResponse } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
