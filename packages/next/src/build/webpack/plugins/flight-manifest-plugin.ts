@@ -18,6 +18,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { getClientReferenceModuleKey } from '../../../lib/client-reference'
 
 interface Options {
   dev: boolean
@@ -31,22 +32,6 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 export type ManifestChunks = Array<`${string}:${string}` | string>
-
-/**
- * filepath   export      manifest key
- * "file"     '*'         "file"
- * "file"     ''          "file#"
- * "file"     '<named>'   "file#<named>"
- *
- * @param filepath file path to the module
- * @param exports '' | '*' | '<named>'
- */
-export function getManifestExportName(
-  filepath: string,
-  exportName: string
-): string {
-  return exportName === '*' ? filepath : filepath + '#' + exportName
-}
 
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
@@ -217,7 +202,7 @@ export class ClientReferenceManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          const exportName = getManifestExportName(resource, '')
+          const exportName = getClientReferenceModuleKey(resource, '')
           if (!moduleReferences[exportName]) {
             moduleReferences[exportName] = {
               id: id || '',
@@ -299,7 +284,7 @@ export class ClientReferenceManifestPlugin {
           : null
 
         function addClientReference(name: string) {
-          const exportName = getManifestExportName(resource, name)
+          const exportName = getClientReferenceModuleKey(resource, name)
           manifest.clientModules[exportName] = {
             id,
             name,
@@ -307,14 +292,17 @@ export class ClientReferenceManifestPlugin {
             async: isAsyncModule,
           }
           if (esmResource) {
-            const edgeExportName = getManifestExportName(esmResource, name)
+            const edgeExportName = getClientReferenceModuleKey(
+              esmResource,
+              name
+            )
             manifest.clientModules[edgeExportName] =
               manifest.clientModules[exportName]
           }
         }
 
         function addSSRIdMapping(name: string) {
-          const exportName = getManifestExportName(resource, name)
+          const exportName = getClientReferenceModuleKey(resource, name)
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {

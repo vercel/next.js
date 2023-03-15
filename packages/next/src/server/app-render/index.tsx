@@ -3,7 +3,6 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import {
   ClientCSSReferenceManifest,
   ClientReferenceManifest,
-  getManifestExportName,
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type {
   ChildProp,
@@ -59,7 +58,10 @@ import { MetadataTree } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { collectMetadata } from '../../lib/metadata/resolve-metadata'
-import { isClientReference } from '../../build/is-client-reference'
+import {
+  getClientReferenceModuleKey,
+  isClientReference,
+} from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -433,7 +435,9 @@ function getCssInlinedLinkTags(
       // to inject it again.
       if (!injectedCSS.has(mod)) {
         const modData =
-          clientReferenceManifest.clientModules[getManifestExportName(mod, '')]
+          clientReferenceManifest.clientModules[
+            getClientReferenceModuleKey(mod, '')
+          ]
         if (modData) {
           for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
