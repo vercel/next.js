@@ -11,7 +11,6 @@ use next_binding::swc::{
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
-    next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     page_config::page_config_test,
     react_remove_properties::remove_properties,
@@ -21,6 +20,7 @@ use next_swc::{
     server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
+use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use std::path::PathBuf;
 
 fn syntax() -> Syntax {

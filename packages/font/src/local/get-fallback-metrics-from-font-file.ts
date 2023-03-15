@@ -80,6 +80,17 @@ export function getFallbackMetricsFromFontFile(
   const azAvgWidth = calcAverageWidth(font)
   const { ascent, descent, lineGap, unitsPerEm } = font
 
+  console.log(
+    'ascent',
+    ascent,
+    'descent',
+    descent,
+    'lineGap',
+    lineGap,
+    'unitsPerEm',
+    unitsPerEm
+  )
+
   const fallbackFontAvgWidth = fallbackFont.azAvgWidth / fallbackFont.unitsPerEm
   let sizeAdjust = azAvgWidth
     ? azAvgWidth / unitsPerEm / fallbackFontAvgWidth
