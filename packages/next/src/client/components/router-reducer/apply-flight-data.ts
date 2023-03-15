@@ -1,5 +1,5 @@
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
-import { FlightDataPath } from '../../../server/app-render'
+import { FlightDataPath } from '../../../server/app-render/types'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import { ReadonlyReducerState } from './router-reducer-types'
