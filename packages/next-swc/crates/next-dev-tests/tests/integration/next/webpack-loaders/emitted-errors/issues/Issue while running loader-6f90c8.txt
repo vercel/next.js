@@ -1,9 +1,9 @@
 PlainIssue {
-    severity: Warning,
-    context: "[project]/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/hello.emit",
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/hello.emit",
     category: "loaders",
     title: "Issue while running loader",
-    description: "Error: Warning!\n",
+    description: "Error: Error!\n",
     detail: "",
     documentation_link: "",
     source: None,
@@ -12,7 +12,7 @@ PlainIssue {
         [
             PlainIssueProcessingPathItem {
                 context: Some(
-                    "[project]/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/index.js",
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/index.js",
                 ),
                 description: "Next.js pages directory",
             },
