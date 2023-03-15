@@ -263,7 +263,7 @@ impl<C: Comments> ServerActions<C> {
                         })
                         .collect::<Vec<_>>(),
                 );
-                exprs.push(Box::new(Expr::Ident(ident.clone().into())));
+                exprs.push(Box::new(Expr::Ident(ident.clone())));
 
                 let new_paren = ParenExpr {
                     span: DUMMY_SP,
@@ -333,24 +333,21 @@ impl<C: Comments> ServerActions<C> {
                     // Create a paren expr to wrap all annotations:
                     // ($ACTION = async function () {}, $ACTION.$$id = "..", ..,
                     // $ACTION)
-                    let mut exprs = vec![Box::new(
-                        Expr::Assign(AssignExpr {
-                            span: DUMMY_SP,
-                            left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.clone().into()))),
-                            op: op!("="),
-                            right: Box::new(Expr::Fn(FnExpr {
-                                ident: None,
-                                function: Box::new(new_fn),
-                            })),
-                        })
-                        .into(),
-                    )];
+                    let mut exprs = vec![Box::new(Expr::Assign(AssignExpr {
+                        span: DUMMY_SP,
+                        left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.clone().into()))),
+                        op: op!("="),
+                        right: Box::new(Expr::Fn(FnExpr {
+                            ident: None,
+                            function: Box::new(new_fn),
+                        })),
+                    }))];
                     fn_annotations.into_iter().for_each(|a| {
                         if let Stmt::Expr(ExprStmt { expr, .. }) = a {
                             exprs.push(expr);
                         }
                     });
-                    exprs.push(Box::new(Expr::Ident(ident.clone().into())));
+                    exprs.push(Box::new(Expr::Ident(ident.clone())));
 
                     let new_paren = ParenExpr {
                         span: DUMMY_SP,
