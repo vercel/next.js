@@ -119,7 +119,7 @@ impl ModuleOptionsVc {
         let app_transforms = EcmascriptInputTransformsVc::cell(transforms);
         let vendor_transforms =
             EcmascriptInputTransformsVc::cell(custom_ecmascript_transforms.clone());
-        let ts_app_transforms = if let Some(transform) = ts_transform {
+        let ts_app_transforms = if let Some(transform) = &ts_transform {
             let mut base_transforms = vec![transform.clone()];
             base_transforms.extend(custom_ecmascript_transforms.iter().cloned());
             EcmascriptInputTransformsVc::cell(
@@ -135,7 +135,7 @@ impl ModuleOptionsVc {
 
         let css_transforms = CssInputTransformsVc::cell(vec![CssInputTransform::Nested]);
         let mdx_transforms = EcmascriptInputTransformsVc::cell(
-            if let Some(transform) = ts_transform {
+            if let Some(transform) = &ts_transform {
                 vec![transform.clone()]
             } else {
                 vec![]

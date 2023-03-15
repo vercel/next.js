@@ -39,7 +39,10 @@ use swc_core::{
         visit::{VisitMutWith, VisitMutWithPath},
     },
 };
-pub use transform::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
+pub use transform::{
+    CustomTransform, CustomTransformVc, CustomTransformer, EcmascriptInputTransform,
+    EcmascriptInputTransformsVc, TransformContext,
+};
 use turbo_tasks::{
     primitives::StringVc, trace::TraceRawVcs, RawVc, ReadRef, TryJoinIterExt, Value, ValueToString,
 };
