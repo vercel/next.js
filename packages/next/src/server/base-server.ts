@@ -655,7 +655,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           // Perform locale detection and normalization.
           const options: MatchOptions = {
             i18n: this.i18nProvider?.analyze(matchedPath, {
-              defaultLocale,
+              defaultLocale: undefined,
             }),
           }
           if (options.i18n?.detectedLocale) {
@@ -796,7 +796,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       addRequestMeta(req, '__nextHadTrailingSlash', pathnameInfo.trailingSlash)
       addRequestMeta(req, '__nextIsLocaleDomain', Boolean(domainLocale))
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
 
       if (pathnameInfo.locale) {
         req.url = formatUrl(url)
@@ -1341,9 +1340,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     urlPathname = removeTrailingSlash(urlPathname)
-    resolvedUrlPathname =
-      this.localeNormalizer?.normalize(resolvedUrlPathname) ??
-      removeTrailingSlash(resolvedUrlPathname)
+    resolvedUrlPathname = removeTrailingSlash(resolvedUrlPathname)
+    if (this.localeNormalizer) {
+      resolvedUrlPathname = this.localeNormalizer.normalize(resolvedUrlPathname)
+    }
 
     const handleRedirect = (pageData: any) => {
       const redirect = {
@@ -1919,7 +1919,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(pathname, {
-        defaultLocale: query.__nextDefaultLocale,
+        defaultLocale: undefined,
       }),
     }
 

@@ -11,33 +11,17 @@ interface LocaleAnalysisResult {
 
   /**
    * The detected locale. If no locale was detected, this will be `undefined`.
-   * If enough information has been passed to the `analyze` method, this will
-   * be the default locale for the hostname (if provided) or the default locale.
    */
   detectedLocale?: string
 }
 
-type LocaleAnalysisOptions =
-  | {
-      /**
-       * When provided, it will be used as the default locale if the locale
-       * cannot be inferred from the pathname.
-       */
-      hostname: string
-
-      /**
-       * When provided, it will be used as the default locale if the locale cannot
-       * be inferred from the hostname.
-       */
-      defaultLocale?: string
-    }
-  | {
-      /**
-       * When provided, it will be used as the default locale if the locale
-       * cannot be inferred from the pathname.
-       */
-      defaultLocale: string | undefined
-    }
+type LocaleAnalysisOptions = {
+  /**
+   * When provided, it will be used as the default locale if the locale
+   * cannot be inferred from the pathname.
+   */
+  defaultLocale: string | undefined
+}
 
 /**
  * The I18NProvider is used to match locale aware routes, detect the locale from
@@ -133,13 +117,7 @@ export class I18NProvider {
     pathname: string,
     options: LocaleAnalysisOptions
   ): LocaleAnalysisResult {
-    // If the hostname is provided, we can infer the default locale from it,
-    // otherwise we use the default locale from the options should be used. If
-    // no default is provided by the options, we don't infer the default locale.
-    let detectedLocale: string | undefined =
-      'hostname' in options
-        ? this.detectDefaultLocale(options.hostname)
-        : options.defaultLocale
+    let detectedLocale: string | undefined = options.defaultLocale
 
     // The first segment will be empty, because it has a leading `/`. If
     // there is no further segment, there is no locale.

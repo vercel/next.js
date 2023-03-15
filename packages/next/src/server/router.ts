@@ -191,7 +191,7 @@ export default class Router {
                   // not include dynamic matches.
                   skipDynamic: true,
                   i18n: this.i18nProvider?.analyze(pathname, {
-                    defaultLocale: parsedUrl.query.__nextDefaultLocale,
+                    defaultLocale: undefined,
                   }),
                 }
 
@@ -280,7 +280,7 @@ export default class Router {
     // Normalize and detect the locale on the pathname.
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(fsPathname, {
-        defaultLocale: parsedUrl.query.__nextDefaultLocale,
+        defaultLocale: undefined,
       }),
     }
 

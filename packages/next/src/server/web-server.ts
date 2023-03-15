@@ -312,7 +312,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           const { detectedLocale } = await this.i18nProvider.analyze(pathname, {
             defaultLocale: undefined,
           })
-          parsedUrl.query.__nextLocale = detectedLocale
+          if (detectedLocale) {
+            parsedUrl.query.__nextLocale = detectedLocale
+          }
         }
 
         const bubbleNoFallback = !!query._nextBubbleNoFallback

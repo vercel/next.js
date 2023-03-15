@@ -73,7 +73,6 @@ import { FontManifest } from './font-utils'
 import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute, stringifyQuery } from './server-route-utils'
@@ -1129,16 +1128,15 @@ export default class NextNodeServer extends BaseServer {
             const { host } = req?.headers || {}
             // remove port from host and remove port if present
             const hostname = host?.split(':')[0].toLowerCase()
-            const localePathResult = normalizeLocalePath(
-              pathname,
-              this.nextConfig.i18n.locales
-            )
 
             const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
+            const localePathResult = this.i18nProvider?.analyze(pathname, {
+              defaultLocale: undefined,
+            })
 
             let detectedLocale = ''
 
-            if (localePathResult.detectedLocale) {
+            if (localePathResult?.detectedLocale) {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
@@ -1217,7 +1215,7 @@ export default class NextNodeServer extends BaseServer {
 
         const options: MatchOptions = {
           i18n: this.i18nProvider?.analyze(pathname, {
-            defaultLocale: query.__nextDefaultLocale,
+            defaultLocale: undefined,
           }),
         }
 
@@ -1755,9 +1753,7 @@ export default class NextNodeServer extends BaseServer {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(normalizedPathname, {
-        defaultLocale: params.parsed.query.__nextDefaultLocale as
-          | string
-          | undefined,
+        defaultLocale: undefined,
       }),
     }
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
@@ -2040,9 +2036,7 @@ export default class NextNodeServer extends BaseServer {
 
               if (this.i18nProvider) {
                 const { detectedLocale } = this.i18nProvider.analyze(newUrl, {
-                  defaultLocale: parsedUrl.query.__nextLocale as
-                    | string
-                    | undefined,
+                  defaultLocale: undefined,
                 })
                 if (detectedLocale) {
                   parsedDestination.query.__nextLocale = detectedLocale

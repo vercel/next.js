@@ -43,25 +43,12 @@ describe('I18NProvider', () => {
         detectedLocale: 'fr',
       })
       expect(
-        provider.analyze('/another/page', { hostname: 'example.fr' })
-      ).toEqual({
-        pathname: '/another/page',
-        detectedLocale: 'fr',
-      })
-      expect(
-        provider.analyze('/another/page', { hostname: 'example.fr' })
-      ).toEqual({
-        pathname: '/another/page',
-        detectedLocale: 'fr',
-      })
-      expect(
         provider.analyze('/another/page', {
-          hostname: 'example.com',
           defaultLocale: 'en-CA',
         })
       ).toEqual({
         pathname: '/another/page',
-        detectedLocale: 'en',
+        detectedLocale: 'en-CA',
       })
       expect(
         provider.analyze('/en/another/page', {
