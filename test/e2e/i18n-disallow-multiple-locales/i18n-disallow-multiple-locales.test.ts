@@ -3,47 +3,49 @@ import cheerio from 'cheerio'
 
 const config = require('./next.config')
 
+async function verify(res, locale) {
+  expect(res.status).toBe(200)
+
+  // Verify that we loaded the right page and the locale is correct.
+  const html = await res.text()
+  const $ = cheerio.load(html)
+  expect($('#page').text()).toBe('index page')
+  expect($('#router-locale').text()).toBe(locale)
+}
+
 createNextDescribe(
   'i18n-disallow-multiple-locales',
   {
     files: __dirname,
   },
   ({ next }) => {
-    it('should not accept multiple locales in path', async () => {
-      // Verify the base case works for the default locale works.
-      let res = await next.fetch('/', { redirect: 'manual' })
+    it('should verify the default locale works', async () => {
+      const res = await next.fetch('/', { redirect: 'manual' })
 
-      expect(res.status).toBe(200)
+      await verify(res, config.i18n.defaultLocale)
+    })
 
-      // Verify that we loaded the right page and the locale is correct.
-      let html = await res.text()
-      let $ = cheerio.load(html)
-      expect($('#page').text()).toBe('index page')
-      expect($('#router-locale').text()).toBe('en-US')
+    it.each(config.i18n.locales)('/%s should 200', async (locale) => {
+      const res = await next.fetch(`/${locale}`, { redirect: 'manual' })
 
-      for (const firstLocale of config.i18n.locales) {
-        // Verify the base case works.
-        res = await next.fetch(`/${firstLocale}`, {
-          redirect: 'manual',
-        })
+      await verify(res, locale)
+    })
 
-        expect(res.status).toBe(200)
-
-        // Verify that we loaded the right page and the locale is correct.
-        html = await res.text()
-        $ = cheerio.load(html)
-        expect($('#page').text()).toBe('index page')
-        expect($('#router-locale').text()).toBe(firstLocale)
-
+    it.each(
+      config.i18n.locales.reduce((locales, firstLocale) => {
         for (const secondLocale of config.i18n.locales) {
-          // Ensure that the double locale does not work.
-          res = await next.fetch(`/${firstLocale}/${secondLocale}`, {
-            redirect: 'manual',
-          })
-
-          expect(res.status).toBe(404)
+          locales.push([firstLocale, secondLocale])
         }
-      }
+
+        return locales
+      }, [])
+    )('/%s/%s should 404', async (firstLocale, secondLocale) => {
+      // Ensure that the double locale does not work.
+      const res = await next.fetch(`/${firstLocale}/${secondLocale}`, {
+        redirect: 'manual',
+      })
+
+      expect(res.status).toBe(404)
     })
   }
 )

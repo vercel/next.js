@@ -178,6 +178,7 @@ export default class Router {
         ? [
             {
               type: 'route',
+              matchesLocale: true,
               name: 'page checker',
               match: getPathMatch('/:path*'),
               fn: async (req, res, params, parsedUrl, upgradeHead) => {
