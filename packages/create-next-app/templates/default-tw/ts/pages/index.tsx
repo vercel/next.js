@@ -31,7 +31,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/2 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:translate-x-2/3 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
+      <div className="before:bg-gradient-radial after:bg-gradient-conic relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/2 after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:translate-x-2/3 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
         <Image
           className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
           src="/next.svg"
@@ -40,7 +40,7 @@ export default function Home() {
           height={37}
           priority
         />
-        <div className="relative ml-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl shadow-lg before:absolute before:-z-10 before:h-[200%] before:w-[200%] before:animate-[spin_6s_linear_reverse_infinite] before:bg-gradient-conic before:from-transparent before:via-black before:content-[''] after:absolute after:inset-[1px] after:-z-10 after:rounded-xl after:bg-gradient-to-br after:from-slate-50 after:to-slate-200 after:content-[''] motion-reduce:animate-none before:dark:via-white before:dark:to-transparent before:dark:opacity-50 after:dark:from-black after:dark:to-black">
+        <div className="before:bg-gradient-conic relative ml-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl shadow-lg before:absolute before:-z-10 before:h-[200%] before:w-[200%] before:animate-[spin_6s_linear_reverse_infinite] before:from-transparent before:via-black before:content-[''] after:absolute after:inset-[1px] after:-z-10 after:rounded-xl after:bg-gradient-to-br after:from-slate-50 after:to-slate-200 after:content-[''] motion-reduce:animate-none before:dark:via-white before:dark:to-transparent before:dark:opacity-50 after:dark:from-black after:dark:to-black">
           <Image
             className="dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
             src="/thirteen.svg"
