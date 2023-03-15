@@ -40,7 +40,7 @@ mdxjs = { version = "0.1.6" }
 modularize_imports = { version = "0.26.4" }
 styled_components = { version = "0.53.4" }
 styled_jsx = { version = "0.30.4" }
-swc_core = { version = "0.59.26" }
+swc_core = { version = "0.69.5" }
 swc_emotion = { version = "0.29.4" }
 testing = { version = "0.31.31" }
 

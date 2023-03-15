@@ -60,7 +60,7 @@ async fn middleware_files(page_extensions: StringsVc) -> Result<StringsVc> {
     let extensions = page_extensions.await?;
     let files = ["middleware.", "src/middleware."]
         .into_iter()
-        .flat_map(|f| extensions.iter().map(move |ext| String::from(f) + ext))
+        .flat_map(|f| extensions.iter().map(move |ext| [f, ext].concat()))
         .collect();
     Ok(StringsVc::cell(files))
 }
