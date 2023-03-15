@@ -1,16 +1,16 @@
 // app/send.ts
-/* __next_internal_action_entry_do_not_use__ foo,bar,qux */ async function foo() {}
+/* __next_internal_action_entry_do_not_use__ foo,baz,default */ async function foo() {}
+export { foo };
+async function bar() {}
+export { bar as baz };
+async function qux() {}
+export { qux as default };
 foo.$$typeof = Symbol.for("react.server.reference");
 foo.$$id = "ab21efdafbe611287bc25c0462b1e0510d13e48b";
 foo.$$bound = [];
-export { foo };
-async function bar() {}
 bar.$$typeof = Symbol.for("react.server.reference");
-bar.$$id = "ac840dcaf5e8197cb02b7f3a43c119b7a770b272";
+bar.$$id = "050e3854b72b19e3c7e3966a67535543a90bf7e0";
 bar.$$bound = [];
-export { bar as baz };
-async function qux() {}
 qux.$$typeof = Symbol.for("react.server.reference");
-qux.$$id = "3c8ed39a99caf636869d076cc7cae786a4053164";
+qux.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
 qux.$$bound = [];
-export { qux as default };

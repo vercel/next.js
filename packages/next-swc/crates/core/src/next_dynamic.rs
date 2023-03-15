@@ -179,44 +179,46 @@ impl Fold for NextDynamicPatcher {
                                 key: PropName::Ident(Ident::new("webpack".into(), DUMMY_SP)),
                                 value: Box::new(Expr::Arrow(ArrowExpr {
                                     params: vec![],
-                                    body: BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
-                                        elems: vec![Some(ExprOrSpread {
-                                            expr: Box::new(Expr::Call(CallExpr {
-                                                callee: Callee::Expr(Box::new(Expr::Member(
-                                                    MemberExpr {
-                                                        obj: Box::new(Expr::Ident(Ident {
-                                                            sym: js_word!("require"),
+                                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(
+                                        ArrayLit {
+                                            elems: vec![Some(ExprOrSpread {
+                                                expr: Box::new(Expr::Call(CallExpr {
+                                                    callee: Callee::Expr(Box::new(Expr::Member(
+                                                        MemberExpr {
+                                                            obj: Box::new(Expr::Ident(Ident {
+                                                                sym: js_word!("require"),
+                                                                span: DUMMY_SP,
+                                                                optional: false,
+                                                            })),
+                                                            prop: MemberProp::Ident(Ident {
+                                                                sym: "resolveWeak".into(),
+                                                                span: DUMMY_SP,
+                                                                optional: false,
+                                                            }),
                                                             span: DUMMY_SP,
-                                                            optional: false,
-                                                        })),
-                                                        prop: MemberProp::Ident(Ident {
-                                                            sym: "resolveWeak".into(),
+                                                        },
+                                                    ))),
+                                                    args: vec![ExprOrSpread {
+                                                        expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                                            value: self
+                                                                .dynamically_imported_specifier
+                                                                .as_ref()
+                                                                .unwrap()
+                                                                .clone()
+                                                                .into(),
                                                             span: DUMMY_SP,
-                                                            optional: false,
-                                                        }),
-                                                        span: DUMMY_SP,
-                                                    },
-                                                ))),
-                                                args: vec![ExprOrSpread {
-                                                    expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                                        value: self
-                                                            .dynamically_imported_specifier
-                                                            .as_ref()
-                                                            .unwrap()
-                                                            .clone()
-                                                            .into(),
-                                                        span: DUMMY_SP,
-                                                        raw: None,
-                                                    }))),
-                                                    spread: None,
-                                                }],
-                                                span: DUMMY_SP,
-                                                type_args: None,
-                                            })),
-                                            spread: None,
-                                        })],
-                                        span: DUMMY_SP,
-                                    }))),
+                                                            raw: None,
+                                                        }))),
+                                                        spread: None,
+                                                    }],
+                                                    span: DUMMY_SP,
+                                                    type_args: None,
+                                                })),
+                                                spread: None,
+                                            })],
+                                            span: DUMMY_SP,
+                                        },
+                                    )))),
                                     is_async: false,
                                     is_generator: false,
                                     span: DUMMY_SP,
