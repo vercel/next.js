@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { CacheNode } from '../../../shared/lib/app-router-context'
-import type { FlightRouterState } from '../../../server/app-render'
+import type { FlightRouterState } from '../../../server/app-render/types'
 
 import { CacheStates } from '../../../shared/lib/app-router-context'
 import { createHrefFromUrl } from './create-href-from-url'

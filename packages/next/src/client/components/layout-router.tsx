@@ -8,7 +8,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   ChildProp,
-} from '../../server/app-render'
+} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 

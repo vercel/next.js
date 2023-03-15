@@ -1329,6 +1329,7 @@ export async function isPageStatic({
   isrFlushToDisk,
   maxMemoryCacheSize,
   incrementalCacheHandlerPath,
+  nextConfigOutput,
 }: {
   page: string
   distDir: string
@@ -1347,6 +1348,7 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   incrementalCacheHandlerPath?: string
+  nextConfigOutput: 'standalone' | 'export'
 }): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -1479,6 +1481,16 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (nextConfigOutput === 'export') {
+          if (!appConfig.dynamic || appConfig.dynamic === 'auto') {
+            appConfig.dynamic = 'error'
+          } else if (appConfig.dynamic === 'force-dynamic') {
+            throw new Error(
+              `export const dynamic = "force-dynamic" on page "${page}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+            )
+          }
+        }
 
         if (appConfig.dynamic === 'force-dynamic') {
           appConfig.revalidate = 0

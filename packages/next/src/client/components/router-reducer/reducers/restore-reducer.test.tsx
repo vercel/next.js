@@ -1,5 +1,5 @@
 import React from 'react'
-import { FlightRouterState } from '../../../../server/app-render'
+import type { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
