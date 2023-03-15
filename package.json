@@ -240,6 +240,5 @@
   "engines": {
     "node": ">=14.6.0"
   },
-  "packageManager": "pnpm@7.24.3",
-  "dependencies": {}
+  "packageManager": "pnpm@7.24.3"
 }
