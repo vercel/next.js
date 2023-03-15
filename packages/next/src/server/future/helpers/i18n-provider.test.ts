@@ -63,6 +63,14 @@ describe('I18NProvider', () => {
         pathname: '/another/page',
         detectedLocale: 'en',
       })
+      expect(
+        provider.analyze('/en/another/page', {
+          defaultLocale: 'en-CA',
+        })
+      ).toEqual({
+        pathname: '/another/page',
+        detectedLocale: 'en',
+      })
     })
   })
 })
