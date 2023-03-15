@@ -1,6 +1,6 @@
 mod server_to_client_proxy;
 
-use std::{path::Path, sync::Arc};
+use std::{fmt::Debug, path::Path, sync::Arc};
 
 use anyhow::Result;
 use swc_core::{
@@ -23,11 +23,11 @@ use turbopack_core::environment::EnvironmentVc;
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
+#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmascriptInputTransform {
     ClientDirective(StringVc),
     CommonJs,
-    Custom,
+    Custom(CustomTransformVc),
     Emotion,
     PresetEnv(EnvironmentVc),
     React {
@@ -44,8 +44,32 @@ pub enum EcmascriptInputTransform {
     },
 }
 
+/// The CustomTransformer trait allows you to implement your own custom SWC
+/// transformer to run over all ECMAScript files imported in the graph.
+pub trait CustomTransformer: Debug {
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program>;
+}
+
+/// A wrapper around a CustomTransformer instance, allowing it to operate with
+/// the turbo_task caching requirements.
+#[turbo_tasks::value(
+    transparent,
+    serialization = "none",
+    eq = "manual",
+    into = "new",
+    cell = "new"
+)]
+#[derive(Debug)]
+pub struct CustomTransform(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
+
+impl CustomTransformer for CustomTransform {
+    fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program> {
+        self.0.transform(program, ctx)
+    }
+}
+
 #[turbo_tasks::value(transparent, serialization = "auto_for_input")]
-#[derive(Debug, PartialOrd, Ord, Hash, Clone)]
+#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 
 #[turbo_tasks::value_impl]
@@ -53,7 +77,7 @@ impl EcmascriptInputTransformsVc {
     #[turbo_tasks::function]
     pub async fn extend(self, other: EcmascriptInputTransformsVc) -> Result<Self> {
         let mut transforms = self.await?.clone_value();
-        transforms.extend(&*other.await?);
+        transforms.extend(other.await?.clone_value());
         Ok(EcmascriptInputTransformsVc::cell(transforms))
     }
 }
@@ -69,10 +93,8 @@ pub struct TransformContext<'a> {
 }
 
 impl EcmascriptInputTransform {
-    pub async fn apply(
-        &self,
-        program: &mut Program,
-        &TransformContext {
+    pub async fn apply(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
+        let &TransformContext {
             comments,
             source_map,
             top_level_mark,
@@ -80,9 +102,8 @@ impl EcmascriptInputTransform {
             file_name_str,
             file_name_hash,
             ..
-        }: &TransformContext<'_>,
-    ) -> Result<()> {
-        match *self {
+        } = ctx;
+        match self {
             EcmascriptInputTransform::React { refresh } => {
                 program.visit_mut_with(&mut react(
                     source_map.clone(),
@@ -90,7 +111,7 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::transforms::react::Options {
                         runtime: Some(swc_core::ecma::transforms::react::Runtime::Automatic),
                         development: Some(true),
-                        refresh: if refresh {
+                        refresh: if *refresh {
                             Some(swc_core::ecma::transforms::react::RefreshOptions {
                                 ..Default::default()
                             })
@@ -167,7 +188,7 @@ impl EcmascriptInputTransform {
             } => {
                 use swc_core::ecma::transforms::typescript::{strip_with_config, Config};
                 let config = Config {
-                    use_define_for_class_fields,
+                    use_define_for_class_fields: *use_define_for_class_fields,
                     ..Default::default()
                 };
                 program.visit_mut_with(&mut strip_with_config(config, top_level_mark));
@@ -179,7 +200,11 @@ impl EcmascriptInputTransform {
                     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
                 }
             }
-            EcmascriptInputTransform::Custom => todo!(),
+            EcmascriptInputTransform::Custom(transform) => {
+                if let Some(output) = transform.await?.transform(program, ctx) {
+                    *program = output;
+                }
+            }
         }
         Ok(())
     }
