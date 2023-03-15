@@ -17,7 +17,7 @@ createNextDescribe(
     it('should show error exporting AMP config in app dir', async () => {
       const { session, cleanup } = await sandbox(next)
 
-      // Add AMP exprot
+      // Add AMP export
       await session.patch(
         'app/page.js',
         `
@@ -30,7 +30,7 @@ createNextDescribe(
       `
       )
 
-      await session.hasRedbox(true)
+      expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxDescription()).toInclude(
         'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
       )

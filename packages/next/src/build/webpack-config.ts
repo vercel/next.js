@@ -59,7 +59,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
-import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
+import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
@@ -319,6 +319,7 @@ export function getDefineEnv({
     }),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+    'process.env.__NEXT_CONFIG_OUTPUT': JSON.stringify(config.output),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
@@ -1708,6 +1709,7 @@ export default async function getBaseWebpackConfig(
         'next-app-loader',
         'next-font-loader',
         'next-invalid-import-error-loader',
+        'next-metadata-route-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -2210,7 +2212,7 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        new FontLoaderManifestPlugin({
+        new NextFontManifestPlugin({
           appDirEnabled: !!config.experimental.appDir,
         }),
       !dev &&
