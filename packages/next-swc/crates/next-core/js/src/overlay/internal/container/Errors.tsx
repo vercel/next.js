@@ -189,12 +189,14 @@ function isUserCode(issue: Issue) {
 interface TabConfig {
   id: string
   icon: any
-  singularTitle: string
-  pluralTitle: string
+  title: {
+    one: string
+    many: string
+  }
   message: any
   items: (input: { readyErrors: ReadyRuntimeError[]; issues: Issue[] }) => any[]
   autoOpen: boolean
-  severity: 'error' | 'warning' | false
+  severity: 'error' | 'warning' | null
   as: any
 }
 
@@ -202,8 +204,10 @@ const TABS: TabConfig[] = [
   {
     id: TabId.RuntimeErrors,
     icon: <AlertOctagon />,
-    singularTitle: 'Runtime Error',
-    pluralTitle: 'Runtime Errors',
+    title: {
+      one: 'Runtime Error',
+      many: 'Runtime Errors',
+    },
     message: (
       <>Unhandled errors that happened during execution of application code.</>
     ),
@@ -217,8 +221,10 @@ const TABS: TabConfig[] = [
   {
     id: TabId.TurbopackErrors,
     icon: <PackageX />,
-    singularTitle: 'Turbopack Error',
-    pluralTitle: 'Turbopack Errors',
+    title: {
+      one: 'Turbopack Error',
+      many: 'Turbopack Errors',
+    },
     message: (
       <>
         Error that happened during compilation of applications code.
@@ -236,8 +242,10 @@ const TABS: TabConfig[] = [
   {
     id: TabId.TurbopackWarnings,
     icon: <PackageX />,
-    singularTitle: 'Turbopack Warning',
-    pluralTitle: 'Turbopack Warnings',
+    title: {
+      one: 'Turbopack Warning',
+      many: 'Turbopack Warnings',
+    },
     message: (
       <>
         Warnings that were found during compilation of applications code.
@@ -256,8 +264,10 @@ const TABS: TabConfig[] = [
   {
     id: TabId.TurbopackExternal,
     icon: <PackageX />,
-    singularTitle: 'Turbopack External Problem',
-    pluralTitle: 'Turbopack External Problems',
+    title: {
+      one: 'Turbopack External Problem',
+      many: 'Turbopack External Problems',
+    },
     message: (
       <>
         Errors or warnings that happened during compilation of non-application
@@ -269,11 +279,27 @@ const TABS: TabConfig[] = [
     items: ({ issues }) => {
       return issues.filter((i) => !isUserCode(i) && !isWarning(i))
     },
-    severity: false,
+    severity: null,
     autoOpen: false,
     as: TurbopackIssuesDialogBody,
   },
 ]
+
+// "instantiates" all tabs, filters out the ones that don't have any items
+function createTabs({
+  issues,
+  readyErrors,
+}: {
+  issues: Issue[]
+  readyErrors: ReadyRuntimeError[]
+}) {
+  const tabs = TABS.map((tab) => ({
+    ...tab,
+    items: tab.items({ issues, readyErrors }),
+  }))
+
+  return tabs.filter((tab) => tab.items.length > 0)
+}
 
 function itemHash(item: object) {
   return JSON.stringify(item)
@@ -282,17 +308,10 @@ function itemHash(item: object) {
 export function Errors({ issues, errors }: ErrorsProps) {
   const [readyErrors, _isLoading] = useResolvedErrors(errors)
 
-  const tabs = TABS.map((tab) => ({
-    id: tab.id,
-    autoOpen: tab.autoOpen,
-    severity: tab.severity,
-    icon: tab.icon,
-    message: tab.message,
-    pluralTitle: tab.pluralTitle,
-    singularTitle: tab.singularTitle,
-    as: tab.as,
-    items: tab.items({ issues, readyErrors }),
-  })).filter((tab) => tab.items.length > 0)
+  const tabs = React.useMemo(
+    () => createTabs({ issues, readyErrors }),
+    [issues, readyErrors]
+  )
 
   // Selected tab, null means it's closed
   const [selectedTab, setSelectedTab] = React.useState<string | null>(null)
@@ -307,6 +326,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
     const newSeenIds = new Set()
     let change = false
     let autoOpen = false
+
     // When the selected tab disappears we will go to another important tab or close the overlay
     if (selectedTab && !tabs.some((tab) => tab.id === selectedTab)) {
       const otherImportantTab = tabs.find((tab) => tab.autoOpen)
@@ -318,6 +338,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
     } else {
       autoOpen = true
     }
+
     // When there is a new item we open the overlay when autoOpen is set
     for (const tab of tabs) {
       for (const item of tab.items) {
@@ -331,6 +352,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
         }
       }
     }
+
     if (change || newSeenIds.size !== seenIds.size) setSeenIds(newSeenIds)
   }, [selectedTab, tabs, seenIds])
 
@@ -392,7 +414,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
                 data-severity={tab.severity}
               >
                 {tab.icon} {tab.items.length}{' '}
-                {tab.items.length > 1 ? tab.pluralTitle : tab.singularTitle}
+                {tab.items.length > 1 ? tab.title.many : tab.title.one}
               </Tab>
             ))}
           </DialogHeaderTabList>

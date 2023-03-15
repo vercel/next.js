@@ -4,6 +4,7 @@ const styles = css`
   .dialog-left-right {
     white-space: nowrap;
   }
+
   .dialog-left-right > button {
     --bg-alpha: 0.1;
     --fg-alpha: 1;
