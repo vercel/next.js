@@ -36,45 +36,45 @@ next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-e
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.12.2" }
-mdxjs = { version = "0.1.6" }
-modularize_imports = { version = "0.26.4" }
-styled_components = { version = "0.53.4" }
-styled_jsx = { version = "0.30.4" }
-swc_core = { version = "0.59.26" }
-swc_emotion = { version = "0.29.4" }
+mdxjs = { version = "0.1.8" }
+modularize_imports = { version = "0.26.10" }
+styled_components = { version = "0.53.10" }
+styled_jsx = { version = "0.30.10" }
+swc_core = { version = "0.69.6" }
+swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbo-updater = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
-turbopack-tests = { git = "https://github.com/vercel/turbo.git", rev = "d7f114ff" }
+auto-hash-map = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a", default-features = false }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbo-updater = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-core = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-css = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-env = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-json = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-mdx = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-node = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-static = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
+turbopack-tests = { git = "https://github.com/vercel/turbo.git", rev = "0e2b389a" }
 
 # General Deps
 
