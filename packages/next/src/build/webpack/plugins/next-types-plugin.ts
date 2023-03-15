@@ -12,6 +12,7 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import { getPageFromPath } from '../../entries'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { HTTP_METHODS } from '../../../server/web/http'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -37,19 +38,24 @@ function createTypeGuardFile(
   fullPath: string,
   relativePath: string,
   options: {
-    type: 'layout' | 'page'
+    type: 'layout' | 'page' | 'route'
     slots?: string[]
   }
 ) {
   return `// File: ${fullPath}
 import * as entry from '${relativePath}'
 import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface'
+import type { NextRequest } from 'next/server'
 
 type TEntry = typeof entry
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
-  default: Function
+  ${
+    options.type === 'route'
+      ? HTTP_METHODS.map((method) => `${method}?: Function`).join('\n  ')
+      : 'default: Function'
+  }
   config?: {}
   generateStaticParams?: Function
   revalidate?: RevalidateRange<TEntry> | false
@@ -58,18 +64,64 @@ checkFields<Diff<{
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'home' | 'edge'
   ${
-    options.type === 'page'
+    options.type === 'page' || options.type === 'route'
       ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
       : ''
   }
+  ${
+    options.type === 'route'
+      ? ''
+      : `
   metadata?: any
   generateMetadata?: Function
+  `
+  }
 }, TEntry, ''>>()
 
-// Check the prop type of the entry function
+${
+  options.type === 'route'
+    ? `// Check the prop type of the entry function
+${HTTP_METHODS.map(
+  (method) => `
+if ('${method}' in entry) {
+  checkFields<
+    Diff<
+      {
+        __tag__: '${method}',
+        __param_number__: string,
+        __param_type__: Request | NextRequest
+      },
+      {
+        __tag__: '${method}',
+        __param_number__: 'first',
+        __param_type__: FirstArg<MaybeField<TEntry, '${method}'>>
+      },
+      '${method}'
+    >
+  >();
+  checkFields<
+    Diff<
+      {
+        __tag__: '${method}',
+        __param_number__: string,
+        __param_type__: PageParams
+      },
+      {
+        __tag__: '${method}',
+        __param_number__: 'second',
+        __param_type__: SecondArg<MaybeField<TEntry, '${method}'>>
+      },
+      '${method}'
+    >
+  >();
+}
+`
+).join('')}
+`
+    : `// Check the prop type of the entry function
 checkFields<Diff<${
-    options.type === 'page' ? 'PageProps' : 'LayoutProps'
-  }, FirstArg<TEntry['default']>, 'default'>>()
+        options.type === 'page' ? 'PageProps' : 'LayoutProps'
+      }, FirstArg<TEntry['default']>, 'default'>>()
 
 // Check the arguments and return type of the generateMetadata function
 if ('generateMetadata' in entry) {
@@ -78,13 +130,14 @@ if ('generateMetadata' in entry) {
   }, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
   checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
 }
-
+`
+}
 // Check the arguments and return type of the generateStaticParams function
 if ('generateStaticParams' in entry) {
   checkFields<Diff<{ params: PageParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
   checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
-  
+
 type PageParams = any
 export interface PageProps {
   params?: any
@@ -363,8 +416,8 @@ export class NextTypesPlugin {
 
     const isApp = filePath.startsWith(this.appDir + path.sep)
 
-    // Filter out non-page files in app dir
-    if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
+    // Filter out non-page and non-route files in app dir
+    if (isApp && !/[/\\](?:page|route)\.[^.]+$/.test(filePath)) {
       return
     }
 
@@ -421,11 +474,12 @@ export class NextTypesPlugin {
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
+      const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
       const relativePathToRoot = path.relative(this.dir, mod.resource)
 
       if (!this.dev) {
-        if (IS_PAGE) {
+        if (IS_PAGE || IS_ROUTE) {
           this.collectPage(mod.resource)
         }
       }
@@ -458,6 +512,12 @@ export class NextTypesPlugin {
             type: 'page',
           })
         )
+      } else if (IS_ROUTE) {
+        assets[assetPath] = new sources.RawSource(
+          createTypeGuardFile(mod.resource, relativeImportPath, {
+            type: 'route',
+          })
+        )
       }
     }
 
@@ -483,10 +543,14 @@ export class NextTypesPlugin {
             chunkGroup.chunks.forEach((chunk) => {
               if (!chunk.name) return
 
-              // Here we only track page chunks.
+              // Here we only track page and route chunks.
               if (
                 !chunk.name.startsWith('pages/') &&
-                !(chunk.name.startsWith('app/') && chunk.name.endsWith('/page'))
+                !(
+                  chunk.name.startsWith('app/') &&
+                  (chunk.name.endsWith('/page') ||
+                    chunk.name.endsWith('/route'))
+                )
               ) {
                 return
               }
