@@ -3,7 +3,7 @@ import type { fetchServerResponse as fetchServerResponseType } from '../fetch-se
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../../server/app-render'
+} from '../../../../server/app-render/types'
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [

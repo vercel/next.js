@@ -2,7 +2,10 @@ import type ws from 'ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
-import type { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+import type {
+  DynamicParamTypesShort,
+  FlightRouterState,
+} from '../app-render/types'
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
