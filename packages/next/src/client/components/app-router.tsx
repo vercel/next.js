@@ -38,7 +38,6 @@ import {
   createInitialRouterState,
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
-import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -231,7 +230,7 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch, initialTree])
+  }, [dispatch])
 
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
