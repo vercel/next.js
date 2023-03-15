@@ -15,7 +15,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{
-    CustomTransformer, CustomTransformerWrapper, EcmascriptInputTransform,
+    CustomTransformer, CustomTransformVc, EcmascriptInputTransform,
     EcmascriptInputTransformsVc, TransformContext,
 };
 
@@ -26,7 +26,7 @@ pub async fn get_next_pages_transforms_rule(
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform =
-        EcmascriptInputTransform::Custom(CustomTransformerWrapper::new(NextJsStripPageExports {
+        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsStripPageExports {
             export_filter,
         }));
     Ok(ModuleRule::new(
@@ -80,7 +80,7 @@ pub async fn get_next_dynamic_transform_rule(
     pages_dir: Option<FileSystemPathVc>,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        EcmascriptInputTransform::Custom(CustomTransformerWrapper::new(NextJsDynamic {
+        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsDynamic {
             is_development,
             is_server,
             is_server_components,
@@ -129,7 +129,7 @@ pub fn get_next_font_transform_rule() -> ModuleRule {
         font_loaders.push("@next/font/local".into());
     }
 
-    let transformer = EcmascriptInputTransform::Custom(CustomTransformerWrapper::new(NextJsFont {
+    let transformer = EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont {
         font_loaders,
     }));
     ModuleRule::new(
