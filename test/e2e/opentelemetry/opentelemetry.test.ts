@@ -91,7 +91,7 @@ createNextDescribe(
     it('should have rendering span', async () => {
       await next.fetch('/pages')
 
-      const traces = await getTraces()
+      // const traces = await getTraces()
       // expect(traces.map((span) => span.name)).toContain('rendering /pages')
     })
 
@@ -133,7 +133,7 @@ createNextDescribe(
       const rootSpans = traces.filter((span) => !span.parentId)
 
       expect(rootSpans).toHaveLength(1)
-      const rootSpan = rootSpans[0]
+      // const rootSpan = rootSpans[0]
 
       // expect(rootSpan.name).toBe('GET /api/pages/basic')
     })
