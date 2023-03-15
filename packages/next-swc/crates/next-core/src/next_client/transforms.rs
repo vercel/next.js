@@ -1,6 +1,6 @@
 use anyhow::Result;
+use next_transform_strip_page_exports::ExportFilter;
 use turbopack::module_options::ModuleRule;
-use turbopack_ecmascript::NextJsPageExportFilter;
 
 use crate::{
     next_client::context::ClientContextType,
@@ -22,8 +22,7 @@ pub async fn get_next_client_transforms_rules(
     let pages_dir = match context_ty {
         ClientContextType::Pages { pages_dir } => {
             rules.push(
-                get_next_pages_transforms_rule(pages_dir, NextJsPageExportFilter::StripDataExports)
-                    .await?,
+                get_next_pages_transforms_rule(pages_dir, ExportFilter::StripDataExports).await?,
             );
             Some(pages_dir)
         }
@@ -32,9 +31,7 @@ pub async fn get_next_client_transforms_rules(
         }
     };
 
-    rules.push(get_next_dynamic_transform_rule(
-        true, false, false, pages_dir,
-    ));
+    rules.push(get_next_dynamic_transform_rule(true, false, false, pages_dir).await?);
 
     Ok(rules)
 }
