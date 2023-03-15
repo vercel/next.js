@@ -2,7 +2,10 @@
 
 import { FocusAndScrollRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>

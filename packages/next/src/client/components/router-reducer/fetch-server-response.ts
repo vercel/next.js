@@ -1,7 +1,10 @@
 'use client'
 
 import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
-import type { FlightRouterState, FlightData } from '../../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,

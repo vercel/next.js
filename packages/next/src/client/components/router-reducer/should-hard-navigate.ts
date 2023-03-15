@@ -2,7 +2,7 @@ import type {
   FlightRouterState,
   FlightDataPath,
   Segment,
-} from '../../../server/app-render'
+} from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
 
 // TODO-APP: flightSegmentPath will be empty in case of static response, needs to be handled.
