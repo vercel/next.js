@@ -40,8 +40,6 @@ describe('createInitialRouterState', () => {
       initialHead: <title>Test</title>,
     })
 
-    console.log(initialParallelRoutes)
-
     const state2 = createInitialRouterState({
       initialTree,
       initialCanonicalUrl,
