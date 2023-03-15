@@ -1,6 +1,7 @@
 import { SpanKind } from '@opentelemetry/api'
 
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 import { SavedSpan, traceFile } from './constants'
 
@@ -19,6 +20,17 @@ createNextDescribe(
         .map((line) => JSON.parse(line))
     }
 
+    const waitForOtelToInitialize = async () => {
+      await check(
+        async () =>
+          await next
+            .readFile(traceFile)
+            .then(() => 'ok')
+            .catch(() => 'err'),
+        'ok'
+      )
+    }
+
     const cleanTraces = async () => {
       await next.patchFile(traceFile, '')
     }
@@ -33,6 +45,10 @@ createNextDescribe(
         })
       })
     }
+
+    beforeAll(async () => {
+      await waitForOtelToInitialize()
+    })
 
     afterEach(async () => {
       await cleanTraces()
