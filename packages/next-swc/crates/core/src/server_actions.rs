@@ -203,7 +203,7 @@ impl<C: Comments> ServerActions<C> {
             );
 
             if let Some(a) = arrow {
-                if let BlockStmtOrExpr::BlockStmt(block) = &mut a.body {
+                if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                     block.visit_mut_with(&mut ClosureReplacer {
                         closure_arg: &closure_arg,
                         used_ids: &ids_from_closure,
@@ -213,7 +213,7 @@ impl<C: Comments> ServerActions<C> {
                 let new_arrow = ArrowExpr {
                     span: DUMMY_SP,
                     params: a.params.clone(),
-                    body: BlockStmtOrExpr::Expr(Box::new(Expr::Call(call))),
+                    body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Call(call)))),
                     is_async: a.is_async,
                     is_generator: a.is_generator,
                     type_params: Default::default(),
@@ -414,7 +414,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
         let is_action_fn = self.get_action_info(
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut a.body {
+            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 Some(block)
             } else {
                 None
@@ -515,7 +515,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if !self.in_action_file {
             if let Expr::Arrow(a) = n {
                 let is_action_fn = self.get_action_info(
-                    if let BlockStmtOrExpr::BlockStmt(block) = &mut a.body {
+                    if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                         Some(block)
                     } else {
                         None
@@ -1267,7 +1267,7 @@ impl TryFrom<&'_ OptChainExpr> for Name {
     type Error = ();
 
     fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
-        match &value.base {
+        match &*value.base {
             OptChainBase::Member(value) => match &value.prop {
                 MemberProp::Ident(prop) => {
                     let mut obj: Name = value.obj.as_ref().try_into()?;
@@ -1296,11 +1296,11 @@ impl From<Name> for Expr {
                 expr = Expr::OptChain(OptChainExpr {
                     span: DUMMY_SP,
                     question_dot_token: DUMMY_SP,
-                    base: OptChainBase::Member(MemberExpr {
+                    base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
                         obj: expr.into(),
                         prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
-                    }),
+                    })),
                 });
             }
         }
