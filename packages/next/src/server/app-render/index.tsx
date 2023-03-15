@@ -1,18 +1,34 @@
-import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
-import type { LoadComponentsReturnType } from './load-components'
-import type { ServerRuntime } from '../../types'
-import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { IncomingMessage, ServerResponse } from 'http'
+import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type {
+  FlightCSSManifest,
+  FlightManifest,
+} from '../../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ChildProp,
+  DynamicParamTypes,
+  DynamicParamTypesShort,
+  FlightData,
+  FlightDataPath,
+  FlightRouterState,
+  FlightSegmentPath,
+  RenderOpts,
+  Segment,
+} from './types'
+import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
+import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
 
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
-import { NotFound as DefaultNotFound } from '../client/components/error'
+import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { ParsedUrlQuery } from 'querystring'
-import { NextParsedUrlQuery } from './request-meta'
-import RenderResult, { type RenderResultMetadata } from './render-result'
+import { NextParsedUrlQuery } from '../request-meta'
+import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
   readableStreamTee,
   encodeText,
@@ -22,18 +38,13 @@ import {
   continueFromInitialStream,
   streamToString,
   streamToBufferedResult,
-} from './node-web-streams-helper'
-import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
-import { matchSegment } from '../client/components/match-segments'
-import {
-  FlightCSSManifest,
-  FlightManifest,
-} from '../build/webpack/plugins/flight-manifest-plugin'
-import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
-import { stripInternalQueries } from './internal-utils'
-import { RequestCookies } from './web/spec-extension/cookies'
-import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
+} from '../node-web-streams-helper'
+import { ESCAPE_REGEX, htmlEscapeJsonString } from '../htmlescape'
+import { matchSegment } from '../../client/components/match-segments'
+import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
+import { stripInternalQueries } from '../internal-utils'
+import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
   ACTION,
@@ -41,28 +52,25 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
-} from '../client/components/app-router-headers'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import type { RequestAsyncStorage } from '../client/components/request-async-storage'
-import { formatServerError } from '../lib/format-server-error'
-import { MetadataTree } from '../lib/metadata/metadata'
-import { RequestAsyncStorageWrapper } from './async-storage/request-async-storage-wrapper'
-import { StaticGenerationAsyncStorageWrapper } from './async-storage/static-generation-async-storage-wrapper'
-import { collectMetadata } from '../lib/metadata/resolve-metadata'
-import type { MetadataItems } from '../lib/metadata/resolve-metadata'
-import { isClientReference } from '../build/is-client-reference'
-import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
-import { warnOnce } from '../shared/lib/utils/warn-once'
-import { isNotFoundError } from '../client/components/not-found'
+} from '../../client/components/app-router-headers'
+import { formatServerError } from '../../lib/format-server-error'
+import { MetadataTree } from '../../lib/metadata/metadata'
+import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
+import { collectMetadata } from '../../lib/metadata/resolve-metadata'
+import { isClientReference } from '../../build/is-client-reference'
+import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
-} from '../client/components/redirect'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
-import { patchFetch } from './lib/patch-fetch'
-import { AppRenderSpan } from './lib/trace/constants'
-import { getTracer } from './lib/trace/tracer'
-import zod from 'next/dist/compiled/zod'
+} from '../../client/components/redirect'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { patchFetch } from '../lib/patch-fetch'
+import { AppRenderSpan } from '../lib/trace/constants'
+import { getTracer } from '../lib/trace/tracer'
+import { flightRouterStateSchema } from './types'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -97,111 +105,6 @@ function preloadComponent(Component: any, props: any) {
   }
   return Component
 }
-
-const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
-
-function readonlyHeadersError() {
-  return new Error('ReadonlyHeaders cannot be modified')
-}
-
-export class ReadonlyHeaders {
-  [INTERNAL_HEADERS_INSTANCE]: Headers
-
-  entries: Headers['entries']
-  forEach: Headers['forEach']
-  get: Headers['get']
-  has: Headers['has']
-  keys: Headers['keys']
-  values: Headers['values']
-
-  constructor(headers: IncomingHttpHeaders) {
-    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
-    const headersInstance = new Headers(headers as any)
-    this[INTERNAL_HEADERS_INSTANCE] = headersInstance
-
-    this.entries = headersInstance.entries.bind(headersInstance)
-    this.forEach = headersInstance.forEach.bind(headersInstance)
-    this.get = headersInstance.get.bind(headersInstance)
-    this.has = headersInstance.has.bind(headersInstance)
-    this.keys = headersInstance.keys.bind(headersInstance)
-    this.values = headersInstance.values.bind(headersInstance)
-  }
-  [Symbol.iterator]() {
-    return this[INTERNAL_HEADERS_INSTANCE][Symbol.iterator]()
-  }
-
-  append() {
-    throw readonlyHeadersError()
-  }
-  delete() {
-    throw readonlyHeadersError()
-  }
-  set() {
-    throw readonlyHeadersError()
-  }
-}
-
-const INTERNAL_COOKIES_INSTANCE = Symbol('internal for cookies readonly')
-class ReadonlyRequestCookiesError extends Error {
-  message =
-    'ReadonlyRequestCookies cannot be modified. Read more: https://nextjs.org/api-reference/cookies'
-}
-
-export class ReadonlyRequestCookies {
-  [INTERNAL_COOKIES_INSTANCE]: RequestCookies
-
-  get: RequestCookies['get']
-  getAll: RequestCookies['getAll']
-  has: RequestCookies['has']
-
-  constructor(request: {
-    headers: {
-      get(key: 'cookie'): string | null | undefined
-    }
-  }) {
-    // Since `new Headers` uses `this.append()` to fill the headers object ReadonlyHeaders can't extend from Headers directly as it would throw.
-    // Request overridden to not have to provide a fully request object.
-    const cookiesInstance = new RequestCookies(request.headers as Headers)
-    this[INTERNAL_COOKIES_INSTANCE] = cookiesInstance
-
-    this.get = cookiesInstance.get.bind(cookiesInstance)
-    this.getAll = cookiesInstance.getAll.bind(cookiesInstance)
-    this.has = cookiesInstance.has.bind(cookiesInstance)
-  }
-
-  [Symbol.iterator]() {
-    return (this[INTERNAL_COOKIES_INSTANCE] as any)[Symbol.iterator]()
-  }
-
-  clear() {
-    throw new ReadonlyRequestCookiesError()
-  }
-  delete() {
-    throw new ReadonlyRequestCookiesError()
-  }
-  set() {
-    throw new ReadonlyRequestCookiesError()
-  }
-}
-
-export type RenderOptsPartial = {
-  err?: Error | null
-  dev?: boolean
-  serverComponentManifest?: FlightManifest
-  serverCSSManifest?: FlightCSSManifest
-  supportsDynamicHTML: boolean
-  runtime?: ServerRuntime
-  serverComponents?: boolean
-  assetPrefix?: string
-  nextFontManifest?: NextFontManifest
-  isBot?: boolean
-  incrementalCache?: import('./lib/incremental-cache').IncrementalCache
-  isRevalidate?: boolean
-  nextExport?: boolean
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-}
-
-export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
  * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
@@ -288,7 +191,7 @@ function createErrorHandler({
         // It won't log the source code, but the error will be more useful.
         if (process.env.NODE_ENV !== 'production') {
           const { logAppDirError } =
-            require('./dev/log-app-dir-error') as typeof import('./dev/log-app-dir-error')
+            require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
           logAppDirError(err)
         }
         if (process.env.NODE_ENV === 'production') {
@@ -446,16 +349,6 @@ function createServerComponentRenderer<Props>(
   }
 }
 
-type DynamicParamTypes = 'catchall' | 'optional-catchall' | 'dynamic'
-
-const dynamicParamTypesSchema = zod.enum(['c', 'oc', 'd'])
-/**
- * c = catchall
- * oc = optional catchall
- * d = dynamic
- */
-export type DynamicParamTypesShort = zod.infer<typeof dynamicParamTypesSchema>
-
 /**
  * Shorten the dynamic param in order to make it smaller when transmitted to the browser.
  */
@@ -472,92 +365,6 @@ function getShortDynamicParamType(
     default:
       throw new Error('Unknown dynamic param type')
   }
-}
-
-const segmentSchema = zod.union([
-  zod.string(),
-  zod.tuple([zod.string(), zod.string(), dynamicParamTypesSchema]),
-])
-/**
- * Segment in the router state.
- */
-export type Segment = zod.infer<typeof segmentSchema>
-
-const flightRouterStateSchema: zod.ZodType<FlightRouterState> = zod.lazy(() => {
-  const parallelRoutesSchema = zod.record(flightRouterStateSchema)
-  const urlSchema = zod.string().nullable().optional()
-  const refreshSchema = zod.literal('refetch').nullable().optional()
-  const isRootLayoutSchema = zod.boolean().optional()
-
-  // Due to the lack of optional tuple types in Zod, we need to use union here.
-  // https://github.com/colinhacks/zod/issues/1465
-  return zod.union([
-    zod.tuple([
-      segmentSchema,
-      parallelRoutesSchema,
-      urlSchema,
-      refreshSchema,
-      isRootLayoutSchema,
-    ]),
-    zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema, refreshSchema]),
-    zod.tuple([segmentSchema, parallelRoutesSchema, urlSchema]),
-    zod.tuple([segmentSchema, parallelRoutesSchema]),
-  ])
-})
-/**
- * Router state
- */
-export type FlightRouterState = [
-  segment: Segment,
-  parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string | null,
-  refresh?: 'refetch' | null,
-  isRootLayout?: boolean
-]
-
-/**
- * Individual Flight response path
- */
-export type FlightSegmentPath =
-  // Uses `any` as repeating pattern can't be typed.
-  | any[]
-  // Looks somewhat like this
-  | [
-      segment: Segment,
-      parallelRouterKey: string,
-      segment: Segment,
-      parallelRouterKey: string,
-      segment: Segment,
-      parallelRouterKey: string
-    ]
-
-export type FlightDataPath =
-  // Uses `any` as repeating pattern can't be typed.
-  | any[]
-  // Looks somewhat like this
-  | [
-      // Holds full path to the segment.
-      ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* subTreeData: */ React.ReactNode | null, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null
-    ]
-
-/**
- * The Flight response data
- */
-export type FlightData = Array<FlightDataPath> | string
-
-/**
- * Property holding the current subTreeData.
- */
-export type ChildProp = {
-  /**
-   * Null indicates that the tree is partial
-   */
-  current: React.ReactNode | null
-  segment: Segment
 }
 
 /**
@@ -923,9 +730,9 @@ export async function renderToHTMLOrFlight(
     const searchParamsProps = { searchParams: query }
 
     const LayoutRouter =
-      ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
+      ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
     const RenderFromTemplateContext =
-      ComponentMod.RenderFromTemplateContext as typeof import('../client/components/render-from-template-context').default
+      ComponentMod.RenderFromTemplateContext as typeof import('../../client/components/render-from-template-context').default
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -1278,7 +1085,7 @@ export async function renderToHTMLOrFlight(
           defaultRevalidate === 0
         ) {
           const { DynamicServerError } =
-            ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
+            ComponentMod.serverHooks as typeof import('../../client/components/hooks-server-context')
 
           const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
           staticGenerationStore.dynamicUsageDescription =
@@ -1755,11 +1562,11 @@ export async function renderToHTMLOrFlight(
 
     // AppRouter is provided by next-app-loader
     const AppRouter =
-      ComponentMod.AppRouter as typeof import('../client/components/app-router').default
+      ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
 
     const GlobalError = interopDefault(
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
-      ComponentMod.GlobalError as typeof import('../client/components/error-boundary').default
+      ComponentMod.GlobalError as typeof import('../../client/components/error-boundary').default
     )
 
     let serverComponentsInlinedTransformStream: TransformStream<
@@ -2012,7 +1819,7 @@ export async function renderToHTMLOrFlight(
     if (isFetchAction || isFormAction) {
       if (process.env.NEXT_RUNTIME !== 'edge') {
         const { parseBody } =
-          require('./api-utils/node') as typeof import('./api-utils/node')
+          require('../api-utils/node') as typeof import('../api-utils/node')
         const actionData = (await parseBody(req, '1mb')) || {}
         let bound = []
 
