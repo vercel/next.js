@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { FlightRouterState } from '../../server/app-render'
+import type { FlightRouterState } from '../../server/app-render/types'
 
 const ANNOUNCER_TYPE = 'next-route-announcer'
 const ANNOUNCER_ID = '__next-route-announcer__'

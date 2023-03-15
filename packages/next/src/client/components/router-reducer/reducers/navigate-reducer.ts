@@ -5,7 +5,7 @@ import {
 import type {
   FlightDataPath,
   FlightSegmentPath,
-} from '../../../../server/app-render'
+} from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'

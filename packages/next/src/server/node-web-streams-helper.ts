@@ -1,4 +1,4 @@
-import type { FlightRouterState } from './app-render'
+import type { FlightRouterState } from './app-render/types'
 import { nonNullable } from '../lib/non-nullable'
 import { getTracer } from './lib/trace/tracer'
 import { AppRenderSpan } from './lib/trace/constants'
