@@ -2063,7 +2063,7 @@ export default async function getBaseWebpackConfig(
           // Buffer is used by getInlineScriptSource
           Buffer: [require.resolve('buffer'), 'Buffer'],
           // Avoid process being overridden when in web run time
-          process: [require.resolve('process')],
+          ...(isClient && { process: [require.resolve('process')] }),
         }),
       new webpack.DefinePlugin(
         getDefineEnv({
