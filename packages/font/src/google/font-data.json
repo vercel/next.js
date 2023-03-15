@@ -2289,6 +2289,19 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Climate Crisis": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "YEAR",
+        "min": 1979,
+        "max": 2050,
+        "defaultValue": 1979
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Coda": {
     "weights": ["400", "800"],
     "styles": ["normal"],
@@ -3882,6 +3895,19 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Golos Text": {
+    "weights": ["400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+  },
   "Gorditas": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -5081,13 +5107,19 @@
     "styles": ["normal"],
     "axes": [
       {
+        "tag": "YOPQ",
+        "min": 40,
+        "max": 300,
+        "defaultValue": 300
+      },
+      {
         "tag": "wght",
         "min": 100,
         "max": 900,
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext", "math"]
   },
   "Kurale": {
     "weights": ["400"],
@@ -5996,7 +6028,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
   "Marvel": {
     "weights": ["400", "700"],
@@ -10364,7 +10396,7 @@
       "900",
       "variable"
     ],
-    "styles": ["normal"],
+    "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
@@ -11716,6 +11748,63 @@
     "weights": ["400", "500", "600", "700", "800"],
     "styles": ["normal"],
     "subsets": ["devanagari", "latin", "latin-ext"]
+  },
+  "Tilt Neon": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "XROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      },
+      {
+        "tag": "YROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Tilt Prism": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "XROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      },
+      {
+        "tag": "YROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
+  "Tilt Warp": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "XROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      },
+      {
+        "tag": "YROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Timmana": {
     "weights": ["400"],

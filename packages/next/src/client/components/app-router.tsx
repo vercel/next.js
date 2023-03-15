@@ -12,7 +12,10 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { reducer } from './router-reducer/router-reducer'
 import {
@@ -38,6 +41,7 @@ import {
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
+import { AppRouterAnnouncer } from './app-router-announcer'
 
 const isServer = typeof window === 'undefined'
 
@@ -327,7 +331,12 @@ function Router({
     }
   }, [onPopState])
 
-  const content = <>{cache.subTreeData}</>
+  const content = (
+    <>
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </>
+  )
 
   return (
     <PathnameContext.Provider value={pathname}>

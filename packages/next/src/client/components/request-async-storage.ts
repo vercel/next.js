@@ -1,9 +1,7 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import { PreviewData } from '../../../types'
-import type {
-  ReadonlyHeaders,
-  ReadonlyRequestCookies,
-} from '../../server/app-render'
+import type { ReadonlyHeaders } from '../../server/app-render/readonly-headers'
+import type { ReadonlyRequestCookies } from '../../server/app-render/readonly-request-cookies'
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface RequestStore {

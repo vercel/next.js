@@ -48,7 +48,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
+import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -360,8 +360,9 @@ export default class DevServer extends Server {
       return
     }
 
-    const regexPageExtension = new RegExp(
-      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    const validFileMatcher = createValidFileMatcher(
+      this.nextConfig.pageExtensions,
+      this.appDir
     )
 
     let resolved = false
@@ -476,7 +477,7 @@ export default class DevServer extends Server {
 
           if (
             meta?.accuracy === undefined ||
-            !regexPageExtension.test(fileName)
+            !validFileMatcher.isPageFile(fileName)
           ) {
             continue
           }
@@ -493,6 +494,7 @@ export default class DevServer extends Server {
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
             extensions: this.nextConfig.pageExtensions,
+            keepIndex: false,
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -545,7 +547,7 @@ export default class DevServer extends Server {
           }
 
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
+            if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
 
