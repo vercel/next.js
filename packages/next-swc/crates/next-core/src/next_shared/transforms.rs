@@ -15,8 +15,8 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{
-    CustomTransformer, CustomTransformVc, EcmascriptInputTransform,
-    EcmascriptInputTransformsVc, TransformContext,
+    CustomTransformVc, CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+    TransformContext,
 };
 
 /// Returns a rule which applies the Next.js page export stripping transform.
@@ -129,9 +129,8 @@ pub fn get_next_font_transform_rule() -> ModuleRule {
         font_loaders.push("@next/font/local".into());
     }
 
-    let transformer = EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont {
-        font_loaders,
-    }));
+    let transformer =
+        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont { font_loaders }));
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(),
