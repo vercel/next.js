@@ -26,7 +26,7 @@ lto = true
 [workspace.dependencies]
 # Workspace crates
 next-binding = { path = "crates/next-binding" }
-next-core = { path = "crates/next-core" }
+next-core = { path = "crates/next-core", default-features = false }
 next-dev = { path = "crates/next-dev" }
 next-dev-tests = { path = "crates/next-dev-tests" }
 next-font = { path = "crates/next-font" }
@@ -52,7 +52,7 @@ turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-2
 turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
 turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
 turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
+turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2", default-features = false }
 turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
 turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
 turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230315.2" }
