@@ -1921,6 +1921,14 @@ export default async function getBaseWebpackConfig(
                     },
                     exclude: [staticGenerationAsyncStorageRegex],
                     use: [
+                      ...(dev && isClient
+                        ? [
+                            require.resolve(
+                              'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+                            ),
+                            defaultLoaders.babel,
+                          ]
+                        : []),
                       {
                         loader: 'next-flight-client-action-loader',
                       },
