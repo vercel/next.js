@@ -66,7 +66,7 @@ export class NextServer {
     ) => {
       return getTracer().trace(NextServerSpan.rootRequestHandler, async () => {
         const requestHandler = await this.getServerRequestHandler()
-        await requestHandler(req, res, parsedUrl)
+        return requestHandler(req, res, parsedUrl)
       })
     }
   }
