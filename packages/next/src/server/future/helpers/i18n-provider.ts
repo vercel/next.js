@@ -90,22 +90,6 @@ export class I18NProvider {
   }
 
   /**
-   * Infers the default locale from the hostname (if provided).
-   *
-   * @param hostname The hostname to infer the default locale from.
-   * @returns The default locale for the hostname, else the default locale from
-   *          the configuration.
-   */
-  private detectDefaultLocale(hostname?: string): string {
-    if (!hostname) return this.config.defaultLocale
-
-    const domainLocale = this.detectDomainLocale(hostname)
-    if (!domainLocale) return this.config.defaultLocale
-
-    return domainLocale.defaultLocale
-  }
-
-  /**
    * Analyzes the pathname for a locale and returns the pathname without it.
    *
    * @param pathname The pathname that could contain a locale prefix.
