@@ -93,7 +93,7 @@ export class I18NProvider {
       const domainLocale = this.lowerCaseDomains[i]
       if (
         // We assume that the hostname is already lowercased.
-        domainLocale.defaultLocale === hostname ||
+        domainLocale.hostname === hostname ||
         // Configuration validation ensures that the locale is not repeated in
         // other domains locales.
         domainLocale.locales?.some((locale) => locale === detectedLocale)
