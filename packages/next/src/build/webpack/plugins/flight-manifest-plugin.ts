@@ -53,7 +53,7 @@ const pluginState = getProxiedPluginState({
   ASYNC_CLIENT_MODULES: [] as string[],
 })
 
-interface ManifestNode {
+export interface ManifestNode {
   [moduleExport: string]: {
     /**
      * Webpack module id

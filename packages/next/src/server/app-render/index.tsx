@@ -639,6 +639,14 @@ export async function renderToHTMLOrFlight(
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
+  console.log(
+    'clientReferenceManifest.clientModules',
+    clientReferenceManifest.clientModules
+  )
+  console.log(
+    'clientReferenceManifest.ssrModuleMapping',
+    clientReferenceManifest.ssrModuleMapping
+  )
   const serverCSSManifest = renderOpts.serverCSSManifest!
 
   const capturedErrors: Error[] = []
