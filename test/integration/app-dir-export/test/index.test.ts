@@ -125,11 +125,13 @@ async function runTests({
 }
 
 describe('app dir with output export', () => {
-  it('should work with next dev', async () => {
-    await runTests({ isDev: true })
-  })
-  it.each([{ trailingSlash: false }, { trailingSlash: true }])(
-    "should work with trailingSlash '$trailingSlash'",
+  it.each([
+    { isDev: true, trailingSlash: false },
+    { isDev: true, trailingSlash: true },
+    { isDev: false, trailingSlash: false },
+    { isDev: false, trailingSlash: true },
+  ])(
+    "should work with isDev '$isDev' and trailingSlash '$trailingSlash'",
     async ({ trailingSlash }) => {
       await runTests({ trailingSlash })
     }
