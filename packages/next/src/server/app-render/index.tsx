@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
-import type {
+import {
   ClientCSSReferenceManifest,
   ClientReferenceManifest,
+  getManifestExportName,
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type {
   ChildProp,
@@ -431,7 +432,8 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = clientReferenceManifest.clientModules[mod + '#']
+        const modData =
+          clientReferenceManifest.clientModules[getManifestExportName(mod, '')]
         if (modData) {
           for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
@@ -639,14 +641,6 @@ export async function renderToHTMLOrFlight(
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
-  console.log(
-    'clientReferenceManifest.clientModules',
-    clientReferenceManifest.clientModules
-  )
-  console.log(
-    'clientReferenceManifest.ssrModuleMapping',
-    clientReferenceManifest.ssrModuleMapping
-  )
   const serverCSSManifest = renderOpts.serverCSSManifest!
 
   const capturedErrors: Error[] = []

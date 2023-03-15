@@ -36,7 +36,6 @@ function parseModel(response, json) {
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    console.trace('resolveClientReference', 'metadata.name', metadata.name, metadata, bundlerConfig)
     var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
 
     if (metadata.async) {

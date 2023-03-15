@@ -130,109 +130,67 @@ async function runOperation(renderData: RenderData) {
     tree = [info.segment, { children: tree }, components];
   }
 
-  const proxyMethodsModuleMap = (
+  const proxyMethodsForModule = (
     id: string
-  ): ProxyHandler<ClientReferenceManifest["ssrModuleMapping"][""]> => ({
-    get(_target, prop: string) {
-      console.log('proxyMethodsModuleMap', 'id', id, 'prop', prop)
-      return {
-        id,
-        chunks: JSON.parse(id)[1],
-        name: prop,
-      };
-    },
-  });
-  const proxyMethodsClientRefs = (
-    id: string
-  ): ProxyHandler<ClientReferenceManifest["clientModules"]> => {
+  ): ProxyHandler<ClientReferenceManifest["ssrModuleMapping"]> => {
     return {
-      get(target, prop: string) {
-        // console.log('proxyMethodsClientRefs', 'id', id, 'prop', prop)
-        // The key is a `${file}#${name}`, but `file` can contain `#` itself.
-        // There are 2 possibilities:
-        //   "file#"    => id = "file", name = ""
-        //   "file#foo" => id = "file", name = "foo"
-        const pos = id.lastIndexOf("#");
-        // let id = prop;
-        let name = "";
-        if (pos === -1) {
-          // console.log('prop', prop, 'data', id)
-          return target[prop]
-          // throw new Error(`key need to be in format of \${file}#\${name}, but got ${prop}`);
-        } else {
-          id = id.slice(0, pos);
-          name = id.slice(pos + 1);
-
-          // console.log('#', 'id', id, 'name', name)
-        }
-
+      get(_target, prop: string) {
         return {
           id,
-          name,
           chunks: JSON.parse(id)[1],
+          name: prop,
         };
       },
     };
-  };
+  }
 
   const proxyMethodsNested = (type: "ssrModuleMapping" | "clientModules"): ProxyHandler<
     ClientReferenceManifest["ssrModuleMapping"] | ClientReferenceManifest["clientModules"]
   > => {
     return {
-      get(_target, name) {
-        // if (name === "__ssr_module_mapping__") {
-        //   return manifest;
-        // }
-        // if (name === "__entry_css_files__") {
-        //   return __entry_css_files__;
-        // }
+      get(_target, key: string) {
         if (type === "ssrModuleMapping") {
-          console.log('proxyMethodsNested', 'type', type, 'name', name, 'typeof name', typeof name)
-          console.log('type:ssrModuleMapping', 'prop', name, '_target', _target)
-          return new Proxy({}, proxyMethodsModuleMap(name as string));
+          return new Proxy({}, proxyMethodsForModule(key as string));
         }
         if (type === "clientModules") {
-          return new Proxy({}, proxyMethodsClientRefs(name as string));
+          // The key is a `${file}#${name}`, but `file` can contain `#` itself.
+          // There are 2 possibilities:
+          //   "file#"    => id = "file", name = ""
+          //   "file#foo" => id = "file", name = "foo"
+          const pos = key.lastIndexOf("#");
+          let id = key;
+          let name = "";
+          if (pos !== -1) {
+            id = key.slice(0, pos);
+            name = key.slice(pos + 1);
+          } else {
+            throw new Error("key need to be in format of ${file}#${name}");
+          }
+
+          return {
+            id,
+            name,
+            chunks: JSON.parse(id)[1],
+          };
         }
       },
     };
   };
 
   const proxyMethods = (): ProxyHandler<ClientReferenceManifest> => {
+    const clientModulesProxy = new Proxy({}, proxyMethodsNested("clientModules"));
+    const ssrModuleMappingProxy = new Proxy({}, proxyMethodsNested("ssrModuleMapping"));
     return {
       get(_target: any, prop: string) {
         if (prop === "ssrModuleMapping") {
-          return new Proxy({}, proxyMethodsNested("ssrModuleMapping"));
+          return ssrModuleMappingProxy;
         }
         if (prop === "clientModules") {
-          return new Proxy({}, proxyMethodsNested("clientModules"));
+          return clientModulesProxy;
         }
         if (prop === "cssFiles") {
           return cssFiles;
         }
-        // console.log('proxyMethods:prop', prop, _target[prop])
-
-
-        // // The key is a `${file}#${name}`, but `file` can contain `#` itself.
-        // // There are 2 possibilities:
-        // //   "file#"    => id = "file", name = ""
-        // //   "file#foo" => id = "file", name = "foo"
-        // const pos = prop.lastIndexOf("#");
-        // let id = prop;
-        // let name = "";
-        // if (pos === -1) {
-        //   throw new Error(`key need to be in format of \${file}#\${name}, but got ${prop}`);
-        // } else {
-        //   id = prop.slice(0, pos);
-        //   name = prop.slice(pos + 1);
-        // }
-
-        // return target[prop];
-        // return {
-        //   id,
-        //   name,
-        //   chunks: JSON.parse(id)[1],
-        // };
       },
     };
   };

@@ -41,10 +41,11 @@ export type ManifestChunks = Array<`${string}:${string}` | string>
  * @param filepath file path to the module
  * @param exports '' | '*' | '<named>'
  */
-function getManifestExportName(filepath: string, exportName: string): string {
-  if (exportName === '*') return filepath
-  if (exportName === '') return filepath + '#'
-  return filepath + '#' + exportName
+export function getManifestExportName(
+  filepath: string,
+  exportName: string
+): string {
+  return exportName === '*' ? filepath : filepath + '#' + exportName
 }
 
 const pluginState = getProxiedPluginState({
