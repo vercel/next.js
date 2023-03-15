@@ -169,7 +169,8 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     );
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let cargo_workspace_root = package_root
+    let cargo_workspace_root = canonicalize(package_root)
+        .unwrap()
         .parent()
         .unwrap()
         .parent()
