@@ -24,13 +24,14 @@ import {
   EXPORT_MARKER,
   CLIENT_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
   SERVER_DIRECTORY,
   SERVER_REFERENCE_MANIFEST,
+  APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -51,6 +52,9 @@ import {
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
 import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isAppPageRoute } from '../lib/is-app-page-route'
+import isError from '../lib/is-error'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -238,6 +242,23 @@ export default async function exportApp(
       prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
     } catch (_) {}
 
+    let appRoutePathManifest: Record<string, string> | undefined = undefined
+    try {
+      appRoutePathManifest = require(join(distDir, APP_PATH_ROUTES_MANIFEST))
+    } catch (err) {
+      if (
+        isError(err) &&
+        (err.code === 'ENOENT' || err.code === 'MODULE_NOT_FOUND')
+      ) {
+        // the manifest doesn't exist which will happen when using
+        // "pages" dir instead of "app" dir.
+        appRoutePathManifest = undefined
+      } else {
+        // the manifest is malformed (invalid json)
+        throw err
+      }
+    }
+
     const excludedPrerenderRoutes = new Set<string>()
     const pages = options.pages || Object.keys(pagesManifest)
     const defaultPathMap: ExportPathMap = {}
@@ -267,6 +288,25 @@ export default async function exportApp(
       }
 
       defaultPathMap[page] = { page }
+    }
+
+    const mapAppRouteToPage = new Map<string, string>()
+    if (!options.buildExport && appRoutePathManifest) {
+      for (const [pageName, routePath] of Object.entries(
+        appRoutePathManifest
+      )) {
+        mapAppRouteToPage.set(routePath, pageName)
+        if (
+          isAppPageRoute(pageName) &&
+          !prerenderManifest?.routes[routePath] &&
+          !prerenderManifest?.dynamicRoutes[routePath]
+        ) {
+          defaultPathMap[routePath] = {
+            page: pageName,
+            _isAppDir: true,
+          }
+        }
+      }
     }
 
     // Initialize the output directory
@@ -398,7 +438,6 @@ export default async function exportApp(
       disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
       // Exported pages do not currently support dynamic HTML.
       supportsDynamicHTML: false,
-      runtime: nextConfig.experimental.runtime,
       crossOrigin: nextConfig.crossOrigin,
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextConfigOutput: nextConfig.output,
@@ -406,11 +445,12 @@ export default async function exportApp(
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: hasAppDir,
-      fontLoaderManifest: require(join(
+      nextFontManifest: require(join(
         distDir,
         'server',
-        `${FONT_LOADER_MANIFEST}.json`
+        `${NEXT_FONT_MANIFEST}.json`
       )),
+      images: nextConfig.images,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -711,7 +751,10 @@ export default async function exportApp(
       await Promise.all(
         Object.keys(prerenderManifest.routes).map(async (route) => {
           const { srcRoute } = prerenderManifest!.routes[route]
-          const pageName = srcRoute || route
+          const appPageName = mapAppRouteToPage.get(srcRoute || '')
+          const pageName = appPageName || srcRoute || route
+          const isAppPath = Boolean(appPageName)
+          const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
 
           // returning notFound: true from getStaticProps will not
           // output html/json files during the build
@@ -720,7 +763,7 @@ export default async function exportApp(
           }
           route = normalizePagePath(route)
 
-          const pagePath = getPagePath(pageName, distDir, undefined, false)
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
           const distPagesDir = join(
             pagePath,
             // strip leading / and then recurse number of nested dirs
@@ -733,6 +776,15 @@ export default async function exportApp(
           )
 
           const orig = join(distPagesDir, route)
+          const handlerSrc = `${orig}.body`
+          const handlerDest = join(outDir, route)
+
+          if (isAppRouteHandler && (await exists(handlerSrc))) {
+            await promises.mkdir(dirname(handlerDest), { recursive: true })
+            await promises.copyFile(handlerSrc, handlerDest)
+            return
+          }
+
           const htmlDest = join(
             outDir,
             `${route}${
@@ -743,13 +795,20 @@ export default async function exportApp(
             outDir,
             `${route}.amp${subFolders ? `${sep}index` : ''}.html`
           )
-          const jsonDest = join(pagesDataDir, `${route}.json`)
+          const jsonDest = isAppPath
+            ? join(
+                outDir,
+                `${route}${
+                  subFolders && route !== '/index' ? `${sep}index` : ''
+                }.txt`
+              )
+            : join(pagesDataDir, `${route}.json`)
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
 
           const htmlSrc = `${orig}.html`
-          const jsonSrc = `${orig}.json`
+          const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
 
           await promises.copyFile(htmlSrc, htmlDest)
           await promises.copyFile(jsonSrc, jsonDest)

@@ -273,8 +273,12 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
         const result = handleForceStatic(target.href, prop)
         if (result !== undefined) return result
       }
+      const value = (target as any)[prop]
 
-      return (target as any)[prop]
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
     },
     set(target, prop, value) {
       handleNextUrlBailout(prop)
@@ -320,8 +324,12 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
         const result = handleForceStatic(target.url, prop)
         if (result !== undefined) return result
       }
+      const value = (target as any)[prop]
 
-      return (target as any)[prop]
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
     },
     set(target, prop, value) {
       handleReqBailout(prop)
@@ -337,8 +345,8 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
       RequestStore,
       RequestContext
     > = new RequestAsyncStorageWrapper(),
-    private readonly staticAsyncLocalStorageWrapper = new StaticGenerationAsyncStorageWrapper(),
-    private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
+    protected readonly staticAsyncLocalStorageWrapper = new StaticGenerationAsyncStorageWrapper(),
+    protected readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
   ) {}
 
   private resolve(method: string, mod: AppRouteModule): AppRouteHandlerFn {
@@ -427,11 +435,11 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     // TODO-APP: this is temporarily used for edge.
     request?: Request
   ): Promise<Response> {
-    // This is added by the webpack loader, we load it directly from the module.
-    const { requestAsyncStorage, staticGenerationAsyncStorage } = module
-
     // Get the handler function for the given method.
     const handle = this.resolve(req.method, module)
+
+    // This is added by the webpack loader, we load it directly from the module.
+    const { requestAsyncStorage, staticGenerationAsyncStorage } = module
 
     const requestContext: RequestContext =
       process.env.NEXT_RUNTIME === 'edge'

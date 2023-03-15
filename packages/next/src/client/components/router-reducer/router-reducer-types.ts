@@ -1,5 +1,8 @@
-import { CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightRouterState, FlightData } from '../../../server/app-render'
+import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../../server/app-render/types'
 import { fetchServerResponse } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -16,6 +19,7 @@ export interface Mutable {
   applyFocusAndScroll?: boolean
   pendingPush?: boolean
   cache?: CacheNode
+  hashFragment?: string
 }
 
 /**
@@ -132,6 +136,10 @@ export type FocusAndScrollRef = {
    * If focus and scroll should be set in the layout-router's useEffect()
    */
   apply: boolean
+  /**
+   * The hash fragment that should be scrolled to.
+   */
+  hashFragment: string | null
 }
 
 /**

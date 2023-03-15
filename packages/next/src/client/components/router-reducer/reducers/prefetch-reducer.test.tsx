@@ -1,6 +1,6 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
-import type { FlightData } from '../../../../server/app-render'
+import type { FlightData } from '../../../../server/app-render/types'
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -32,7 +32,7 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import { FlightRouterState } from '../../../../server/app-render'
+import { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -170,6 +170,7 @@ describe('prefetchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking',
       cache: {
@@ -313,6 +314,7 @@ describe('prefetchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking',
       cache: {
