@@ -1,3 +1,4 @@
+import http from 'http'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { getNodeOptionsWithoutInspect } from './utils'
@@ -25,7 +26,6 @@ export async function startServer({
   allowRetry,
   keepAliveTimeout,
 }: StartServerOptions): Promise<TeardownServer> {
-  const http = await import('http')
   const sockets = new Set<ServerResponse>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
   let handlersReady = () => {}
