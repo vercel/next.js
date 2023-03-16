@@ -8,7 +8,7 @@ import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
-import { isClientReference } from '../../build/is-client-reference'
+import { isClientReference } from '../client-reference'
 import {
   getLayoutOrPageModule,
   LoaderTree,
