@@ -1403,13 +1403,17 @@ export default class NextNodeServer extends BaseServer {
                 ...(req.headers as any),
                 'x-matched-path': matchedPath,
               },
-              // @ts-ignore
-              duplex: 'half',
-              body: getRequestMeta(
-                req,
-                '__NEXT_CLONABLE_BODY'
-              )?.cloneBodyStream() as any as ReadableStream,
               redirect: 'manual',
+              ...(req.method !== 'GET' && req.method !== 'POST'
+                ? {
+                    // @ts-ignore
+                    duplex: 'half',
+                    body: getRequestMeta(
+                      req,
+                      '__NEXT_CLONABLE_BODY'
+                    )?.cloneBodyStream() as any as ReadableStream,
+                  }
+                : {}),
             })
 
             for (const [key, value] of Object.entries(
@@ -2146,13 +2150,17 @@ export default class NextNodeServer extends BaseServer {
                     ...(req.headers as any),
                     'x-middleware-invoke': '1',
                   },
-                  // @ts-ignore
-                  duplex: 'half',
-                  body: getRequestMeta(
-                    req,
-                    '__NEXT_CLONABLE_BODY'
-                  )?.cloneBodyStream() as any as ReadableStream,
                   redirect: 'manual',
+                  ...(req.method !== 'GET' && req.method !== 'POST'
+                    ? {
+                        // @ts-ignore
+                        duplex: 'half',
+                        body: getRequestMeta(
+                          req,
+                          '__NEXT_CLONABLE_BODY'
+                        )?.cloneBodyStream() as any as ReadableStream,
+                      }
+                    : {}),
                 })
 
                 result = {
