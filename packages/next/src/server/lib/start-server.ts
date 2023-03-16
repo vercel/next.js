@@ -80,6 +80,10 @@ export async function startServer({
       console.error(err)
     }
   })
+
+  if (keepAliveTimeout) {
+    server.keepAliveTimeout = keepAliveTimeout
+  }
   server.on('upgrade', async (req, socket, head) => {
     try {
       sockets.add(socket)
