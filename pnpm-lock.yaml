@@ -32,6 +32,7 @@ importers:
       '@next/polyfill-module': workspace:*
       '@next/polyfill-nomodule': workspace:*
       '@next/swc': workspace:*
+      '@opentelemetry/api': 1.4.1
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55
       '@swc/core': 1.2.203
@@ -208,6 +209,7 @@ importers:
       '@next/polyfill-module': link:packages/next-polyfill-module
       '@next/polyfill-nomodule': link:packages/next-polyfill-nomodule
       '@next/swc': link:packages/next-swc
+      '@opentelemetry/api': 1.4.1
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55_@swc+core@1.2.203
       '@swc/core': 1.2.203
@@ -521,7 +523,7 @@ importers:
       '@next/react-dev-overlay': 13.2.5-canary.4
       '@next/react-refresh-utils': 13.2.5-canary.4
       '@next/swc': 13.2.5-canary.4
-      '@opentelemetry/api': 1.4.0
+      '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -737,7 +739,7 @@ importers:
       '@next/react-dev-overlay': link:../react-dev-overlay
       '@next/react-refresh-utils': link:../react-refresh-utils
       '@next/swc': link:../next-swc
-      '@opentelemetry/api': 1.4.0
+      '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2_ajv@8.11.0
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -6243,8 +6245,8 @@ packages:
       '@types/node': 18.11.18
     dev: true
 
-  /@opentelemetry/api/1.4.0:
-    resolution: {integrity: sha512-IgMK9i3sFGNUqPMbjABm0G26g0QCKCUBfglhQ7rQq6WcxbKfEHRcmwsoER4hZcuYqJgkYn2OeuoJIv7Jsftp7g==}
+  /@opentelemetry/api/1.4.1:
+    resolution: {integrity: sha512-O2yRJce1GOc6PAy3QxFM4NzFiWzvScDC1/5ihYBL6BUEVdq0XMWN01sppE+H6bBXbaFYipjwFLEWLg5PaSOThA==}
     engines: {node: '>=8.0.0'}
     dev: true
 
