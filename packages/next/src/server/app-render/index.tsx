@@ -729,8 +729,6 @@ export async function renderToHTMLOrFlight(
         ? crypto.randomUUID()
         : require('next/dist/compiled/nanoid').nanoid()
 
-    stripInternalQueries(query)
-
     const providedSearchParams = new Proxy(query, {
       get(target, prop) {
         const targetValue = (target as any)[prop]
