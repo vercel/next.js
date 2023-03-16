@@ -64,5 +64,24 @@ createNextDescribe(
         return browser.elementByCss('h1').text()
       }, 'my-not-found')
     })
+
+    it('should support importing actions in client components', async () => {
+      const browser = await next.browser('/client')
+
+      const cnt = await browser.elementByCss('h1').text()
+      expect(cnt).toBe('0')
+
+      await browser.elementByCss('#inc').click()
+      await check(() => browser.elementByCss('h1').text(), '1')
+
+      await browser.elementByCss('#inc').click()
+      await check(() => browser.elementByCss('h1').text(), '2')
+
+      await browser.elementByCss('#double').click()
+      await check(() => browser.elementByCss('h1').text(), '4')
+
+      await browser.elementByCss('#dec').click()
+      await check(() => browser.elementByCss('h1').text(), '3')
+    })
   }
 )
