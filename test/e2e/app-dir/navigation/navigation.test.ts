@@ -262,7 +262,7 @@ createNextDescribe(
       })
     })
 
-    describe.only('SEO', () => {
+    describe('SEO', () => {
       it('should emit noindex meta tag for not found page when streaming', async () => {
         const html = await next.render('/not-found/suspense')
         expect(html).toContain('<meta name="robots" content="noindex"/>')
