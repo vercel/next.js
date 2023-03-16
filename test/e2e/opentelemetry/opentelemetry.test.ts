@@ -216,29 +216,27 @@ createNextDescribe(
     })
 
     it('should handle getServerSideProps', async () => {
-      await next.fetch('/pager/getServerSideProps')
+      await next.fetch('/pages/getServerSideProps')
 
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
             "attributes": Object {
               "http.method": "GET",
-              "http.status_code": 404,
-              "http.target": "/pager/getServerSideProps",
+              "http.status_code": 200,
+              "http.target": "/pages/getServerSideProps",
             },
             "kind": 1,
-            "name": "GET /pager/getServerSideProps",
+            "name": "GET /pages/getServerSideProps",
             "parentId": undefined,
             "status": Object {
               "code": 0,
             },
           },
           Object {
-            "attributes": Object {
-              "next.pathname": "/pager/getServerSideProps",
-            },
+            "attributes": Object {},
             "kind": 0,
-            "name": "rendering /pager/getServerSideProps",
+            "name": "getServerSideProps /pages/getServerSideProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -246,10 +244,21 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.route": "/404",
+              "next.pathname": "/pages/getServerSideProps",
             },
             "kind": 0,
-            "name": "resolving route /404",
+            "name": "rendering /pages/getServerSideProps",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.route": "/pages/getServerSideProps",
+            },
+            "kind": 0,
+            "name": "resolving route /pages/getServerSideProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
