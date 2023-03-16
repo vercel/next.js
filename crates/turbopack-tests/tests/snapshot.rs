@@ -90,6 +90,7 @@ fn default_entry() -> String {
 
 #[testing::fixture("tests/snapshot/*/*/")]
 fn test(resource: PathBuf) {
+    let resource = canonicalize(resource).unwrap();
     // Separating this into a different function fixes my IDE's types for some
     // reason...
     run(resource).unwrap();
