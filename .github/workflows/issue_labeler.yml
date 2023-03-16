@@ -17,6 +17,6 @@ jobs:
         with:
           node-version: 18
       - name: 'Run issue validator'
-        run: node ./.github/actions/issue-labeler/build/index.js
+        run: node ./.github/actions/issue-labeler/lib/index.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
