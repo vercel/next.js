@@ -92,9 +92,11 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
+            "attributes": Object {
+              "next.pathname": "/pages",
+            },
             "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
+            "name": "rendering /pages",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -102,10 +104,10 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/pages",
+              "next.route": "/pages",
             },
             "kind": 0,
-            "name": "rendering /pages",
+            "name": "resolving route /pages",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -134,9 +136,11 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
+            "attributes": Object {
+              "next.pathname": "/pages/params/stuff",
+            },
             "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
+            "name": "rendering /pages/params/stuff",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -144,10 +148,10 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/pages/params/stuff",
+              "next.route": "/pages/params/[param]",
             },
             "kind": 0,
-            "name": "rendering /pages/params/stuff",
+            "name": "resolving route /pages/params/[param]",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -186,9 +190,11 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
+            "attributes": Object {
+              "next.pathname": "/app/rsc-fetch",
+            },
             "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
+            "name": "rendering /app/rsc-fetch",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -196,10 +202,10 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/app/rsc-fetch",
+              "next.route": "/app/rsc-fetch/page",
             },
             "kind": 0,
-            "name": "rendering /app/rsc-fetch",
+            "name": "resolving route /app/rsc-fetch/page",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -228,9 +234,11 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
+            "attributes": Object {
+              "next.pathname": "/pager/getServerSideProps",
+            },
             "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
+            "name": "rendering /pager/getServerSideProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -238,10 +246,10 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/pager/getServerSideProps",
+              "next.route": "/404",
             },
             "kind": 0,
-            "name": "rendering /pager/getServerSideProps",
+            "name": "resolving route /404",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
