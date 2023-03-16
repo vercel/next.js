@@ -14,5 +14,3 @@ export function POST(request: NextRequest) {}
 export function PUT(request: Request, { foo }) {}
 
 export function DELETE(request: Request) {}
-
-export default function handler() {}
