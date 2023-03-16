@@ -6,7 +6,9 @@ description: Learn how instrument your Next.js app with OpenTelemetry.
 
 # Observability in Next.js
 
-Observability is crucial for understanding and optimizing the behavior and performance of modern web applications built with Next.js. As applications become more complex, it becomes increasingly difficult to identify and diagnose issues that may arise. By leveraging observability tools such as logging and metrics, developers can gain insights into their application's behavior and identify areas for optimization. With observability, developers can proactively address issues before they become major problems and provide a better user experience. Therefore, it is highly recommended to use observability in your Next.js applications to improve performance, optimize resources, and enhance user experience.
+Observability is crucial for understanding and optimizing the behavior and performance of your Next.js app.
+
+As applications become more complex, it becomes increasingly difficult to identify and diagnose issues that may arise. By leveraging observability tools, such as logging and metrics, developers can gain insights into their application's behavior and identify areas for optimization. With observability, developers can proactively address issues before they become major problems and provide a better user experience. Therefore, it is highly recommended to use observability in your Next.js applications to improve performance, optimize resources, and enhance user experience.
 
 We will use terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of them can be found in [Observability Primer](https://opentelemetry.io/docs/concepts/observability-primer/).
 
