@@ -144,6 +144,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
+  fetchPriority: string
   fill?: boolean
   loading: LoadingValue
   config: ImageConfig
@@ -377,6 +378,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       imgStyle,
       blurStyle,
       isLazy,
+      fetchPriority,
       fill,
       placeholder,
       loading,
@@ -399,8 +401,9 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       <>
         <img
           {...rest}
-          // @ts-ignore - TODO: upgrade to `@types/react@17`
+          // @ts-expect-error - TODO: upgrade to `@types/react@18`
           loading={loading}
+          fetchPriority={fetchPriority}
           width={widthInt}
           height={heightInt}
           decoding="async"
@@ -513,6 +516,8 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       onLoadingComplete,
       placeholder = 'empty',
       blurDataURL,
+      // @ts-expect-error - TODO: upgrade to `@types/react@18`
+      fetchPriority,
       layout,
       objectFit,
       objectPosition,
@@ -640,6 +645,9 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       // Special case to make svg serve as-is to avoid proxying
       // through the built-in Image Optimization API.
       unoptimized = true
+    }
+    if (priority) {
+      fetchPriority = 'high'
     }
 
     const [blurComplete, setBlurComplete] = useState(false)
@@ -891,16 +899,6 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       }
     }
 
-    const linkProps: React.DetailedHTMLProps<
-      React.LinkHTMLAttributes<HTMLLinkElement>,
-      HTMLLinkElement
-    > = {
-      // @ts-expect-error upgrade react types to react 18
-      imageSrcSet: imgAttributes.srcSet,
-      imageSizes: imgAttributes.sizes,
-      crossOrigin: rest.crossOrigin,
-    }
-
     const onLoadRef = useRef(onLoad)
 
     useEffect(() => {
@@ -924,6 +922,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       blurStyle,
       loading,
       config,
+      fetchPriority,
       fill,
       unoptimized,
       placeholder,
@@ -955,7 +954,11 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               rel="preload"
               as="image"
               href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-              {...linkProps}
+              // @ts-expect-error - TODO: upgrade to `@types/react@18`
+              imageSrcSet={imgAttributes.srcSet}
+              imageSizes={imgAttributes.sizes}
+              crossOrigin={rest.crossOrigin}
+              fetchPriority={fetchPriority}
             />
           </Head>
         ) : null}
