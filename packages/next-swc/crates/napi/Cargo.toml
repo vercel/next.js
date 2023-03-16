@@ -44,6 +44,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 next-binding = { path = "../next-binding", features = [
   "__swc_core_binding_napi",
+  "__turbo_next_build",
   "__turbo_next_dev_server",
   "__turbo_node_file_trace",
   "__feature_mdx_rs",

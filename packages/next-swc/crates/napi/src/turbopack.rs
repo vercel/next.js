@@ -2,7 +2,10 @@ use std::convert::TryFrom;
 
 use crate::util::MapErr;
 use napi::bindgen_prelude::*;
-use next_binding::turbo::next_dev::{devserver_options::DevServerOptions, start_server};
+use next_binding::turbo::{
+    next_build::{next_build as turbo_next_build, NextBuildOptions},
+    next_dev::{devserver_options::DevServerOptions, start_server},
+};
 
 #[napi]
 pub async fn start_turbo_dev(options: Buffer) -> napi::Result<()> {
@@ -91,8 +94,18 @@ impl FromNapiValue for RouteHas {
     }
 }
 
+impl From<NextBuildContext> for NextBuildOptions {
+    fn from(value: NextBuildContext) -> Self {
+        Self {
+            dir: value.dir,
+            app_dir: value.app_dir,
+            memory_limit: None,
+            full_stats: None,
+        }
+    }
+}
+
 #[napi]
 pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
-    println!("ctx: {:?}", ctx);
-    Ok(())
+    turbo_next_build(ctx.into()).await.convert_err()
 }

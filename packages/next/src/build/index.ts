@@ -1015,7 +1015,7 @@ export default async function build(
 
       async function runTurboBuild() {
         const turboNextBuildStart = process.hrtime()
-        await binding.turbo.nextBuild()
+        await binding.turbo.nextBuild(NextBuildContext)
         const [duration] = process.hrtime(turboNextBuildStart)
         return { duration, turbotraceContext: null }
       }
