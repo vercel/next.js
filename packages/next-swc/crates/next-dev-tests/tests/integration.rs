@@ -161,6 +161,7 @@ fn test_skipped_fails(resource: PathBuf) {
 async fn run_test(resource: PathBuf) -> JestRunResult {
     register();
 
+    let resource = canonicalize(resource).unwrap();
     assert!(resource.exists(), "{} does not exist", resource.display());
     assert!(
         resource.is_dir(),
