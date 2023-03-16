@@ -61,7 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
+import { METADATA_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
@@ -1958,8 +1958,7 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
-                resourceQuery: (queryString: string) =>
-                  queryString !== METADATA_IMAGE_RESOURCE_QUERY,
+                resourceQuery: { not: [METADATA_RESOURCE_QUERY] },
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
