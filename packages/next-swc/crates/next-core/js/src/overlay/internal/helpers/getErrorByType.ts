@@ -1,20 +1,20 @@
-import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from "../bus";
-import { SupportedErrorEvent } from "../container/Errors";
+import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
+import { SupportedErrorEvent } from '../container/Errors'
 
-import { getErrorSource } from "./nodeStackFrames";
-import { getOriginalStackFrames, OriginalStackFrame } from "./stack-frame";
+import { getErrorSource } from './nodeStackFrames'
+import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
 
 export type ReadyRuntimeError = {
-  id: number;
-  runtime: true;
-  error: Error;
-  frames: OriginalStackFrame[];
-};
+  id: number
+  runtime: true
+  error: Error
+  frames: OriginalStackFrame[]
+}
 
 export async function getErrorByType(
   ev: SupportedErrorEvent
 ): Promise<ReadyRuntimeError> {
-  const { id, event } = ev;
+  const { id, event } = ev
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
@@ -27,12 +27,42 @@ export async function getErrorByType(
           getErrorSource(event.reason),
           event.reason.toString()
         ),
-      };
+      }
     }
     default: {
-      break;
+      break
     }
   }
 
-  throw new Error("type system invariant violation");
+  throw new Error('type system invariant violation')
+}
+
+export function getUnresolvedErrorByType(
+  ev: SupportedErrorEvent
+): ReadyRuntimeError {
+  const { id, event } = ev
+  switch (event.type) {
+    case TYPE_UNHANDLED_ERROR:
+    case TYPE_UNHANDLED_REJECTION: {
+      return {
+        id,
+        runtime: true,
+        error: event.reason,
+        frames: event.frames.map((frame) => ({
+          error: true,
+          reason: 'unresolved',
+          external: false,
+          expanded: false,
+          sourceStackFrame: frame,
+          originalStackFrame: null,
+          originalCodeFrame: null,
+        })),
+      }
+    }
+    default: {
+      break
+    }
+  }
+
+  throw new Error('type system invariant violation')
 }
