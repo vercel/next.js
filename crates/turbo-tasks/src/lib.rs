@@ -43,6 +43,7 @@ pub mod event;
 pub mod graph;
 mod id;
 mod id_factory;
+mod invalidation;
 mod join_iter_ext;
 mod magic_any;
 mod manager;
@@ -73,11 +74,14 @@ pub use id::{
     with_task_id_mapping, without_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId,
     ValueTypeId,
 };
+pub use invalidation::{
+    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet,
+};
 pub use join_iter_ext::{JoinIterExt, TryJoinIterExt};
 pub use manager::{
-    dynamic_call, emit, get_invalidator, mark_stateful, run_once, spawn_blocking, spawn_thread,
-    trait_call, turbo_tasks, Invalidator, StatsType, TaskIdProvider, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksCallApi, Unused,
+    dynamic_call, emit, get_invalidator, mark_stateful, run_once, run_once_with_reason,
+    spawn_blocking, spawn_thread, trait_call, turbo_tasks, Invalidator, StatsType, TaskIdProvider,
+    TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
 };
 pub use native_function::{NativeFunction, NativeFunctionVc};
 pub use nothing::{Nothing, NothingVc};

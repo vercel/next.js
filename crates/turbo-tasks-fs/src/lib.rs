@@ -9,6 +9,7 @@
 pub mod attach;
 pub mod embed;
 pub mod glob;
+mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
@@ -56,14 +57,15 @@ use turbo_tasks::{
     primitives::{BoolVc, StringReadRef, StringVc},
     spawn_thread,
     trace::TraceRawVcs,
-    CompletionVc, Invalidator, ValueToString, ValueToStringVc,
+    CompletionVc, InvalidationReason, Invalidator, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 
-use self::{json::UnparseableJson, mutex_map::MutexMap};
+use self::{invalidation::WatchStart, json::UnparseableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystemVc,
+    invalidation::WatchChange,
     retry::{retry_blocking, retry_future},
     rope::{Rope, RopeReadRef, RopeReader},
 };
@@ -195,7 +197,28 @@ impl DiskFileSystem {
         }
     }
 
+    pub fn invalidate_with_reason<T: InvalidationReason + Clone>(&self, reason: T) {
+        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+            invalidators
+                .into_iter()
+                .for_each(|i| i.invalidate_with_reason(reason.clone()));
+        }
+        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
+            invalidators
+                .into_iter()
+                .for_each(|i| i.invalidate_with_reason(reason.clone()));
+        }
+    }
+
     pub fn start_watching(&self) -> Result<()> {
+        self.start_watching_internal(false)
+    }
+
+    pub fn start_watching_with_invalidation_reason(&self) -> Result<()> {
+        self.start_watching_internal(true)
+    }
+
+    fn start_watching_internal(&self, report_invalidation_reason: bool) -> Result<()> {
         let mut watcher_guard = self.watcher.watcher.lock().unwrap();
         if watcher_guard.is_some() {
             return Ok(());
@@ -203,6 +226,11 @@ impl DiskFileSystem {
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root = self.root.clone();
+        let root_path = self.root_path().to_path_buf();
+
+        let report_invalidation_reason =
+            report_invalidation_reason.then(|| (self.name.clone(), root_path.clone()));
+
         // Create a channel to receive the events.
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
@@ -211,7 +239,7 @@ impl DiskFileSystem {
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         #[cfg(any(target_os = "macos", target_os = "windows"))]
-        watcher.watch(&root, RecursiveMode::Recursive)?;
+        watcher.watch(&root_path, RecursiveMode::Recursive)?;
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         for dir_path in self.watcher.watching.iter() {
             watcher.watch(&*dir_path, RecursiveMode::NonRecursive)?;
@@ -220,10 +248,26 @@ impl DiskFileSystem {
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
         for (_, invalidators) in take(&mut *invalidator_map.lock().unwrap()).into_iter() {
-            invalidators.into_iter().for_each(|i| i.invalidate());
+            invalidators.into_iter().for_each(|i| {
+                if report_invalidation_reason.is_some() {
+                    i.invalidate_with_reason(WatchStart {
+                        name: self.name.clone(),
+                    })
+                } else {
+                    i.invalidate();
+                }
+            });
         }
         for (_, invalidators) in take(&mut *dir_invalidator_map.lock().unwrap()).into_iter() {
-            invalidators.into_iter().for_each(|i| i.invalidate());
+            invalidators.into_iter().for_each(|i| {
+                if report_invalidation_reason.is_some() {
+                    i.invalidate_with_reason(WatchStart {
+                        name: self.name.clone(),
+                    })
+                } else {
+                    i.invalidate();
+                }
+            });
         }
 
         watcher_guard.replace(watcher);
@@ -231,8 +275,6 @@ impl DiskFileSystem {
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let disk_watcher = self.watcher.clone();
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        let root_path = self.root_path().to_path_buf();
 
         spawn_thread(move || {
             let mut batched_invalidate_path = HashSet::new();
@@ -315,54 +357,81 @@ impl DiskFileSystem {
                     }
                     event = rx.try_recv();
                 }
+                fn invalidate(
+                    report_invalidation_reason: &Option<(String, PathBuf)>,
+                    path: &Path,
+                    invalidator: Invalidator,
+                ) {
+                    if let Some((name, root_path)) = report_invalidation_reason {
+                        if let Some(path) = format_absolute_fs_path(path, name, root_path) {
+                            invalidator.invalidate_with_reason(WatchChange { path });
+                            return;
+                        }
+                    }
+                    invalidator.invalidate();
+                }
                 fn invalidate_path(
+                    report_invalidation_reason: &Option<(String, PathBuf)>,
                     invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
                     paths: impl Iterator<Item = PathBuf>,
                 ) {
                     for path in paths {
-                        let key = path_to_key(path);
+                        let key = path_to_key(&path);
                         if let Some(invalidators) = invalidator_map.remove(&key) {
-                            invalidators.into_iter().for_each(|i| i.invalidate());
+                            invalidators
+                                .into_iter()
+                                .for_each(|i| invalidate(report_invalidation_reason, &path, i));
                         }
                     }
                 }
                 fn invalidate_path_and_children_execute(
+                    report_invalidation_reason: &Option<(String, PathBuf)>,
                     invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
-                    paths: &mut HashSet<PathBuf>,
+                    paths: impl Iterator<Item = PathBuf>,
                 ) {
-                    for (_, invalidators) in invalidator_map.drain_filter(|key, _| {
-                        paths
-                            .iter()
-                            .any(|path_key| key.starts_with(&path_to_key(path_key)))
-                    }) {
-                        invalidators.into_iter().for_each(|i| i.invalidate());
+                    for path in paths {
+                        let path_key = path_to_key(&path);
+                        for (_, invalidators) in
+                            invalidator_map.drain_filter(|key, _| key.starts_with(&path_key))
+                        {
+                            invalidators
+                                .into_iter()
+                                .for_each(|i| invalidate(report_invalidation_reason, &path, i));
+                        }
                     }
-                    paths.clear()
                 }
-                {
-                    let mut invalidator_map = invalidator_map.lock().unwrap();
-                    invalidate_path(&mut invalidator_map, batched_invalidate_path.drain());
-                    invalidate_path_and_children_execute(
-                        &mut invalidator_map,
-                        &mut batched_invalidate_path_and_children,
-                    );
-                }
-                {
-                    let mut dir_invalidator_map = dir_invalidator_map.lock().unwrap();
-                    invalidate_path(
-                        &mut dir_invalidator_map,
-                        batched_invalidate_path_dir.drain(),
-                    );
-                    invalidate_path_and_children_execute(
-                        &mut dir_invalidator_map,
-                        &mut batched_invalidate_path_and_children_dir,
-                    );
-                }
+                // We need to start watching first before invalidating the changed paths
                 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
                 {
                     for path in batched_new_paths.drain() {
                         let _ = disk_watcher.restore_if_watching(&path, &root_path);
                     }
+                }
+                {
+                    let mut invalidator_map = invalidator_map.lock().unwrap();
+                    invalidate_path(
+                        &report_invalidation_reason,
+                        &mut invalidator_map,
+                        batched_invalidate_path.drain(),
+                    );
+                    invalidate_path_and_children_execute(
+                        &report_invalidation_reason,
+                        &mut invalidator_map,
+                        batched_invalidate_path_and_children.drain(),
+                    );
+                }
+                {
+                    let mut dir_invalidator_map = dir_invalidator_map.lock().unwrap();
+                    invalidate_path(
+                        &report_invalidation_reason,
+                        &mut dir_invalidator_map,
+                        batched_invalidate_path_dir.drain(),
+                    );
+                    invalidate_path_and_children_execute(
+                        &report_invalidation_reason,
+                        &mut dir_invalidator_map,
+                        batched_invalidate_path_and_children_dir.drain(),
+                    );
                 }
             }
         });
@@ -386,6 +455,21 @@ impl DiskFileSystem {
             path.join(&*unix_to_sys(&fs_path.path))
         })
     }
+}
+
+fn format_absolute_fs_path(path: &Path, name: &str, root_path: &PathBuf) -> Option<String> {
+    let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
+        let path = if MAIN_SEPARATOR != '/' {
+            let rel_path = rel_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
+            format!("[{name}]/{}", rel_path)
+        } else {
+            format!("[{name}]/{}", rel_path.display())
+        };
+        Some(path)
+    } else {
+        None
+    };
+    path
 }
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {

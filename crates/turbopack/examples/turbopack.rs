@@ -11,7 +11,9 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks, TurboTasksBackendApi, Value};
+use turbo_tasks::{
+    util::FormatDuration, NothingVc, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
+};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
@@ -84,8 +86,12 @@ async fn main() -> Result<()> {
             println!("done in {}", FormatDuration(start.elapsed()));
 
             loop {
-                let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
-                println!("updated {} tasks in {}", count, FormatDuration(elapsed));
+                let UpdateInfo {
+                    duration, tasks, ..
+                } = tt
+                    .get_or_wait_aggregated_update_info(Duration::from_millis(100))
+                    .await;
+                println!("updated {} tasks in {}", tasks, FormatDuration(duration));
             }
         }
     })

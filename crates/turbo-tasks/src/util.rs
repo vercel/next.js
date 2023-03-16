@@ -1,6 +1,8 @@
 use std::{
     any::Provider,
     fmt::{Debug, Display},
+    hash::{Hash, Hasher},
+    ops::Deref,
     sync::Arc,
     time::Duration,
 };
@@ -96,5 +98,81 @@ impl Display for FormatBytes {
             return write!(f, "{:.2}KiB", (b as f32) / 1_024.0);
         }
         write!(f, "{}B", b)
+    }
+}
+
+/// Smart pointer that stores data either in an [Arc] or as a static reference.
+pub enum StaticOrArc<T: ?Sized + 'static> {
+    Static(&'static T),
+    Shared(Arc<T>),
+}
+
+impl<T: ?Sized + 'static> AsRef<T> for StaticOrArc<T> {
+    fn as_ref(&self) -> &T {
+        match self {
+            Self::Static(s) => s,
+            Self::Shared(b) => b,
+        }
+    }
+}
+
+impl<T: ?Sized + 'static> From<&'static T> for StaticOrArc<T> {
+    fn from(s: &'static T) -> Self {
+        Self::Static(s)
+    }
+}
+
+impl<T: ?Sized + 'static> From<Arc<T>> for StaticOrArc<T> {
+    fn from(b: Arc<T>) -> Self {
+        Self::Shared(b)
+    }
+}
+
+impl<T: 'static> From<T> for StaticOrArc<T> {
+    fn from(b: T) -> Self {
+        Self::Shared(Arc::new(b))
+    }
+}
+
+impl<T: ?Sized + 'static> Deref for StaticOrArc<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl<T: ?Sized + 'static> Clone for StaticOrArc<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Static(s) => Self::Static(s),
+            Self::Shared(b) => Self::Shared(b.clone()),
+        }
+    }
+}
+
+impl<T: ?Sized + PartialEq + 'static> PartialEq for StaticOrArc<T> {
+    fn eq(&self, other: &Self) -> bool {
+        **self == **other
+    }
+}
+
+impl<T: ?Sized + PartialEq + Eq + 'static> Eq for StaticOrArc<T> {}
+
+impl<T: ?Sized + Hash + 'static> Hash for StaticOrArc<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (**self).hash(state);
+    }
+}
+
+impl<T: ?Sized + Display + 'static> Display for StaticOrArc<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (**self).fmt(f)
+    }
+}
+
+impl<T: ?Sized + Debug + 'static> Debug for StaticOrArc<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        (**self).fmt(f)
     }
 }
