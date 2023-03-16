@@ -167,13 +167,16 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
+            "attributes": Object {
+              "http.method": "GET",
+              "http.url": "https://vercel.com/",
+              "net.peer.name": "vercel.com",
+            },
             "kind": 2,
-            "name": "AppRender.fetch",
+            "name": "fetch GET https://vercel.com/",
             "parentId": "[parent-id]",
             "status": Object {
-              "code": 2,
-              "message": "Request cannot be constructed from a URL that includes credentials: https://user:pass@vercel.com",
+              "code": 0,
             },
           },
           Object {
