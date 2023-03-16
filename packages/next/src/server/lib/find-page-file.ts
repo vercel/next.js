@@ -6,6 +6,7 @@ import { promises } from 'fs'
 import { warn } from '../../build/output/log'
 import chalk from '../../lib/chalk'
 import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/discover'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
@@ -143,11 +144,9 @@ export function createValidFileMatcher(
    * @returns { matched: boolean, static: boolean }
    *   matched: if the file is a metadata route file, static: if the file is a static metadata file
    */
-  function isMetadataRouteFile(relativeAppDirPath: string) {
-    const matched = metadataRoutesRelativePathRegex.some((r) =>
-      r.test(relativeAppDirPath)
-    )
-    const ext = extname(relativeAppDirPath)
+  function isMetadataFile(filePath: string) {
+    const matched = isMetadataRouteFile(filePath, pageExtensions)
+    const ext = extname(filePath)
 
     return {
       matched,
@@ -158,24 +157,20 @@ export function createValidFileMatcher(
   // Determine if the file is leaf node page file or route file under layouts,
   // 'page.<extension>' | 'route.<extension>'
   function isAppRouterPage(filePath: string) {
-    const relativeAppDirPath = filePath.replace(appDirPath || '', '')
     return (
-      leafOnlyPageFileRegex.test(filePath) ||
-      isMetadataRouteFile(relativeAppDirPath).matched
+      leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath).matched
     )
   }
 
   function isPageFile(filePath: string) {
-    const relativeAppDirPath = filePath.replace(appDirPath || '', '')
     return (
-      validExtensionFileRegex.test(filePath) ||
-      isMetadataRouteFile(relativeAppDirPath).matched
+      validExtensionFileRegex.test(filePath) || isMetadataFile(filePath).matched
     )
   }
 
   return {
     isPageFile,
     isAppRouterPage,
-    isMetadataRouteFile,
+    isMetadataFile,
   }
 }

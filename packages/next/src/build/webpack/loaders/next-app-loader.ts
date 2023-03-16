@@ -11,7 +11,7 @@ import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 import {
-  buildMetadata,
+  createMetadataExportsCode,
   discoverStaticMetadataFiles,
   METADATA_RESOURCE_QUERY,
 } from './metadata/discover'
@@ -62,23 +62,22 @@ async function createAppRouteCode({
   name,
   pagePath,
   resolver,
-  appDir,
+  page,
 }: {
   name: string
   pagePath: string
   resolver: PathResolver
-  appDir: string
+  page: string
 }): Promise<string> {
   const routePath = pagePath.replace(/[\\/]/, '/')
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
 
-  console.log('name', name, '->', isMetadataRoute(name))
   if (isMetadataRoute(name)) {
-    resolvedPagePath = `next-metadata-route-loader?${stringify({ appDir })}!${
-      resolvedPagePath + METADATA_RESOURCE_QUERY
-    }`
+    resolvedPagePath = `next-metadata-route-loader?${stringify({
+      route: page,
+    })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
   }
 
   // TODO: verify if other methods need to be injected
@@ -156,6 +155,7 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
+          route: segmentPath,
           resolvePath,
           isRootLayer,
           loaderContext,
@@ -182,7 +182,7 @@ async function createTreeCodeFromPath(
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
-          ${buildMetadata(metadata)}
+          ${createMetadataExportsCode(metadata)}
         }]`
         continue
       }
@@ -242,7 +242,7 @@ async function createTreeCodeFromPath(
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
-          ${definedFilePaths.length ? buildMetadata(metadata) : ''}
+          ${definedFilePaths.length ? createMetadataExportsCode(metadata) : ''}
         }
       ]`
     }
@@ -289,8 +289,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
+  const page = name.replace(/^app/, '')
   buildInfo.route = {
-    page: name.replace(/^app/, ''),
+    page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
   }
 
@@ -359,7 +360,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   if (isAppRouteRoute(name)) {
-    return createAppRouteCode({ name, pagePath, resolver, appDir })
+    return createAppRouteCode({ name, page, pagePath, resolver })
   }
 
   const {

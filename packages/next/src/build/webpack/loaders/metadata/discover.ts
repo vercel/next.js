@@ -77,11 +77,13 @@ async function enumMetadataFiles(
 export async function discoverStaticMetadataFiles(
   resolvedDir: string,
   {
+    route,
     resolvePath,
     isRootLayer,
     loaderContext,
     loaderOptions,
   }: {
+    route: string
     resolvePath: (pathname: string) => Promise<string>
     isRootLayer: boolean
     loaderContext: webpack.LoaderContext<any>
@@ -121,6 +123,7 @@ export async function discoverStaticMetadataFiles(
         const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
           `next-metadata-image-loader?${stringify({
             ...metadataImageLoaderOptions,
+            route,
             numericSizes:
               type === 'twitter' || type === 'opengraph' ? '1' : undefined,
             type,
@@ -149,7 +152,7 @@ export async function discoverStaticMetadataFiles(
   return hasStaticMetadataFiles ? staticImagesMetadata : null
 }
 
-export function buildMetadata(
+export function createMetadataExportsCode(
   metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>>
 ) {
   return metadata

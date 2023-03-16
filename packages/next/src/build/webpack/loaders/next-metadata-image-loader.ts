@@ -6,6 +6,7 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 
 interface Options {
+  route: string
   isDev: boolean
   assetPrefix: string
   numericSizes: boolean
@@ -21,10 +22,12 @@ const mimeTypeMap = {
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { assetPrefix, isDev, numericSizes, type } = options
+  const { resourcePath } = this
+  const { assetPrefix, isDev, route, numericSizes, type } = options
   const context = this.rootContext
 
   const opts = { context, content }
+
   // favicon is the special case, always generate '/favicon.ico'
   const isFavIcon = type === 'favicon'
   // e.g. icon.png -> server/static/media/metadata/icon.399de3b9.png
@@ -34,7 +37,8 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     '[name].[ext]',
     opts
   )
-  const outputPath = '/' + interpolatedName
+  // TODO-METADATA: add route into url
+  const outputPath = route + '/' + interpolatedName
   // isFavIcon
   //   ? '/' + interpolatedName
   //   : assetPrefix + '/_next' + interpolatedName

@@ -4,7 +4,7 @@ import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 
 type MetadataRouteLoaderOptions = {
-  appDir: string
+  route: string
 }
 
 function getFilenameAndExtension(resourcePath: string) {
@@ -30,7 +30,6 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { NextResponse } from 'next/server'
 
-console.log('import.meta.url', import.meta.url)
 const resourceUrl = fileURLToPath(import.meta.url).replace(${JSON.stringify(
     METADATA_RESOURCE_QUERY
   )}, '')
@@ -79,21 +78,13 @@ export async function GET() {
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   function () {
     const { resourcePath } = this
-    const { appDir } = this.getOptions()
+    const { route } = this.getOptions()
 
-    const route = resourcePath.replace(appDir, '')
     const isStatic = isMetadataRouteFile(route, [])
-    console.log(
-      'nextMetadataRouterLoader:relativeAppDirPath',
-      route,
-      'isStatic',
-      isStatic
-    )
     const code = isStatic
       ? getStaticRouteCode(resourcePath)
       : getDynamicRouteCode(resourcePath)
 
-    console.log('code', code)
     return code
   }
 
