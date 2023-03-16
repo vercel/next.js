@@ -113,14 +113,18 @@ export async function startServer({
     }
   })
   const host = hostname || '0.0.0.0'
-  const normalizedHost = isIPv6(host) ? `[${host}]` : host
+  let normalizedHost = isIPv6(host) ? `[${host}]` : host
 
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
       const addr = server.address()
       port = typeof addr === 'object' ? addr?.port || port : port
-      const appUrl = `http://${host}:${port}`
-      Log.ready(`started server on ${normalizedHost}:${port}, url: ${appUrl}`)
+      normalizedHost =
+        !hostname || hostname === '0.0.0.0' ? 'localhost' : hostname
+
+      const appUrl = `http://${normalizedHost}:${port}`
+
+      Log.ready(`started server on ${host}:${port}, url: ${appUrl}`)
       resolve()
     })
     server.listen(port, hostname)
