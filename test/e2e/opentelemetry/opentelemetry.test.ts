@@ -47,6 +47,7 @@ createNextDescribe(
       delete span.duration
       delete span.id
       delete span.links
+      delete span.events
       delete span.timestamp
       delete span.traceId
       span.parentId = span.parentId === undefined ? undefined : '[parent-id]'
@@ -79,7 +80,6 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
             "name": "BaseServer.renderToResponse",
             "parentId": "[parent-id]",
@@ -88,21 +88,23 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages",
+            },
+            "kind": 1,
+            "name": "GET /pages",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
           },
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
-            "name": "NextServer.getRequestHandler",
-            "parentId": undefined,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -118,7 +120,6 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
             "name": "BaseServer.renderToResponse",
             "parentId": "[parent-id]",
@@ -127,21 +128,23 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages/params/stuff",
+            },
+            "kind": 1,
+            "name": "GET /pages/params/stuff",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
           },
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
-            "name": "NextServer.getRequestHandler",
-            "parentId": undefined,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -157,7 +160,6 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 2,
             "name": "AppRender.fetch",
             "parentId": "[parent-id]",
@@ -168,7 +170,6 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
             "name": "BaseServer.renderToResponse",
             "parentId": "[parent-id]",
@@ -177,21 +178,23 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/app/rsc-fetch",
+            },
+            "kind": 1,
+            "name": "GET /app/rsc-fetch",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
           },
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
-            "name": "NextServer.getRequestHandler",
-            "parentId": undefined,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -207,7 +210,6 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
             "name": "BaseServer.renderToResponse",
             "parentId": "[parent-id]",
@@ -216,21 +218,23 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 404,
+              "http.target": "/pager/getServerSideProps",
+            },
+            "kind": 1,
+            "name": "GET /pager/getServerSideProps",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
           },
           Object {
             "attributes": Object {},
-            "events": Array [],
             "kind": 0,
-            "name": "NextServer.getRequestHandler",
-            "parentId": undefined,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -245,10 +249,13 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextServer.getRequestHandler",
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/api/pages/basic",
+            },
+            "kind": 1,
+            "name": "GET /api/pages/basic",
             "parentId": undefined,
             "status": Object {
               "code": 0,
