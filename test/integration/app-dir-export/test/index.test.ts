@@ -149,8 +149,6 @@ describe('app dir with output export', () => {
     expect(files).toEqual([
       '404.html',
       '404/index.html',
-      // TODO-METADATA: favicon.ico should not be here
-      '_next/static/media/favicon.603d046c.ico',
       '_next/static/media/test.3f1a293b.png',
       '_next/static/test-build-id/_buildManifest.js',
       '_next/static/test-build-id/_ssgManifest.js',
