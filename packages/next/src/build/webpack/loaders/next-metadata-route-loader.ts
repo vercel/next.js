@@ -2,6 +2,7 @@ import type webpack from 'webpack'
 import path from 'path'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
+import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
 type MetadataRouteLoaderOptions = {
   route: string
@@ -14,12 +15,16 @@ function getFilenameAndExtension(resourcePath: string) {
 }
 
 function getContentType(resourcePath: string) {
-  const { name, ext } = getFilenameAndExtension(resourcePath)
+  let { name, ext } = getFilenameAndExtension(resourcePath)
+  if (ext === 'jpg') ext = 'jpeg'
+
   if (name === 'favicon' && ext === 'ico') return 'image/x-icon'
   if (name === 'sitemap') return 'application/xml'
   if (name === 'robots') return 'text/plain'
-  // TODO-METADATA: align with next metadata image loader mime type generation
-  if (ext === 'png' || ext === 'jpg') return `image/${ext}`
+
+  if (ext === 'png' || ext === 'jpeg' || ext === 'ico' || ext === 'svg') {
+    return imageExtMimeTypeMap[ext]
+  }
   return 'text/plain'
 }
 

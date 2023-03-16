@@ -12,7 +12,7 @@ import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
 import {
   createMetadataExportsCode,
-  discoverStaticMetadataFiles,
+  createStaticMetadataFromRoute,
   METADATA_RESOURCE_QUERY,
 } from './metadata/discover'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
@@ -108,7 +108,6 @@ async function createTreeCodeFromPath(
     resolvePath,
     resolveParallelSegments,
     loaderContext,
-    loaderOptions,
   }: {
     resolver: (
       pathname: string,
@@ -119,7 +118,6 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
-    loaderOptions: AppLoaderOptions
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -148,18 +146,18 @@ async function createTreeCodeFromPath(
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
-    let metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>> = null
+    let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
+      null
     try {
       const routerDirPath = `${appDirPrefix}${segmentPath}`
       const resolvedRouteDir = await resolver(routerDirPath, true)
 
       if (resolvedRouteDir) {
-        metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
+        metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
           route: segmentPath,
           resolvePath,
           isRootLayer,
           loaderContext,
-          loaderOptions,
         })
       }
     } catch (err: any) {
@@ -373,7 +371,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     loaderContext: this,
-    loaderOptions: loaderOptions,
   })
 
   if (!rootLayout) {
