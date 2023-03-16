@@ -1396,15 +1396,24 @@ export default class NextNodeServer extends BaseServer {
                 clientOnly: false,
               })
             }
+            const invokeHeaders: typeof req.headers = {
+              ...req.headers,
+              'x-matched-path': matchedPath,
+            }
+            for (const key of [
+              'content-length',
+              'keepalive',
+              'content-encoding',
+              'transfer-encoding',
+            ]) {
+              delete invokeHeaders[key]
+            }
 
             const invokeRes = await fetch(renderUrl, {
               method: req.method,
-              headers: {
-                ...(req.headers as any),
-                'x-matched-path': matchedPath,
-              },
+              headers: invokeHeaders as any,
               redirect: 'manual',
-              ...(req.method !== 'GET' && req.method !== 'POST'
+              ...(req.method !== 'GET' && req.method !== 'HEAD'
                 ? {
                     // @ts-ignore
                     duplex: 'half',
@@ -2144,14 +2153,24 @@ export default class NextNodeServer extends BaseServer {
                 renderUrl.hostname = hostname
                 renderUrl.port = port + ''
 
+                const invokeHeaders: typeof req.headers = {
+                  ...req.headers,
+                  'x-middleware-invoke': '1',
+                }
+                for (const key of [
+                  'content-length',
+                  'keepalive',
+                  'content-encoding',
+                  'transfer-encoding',
+                ]) {
+                  delete invokeHeaders[key]
+                }
+
                 const invokeRes = await fetch(renderUrl, {
                   method: req.method,
-                  headers: {
-                    ...(req.headers as any),
-                    'x-middleware-invoke': '1',
-                  },
+                  headers: invokeHeaders as any,
                   redirect: 'manual',
-                  ...(req.method !== 'GET' && req.method !== 'POST'
+                  ...(req.method !== 'GET' && req.method !== 'HEAD'
                     ? {
                         // @ts-ignore
                         duplex: 'half',
