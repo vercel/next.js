@@ -79,15 +79,6 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
             "attributes": Object {
               "http.method": "GET",
               "http.status_code": 200,
@@ -109,6 +100,17 @@ createNextDescribe(
               "code": 0,
             },
           },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/pages",
+            },
+            "kind": 0,
+            "name": "rendering /pages",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
         ]
       `)
     })
@@ -118,15 +120,6 @@ createNextDescribe(
 
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
-          Object {
-            "attributes": Object {},
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
           Object {
             "attributes": Object {
               "http.method": "GET",
@@ -144,6 +137,17 @@ createNextDescribe(
             "attributes": Object {},
             "kind": 0,
             "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/pages/params/stuff",
+            },
+            "kind": 0,
+            "name": "rendering /pages/params/stuff",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -169,15 +173,6 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
             "attributes": Object {
               "http.method": "GET",
               "http.status_code": 200,
@@ -199,6 +194,17 @@ createNextDescribe(
               "code": 0,
             },
           },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/app/rsc-fetch",
+            },
+            "kind": 0,
+            "name": "rendering /app/rsc-fetch",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
         ]
       `)
     })
@@ -208,15 +214,6 @@ createNextDescribe(
 
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
-          Object {
-            "attributes": Object {},
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
           Object {
             "attributes": Object {
               "http.method": "GET",
@@ -234,6 +231,17 @@ createNextDescribe(
             "attributes": Object {},
             "kind": 0,
             "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/pager/getServerSideProps",
+            },
+            "kind": 0,
+            "name": "rendering /pager/getServerSideProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,

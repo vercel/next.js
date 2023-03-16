@@ -1940,9 +1940,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    return getTracer().trace(BaseServerSpan.renderToResponse, async () => {
-      return this.renderToResponseImpl(ctx)
-    })
+    return getTracer().trace(
+      BaseServerSpan.renderToResponse,
+      {
+        spanName: `rendering ${ctx.pathname}`,
+        attributes: {
+          'next.pathname': ctx.pathname,
+        },
+      },
+      async () => {
+        return this.renderToResponseImpl(ctx)
+      }
+    )
   }
 
   private async renderToResponseImpl(
