@@ -17,7 +17,10 @@ const getExtensionRegexString = (extensions: string[]) =>
 // e.g. /robots.txt, /sitemap.xml, /favicon.ico
 // When you pass the file extension as `['js', 'jsx', 'ts', 'tsx']`, it will also match the dynamic convention files
 // e.g. /robots.js, /sitemap.tsx, /favicon.jsx
-export function isMetadataRouteFile(route: string, pageExtensions: string[]) {
+export function isMetadataRouteFile(
+  appDirRelativePath: string,
+  pageExtensions: string[]
+) {
   const metadataRoutesRelativePathRegex = [
     new RegExp(
       `^[\\\\/]robots\\.${getExtensionRegexString(
@@ -55,5 +58,5 @@ export function isMetadataRouteFile(route: string, pageExtensions: string[]) {
     ),
   ]
 
-  return metadataRoutesRelativePathRegex.some((r) => r.test(route))
+  return metadataRoutesRelativePathRegex.some((r) => r.test(appDirRelativePath))
 }

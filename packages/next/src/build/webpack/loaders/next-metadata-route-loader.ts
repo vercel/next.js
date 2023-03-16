@@ -35,10 +35,13 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { NextResponse } from 'next/server'
 
-const resourceUrl = fileURLToPath(import.meta.url).replace(${JSON.stringify(
+console.log('before', import.meta.url)
+const resourceUrl = new URL(import.meta.url)
+console.log('resourceUrl', resourceUrl)
+const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
     METADATA_RESOURCE_QUERY
   )}, '')
-const buffer = fs.readFileSync(resourceUrl)
+const buffer = fs.readFileSync(filePath)
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 
 export function GET() {

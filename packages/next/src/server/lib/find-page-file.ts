@@ -103,41 +103,6 @@ export function createValidFileMatcher(
    *
    */
 
-  const metadataRoutesRelativePathRegex = [
-    new RegExp(
-      `^[\\\\/]robots\\.${getExtensionRegexString(
-        pageExtensions.concat('txt')
-      )}`
-    ),
-    new RegExp(
-      `^[\\\\/]sitemap\\.${getExtensionRegexString(
-        pageExtensions.concat('xml')
-      )}`
-    ),
-    new RegExp(`^[\\\\/]favicon\\.ico$`),
-    // TODO-METADATA: add dynamic routes for metadata images
-    new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.icon.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.icon.extensions)}`
-    ),
-    new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.apple.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
-    ),
-    new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.apple.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
-    ),
-    new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.apple.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
-    ),
-  ]
-
   /**
    *
    * @param filePath the absolute path of the file
@@ -145,7 +110,8 @@ export function createValidFileMatcher(
    *   matched: if the file is a metadata route file, static: if the file is a static metadata file
    */
   function isMetadataFile(filePath: string) {
-    const matched = isMetadataRouteFile(filePath, pageExtensions)
+    const appDirRelativePath = filePath.replace(appDirPath || '', '')
+    const matched = isMetadataRouteFile(appDirRelativePath, pageExtensions)
     const ext = extname(filePath)
 
     return {

@@ -5,6 +5,7 @@ import type {
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+
 interface Options {
   route: string
   numericSizes: boolean
