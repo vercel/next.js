@@ -147,6 +147,7 @@ impl<C: Comments> ServerActions<C> {
                 Vec::new(),
                 self.file_name.to_string(),
                 export_name.to_string(),
+                false,
             );
 
             // export const $ACTION_myAction = myAction;
@@ -203,6 +204,7 @@ impl<C: Comments> ServerActions<C> {
                         .collect(),
                     self.file_name.to_string(),
                     export_name.to_string(),
+                    true,
                 );
 
                 if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
@@ -223,6 +225,22 @@ impl<C: Comments> ServerActions<C> {
                 };
 
                 // export const $ACTION_myAction = async () => {}
+                let mut new_params: Vec<Pat> = vec![closure_arg.clone().into()];
+                for (i, p) in a.params.iter().enumerate() {
+                    new_params.push(Pat::Assign(AssignPat {
+                        span: DUMMY_SP,
+                        left: Box::new(p.clone()),
+                        right: Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(closure_arg.clone())),
+                            prop: MemberProp::Computed(ComputedPropName {
+                                span: DUMMY_SP,
+                                expr: Box::new(Expr::from(ids_from_closure.len() + i)),
+                            }),
+                        })),
+                        type_ann: None,
+                    }));
+                }
                 self.extra_items
                     .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                         span: DUMMY_SP,
@@ -234,7 +252,7 @@ impl<C: Comments> ServerActions<C> {
                                 span: DUMMY_SP,
                                 name: action_ident.into(),
                                 init: Some(Box::new(Expr::Arrow(ArrowExpr {
-                                    params: vec![closure_arg.into()],
+                                    params: new_params,
                                     ..a.clone()
                                 }))),
                                 definite: Default::default(),
@@ -285,6 +303,7 @@ impl<C: Comments> ServerActions<C> {
                         .collect(),
                     self.file_name.to_string(),
                     export_name.to_string(),
+                    true,
                 );
 
                 f.body.visit_mut_with(&mut ClosureReplacer {
@@ -310,13 +329,29 @@ impl<C: Comments> ServerActions<C> {
                 };
 
                 // export async function $ACTION_myAction () {}
+                let mut new_params: Vec<Param> = vec![closure_arg.clone().into()];
+                for (i, p) in f.params.iter().enumerate() {
+                    new_params.push(Param::from(Pat::Assign(AssignPat {
+                        span: DUMMY_SP,
+                        left: Box::new(p.pat.clone()),
+                        right: Box::new(Expr::Member(MemberExpr {
+                            span: DUMMY_SP,
+                            obj: Box::new(Expr::Ident(closure_arg.clone())),
+                            prop: MemberProp::Computed(ComputedPropName {
+                                span: DUMMY_SP,
+                                expr: Box::new(Expr::from(ids_from_closure.len() + i)),
+                            }),
+                        })),
+                        type_ann: None,
+                    })));
+                }
                 self.extra_items
                     .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                         span: DUMMY_SP,
                         decl: FnDecl {
                             ident: action_ident,
                             function: Box::new(Function {
-                                params: vec![closure_arg.into()],
+                                params: new_params,
                                 ..*f.take()
                             }),
                             declare: Default::default(),
@@ -821,6 +856,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     Vec::new(),
                     self.file_name.to_string(),
                     export_name.to_string(),
+                    false,
                 );
                 if !self.config.is_server {
                     let params_ident = private_ident!("args");
@@ -993,6 +1029,7 @@ fn annotate_ident_as_action(
     bound: Vec<Option<ExprOrSpread>>,
     file_name: String,
     export_name: String,
+    has_bound: bool,
 ) {
     // myAction.$$typeof = Symbol.for('react.server.reference');
     annotations.push(annotate(
@@ -1030,6 +1067,12 @@ fn annotate_ident_as_action(
         }
         .into(),
     ));
+
+    // If an action doesn't have any bound values, we add a special property
+    // to mark that all parameters are just passed through.
+    if !has_bound {
+        annotations.push(annotate(&ident, "$$with_bound", Lit::from(false).into()));
+    }
 }
 
 const DIRECTIVE_TYPOS: &[&str] = &[
