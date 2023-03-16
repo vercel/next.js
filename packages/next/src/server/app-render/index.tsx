@@ -686,8 +686,6 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
-  const staticGenerationBailout =
-    ComponentMod.staticGenerationBailout as typeof import('../../client/components/static-generation-bailout').staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
