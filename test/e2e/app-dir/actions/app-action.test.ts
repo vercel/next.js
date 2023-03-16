@@ -7,7 +7,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     it('should handle basic actions correctly', async () => {
       const browser = await next.browser('/server')
 
@@ -83,5 +83,34 @@ createNextDescribe(
       await browser.elementByCss('#dec').click()
       await check(() => browser.elementByCss('h1').text(), '3')
     })
+
+    if (isNextDev) {
+      describe('HMR', () => {
+        it('should support updating the action', async () => {
+          const filePath = 'app/server/actions.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await next.browser('/server')
+
+            const cnt = await browser.elementByCss('h1').text()
+            expect(cnt).toBe('0')
+
+            await browser.elementByCss('#inc').click()
+            await check(() => browser.elementByCss('h1').text(), '1')
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('return value + 1', 'return value + 1000')
+            )
+
+            await browser.elementByCss('#inc').click()
+            await check(() => browser.elementByCss('h1').text(), '1001')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+      })
+    }
   }
 )
