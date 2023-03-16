@@ -67,7 +67,6 @@ const testedExamples = [
   'with-jest-babel',
   'with-mdx',
   'with-mdx-remote',
-  'with-tailwindcss',
   'with-turbopack',
   'with-vercel-fetch',
 ]
