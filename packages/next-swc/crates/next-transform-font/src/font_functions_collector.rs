@@ -1,8 +1,11 @@
-use next_binding::swc::core::common::errors::HANDLER;
-use next_binding::swc::core::ecma::ast::*;
-use next_binding::swc::core::ecma::atoms::JsWord;
-use next_binding::swc::core::ecma::visit::noop_visit_type;
-use next_binding::swc::core::ecma::visit::Visit;
+use swc_core::{
+    common::errors::HANDLER,
+    ecma::{
+        ast::*,
+        atoms::JsWord,
+        visit::{noop_visit_type, Visit},
+    },
+};
 
 pub struct FontFunctionsCollector<'a> {
     pub font_loaders: &'a [JsWord],

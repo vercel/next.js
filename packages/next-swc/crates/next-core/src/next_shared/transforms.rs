@@ -147,7 +147,7 @@ struct NextJsFont {
 
 impl CustomTransformer for NextJsFont {
     fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program> {
-        let mut next_font = next_font::next_font_loaders(next_font::Config {
+        let mut next_font = next_transform_font::next_font_loaders(next_transform_font::Config {
             font_loaders: self.font_loaders.clone(),
             relative_file_path_from_root: ctx.file_name_str.into(),
         });
