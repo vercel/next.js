@@ -94,6 +94,7 @@ import { ServerManifestLoader } from './future/route-matcher-providers/helpers/m
 import { getTracer } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { sendResponse } from './future/route-handlers/app-route-route-handler'
+import { SpanKind } from '@opentelemetry/api'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -519,7 +520,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     return getTracer().trace(
       BaseServerSpan.handleRequest,
-      async () => await this.handleRequestImpl(req, res, parsedUrl)
+      {
+        spanName: [req.method, req.url].join(' '),
+        kind: SpanKind.SERVER,
+        attributes: {
+          'http.method': req.method,
+          'http.target': req.url,
+        },
+      },
+      async (span) =>
+        await this.handleRequestImpl(req, res, parsedUrl).finally(() =>
+          span?.setAttributes({
+            'http.status_code': res.statusCode,
+          })
+        )
     )
   }
 
