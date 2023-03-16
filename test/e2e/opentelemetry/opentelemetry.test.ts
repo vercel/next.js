@@ -54,7 +54,9 @@ createNextDescribe(
       return span
     }
     const sanitizeSpans = (spans: SavedSpan[]) =>
-      spans.sort((a, b) => a.name.localeCompare(b.name)).map(sanitizeSpan)
+      spans
+        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+        .map(sanitizeSpan)
 
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
       await waitForRootSpan(numberOfRootTraces)
@@ -76,252 +78,31 @@ createNextDescribe(
     it('should have spans when accessing page', async () => {
       await next.fetch('/pages')
 
-      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-        Array [
-          Object {
-            "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/pages",
-              "next.span_name": "GET /pages",
-              "next.span_type": "BaseServer.handleRequest",
-            },
-            "kind": 1,
-            "name": "GET /pages",
-            "parentId": undefined,
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.pathname": "/pages",
-              "next.span_name": "rendering /pages",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering /pages",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.route": "/pages",
-              "next.span_name": "resolving route /pages",
-              "next.span_type": "NextNodeServer.findPageComponents",
-            },
-            "kind": 0,
-            "name": "resolving route /pages",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-        ]
-      `)
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot()
     })
 
     it('should handle route params', async () => {
       await next.fetch('/pages/params/stuff')
 
-      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-        Array [
-          Object {
-            "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/pages/params/stuff",
-              "next.span_name": "GET /pages/params/stuff",
-              "next.span_type": "BaseServer.handleRequest",
-            },
-            "kind": 1,
-            "name": "GET /pages/params/stuff",
-            "parentId": undefined,
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.pathname": "/pages/params/stuff",
-              "next.span_name": "rendering /pages/params/stuff",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering /pages/params/stuff",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.route": "/pages/params/[param]",
-              "next.span_name": "resolving route /pages/params/[param]",
-              "next.span_type": "NextNodeServer.findPageComponents",
-            },
-            "kind": 0,
-            "name": "resolving route /pages/params/[param]",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-        ]
-      `)
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot()
     })
 
     it('should handle RSC with fetch', async () => {
       await next.fetch('/app/rsc-fetch')
 
-      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-        Array [
-          Object {
-            "attributes": Object {
-              "http.method": "GET",
-              "http.url": "https://vercel.com/",
-              "net.peer.name": "vercel.com",
-              "next.span_name": "fetch GET https://vercel.com/",
-              "next.span_type": "AppRender.fetch",
-            },
-            "kind": 2,
-            "name": "fetch GET https://vercel.com/",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/app/rsc-fetch",
-              "next.span_name": "GET /app/rsc-fetch",
-              "next.span_type": "BaseServer.handleRequest",
-            },
-            "kind": 1,
-            "name": "GET /app/rsc-fetch",
-            "parentId": undefined,
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.pathname": "/app/rsc-fetch",
-              "next.span_name": "rendering /app/rsc-fetch",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering /app/rsc-fetch",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.route": "/app/rsc-fetch/page",
-              "next.span_name": "resolving route /app/rsc-fetch/page",
-              "next.span_type": "NextNodeServer.findPageComponents",
-            },
-            "kind": 0,
-            "name": "resolving route /app/rsc-fetch/page",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-        ]
-      `)
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot()
     })
 
     it('should handle getServerSideProps', async () => {
       await next.fetch('/pages/getServerSideProps')
 
-      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-        Array [
-          Object {
-            "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/pages/getServerSideProps",
-              "next.span_name": "GET /pages/getServerSideProps",
-              "next.span_type": "BaseServer.handleRequest",
-            },
-            "kind": 1,
-            "name": "GET /pages/getServerSideProps",
-            "parentId": undefined,
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.span_name": "getServerSideProps /pages/getServerSideProps",
-              "next.span_type": "Render.getServerSideProps",
-            },
-            "kind": 0,
-            "name": "getServerSideProps /pages/getServerSideProps",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.pathname": "/pages/getServerSideProps",
-              "next.span_name": "rendering /pages/getServerSideProps",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering /pages/getServerSideProps",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.route": "/pages/getServerSideProps",
-              "next.span_name": "resolving route /pages/getServerSideProps",
-              "next.span_type": "NextNodeServer.findPageComponents",
-            },
-            "kind": 0,
-            "name": "resolving route /pages/getServerSideProps",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-        ]
-      `)
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot()
     })
 
     it('should handle route handlers in app router', async () => {
       await next.fetch('/api/pages/basic')
 
-      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-        Array [
-          Object {
-            "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/api/pages/basic",
-              "next.span_name": "GET /api/pages/basic",
-              "next.span_type": "BaseServer.handleRequest",
-            },
-            "kind": 1,
-            "name": "GET /api/pages/basic",
-            "parentId": undefined,
-            "status": Object {
-              "code": 0,
-            },
-          },
-        ]
-      `)
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot()
     })
   }
 )
