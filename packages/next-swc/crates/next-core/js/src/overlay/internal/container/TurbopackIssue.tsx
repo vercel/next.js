@@ -25,9 +25,6 @@ export function TurbopackIssuesDialogBody({
   const [activeIssue, { previous, next }, activeIdx] = usePagination(issues)
 
   const hasIssues = issues.length > 0
-  const hasIssueWithError = issues.some((issue) =>
-    ['bug', 'fatal', 'error'].includes(issue.severity)
-  )
 
   if (!hasIssues || !activeIssue) {
     return null

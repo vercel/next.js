@@ -17,8 +17,11 @@ import {
 } from '../components/Dialog'
 import { Overlay } from '../components/Overlay'
 import { Tab, TabPanel, Tabs } from '../components/Tabs'
-import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
-import { getErrorSource } from '../helpers/nodeStackFrames'
+import {
+  getErrorByType,
+  getUnresolvedErrorByType,
+  ReadyRuntimeError,
+} from '../helpers/getErrorByType'
 import { noop as css } from '../helpers/noop-template'
 import { AlertOctagon, PackageX } from '../icons'
 import { RuntimeErrorsDialogBody } from './RuntimeError'
@@ -78,6 +81,9 @@ function useResolvedErrors(
           continue
         }
       }
+
+      // Show unresolved errors as fallback
+      ready.push(getUnresolvedErrorByType(e))
 
       next = e
       break
@@ -170,6 +176,7 @@ const enum TabId {
   TurbopackWarnings = 'turbopack-warnings',
   TurbopackExternal = 'turbopack-external',
   RuntimeErrors = 'runtime-errors',
+  RuntimeWarnings = 'runtime-warnings',
 }
 
 const TAB_PRIORITY = [
@@ -186,6 +193,14 @@ function isUserCode(issue: Issue) {
   return !issue.context || !issue.context.includes('node_modules')
 }
 
+function isRuntimeWarning(error: ReadyRuntimeError) {
+  return [
+    'This Suspense boundary received an update before it finished hydrating.',
+    'Hydration failed because the initial UI does not match what was rendered on the server.',
+    'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+  ].some((message) => error.error.message.includes(message))
+}
+
 interface TabConfig {
   id: string
   icon: any
@@ -196,7 +211,7 @@ interface TabConfig {
   message: any
   items: (input: { readyErrors: ReadyRuntimeError[]; issues: Issue[] }) => any[]
   autoOpen: boolean
-  severity: 'error' | 'warning' | null
+  severity: 'error' | 'warning' | 'none'
   as: any
 }
 
@@ -212,7 +227,7 @@ const TABS: TabConfig[] = [
       <>Unhandled errors that happened during execution of application code.</>
     ),
     items: ({ readyErrors }) => {
-      return readyErrors
+      return readyErrors.filter((e) => !isRuntimeWarning(e))
     },
     severity: 'error',
     autoOpen: true,
@@ -240,6 +255,27 @@ const TABS: TabConfig[] = [
     as: TurbopackIssuesDialogBody,
   },
   {
+    id: TabId.RuntimeWarnings,
+    icon: <AlertOctagon />,
+    title: {
+      one: 'Runtime Warnings',
+      many: 'Runtime Warningss',
+    },
+    message: (
+      <>
+        Unhandled errors that happened during execution of application code.
+        <br />
+        The application might work partially, but that's unlikely.
+      </>
+    ),
+    items: ({ readyErrors }) => {
+      return readyErrors.filter((e) => isRuntimeWarning(e))
+    },
+    severity: 'warning',
+    autoOpen: false,
+    as: RuntimeErrorsDialogBody,
+  },
+  {
     id: TabId.TurbopackWarnings,
     icon: <PackageX />,
     title: {
@@ -251,7 +287,7 @@ const TABS: TabConfig[] = [
         Warnings that were found during compilation of applications code.
         <br />
         The application probably work, but these issues should still be
-        addressed eventually.'
+        addressed eventually.
       </>
     ),
     items: ({ issues }) => {
@@ -279,7 +315,7 @@ const TABS: TabConfig[] = [
     items: ({ issues }) => {
       return issues.filter((i) => !isUserCode(i) && !isWarning(i))
     },
-    severity: null,
+    severity: 'none',
     autoOpen: false,
     as: TurbopackIssuesDialogBody,
   },
