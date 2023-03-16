@@ -95,7 +95,14 @@ export function formatAmpMessages(amp: AmpPageStatus) {
   return output
 }
 
-const buildStore = createStore<BuildStatusStore>()
+const buildStore = createStore<BuildStatusStore>({
+  // @ts-ignore initial value
+  client: {},
+  // @ts-ignore initial value
+  server: {},
+  // @ts-ignore initial value
+  edgeServer: {},
+})
 let buildWasDone = false
 let clientWasLoading = true
 let serverWasLoading = true

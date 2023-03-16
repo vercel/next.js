@@ -1345,9 +1345,7 @@ export default class NextNodeServer extends BaseServer {
             }
           }
 
-          const renderKind = this.appPathRoutes?.[page || pathname]
-            ? 'app'
-            : 'pages'
+          const renderKind = this.appPathRoutes?.[page] ? 'app' : 'pages'
 
           const renderWorker = this.renderWorkers?.[renderKind]
 
@@ -1389,6 +1387,16 @@ export default class NextNodeServer extends BaseServer {
             const matchedPath = `${invokePathname}${
               invokeQueryStr ? `?${invokeQueryStr}` : ''
             }`
+
+            // ensure /404 is built before invoking render
+            if (this.renderOpts.dev && !(await this.hasPage(page))) {
+              // @ts-expect-error dev specific
+              await this.hotReloader?.ensurePage({
+                page: '/404',
+                clientOnly: false,
+              })
+            }
+
             const invokeRes = await fetch(renderUrl, {
               headers: {
                 ...(req.headers as any),
