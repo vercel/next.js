@@ -35,14 +35,13 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { NextResponse } from 'next/server'
 
-console.log('before', import.meta.url)
+const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const resourceUrl = new URL(import.meta.url)
-console.log('resourceUrl', resourceUrl)
 const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
     METADATA_RESOURCE_QUERY
   )}, '')
 const buffer = fs.readFileSync(filePath)
-const contentType = ${JSON.stringify(getContentType(resourcePath))}
+
 
 export function GET() {
   return new NextResponse(buffer, {
@@ -64,11 +63,11 @@ import handler from ${JSON.stringify(resourcePath)}
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
-const name = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
+const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 export async function GET() {
   const data = await handler()
-  const content = resolveRouteData(data, name)
+  const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
     headers: {
@@ -88,7 +87,8 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
     const { resourcePath } = this
     const { route } = this.getOptions()
 
-    const isStatic = isMetadataRouteFile(route, [])
+    const appDirRelativePath = route.slice(0, -'/route'.length)
+    const isStatic = isMetadataRouteFile(appDirRelativePath, [])
     const code = isStatic
       ? getStaticRouteCode(resourcePath)
       : getDynamicRouteCode(resourcePath)

@@ -5,7 +5,7 @@ import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/dis
 const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
 export function isMetadataRoute(route: string): boolean {
   // Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
-  const page = route.replace(/^app/, '').replace(/\/route$/, '')
+  const page = route.replace(/^\/?app/, '').replace(/\/route$/, '')
 
   return !page.endsWith('/page') && isMetadataRouteFile(page, defaultExtensions)
 }
@@ -21,7 +21,7 @@ export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: string[]
 ) {
-  const metadataRoutesRelativePathRegex = [
+  const metadataRouteFilesRegex = [
     new RegExp(
       `^[\\\\/]robots\\.${getExtensionRegexString(
         pageExtensions.concat('txt')
@@ -58,5 +58,5 @@ export function isMetadataRouteFile(
     ),
   ]
 
-  return metadataRoutesRelativePathRegex.some((r) => r.test(appDirRelativePath))
+  return metadataRouteFilesRegex.some((r) => r.test(appDirRelativePath))
 }
