@@ -7,14 +7,14 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
+use dunce::canonicalize;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
-use test_generator::test_resources;
 use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value, ValueToString};
 use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystemVc, FileSystem,
-    FileSystemPathVc, FileSystemVc,
+    FileSystemPathVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -50,7 +50,8 @@ fn register() {
 
 static WORKSPACE_ROOT: Lazy<String> = Lazy::new(|| {
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    package_root
+    canonicalize(package_root)
+        .unwrap()
         .parent()
         .unwrap()
         .parent()
@@ -87,20 +88,20 @@ fn default_entry() -> String {
     "input/index.js".to_owned()
 }
 
-#[test_resources("crates/turbopack-tests/tests/snapshot/*/*/")]
-fn test(resource: &'static str) {
+#[testing::fixture("tests/snapshot/*/*/")]
+fn test(resource: PathBuf) {
     // Separating this into a different function fixes my IDE's types for some
     // reason...
     run(resource).unwrap();
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn run(resource: &'static str) -> Result<()> {
+async fn run(resource: PathBuf) -> Result<()> {
     register();
 
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
-        let out = run_test(resource.to_string());
+        let out = run_test(resource.to_str().unwrap());
         let captured_issues = IssueVc::peek_issues_with_path(out)
             .await?
             .strongly_consistent()
@@ -130,14 +131,11 @@ async fn run(resource: &'static str) -> Result<()> {
 
     Ok(())
 }
-#[turbo_tasks::function]
-async fn run_test(resource: String) -> Result<FileSystemPathVc> {
-    let test_path = Path::new(&resource)
-        // test_resources matches and returns relative paths from the workspace root,
-        // but pwd in cargo tests is the crate under test.
-        .strip_prefix("crates/turbopack-tests")?;
-    assert!(test_path.exists(), "{} does not exist", resource);
 
+#[turbo_tasks::function]
+async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
+    let test_path = Path::new(resource);
+    assert!(test_path.exists(), "{} does not exist", resource);
     assert!(
         test_path.is_dir(),
         "{} is not a directory. Snapshot tests must be directories.",
@@ -153,15 +151,15 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
     let project_fs = DiskFileSystemVc::new("project".to_string(), WORKSPACE_ROOT.clone());
     let project_root = project_fs.root();
 
-    let fs_path = Path::new(&resource);
-    let resource = sys_to_unix(&resource);
-    let path = root_fs.root().join(&resource);
-    let project_path = project_root.join(&resource);
+    let relative_path = test_path.strip_prefix(&*WORKSPACE_ROOT)?;
+    let relative_path = sys_to_unix(relative_path.to_str().unwrap());
+    let path = root_fs.root().join(&relative_path);
+    let project_path = project_root.join(&relative_path);
 
     let entry_asset = project_path.join(&options.entry);
     let entry_paths = vec![entry_asset];
 
-    let runtime_entries = maybe_load_env(project_fs.into(), fs_path).await?;
+    let runtime_entries = maybe_load_env(project_path).await?;
 
     let env = EnvironmentVc::new(
         Value::new(ExecutionEnvironment::Browser(
@@ -311,13 +309,8 @@ async fn walk_asset(
     Ok(())
 }
 
-async fn maybe_load_env(
-    project_fs: FileSystemVc,
-    path: &Path,
-) -> Result<Option<EcmascriptChunkPlaceablesVc>> {
+async fn maybe_load_env(path: FileSystemPathVc) -> Result<Option<EcmascriptChunkPlaceablesVc>> {
     let dotenv_path = path.join("input/.env");
-    let dotenv_path = sys_to_unix(dotenv_path.to_str().unwrap());
-    let dotenv_path = project_fs.root().join(&dotenv_path);
 
     if !dotenv_path.read().await?.is_content() {
         return Ok(None);
