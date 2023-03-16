@@ -541,6 +541,7 @@ export default class DevServer extends Server {
           })
 
           if (
+            !isAppPath &&
             pageName.startsWith('/api/') &&
             this.nextConfig.output === 'export'
           ) {
@@ -1560,6 +1561,7 @@ export default class DevServer extends Server {
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
+    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -1586,7 +1588,7 @@ export default class DevServer extends Server {
         locales,
         defaultLocale,
         originalAppPath,
-        isAppPath: !!originalAppPath,
+        isAppPath,
         requestHeaders,
         incrementalCacheHandlerPath:
           this.nextConfig.experimental.incrementalCacheHandlerPath,
@@ -1604,7 +1606,7 @@ export default class DevServer extends Server {
     )
       .then((res) => {
         const { paths: staticPaths = [], fallback } = res.value
-        if (this.nextConfig.output === 'export') {
+        if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === 'blocking') {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
