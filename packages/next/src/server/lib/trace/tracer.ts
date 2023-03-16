@@ -135,25 +135,25 @@ class NextTracerImpl implements NextTracer {
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
-    name: SpanTypes,
+    type: SpanTypes,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: SpanTypes,
+    type: SpanTypes,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
-    name: SpanTypes,
+    type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: SpanTypes,
+    type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(...args: Array<any>) {
-    const [name, fnOrOptions, fnOrEmpty] = args
+    const [type, fnOrOptions, fnOrEmpty] = args
 
     // coerce options form overload
     const {
@@ -174,7 +174,7 @@ class NextTracerImpl implements NextTracer {
           }
 
     if (
-      !NextVanillaSpanAllowlist.includes(name) &&
+      !NextVanillaSpanAllowlist.includes(type) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn()
@@ -188,12 +188,12 @@ class NextTracerImpl implements NextTracer {
     const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
       spanContext
         ? this.getTracerInstance().startActiveSpan(
-            name,
+            type,
             options,
             spanContext,
             actualFn
           )
-        : this.getTracerInstance().startActiveSpan(name, options, actualFn)
+        : this.getTracerInstance().startActiveSpan(type, options, actualFn)
 
     return runWithContext((span: Span) => {
       try {
