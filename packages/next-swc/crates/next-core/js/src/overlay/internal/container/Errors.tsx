@@ -207,6 +207,7 @@ interface TabConfig {
   title: {
     one: string
     many: string
+    short: string
   }
   message: any
   items: (input: { readyErrors: ReadyRuntimeError[]; issues: Issue[] }) => any[]
@@ -222,6 +223,7 @@ const TABS: TabConfig[] = [
     title: {
       one: 'Runtime Error',
       many: 'Runtime Errors',
+      short: 'Err',
     },
     message: (
       <>Unhandled errors that happened during execution of application code.</>
@@ -239,6 +241,7 @@ const TABS: TabConfig[] = [
     title: {
       one: 'Turbopack Error',
       many: 'Turbopack Errors',
+      short: 'Err',
     },
     message: (
       <>
@@ -260,6 +263,7 @@ const TABS: TabConfig[] = [
     title: {
       one: 'Runtime Warnings',
       many: 'Runtime Warningss',
+      short: 'Warn',
     },
     message: (
       <>
@@ -281,6 +285,7 @@ const TABS: TabConfig[] = [
     title: {
       one: 'Turbopack Warning',
       many: 'Turbopack Warnings',
+      short: 'Warn',
     },
     message: (
       <>
@@ -303,6 +308,7 @@ const TABS: TabConfig[] = [
     title: {
       one: 'Turbopack External Problem',
       many: 'Turbopack External Problems',
+      short: 'Ext',
     },
     message: (
       <>
@@ -450,7 +456,11 @@ export function Errors({ issues, errors }: ErrorsProps) {
                 data-severity={tab.severity}
               >
                 {tab.icon} {tab.items.length}{' '}
-                {tab.items.length > 1 ? tab.title.many : tab.title.one}
+                {tabs.length > 3
+                  ? tab.title.short
+                  : tab.items.length > 1
+                  ? tab.title.many
+                  : tab.title.one}
               </Tab>
             ))}
           </DialogHeaderTabList>
