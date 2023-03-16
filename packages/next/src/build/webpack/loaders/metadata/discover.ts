@@ -9,7 +9,7 @@ import { stringify } from 'querystring'
 
 const METADATA_TYPE = 'metadata'
 
-export const METADATA_IMAGE_RESOURCE_QUERY = '?__next_metadata'
+export const METADATA_RESOURCE_QUERY = '?__next_metadata'
 
 const staticAssetIconsImage = {
   icon: {
@@ -126,7 +126,7 @@ export async function discoverStaticMetadataFiles(
             type,
           })}!` +
             filepath +
-            METADATA_IMAGE_RESOURCE_QUERY
+            METADATA_RESOURCE_QUERY
         )})`
 
         hasStaticMetadataFiles = true
