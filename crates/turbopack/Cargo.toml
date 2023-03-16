@@ -42,7 +42,6 @@ difference = "2.0"
 futures = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = "0.5.0"
-test-generator = { workspace = true }
 tokio = { workspace = true }
 turbo-malloc = { workspace = true }
 turbo-tasks-memory = { workspace = true }
