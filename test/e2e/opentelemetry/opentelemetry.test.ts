@@ -1,5 +1,3 @@
-import { SpanKind } from '@opentelemetry/api'
-
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
