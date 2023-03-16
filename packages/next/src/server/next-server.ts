@@ -1398,10 +1398,17 @@ export default class NextNodeServer extends BaseServer {
             }
 
             const invokeRes = await fetch(renderUrl, {
+              method: req.method,
               headers: {
                 ...(req.headers as any),
                 'x-matched-path': matchedPath,
               },
+              // @ts-ignore
+              duplex: 'half',
+              body: getRequestMeta(
+                req,
+                '__NEXT_CLONABLE_BODY'
+              )?.cloneBodyStream() as any as ReadableStream,
               redirect: 'manual',
             })
 
@@ -2134,10 +2141,17 @@ export default class NextNodeServer extends BaseServer {
                 renderUrl.port = port + ''
 
                 const invokeRes = await fetch(renderUrl, {
+                  method: req.method,
                   headers: {
                     ...(req.headers as any),
                     'x-middleware-invoke': '1',
                   },
+                  // @ts-ignore
+                  duplex: 'half',
+                  body: getRequestMeta(
+                    req,
+                    '__NEXT_CLONABLE_BODY'
+                  )?.cloneBodyStream() as any as ReadableStream,
                   redirect: 'manual',
                 })
 
