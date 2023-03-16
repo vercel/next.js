@@ -1,10 +1,11 @@
 import { fileExists } from '../../lib/file-exists'
 import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
 import { nonNullable } from '../../lib/non-nullable'
-import { join, sep, normalize } from 'path'
+import { join, sep, normalize, extname } from 'path'
 import { promises } from 'fs'
 import { warn } from '../../build/output/log'
 import chalk from '../../lib/chalk'
+import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/discover'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
@@ -79,10 +80,8 @@ export function createValidFileMatcher(
   pageExtensions: string[],
   appDirPath: string | undefined
 ) {
-  const getExtensionRegexString = (
-    extensions: string[],
-    ...extraExtensions: string[]
-  ) => `(?:${extensions.concat(extraExtensions).join('|')})`
+  const getExtensionRegexString = (extensions: string[]) =>
+    `(?:${extensions.join('|')})`
 
   const validExtensionFileRegex = new RegExp(
     '\\.' + getExtensionRegexString(pageExtensions) + '$'
@@ -95,34 +94,82 @@ export function createValidFileMatcher(
   /** TODO-METADATA: support other metadata routes
    *  regex for:
    *
-   *  /robots.txt|((j|t)sx?)
-   *  /sitemap.xml|((j|t)sx?)
-   *  /favicon.ico
+   * /robots.txt|<ext>
+   * /sitemap.xml|<ext>
+   * /favicon.ico
+   * <route>/icon.png|jpg|<ext>
+   * <route>/apple-touch-icon.png|jpg|<ext>
    *
    */
-  const metadataRoutesRelativePathRegex = new RegExp(
-    `^[\\\\/]((robots\\.${getExtensionRegexString(pageExtensions, 'txt')})` +
-      '|' +
-      `(sitemap\\.${getExtensionRegexString(pageExtensions, 'xml')})` +
-      '|' +
-      `(favicon\\.ico))$`
-  )
 
-  function isMetadataRouteFile(filePath: string) {
-    if (!appDirPath) return false
-    const relativePath = filePath.replace(appDirPath, '')
-    return metadataRoutesRelativePathRegex.test(relativePath)
+  const metadataRoutesRelativePathRegex = [
+    new RegExp(
+      `^[\\\\/]robots\\.${getExtensionRegexString(
+        pageExtensions.concat('txt')
+      )}`
+    ),
+    new RegExp(
+      `^[\\\\/]sitemap\\.${getExtensionRegexString(
+        pageExtensions.concat('xml')
+      )}`
+    ),
+    new RegExp(`^[\\\\/]favicon\\.ico$`),
+    // TODO-METADATA: add dynamic routes for metadata images
+    new RegExp(
+      `[\\\\/]${
+        STATIC_METADATA_IMAGES.icon.filename
+      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.icon.extensions)}`
+    ),
+    new RegExp(
+      `[\\\\/]${
+        STATIC_METADATA_IMAGES.apple.filename
+      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
+    ),
+    new RegExp(
+      `[\\\\/]${
+        STATIC_METADATA_IMAGES.apple.filename
+      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
+    ),
+    new RegExp(
+      `[\\\\/]${
+        STATIC_METADATA_IMAGES.apple.filename
+      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
+    ),
+  ]
+
+  /**
+   *
+   * @param filePath the absolute path of the file
+   * @returns { matched: boolean, static: boolean }
+   *   matched: if the file is a metadata route file, static: if the file is a static metadata file
+   */
+  function isMetadataRouteFile(relativeAppDirPath: string) {
+    const matched = metadataRoutesRelativePathRegex.some((r) =>
+      r.test(relativeAppDirPath)
+    )
+    const ext = extname(relativeAppDirPath)
+
+    return {
+      matched,
+      static: !pageExtensions.includes(ext),
+    }
   }
 
   // Determine if the file is leaf node page file or route file under layouts,
   // 'page.<extension>' | 'route.<extension>'
   function isAppRouterPage(filePath: string) {
-    return leafOnlyPageFileRegex.test(filePath) || isMetadataRouteFile(filePath)
+    const relativeAppDirPath = filePath.replace(appDirPath || '', '')
+    return (
+      leafOnlyPageFileRegex.test(filePath) ||
+      isMetadataRouteFile(relativeAppDirPath).matched
+    )
   }
 
   function isPageFile(filePath: string) {
+    const relativeAppDirPath = filePath.replace(appDirPath || '', '')
     return (
-      validExtensionFileRegex.test(filePath) || isMetadataRouteFile(filePath)
+      validExtensionFileRegex.test(filePath) ||
+      isMetadataRouteFile(relativeAppDirPath).matched
     )
   }
 

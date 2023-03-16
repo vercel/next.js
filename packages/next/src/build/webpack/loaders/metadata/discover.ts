@@ -11,7 +11,7 @@ const METADATA_TYPE = 'metadata'
 
 export const METADATA_RESOURCE_QUERY = '?__next_metadata'
 
-const staticAssetIconsImage = {
+export const STATIC_METADATA_IMAGES = {
   icon: {
     filename: 'icon',
     extensions: ['ico', 'jpg', 'jpeg', 'png', 'svg'],
@@ -111,8 +111,8 @@ export async function discoverStaticMetadataFiles(
   ) {
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
-      staticAssetIconsImage[type].filename,
-      staticAssetIconsImage[type].extensions,
+      STATIC_METADATA_IMAGES[type].filename,
+      STATIC_METADATA_IMAGES[type].extensions,
       opts
     )
     resolvedMetadataFiles

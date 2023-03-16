@@ -3,6 +3,7 @@ import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
+import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
@@ -61,18 +62,21 @@ async function createAppRouteCode({
   name,
   pagePath,
   resolver,
+  appDir,
 }: {
   name: string
   pagePath: string
   resolver: PathResolver
+  appDir: string
 }): Promise<string> {
   const routePath = pagePath.replace(/[\\/]/, '/')
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
 
+  console.log('name', name, '->', isMetadataRoute(name))
   if (isMetadataRoute(name)) {
-    resolvedPagePath = `next-metadata-route-loader!${
+    resolvedPagePath = `next-metadata-route-loader?${stringify({ appDir })}!${
       resolvedPagePath + METADATA_RESOURCE_QUERY
     }`
   }
@@ -355,7 +359,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   if (isAppRouteRoute(name)) {
-    return createAppRouteCode({ name, pagePath, resolver })
+    return createAppRouteCode({ name, pagePath, resolver, appDir })
   }
 
   const {

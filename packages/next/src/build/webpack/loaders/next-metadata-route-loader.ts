@@ -1,7 +1,11 @@
 import type webpack from 'webpack'
 import path from 'path'
-import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
+
+type MetadataRouteLoaderOptions = {
+  appDir: string
+}
 
 function getFilenameAndExtension(resourcePath: string) {
   const filename = path.basename(resourcePath)
@@ -14,6 +18,8 @@ function getContentType(resourcePath: string) {
   if (name === 'favicon' && ext === 'ico') return 'image/x-icon'
   if (name === 'sitemap') return 'application/xml'
   if (name === 'robots') return 'text/plain'
+  // TODO-METADATA: align with next metadata image loader mime type generation
+  if (ext === 'png' || ext === 'jpg') return `image/${ext}`
   return 'text/plain'
 }
 
@@ -24,6 +30,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { NextResponse } from 'next/server'
 
+console.log('import.meta.url', import.meta.url)
 const resourceUrl = fileURLToPath(import.meta.url).replace(${JSON.stringify(
     METADATA_RESOURCE_QUERY
   )}, '')
@@ -69,14 +76,25 @@ export async function GET() {
 // `import.meta.url` is the resource name of the current module.
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
-const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction = function () {
-  const { resourcePath } = this
-  const isStatic = isStaticMetadataRoute(resourcePath)
-  const code = isStatic
-    ? getStaticRouteCode(resourcePath)
-    : getDynamicRouteCode(resourcePath)
+const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
+  function () {
+    const { resourcePath } = this
+    const { appDir } = this.getOptions()
 
-  return code
-}
+    const route = resourcePath.replace(appDir, '')
+    const isStatic = isMetadataRouteFile(route, [])
+    console.log(
+      'nextMetadataRouterLoader:relativeAppDirPath',
+      route,
+      'isStatic',
+      isStatic
+    )
+    const code = isStatic
+      ? getStaticRouteCode(resourcePath)
+      : getDynamicRouteCode(resourcePath)
+
+    console.log('code', code)
+    return code
+  }
 
 export default nextMetadataRouterLoader

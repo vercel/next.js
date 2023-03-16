@@ -30,12 +30,14 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   // e.g. icon.png -> server/static/media/metadata/icon.399de3b9.png
   const interpolatedName = loaderUtils.interpolateName(
     this,
-    (isFavIcon ? '' : '/static/media/metadata/') + '[name].[ext]',
+    // (isFavIcon ? '' : '/static/media/metadata/') +
+    '[name].[ext]',
     opts
   )
-  const outputPath = isFavIcon
-    ? '/' + interpolatedName
-    : assetPrefix + '/_next' + interpolatedName
+  const outputPath = '/' + interpolatedName
+  // isFavIcon
+  //   ? '/' + interpolatedName
+  //   : assetPrefix + '/_next' + interpolatedName
 
   let extension = loaderUtils.interpolateName(this, '[ext]', opts)
   if (extension === 'jpg') {
@@ -68,9 +70,9 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const stringifiedData = JSON.stringify(imageData)
 
   // TODO-METADATA: Move image generation to static app routes
-  if (!isFavIcon) {
-    this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
-  }
+  // if (!isFavIcon) {
+  //   this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
+  // }
 
   return `export default ${stringifiedData};`
 }
