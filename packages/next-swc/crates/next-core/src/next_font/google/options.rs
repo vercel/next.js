@@ -7,11 +7,11 @@ use super::request::{NextFontRequest, OneOrManyStrings};
 
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
-pub(crate) type FontData = IndexMap<String, FontDataEntry>;
+pub(super) type FontData = IndexMap<String, FontDataEntry>;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
-pub(crate) struct NextFontGoogleOptions {
+pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
     pub font_family: String,
     pub weights: FontWeights,
@@ -21,6 +21,8 @@ pub(crate) struct NextFontGoogleOptions {
     pub selected_variable_axes: Option<Vec<String>>,
     pub fallback: Option<Vec<String>>,
     pub adjust_font_fallback: bool,
+    /// An optional name for a css custom property (css variable) that applies
+    /// the font family when used.
     pub variable: Option<String>,
     pub subsets: Option<Vec<String>>,
 }
@@ -36,13 +38,13 @@ impl NextFontGoogleOptionsVc {
 #[derive(
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TraceRawVcs,
 )]
-pub(crate) enum FontWeights {
+pub(super) enum FontWeights {
     Variable,
     Fixed(Vec<u16>),
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
-pub(crate) struct FontDataEntry {
+pub(super) struct FontDataEntry {
     pub weights: Vec<String>,
     pub styles: Vec<String>,
     pub axes: Option<Vec<Axis>>,
@@ -50,7 +52,7 @@ pub(crate) struct FontDataEntry {
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Axis {
+pub(super) struct Axis {
     pub tag: String,
     pub min: f64,
     pub max: f64,
@@ -61,7 +63,7 @@ impl Eq for Axis {}
 // Transforms the request fields to a struct suitable for making requests to
 // Google Fonts. Similar to next/font/google's validateData:
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
-pub(crate) fn options_from_request(
+pub(super) fn options_from_request(
     request: &NextFontRequest,
     data: &IndexMap<String, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
@@ -194,7 +196,7 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
-    use crate::next_font_google::{options::FontWeights, request::NextFontRequest};
+    use crate::next_font::google::{options::FontWeights, request::NextFontRequest};
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
