@@ -533,11 +533,16 @@ export async function startCleanStaticServer(dir) {
 
 // check for content in 1 second intervals timing out after
 // 30 seconds
-export async function check(contentFn, regex, hardError = true) {
+export async function check(
+  contentFn,
+  regex,
+  hardError = true,
+  maxRetries = 30
+) {
   let content
   let lastErr
 
-  for (let tries = 0; tries < 30; tries++) {
+  for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
       if (typeof regex === 'string') {

@@ -4,6 +4,7 @@ const openSans = Open_Sans({
   fallback: ['system-ui', 'Arial'],
   variable: '--open-sans',
   adjustFontFallback: false,
+  subsets: ['latin'],
 })
 
 const myFont = localFont({

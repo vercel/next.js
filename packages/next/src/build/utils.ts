@@ -54,7 +54,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { isClientReference } from './is-client-reference'
+import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
@@ -1005,7 +1005,7 @@ export async function buildStaticPaths({
           // If from appDir and not all params were provided from
           // generateStaticParams we can just filter this entry out
           // as it's meant to be generated at runtime
-          if (appDir) {
+          if (appDir && typeof paramValue === 'undefined') {
             builtPage = ''
             encodedBuiltPage = ''
             return
@@ -1014,7 +1014,7 @@ export async function buildStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in ${
+            } received ${typeof paramValue} in ${
               appDir ? 'generateStaticParams' : 'getStaticPaths'
             } for ${page}`
           )
@@ -1329,6 +1329,7 @@ export async function isPageStatic({
   isrFlushToDisk,
   maxMemoryCacheSize,
   incrementalCacheHandlerPath,
+  nextConfigOutput,
 }: {
   page: string
   distDir: string
@@ -1347,6 +1348,7 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   incrementalCacheHandlerPath?: string
+  nextConfigOutput: 'standalone' | 'export'
 }): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -1479,6 +1481,16 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (nextConfigOutput === 'export') {
+          if (!appConfig.dynamic || appConfig.dynamic === 'auto') {
+            appConfig.dynamic = 'error'
+          } else if (appConfig.dynamic === 'force-dynamic') {
+            throw new Error(
+              `export const dynamic = "force-dynamic" on page "${page}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+            )
+          }
+        }
 
         if (appConfig.dynamic === 'force-dynamic') {
           appConfig.revalidate = 0

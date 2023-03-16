@@ -28,6 +28,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
@@ -227,7 +228,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     isBot?: boolean
-    serverComponentManifest?: any
+    clientReferenceManifest?: ClientReferenceManifest
     serverCSSManifest?: any
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
@@ -241,7 +242,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected serverComponentManifest?: any
+  protected clientReferenceManifest?: ClientReferenceManifest
   protected serverCSSManifest?: any
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
@@ -306,7 +307,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null>
+  ): Promise<RenderResult>
 
   protected abstract handleCompression(
     req: BaseNextRequest,
@@ -386,7 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasAppDir =
       !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
-    this.serverComponentManifest = serverComponents
+    this.clientReferenceManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
     this.serverCSSManifest = serverComponents
@@ -1250,7 +1251,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
+      this.clientReferenceManifest && req.headers[RSC.toLowerCase()]
     )
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
@@ -1488,7 +1489,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       let pageData: any
-      let body: RenderResult | null
+      let body: RenderResult
       let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
@@ -1550,11 +1551,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
 
       body = renderResult
-      // TODO: change this to a different passing mechanism
-      pageData = (renderOpts as any).pageData
-      isrRevalidate = (renderOpts as any).revalidate
-      isNotFound = (renderOpts as any).isNotFound
-      isRedirect = (renderOpts as any).isRedirect
+
+      const renderResultMeta = renderResult.metadata()
+
+      pageData = renderResultMeta.pageData
+      isrRevalidate = renderResultMeta.revalidate
+      isNotFound = renderResultMeta.isNotFound
+      isRedirect = renderResultMeta.isRedirect
 
       // we don't throw static to dynamic errors in dev as isSSG
       // is a best guess in dev since we don't have the prerender pass
@@ -1563,7 +1566,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const staticBailoutInfo: {
           stack?: string
           description?: string
-        } = (renderOpts as any).staticBailoutInfo || {}
+        } = renderResultMeta.staticBailoutInfo || {}
 
         const err = new Error(
           `Page changed from static to dynamic at runtime ${urlPathname}${
@@ -1588,7 +1591,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        if (!body) {
+        if (body.isNull()) {
           return null
         }
         value = { kind: 'PAGE', html: body, pageData }
