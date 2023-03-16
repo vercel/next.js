@@ -11,7 +11,7 @@ use std::{
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_tasks::{primitives::StringVc, util::FormatDuration, NothingVc, TurboTasks};
+use turbo_tasks::{primitives::StringVc, util::FormatDuration, NothingVc, TurboTasks, UpdateInfo};
 use turbo_tasks_fs::{
     register, DirectoryContent, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystem,
     FileSystemPathVc, FileSystemVc,
@@ -47,8 +47,12 @@ async fn main() -> Result<()> {
     println!("done in {}", FormatDuration(start.elapsed()));
 
     loop {
-        let (elapsed, count) = tt.get_or_wait_update_info(Duration::from_millis(100)).await;
-        println!("updated {} tasks in {}", count, FormatDuration(elapsed));
+        let UpdateInfo {
+            duration, tasks, ..
+        } = tt
+            .get_or_wait_aggregated_update_info(Duration::from_millis(100))
+            .await;
+        println!("updated {} tasks in {}", tasks, FormatDuration(duration));
     }
 }
 

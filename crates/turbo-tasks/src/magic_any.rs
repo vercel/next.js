@@ -106,7 +106,7 @@ impl Hash for dyn MagicAny {
     }
 }
 
-pub struct HasherMut<H: ?Sized>(H);
+pub struct HasherMut<H: ?Sized>(pub H);
 
 impl<H: DerefMut + ?Sized> Hasher for HasherMut<H>
 where
