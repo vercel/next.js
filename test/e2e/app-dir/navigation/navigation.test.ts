@@ -261,5 +261,19 @@ createNextDescribe(
         }
       })
     })
+
+    describe.only('SEO', () => {
+      it('should emit noindex meta tag for not found page when streaming', async () => {
+        const html = await next.render('/not-found/suspense')
+        expect(html).toContain('<meta name="robots" content="noindex"/>')
+      })
+
+      it('should emit refresh meta tag for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense')
+        expect(html).toContain(
+          '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
+        )
+      })
+    })
   }
 )
