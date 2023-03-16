@@ -216,6 +216,36 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           return main
         }
 
+        function processNextItems(
+          indent: number,
+          next?: import('typescript').DiagnosticMessageChain[]
+        ) {
+          if (!next) return ''
+
+          let result = ''
+
+          for (const item of next) {
+            switch (item.code) {
+              case 2322:
+                const types = item.messageText.match(
+                  /Type '(.+)' is not assignable to type '(.+)'./
+                )
+                if (types) {
+                  result += '\n' + ' '.repeat(indent * 2)
+                  result += `Expected "${chalk.bold(
+                    types[2]
+                  )}", got "${chalk.bold(types[1])}".`
+                }
+                break
+              default:
+            }
+
+            result += processNextItems(indent + 1, item.next)
+          }
+
+          return result
+        }
+
         const invalidParamFn = messageText.match(
           /Type '{ __tag__: (.+); __param_number__: "(.*)"; __param_type__: (.+); }' does not satisfy/
         )
@@ -224,34 +254,11 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
             relativeSourceFilepath
           )}" has an invalid ${invalidParamFn[1]} export:\n  Type "${chalk.bold(
             invalidParamFn[3]
-          )}" isn't a valid type for its ${invalidParamFn[2]} param.`
-          function processNext(
-            indent: number,
-            next?: import('typescript').DiagnosticMessageChain[]
-          ) {
-            if (!next) return
+          )}" isn't a valid type for the function's ${
+            invalidParamFn[2]
+          } parameter.`
 
-            for (const item of next) {
-              switch (item.code) {
-                case 2322:
-                  const types = item.messageText.match(
-                    /Type '(.+)' is not assignable to type '(.+)'./
-                  )
-                  if (types) {
-                    main += '\n' + ' '.repeat(indent * 2)
-                    main += `Expected "${chalk.bold(
-                      types[2]
-                    )}", got "${chalk.bold(types[1])}".`
-                  }
-                  break
-                default:
-              }
-
-              processNext(indent + 1, item.next)
-            }
-          }
-
-          if ('next' in message) processNext(1, message.next)
+          if ('next' in message) main += processNextItems(1, message.next)
           return main
         }
 
@@ -264,33 +271,8 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           )}" has an invalid export:\n  "${chalk.bold(
             invalidExportFnReturn[2]
           )}" is not a valid ${invalidExportFnReturn[1]} return type:`
-          function processNext(
-            indent: number,
-            next?: import('typescript').DiagnosticMessageChain[]
-          ) {
-            if (!next) return
 
-            for (const item of next) {
-              switch (item.code) {
-                case 2322:
-                  const types = item.messageText.match(
-                    /Type '(.+)' is not assignable to type '(.+)'./
-                  )
-                  if (types) {
-                    main += '\n' + ' '.repeat(indent * 2)
-                    main += `Expected "${chalk.bold(
-                      types[2]
-                    )}", got "${chalk.bold(types[1])}".`
-                  }
-                  break
-                default:
-              }
-
-              processNext(indent + 1, item.next)
-            }
-          }
-
-          if ('next' in message) processNext(1, message.next)
+          if ('next' in message) main += processNextItems(1, message.next)
           return main
         }
 

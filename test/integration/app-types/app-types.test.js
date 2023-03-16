@@ -79,7 +79,7 @@ describe('app type checking', () => {
 
       // Avoid invalid argument types for exported functions.
       expect(errors).toMatch(
-        /Route "src\/app\/type-checks\/route-handlers\/route\.ts" has an invalid "GET" export:\s+Type "boolean" is not a valid type for its first param/
+        /Route "src\/app\/type-checks\/route-handlers\/route\.ts" has an invalid "GET" export:\s+Type "boolean" is not a valid type for the function's first parameter/
       )
       expect(errors).toMatch(
         /Route "src\/app\/type-checks\/route-handlers\/route\.ts" has an invalid "generateStaticParams" export:\s+Type "string" is not valid/
