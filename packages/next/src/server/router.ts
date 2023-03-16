@@ -331,7 +331,26 @@ export default class Router {
       },
     }
 
-    for (const route of this.compiledRoutes) {
+    // when x-matched-path is specified we can short short circuit resolving
+    const matchedPath = req.headers['x-matched-path'] as string
+    const curRoutes = matchedPath
+      ? this.compiledRoutes.filter((r) => {
+          return (
+            r.name === 'Catchall render' || r.name === '_next/data normalizing'
+          )
+        })
+      : this.compiledRoutes
+
+    if (matchedPath) {
+      const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
+      parsedUrlUpdated.pathname = parsedMatchedPath.pathname
+      Object.assign(
+        parsedUrlUpdated.query,
+        Object.fromEntries(parsedMatchedPath.searchParams)
+      )
+    }
+
+    for (const route of curRoutes) {
       // only process rewrites for upgrade request
       if (upgradeHead && route.type !== 'rewrite') {
         continue

@@ -17,7 +17,13 @@ import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
-import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
+import {
+  join,
+  join as pathJoin,
+  relative,
+  resolve as pathResolve,
+  sep,
+} from 'path'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
@@ -47,7 +53,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-import HotReloader from './hot-reloader'
+import HotReloader, { cleanDistDir } from './hot-reloader'
 import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
@@ -65,7 +71,7 @@ import {
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { getSortedRoutes } from '../../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
@@ -777,6 +783,18 @@ export default class DevServer extends Server {
           // before it has been built and is populated in the _buildManifest
           const sortedRoutes = getSortedRoutes(routedPages)
 
+          this.dynamicRoutes = sortedRoutes
+            .map((page) => {
+              if (!isDynamicRoute) return null
+              const regex = getRouteRegex(page)
+              return {
+                match: getRouteMatcher(regex),
+                page,
+                re: regex.re,
+              }
+            })
+            .filter(Boolean) as any
+
           if (
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
@@ -860,24 +878,26 @@ export default class DevServer extends Server {
       redirects.length ||
       headers.length
     ) {
-      this.router = new Router(this.generateRoutes())
+      this.router = new Router(this.generateRoutes(true))
     }
-
     const telemetry = new Telemetry({ distDir: this.distDir })
 
-    this.hotReloader = new HotReloader(this.dir, {
-      pagesDir: this.pagesDir,
-      distDir: this.distDir,
-      config: this.nextConfig,
-      previewProps: this.getPreviewProps(),
-      buildId: this.buildId,
-      rewrites,
-      appDir: this.appDir,
-      telemetry,
-    })
+    // router worker does not start webpack compilers
+    if (this.isRouterWorker) {
+      this.hotReloader = new HotReloader(this.dir, {
+        pagesDir: this.pagesDir,
+        distDir: this.distDir,
+        config: this.nextConfig,
+        previewProps: this.getPreviewProps(),
+        buildId: this.buildId,
+        rewrites,
+        appDir: this.appDir,
+        telemetry,
+      })
+    }
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start()
+    await this.hotReloader?.start(this.isRouterWorker || this.isRenderWorker)
     await this.startWatcher()
     await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
@@ -899,18 +919,21 @@ export default class DevServer extends Server {
       this.dir,
       this.pagesDir || this.appDir || ''
     ).startsWith('src')
-    telemetry.record(
-      eventCliSession(this.distDir, this.nextConfig, {
-        webpackVersion: 5,
-        cliCommand: 'dev',
-        isSrcDir,
-        hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
-        isCustomServer: this.isCustomServer,
-        turboFlag: false,
-        pagesDir: !!this.pagesDir,
-        appDir: !!this.appDir,
-      })
-    )
+
+    if (!this.isRenderWorker) {
+      telemetry.record(
+        eventCliSession(this.distDir, this.nextConfig, {
+          webpackVersion: 5,
+          cliCommand: 'dev',
+          isSrcDir,
+          hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
+          isCustomServer: this.isCustomServer,
+          turboFlag: false,
+          pagesDir: !!this.pagesDir,
+          appDir: !!this.appDir,
+        })
+      )
+    }
 
     process.on('unhandledRejection', (reason) => {
       this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
@@ -1030,7 +1053,7 @@ export default class DevServer extends Server {
       } else {
         const { basePath } = this.nextConfig
 
-        server.on('upgrade', (req, socket, head) => {
+        server.on('upgrade', async (req, socket, head) => {
           let assetPrefix = (this.nextConfig.assetPrefix || '').replace(
             /^\/+/,
             ''
@@ -1050,7 +1073,9 @@ export default class DevServer extends Server {
               `${basePath || assetPrefix || ''}/_next/webpack-hmr`
             )
           ) {
-            this.hotReloader?.onHMR(req, socket, head)
+            if (this.isRouterWorker) {
+              this.hotReloader?.onHMR(req, socket, head)
+            }
           } else {
             this.handleUpgrade(req, socket, head)
           }
@@ -1407,8 +1432,8 @@ export default class DevServer extends Server {
     return this.hotReloader?.ensurePage({ page, appPaths, clientOnly: false })
   }
 
-  generateRoutes() {
-    const { fsRoutes, ...otherRoutes } = super.generateRoutes()
+  generateRoutes(dev?: boolean) {
+    const { fsRoutes, ...otherRoutes } = super.generateRoutes(dev)
 
     // Create a shallow copy so we can mutate it.
     const routes = [...fsRoutes]

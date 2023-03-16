@@ -19,7 +19,10 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import {
+  getRouteMatcher,
+  Params,
+} from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 
 import fs from 'fs'
@@ -100,6 +103,9 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
+import { Worker } from 'next/dist/compiled/jest-worker'
+import { genExecArgv, getNodeOptionsWithoutInspect } from './lib/utils'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export * from './base-server'
 
@@ -176,9 +182,28 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
   416,
 ])
 
+type RenderWorker = Worker & {
+  initialize: typeof import('./lib/render-server').initialize
+  deleteCache: typeof import('./lib/render-server').deleteCache
+  deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
+}
+
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
   private compression?: ExpressMiddleware
+  protected renderWorkers?: {
+    middleware?: RenderWorker
+    pages?: RenderWorker
+    app?: RenderWorker
+  }
+  protected renderWorkerOpts?: Parameters<
+    typeof import('./lib/render-server').initialize
+  >[0]
+  protected dynamicRoutes?: {
+    match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
+    page: string
+    re: RegExp
+  }[]
 
   constructor(options: Options) {
     // Initialize super class
@@ -244,6 +269,67 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    if (this.isRouterWorker) {
+      this.renderWorkers = {}
+      this.renderWorkerOpts = {
+        port: this.port || 0,
+        dir: this.dir,
+        workerType: 'render',
+        hostname: this.hostname,
+        dev: !!options.dev,
+      }
+
+      const createWorker = (type: string) => {
+        const worker = new Worker(require.resolve('./lib/render-server'), {
+          numWorkers: 1,
+          // TODO: do we want to allow more than 10 OOM restarts?
+          maxRetries: 10,
+          forkOptions: {
+            env: {
+              ...process.env,
+              // we don't pass down NODE_OPTIONS as it can
+              // extra memory usage
+              NODE_OPTIONS: getNodeOptionsWithoutInspect()
+                .replace(/--max-old-space-size=[\d]{1,}/, '')
+                .trim(),
+
+              __NEXT_PRIVATE_RENDER_WORKER: type,
+            },
+            execArgv: genExecArgv(
+              options.isNodeDebugging === undefined
+                ? false
+                : options.isNodeDebugging,
+              (this.port || 0) + 1
+            ),
+          },
+          exposedMethods: ['initialize', 'deleteCache', 'deleteAppClientCache'],
+        }) as any as InstanceType<typeof Worker> & {
+          initialize: typeof import('./lib/render-server').initialize
+          deleteCache: typeof import('./lib/render-server').deleteCache
+          deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
+        }
+
+        worker.getStderr().pipe(process.stderr)
+        worker.getStdout().pipe(process.stdout)
+        return worker
+      }
+
+      if (this.hasAppDir) {
+        this.renderWorkers.app = createWorker('app')
+      }
+      this.renderWorkers.pages = createWorker('pages')
+      this.renderWorkers.middleware =
+        this.renderWorkers.pages || this.renderWorkers.app
+      ;(global as any)._nextDeleteCache = (filePath: string) => {
+        this.renderWorkers?.pages?.deleteCache(filePath)
+        this.renderWorkers?.app?.deleteCache(filePath)
+      }
+      ;(global as any)._nextDeleteAppClientCache = () => {
+        this.renderWorkers?.pages?.deleteAppClientCache()
+        this.renderWorkers?.app?.deleteAppClientCache()
+      }
+    }
+
     // expose AsyncLocalStorage on global for react usage
     const { AsyncLocalStorage } = require('async_hooks')
     ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
@@ -258,7 +344,6 @@ export default class NextNodeServer extends BaseServer {
     if (this.hasAppDir) {
       routes.handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
     }
-
     return routes
   }
 
@@ -1068,10 +1153,31 @@ export default class NextNodeServer extends BaseServer {
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
-  protected generateRoutes(): RouterOptions {
+  protected generateRoutes(dev?: boolean): RouterOptions {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
+
+    if (!dev) {
+      const routesManifest = this.getRoutesManifest() as {
+        dynamicRoutes: {
+          page: string
+          regex: string
+          namedRegex?: string
+          routeKeys?: { [key: string]: string }
+        }[]
+      }
+      this.dynamicRoutes = routesManifest.dynamicRoutes.map((r) => {
+        const regex = getRouteRegex(r.page)
+        const match = getRouteMatcher(regex)
+
+        return {
+          match,
+          page: r.page,
+          regex: regex.re,
+        }
+      }) as any
+    }
 
     const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
@@ -1187,17 +1293,19 @@ export default class NextNodeServer extends BaseServer {
       : ['/_next']
 
     // Headers come very first
-    const headers = this.minimalMode
-      ? []
-      : this.customRoutes.headers.map((rule) =>
-          createHeaderRoute({ rule, restrictedRedirectPaths })
-        )
+    const headers =
+      this.minimalMode || this.isRenderWorker
+        ? []
+        : this.customRoutes.headers.map((rule) =>
+            createHeaderRoute({ rule, restrictedRedirectPaths })
+          )
 
-    const redirects = this.minimalMode
-      ? []
-      : this.customRoutes.redirects.map((rule) =>
-          createRedirectRoute({ rule, restrictedRedirectPaths })
-        )
+    const redirects =
+      this.minimalMode || this.isRenderWorker
+        ? []
+        : this.customRoutes.redirects.map((rule) =>
+            createRedirectRoute({ rule, restrictedRedirectPaths })
+          )
 
     const rewrites = this.generateRewrites({ restrictedRedirectPaths })
     const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
@@ -1225,6 +1333,95 @@ export default class NextNodeServer extends BaseServer {
 
         const bubbleNoFallback = !!query._nextBubbleNoFallback
         const match = await this.matchers.match(pathname, options)
+
+        if (this.isRouterWorker) {
+          let page = pathname
+
+          if (!(await this.hasPage(page))) {
+            for (const route of this.dynamicRoutes || []) {
+              if (route.match(pathname)) {
+                page = route.page
+              }
+            }
+          }
+
+          const renderKind = this.appPathRoutes?.[page || pathname]
+            ? 'app'
+            : 'pages'
+
+          const renderWorker = this.renderWorkers?.[renderKind]
+
+          if (renderWorker) {
+            const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+            const { port, hostname } = await renderWorker.initialize(
+              this.renderWorkerOpts!
+            )
+            const renderUrl = new URL(initUrl)
+            renderUrl.hostname = hostname
+            renderUrl.port = port + ''
+
+            let invokePathname = pathname
+            const normalizedInvokePathname =
+              this.localeNormalizer?.normalize(pathname)
+
+            if (normalizedInvokePathname?.startsWith('/api')) {
+              invokePathname = normalizedInvokePathname
+            }
+
+            if (query.__nextDataReq) {
+              invokePathname = `/_next/data/${this.buildId}${invokePathname}.json`
+            }
+            const keptQuery = new URLSearchParams()
+
+            for (const key of Object.keys(query)) {
+              if (key.startsWith('__next') || key.startsWith('_next')) {
+                continue
+              }
+              if (Array.isArray(query[key])) {
+                ;(query[key] as string[]).forEach((val) => {
+                  keptQuery.append(key, val)
+                })
+              } else {
+                keptQuery.set(key, query[key] as string)
+              }
+            }
+            const invokeQueryStr = keptQuery.toString()
+            const matchedPath = `${invokePathname}${
+              invokeQueryStr ? `?${invokeQueryStr}` : ''
+            }`
+            const invokeRes = await fetch(renderUrl, {
+              headers: {
+                ...(req.headers as any),
+                'x-matched-path': matchedPath,
+              },
+              redirect: 'manual',
+            })
+
+            for (const [key, value] of Object.entries(
+              toNodeHeaders(invokeRes.headers)
+            )) {
+              if (
+                ![
+                  'content-encoding',
+                  'transfer-encoding',
+                  'keep-alive',
+                  'connection',
+                ].includes(key) &&
+                value !== undefined
+              ) {
+                res.setHeader(key, value)
+              }
+            }
+            res.statusCode = invokeRes.status
+            for await (const chunk of invokeRes.body || ([] as any)) {
+              this.streamResponseChunk(res as NodeNextResponse, chunk)
+            }
+            res.send()
+            return {
+              finished: true,
+            }
+          }
+        }
 
         if (match) {
           addRequestMeta(req, '_nextMatch', match)
@@ -1553,7 +1750,7 @@ export default class NextNodeServer extends BaseServer {
     let afterFiles: Route[] = []
     let fallback: Route[] = []
 
-    if (!this.minimalMode) {
+    if (!this.minimalMode && !this.isRenderWorker) {
       const buildRewrite = (rewrite: Rewrite, check = true): Route => {
         const rewriteRoute = getCustomRoute({
           type: 'rewrite',
@@ -1877,9 +2074,25 @@ export default class NextNodeServer extends BaseServer {
           type: 'route',
           name: 'middleware catchall',
           fn: async (req, res, _params, parsed) => {
+            const isMiddlewareInvoke =
+              this.isRenderWorker && req.headers['x-middleware-invoke']
+
+            const handleFinished = (finished: boolean = false) => {
+              if (isMiddlewareInvoke && !finished) {
+                res.setHeader('x-middleware-invoke', '1')
+                res.body('').send()
+                return { finished: true }
+              }
+              return { finished }
+            }
+
+            if (this.isRenderWorker && !isMiddlewareInvoke) {
+              return { finished: false }
+            }
+
             const middleware = this.getMiddleware()
             if (!middleware) {
-              return { finished: false }
+              return handleFinished()
             }
 
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
@@ -1893,7 +2106,7 @@ export default class NextNodeServer extends BaseServer {
               parsed.pathname || ''
             )
             if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
-              return { finished: false }
+              return handleFinished()
             }
 
             let result: Awaited<
@@ -1901,12 +2114,67 @@ export default class NextNodeServer extends BaseServer {
             >
 
             try {
-              result = await this.runMiddleware({
-                request: req,
-                response: res,
-                parsedUrl: parsedUrl,
-                parsed: parsed,
-              })
+              await this.ensureMiddleware()
+
+              if (this.isRouterWorker && this.renderWorkers?.middleware) {
+                const { port, hostname } =
+                  await this.renderWorkers.middleware.initialize(
+                    this.renderWorkerOpts!
+                  )
+                const renderUrl = new URL(initUrl)
+                renderUrl.hostname = hostname
+                renderUrl.port = port + ''
+
+                const invokeRes = await fetch(renderUrl, {
+                  headers: {
+                    ...(req.headers as any),
+                    'x-middleware-invoke': '1',
+                  },
+                  redirect: 'manual',
+                })
+
+                result = {
+                  response: new Response(invokeRes.body, {
+                    status: invokeRes.status,
+                    headers: new Headers(invokeRes.headers),
+                  }),
+                  waitUntil: Promise.resolve(),
+                }
+                for (const key of [
+                  'content-encoding',
+                  'transfer-encoding',
+                  'keep-alive',
+                  'connection',
+                ]) {
+                  result.response.headers.delete(key)
+                }
+              } else {
+                result = await this.runMiddleware({
+                  request: req,
+                  response: res,
+                  parsedUrl: parsedUrl,
+                  parsed: parsed,
+                })
+
+                if (isMiddlewareInvoke && 'response' in result) {
+                  for (const [key, value] of Object.entries(
+                    toNodeHeaders(result.response.headers)
+                  )) {
+                    if (key !== 'content-encoding' && value !== undefined) {
+                      res.setHeader(key, value)
+                    }
+                  }
+                  res.statusCode = result.response.status
+                  for await (const chunk of result.response.body ||
+                    ([] as any)) {
+                    this.streamResponseChunk(res as NodeNextResponse, chunk)
+                  }
+                  res.send()
+                  return {
+                    finished: true,
+                  }
+                }
+              }
             } catch (err) {
               if (isError(err) && err.code === 'ENOENT') {
                 await this.render404(req, res, parsed)
@@ -2050,10 +2318,12 @@ export default class NextNodeServer extends BaseServer {
               addRequestMeta(req, '_nextRewroteUrl', newUrl)
               addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
-              return {
-                finished: false,
-                pathname: newUrl,
-                query: parsedDestination.query,
+              if (!isMiddlewareInvoke) {
+                return {
+                  finished: false,
+                  pathname: newUrl,
+                  query: parsedDestination.query,
+                }
               }
             }
 

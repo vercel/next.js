@@ -124,7 +124,7 @@ export async function makeResolver(
   }
 
   const routeResults = new WeakMap<any, string>()
-  const routes = devServer.generateRoutes()
+  const routes = devServer.generateRoutes(true)
   // @ts-expect-error protected
   const catchAllMiddleware = devServer.generateCatchAllMiddlewareRoute(true)
 

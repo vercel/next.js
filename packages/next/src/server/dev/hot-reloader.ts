@@ -158,6 +158,10 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
+export function cleanDistDir(distDir: string) {
+  return recursiveDelete(distDir, /^cache/)
+}
+
 export default class HotReloader {
   private dir: string
   private buildId: string
@@ -438,9 +442,7 @@ export default class HotReloader {
   private async clean(span: Span): Promise<void> {
     return span
       .traceChild('clean')
-      .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
-      )
+      .traceAsyncFn(() => cleanDistDir(join(this.dir, this.config.distDir)))
   }
 
   private async getVersionInfo(span: Span, enabled: boolean) {
@@ -635,7 +637,7 @@ export default class HotReloader {
     })
   }
 
-  public async start(): Promise<void> {
+  public async start(skipClean?: boolean): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
@@ -644,7 +646,9 @@ export default class HotReloader {
       !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
     )
 
-    await this.clean(startSpan)
+    if (!skipClean) {
+      await this.clean(startSpan)
+    }
     // Ensure distDir exists before writing package.json
     await fs.mkdir(this.distDir, { recursive: true })
 
