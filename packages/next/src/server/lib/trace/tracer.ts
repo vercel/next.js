@@ -173,7 +173,7 @@ class NextTracerImpl implements NextTracer {
           }
         : {
             fn: fnOrEmpty,
-            options: fnOrOptions,
+            options: { ...fnOrOptions },
           }
 
     if (
@@ -189,6 +189,12 @@ class NextTracerImpl implements NextTracer {
     const spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
+
+    options.attributes = {
+      'next.span_name': spanName,
+      'next.span_type': type,
+      ...options.attributes,
+    }
 
     const runWithContext = (actualFn: (span: Span) => T | Promise<T>) =>
       spanContext

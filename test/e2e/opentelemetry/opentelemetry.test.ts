@@ -83,6 +83,8 @@ createNextDescribe(
               "http.method": "GET",
               "http.status_code": 200,
               "http.target": "/pages",
+              "next.span_name": "GET /pages",
+              "next.span_type": "BaseServer.handleRequest",
             },
             "kind": 1,
             "name": "GET /pages",
@@ -94,6 +96,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/pages",
+              "next.span_name": "rendering /pages",
+              "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
             "name": "rendering /pages",
@@ -105,6 +109,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/pages",
+              "next.span_name": "resolving route /pages",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
             "name": "resolving route /pages",
@@ -127,6 +133,8 @@ createNextDescribe(
               "http.method": "GET",
               "http.status_code": 200,
               "http.target": "/pages/params/stuff",
+              "next.span_name": "GET /pages/params/stuff",
+              "next.span_type": "BaseServer.handleRequest",
             },
             "kind": 1,
             "name": "GET /pages/params/stuff",
@@ -138,6 +146,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/pages/params/stuff",
+              "next.span_name": "rendering /pages/params/stuff",
+              "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
             "name": "rendering /pages/params/stuff",
@@ -149,6 +159,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/pages/params/[param]",
+              "next.span_name": "resolving route /pages/params/[param]",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
             "name": "resolving route /pages/params/[param]",
@@ -171,6 +183,8 @@ createNextDescribe(
               "http.method": "GET",
               "http.url": "https://vercel.com/",
               "net.peer.name": "vercel.com",
+              "next.span_name": "fetch GET https://vercel.com/",
+              "next.span_type": "AppRender.fetch",
             },
             "kind": 2,
             "name": "fetch GET https://vercel.com/",
@@ -184,6 +198,8 @@ createNextDescribe(
               "http.method": "GET",
               "http.status_code": 200,
               "http.target": "/app/rsc-fetch",
+              "next.span_name": "GET /app/rsc-fetch",
+              "next.span_type": "BaseServer.handleRequest",
             },
             "kind": 1,
             "name": "GET /app/rsc-fetch",
@@ -195,6 +211,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/app/rsc-fetch",
+              "next.span_name": "rendering /app/rsc-fetch",
+              "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
             "name": "rendering /app/rsc-fetch",
@@ -206,6 +224,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/app/rsc-fetch/page",
+              "next.span_name": "resolving route /app/rsc-fetch/page",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
             "name": "resolving route /app/rsc-fetch/page",
@@ -228,6 +248,8 @@ createNextDescribe(
               "http.method": "GET",
               "http.status_code": 200,
               "http.target": "/pages/getServerSideProps",
+              "next.span_name": "GET /pages/getServerSideProps",
+              "next.span_type": "BaseServer.handleRequest",
             },
             "kind": 1,
             "name": "GET /pages/getServerSideProps",
@@ -237,7 +259,10 @@ createNextDescribe(
             },
           },
           Object {
-            "attributes": Object {},
+            "attributes": Object {
+              "next.span_name": "getServerSideProps /pages/getServerSideProps",
+              "next.span_type": "Render.getServerSideProps",
+            },
             "kind": 0,
             "name": "getServerSideProps /pages/getServerSideProps",
             "parentId": "[parent-id]",
@@ -248,6 +273,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/pages/getServerSideProps",
+              "next.span_name": "rendering /pages/getServerSideProps",
+              "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
             "name": "rendering /pages/getServerSideProps",
@@ -259,6 +286,8 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/pages/getServerSideProps",
+              "next.span_name": "resolving route /pages/getServerSideProps",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
             "name": "resolving route /pages/getServerSideProps",
@@ -281,6 +310,8 @@ createNextDescribe(
               "http.method": "GET",
               "http.status_code": 200,
               "http.target": "/api/pages/basic",
+              "next.span_name": "GET /api/pages/basic",
+              "next.span_type": "BaseServer.handleRequest",
             },
             "kind": 1,
             "name": "GET /api/pages/basic",
