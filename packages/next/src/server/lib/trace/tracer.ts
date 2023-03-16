@@ -1,4 +1,4 @@
-import { NextVanillaSpanAllowlist, SpanNames } from './constants'
+import { NextVanillaSpanAllowlist, SpanTypes } from './constants'
 
 import type { ContextAPI, Span, SpanOptions, Tracer } from '@opentelemetry/api'
 
@@ -52,20 +52,20 @@ interface NextTracer {
    *
    */
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
@@ -84,14 +84,14 @@ interface NextTracer {
    * * The function doesn't accept a callback and doesn't return a promise, in
    * which case the span will finish at the end of the function execution.
    */
-  wrap<T = (...args: Array<any>) => any>(name: SpanNames, fn: T): T
+  wrap<T = (...args: Array<any>) => any>(name: SpanTypes, fn: T): T
   wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: T
   ): T
   wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
@@ -104,8 +104,8 @@ interface NextTracer {
    * context via `tracer.getContext().with`. `trace`, or `wrap` is generally recommended as it gracefully
    * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
-  startSpan(name: SpanNames): Span
-  startSpan(name: SpanNames, options: TracerSpanOptions): Span
+  startSpan(name: SpanTypes): Span
+  startSpan(name: SpanTypes, options: TracerSpanOptions): Span
 
   /**
    * Returns currently activated span if current context is in the scope of the span.
@@ -135,20 +135,20 @@ class NextTracerImpl implements NextTracer {
   // Trace, wrap implementation is inspired by datadog trace implementation
   // (https://datadoghq.dev/dd-trace-js/interfaces/tracer.html#trace).
   public trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
   public trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => Promise<T>
   ): Promise<T>
   public trace<T>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: (span: Span, done?: (error?: Error) => any) => T
   ): T
@@ -220,14 +220,14 @@ class NextTracerImpl implements NextTracer {
     })
   }
 
-  public wrap<T = (...args: Array<any>) => any>(name: SpanNames, fn: T): T
+  public wrap<T = (...args: Array<any>) => any>(name: SpanTypes, fn: T): T
   public wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: TracerSpanOptions,
     fn: T
   ): T
   public wrap<T = (...args: Array<any>) => any>(
-    name: SpanNames,
+    name: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
   ): T
@@ -268,8 +268,8 @@ class NextTracerImpl implements NextTracer {
     }
   }
 
-  public startSpan(name: SpanNames): Span
-  public startSpan(name: SpanNames, options: TracerSpanOptions): Span
+  public startSpan(name: SpanTypes): Span
+  public startSpan(name: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
     const [name, options]: [string, TracerSpanOptions | undefined] = args as any
 
