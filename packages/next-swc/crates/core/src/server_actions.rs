@@ -251,18 +251,13 @@ impl<C: Comments> ServerActions<C> {
                     op: op!("="),
                     right: Box::new(Expr::Arrow(new_arrow)),
                 }))];
-                exprs.extend(
-                    arrow_annotations
-                        .into_iter()
-                        .map(|a| {
-                            if let Stmt::Expr(ExprStmt { expr, .. }) = a {
-                                expr
-                            } else {
-                                unreachable!()
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                );
+                exprs.extend(arrow_annotations.into_iter().map(|a| {
+                    if let Stmt::Expr(ExprStmt { expr, .. }) = a {
+                        expr
+                    } else {
+                        unreachable!()
+                    }
+                }));
                 exprs.push(Box::new(Expr::Ident(ident.clone())));
 
                 let new_paren = ParenExpr {
