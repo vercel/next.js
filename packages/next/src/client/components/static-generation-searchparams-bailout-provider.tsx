@@ -4,11 +4,11 @@ import { createSearchParamsBailoutProxy } from './searchparams-bailout-proxy'
 
 export default function StaticGenerationSearchParamsBailoutProvider({
   Component,
-  props,
+  propsForComponent,
 }: {
   Component: React.ComponentType<any>
   propsForComponent: any
 }) {
-  const searchParams = createSearchParamsBailoutProxy({})
-  return <Component searchParams={searchParams} {...props} />
+  const searchParams = createSearchParamsBailoutProxy()
+  return <Component searchParams={searchParams} {...propsForComponent} />
 }
