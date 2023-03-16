@@ -80,6 +80,7 @@ export const WEBPACK_LAYERS = {
   shared: 'sc_shared',
   server: 'sc_server',
   client: 'sc_client',
+  action: 'sc_action',
   api: 'api',
   middleware: 'middleware',
   edgeAsset: 'edge-asset',

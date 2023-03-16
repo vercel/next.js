@@ -3,7 +3,7 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
-import type { FlightCSSManifest } from './flight-manifest-plugin'
+import type { ClientCSSReferenceManifest } from './flight-manifest-plugin'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringify } from 'querystring'
@@ -29,9 +29,8 @@ import {
   isClientComponentModule,
   regexCSS,
 } from '../loaders/utils'
-import { traverseModules } from '../utils'
+import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { getProxiedPluginState } from '../../build-context'
 
 interface Options {
@@ -57,8 +56,8 @@ const pluginState = getProxiedPluginState({
   actionModId: {} as Record<string, string | number>,
 
   // Manifest of CSS entry files for server/edge server.
-  serverCSSManifest: {} as FlightCSSManifest,
-  edgeServerCSSManifest: {} as FlightCSSManifest,
+  serverCSSManifest: {} as ClientCSSReferenceManifest,
+  edgeServerCSSManifest: {} as ClientCSSReferenceManifest,
 
   // Mapping of resource path to module id for server/edge server.
   serverModuleIds: {} as Record<string, string | number>,
@@ -72,7 +71,7 @@ const pluginState = getProxiedPluginState({
   injectedClientEntries: {} as Record<string, string>,
 })
 
-export class FlightClientEntryPlugin {
+export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
@@ -98,9 +97,9 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) => {
-      return this.createClientEntries(compiler, compilation)
-    })
+    compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) =>
+      this.createClientEntries(compiler, compilation)
+    )
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
       const recordModule = (modId: string, mod: any) => {
@@ -166,60 +165,9 @@ export class FlightClientEntryPlugin {
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
 
-    // Loop over all the entry modules.
-    function forEachEntryModule(
-      callback: ({
-        name,
-        entryModule,
-      }: {
-        name: string
-        entryModule: any
-      }) => void
-    ) {
-      for (const [name, entry] of compilation.entries.entries()) {
-        // Skip for entries under pages/
-        if (
-          name.startsWith('pages/') ||
-          // Skip for route.js entries
-          (name.startsWith('app/') && isAppRouteRoute(name))
-        ) {
-          continue
-        }
-
-        // Check if the page entry is a server component or not.
-        const entryDependency: webpack.NormalModule | undefined =
-          entry.dependencies?.[0]
-        // Ensure only next-app-loader entries are handled.
-        if (!entryDependency || !entryDependency.request) continue
-
-        const request = entryDependency.request
-
-        if (
-          !request.startsWith('next-edge-ssr-loader?') &&
-          !request.startsWith('next-app-loader?')
-        )
-          continue
-
-        let entryModule: webpack.NormalModule =
-          compilation.moduleGraph.getResolvedModule(entryDependency)
-
-        if (request.startsWith('next-edge-ssr-loader?')) {
-          entryModule.dependencies.forEach((dependency) => {
-            const modRequest: string | undefined = (dependency as any).request
-            if (modRequest?.includes('next-app-loader')) {
-              entryModule =
-                compilation.moduleGraph.getResolvedModule(dependency)
-            }
-          })
-        }
-
-        callback({ name, entryModule })
-      }
-    }
-
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
-    forEachEntryModule(({ name, entryModule }) => {
+    forEachEntryModule(compilation, ({ name, entryModule }) => {
       const internalClientComponentEntryImports = new Set<
         ClientComponentImports[0]
       >()
@@ -305,6 +253,85 @@ export class FlightClientEntryPlugin {
       }
     })
 
+    // To collect all CSS imports and action imports for a specific entry
+    // including the ones that are in the client graph, we need to store a
+    // map for client boundary dependencies.
+    function collectClientEntryDependencyMap(name: string) {
+      const clientEntryDependencyMap: Record<string, any> = {}
+
+      const entry = compilation.entries.get(name)
+      entry.includeDependencies.forEach((dep: any) => {
+        if (
+          dep.request &&
+          dep.request.startsWith('next-flight-client-entry-loader?')
+        ) {
+          const mod: webpack.NormalModule =
+            compilation.moduleGraph.getResolvedModule(dep)
+
+          compilation.moduleGraph
+            .getOutgoingConnections(mod)
+            .forEach((connection: any) => {
+              if (connection.dependency) {
+                clientEntryDependencyMap[connection.dependency.request] =
+                  connection.dependency
+              }
+            })
+        }
+      })
+
+      return clientEntryDependencyMap
+    }
+
+    // We need to create extra action entries that are created in the
+    // client layer.
+    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, () => {
+      const addedClientActionEntryList: Promise<any>[] = []
+
+      forEachEntryModule(compilation, ({ name, entryModule }) => {
+        const actionEntryImports = new Map<string, string[]>()
+        const clientEntryDependencyMap = collectClientEntryDependencyMap(name)
+
+        const tracked = new Set<string>()
+        for (const connection of compilation.moduleGraph.getOutgoingConnections(
+          entryModule
+        )) {
+          const entryDependency = connection.dependency
+          const entryRequest = connection.dependency.request
+
+          // It is possible that the same entry is added multiple times in the
+          // connection graph. We can just skip these to speed up the process.
+          if (tracked.has(entryRequest)) continue
+          tracked.add(entryRequest)
+
+          const { clientActionImports } =
+            this.collectComponentInfoFromDependencies({
+              entryRequest,
+              compilation,
+              dependency: entryDependency,
+              clientEntryDependencyMap,
+            })
+
+          clientActionImports.forEach(([dep, names]) =>
+            actionEntryImports.set(dep, names)
+          )
+        }
+
+        if (actionEntryImports.size > 0) {
+          addedClientActionEntryList.push(
+            this.injectActionEntry({
+              compiler,
+              compilation,
+              actions: actionEntryImports,
+              entryName: name,
+              bundlePath: name,
+              fromClient: true,
+            })
+          )
+        }
+      })
+      return Promise.all(addedClientActionEntryList)
+    })
+
     // After optimizing all the modules, we collect the CSS that are still used
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
@@ -351,40 +378,15 @@ export class FlightClientEntryPlugin {
           }
 
           const entryCSSInfo: Record<string, string[]> =
-            cssManifest.__entry_css_mods__ || {}
+            cssManifest.cssModules || {}
           entryCSSInfo[entryName] = [...cssImportsForChunk[entryName]]
 
-          Object.assign(cssManifest, {
-            __entry_css_mods__: entryCSSInfo,
-          })
+          cssManifest.cssModules = entryCSSInfo
         })
       })
 
-      forEachEntryModule(({ name, entryModule }) => {
-        // To collect all CSS imports for a specific entry including the ones
-        // that are in the client graph, we need to store a map for client boundary
-        // dependencies.
-        const clientEntryDependencyMap: Record<string, any> = {}
-        const entry = compilation.entries.get(name)
-        entry.includeDependencies.forEach((dep: any) => {
-          if (
-            dep.request &&
-            dep.request.startsWith('next-flight-client-entry-loader?')
-          ) {
-            const mod: webpack.NormalModule =
-              compilation.moduleGraph.getResolvedModule(dep)
-
-            compilation.moduleGraph
-              .getOutgoingConnections(mod)
-              .forEach((connection: any) => {
-                if (connection.dependency) {
-                  clientEntryDependencyMap[connection.dependency.request] =
-                    connection.dependency
-                }
-              })
-          }
-        })
-
+      forEachEntryModule(compilation, ({ name, entryModule }) => {
+        const clientEntryDependencyMap = collectClientEntryDependencyMap(name)
         const tracked = new Set<string>()
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
@@ -404,7 +406,8 @@ export class FlightClientEntryPlugin {
             clientEntryDependencyMap,
           })
 
-          Object.assign(cssManifest, cssImports)
+          if (!cssManifest.cssImports) cssManifest.cssImports = {}
+          Object.assign(cssManifest.cssImports, cssImports)
         }
       })
     })
@@ -417,18 +420,17 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify(
-          {
-            ...pluginState.serverCSSManifest,
-            ...pluginState.edgeServerCSSManifest,
-            __entry_css_mods__: {
-              ...pluginState.serverCSSManifest.__entry_css_mods__,
-              ...pluginState.edgeServerCSSManifest.__entry_css_mods__,
-            },
+        const data: ClientCSSReferenceManifest = {
+          cssImports: {
+            ...pluginState.serverCSSManifest.cssImports,
+            ...pluginState.edgeServerCSSManifest.cssImports,
           },
-          null,
-          this.dev ? 2 : undefined
-        )
+          cssModules: {
+            ...pluginState.serverCSSManifest.cssModules,
+            ...pluginState.edgeServerCSSManifest.cssModules,
+          },
+        }
+        const manifest = JSON.stringify(data, null, this.dev ? 2 : undefined)
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           manifest
         ) as unknown as webpack.sources.RawSource
@@ -476,6 +478,7 @@ export class FlightClientEntryPlugin {
     clientImports: ClientComponentImports
     cssImports: CssImports
     actionImports: [string, string[]][]
+    clientActionImports: [string, string[]][]
   } {
     /**
      * Keep track of checked modules to avoid infinite loops with recursive imports.
@@ -483,6 +486,7 @@ export class FlightClientEntryPlugin {
     const visitedBySegment: { [segment: string]: Set<string> } = {}
     const clientComponentImports: ClientComponentImports = []
     const actionImports: [string, string[]][] = []
+    const clientActionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
 
     const filterClientComponents = (
@@ -517,7 +521,11 @@ export class FlightClientEntryPlugin {
 
       const actions = getActions(mod)
       if (actions) {
-        actionImports.push([modRequest, actions])
+        if (isClientComponent) {
+          clientActionImports.push([modRequest, actions])
+        } else {
+          actionImports.push([modRequest, actions])
+        }
       }
 
       if (isCSS) {
@@ -564,9 +572,6 @@ export class FlightClientEntryPlugin {
         })
     }
 
-    // Traverse the module graph to find all client components.
-    filterClientComponents(dependency, false)
-
     // Don't traverse the module graph for the action loader.
     if (!/next-flight-action-entry-loader/.test(entryRequest)) {
       // Traverse the module graph to find all client components.
@@ -581,6 +586,7 @@ export class FlightClientEntryPlugin {
           }
         : {},
       actionImports,
+      clientActionImports,
     }
   }
 
@@ -695,12 +701,14 @@ export class FlightClientEntryPlugin {
     actions,
     entryName,
     bundlePath,
+    fromClient,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
     actions: Map<string, string[]>
     entryName: string
     bundlePath: string
+    fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
     const actionLoader = `next-flight-action-entry-loader?${stringify({
@@ -734,7 +742,7 @@ export class FlightClientEntryPlugin {
       actionEntryDep,
       {
         name: entryName,
-        layer: WEBPACK_LAYERS.server,
+        layer: fromClient ? WEBPACK_LAYERS.action : WEBPACK_LAYERS.server,
       }
     )
   }

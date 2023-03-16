@@ -8,6 +8,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
+import { callServer } from './app-call-server'
 
 /// <reference types="react-dom/experimental" />
 
@@ -151,24 +152,7 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   })
 
   const newResponse = createFromReadableStream(readable, {
-    async callServer(id: string, args: any[]) {
-      const actionId = id
-
-      // Fetching the current url with the action header.
-      // TODO: Refactor this to look up from a manifest.
-      const res = await fetch('', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Next-Action': actionId,
-        },
-        body: JSON.stringify({
-          bound: args,
-        }),
-      })
-
-      return (await res.json())[0]
-    },
+    callServer,
   })
 
   rscCache.set(cacheKey, newResponse)

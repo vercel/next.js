@@ -9,7 +9,11 @@ import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
+import {
+  buildMetadata,
+  discoverStaticMetadataFiles,
+  METADATA_RESOURCE_QUERY,
+} from './metadata/discover'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
@@ -68,7 +72,9 @@ async function createAppRouteCode({
   let resolvedPagePath = (await resolver(routePath))!
 
   if (isMetadataRoute(name)) {
-    resolvedPagePath = `next-metadata-route-loader!${resolvedPagePath}`
+    resolvedPagePath = `next-metadata-route-loader!${
+      resolvedPagePath + METADATA_RESOURCE_QUERY
+    }`
   }
 
   // TODO: verify if other methods need to be injected

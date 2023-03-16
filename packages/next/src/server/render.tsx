@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
@@ -246,7 +247,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  serverComponentManifest?: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: any
   nextFontManifest?: NextFontManifest
   distDir?: string
