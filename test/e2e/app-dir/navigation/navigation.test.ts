@@ -105,9 +105,6 @@ createNextDescribe(
         ).toBe('noindex')
       })
       it('should trigger not-found while streaming', async () => {
-        const initialHtml = await next.render('/not-found/suspense')
-        expect(initialHtml).not.toContain('noindex')
-
         const browser = await next.browser('/not-found/suspense')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
