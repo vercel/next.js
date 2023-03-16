@@ -7,6 +7,9 @@ import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
   File,
+  findPort,
+  killApp,
+  launchApp,
   nextBuild,
   nextExport,
   startStaticServer,
@@ -20,12 +23,13 @@ const distDir = join(__dirname, '.next')
 const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
-const delay = 100
 
 async function runTests({
+  isDev,
   trailingSlash,
   dynamic,
 }: {
+  isDev?: boolean
   trailingSlash?: boolean
   dynamic?: string
 }) {
@@ -43,12 +47,18 @@ async function runTests({
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)
-  await nextBuild(appDir)
-  await nextExport(appDir, { outdir: exportDir })
-  const app = await startStaticServer(exportDir)
-  const address = app.address()
-  const appPort = typeof address !== 'string' ? address.port : 3000
-
+  const delay = isDev ? 500 : 100
+  const appPort = await findPort()
+  let stopOrKill: () => Promise<void>
+  if (isDev) {
+    const app = await launchApp(appDir, appPort)
+    stopOrKill = async () => await killApp(app)
+  } else {
+    await nextBuild(appDir)
+    await nextExport(appDir, { outdir: exportDir })
+    const app = await startStaticServer(exportDir, null, appPort)
+    stopOrKill = async () => await stopApp(app)
+  }
   try {
     const a = (n: number) => `li:nth-child(${n}) a`
     console.log('[navigate]')
@@ -108,15 +118,20 @@ async function runTests({
       '/test.3f1a293b.png'
     )
   } finally {
-    await stopApp(app)
+    await stopOrKill()
     nextConfig.restore()
     slugPage.restore()
   }
 }
 
-describe('app dir with next export', () => {
-  it.each([{ trailingSlash: false }, { trailingSlash: true }])(
-    "should work with trailingSlash '$trailingSlash'",
+describe('app dir with output export', () => {
+  it.each([
+    { isDev: true, trailingSlash: false },
+    { isDev: true, trailingSlash: true },
+    { isDev: false, trailingSlash: false },
+    { isDev: false, trailingSlash: true },
+  ])(
+    "should work with isDev '$isDev' and trailingSlash '$trailingSlash'",
     async ({ trailingSlash }) => {
       await runTests({ trailingSlash })
     }
