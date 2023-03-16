@@ -23,6 +23,7 @@ const distDir = join(__dirname, '.next')
 const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
+const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
 async function runTests({
   isDev,
@@ -121,6 +122,7 @@ async function runTests({
     await stopOrKill()
     nextConfig.restore()
     slugPage.restore()
+    apiJson.restore()
   }
 }
 
@@ -140,7 +142,7 @@ describe('app dir with output export', () => {
     { dynamic: 'undefined' },
     { dynamic: "'error'" },
     { dynamic: "'force-static'" },
-  ])('should work with dynamic $dynamic', async ({ dynamic }) => {
+  ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
     await runTests({ dynamic })
     const opts = { cwd: exportDir, nodir: true }
     const files = ((await glob('**/*', opts)) as string[])
@@ -168,7 +170,7 @@ describe('app dir with output export', () => {
       'robots.txt',
     ])
   })
-  it("should throw when dynamic 'force-dynamic'", async () => {
+  it("should throw when dynamic 'force-dynamic' on page", async () => {
     slugPage.replace(
       `const dynamic = 'force-static'`,
       `const dynamic = 'force-dynamic'`
@@ -181,10 +183,31 @@ describe('app dir with output export', () => {
     } finally {
       nextConfig.restore()
       slugPage.restore()
+      apiJson.restore()
     }
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(
       'export const dynamic = "force-dynamic" on page "/another/[slug]" cannot be used with "output: export".'
+    )
+  })
+  it("should throw when dynamic 'force-dynamic' on route handler", async () => {
+    apiJson.replace(
+      `const dynamic = 'force-static'`,
+      `const dynamic = 'force-dynamic'`
+    )
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    let result = { code: 0, stderr: '' }
+    try {
+      result = await nextBuild(appDir, [], { stderr: true })
+    } finally {
+      nextConfig.restore()
+      slugPage.restore()
+      apiJson.restore()
+    }
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".'
     )
   })
 })
