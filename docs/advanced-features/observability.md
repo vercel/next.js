@@ -1,78 +1,70 @@
 ---
-description: Learn how instrument your Next.js app with OpenTelemetry
+description: Learn how instrument your Next.js app with OpenTelemetry.
 ---
+
+> **Note**: This feature is experimental, you need to explicitly opt-in by providing `experimental.instrumentationHook = true;` in your `next.config.js`.
+
+### Specify the Preview Mode duration
 
 # Observability in Next.js
 
-Next.js is a popular React-based framework for building server-side rendered and static websites. It comes with built-in support for OpenTelemetry, an observability framework for collecting, processing, and exporting telemetry data. With Next.js and OpenTelemetry, developers can easily monitor and diagnose issues with their applications in real-time.
-
-This document will provide an overview of how to leverage the built-in OpenTelemetry support in Next.js to enable observability in your applications.
+Observability is crucial for understanding and optimizing the behavior and performance of modern web applications built with Next.js. As applications become more complex, it becomes increasingly difficult to identify and diagnose issues that may arise. By leveraging observability tools such as logging and metrics, developers can gain insights into their application's behavior and identify areas for optimization. With observability, developers can proactively address issues before they become major problems and provide a better user experience. Therefore, it is highly recommended to use observability in your Next.js applications to improve performance, optimize resources, and enhance user experience.
 
 ## Getting Started with OpenTelemetry in Next.js
 
-To get started with OpenTelemetry in Next.js, you need to install the necessary packages. Run the following command to install the required packages:
+Next.js supports OpenTelemetry which allows you to easily change your observability provider without changing your code.
+
+Firstly you need to install required packages:
 
 ```bash
-npm install @opentelemetry/core @opentelemetry/web @opentelemetry/plugin-xml-http-request @opentelemetry/plugin-document-load @opentelemetry/exporter-collector-proto @opentelemetry/exporter-zipkin
+npm install @opentelemetry/api @opentelemetry/exporter-trace-otlp-http @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/semantic-conventions
 ```
 
-This will install the OpenTelemetry core package, as well as plugins for XML HTTP requests and document loads. It also includes exporters for sending telemetry data to a collector or Zipkin.
+Next, you need to provide a `register` function that initializes OpenTelemetry tracer. We recommend using two files, in order to import OpenTelemetry dependencies in the correct environment.
 
-Next, you need to create an OpenTelemetry tracer and start it. You can do this in your pages/\_app.js file, which is the entry point for your Next.js application.
+```ts
+// instrumentation.ts
 
-```javascript
-import { NodeTracerProvider } from '@opentelemetry/node'
-import { SimpleSpanProcessor } from '@opentelemetry/tracing'
-import { ZipkinExporter } from '@opentelemetry/exporter-zipkin'
+export function register() {
+  // We need to make sure that we import these files only in Node.js environment.
+  // OpenTelemetry is **not** supported on Edge or Client side at the moment.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    require('./instrumentation-node')
+  }
+}
+```
 
-const provider = new NodeTracerProvider()
+```ts
+// instrumentation-node.ts
 
-provider.addSpanProcessor(
-  new SimpleSpanProcessor(
-    new ZipkinExporter({
-      serviceName: 'my-next-app',
-    })
-  )
-)
+import { Resource } from '@opentelemetry/resources'
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import {
+  NodeTracerProvider,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-node'
 
+// You can use gRPC exporter instead
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+
+// Next.js expects you to use to register TraceProvider. It won't work if you use NodeSDK.
+// We use registered provider to create traces inside of Next.js internals.
+const provider = new NodeTracerProvider({
+  resource: new Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+  }),
+})
+
+provider.addSpanProcessor(new SimpleSpanProcessor(new OTLPTraceExporter({})))
+
+// Make sure to register you provider
 provider.register()
 ```
 
-This code creates an OpenTelemetry Node.js tracer provider, adds a simple span processor, and registers it. The span processor exports the telemetry data to a Zipkin exporter, which sends it to a Zipkin server.
+> **Note**: We have created a simple [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
 
-Collecting and Exporting Telemetry Data
-Next.js and OpenTelemetry make it easy to collect and export telemetry data from your application. You can use the @opentelemetry/web package to instrument your client-side code, and the @opentelemetry/plugin-xml-http-request package to instrument your XML HTTP requests.
+### Specify the Preview Mode duration
 
-javascript
-Copy code
-import { trace } from '@opentelemetry/web';
-import { XMLHttpRequestPlugin } from '@opentelemetry/plugin-xml-http-request';
+## Testing your instrumentation
 
-trace.setGlobalTracerProvider(provider);
-trace.getTracer('my-next-app');
-
-const xmlHttpRequestPlugin = new XMLHttpRequestPlugin();
-xmlHttpRequestPlugin.enable();
-This code enables tracing for client-side code and XML HTTP requests by setting the global tracer provider and enabling the XML HTTP request plugin. You can also use the @opentelemetry/plugin-document-load package to instrument your document loads.
-
-javascript
-Copy code
-import { DocumentLoadPlugin } from '@opentelemetry/plugin-document-load';
-
-const documentLoadPlugin = new DocumentLoadPlugin();
-documentLoadPlugin.enable();
-This code enables tracing for document loads by enabling the document load plugin.
-
-Viewing Telemetry Data
-Once you have collected and exported telemetry data, you can view it in a variety of tools. You can use the OpenTelemetry collector to send data to various backend services, including Jaeger, Prometheus, and ElasticSearch.
-
-javascript
-Copy code
-import { CollectorTraceExporter } from '@opentelemetry/exporter-collector-proto';
-
-const exporter = new CollectorTraceExporter({
-url: 'http://my-opentelemetry-collector:55678/v1/trace',
-});
-
-provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
-This code creates a collector trace exporter that sends the telemetry data to a collector running at `http://my-opentelemetry-collector:55678/v1/
+In order to display your instrumentation you will need a OpenTelemetry collector with a compatible backend. We recommend using our [OpenTelemetry dev environment](https://github.com/vercel/opentelemetry-collector-dev-setup).
