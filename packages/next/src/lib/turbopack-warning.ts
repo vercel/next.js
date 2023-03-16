@@ -24,8 +24,6 @@ const supportedTurbopackNextConfigOptions = [
 export async function validateTurboNextConfig({
   dir,
   isCustomTurbopack,
-  port,
-  hostname,
 }: {
   allowRetry?: boolean
   isCustomTurbopack?: boolean

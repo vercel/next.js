@@ -264,10 +264,11 @@ const nextDev: CliCommand = async (argv) => {
     }
     return server
   } else {
-    let teardownServer = await startServer(devServerOptions)
+    await startServer(devServerOptions)
 
     // if we're using workers we can auto restart on config changes
     if (devServerOptions.useWorkers) {
+      // TODO: watch config and such and restart
     }
   }
 }

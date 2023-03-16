@@ -17,13 +17,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
-import {
-  join,
-  join as pathJoin,
-  relative,
-  resolve as pathResolve,
-  sep,
-} from 'path'
+import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
@@ -53,7 +47,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
-import HotReloader, { cleanDistDir } from './hot-reloader'
+import HotReloader from './hot-reloader'
 import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
