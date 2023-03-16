@@ -3130,8 +3130,8 @@ dependencies = [
  "indexmap",
  "indoc",
  "mime",
- "next-font",
  "next-transform-dynamic",
+ "next-transform-font",
  "next-transform-strip-page-exports",
  "once_cell",
  "qstring",
@@ -3233,16 +3233,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "next-font"
-version = "0.1.0"
-dependencies = [
- "rustc-hash",
- "serde",
- "serde_json",
- "swc_core",
-]
-
-[[package]]
 name = "next-swc"
 version = "0.0.0"
 dependencies = [
@@ -3252,6 +3242,7 @@ dependencies = [
  "fxhash",
  "hex",
  "next-binding",
+ "next-transform-font",
  "once_cell",
  "pathdiff",
  "regex",
@@ -3295,6 +3286,16 @@ dependencies = [
  "pathdiff",
  "swc_core",
  "testing",
+]
+
+[[package]]
+name = "next-transform-font"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "swc_core",
 ]
 
 [[package]]

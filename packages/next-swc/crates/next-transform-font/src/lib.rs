@@ -1,13 +1,13 @@
-use fxhash::FxHashSet;
-use next_binding::swc::core::{
+use rustc_hash::FxHashSet;
+use serde::Deserialize;
+use swc_core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
-        ast::Id,
+        ast::{Id, ModuleItem},
+        atoms::JsWord,
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitWith},
     },
-    ecma::{ast::ModuleItem, atoms::JsWord},
 };
-use serde::Deserialize;
 
 mod find_functions_outside_module_scope;
 mod font_functions_collector;
