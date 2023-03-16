@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
+  fetchViaHTTP,
   File,
   findPort,
   killApp,
@@ -70,7 +71,6 @@ async function runTests({
   }
   try {
     const a = (n: number) => `li:nth-child(${n}) a`
-    console.log('[navigate]')
     const browser = await webdriver(appPort, '/')
     expect(await browser.elementByCss('h1').text()).toBe('Home')
     expect(await browser.elementByCss(a(1)).text()).toBe(
@@ -126,6 +126,13 @@ async function runTests({
     expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
       '/test.3f1a293b.png'
     )
+    const res1 = await fetchViaHTTP(appPort, '/api/json')
+    expect(res1.status).toBe(200)
+    expect(await res1.json()).toEqual({ answer: 42 })
+
+    const res2 = await fetchViaHTTP(appPort, '/api/txt')
+    expect(res2.status).toBe(200)
+    expect(await res2.text()).toEqual('this is plain text')
   } finally {
     await stopOrKill()
     nextConfig.restore()
