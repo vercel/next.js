@@ -88,12 +88,12 @@ if ('${method}' in entry) {
     Diff<
       {
         __tag__: '${method}',
-        __param_number__: string,
+        __param_position__: string,
         __param_type__: Request | NextRequest
       },
       {
         __tag__: '${method}',
-        __param_number__: 'first',
+        __param_position__: 'first',
         __param_type__: FirstArg<MaybeField<TEntry, '${method}'>>
       },
       '${method}'
@@ -103,12 +103,12 @@ if ('${method}' in entry) {
     Diff<
       {
         __tag__: '${method}',
-        __param_number__: string,
+        __param_position__: string,
         __param_type__: PageParams
       },
       {
         __tag__: '${method}',
-        __param_number__: 'second',
+        __param_position__: 'second',
         __param_type__: SecondArg<MaybeField<TEntry, '${method}'>>
       },
       '${method}'

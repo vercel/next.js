@@ -247,7 +247,7 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
         }
 
         const invalidParamFn = messageText.match(
-          /Type '{ __tag__: (.+); __param_number__: "(.*)"; __param_type__: (.+); }' does not satisfy/
+          /Type '{ __tag__: (.+); __param_position__: "(.*)"; __param_type__: (.+); }' does not satisfy/
         )
         if (invalidParamFn) {
           let main = `${type} "${chalk.bold(
