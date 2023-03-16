@@ -7,7 +7,7 @@ createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
-    // skipDeployment: true,
+    skipDeployment: false,
   },
   ({ next, isNextDev, isNextStart }) => {
     const getTitle = (browser: BrowserInterface) =>
@@ -16,7 +16,7 @@ createNextDescribe(
     async function checkMeta(
       browser: BrowserInterface,
       queryValue: string,
-      expected: string | string[],
+      expected: string | string[] | undefined | null,
       queryKey: string = 'property',
       tag: string = 'meta',
       domAttributeField: string = 'content'
@@ -45,7 +45,7 @@ createNextDescribe(
       return async (
         tag: string,
         query: string,
-        expectedObject: Record<string, string>
+        expectedObject: Record<string, string | null | undefined>
       ) => {
         const props = await browser.eval(`
           const el = document.querySelector('${tag}[${query}]');
@@ -118,7 +118,7 @@ createNextDescribe(
         tag: string,
         queryKey: string,
         domAttributeField: string,
-        expected: Record<string, string | string[]>
+        expected: Record<string, string | string[] | undefined | null>
       ) => {
         await Promise.all(
           Object.keys(expected).map(async (key) => {
@@ -427,8 +427,8 @@ createNextDescribe(
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image"]').attr('content')).toMatch(
-          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.png/
+        expect($('[property="og:image"]').attr('content')).toBe(
+          'https://example.com/opengraph/static/opengraph-image.png'
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -436,8 +436,8 @@ createNextDescribe(
         expect($('[property="og:image:width"]').attr('content')).toBe('114')
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
-        expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.png/
+        expect($('[name="twitter:image"]').attr('content')).toBe(
+          'https://example.com/opengraph/static/twitter-image.png'
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
@@ -514,12 +514,12 @@ createNextDescribe(
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/icon1\.png/
+          /\/icons\/static\/nested\/icon1\.png/
         )
         expect($icon.attr('sizes')).toBe('32x32')
         expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/apple-icon\.png/
+          /\/icons\/static\/nested\/apple-icon\.png/
         )
         expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
@@ -531,9 +531,7 @@ createNextDescribe(
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
-        expect($icon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/icon\.png/
-        )
+        expect($icon.attr('href')).toMatch(/\/icons\/static\/icon\.png/)
         expect($icon.attr('sizes')).toBe('114x114')
 
         expect($appleIcon.length).toBe(0)
@@ -550,7 +548,7 @@ createNextDescribe(
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
-          }, /\/_next\/static\/media\/metadata\/icon2\.png/)
+          }, /\/icons\/static\/icon2\.png/)
 
           await next.renameFile(
             'app/icons/static/icon2.png',
