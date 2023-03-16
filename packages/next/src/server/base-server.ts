@@ -1318,7 +1318,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (isAppPath && opts.dev && opts.supportsDynamicHTML === false) {
+    if (
+      !isDataReq &&
+      isAppPath &&
+      opts.dev &&
+      opts.supportsDynamicHTML === false
+    ) {
       opts.supportsDynamicHTML = true
     }
 
@@ -1447,7 +1452,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       // In development, we always want to generate dynamic HTML.
-      const supportsDynamicHTML = opts.dev || !(isSSG || hasStaticPaths)
+      const supportsDynamicHTML =
+        (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths)
 
       const match =
         pathname !== '/_error' && !is404Page && !is500Page
