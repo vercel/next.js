@@ -20,6 +20,9 @@ createNextDescribe(
         .map((line) => JSON.parse(line))
     }
 
+    /** There were issues where OTEL might not be initialized for first few requests (this is a bug).
+     * It made our tests, flaky. This should make tests deterministic.
+     */
     const waitForOtelToInitialize = async () => {
       await check(
         async () =>
@@ -31,32 +34,36 @@ createNextDescribe(
       )
     }
 
-    const waitForRootSpan = async (rootTraces) => {
+    const waitForRootSpan = async (numberOfRootTraces: number) => {
       await check(async () => {
         const spans = await getTraces()
         const rootSpans = spans.filter((span) => !span.parentId)
         return String(rootSpans.length)
-      }, String(rootTraces))
+      }, String(numberOfRootTraces))
     }
 
-    const waitForCompleteTraces = async (rootTraces: number) => {
-      await waitForRootSpan(rootTraces)
-      return await getTraces()
+    /**
+     * Sanitize (modifies) span to make it ready for snapshot testing.
+     */
+    const sanitizeSpan = (span: SavedSpan) => {
+      delete span.duration
+      delete span.id
+      delete span.links
+      delete span.timestamp
+      delete span.traceId
+      span.parentId = span.parentId === undefined ? undefined : '[parent-id]'
+      return span
+    }
+    const sanitizeSpans = (spans: SavedSpan[]) =>
+      spans.sort((a, b) => a.name.localeCompare(b.name)).map(sanitizeSpan)
+
+    const getSanitizedTraces = async (numberOfRootTraces: number) => {
+      await waitForRootSpan(numberOfRootTraces)
+      return sanitizeSpans(await getTraces())
     }
 
     const cleanTraces = async () => {
       await next.patchFile(traceFile, '')
-    }
-
-    const expectSpanToHaveAttributes = (
-      span: SavedSpan,
-      attributes: Record<string, any>
-    ) => {
-      Object.keys(attributes).forEach((key) => {
-        expect({ [key]: span.attributes[key] }).toStrictEqual({
-          [key]: attributes[key],
-        })
-      })
     }
 
     beforeAll(async () => {
@@ -67,88 +74,190 @@ createNextDescribe(
       await cleanTraces()
     })
 
-    it('should have root server span with correct fields', async () => {
+    it('should have spans when accessing page', async () => {
       await next.fetch('/pages')
 
-      const traces = await waitForCompleteTraces(1)
-      const rootTraces = traces.filter((trace) => !trace.parentId)
-
-      expect(rootTraces).toHaveLength(1)
-      const rootTrace = rootTraces[0]
-
-      // expect(rootTrace.name).toBe('GET /pages')
-      // expect(rootTrace.kind).toBe(SpanKind.SERVER)
-      expectSpanToHaveAttributes(rootTrace, {
-        //HTTP: https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/
-        // 'http.status_code': 200,
-        // 'http.method': 'GET',
-        // 'http.target': '/pages',
-      })
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "BaseServer.renderToResponse",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextServer.getRequestHandler",
+            "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+        ]
+      `)
     })
 
-    it('should should have root span with params', async () => {
+    it('should handle route params', async () => {
       await next.fetch('/pages/params/stuff')
 
-      const traces = await waitForCompleteTraces(1)
-      const rootTraces = traces.filter((trace) => !trace.parentId)
-
-      expect(rootTraces).toHaveLength(1)
-      const rootTrace = rootTraces[0]
-
-      // expect(rootTrace.name).toBe('GET /pages/params/stuff')
-      expectSpanToHaveAttributes(rootTrace, {
-        // 'http.target': '/pages/params/stuff',
-      })
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "BaseServer.renderToResponse",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextServer.getRequestHandler",
+            "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+        ]
+      `)
     })
 
-    it('should have rendering span', async () => {
-      await next.fetch('/pages')
-
-      // const traces = await getTraces()
-      // expect(traces.map((span) => span.name)).toContain('rendering /pages')
-    })
-
-    it.skip('should have fetch span', async () => {
+    it('should handle RSC with fetch', async () => {
       await next.fetch('/app/rsc-fetch')
 
-      const traces = await waitForCompleteTraces(1)
-      const fetchSpans = traces.filter((span) => span.name.startsWith('fetch'))
-
-      expect(fetchSpans).toHaveLength(1)
-      const fetchSpan = fetchSpans[0]
-
-      expect(fetchSpan.name).toBe('fetch GET https://vercel.com/')
-      expect(fetchSpan.kind).toBe(SpanKind.CLIENT)
-      expectSpanToHaveAttributes(fetchSpan, {
-        'http.method': 'GET',
-        'net.peer.name': 'vercel.com',
-      })
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 2,
+            "name": "AppRender.fetch",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 2,
+              "message": "Request cannot be constructed from a URL that includes credentials: https://user:pass@vercel.com",
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "BaseServer.renderToResponse",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextServer.getRequestHandler",
+            "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+        ]
+      `)
     })
 
-    it.skip('should have getServerSideProps span', async () => {
-      await next.fetch('/pages/getServerSideProps')
+    it('should handle getServerSideProps', async () => {
+      await next.fetch('/pager/getServerSideProps')
 
-      const traces = await waitForCompleteTraces(1)
-      const gsspSpans = traces.filter((span) =>
-        span.name.startsWith('getServerSideProps')
-      )
-
-      expect(gsspSpans).toHaveLength(1)
-      const gsspSpan = gsspSpans[0]
-
-      expect(gsspSpan.name).toBe('getServerSideProps /pages/getServerSideProps')
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "BaseServer.renderToResponse",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextNodeServer.findPageComponents",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextServer.getRequestHandler",
+            "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+        ]
+      `)
     })
 
-    it.skip('should have root span for api handlers in pages', async () => {
+    it('should handle route handlers in app router', async () => {
       await next.fetch('/api/pages/basic')
 
-      const traces = await waitForCompleteTraces(2)
-      const rootSpans = traces.filter((span) => !span.parentId)
-
-      expect(rootSpans).toHaveLength(1)
-      // const rootSpan = rootSpans[0]
-
-      // expect(rootSpan.name).toBe('GET /api/pages/basic')
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "attributes": Object {},
+            "events": Array [],
+            "kind": 0,
+            "name": "NextServer.getRequestHandler",
+            "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+        ]
+      `)
     })
   }
 )
