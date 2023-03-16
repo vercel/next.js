@@ -216,6 +216,7 @@ fn shake_exports_fixture(input: PathBuf) {
                     String::from("keep2").into(),
                     String::from("keep3").into(),
                     String::from("keep4").into(),
+                    String::from("keep5").into(),
                 ],
             })
         },
@@ -300,8 +301,8 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/**/input.js")]
-fn server_actions_fixture(input: PathBuf) {
+#[fixture("tests/fixture/server-actions/server/**/input.js")]
+fn server_actions_server_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -311,6 +312,27 @@ fn server_actions_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/server-actions/client/**/input.js")]
+fn server_actions_client_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: false },
                     _tr.comments.as_ref().clone(),
                 )
             )

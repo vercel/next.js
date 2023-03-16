@@ -2,7 +2,10 @@ import type ws from 'ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
-import type { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+import type {
+  DynamicParamTypesShort,
+  FlightRouterState,
+} from '../app-render/types'
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
@@ -78,6 +81,33 @@ function convertDynamicParamTypeToSyntax(
     default:
       throw new Error('Unknown dynamic param type')
   }
+}
+
+/**
+ * format: {compiler type}@{page type}@{page path}
+ * e.g. client@pages@/index
+ * e.g. server@app@app/page
+ *
+ * This guarantees the uniqueness for each page, to avoid conflicts between app/ and pages/
+ */
+
+export function getEntryKey(
+  compilerType: CompilerNameValues,
+  pageBundleType: 'app' | 'pages' | 'root',
+  page: string
+) {
+  return `${compilerType}@${pageBundleType}@${page}`
+}
+
+function getPageBundleType(pageBundlePath: string) {
+  // Handle special case for /_error
+  if (pageBundlePath === '/_error') return 'pages'
+  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  return pageBundlePath.startsWith('pages/')
+    ? 'pages'
+    : pageBundlePath.startsWith('app/')
+    ? 'app'
+    : 'root'
 }
 
 function getEntrypointsFromTree(
@@ -479,14 +509,18 @@ export function onDemandEntryHandler({
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
+
       if (page) {
-        pagePaths.push(`${type}${page}`)
+        const pageBundleType = entrypoint.name?.startsWith('app/')
+          ? 'app'
+          : 'pages'
+        pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
         (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(`${type}/${entrypoint.name}`)
+        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
       }
     }
     return pagePaths
@@ -558,8 +592,8 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const pageKey = `${compilerType}/${page}`
-        const entryInfo = curEntries[pageKey]
+        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
         if (!entryInfo) {
@@ -571,8 +605,8 @@ export function onDemandEntryHandler({
         if (entryInfo.status !== BUILT) continue
 
         // If there's an entryInfo
-        if (!lastServerAccessPagesForAppDir.includes(pageKey)) {
-          lastServerAccessPagesForAppDir.unshift(pageKey)
+        if (!lastServerAccessPagesForAppDir.includes(entryKey)) {
+          lastServerAccessPagesForAppDir.unshift(entryKey)
 
           // Maintain the buffer max length
           // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
@@ -598,8 +632,8 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const pageKey = `${compilerType}${page}`
-      const entryInfo = curEntries[pageKey]
+      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
       if (!entryInfo) {
@@ -617,8 +651,8 @@ export function onDemandEntryHandler({
       if (entryInfo.status !== BUILT) continue
 
       // If there's an entryInfo
-      if (!lastClientAccessPages.includes(pageKey)) {
-        lastClientAccessPages.unshift(pageKey)
+      if (!lastClientAccessPages.includes(entryKey)) {
+        lastClientAccessPages.unshift(entryKey)
 
         // Maintain the buffer max length
         if (lastClientAccessPages.length > pagesBufferLength) {
@@ -670,6 +704,8 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
+        const pageType = isInsideAppDir ? 'app' : 'pages'
+        const pageBundleType = getPageBundleType(pagePathData.bundlePath)
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
@@ -677,7 +713,11 @@ export function onDemandEntryHandler({
           newEntry: boolean
           shouldInvalidate: boolean
         } => {
-          const entryKey = `${compilerType}${pagePathData.page}`
+          const entryKey = getEntryKey(
+            compilerType,
+            pageBundleType,
+            pagePathData.page
+          )
           if (
             curEntries[entryKey] &&
             // there can be an overlap in the entryKey for the instrumentation hook file and a page named the same
@@ -723,21 +763,17 @@ export function onDemandEntryHandler({
           pageFilePath: pagePathData.absolutePagePath,
           nextConfig,
           isDev: true,
-          pageType: isInsideAppDir ? 'app' : 'pages',
+          pageType,
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
           isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-        const pageType = pagePathData.bundlePath.startsWith('pages/')
-          ? 'pages'
-          : pagePathData.bundlePath.startsWith('app/')
-          ? 'app'
-          : 'root'
+
         await runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
-          pageType,
+          pageType: pageBundleType,
           onClient: () => {
             // Skip adding the client entry for app / Server Components.
             if (isServerComponent || isInsideAppDir) {
@@ -747,7 +783,11 @@ export function onDemandEntryHandler({
           },
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
-            const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
+            const edgeServerEntry = getEntryKey(
+              COMPILER_NAMES.edgeServer,
+              pageBundleType,
+              pagePathData.page
+            )
             if (
               curEntries[edgeServerEntry] &&
               !isInstrumentationHookFile(pagePathData.page)
@@ -761,7 +801,11 @@ export function onDemandEntryHandler({
               COMPILER_NAMES.edgeServer,
               addEntry(COMPILER_NAMES.edgeServer)
             )
-            const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
+            const serverEntry = getEntryKey(
+              COMPILER_NAMES.server,
+              pageBundleType,
+              pagePathData.page
+            )
             if (
               curEntries[serverEntry] &&
               !isInstrumentationHookFile(pagePathData.page)

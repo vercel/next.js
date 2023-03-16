@@ -33,6 +33,7 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
+const ICO = 'image/x-icon'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -140,6 +141,9 @@ export function detectContentType(buffer: Buffer) {
     )
   ) {
     return AVIF
+  }
+  if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
+    return ICO
   }
   return null
 }
@@ -404,7 +408,7 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone'
+  nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   let optimizedBuffer = buffer
   if (sharp) {
@@ -449,7 +453,7 @@ export async function optimizeImage({
     optimizedBuffer = await transformer.toBuffer()
     // End sharp transformation logic
   } else {
-    if (showSharpMissingWarning && nextConfigOutput) {
+    if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
       // TODO: should we ensure squoosh also works even though we don't
       // recommend it be used in production and this is a production feature
       console.error(

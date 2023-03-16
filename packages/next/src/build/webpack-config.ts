@@ -59,7 +59,7 @@ import loadJsConfig from './load-jsconfig'
 import { loadBindings } from './swc'
 import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
-import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
+import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
 import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
@@ -88,6 +88,18 @@ const reactPackagesRegex = /^(react(?:$|\/)|react-dom(?:$|\/))/
 
 const staticGenerationAsyncStorageRegex =
   /next[\\/]dist[\\/]client[\\/]components[\\/]static-generation-async-storage/
+
+const mainFieldsPerCompiler: Record<CompilerNameValues, string[]> = {
+  [COMPILER_NAMES.server]: ['main', 'module'],
+  [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
+  [COMPILER_NAMES.edgeServer]: [
+    'edge-light',
+    'worker',
+    'browser',
+    'module',
+    'main',
+  ],
+}
 
 const BABEL_CONFIG_FILES = [
   '.babelrc',
@@ -301,11 +313,13 @@ export function getDefineEnv({
             // pass domains in development to allow validating on the client
             domains: config.images.domains,
             remotePatterns: config.images?.remotePatterns,
+            output: config.output,
           }
         : {}),
     }),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+    'process.env.__NEXT_CONFIG_OUTPUT': JSON.stringify(config.output),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
@@ -673,17 +687,7 @@ export default async function getBaseWebpackConfig(
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
-        'You are using the experimental Edge Runtime with `experimental.runtime`.'
-      )
-    }
-    if (config.experimental.runtime === 'nodejs') {
-      Log.warn(
-        'You are using the experimental Node.js Runtime with `experimental.runtime`.'
-      )
-    }
-    if (config.experimental.typedRoutes && !hasAppDir) {
-      Log.warn(
-        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
+        'You ase using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
     }
   }
@@ -780,15 +784,38 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
   }
 
-  const swcLoaderForRSC = hasServerComponents
+  const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
-      ? getSwcLoader({ isServerLayer: true })
+      ? [getSwcLoader({ isServerLayer: true })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
     : []
+  const swcLoaderForClientLayer = hasServerComponents
+    ? useSWCLoader
+      ? [getSwcLoader({ isServerLayer: false })]
+      : // When using Babel, we will have to add the SWC loader
+        // as an additional pass to handle RSC correctly.
+        // This will cause some performance overhead but
+        // acceptable as Babel will not be recommended.
+        [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
+    : []
+
+  // Loader for API routes needs to be differently configured as it shouldn't
+  // have RSC transpiler enabled, so syntax checks such as invalid imports won't
+  // be performed.
+  const loaderForAPIRoutes =
+    hasServerComponents && useSWCLoader
+      ? {
+          loader: 'next-swc-loader',
+          options: {
+            ...getSwcLoader().options,
+            hasServerComponents: false,
+          },
+        }
+      : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
@@ -796,6 +823,16 @@ export default async function getBaseWebpackConfig(
     isNodeServer || isEdgeServer
       ? path.join(distDir, SERVER_DIRECTORY)
       : distDir
+
+  const reactServerCondition = [
+    'react-server',
+    ...mainFieldsPerCompiler[
+      isEdgeServer ? COMPILER_NAMES.edgeServer : COMPILER_NAMES.server
+    ],
+    'node',
+    'import',
+    'require',
+  ]
 
   const clientEntries = isClient
     ? ({
@@ -912,18 +949,6 @@ export default async function getBaseWebpackConfig(
         : []),
       `${nextDist}pages/_document.js`,
     ]
-  }
-
-  const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
-    [COMPILER_NAMES.server]: ['main', 'module'],
-    [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: [
-      'edge-light',
-      'worker',
-      'browser',
-      'module',
-      'main',
-    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
@@ -1683,6 +1708,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-loader',
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
+        'next-flight-client-action-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1693,6 +1719,7 @@ export default async function getBaseWebpackConfig(
         'next-app-loader',
         'next-font-loader',
         'next-invalid-import-error-loader',
+        'next-metadata-route-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1710,7 +1737,9 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: WEBPACK_LAYERS.server,
+                issuerLayer: {
+                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1725,17 +1754,7 @@ export default async function getBaseWebpackConfig(
                   ],
                 },
                 resolve: {
-                  conditionNames: [
-                    'react-server',
-                    ...mainFieldsPerCompiler[
-                      isEdgeServer
-                        ? COMPILER_NAMES.edgeServer
-                        : COMPILER_NAMES.server
-                    ],
-                    'node',
-                    'import',
-                    'require',
-                  ],
+                  conditionNames: reactServerCondition,
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1789,6 +1808,7 @@ export default async function getBaseWebpackConfig(
                     WEBPACK_LAYERS.server,
                     WEBPACK_LAYERS.client,
                     WEBPACK_LAYERS.appClient,
+                    WEBPACK_LAYERS.action,
                   ],
                 },
                 resolve: {
@@ -1810,7 +1830,9 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: [staticGenerationAsyncStorageRegex],
-                    issuerLayer: WEBPACK_LAYERS.server,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                    },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1862,14 +1884,6 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /\.(js|cjs|mjs)$/,
-          issuerLayer: WEBPACK_LAYERS.api,
-          parser: {
-            // Switch back to normal URL handling
-            url: true,
-          },
-        },
-        {
           oneOf: [
             {
               ...codeCondition,
@@ -1878,7 +1892,7 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: defaultLoaders.babel,
+              use: loaderForAPIRoutes,
             },
             {
               ...codeCondition,
@@ -1889,14 +1903,37 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.server,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                    },
                     exclude: [staticGenerationAsyncStorageRegex],
-                    use: swcLoaderForRSC,
+                    use: swcLoaderForServerLayer,
                   },
                   {
                     test: codeCondition.test,
                     resourceQuery: /__edge_ssr_entry__/,
-                    use: swcLoaderForRSC,
+                    use: swcLoaderForServerLayer,
+                  },
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                    },
+                    exclude: [staticGenerationAsyncStorageRegex],
+                    use: [
+                      ...(dev && isClient
+                        ? [
+                            require.resolve(
+                              'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+                            ),
+                            defaultLoaders.babel,
+                          ]
+                        : []),
+                      {
+                        loader: 'next-flight-client-action-loader',
+                      },
+                      ...swcLoaderForClientLayer,
+                    ],
                   },
                 ]
               : []),
@@ -2038,7 +2075,9 @@ export default async function getBaseWebpackConfig(
         {
           test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.server,
+          issuerLayer: {
+            or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+          },
           options: {
             message:
               "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
@@ -2213,7 +2252,7 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        new FontLoaderManifestPlugin({
+        new NextFontManifestPlugin({
           appDirEnabled: !!config.experimental.appDir,
         }),
       !dev &&
@@ -2385,7 +2424,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
-    runtime: config.experimental.runtime,
     swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.compiler?.removeConsole,

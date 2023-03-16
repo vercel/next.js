@@ -48,7 +48,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
+import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -97,6 +97,8 @@ import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers
 import { NextBuildContext } from '../../build/build-context'
 import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
+import { IncrementalCache } from '../lib/incremental-cache'
+import LRUCache from 'next/dist/compiled/lru-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -132,6 +134,10 @@ export default class DevServer extends Server {
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
   private originalFetch?: typeof fetch
+  private staticPathsCache: LRUCache<
+    string,
+    UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
+  >
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -185,6 +191,13 @@ export default class DevServer extends Server {
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
+    })
+    this.staticPathsCache = new LRUCache({
+      // 5MB
+      max: 5 * 1024 * 1024,
+      length(value) {
+        return JSON.stringify(value.staticPaths).length
+      },
     })
     ;(this.renderOpts as any).ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
@@ -345,8 +358,9 @@ export default class DevServer extends Server {
       return
     }
 
-    const regexPageExtension = new RegExp(
-      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    const validFileMatcher = createValidFileMatcher(
+      this.nextConfig.pageExtensions,
+      this.appDir
     )
 
     let resolved = false
@@ -461,7 +475,7 @@ export default class DevServer extends Server {
 
           if (
             meta?.accuracy === undefined ||
-            !regexPageExtension.test(fileName)
+            !validFileMatcher.isPageFile(fileName)
           ) {
             continue
           }
@@ -478,6 +492,7 @@ export default class DevServer extends Server {
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
             extensions: this.nextConfig.pageExtensions,
+            keepIndex: false,
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -489,9 +504,15 @@ export default class DevServer extends Server {
           })
 
           if (isMiddlewareFile(rootFile)) {
+            if (this.nextConfig.output === 'export') {
+              Log.error(
+                'Middleware cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+              )
+              continue
+            }
             this.actualMiddlewareFile = rootFile
             middlewareMatchers = staticInfo.middleware?.matchers || [
-              { regexp: '.*' },
+              { regexp: '.*', originalSource: '/:path*' },
             ]
             continue
           }
@@ -513,8 +534,19 @@ export default class DevServer extends Server {
             keepIndex: isAppPath,
           })
 
+          if (
+            !isAppPath &&
+            pageName.startsWith('/api/') &&
+            this.nextConfig.output === 'export'
+          ) {
+            Log.error(
+              'API Routes cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+            continue
+          }
+
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
+            if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
 
@@ -585,9 +617,11 @@ export default class DevServer extends Server {
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
-            ((this.nextConfig as any)._originalRedirects || []).filter(
-              (r: any) => !r.internal
-            )
+            this.nextConfig.experimental.clientRouterFilterRedirects
+              ? ((this.nextConfig as any)._originalRedirects || []).filter(
+                  (r: any) => !r.internal
+                )
+              : []
           )
 
           if (
@@ -1333,7 +1367,7 @@ export default class DevServer extends Server {
     return undefined
   }
 
-  protected getFontLoaderManifest() {
+  protected getNextFontManifest() {
     return undefined
   }
 
@@ -1493,13 +1527,16 @@ export default class DevServer extends Server {
   protected async getStaticPaths({
     pathname,
     originalAppPath,
+    requestHeaders,
   }: {
     pathname: string
     originalAppPath?: string
+    requestHeaders: IncrementalCache['requestHeaders']
   }): Promise<{
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
+    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -1526,23 +1563,61 @@ export default class DevServer extends Server {
         locales,
         defaultLocale,
         originalAppPath,
-        isAppPath: !!originalAppPath,
+        isAppPath,
+        requestHeaders,
+        incrementalCacheHandlerPath:
+          this.nextConfig.experimental.incrementalCacheHandlerPath,
+        fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
+        isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
+        maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       })
       return pathsResult
     }
-    const { paths: staticPaths, fallback } = (
-      await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
-    ).value
+    const result = this.staticPathsCache.get(pathname)
 
-    return {
-      staticPaths,
-      fallbackMode:
-        fallback === 'blocking'
-          ? 'blocking'
-          : fallback === true
-          ? 'static'
-          : fallback,
+    const nextInvoke = withCoalescedInvoke(__getStaticPaths)(
+      `staticPaths-${pathname}`,
+      []
+    )
+      .then((res) => {
+        const { paths: staticPaths = [], fallback } = res.value
+        if (!isAppPath && this.nextConfig.output === 'export') {
+          if (fallback === 'blocking') {
+            throw new Error(
+              'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          } else if (fallback === true) {
+            throw new Error(
+              'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          }
+        }
+        const value: {
+          staticPaths: string[]
+          fallbackMode: 'blocking' | 'static' | false | undefined
+        } = {
+          staticPaths,
+          fallbackMode:
+            fallback === 'blocking'
+              ? 'blocking'
+              : fallback === true
+              ? 'static'
+              : fallback,
+        }
+        this.staticPathsCache.set(pathname, value)
+        return value
+      })
+      .catch((err) => {
+        this.staticPathsCache.del(pathname)
+        if (!result) throw err
+        Log.error(`Failed to generate static paths for ${pathname}:`)
+        console.error(err)
+      })
+
+    if (result) {
+      return result
     }
+    return nextInvoke as NonNullable<typeof result>
   }
 
   private persistPatchedGlobals(): void {
@@ -1589,7 +1664,7 @@ export default class DevServer extends Server {
         this.serverComponentManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
-      this.fontLoaderManifest = super.getFontLoaderManifest()
+      this.nextFontManifest = super.getNextFontManifest()
       // before we re-evaluate a route module, we want to restore globals that might
       // have been patched previously to their original state so that we don't
       // patch on top of the previous patch, which would keep the context of the previous
