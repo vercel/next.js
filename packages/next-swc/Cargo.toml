@@ -8,7 +8,7 @@ members = [
   "crates/next-core",
   "crates/next-dev",
   "crates/next-dev-tests",
-  "crates/next-font",
+  "crates/next-transform-font",
   "crates/next-transform-dynamic",
   "crates/next-transform-strip-page-exports",
 ]
@@ -29,7 +29,7 @@ next-binding = { path = "crates/next-binding" }
 next-core = { path = "crates/next-core", default-features = false }
 next-dev = { path = "crates/next-dev" }
 next-dev-tests = { path = "crates/next-dev-tests" }
-next-font = { path = "crates/next-font" }
+next-transform-font = { path = "crates/next-transform-font" }
 next-transform-dynamic = { path = "crates/next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-exports" }
 
