@@ -1661,7 +1661,7 @@ export default class DevServer extends Server {
       // When the new page is compiled, we need to reload the server component
       // manifest.
       if (!!this.appDir) {
-        this.serverComponentManifest = super.getServerComponentManifest()
+        this.clientReferenceManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
       this.nextFontManifest = super.getNextFontManifest()

@@ -26,7 +26,7 @@ chromiumoxide = { workspace = true, features = [
 ], default-features = false }
 dunce = { workspace = true }
 futures = { workspace = true }
-httpmock = { workspace = true, features = ["standalone"] }
+httpmock = { workspace = true, default-features = false, features = ["standalone"] }
 lazy_static = { workspace = true }
 mime = { workspace = true }
 next-core = { workspace = true }

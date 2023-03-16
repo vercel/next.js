@@ -37,7 +37,7 @@ export class Playwright extends BrowserInterface {
     if (!this.eventCallbacks[event]) {
       throw new Error(
         `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
-          event
+          this.eventCallbacks
         )}`
       )
     }
