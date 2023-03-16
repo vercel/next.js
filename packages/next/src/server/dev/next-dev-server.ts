@@ -48,7 +48,7 @@ import { eventCliSession } from '../../telemetry/events'
 import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import HotReloader from './hot-reloader'
-import { findPageFile, isLayoutsLeafPage } from '../lib/find-page-file'
+import { createValidFileMatcher, findPageFile } from '../lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from '../lib/utils'
 import {
   UnwrapPromise,
@@ -358,8 +358,9 @@ export default class DevServer extends Server {
       return
     }
 
-    const regexPageExtension = new RegExp(
-      `\\.+(?:${this.nextConfig.pageExtensions.join('|')})$`
+    const validFileMatcher = createValidFileMatcher(
+      this.nextConfig.pageExtensions,
+      this.appDir
     )
 
     let resolved = false
@@ -474,7 +475,7 @@ export default class DevServer extends Server {
 
           if (
             meta?.accuracy === undefined ||
-            !regexPageExtension.test(fileName)
+            !validFileMatcher.isPageFile(fileName)
           ) {
             continue
           }
@@ -491,6 +492,7 @@ export default class DevServer extends Server {
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
             extensions: this.nextConfig.pageExtensions,
+            keepIndex: false,
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -533,6 +535,7 @@ export default class DevServer extends Server {
           })
 
           if (
+            !isAppPath &&
             pageName.startsWith('/api/') &&
             this.nextConfig.output === 'export'
           ) {
@@ -543,7 +546,7 @@ export default class DevServer extends Server {
           }
 
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
+            if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
 
@@ -1533,6 +1536,7 @@ export default class DevServer extends Server {
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
+    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -1559,7 +1563,7 @@ export default class DevServer extends Server {
         locales,
         defaultLocale,
         originalAppPath,
-        isAppPath: !!originalAppPath,
+        isAppPath,
         requestHeaders,
         incrementalCacheHandlerPath:
           this.nextConfig.experimental.incrementalCacheHandlerPath,
@@ -1577,7 +1581,7 @@ export default class DevServer extends Server {
     )
       .then((res) => {
         const { paths: staticPaths = [], fallback } = res.value
-        if (this.nextConfig.output === 'export') {
+        if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === 'blocking') {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'

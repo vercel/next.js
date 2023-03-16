@@ -134,6 +134,7 @@ import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
+import { createValidFileMatcher } from '../server/lib/find-page-file'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -491,15 +492,17 @@ export default async function build(
 
       NextBuildContext.buildSpinner = buildSpinner
 
+      const validFileMatcher = createValidFileMatcher(
+        config.pageExtensions,
+        appDir
+      )
+
       const pagesPaths =
         !appDirOnly && pagesDir
           ? await nextBuildSpan
               .traceChild('collect-pages')
               .traceAsyncFn(() =>
-                recursiveReadDir(
-                  pagesDir,
-                  new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-                )
+                recursiveReadDir(pagesDir, validFileMatcher.isPageFile)
               )
           : []
 
@@ -509,12 +512,7 @@ export default async function build(
         appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              new RegExp(
-                `^(page|route)\\.(?:${config.pageExtensions.join('|')})$`
-              )
-            )
+            recursiveReadDir(appDir, validFileMatcher.isAppRouterPage)
           )
       }
 
@@ -1284,6 +1282,7 @@ export default async function build(
               enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
+              nextConfigOutput: config.output,
             })
         )
 
@@ -1468,6 +1467,7 @@ export default async function build(
                           isrFlushToDisk: config.experimental.isrFlushToDisk,
                           maxMemoryCacheSize:
                             config.experimental.isrMemoryCacheSize,
+                          nextConfigOutput: config.output,
                         })
                       }
                     )

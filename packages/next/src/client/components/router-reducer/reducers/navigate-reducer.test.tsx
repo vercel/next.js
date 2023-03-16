@@ -1,6 +1,6 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
-import type { FlightData } from '../../../../server/app-render'
+import type { FlightData } from '../../../../server/app-render/types'
 const flightData: FlightData = [
   [
     'children',
@@ -68,7 +68,8 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import { FlightRouterState } from '../../../../server/app-render'
+
+import { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -82,7 +83,7 @@ import {
 } from '../router-reducer-types'
 import { navigateReducer } from './navigate-reducer'
 import { prefetchReducer } from './prefetch-reducer'
-import { fetchServerResponse } from '../fetch-server-response'
+import { createRecordFromThenable } from '../create-record-from-thenable'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -191,6 +192,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -373,6 +375,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -558,6 +561,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
       cache: {
@@ -714,6 +718,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
       cache: {
@@ -867,6 +872,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -982,12 +988,9 @@ describe('navigateReducer', () => {
     ])
 
     const url = new URL('/linking/about', 'https://localhost')
-    const serverResponse = await fetchServerResponse(url, initialTree, true)
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      tree: initialTree,
-      serverResponse,
     }
 
     const state = createInitialRouterState({
@@ -1002,6 +1005,8 @@ describe('navigateReducer', () => {
 
     await runPromiseThrowChain(() => prefetchReducer(state, prefetchAction))
 
+    await state.prefetchCache.get(url.pathname + url.search)?.data
+
     const state2 = createInitialRouterState({
       initialTree,
       initialHead: null,
@@ -1013,6 +1018,7 @@ describe('navigateReducer', () => {
     })
 
     await runPromiseThrowChain(() => prefetchReducer(state2, prefetchAction))
+    await state2.prefetchCache.get(url.pathname + url.search)?.data
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
@@ -1036,42 +1042,43 @@ describe('navigateReducer', () => {
       navigateReducer(state2, action)
     )
 
+    const prom = Promise.resolve([
+      [
+        [
+          'children',
+          'linking',
+          'children',
+          'about',
+          [
+            'about',
+            {
+              children: ['', {}],
+            },
+          ],
+          <h1>About Page!</h1>,
+          <React.Fragment>
+            <title>About page!</title>
+          </React.Fragment>,
+        ],
+      ],
+      undefined,
+    ] as any)
+    const record = createRecordFromThenable(prom)
+    await prom
+
     const expectedState: ReturnType<typeof navigateReducer> = {
       prefetchCache: new Map([
         [
           '/linking/about',
           {
-            canonicalUrlOverride: undefined,
-            flightData: [
-              [
-                'children',
-                'linking',
-                'children',
-                'about',
-                [
-                  'about',
-                  {
-                    children: ['', {}],
-                  },
-                ],
-                <h1>About Page!</h1>,
-                <React.Fragment>
-                  <title>About page!</title>
-                </React.Fragment>,
-              ],
-            ],
-            tree: [
+            data: record,
+            treeAtTimeOfPrefetch: [
               '',
               {
                 children: [
                   'linking',
                   {
-                    children: [
-                      'about',
-                      {
-                        children: ['', {}],
-                      },
-                    ],
+                    children: ['', {}],
                   },
                 ],
               },
@@ -1088,6 +1095,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -1314,6 +1322,7 @@ describe('navigateReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/parallel-tab-bar/demographics',
       cache: {

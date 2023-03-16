@@ -257,6 +257,10 @@ function createRouteDefinitions() {
     dynamicRouteTypes += routeTypes[type].dynamic
   }
 
+  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string'.
+  const routeTypesFallback =
+    !staticRouteTypes && !dynamicRouteTypes ? 'string' : ''
+
   return `// Type definitions for Next.js routes
 
 /**
@@ -286,17 +290,22 @@ declare namespace __next_route_internal_types__ {
   type OptionalCatchAllSlug<S extends string> =
     S extends \`\${string}\${SearchOrHash}\` ? never : S
 
-  type StaticRoutes = ${staticRouteTypes || 'string'}
+  type StaticRoutes = ${staticRouteTypes || 'never'}
   type DynamicRoutes<T extends string = string> = ${
-    dynamicRouteTypes || 'string'
+    dynamicRouteTypes || 'never'
   }
 
-  type RouteImpl<T> =
+  type RouteImpl<T> = ${
+    routeTypesFallback ||
+    `
     ${
-      /* This keeps autocompletion working for static routes */ '| StaticRoutes'
+      // This keeps autocompletion working for static routes.
+      '| StaticRoutes'
     }
     | \`\${StaticRoutes}\${Suffix}\`
     | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
+    `
+  }
 }
 
 declare module 'next' {
@@ -362,6 +371,11 @@ export class NextTypesPlugin {
     if (!this.typedRoutes) return
 
     const isApp = filePath.startsWith(this.appDir + path.sep)
+    const isPages = !isApp && filePath.startsWith(this.pagesDir + path.sep)
+
+    if (!isApp && !isPages) {
+      return
+    }
 
     // Filter out non-page files in app dir
     if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
@@ -370,7 +384,7 @@ export class NextTypesPlugin {
 
     // Filter out non-page files in pages dir
     if (
-      !isApp &&
+      isPages &&
       /[/\\](?:_app|_document|_error|404|500)\.[^.]+$/.test(filePath)
     ) {
       return

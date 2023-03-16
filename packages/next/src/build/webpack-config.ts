@@ -319,6 +319,7 @@ export function getDefineEnv({
     }),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+    'process.env.__NEXT_CONFIG_OUTPUT': JSON.stringify(config.output),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
@@ -785,12 +786,21 @@ export default async function getBaseWebpackConfig(
 
   const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
-      ? getSwcLoader({ isServerLayer: true })
+      ? [getSwcLoader({ isServerLayer: true })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
+    : []
+  const swcLoaderForClientLayer = hasServerComponents
+    ? useSWCLoader
+      ? [getSwcLoader({ isServerLayer: false })]
+      : // When using Babel, we will have to add the SWC loader
+        // as an additional pass to handle RSC correctly.
+        // This will cause some performance overhead but
+        // acceptable as Babel will not be recommended.
+        [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
     : []
 
   // Loader for API routes needs to be differently configured as it shouldn't
@@ -1698,6 +1708,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-loader',
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
+        'next-flight-client-action-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1708,6 +1719,7 @@ export default async function getBaseWebpackConfig(
         'next-app-loader',
         'next-font-loader',
         'next-invalid-import-error-loader',
+        'next-metadata-route-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1725,7 +1737,9 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: WEBPACK_LAYERS.server,
+                issuerLayer: {
+                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1794,6 +1808,7 @@ export default async function getBaseWebpackConfig(
                     WEBPACK_LAYERS.server,
                     WEBPACK_LAYERS.client,
                     WEBPACK_LAYERS.appClient,
+                    WEBPACK_LAYERS.action,
                   ],
                 },
                 resolve: {
@@ -1815,7 +1830,9 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: [staticGenerationAsyncStorageRegex],
-                    issuerLayer: WEBPACK_LAYERS.server,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                    },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1886,7 +1903,9 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.server,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                    },
                     exclude: [staticGenerationAsyncStorageRegex],
                     use: swcLoaderForServerLayer,
                   },
@@ -1894,6 +1913,27 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resourceQuery: /__edge_ssr_entry__/,
                     use: swcLoaderForServerLayer,
+                  },
+                  {
+                    test: codeCondition.test,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                    },
+                    exclude: [staticGenerationAsyncStorageRegex],
+                    use: [
+                      ...(dev && isClient
+                        ? [
+                            require.resolve(
+                              'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+                            ),
+                            defaultLoaders.babel,
+                          ]
+                        : []),
+                      {
+                        loader: 'next-flight-client-action-loader',
+                      },
+                      ...swcLoaderForClientLayer,
+                    ],
                   },
                 ]
               : []),
@@ -2035,7 +2075,9 @@ export default async function getBaseWebpackConfig(
         {
           test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.server,
+          issuerLayer: {
+            or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+          },
           options: {
             message:
               "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
