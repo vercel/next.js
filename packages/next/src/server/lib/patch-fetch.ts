@@ -217,6 +217,7 @@ export function patchFetch({
                     data: {
                       headers: Object.fromEntries(res.headers.entries()),
                       body: base64Body,
+                      status: res.status,
                     },
                     revalidate,
                   },
