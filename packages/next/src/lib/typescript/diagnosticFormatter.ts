@@ -254,9 +254,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
             relativeSourceFilepath
           )}" has an invalid ${invalidParamFn[1]} export:\n  Type "${chalk.bold(
             invalidParamFn[3]
-          )}" isn't a valid type for the function's ${
+          )}" is not a valid type for the function's ${
             invalidParamFn[2]
-          } parameter.`
+          } argument.`
 
           if ('next' in message) main += processNextItems(1, message.next)
           return main
