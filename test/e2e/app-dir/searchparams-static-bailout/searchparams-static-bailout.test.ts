@@ -9,30 +9,79 @@ createNextDescribe(
     },
   },
   ({ next, isNextStart }) => {
-    // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
-    it('should work be part of the initial html', async () => {
-      const $ = await next.render$('/?search=hello')
-      expect($('h1').text()).toBe('Parameter: hello')
+    describe('server component', () => {
+      it('should bailout when using searchParams', async () => {
+        const url = '/server-component-page?search=hello'
+        const $ = await next.render$(url)
+        expect($('h1').text()).toBe('Parameter: hello')
 
-      // Check if the page is not statically generated.
-      if (isNextStart) {
-        const id = $('#nanoid').text()
-        const $2 = await next.render$('/?search=hello')
-        const id2 = $2('#nanoid').text()
-        expect(id).not.toBe(id2)
-      }
+        // Check if the page is not statically generated.
+        if (isNextStart) {
+          const id = $('#nanoid').text()
+          const $2 = await next.render$(url)
+          const id2 = $2('#nanoid').text()
+          expect(id).not.toBe(id2)
+        }
+      })
+
+      it('should not bailout when not using searchParams', async () => {
+        const url = '/server-component-without-searchparams?search=hello'
+
+        const $ = await next.render$(url)
+        expect($('h1').text()).toBe('No searchParams used')
+
+        // Check if the page is not statically generated.
+        if (isNextStart) {
+          const id = $('#nanoid').text()
+          const $2 = await next.render$(url)
+          const id2 = $2('#nanoid').text()
+          expect(id).toBe(id2)
+        }
+      })
     })
 
-    it('should work using browser', async () => {
-      const browser = await next.browser('/?search=hello')
-      expect(await browser.elementByCss('h1').text()).toBe('Parameter: hello')
-      // Check if the page is not statically generated.
-      if (isNextStart) {
-        const id = await browser.elementByCss('#nanoid').text()
-        const browser2 = await next.browser('/?search=hello')
-        const id2 = browser2.elementByCss('#nanoid').text()
-        expect(id).not.toBe(id2)
-      }
+    describe('client component', () => {
+      it('should bailout when using searchParams', async () => {
+        const url = '/client-component-page?search=hello'
+        const $ = await next.render$(url)
+        expect($('h1').text()).toBe('Parameter: hello')
+
+        // Check if the page is not statically generated.
+        if (isNextStart) {
+          const id = $('#nanoid').text()
+          const $2 = await next.render$(url)
+          const id2 = $2('#nanoid').text()
+          expect(id).not.toBe(id2)
+        }
+      })
+
+      it('should bailout when using searchParams is passed to client component', async () => {
+        const url = '/client-component?search=hello'
+        const $ = await next.render$(url)
+        expect($('h1').text()).toBe('Parameter: hello')
+
+        // Check if the page is not statically generated.
+        if (isNextStart) {
+          const id = $('#nanoid').text()
+          const $2 = await next.render$(url)
+          const id2 = $2('#nanoid').text()
+          expect(id).not.toBe(id2)
+        }
+      })
+
+      it('should not bailout when not using searchParams', async () => {
+        const url = '/client-component-without-searchparams?search=hello'
+        const $ = await next.render$(url)
+        expect($('h1').text()).toBe('No searchParams used')
+
+        // Check if the page is not statically generated.
+        if (isNextStart) {
+          const id = $('#nanoid').text()
+          const $2 = await next.render$(url)
+          const id2 = $2('#nanoid').text()
+          expect(id).toBe(id2)
+        }
+      })
     })
   }
 )

@@ -729,29 +729,21 @@ export async function renderToHTMLOrFlight(
         ? crypto.randomUUID()
         : require('next/dist/compiled/nanoid').nanoid()
 
-    const providedSearchParams = new Proxy(query, {
-      get(target, prop) {
-        const targetValue = (target as any)[prop]
-        // React adds some properties on the object when serializing for client components
-        if (
-          typeof prop === 'string' &&
-          prop !== 'toJSON' &&
-          prop !== 'toString' &&
-          prop !== '$$typeof' &&
-          prop !== 'then'
-        ) {
-          staticGenerationBailout(`searchParams.${prop}`)
-        }
-        return targetValue
-      },
-    })
-
-    const searchParamsProps = { searchParams: providedSearchParams }
-
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
     const RenderFromTemplateContext =
       ComponentMod.RenderFromTemplateContext as typeof import('../../client/components/render-from-template-context').default
+    const createSearchParamsBailoutProxy =
+      ComponentMod.createSearchParamsBailoutProxy as typeof import('../../client/components/searchparams-bailout-proxy').createSearchParamsBailoutProxy
+    const StaticGenerationSearchParamsBailoutProvider =
+      ComponentMod.StaticGenerationSearchParamsBailoutProvider as typeof import('../../client/components/static-generation-searchparams-bailout-provider').default
+
+    const isStaticGeneration = staticGenerationStore.isStaticGeneration
+    // During static generation we need to call the static generation bailout when reading searchParams
+    const providedSearchParams = isStaticGeneration
+      ? createSearchParamsBailoutProxy()
+      : query
+    const searchParamsProps = { searchParams: providedSearchParams }
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -1290,6 +1282,8 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      const isClientComponent = isClientReference(layoutOrPageMod)
+
       const props = {
         ...parallelRouteComponents,
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
@@ -1297,11 +1291,19 @@ export async function renderToHTMLOrFlight(
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
         params: currentParams,
         // Query is only provided to page
-        ...(isPage ? searchParamsProps : {}),
+        ...(() => {
+          if (isClientComponent && isStaticGeneration) {
+            return {}
+          }
+
+          if (isPage) {
+            return searchParamsProps
+          }
+        })(),
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      if (!isClientReference(layoutOrPageMod)) {
+      if (!isClientComponent) {
         Component = await Promise.resolve().then(() =>
           preloadComponent(Component, props)
         )
@@ -1312,7 +1314,14 @@ export async function renderToHTMLOrFlight(
           return (
             <>
               {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
-              <Component {...props} />
+              {isPage && isClientComponent && isStaticGeneration ? (
+                <StaticGenerationSearchParamsBailoutProvider
+                  propsForComponent={props}
+                  Component={Component}
+                />
+              ) : (
+                <Component {...props} />
+              )}
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
