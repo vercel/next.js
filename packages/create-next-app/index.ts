@@ -53,6 +53,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--tailwind',
+    `
+
+  Initialize with Tailwind CSS config. (default)
+`
+  )
+  .option(
     '--eslint',
     `
 
@@ -222,14 +229,12 @@ async function run(): Promise<void> {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: true,
+      tailwind: true,
       srcDir: false,
       importAlias: '@/*',
     }
-    const getPrefOrDefault = (field: string) => {
-      return typeof preferences[field] === 'undefined'
-        ? defaults[field]
-        : preferences[field]
-    }
+    const getPrefOrDefault = (field: string) =>
+      preferences[field] ?? defaults[field]
 
     if (!program.typescript && !program.javascript) {
       if (ciInfo.isCI) {
@@ -238,7 +243,7 @@ async function run(): Promise<void> {
         program.typescript = false
         program.javascript = true
       } else {
-        const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+        const styledTypeScript = chalk.hex('#0645ad')('TypeScript')
         const { typescript } = await prompts(
           {
             type: 'toggle',
@@ -275,7 +280,7 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.eslint = true
       } else {
-        const styledEslint = chalk.hex('#007acc')('ESLint')
+        const styledEslint = chalk.hex('#4b32c3')('ESLint')
         const { eslint } = await prompts({
           onState: onPromptState,
           type: 'toggle',
@@ -287,6 +292,28 @@ async function run(): Promise<void> {
         })
         program.eslint = Boolean(eslint)
         preferences.eslint = Boolean(eslint)
+      }
+    }
+
+    if (
+      !process.argv.includes('--tailwind') &&
+      !process.argv.includes('--no-tailwind')
+    ) {
+      if (ciInfo.isCI) {
+        program.tailwind = false
+      } else {
+        const tw = chalk.hex('#38BDF8')('Tailwind CSS')
+        const { tailwind } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'tailwind',
+          message: `Would you like to use ${tw} with this project?`,
+          initial: getPrefOrDefault('tailwind'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.tailwind = Boolean(tailwind)
+        preferences.tailwind = Boolean(tailwind)
       }
     }
 
@@ -367,6 +394,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      tailwind: program.tailwind,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
@@ -395,6 +423,7 @@ async function run(): Promise<void> {
       packageManager,
       typescript: program.typescript,
       eslint: program.eslint,
+      tailwind: program.tailwind,
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
