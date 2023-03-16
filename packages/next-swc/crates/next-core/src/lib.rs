@@ -1,5 +1,6 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
+#![feature(box_syntax)]
 
 mod app_render;
 mod app_source;
