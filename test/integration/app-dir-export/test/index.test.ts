@@ -28,11 +28,13 @@ const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 async function runTests({
   isDev,
   trailingSlash,
-  dynamic,
+  dynamicPage,
+  dynamicApiRoute,
 }: {
   isDev?: boolean
   trailingSlash?: boolean
-  dynamic?: string
+  dynamicPage?: string
+  dynamicApiRoute?: string
 }) {
   if (trailingSlash) {
     nextConfig.replace(
@@ -40,10 +42,16 @@ async function runTests({
       `trailingSlash: ${trailingSlash},`
     )
   }
-  if (dynamic) {
+  if (dynamicPage) {
     slugPage.replace(
       `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamic}`
+      `const dynamic = ${dynamicPage}`
+    )
+  }
+  if (dynamicApiRoute) {
+    apiJson.replace(
+      `const dynamic = 'force-static'`,
+      `const dynamic = ${dynamicApiRoute}`
     )
   }
   await fs.remove(distDir)
@@ -143,7 +151,7 @@ describe('app dir with output export', () => {
     { dynamic: "'error'" },
     { dynamic: "'force-static'" },
   ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
-    await runTests({ dynamic })
+    await runTests({ dynamicPage: dynamic })
     const opts = { cwd: exportDir, nodir: true }
     const files = ((await glob('**/*', opts)) as string[])
       .filter((f) => !f.startsWith('_next/static/chunks/'))
@@ -190,6 +198,16 @@ describe('app dir with output export', () => {
       'export const dynamic = "force-dynamic" on page "/another/[slug]" cannot be used with "output: export".'
     )
   })
+  it.each([
+    { dynamic: 'undefined' },
+    { dynamic: "'error'" },
+    { dynamic: "'force-static'" },
+  ])(
+    'should work with dynamic $dynamic on route handler',
+    async ({ dynamic }) => {
+      await runTests({ dynamicApiRoute: dynamic })
+    }
+  )
   it("should throw when dynamic 'force-dynamic' on route handler", async () => {
     apiJson.replace(
       `const dynamic = 'force-static'`,
