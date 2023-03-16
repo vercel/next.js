@@ -74,7 +74,7 @@ __swc_core_binding_wasm_plugin = ["swc_core/plugin_transform_host_js"]
 __swc_core_testing_transform = ["swc_core/testing_transform"]
 
 __turbo = []
-__turbo_next_build = ["__turbo", "next-build/rustls-tls"]
+__turbo_next_build = ["__turbo", "next-build"]
 __turbo_next_dev_server = ["__turbo", "next-dev/serializable"]
 __turbo_node_file_trace = ["__turbo", "node-file-trace/node-api"]
 

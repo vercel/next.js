@@ -3023,21 +3023,11 @@ name = "next-build"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.1.8",
- "mime",
  "next-core",
- "owo-colors",
- "serde",
- "tokio",
  "turbo-malloc",
  "turbo-tasks",
  "turbo-tasks-build",
- "turbo-tasks-fs",
  "turbo-tasks-memory",
- "turbopack-cli-utils",
- "turbopack-core",
- "turbopack-dev-server",
- "turbopack-node",
  "vergen",
 ]
 

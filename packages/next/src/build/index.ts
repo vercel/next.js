@@ -1013,7 +1013,7 @@ export default async function build(
 
       let binding = (await loadBindings()) as any
 
-      async function runTurboBuild() {
+      async function turbopackBuild() {
         const turboNextBuildStart = process.hrtime()
         await binding.turbo.nextBuild(NextBuildContext)
         const [duration] = process.hrtime(turboNextBuildStart)
@@ -1021,7 +1021,7 @@ export default async function build(
       }
 
       const { duration: webpackBuildDuration, turbotraceContext } =
-        turboNextBuild ? await runTurboBuild() : await webpackBuild()
+        turboNextBuild ? await turbopackBuild() : await webpackBuild()
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {

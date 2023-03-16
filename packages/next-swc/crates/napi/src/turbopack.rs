@@ -98,7 +98,6 @@ impl From<NextBuildContext> for NextBuildOptions {
     fn from(value: NextBuildContext) -> Self {
         Self {
             dir: value.dir,
-            app_dir: value.app_dir,
             memory_limit: None,
             full_stats: None,
         }

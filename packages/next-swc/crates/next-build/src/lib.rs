@@ -1,23 +1,13 @@
-#![feature(future_join)]
-#![feature(min_specialization)]
-
 use turbo_tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi};
 use turbo_tasks_memory::MemoryBackend;
 
-#[derive(Clone)]
-pub enum EntryRequest {
-    Relative(String),
-    Module(String, String),
-}
-
 pub fn register() {
-    next_core::register();
+    turbo_tasks::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 pub struct NextBuildOptions {
     pub dir: Option<String>,
-    pub app_dir: Option<String>,
     pub memory_limit: Option<usize>,
     pub full_stats: Option<bool>,
 }
