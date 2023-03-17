@@ -254,9 +254,13 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutes() {
     const routes = super.getRoutes()
+    const nextConfigOutput = this.nextConfig.output
 
     if (this.hasAppDir) {
-      routes.handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
+      routes.handlers.set(
+        RouteKind.APP_ROUTE,
+        new AppRouteRouteHandler(nextConfigOutput)
+      )
     }
 
     return routes
