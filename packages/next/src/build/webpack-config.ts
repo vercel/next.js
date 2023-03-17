@@ -1921,6 +1921,10 @@ export default async function getBaseWebpackConfig(
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
+                    exclude: [
+                      staticGenerationAsyncStorageRegex,
+                      codeCondition.exclude,
+                    ],
                     use: [
                       ...(dev && isClient
                         ? [
