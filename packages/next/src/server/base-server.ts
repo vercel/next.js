@@ -1652,7 +1652,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         // is an app path since it doesn't include locale information.
         let staticPathKey =
           ssgCacheKey ?? (opts.dev && isAppPath ? resolvedUrlPathname : null)
-        if (staticPathKey && query.amp) staticPathKey.replace(/\.amp$/, '')
+        if (staticPathKey && query.amp) {
+          staticPathKey = staticPathKey.replace(/\.amp$/, '')
+        }
+
         const isPageIncludedInStaticPaths =
           staticPathKey && staticPaths?.includes(staticPathKey)
 
