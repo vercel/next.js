@@ -121,17 +121,20 @@ function runTests(mode) {
       const links = await browser.elementsByCss('link[rel=preload][as=image]')
       const entries = []
       for (const link of links) {
+        const fetchpriority = await link.getAttribute('fetchpriority')
         const imagesrcset = await link.getAttribute('imagesrcset')
         const imagesizes = await link.getAttribute('imagesizes')
-        entries.push({ imagesrcset, imagesizes })
+        entries.push({ fetchpriority, imagesrcset, imagesizes })
       }
       expect(entries).toEqual([
         {
+          fetchpriority: 'high',
           imagesizes: '',
           imagesrcset:
             '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
         },
         {
+          fetchpriority: 'high',
           imagesizes: '100vw',
           imagesrcset:
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
@@ -151,6 +154,17 @@ function runTests(mode) {
       expect(
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
+
+      // When priority={true}, we should set fetchpriority="high"
+      expect(
+        await browser.elementById('basic-image').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('responsive1').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('responsive2').getAttribute('fetchpriority')
+      ).toBe('high')
 
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
