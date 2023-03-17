@@ -17,7 +17,7 @@ We will use terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of
 
 ## Getting Started
 
-Next.js supports OpenTelemetry which is platform agnostic. You to easily change your observability provider without changing your code.
+Next.js supports OpenTelemetry which is platform agnostic. You can change your observability provider without changing your code.
 Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more information about OpenTelemetry and how it works.
 
 Firstly you need to install required packages:
@@ -68,7 +68,7 @@ provider.addSpanProcessor(new SimpleSpanProcessor(new OTLPTraceExporter({})))
 provider.register()
 ```
 
-> **Note**: We have created a simple [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
+> **Note**: We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
 
 ## Testing your instrumentation
 
@@ -78,13 +78,13 @@ We recommend using our [OpenTelemetry dev environment](https://github.com/vercel
 If everything works well you should be able to see root server span labeled as `GET /requested/pathname`.
 All other spans from that particular trace will be nested under it.
 
-By default we emit just few spans, but internally Next.js traces way more.
+By default we emit a few spans, but internally Next.js traces way more.
 If you want to dig deeper into our internals you can set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
 
 You can add your own spans as well. And since we are using OpenTelemetry this part is not Next.js specific.
-You can just use `@opentelemetry/api` and it will just work.
+You can use `@opentelemetry/api` and it will automatically work.
 
 ```ts
 import { trace } from '@opentelemetry/api'
@@ -105,4 +105,4 @@ export async function fetchGithubStars() {
 More documentation can be found in [OpenTelemetry docs](https://opentelemetry.io/docs/instrumentation/js/instrumentation/).
 
 We will call `register` function before your code runs in a new environment.
-You can just start creating new spans and they should be correctly added to the exported trace.
+You can start creating new spans and they should be correctly added to the exported trace.
