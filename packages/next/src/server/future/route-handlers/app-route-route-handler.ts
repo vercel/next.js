@@ -24,7 +24,7 @@ import {
   handleTemporaryRedirectResponse,
 } from '../helpers/response-handlers'
 import { AppRouteRouteMatch } from '../route-matches/app-route-route-match'
-import { HTTP_METHOD, isHTTPMethod } from '../../web/http'
+import { HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
 import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
 import type { ModuleLoader } from '../helpers/module-loader/module-loader'
@@ -340,6 +340,42 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
   })
 }
 
+/**
+ * Validate that the module is exporting methods supported by the handler.
+ *
+ * @param mod the module to validate
+ */
+function validateModule(mod: AppRouteModule) {
+  const { handlers, resolvedPagePath } = mod
+
+  // Print error in development if the exported handlers are in lowercase, only
+  // uppercase handlers are supported.
+  const lowercased = HTTP_METHODS.map((method) => method.toLowerCase())
+  for (const method of lowercased) {
+    if (method in handlers) {
+      Log.error(
+        `Detected lowercase method '${method}' in '${resolvedPagePath}'. Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
+      )
+    }
+  }
+
+  // Print error if the module exports a default handler, they must use named
+  // exports for each HTTP method.
+  if ('default' in handlers) {
+    Log.error(
+      `Detected default export in '${resolvedPagePath}'. Export a named export for each HTTP method instead.`
+    )
+  }
+
+  // If there is no methods exported by this module, then return a not found
+  // response.
+  if (HTTP_METHODS.every((method) => !(method in handlers))) {
+    Log.error(
+      `No HTTP methods exported in '${resolvedPagePath}'. Export a named export for each HTTP method.`
+    )
+  }
+}
+
 export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
   constructor(
     private readonly nextConfigOutput: NextConfig['output'] = undefined,
@@ -356,25 +392,11 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     if (!isHTTPMethod(method)) return handleBadRequestResponse
 
     // Pull out the handlers from the app route module.
-    const { handlers, resolvedPagePath } = mod
+    const { handlers } = mod
 
+    // If we're in development, then validate the module.
     if (process.env.NODE_ENV !== 'production') {
-      // Print error in development if the exported handlers are in lowercase, only uppercase handlers are supported
-      for (const invalidMethodName of [
-        'get',
-        'head',
-        'options',
-        'post',
-        'put',
-        'delete',
-        'patch',
-      ]) {
-        if ((handlers as any)[invalidMethodName]) {
-          Log.error(
-            `Detected lowercase method '${invalidMethodName}' in '${resolvedPagePath}'. Export the uppercase '${invalidMethodName.toUpperCase()}' method name to fix this error.`
-          )
-        }
-      }
+      validateModule(mod)
     }
 
     // Check to see if the requested method is available.
