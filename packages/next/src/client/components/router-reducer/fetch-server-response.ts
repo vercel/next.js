@@ -12,6 +12,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
+import { callServer } from '../../app-call-server'
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -75,7 +76,9 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const flightData: FlightData = await createFromFetch(Promise.resolve(res))
+    const flightData: FlightData = await createFromFetch(Promise.resolve(res), {
+      callServer,
+    })
     return [flightData, canonicalUrl]
   } catch (err) {
     console.error(

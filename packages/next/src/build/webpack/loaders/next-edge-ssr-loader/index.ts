@@ -149,7 +149,7 @@ export default async function edgeSSRLoader(this: any) {
       appRenderToHTML,
       pagesRenderToHTML,
       reactLoadableManifest,
-      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
+      clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
       serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
       serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
       subresourceIntegrityManifest,
