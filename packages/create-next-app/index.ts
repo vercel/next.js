@@ -358,7 +358,6 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
-
         program.experimentalApp = Boolean(appDir)
 
         if (program.experimentalApp) {
