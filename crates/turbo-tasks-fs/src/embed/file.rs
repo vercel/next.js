@@ -32,7 +32,7 @@ pub async fn content_from_str(string: &str) -> Result<FileContentVc> {
 /// Loads a file's content from disk and invalidates on change (debug builds).
 ///
 /// In production, this will embed a file's content into the binary directly.
-#[cfg(all(debug_assertions, feature = "dynamic_embed_contents"))]
+#[cfg(feature = "dynamic_embed_contents")]
 #[macro_export]
 macro_rules! embed_file {
     ($path:expr) => {{
@@ -44,7 +44,7 @@ macro_rules! embed_file {
 }
 
 /// Embeds a file's content into the binary (production).
-#[cfg(not(all(debug_assertions, feature = "dynamic_embed_contents")))]
+#[cfg(not(feature = "dynamic_embed_contents"))]
 #[macro_export]
 macro_rules! embed_file {
     ($path:expr) => {
