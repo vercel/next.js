@@ -49,14 +49,9 @@ async function run() {
 
   debug(`Labels to add: ${toAdd.join(', ')}`)
 
-  let promises = []
-  if (toAdd.length) promises.push(addLabels(client, issue_number, toAdd))
+  if (!toAdd.length) return console.log('No labels to add, exiting')
 
-  const rejected = (await Promise.allSettled(promises))
-    .map((p) => p.status === 'rejected' && p.reason)
-    .filter(Boolean)
-
-  if (rejected.length) throw new AggregateError(rejected)
+  await addLabels(client, issue_number, toAdd)
 
   debug(`Added labels to issue #${issue_number}: ${toAdd.join(', ')}`)
 }
