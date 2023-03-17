@@ -24,7 +24,7 @@ export const register() {
 }
 ```
 
-If your package requires you to use import side-effect, you can do this instead:
+If you need to import a package strictly for its side effects, we recommend using `require` in your custom `register` function instead. The following example demonstrates a basic usage of `require` in a `register` function:
 
 ```ts
 // instrumentation.ts
