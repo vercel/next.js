@@ -83,7 +83,7 @@ If you want to dig deeper into our internals you can set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
 
-You can add your own spans as well. And since we are using OpenTelemetry this part is not Next.js specific.
+OpenTelemetry enables you to add your own custom spans to trace using `@opentelemetry/api`. The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:
 
 ```ts
 import { trace } from '@opentelemetry/api'
