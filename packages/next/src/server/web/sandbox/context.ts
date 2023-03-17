@@ -16,6 +16,11 @@ import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
+import BufferImplementation from 'node:buffer'
+import EventsImplementation from 'node:events'
+import AssertImplementation from 'node:assert'
+import UtilImplementation from 'node:util'
+import AsyncHooksImplementation from 'node:async_hooks'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -139,6 +144,45 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
   }
 }
 
+const NativeModuleMap = new Map<string, unknown>([
+  [
+    'node:buffer',
+    pick(BufferImplementation, [
+      'constants',
+      'kMaxLength',
+      'kStringMaxLength',
+      'Buffer',
+      'SlowBuffer',
+    ]),
+  ],
+  [
+    'node:events',
+    pick(EventsImplementation, [
+      'EventEmitter',
+      'captureRejectionSymbol',
+      'defaultMaxListeners',
+      'errorMonitor',
+      'listenerCount',
+      'on',
+      'once',
+    ]),
+  ],
+  [
+    'node:async_hooks',
+    pick(AsyncHooksImplementation, ['AsyncLocalStorage', 'AsyncResource']),
+  ],
+  [
+    'node:assert',
+    // TODO: check if need to pick specific properties
+    AssertImplementation,
+  ],
+  [
+    'node:util',
+    // TODO: check if need to pick specific properties
+    UtilImplementation,
+  ],
+])
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -154,6 +198,17 @@ async function createModuleContext(options: ModuleContextOptions) {
         : undefined,
     extend: (context) => {
       context.process = createProcessPolyfill(options)
+
+      Object.defineProperty(context, 'require', {
+        enumerable: false,
+        value: (id: string) => {
+          const value = NativeModuleMap.get(id)
+          if (!value) {
+            throw TypeError('Native module not found: ' + id)
+          }
+          return value
+        },
+      })
 
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
