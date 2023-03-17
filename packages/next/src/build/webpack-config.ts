@@ -35,6 +35,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
 import MiddlewarePlugin, {
+  getEdgePolyfilledModules,
   handleWebpackExternalForEdgeRuntime,
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -1460,6 +1461,7 @@ export default async function getBaseWebpackConfig(
                     './cjs/react-dom-server-legacy.browser.development.js':
                       '{}',
                   },
+                  getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
                 ]
               : []),
