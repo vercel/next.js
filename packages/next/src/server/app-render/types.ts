@@ -1,8 +1,8 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime } from '../../../types'
 import type {
-  FlightCSSManifest,
-  FlightManifest,
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 
@@ -114,8 +114,8 @@ export type ChildProp = {
 export type RenderOptsPartial = {
   err?: Error | null
   dev?: boolean
-  serverComponentManifest?: FlightManifest
-  serverCSSManifest?: FlightCSSManifest
+  clientReferenceManifest?: ClientReferenceManifest
+  serverCSSManifest?: ClientCSSReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean

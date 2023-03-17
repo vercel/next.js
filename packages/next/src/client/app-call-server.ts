@@ -1,4 +1,4 @@
-export async function callServer(id: string, args: any[]) {
+export async function callServer(id: string, bound: any[]) {
   const actionId = id
 
   // Fetching the current url with the action header.
@@ -10,7 +10,7 @@ export async function callServer(id: string, args: any[]) {
       'Next-Action': actionId,
     },
     body: JSON.stringify({
-      bound: args,
+      bound,
     }),
   })
 

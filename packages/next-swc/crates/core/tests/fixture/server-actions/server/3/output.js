@@ -5,3 +5,4 @@
 myAction.$$typeof = Symbol.for("react.server.reference");
 myAction.$$id = "e10665baac148856374b2789aceb970f66fec33e";
 myAction.$$bound = [];
+myAction.$$with_bound = false;

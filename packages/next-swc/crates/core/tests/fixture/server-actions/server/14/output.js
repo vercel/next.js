@@ -4,3 +4,4 @@
 foo.$$typeof = Symbol.for("react.server.reference");
 foo.$$id = "ab21efdafbe611287bc25c0462b1e0510d13e48b";
 foo.$$bound = [];
+foo.$$with_bound = false;
