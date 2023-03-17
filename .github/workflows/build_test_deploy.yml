@@ -181,7 +181,7 @@ jobs:
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         run: |
           cargo fmt -- --check
-          cargo clippy --all -- -D warnings
+          cargo clippy --all -- -D warnings -A deprecated
         working-directory: packages/next-swc
 
   checkPrecompiled:
@@ -955,7 +955,7 @@ jobs:
   deployExamples:
     name: Deploy examples
     runs-on: ubuntu-latest
-    needs: [publishRelease]
+    needs: [build]
     steps:
       - uses: actions/checkout@v3
         with:

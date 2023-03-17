@@ -1,6 +1,5 @@
 [env]
 CARGO_WORKSPACE_DIR = { value = "", relative = true }
-PNPM_WORKSPACE_DIR = { value = "../../", relative = true }
 
 [build]
 
@@ -30,5 +29,5 @@ rustflags = [
   "--cfg",
   "tokio_unstable",
   "-Csymbol-mangling-version=v0",
-  "-Aclippy::too_many_arguments"
+  "-Aclippy::too_many_arguments",
 ]

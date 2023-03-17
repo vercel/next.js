@@ -31,7 +31,7 @@ turbopack-ecmascript = { workspace = true }
 turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
 next-transform-strip-page-exports = { workspace = true }
-next-font = { workspace = true }
+next-transform-font = { workspace = true }
 next-transform-dynamic = { workspace = true }
 
 swc_core = { workspace = true, features = ["ecma_ast", "common"] }
