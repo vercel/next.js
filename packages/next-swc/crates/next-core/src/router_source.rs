@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
+use futures::stream::StreamExt;
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 use turbopack_core::{
@@ -6,7 +7,7 @@ use turbopack_core::{
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
 };
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+    Body, BodyError, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult, RewriteBuilder,
 };
 use turbopack_node::execution_context::ExecutionContextVc;
@@ -145,12 +146,18 @@ impl ContentSource for NextRouterContentSource {
                     ContentSourceContent::Rewrite(rewrite.build()).cell().into(),
                 )
             }
-            RouterResult::FullMiddleware(data) => ContentSourceResultVc::exact(
+            RouterResult::Middleware(data) => ContentSourceResultVc::exact(
                 ContentSourceContent::HttpProxy(
                     ProxyResult {
-                        status: data.headers.status_code,
-                        headers: data.headers.headers.clone(),
-                        body: data.body.clone().into(),
+                        status: data.status_code,
+                        headers: data.headers.clone(),
+                        body: Body::from_stream(data.body.read().map(|chunk| {
+                            chunk.map_err(|e| {
+                                BodyError::new(
+                                    "error streaming proxied contents: ".to_string() + e.as_str(),
+                                )
+                            })
+                        })),
                     }
                     .cell(),
                 )

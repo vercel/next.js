@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
@@ -6,9 +7,8 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     CompletionVc, CompletionsVc, Value,
 };
-use turbo_tasks_fs::{
-    json::parse_json_rope_with_source_context, to_sys_path, File, FileSystemPathVc,
-};
+use turbo_tasks_bytes::{bytes::BytesValue, stream::Stream};
+use turbo_tasks_fs::{json::parse_json_with_source_context, to_sys_path, File, FileSystemPathVc};
 use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -29,7 +29,7 @@ use turbopack_ecmascript::{
     EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
 };
 use turbopack_node::{
-    evaluate::{evaluate, JavaScriptValue},
+    evaluate::{evaluate, JavaScriptEvaluation},
     execution_context::{ExecutionContext, ExecutionContextVc},
     StructuredError,
 };
@@ -98,56 +98,34 @@ pub struct MiddlewareHeadersResponse {
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
-pub struct MiddlewareBodyResponse(pub Vec<u8>);
+pub struct MiddlewareBodyResponse(BytesValue);
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+enum RouterIncomingMessage {
+    Rewrite { data: RewriteResponse },
+    MiddlewareHeaders { data: MiddlewareHeadersResponse },
+    MiddlewareBody { data: Vec<u8> },
+    None,
+    Error(StructuredError),
+}
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
-pub struct FullMiddlewareResponse {
-    pub headers: MiddlewareHeadersResponse,
-    pub body: Vec<u8>,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "kebab-case")]
-enum RouterIncomingMessage {
-    Rewrite {
-        data: RewriteResponse,
-    },
-    // TODO: Implement
-    #[allow(dead_code)]
-    MiddlewareHeaders {
-        data: MiddlewareHeadersResponse,
-    },
-    // TODO: Implement
-    #[allow(dead_code)]
-    MiddlewareBody {
-        data: MiddlewareBodyResponse,
-    },
-    FullMiddleware {
-        data: FullMiddlewareResponse,
-    },
-    None,
-    Error(StructuredError),
+pub struct MiddlewareResponse {
+    pub status_code: u16,
+    pub headers: Vec<(String, String)>,
+    #[turbo_tasks(trace_ignore)]
+    pub body: Stream<Result<BytesValue, String>>,
 }
 
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
-    FullMiddleware(FullMiddlewareResponse),
+    Middleware(MiddlewareResponse),
     None,
     Error,
-}
-
-impl From<RouterIncomingMessage> for RouterResult {
-    fn from(value: RouterIncomingMessage) -> Self {
-        match value {
-            RouterIncomingMessage::Rewrite { data } => Self::Rewrite(data),
-            RouterIncomingMessage::FullMiddleware { data } => Self::FullMiddleware(data),
-            RouterIncomingMessage::None => Self::None,
-            _ => Self::Error,
-        }
-    }
 }
 
 #[turbo_tasks::function]
@@ -399,13 +377,63 @@ async fn route_internal(
     .await?;
 
     match &*result {
-        JavaScriptValue::Value(val) => {
-            let result: RouterIncomingMessage = parse_json_rope_with_source_context(val)?;
-            Ok(RouterResult::from(result).cell())
+        JavaScriptEvaluation::Single(Ok(val)) => {
+            // If we received a single message from the router, then it must be a
+            // rewrite/none/error. Middleware always comes in 2+ chunk streams.
+            let result: RouterIncomingMessage = parse_json_with_source_context(&val.to_str()?)?;
+            Ok(match result {
+                RouterIncomingMessage::Rewrite { data } => RouterResult::Rewrite(data),
+                RouterIncomingMessage::None => RouterResult::None,
+                _ => RouterResult::Error,
+            }
+            .cell())
         }
-        JavaScriptValue::Error => Ok(RouterResult::Error.cell()),
-        JavaScriptValue::Stream(_) => {
-            unimplemented!("Stream not supported now");
+        JavaScriptEvaluation::Stream(stream) => {
+            let mut read = stream.read();
+
+            let middleware = match read.next().await {
+                Some(Ok(first)) => {
+                    // The first chunk is the Middleware's headers/status. Everything after that is
+                    // body contents.
+                    let headers: RouterIncomingMessage =
+                        parse_json_with_source_context(&first.to_str()?)?;
+
+                    // The double encoding here is annoying. It'd be a lot nicer if we could embed
+                    // a buffer directly into the IPC message without having to wrap it in an
+                    // object.
+                    let body = read.map(|data| {
+                        let chunk = match data {
+                            Ok(c) => c,
+                            Err(e) => return Err(e.message),
+                        };
+                        let chunk: RouterIncomingMessage = match chunk
+                            .to_str()
+                            .and_then(|s| parse_json_with_source_context(&s))
+                        {
+                            Ok(c) => c,
+                            Err(e) => return Err(e.to_string()),
+                        };
+                        match chunk {
+                            RouterIncomingMessage::MiddlewareBody { data } => {
+                                Ok(BytesValue::from(data))
+                            }
+                            m => Err(format!("unexpected message type: {:#?}", m)),
+                        }
+                    });
+
+                    match headers {
+                        RouterIncomingMessage::MiddlewareHeaders { data } => MiddlewareResponse {
+                            status_code: data.status_code,
+                            headers: data.headers,
+                            body: Stream::from_stream(body),
+                        },
+                        _ => return Ok(RouterResult::Error.cell()),
+                    }
+                }
+                _ => return Ok(RouterResult::Error.cell()),
+            };
+            Ok(RouterResult::Middleware(middleware).cell())
         }
+        _ => Ok(RouterResult::Error.cell()),
     }
 }
