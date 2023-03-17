@@ -84,7 +84,6 @@ If you want to dig deeper into our internals you can set `NEXT_OTEL_VERBOSE=1`.
 ## Custom Spans
 
 You can add your own spans as well. And since we are using OpenTelemetry this part is not Next.js specific.
-You can use `@opentelemetry/api` and it will automatically work.
 
 ```ts
 import { trace } from '@opentelemetry/api'
