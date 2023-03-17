@@ -78,7 +78,7 @@ We recommend using our [OpenTelemetry dev environment](https://github.com/vercel
 If everything works well you should be able to see the root server span labeled as `GET /requested/pathname`.
 All other spans from that particular trace will be nested under it.
 
-By default we emit a few spans, but internally Next.js traces way more.
+Next.js traces more spans than are emitted by default.
 To see more spans, you must set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
