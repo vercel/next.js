@@ -688,7 +688,7 @@ export default async function getBaseWebpackConfig(
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
-        'You ase using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
+        'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
     }
   }
