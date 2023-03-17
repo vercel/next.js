@@ -7,7 +7,7 @@ description: Learn how to instrument your Next.js app.
 # `instrumentation.ts`
 
 If you export a function named `register` from this file, we will call that function whenever new server instance is bootstrapped.
-When deployed it will be called continuously on each coldboot (but exactly once in each environment).
+When your `register` function is deployed, it will be called continuously on each cold boot (but exactly once in each environment).
 
 Many people used imports with side-effects before we released this feature.
 The behavior is similar, but using imports with side-effects is hard to work with and has many down-sides.
