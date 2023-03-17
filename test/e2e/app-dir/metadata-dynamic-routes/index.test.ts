@@ -56,6 +56,35 @@ createNextDescribe(
           "
         `)
       })
+
+      it('should handle manifest.[ext] dynamic routes', async () => {
+        const res = await next.fetch('/manifest.json')
+        const json = await res.json()
+
+        expect(res.headers.get('content-type')).toBe(
+          'application/manifest+json'
+        )
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
+
+        expect(json).toMatchObject({
+          name: 'Next.js App',
+          short_name: 'Next.js App',
+          description: 'Next.js App',
+          start_url: '/',
+          display: 'standalone',
+          background_color: '#fff',
+          theme_color: '#fff',
+          icons: [
+            {
+              src: '/favicon.ico',
+              sizes: 'any',
+              type: 'image/x-icon',
+            },
+          ],
+        })
+      })
     })
   }
 )

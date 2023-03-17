@@ -554,10 +554,10 @@ type RobotsFile = {
   host?: string
 }
 
-type SitemapFile = Array<{
+type Sitemap = Array<{
   url: string
   lastModified?: string | Date
 }>
 
 export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata, RobotsFile, SitemapFile }
+export { Metadata, ResolvedMetadata, RobotsFile as Robots, Sitemap }

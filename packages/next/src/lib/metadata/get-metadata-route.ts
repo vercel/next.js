@@ -20,6 +20,9 @@ export function normalizeMetadataRoute(page: string) {
     if (route === '/robots') {
       route += '.txt'
     }
+    if (route === '/manifest') {
+      route += '.json'
+    }
     route = `${route}/route`
   }
   return route

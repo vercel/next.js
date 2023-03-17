@@ -97,6 +97,7 @@ export function createValidFileMatcher(
    * /robots.txt|<ext>
    * /sitemap.xml|<ext>
    * /favicon.ico
+   * /manifest.json|<ext>
    * <route>/icon.png|jpg|<ext>
    * <route>/apple-touch-icon.png|jpg|<ext>
    *

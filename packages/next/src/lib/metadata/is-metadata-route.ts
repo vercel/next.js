@@ -8,11 +8,11 @@ const getExtensionRegexString = (extensions: string[]) =>
   `(?:${extensions.join('|')})`
 
 // When you only pass the file extension as `[]`, it will only match the static convention files
-// e.g. /robots.txt, /sitemap.xml, /favicon.ico
+// e.g. /robots.txt, /sitemap.xml, /favicon.ico, /manifest.json
 // When you pass the file extension as `['js', 'jsx', 'ts', 'tsx']`, it will also match the dynamic convention files
-// e.g. /robots.js, /sitemap.tsx, /favicon.jsx
+// e.g. /robots.js, /sitemap.tsx, /favicon.jsx, /manifest.ts
 // When `withExtension` is false, it will match the static convention files without the extension, by default it's true
-// e.g. /robots, /sitemap, /favicon, use to match dynamic API routes like app/robots.ts
+// e.g. /robots, /sitemap, /favicon, /manifest, use to match dynamic API routes like app/robots.ts
 export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: string[],
@@ -30,6 +30,13 @@ export function isMetadataRouteFile(
       `^[\\\\/]sitemap${
         withExtension
           ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
+          : ''
+      }`
+    ),
+    new RegExp(
+      `^[\\\\/]manifest${
+        withExtension
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('json'))}`
           : ''
       }`
     ),
