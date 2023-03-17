@@ -67,7 +67,7 @@ pub(super) async fn get_font_fallback(
                             AutomaticFontFallback {
                                 scoped_font_family: get_scoped_font_family(
                                     FontFamilyType::Fallback.cell(),
-                                    options.font_family.to_owned(),
+                                    options_vc.font_family(),
                                     request_hash,
                                 ),
                                 local_font_family: StringVc::cell(fallback.font_family),

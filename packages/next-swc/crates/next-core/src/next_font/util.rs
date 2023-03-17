@@ -37,7 +37,7 @@ pub(crate) enum FontFamilyType {
 #[turbo_tasks::function]
 pub(crate) async fn get_scoped_font_family(
     ty: FontFamilyTypeVc,
-    font_family_name: String,
+    font_family_name: StringVc,
     request_hash: U32Vc,
 ) -> Result<StringVc> {
     let hash = {
@@ -46,7 +46,7 @@ pub(crate) async fn get_scoped_font_family(
         hash
     };
 
-    let font_family_base = font_family_name.replace(' ', "_");
+    let font_family_base = font_family_name.await?.replace(' ', "_");
     let font_family_name = match &*ty.await? {
         FontFamilyType::WebFont => font_family_base,
         FontFamilyType::Fallback => format!("{}_Fallback", font_family_base),

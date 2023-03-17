@@ -170,7 +170,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         let request_hash = get_request_hash(*query_vc);
         let scoped_font_family = get_scoped_font_family(
             FontFamilyType::WebFont.cell(),
-            options.await?.font_family.to_owned(),
+            options.font_family(),
             request_hash,
         );
         let css_virtual_path = next_js_file_path("internal/font/google").join(&format!(
@@ -314,7 +314,7 @@ async fn get_font_css_properties(
     let options = &*options_vc.await?;
     let scoped_font_family = &*get_scoped_font_family(
         FontFamilyType::WebFont.cell(),
-        options.font_family.to_owned(),
+        options_vc.font_family(),
         request_hash,
     )
     .await?;

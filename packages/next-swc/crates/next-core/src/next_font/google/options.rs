@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
@@ -32,6 +32,11 @@ impl NextFontGoogleOptionsVc {
     #[turbo_tasks::function]
     pub fn new(options: Value<NextFontGoogleOptions>) -> NextFontGoogleOptionsVc {
         Self::cell(options.into_value())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn font_family(self) -> Result<StringVc> {
+        Ok(StringVc::cell((*self.await?.font_family).to_owned()))
     }
 }
 
