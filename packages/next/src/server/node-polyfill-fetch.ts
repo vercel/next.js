@@ -21,7 +21,7 @@ if (!(global as any).fetch) {
   }
 
   // Due to limitation of global configuration, we have to do this resolution at runtime
-  impl.fetch = (...args: any[]) => {
+  ;(global as any).fetch = (...args: any[]) => {
     const fetchImpl = getFetchImpl()
 
     if ((global as any).__NEXT_USE_UNDICI) {
@@ -51,14 +51,6 @@ if (!(global as any).fetch) {
   }
 
   Object.defineProperties(global, {
-    fetch: {
-      set(fetch) {
-        impl.fetch = fetch
-      },
-      get() {
-        return impl.fetch
-      },
-    },
     Headers: {
       set(Headers) {
         impl.Headers = Headers
