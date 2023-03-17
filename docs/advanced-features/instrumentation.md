@@ -12,7 +12,7 @@ When your `register` function is deployed, it will be called continuously on eac
 Many people used imports with side-effects before we released this feature.
 The behavior is similar, but using imports with side-effects is hard to work with and has many down-sides.
 
-So instead of adding `import 'package-with-side-effect'`, you can add this:
+**We recommend importing the `init` function from `package-init` instead of importing packages with side effects**. You can then call it from your custom `register` function defined in `instrumentation.ts`, as demonstrated in the example below:
 
 ```ts
 // instrumentation.ts
