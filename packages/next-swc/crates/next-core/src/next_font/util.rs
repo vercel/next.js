@@ -56,10 +56,10 @@ pub(crate) async fn get_scoped_font_family(
 }
 
 #[turbo_tasks::function]
-pub async fn get_request_id(font_family: String, request_hash: U32Vc) -> Result<StringVc> {
+pub async fn get_request_id(font_family: StringVc, request_hash: U32Vc) -> Result<StringVc> {
     Ok(StringVc::cell(format!(
         "{}_{:x?}",
-        font_family.to_lowercase().replace(' ', "_"),
+        font_family.await?.to_lowercase().replace(' ', "_"),
         request_hash.await?
     )))
 }

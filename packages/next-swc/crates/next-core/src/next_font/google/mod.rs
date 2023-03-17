@@ -85,7 +85,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         let properties = get_font_css_properties(options, fallback, request_hash).await?;
         let js_asset = VirtualAssetVc::new(
                 next_js_file_path("internal/font/google")
-                    .join(&format!("{}.js", get_request_id(options.await?.font_family.clone(), request_hash).await?)),
+                    .join(&format!("{}.js", get_request_id(options.font_family(), request_hash).await?)),
                 FileContent::Content(
                     formatdoc!(
                         r#"
@@ -175,7 +175,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         );
         let css_virtual_path = next_js_file_path("internal/font/google").join(&format!(
             "/{}.module.css",
-            get_request_id(options.await?.font_family.clone(), request_hash).await?
+            get_request_id(options.font_family(), request_hash).await?
         ));
 
         // When running Next.js integration tests, use the mock data available in
