@@ -14,7 +14,7 @@ Sometimes, it may be useful to import a file in your code because of the side ef
 You can import files with side effects in `instrumentation.ts`, which you might want to use in your `register` function as demonstrated in the following example:
 
 ```ts
-// instrumentation.ts
+// /instrumentation.ts
 
 import { init } from 'package-init'
 
@@ -26,7 +26,7 @@ export const register() {
 However, we recommend importing files with side effects using `require` from within your `register` function instead. The following example demonstrates a basic usage of `require` in a `register` function:
 
 ```ts
-// instrumentation.ts
+// /instrumentation.ts
 
 export const register() {
   require('package-with-side-effect')

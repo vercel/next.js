@@ -26,7 +26,7 @@ To get started, you must install the required packages:
 npm install @opentelemetry/api @opentelemetry/exporter-trace-otlp-http @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/semantic-conventions
 ```
 
-Next, create a custom [`instrumentation.ts`](./instrumentation.md) file.
+Next, create a custom [`instrumentation.ts`](./instrumentation.md) file in the root of the project.
 Since you can't import OpenTelemetry on `edge` we recommend creating second file, that get's only imported in correct environment.
 
 ```ts
