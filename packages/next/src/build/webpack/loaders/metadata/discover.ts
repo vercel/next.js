@@ -37,7 +37,7 @@ export const STATIC_METADATA_IMAGES = {
 async function enumMetadataFiles(
   dir: string,
   filename: string,
-  extensions: string[],
+  extensions: readonly string[],
   {
     resolvePath,
     loaderContext,

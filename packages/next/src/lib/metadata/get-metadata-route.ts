@@ -21,7 +21,7 @@ export function normalizeMetadataRoute(page: string) {
       route += '.txt'
     }
     if (route === '/manifest') {
-      route += '.json'
+      route += '.webmanifest'
     }
     route = `${route}/route`
   }

@@ -210,7 +210,7 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://github.com/manifest.json',
+          manifest: 'https://www.google.com/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
           preload: '/preload-url',

@@ -58,7 +58,7 @@ createNextDescribe(
       })
 
       it('should handle manifest.[ext] dynamic routes', async () => {
-        const res = await next.fetch('/manifest.json')
+        const res = await next.fetch('/manifest.webmanifest')
         const json = await res.json()
 
         expect(res.headers.get('content-type')).toBe(

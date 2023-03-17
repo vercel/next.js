@@ -4,7 +4,7 @@ import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/dis
 // TODO-METADATA: support more metadata routes with more extensions
 const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
 
-const getExtensionRegexString = (extensions: string[]) =>
+const getExtensionRegexString = (extensions: readonly string[]) =>
   `(?:${extensions.join('|')})`
 
 // When you only pass the file extension as `[]`, it will only match the static convention files
