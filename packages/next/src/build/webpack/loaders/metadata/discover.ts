@@ -147,6 +147,7 @@ export async function createStaticMetadataFromRoute(
         } else {
           staticImagesMetadata[type].push(imageModule)
         }
+        console.log('staticImagesMetadata', staticImagesMetadata)
       })
   }
 
