@@ -16,7 +16,11 @@ import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
-import * as BufferImplementation from 'node:buffer'
+import BufferImplementation from 'node:buffer'
+import EventsImplementation from 'node:events'
+import AssertImplementation from 'node:assert'
+import UtilImplementation from 'node:util'
+import AsyncHooksImplementation from 'node:async_hooks'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -140,18 +144,42 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
   }
 }
 
-const NativeModuleMap = new Map([
+const NativeModuleMap = new Map<string, unknown>([
   [
     'node:buffer',
-    {
-      ...pick(BufferImplementation, [
-        'constants',
-        'kMaxLength',
-        'kStringMaxLength',
-        'Buffer',
-        'SlowBuffer',
-      ]),
-    },
+    pick(BufferImplementation, [
+      'constants',
+      'kMaxLength',
+      'kStringMaxLength',
+      'Buffer',
+      'SlowBuffer',
+    ]),
+  ],
+  [
+    'node:events',
+    pick(EventsImplementation, [
+      'EventEmitter',
+      'captureRejectionSymbol',
+      'defaultMaxListeners',
+      'errorMonitor',
+      'listenerCount',
+      'on',
+      'once',
+    ]),
+  ],
+  [
+    'node:async_hooks',
+    pick(AsyncHooksImplementation, ['AsyncLocalStorage', 'AsyncResource']),
+  ],
+  [
+    'node:assert',
+    // TODO: check if need to pick specific properties
+    AssertImplementation,
+  ],
+  [
+    'node:util',
+    // TODO: check if need to pick specific properties
+    UtilImplementation,
   ],
 ])
 

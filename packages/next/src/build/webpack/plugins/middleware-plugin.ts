@@ -858,7 +858,13 @@ export default class MiddlewarePlugin {
   }
 }
 
-const supportedEdgePolyfills = new Set(['buffer'])
+const supportedEdgePolyfills = new Set([
+  'buffer',
+  'events',
+  'assert',
+  'util',
+  'async_hooks',
+])
 
 export function getEdgePolyfilledModules() {
   const records: Record<string, string> = {}
