@@ -21,7 +21,6 @@ import { useTempDir } from '../../../test/lib/use-temp-dir'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
 import { getPkgPaths } from '../../../test/lib/create-next-install'
-import { createNext } from 'e2e-utils'
 
 const startsWithoutError = async (
   appDir: string,
@@ -54,28 +53,12 @@ const startsWithoutError = async (
     }
   }
 }
-let testVersion
 
 describe('create-next-app templates', () => {
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
   }
-
-  beforeAll(async () => {
-    // We will create new empty next instance but we won't actually build it or start it, we need just the dependencies
-    const next = await createNext({
-      files: {
-        'pages/index.js': 'export default () => <div>hello world</div>',
-      },
-      buildCommand: ':',
-      skipStart: true,
-    })
-    const packageJson = await next.readJSON('package.json')
-    testVersion = packageJson.dependencies.next
-    console.log('testVersion: ', testVersion)
-  })
-  it.only('ste', () => {})
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
     await useTempDir(async (cwd) => {
@@ -95,8 +78,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       /**
        * Wait for the prompt to display.
@@ -141,8 +123,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       const exitCode = await spawnExitPromise(childProcess)
 
@@ -168,8 +149,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       const exitCode = await spawnExitPromise(childProcess)
 
@@ -196,8 +176,7 @@ describe('create-next-app templates', () => {
             CI: '1',
             GITHUB_ACTIONS: '1',
           },
-        },
-        testVersion
+        }
       )
       const exitCode = await spawnExitPromise(childProcess)
 
@@ -222,8 +201,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       const exitCode = await spawnExitPromise(childProcess)
 
@@ -251,8 +229,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       const exitCode = await spawnExitPromise(childProcess)
 
@@ -288,8 +265,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       /**
        * Bind the exit listener.
@@ -334,8 +310,7 @@ describe('create-next-app templates', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
       /**
        * Wait for the prompt to display.
@@ -372,16 +347,6 @@ describe('create-next-app --experimental-app', () => {
     return
   }
 
-  beforeAll(async () => {
-    if (testVersion) return
-    testVersion = (
-      await getPkgPaths({
-        repoDir: path.join(__dirname, '../../../'),
-        nextSwcVersion: '',
-      })
-    ).get('next')
-  })
-
   it('should create TS appDir projects with --ts', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
@@ -397,8 +362,7 @@ describe('create-next-app --experimental-app', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
       const exitCode = await spawnExitPromise(childProcess)
@@ -427,8 +391,7 @@ describe('create-next-app --experimental-app', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
       const exitCode = await spawnExitPromise(childProcess)
@@ -459,8 +422,7 @@ describe('create-next-app --experimental-app', () => {
         {
           cwd,
           stdio: 'inherit',
-        },
-        testVersion
+        }
       )
 
       const exitCode = await spawnExitPromise(childProcess)
@@ -495,8 +457,7 @@ describe('create-next-app --experimental-app', () => {
         ],
         {
           cwd,
-        },
-        testVersion
+        }
       )
 
       const exitCode = await spawnExitPromise(childProcess)
