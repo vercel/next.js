@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
+  fetchViaHTTP,
   File,
   findPort,
   killApp,
@@ -23,15 +24,18 @@ const distDir = join(__dirname, '.next')
 const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
+const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
 async function runTests({
   isDev,
   trailingSlash,
-  dynamic,
+  dynamicPage,
+  dynamicApiRoute,
 }: {
   isDev?: boolean
   trailingSlash?: boolean
-  dynamic?: string
+  dynamicPage?: string
+  dynamicApiRoute?: string
 }) {
   if (trailingSlash) {
     nextConfig.replace(
@@ -39,10 +43,16 @@ async function runTests({
       `trailingSlash: ${trailingSlash},`
     )
   }
-  if (dynamic) {
+  if (dynamicPage) {
     slugPage.replace(
       `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamic}`
+      `const dynamic = ${dynamicPage}`
+    )
+  }
+  if (dynamicApiRoute) {
+    apiJson.replace(
+      `const dynamic = 'force-static'`,
+      `const dynamic = ${dynamicApiRoute}`
     )
   }
   await fs.remove(distDir)
@@ -61,7 +71,6 @@ async function runTests({
   }
   try {
     const a = (n: number) => `li:nth-child(${n}) a`
-    console.log('[navigate]')
     const browser = await webdriver(appPort, '/')
     expect(await browser.elementByCss('h1').text()).toBe('Home')
     expect(await browser.elementByCss(a(1)).text()).toBe(
@@ -117,10 +126,18 @@ async function runTests({
     expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
       '/test.3f1a293b.png'
     )
+    const res1 = await fetchViaHTTP(appPort, '/api/json')
+    expect(res1.status).toBe(200)
+    expect(await res1.json()).toEqual({ answer: 42 })
+
+    const res2 = await fetchViaHTTP(appPort, '/api/txt')
+    expect(res2.status).toBe(200)
+    expect(await res2.text()).toEqual('this is plain text')
   } finally {
     await stopOrKill()
     nextConfig.restore()
     slugPage.restore()
+    apiJson.restore()
   }
 }
 
@@ -140,8 +157,8 @@ describe('app dir with output export', () => {
     { dynamic: 'undefined' },
     { dynamic: "'error'" },
     { dynamic: "'force-static'" },
-  ])('should work with dynamic $dynamic', async ({ dynamic }) => {
-    await runTests({ dynamic })
+  ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
+    await runTests({ dynamicPage: dynamic })
     const opts = { cwd: exportDir, nodir: true }
     const files = ((await glob('**/*', opts)) as string[])
       .filter((f) => !f.startsWith('_next/static/chunks/'))
@@ -168,7 +185,7 @@ describe('app dir with output export', () => {
       'robots.txt',
     ])
   })
-  it("should throw when dynamic 'force-dynamic'", async () => {
+  it("should throw when dynamic 'force-dynamic' on page", async () => {
     slugPage.replace(
       `const dynamic = 'force-static'`,
       `const dynamic = 'force-dynamic'`
@@ -181,10 +198,41 @@ describe('app dir with output export', () => {
     } finally {
       nextConfig.restore()
       slugPage.restore()
+      apiJson.restore()
     }
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(
       'export const dynamic = "force-dynamic" on page "/another/[slug]" cannot be used with "output: export".'
+    )
+  })
+  it.each([
+    { dynamic: 'undefined' },
+    { dynamic: "'error'" },
+    { dynamic: "'force-static'" },
+  ])(
+    'should work with dynamic $dynamic on route handler',
+    async ({ dynamic }) => {
+      await runTests({ dynamicApiRoute: dynamic })
+    }
+  )
+  it("should throw when dynamic 'force-dynamic' on route handler", async () => {
+    apiJson.replace(
+      `const dynamic = 'force-static'`,
+      `const dynamic = 'force-dynamic'`
+    )
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    let result = { code: 0, stderr: '' }
+    try {
+      result = await nextBuild(appDir, [], { stderr: true })
+    } finally {
+      nextConfig.restore()
+      slugPage.restore()
+      apiJson.restore()
+    }
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".'
     )
   })
 })
