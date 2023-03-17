@@ -54,7 +54,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { isClientReference } from './is-client-reference'
+import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'

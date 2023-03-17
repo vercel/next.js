@@ -423,6 +423,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
 
+    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+    export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
+    export { createSearchParamsBailoutProxy } from 'next/dist/client/components/searchparams-bailout-proxy'
+
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
     export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.edge'

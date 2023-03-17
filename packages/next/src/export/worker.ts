@@ -85,6 +85,7 @@ interface ExportPageInput {
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  nextConfigOuput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -143,6 +144,7 @@ export default async function exportPage({
   isrMemoryCacheSize,
   fetchCache,
   incrementalCacheHandlerPath,
+  nextConfigOuput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -392,7 +394,7 @@ export default async function exportPage({
           }
 
           try {
-            const routeHandler = new AppRouteRouteHandler()
+            const routeHandler = new AppRouteRouteHandler(nextConfigOuput)
             const response: Response = await routeHandler.handle(
               {
                 params: query,
