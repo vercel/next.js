@@ -62,12 +62,12 @@ export function resolveSitemap(data: SitemapFile): string {
 
 export function resolveRouteData(
   data: RobotsFile | SitemapFile,
-  baseName: 'robots' | 'sitemap'
+  fileType: 'robots' | 'sitemap'
 ): string {
-  if (baseName === 'robots') {
+  if (fileType === 'robots') {
     return resolveRobots(data as RobotsFile)
   }
-  if (baseName === 'sitemap') {
+  if (fileType === 'sitemap') {
     return resolveSitemap(data as SitemapFile)
   }
   return ''

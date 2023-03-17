@@ -181,7 +181,7 @@ jobs:
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         run: |
           cargo fmt -- --check
-          cargo clippy --all -- -D warnings
+          cargo clippy --all -- -D warnings -A deprecated
         working-directory: packages/next-swc
 
   checkPrecompiled:
@@ -951,6 +951,29 @@ jobs:
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
+
+  deployExamples:
+    name: Deploy examples
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
+      - name: Install Vercel CLI
+        run: npm i -g vercel@28.16.15
+      - name: Deploy preview examples
+        if: ${{ needs.build.outputs.isRelease != 'true' }}
+        run: ./scripts/deploy-examples.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: preview
+      - name: Deploy production examples
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
+        run: ./scripts/deploy-examples.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: production
 
   testDeployE2E:
     name: E2E (deploy)

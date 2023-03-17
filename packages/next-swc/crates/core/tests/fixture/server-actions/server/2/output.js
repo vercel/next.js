@@ -4,6 +4,7 @@
 myAction.$$typeof = Symbol.for("react.server.reference");
 myAction.$$id = "6d53ce510b2e36499b8f56038817b9bad86cabb4";
 myAction.$$bound = [];
+myAction.$$with_bound = false;
 export const $$ACTION_0 = myAction;
 export default function Page() {
     return <Button action={myAction}>Delete</Button>;

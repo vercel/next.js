@@ -13,7 +13,7 @@ export default async function nextFontLoader(this: any) {
     const callback = this.async()
 
     /**
-     * The next-swc plugin next_font_loaders turns font function calls into CSS imports.
+     * The next-swc plugin next-transform-font turns font function calls into CSS imports.
      * At the end of the import, it adds the call arguments and some additional data as a resourceQuery.
      * e.g:
      * const inter = Inter({ subset: ['latin'] })

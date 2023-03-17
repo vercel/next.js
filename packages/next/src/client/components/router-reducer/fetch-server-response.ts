@@ -12,6 +12,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
+import { callServer } from '../../app-call-server'
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
@@ -39,12 +40,14 @@ export async function fetchServerResponse(
 
   try {
     let fetchUrl = url
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      fetchUrl = new URL(url) // clone
-      if (fetchUrl.pathname.endsWith('/')) {
-        fetchUrl.pathname += 'index.txt'
-      } else {
-        fetchUrl.pathname += '.txt'
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+        fetchUrl = new URL(url) // clone
+        if (fetchUrl.pathname.endsWith('/')) {
+          fetchUrl.pathname += 'index.txt'
+        } else {
+          fetchUrl.pathname += '.txt'
+        }
       }
     }
     const res = await fetch(fetchUrl, {
@@ -59,9 +62,11 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
-    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (!isFlightResponse) {
-        isFlightResponse = contentType.startsWith('text/plain')
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+        if (!isFlightResponse) {
+          isFlightResponse = contentType.startsWith('text/plain')
+        }
       }
     }
 
@@ -71,7 +76,9 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const flightData: FlightData = await createFromFetch(Promise.resolve(res))
+    const flightData: FlightData = await createFromFetch(Promise.resolve(res), {
+      callServer,
+    })
     return [flightData, canonicalUrl]
   } catch (err) {
     console.error(

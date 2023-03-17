@@ -1,6 +1,5 @@
 #![feature(min_specialization)]
 #![cfg(test)]
-extern crate test_generator;
 
 use dunce::canonicalize;
 use regex::{Captures, Regex, Replacer};
@@ -31,7 +30,6 @@ use lazy_static::lazy_static;
 use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use serde::Deserialize;
-use test_generator::test_resources;
 use tokio::{
     net::TcpSocket,
     sync::mpsc::{unbounded_channel, UnboundedSender},
@@ -98,8 +96,8 @@ fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
     }
 }
 
-#[test_resources("crates/next-dev-tests/tests/integration/*/*/*")]
-fn test(resource: &str) {
+#[testing::fixture("tests/integration/*/*/*")]
+fn test(resource: PathBuf) {
     if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
         // "Skip" directories named `__skipped__`, which include test directories to
         // skip. These tests are not considered truly skipped by `cargo test`, but they
@@ -142,9 +140,9 @@ fn test(resource: &str) {
     };
 }
 
-#[test_resources("crates/next-dev-tests/tests/integration/*/*/__skipped__/*")]
+#[testing::fixture("tests/integration/*/*/__skipped__/*")]
 #[should_panic]
-fn test_skipped_fails(resource: &str) {
+fn test_skipped_fails(resource: PathBuf) {
     let run_result = run_async_test(run_test(resource));
 
     // Assert that this skipped test itself has at least one browser test which
@@ -160,35 +158,32 @@ fn test_skipped_fails(resource: &str) {
     );
 }
 
-async fn run_test(resource: &str) -> JestRunResult {
+async fn run_test(resource: PathBuf) -> JestRunResult {
     register();
 
-    let path = Path::new(resource)
-        // test_resources matches and returns relative paths from the workspace root,
-        // but pwd in cargo tests is the crate under test.
-        .strip_prefix("crates/next-dev-tests")
-        .unwrap();
-    assert!(path.exists(), "{} does not exist", resource);
-
+    let resource = canonicalize(resource).unwrap();
+    assert!(resource.exists(), "{} does not exist", resource.display());
     assert!(
-        path.is_dir(),
+        resource.is_dir(),
         "{} is not a directory. Integration tests must be directories.",
-        path.to_str().unwrap()
+        resource.to_str().unwrap()
     );
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let cargo_workspace_root = package_root
+    let cargo_workspace_root = canonicalize(package_root)
+        .unwrap()
         .parent()
         .unwrap()
         .parent()
         .unwrap()
         .to_path_buf();
-    let test_dir = cargo_workspace_root.join(resource);
-    let workspace_root = canonicalize(PathBuf::from(env!("PNPM_WORKSPACE_DIR"))).unwrap();
+
+    let test_dir = resource.to_path_buf();
+    let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
     let requested_addr = get_free_local_addr().unwrap();
 
-    let mock_dir = path.join("__httpmock__");
+    let mock_dir = resource.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
 
     let (issue_tx, mut issue_rx) = unbounded_channel();
