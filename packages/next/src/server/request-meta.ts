@@ -17,7 +17,17 @@ export interface RequestMeta {
   __NEXT_INIT_URL?: string
   __NEXT_CLONABLE_BODY?: CloneableBody
   __nextHadTrailingSlash?: boolean
+
+  /**
+   * True when the request matched a locale domain that was configured in the
+   * next.config.js file.
+   */
   __nextIsLocaleDomain?: boolean
+
+  /**
+   * True when the request had locale information stripped from the pathname
+   * part of the URL.
+   */
   __nextStrippedLocale?: boolean
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean

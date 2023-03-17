@@ -1,10 +1,12 @@
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
+import { NextConfig } from '../../../../server/config-shared'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
+  nextConfigOutput: NextConfig['output']
 }
 
 export default async function edgeAppRouteLoader(this: any) {
@@ -12,7 +14,8 @@ export default async function edgeAppRouteLoader(this: any) {
     page,
     absolutePagePath,
     appDirLoader: appDirLoaderBase64,
-  } = this.getOptions()
+    nextConfigOutput,
+  } = this.getOptions() as EdgeAppRouteLoaderQuery
 
   const appDirLoader = Buffer.from(
     appDirLoaderBase64 || '',
@@ -48,6 +51,9 @@ export default async function edgeAppRouteLoader(this: any) {
     const render = getHandle({
       mod,
       page: ${JSON.stringify(page)},
+      nextConfigOuput: ${
+        nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
+      }
     })
 
     export const ComponentMod = mod

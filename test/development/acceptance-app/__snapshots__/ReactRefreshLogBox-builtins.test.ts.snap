@@ -41,7 +41,7 @@ https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app default Node.js builtins 1`] = `
-"./node_modules/my-package/index.js:2:0
+"./node_modules/my-package/index.js:2:22
 Module not found: Can't resolve 'dns'
 
 https://nextjs.org/docs/messages/module-not-found

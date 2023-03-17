@@ -18,6 +18,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { traverseModules } from '../utils'
 import { nonNullable } from '../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { getClientReferenceModuleKey } from '../../../lib/client-reference'
 
 interface Options {
   dev: boolean
@@ -38,7 +39,7 @@ const pluginState = getProxiedPluginState({
   ASYNC_CLIENT_MODULES: [] as string[],
 })
 
-interface ManifestNode {
+export interface ManifestNode {
   [moduleExport: string]: {
     /**
      * Webpack module id
@@ -60,29 +61,31 @@ interface ManifestNode {
   }
 }
 
-export type FlightManifest = {
-  __ssr_module_mapping__: {
-    [modulePath: string]: ManifestNode
+export type ClientReferenceManifest = {
+  clientModules: ManifestNode
+  ssrModuleMapping: {
+    [moduleId: string]: ManifestNode
   }
-  __edge_ssr_module_mapping__: {
-    [modulePath: string]: ManifestNode
+  edgeSSRModuleMapping: {
+    [moduleId: string]: ManifestNode
   }
-  __entry_css_files__: {
+  cssFiles: {
     [entryPathWithoutExtension: string]: string[]
   }
-} & ManifestNode
+}
 
-export type FlightCSSManifest = {
-  [modulePath: string]: string[]
-} & {
-  __entry_css_mods__?: {
+export type ClientCSSReferenceManifest = {
+  cssImports: {
+    [modulePath: string]: string[]
+  }
+  cssModules?: {
     [entry: string]: string[]
   }
 }
 
-const PLUGIN_NAME = 'FlightManifestPlugin'
+const PLUGIN_NAME = 'ClientReferenceManifestPlugin'
 
-export class FlightManifestPlugin {
+export class ClientReferenceManifestPlugin {
   dev: Options['dev'] = false
   appDir: Options['appDir']
   ASYNC_CLIENT_MODULES: Set<string>
@@ -126,11 +129,11 @@ export class FlightManifestPlugin {
     compilation: webpack.Compilation,
     context: string
   ) {
-    // @ts-ignore
-    const manifest: FlightManifest = {
-      __ssr_module_mapping__: {},
-      __edge_ssr_module_mapping__: {},
-      __entry_css_files__: {},
+    const manifest: ClientReferenceManifest = {
+      ssrModuleMapping: {},
+      edgeSSRModuleMapping: {},
+      cssFiles: {},
+      clientModules: {},
     }
     const dev = this.dev
 
@@ -183,8 +186,9 @@ export class FlightManifestPlugin {
           return
         }
 
-        const moduleIdMapping = manifest.__ssr_module_mapping__
-        const edgeModuleIdMapping = manifest.__edge_ssr_module_mapping__
+        const moduleReferences = manifest.clientModules
+        const moduleIdMapping = manifest.ssrModuleMapping
+        const edgeModuleIdMapping = manifest.edgeSSRModuleMapping
 
         // Note that this isn't that reliable as webpack is still possible to assign
         // additional queries to make sure there's no conflict even using the `named`
@@ -198,18 +202,19 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          if (!manifest[resource + '#']) {
-            manifest[resource + '#'] = {
+          const exportName = getClientReferenceModuleKey(resource, '')
+          if (!moduleReferences[exportName]) {
+            moduleReferences[exportName] = {
               id: id || '',
-              name: '',
+              name: 'default',
               chunks: chunkCSS,
             }
           } else {
             // It is possible that there are multiple modules with the same resource,
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
-            manifest[resource + '#'].chunks = [
-              ...new Set([...manifest[resource + '#'].chunks, ...chunkCSS]),
+            moduleReferences[exportName].chunks = [
+              ...new Set([...moduleReferences[exportName].chunks, ...chunkCSS]),
             ]
           }
 
@@ -279,48 +284,31 @@ export class FlightManifestPlugin {
           : null
 
         function addClientReference(name: string) {
-          if (name === '*') {
-            manifest[resource] = {
-              id,
-              chunks: requiredChunks,
-              name: '*',
-              async: isAsyncModule,
-            }
-            if (esmResource) {
-              manifest[esmResource] = manifest[resource]
-            }
-          } else if (name === '') {
-            manifest[resource + '#'] = {
-              id,
-              chunks: requiredChunks,
-              name: '',
-              async: isAsyncModule,
-            }
-            if (esmResource) {
-              manifest[esmResource + '#'] = manifest[resource + '#']
-            }
-          } else {
-            manifest[resource + '#' + name] = {
-              id,
-              chunks: requiredChunks,
-              name,
-              async: isAsyncModule,
-            }
-            if (esmResource) {
-              manifest[esmResource + '#' + name] =
-                manifest[resource + '#' + name]
-            }
+          const exportName = getClientReferenceModuleKey(resource, name)
+          manifest.clientModules[exportName] = {
+            id,
+            name,
+            chunks: requiredChunks,
+            async: isAsyncModule,
+          }
+          if (esmResource) {
+            const edgeExportName = getClientReferenceModuleKey(
+              esmResource,
+              name
+            )
+            manifest.clientModules[edgeExportName] =
+              manifest.clientModules[exportName]
           }
         }
 
         function addSSRIdMapping(name: string) {
-          const key = resource + (name === '*' ? '' : '#' + name)
+          const exportName = getClientReferenceModuleKey(resource, name)
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
-              ...manifest[key],
+              ...manifest.clientModules[exportName],
               id: pluginState.serverModuleIds[ssrNamedModuleId],
             }
           }
@@ -331,7 +319,7 @@ export class FlightManifestPlugin {
           ) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
             edgeModuleIdMapping[id][name] = {
-              ...manifest[key],
+              ...manifest.clientModules[exportName],
               id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
             }
           }
@@ -355,7 +343,7 @@ export class FlightManifestPlugin {
           // If the chunk is from `app/` chunkGroup, use it first.
           // This make sure not to load the overlapped chunk from `pages/` chunkGroup
           if (
-            !manifest[key] ||
+            !manifest.clientModules[key] ||
             (chunkGroup.name && /^app[\\/]/.test(chunkGroup.name))
           ) {
             addClientReference(name)
@@ -364,8 +352,9 @@ export class FlightManifestPlugin {
           addSSRIdMapping(name)
         })
 
-        manifest.__ssr_module_mapping__ = moduleIdMapping
-        manifest.__edge_ssr_module_mapping__ = edgeModuleIdMapping
+        manifest.clientModules = moduleReferences
+        manifest.ssrModuleMapping = moduleIdMapping
+        manifest.edgeSSRModuleMapping = edgeModuleIdMapping
       }
 
       chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
@@ -394,7 +383,7 @@ export class FlightManifestPlugin {
         }
       })
 
-      const entryCSSFiles: any = manifest.__entry_css_files__ || {}
+      const entryCSSFiles: { [key: string]: string[] } = manifest.cssFiles || {}
 
       const addCSSFilesToEntry = (
         files: string[],
@@ -423,7 +412,7 @@ export class FlightManifestPlugin {
         })
       }
 
-      manifest.__entry_css_files__ = entryCSSFiles
+      manifest.cssFiles = entryCSSFiles
     })
 
     const file = 'server/' + CLIENT_REFERENCE_MANIFEST

@@ -1,6 +1,7 @@
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
+import { I18NProvider } from '../../../../server/future/helpers/i18n-provider'
 
 export interface NextPathnameInfo {
   /**
@@ -41,6 +42,12 @@ interface Options {
     i18n?: { locales?: string[] } | null
     trailingSlash?: boolean
   }
+
+  /**
+   * If provided, this normalizer will be used to detect the locale instead of
+   * the default locale detection.
+   */
+  i18nProvider?: I18NProvider
 }
 
 export function getNextPathnameInfo(pathname: string, options: Options) {
@@ -70,10 +77,20 @@ export function getNextPathnameInfo(pathname: string, options: Options) {
     info.buildId = buildId
   }
 
-  if (i18n) {
+  // If provided, use the locale route normalizer to detect the locale instead
+  // of the function below.
+  if (options.i18nProvider) {
+    const result = options.i18nProvider.analyze(info.pathname, {
+      // We set this to undefined because the default locale detection is
+      // completed out of this function.
+      defaultLocale: undefined,
+    })
+    info.locale = result.detectedLocale
+    info.pathname = result.pathname ?? info.pathname
+  } else if (i18n) {
     const pathLocale = normalizeLocalePath(info.pathname, i18n.locales)
-    info.locale = pathLocale?.detectedLocale
-    info.pathname = pathLocale?.pathname || info.pathname
+    info.locale = pathLocale.detectedLocale
+    info.pathname = pathLocale.pathname ?? info.pathname
   }
 
   return info

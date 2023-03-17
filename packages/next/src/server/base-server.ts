@@ -28,6 +28,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
@@ -56,9 +57,7 @@ import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from '../build/output/log'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
 import isError, { getProperError } from '../lib/is-error'
@@ -94,6 +93,7 @@ import { ServerManifestLoader } from './future/route-matcher-providers/helpers/m
 import { getTracer } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { sendResponse } from './future/route-handlers/app-route-route-handler'
+import { I18NProvider } from './future/helpers/i18n-provider'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -227,7 +227,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     isBot?: boolean
-    serverComponentManifest?: any
+    clientReferenceManifest?: ClientReferenceManifest
     serverCSSManifest?: any
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
@@ -241,7 +241,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected serverComponentManifest?: any
+  protected clientReferenceManifest?: ClientReferenceManifest
   protected serverCSSManifest?: any
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
@@ -329,6 +329,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   // TODO-APP(@wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
+  protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   public constructor(options: ServerOptions) {
@@ -362,14 +363,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
+    this.i18nProvider = this.nextConfig.i18n?.locales
+      ? new I18NProvider(this.nextConfig.i18n)
+      : undefined
+
     // Configure the locale normalizer, it's used for routes inside `pages/`.
-    this.localeNormalizer =
-      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
-        ? new LocaleRouteNormalizer(
-            this.nextConfig.i18n.locales,
-            this.nextConfig.i18n.defaultLocale
-          )
-        : undefined
+    this.localeNormalizer = this.i18nProvider
+      ? new LocaleRouteNormalizer(this.i18nProvider)
+      : undefined
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -386,7 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasAppDir =
       !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
-    this.serverComponentManifest = serverComponents
+    this.clientReferenceManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
     this.serverCSSManifest = serverComponents
@@ -480,7 +481,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       new PagesRouteMatcherProvider(
         this.distDir,
         manifestLoader,
-        this.localeNormalizer
+        this.i18nProvider
       )
     )
 
@@ -489,7 +490,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       new PagesAPIRouteMatcherProvider(
         this.distDir,
         manifestLoader,
-        this.localeNormalizer
+        this.i18nProvider
       )
     )
 
@@ -599,19 +600,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       this.attachRequestMeta(req, parsedUrl)
 
-      const domainLocale = detectDomainLocale(
-        this.nextConfig.i18n?.domains,
+      const domainLocale = this.i18nProvider?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
       )
 
       const defaultLocale =
         domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
+      parsedUrl.query.__nextDefaultLocale = defaultLocale
 
       const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
       const pathnameInfo = getNextPathnameInfo(url.pathname, {
         nextConfig: this.nextConfig,
+        i18nProvider: this.i18nProvider,
       })
-
       url.pathname = pathnameInfo.pathname
 
       if (pathnameInfo.basePath) {
@@ -654,7 +655,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           // Perform locale detection and normalization.
           const options: MatchOptions = {
-            i18n: this.localeNormalizer?.match(matchedPath),
+            i18n: this.i18nProvider?.analyze(matchedPath, {
+              defaultLocale: undefined,
+            }),
           }
           if (options.i18n?.detectedLocale) {
             parsedUrl.query.__nextLocale = options.i18n.detectedLocale
@@ -682,11 +685,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             basePath: this.nextConfig.basePath,
             rewrites: this.customRoutes.rewrites,
           })
-          // ensure parsedUrl.pathname includes URL before processing
-          // rewrites or they won't match correctly
+
+          // Ensure parsedUrl.pathname includes locale before processing
+          // rewrites or they won't match correctly.
           if (defaultLocale && !pathnameInfo.locale) {
             parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
           }
+
           const pathnameBeforeRewrite = parsedUrl.pathname
           const rewriteParams = utils.handleRewrites(req, parsedUrl)
           const rewriteParamKeys = Object.keys(rewriteParams)
@@ -792,7 +797,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       addRequestMeta(req, '__nextHadTrailingSlash', pathnameInfo.trailingSlash)
       addRequestMeta(req, '__nextIsLocaleDomain', Boolean(domainLocale))
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
 
       if (pathnameInfo.locale) {
         req.url = formatUrl(url)
@@ -950,12 +954,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async pipe(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: BaseNextRequest
-      res: BaseNextResponse
-      pathname: string
-      query: NextParsedUrlQuery
-    }
+    partialContext: Omit<RequestContext, 'renderOpts'>
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.pipe, async () =>
       this.pipeImpl(fn, partialContext)
@@ -964,22 +963,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async pipeImpl(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: BaseNextRequest
-      res: BaseNextResponse
-      pathname: string
-      query: NextParsedUrlQuery
-    }
+    partialContext: Omit<RequestContext, 'renderOpts'>
   ): Promise<void> {
     const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
-    const ctx = {
+    const ctx: RequestContext = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
         isBot: !!isBotRequest,
       },
-    } as const
+    }
     const payload = await fn(ctx)
     if (payload === null) {
       return
@@ -1004,20 +998,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   private async getStaticHTML(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
-    partialContext: {
-      req: BaseNextRequest
-      res: BaseNextResponse
-      pathname: string
-      query: ParsedUrlQuery
-    }
+    partialContext: Omit<RequestContext, 'renderOpts'>
   ): Promise<string | null> {
-    const payload = await fn({
+    const ctx: RequestContext = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: false,
       },
-    })
+    }
+    const payload = await fn(ctx)
     if (payload === null) {
       return null
     }
@@ -1250,7 +1240,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
+      this.clientReferenceManifest && req.headers[RSC.toLowerCase()]
     )
 
     // For pages we need to ensure the correct Vary header is set too, to avoid
@@ -1361,10 +1351,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     urlPathname = removeTrailingSlash(urlPathname)
-    resolvedUrlPathname = normalizeLocalePath(
-      removeTrailingSlash(resolvedUrlPathname),
-      this.nextConfig.i18n?.locales
-    ).pathname
+    resolvedUrlPathname = removeTrailingSlash(resolvedUrlPathname)
+    if (this.localeNormalizer) {
+      resolvedUrlPathname = this.localeNormalizer.normalize(resolvedUrlPathname)
+    }
 
     const handleRedirect = (pageData: any) => {
       const redirect = {
@@ -1797,15 +1787,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.renderOpts.dev) {
           query.__nextNotFoundSrcPage = pathname
         }
-        await this.render404(
-          req,
-          res,
-          {
-            pathname,
-            query,
-          } as UrlWithParsedQuery,
-          false
-        )
+        await this.render404(req, res, { pathname, query }, false)
         return null
       }
     } else if (cachedData.kind === 'REDIRECT') {
@@ -1874,9 +1856,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
-    if (this.nextConfig.i18n && stripLocale) {
-      const { locales } = this.nextConfig.i18n
-      return normalizeLocalePath(path, locales).pathname
+    if (this.localeNormalizer && stripLocale) {
+      return this.localeNormalizer.normalize(path)
     }
     return path
   }
@@ -1951,7 +1932,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(pathname),
+      i18n: this.i18nProvider?.analyze(pathname, {
+        defaultLocale: undefined,
+      }),
     }
 
     try {
@@ -2315,18 +2298,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public async render404(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query }: NextUrlWithParsedQuery = parsedUrl
-      ? parsedUrl
-      : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
 
     if (this.nextConfig.i18n) {
-      query.__nextLocale =
-        query.__nextLocale || this.nextConfig.i18n.defaultLocale
-      query.__nextDefaultLocale =
-        query.__nextDefaultLocale || this.nextConfig.i18n.defaultLocale
+      query.__nextLocale ||= this.nextConfig.i18n.defaultLocale
+      query.__nextDefaultLocale ||= this.nextConfig.i18n.defaultLocale
     }
 
     res.statusCode = 404
