@@ -5,6 +5,9 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
+    dependencies: {
+      '@vercel/og': '0.4.0',
+    },
   },
   ({ next }) => {
     describe('dynamic routes', () => {

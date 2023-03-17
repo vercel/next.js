@@ -48,7 +48,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.icon.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
             )}`
           : ''
       }`
@@ -57,7 +57,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.apple.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
             )}`
           : ''
       }`
@@ -66,7 +66,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.opengraph.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.opengraph.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.opengraph.extensions)
             )}`
           : ''
       }`
@@ -75,7 +75,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.twitter.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
             )}`
           : ''
       }`

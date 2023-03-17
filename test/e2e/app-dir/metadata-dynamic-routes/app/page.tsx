@@ -5,5 +5,6 @@ export default function Page() {
 }
 
 export const metadata = {
+  metadataBase: new URL('http://localhost:3000'),
   title: 'index page',
 }
