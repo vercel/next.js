@@ -11,7 +11,6 @@ When your `register` function is deployed, it will be called continuously on eac
 
 Sometimes, it may be useful to import a file in your code because of the side effects it will cause. For example, you might import a file that defines a set of global variables, but never explicitly use the imported file in your code. You would still have access to the global variables the package has declared.
 
-
 **We recommend importing the `init` function from `package-init` instead of importing packages with side effects**. You can then call it from your custom `register` function defined in `instrumentation.ts`, as demonstrated in the example below:
 
 ```ts
