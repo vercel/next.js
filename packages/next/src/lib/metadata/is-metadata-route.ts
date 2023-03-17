@@ -3,15 +3,6 @@ import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/dis
 // Match routes that are metadata routes, e.g. /sitemap.xml, /favicon.<ext>, /<icon>.<ext>, etc.
 // TODO-METADATA: support more metadata routes with more extensions
 const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
-export function isMetadataRoute(route: string): boolean {
-  // Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
-  const page = route.replace(/^\/?app/, '').replace(/\/route$/, '')
-
-  return (
-    !page.endsWith('/page') &&
-    isMetadataRouteFile(page, defaultExtensions, false)
-  )
-}
 
 const getExtensionRegexString = (extensions: string[]) =>
   `(?:${extensions.join('|')})`
@@ -83,4 +74,14 @@ export function isMetadataRouteFile(
   ]
 
   return metadataRouteFilesRegex.some((r) => r.test(appDirRelativePath))
+}
+
+export function isMetadataRoute(route: string): boolean {
+  // Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
+  const page = route.replace(/^\/?app/, '').replace(/\/route$/, '')
+
+  return (
+    !page.endsWith('/page') &&
+    isMetadataRouteFile(page, defaultExtensions, false)
+  )
 }

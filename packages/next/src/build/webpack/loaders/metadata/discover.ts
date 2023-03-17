@@ -1,5 +1,4 @@
 import type webpack from 'webpack'
-import type { AppLoaderOptions } from '../next-app-loader'
 import type {
   CollectingMetadata,
   PossibleImageFileNameConvention,
