@@ -111,31 +111,18 @@ export function createValidFileMatcher(
    */
   function isMetadataFile(filePath: string) {
     const appDirRelativePath = filePath.replace(appDirPath || '', '')
-    const matched = isMetadataRouteFile(
-      appDirRelativePath,
-      pageExtensions,
-      true
-    )
-    const ext = extname(filePath)
 
-    return {
-      matched,
-      static: !pageExtensions.includes(ext),
-    }
+    return isMetadataRouteFile(appDirRelativePath, pageExtensions, true)
   }
 
   // Determine if the file is leaf node page file or route file under layouts,
   // 'page.<extension>' | 'route.<extension>'
   function isAppRouterPage(filePath: string) {
-    return (
-      leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath).matched
-    )
+    return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath)
   }
 
   function isPageFile(filePath: string) {
-    return (
-      validExtensionFileRegex.test(filePath) || isMetadataFile(filePath).matched
-    )
+    return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
   }
 
   return {
