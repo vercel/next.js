@@ -20,6 +20,7 @@ function getContentType(resourcePath: string) {
   if (name === 'favicon' && ext === 'ico') return 'image/x-icon'
   if (name === 'sitemap') return 'application/xml'
   if (name === 'robots') return 'text/plain'
+  if (name === 'manifest') return 'application/manifest+json'
 
   if (ext === 'png' || ext === 'jpeg' || ext === 'ico' || ext === 'svg') {
     return imageExtMimeTypeMap[ext]
