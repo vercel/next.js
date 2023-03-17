@@ -17,6 +17,7 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     it('should encode chunk path correctly', async () => {
+      await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')
       const requests = []
       browser.on('request', (req) => {
@@ -381,6 +382,7 @@ createNextDescribe(
       })
 
       it('should support rewrites on client-side navigation from pages to app with existing pages path', async () => {
+        await next.fetch('/exists-but-not-routed')
         const browser = await next.browser('/link-to-rewritten-path')
 
         try {
@@ -656,6 +658,7 @@ createNextDescribe(
       })
 
       it('should navigate to pages dynamic route from pages page if it overlaps with an app page', async () => {
+        await next.fetch('/dynamic-pages-route-app-overlap/app-dir')
         const browser = await next.browser('/dynamic-pages-route-app-overlap')
 
         try {
