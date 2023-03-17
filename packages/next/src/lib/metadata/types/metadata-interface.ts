@@ -538,7 +538,7 @@ type RobotsFile = {
   // Apply rules for all
   rules:
     | {
-        userAgent?: undefined | '*'
+        userAgent?: string | string[]
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
