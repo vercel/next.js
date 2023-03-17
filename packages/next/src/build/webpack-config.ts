@@ -1917,18 +1917,16 @@ export default async function getBaseWebpackConfig(
                     use: swcLoaderForServerLayer,
                   },
                   {
-                    test: codeCondition.test,
+                    ...codeCondition,
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
-                    exclude: [staticGenerationAsyncStorageRegex],
                     use: [
                       ...(dev && isClient
                         ? [
                             require.resolve(
                               'next/dist/compiled/@next/react-refresh-utils/dist/loader'
                             ),
-                            defaultLoaders.babel,
                           ]
                         : []),
                       {
