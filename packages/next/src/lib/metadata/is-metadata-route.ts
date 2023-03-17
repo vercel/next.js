@@ -36,7 +36,9 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]manifest${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('json'))}`
+          ? `\\.${getExtensionRegexString(
+              pageExtensions.concat('webmanifest', 'json')
+            )}`
           : ''
       }`
     ),
