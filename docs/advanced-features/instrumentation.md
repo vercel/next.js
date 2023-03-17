@@ -6,7 +6,7 @@ description: Learn how to instrument your Next.js app.
 
 # `instrumentation.ts`
 
-If you export a function named `register` from this file, we will call that function whenever new server instance is bootstrapped.
+If you export a function named `register` from this file, we will call that function whenever a new server instance is bootstrapped.
 When your `register` function is deployed, it will be called continuously on each cold boot (but exactly once in each environment).
 
 Sometimes, it may be useful to import a file in your code because of the side effects it will cause. For example, you might import a file that defines a set of global variables, but never explicitly use the imported file in your code. You would still have access to the global variables the package has declared.
