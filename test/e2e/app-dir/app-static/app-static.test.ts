@@ -50,6 +50,41 @@ createNextDescribe(
       })
     }
 
+    it('should revalidate correctly with config and fetch revalidate', async () => {
+      const initial$ = await next.render$(
+        '/variable-config-revalidate/revalidate-3'
+      )
+      const initialDate = initial$('#date').text()
+      const initialData = initial$('#data').text()
+
+      expect(initialDate).toBeTruthy()
+      expect(initialData).toBeTruthy()
+
+      let revalidatedDate
+      let revalidatedData
+
+      // wait for a fresh revalidation
+      await check(async () => {
+        const $ = await next.render$('/variable-config-revalidate/revalidate-3')
+
+        revalidatedDate = $('#date').text()
+        revalidatedData = $('#data').text()
+
+        expect(revalidatedData).not.toBe(initialDate)
+        expect(revalidatedDate).not.toBe(initialData)
+        return 'success'
+      }, 'success')
+
+      // the date should revalidate first after 3 seconds
+      // while the fetch data stays in place for 15 seconds
+      await check(async () => {
+        const $ = await next.render$('/variable-config-revalidate/revalidate-3')
+        expect($('#date').text()).not.toBe(revalidatedDate)
+        expect($('#data').text()).toBe(revalidatedData)
+        return 'success'
+      }, 'success')
+    })
+
     it('should include statusCode in cache', async () => {
       const $ = await next.render$('/variable-revalidate/status-code')
       const origData = JSON.parse($('#page-data').text())
