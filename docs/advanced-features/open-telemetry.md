@@ -75,7 +75,7 @@ provider.register()
 You need a OpenTelemetry collector with a compatible backend to test OpenTelemetry traces locally.
 We recommend using our [OpenTelemetry dev environment](https://github.com/vercel/opentelemetry-collector-dev-setup).
 
-If everything works well you should be able to see root server span labeled as `GET /requested/pathname`.
+If everything works well you should be able to see the root server span labeled as `GET /requested/pathname`.
 All other spans from that particular trace will be nested under it.
 
 By default we emit a few spans, but internally Next.js traces way more.
