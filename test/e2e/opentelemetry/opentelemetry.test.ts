@@ -7,7 +7,18 @@ createNextDescribe(
   'opentelemetry',
   {
     files: __dirname,
-    packageJson: require('./package.json'),
+    skipDeployment: true,
+    dependencies: {
+      'fs-extra': '^8.0.0',
+      '@types/fs-extra': '^8.0.0',
+      '@opentelemetry/api': '^1.0.0',
+      '@opentelemetry/core': '^1.0.0',
+      '@opentelemetry/resources': '^1.0.0',
+      '@opentelemetry/sdk-trace-base': '^1.0.0',
+      '@opentelemetry/sdk-trace-node': '^1.0.0',
+      '@opentelemetry/semantic-conventions': '^1.0.0',
+      '@opentelemetry/exporter-trace-otlp-http': '^0.34.0',
+    },
   },
   ({ next }) => {
     const getTraces = async (): Promise<SavedSpan[]> => {

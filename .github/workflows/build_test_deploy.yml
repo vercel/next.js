@@ -955,7 +955,7 @@ jobs:
   deployExamples:
     name: Deploy examples
     runs-on: ubuntu-latest
-    needs: [publishRelease]
+    needs: [build]
     steps:
       - uses: actions/checkout@v3
         with:
