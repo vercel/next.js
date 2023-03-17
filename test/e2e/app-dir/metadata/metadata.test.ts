@@ -637,6 +637,24 @@ createNextDescribe(
     })
 
     describe('static routes', () => {
+      it('should have /favicon.ico as route', async () => {
+        const res = await next.fetch('/favicon.ico')
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toBe('image/x-icon')
+      })
+
+      it('should have icons as route', async () => {
+        const resIcon = await next.fetch('/icons/static/icon.png')
+        const resAppleIcon = await next.fetch(
+          '/icons/static/nested/apple-icon.png'
+        )
+
+        expect(resAppleIcon.status).toBe(200)
+        expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
+        expect(resIcon.status).toBe(200)
+        expect(resIcon.headers.get('content-type')).toBe('image/png')
+      })
+
       it('should support root dir robots.txt', async () => {
         const res = await next.fetch('/robots.txt')
         expect(res.headers.get('content-type')).toBe('text/plain')

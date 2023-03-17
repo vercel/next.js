@@ -7,7 +7,10 @@ export function isMetadataRoute(route: string): boolean {
   // Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
   const page = route.replace(/^\/?app/, '').replace(/\/route$/, '')
 
-  return !page.endsWith('/page') && isMetadataRouteFile(page, defaultExtensions)
+  return (
+    !page.endsWith('/page') &&
+    isMetadataRouteFile(page, defaultExtensions, false)
+  )
 }
 
 const getExtensionRegexString = (extensions: string[]) =>
@@ -17,44 +20,65 @@ const getExtensionRegexString = (extensions: string[]) =>
 // e.g. /robots.txt, /sitemap.xml, /favicon.ico
 // When you pass the file extension as `['js', 'jsx', 'ts', 'tsx']`, it will also match the dynamic convention files
 // e.g. /robots.js, /sitemap.tsx, /favicon.jsx
+// When `withExtension` is false, it will match the static convention files without the extension, by default it's true
+// e.g. /robots, /sitemap, /favicon, use to match dynamic API routes like app/robots.ts
 export function isMetadataRouteFile(
   appDirRelativePath: string,
-  pageExtensions: string[]
+  pageExtensions: string[],
+  withExtension: boolean
 ) {
   const metadataRouteFilesRegex = [
     new RegExp(
-      `^[\\\\/]robots\\.${getExtensionRegexString(
-        pageExtensions.concat('txt')
-      )}`
+      `^[\\\\/]robots${
+        withExtension
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}`
+          : ''
+      }`
     ),
     new RegExp(
-      `^[\\\\/]sitemap\\.${getExtensionRegexString(
-        pageExtensions.concat('xml')
-      )}`
+      `^[\\\\/]sitemap${
+        withExtension
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}`
+          : ''
+      }`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     // TODO-METADATA: add dynamic routes for metadata images
     new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.icon.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.icon.extensions)}`
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
+        withExtension
+          ? `\\.${getExtensionRegexString(
+              STATIC_METADATA_IMAGES.icon.extensions
+            )}`
+          : ''
+      }`
     ),
     new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.apple.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.apple.extensions)}`
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
+        withExtension
+          ? `\\.${getExtensionRegexString(
+              STATIC_METADATA_IMAGES.apple.extensions
+            )}`
+          : ''
+      }`
     ),
     new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.opengraph.filename
-      }\\.${getExtensionRegexString(
-        STATIC_METADATA_IMAGES.opengraph.extensions
-      )}`
+      `[\\\\/]${STATIC_METADATA_IMAGES.opengraph.filename}${
+        withExtension
+          ? `\\.${getExtensionRegexString(
+              STATIC_METADATA_IMAGES.opengraph.extensions
+            )}`
+          : ''
+      }`
     ),
     new RegExp(
-      `[\\\\/]${
-        STATIC_METADATA_IMAGES.twitter.filename
-      }\\.${getExtensionRegexString(STATIC_METADATA_IMAGES.twitter.extensions)}`
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
+        withExtension
+          ? `\\.${getExtensionRegexString(
+              STATIC_METADATA_IMAGES.twitter.extensions
+            )}`
+          : ''
+      }`
     ),
   ]
 

@@ -1,11 +1,10 @@
 import type webpack from 'webpack'
 import path from 'path'
-import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
 type MetadataRouteLoaderOptions = {
-  route: string
+  pageExtensions: string[]
 }
 
 function getFilenameAndExtension(resourcePath: string) {
@@ -85,10 +84,11 @@ export async function GET() {
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   function () {
     const { resourcePath } = this
-    const { route } = this.getOptions()
+    const { pageExtensions } = this.getOptions()
 
-    const appDirRelativePath = route.slice(0, -'/route'.length)
-    const isStatic = isMetadataRouteFile(appDirRelativePath, [])
+    const ext = path.extname(resourcePath).slice(1)
+    const isStatic = !pageExtensions.includes(ext)
+
     const code = isStatic
       ? getStaticRouteCode(resourcePath)
       : getDynamicRouteCode(resourcePath)

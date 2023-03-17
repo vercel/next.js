@@ -111,7 +111,11 @@ export function createValidFileMatcher(
    */
   function isMetadataFile(filePath: string) {
     const appDirRelativePath = filePath.replace(appDirPath || '', '')
-    const matched = isMetadataRouteFile(appDirRelativePath, pageExtensions)
+    const matched = isMetadataRouteFile(
+      appDirRelativePath,
+      pageExtensions,
+      true
+    )
     const ext = extname(filePath)
 
     return {

@@ -62,12 +62,12 @@ async function createAppRouteCode({
   name,
   pagePath,
   resolver,
-  page,
+  pageExtensions,
 }: {
   name: string
   pagePath: string
   resolver: PathResolver
-  page: string
+  pageExtensions: string[]
 }): Promise<string> {
   // routePath is the path to the route handler file,
   // but could be aliased e.g. private-next-app-dir/favicon.ico
@@ -77,7 +77,7 @@ async function createAppRouteCode({
   let resolvedPagePath = (await resolver(routePath))!
   if (isMetadataRoute(name)) {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
-      route: page,
+      pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
   }
 
@@ -359,7 +359,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   if (isAppRouteRoute(name)) {
-    return createAppRouteCode({ name, page, pagePath, resolver })
+    return createAppRouteCode({ name, pagePath, resolver, pageExtensions })
   }
 
   const {
