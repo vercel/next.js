@@ -56,7 +56,7 @@ if (!(global as any).fetch) {
         impl.Headers = Headers
       },
       get() {
-        return impl.Headers
+        return impl.Headers ?? (impl.Headers = getFetchImpl().Headers)
       },
     },
     Request: {
@@ -64,7 +64,7 @@ if (!(global as any).fetch) {
         impl.Request = Request
       },
       get() {
-        return getRequestImpl().Request
+        return getRequestImpl()
       },
     },
     Response: {
@@ -72,7 +72,7 @@ if (!(global as any).fetch) {
         impl.Response = Response
       },
       get() {
-        return impl.Response
+        return impl.Response ?? (impl.Response = getFetchImpl().Response)
       },
     },
   })
