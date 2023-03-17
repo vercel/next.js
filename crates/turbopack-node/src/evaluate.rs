@@ -28,7 +28,7 @@ use turbopack_ecmascript::{
 use crate::{
     bootstrap::NodeJsBootstrapAsset,
     embed_js::embed_file_path,
-    emit,
+    emit, emit_package_json,
     pool::{NodeJsPool, NodeJsPoolVc},
     EvalJavaScriptIncomingMessage, EvalJavaScriptOutgoingMessage, StructuredError,
 };
@@ -140,6 +140,7 @@ pub async fn get_evaluate_pool(
             entry_module.as_evaluated_chunk(chunking_context, runtime_entries),
         ),
     };
+    emit_package_json(intermediate_output_path).await?;
     emit(bootstrap.cell().into(), intermediate_output_path).await?;
     let pool = NodeJsPool::new(
         cwd,
