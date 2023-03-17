@@ -358,7 +358,24 @@ async function run(): Promise<void> {
           active: 'Yes',
           inactive: 'No',
         })
+
         program.experimentalApp = Boolean(appDir)
+
+        if (program.experimentalApp) {
+          const nodeVersion = process.version
+
+          if (!nodeVersion.includes('v16.8')) {
+            console.log(
+              chalk.red(
+                'The experiemental `app/` directory requires at least Node v16.8.\n' +
+                  'Found ' +
+                  nodeVersion +
+                  ' instead.'
+              )
+            )
+            process.exit(1)
+          }
+        }
       }
     }
 
