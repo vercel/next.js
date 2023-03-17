@@ -181,7 +181,7 @@ async function main() {
       })
       cmd.on('error', (err) => reject(err))
     })
-  } else {
+  } else if (!listChangedDirectories) {
     console.log(
       `No matching changed files for ${isNegated ? 'not ' : ''}"${type}":\n` +
         changedFilesOutput.trim()
