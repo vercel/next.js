@@ -68,5 +68,5 @@
     "CARGO_TARGET_DIR": "target/rust-analyzer",
     "RUST_BACKTRACE": "0"
   },
-  "cSpell.words": ["opentelemetry", "zipkin"]
+  "cSpell.words": ["coldboot", "opentelemetry", "zipkin"]
 }

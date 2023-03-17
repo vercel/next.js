@@ -4,7 +4,7 @@ description: Learn how instrument your Next.js app with OpenTelemetry.
 
 > **Note**: This feature is experimental, you need to explicitly opt-in by providing `experimental.instrumentationHook = true;` in your `next.config.js`.
 
-# Observability in Next.js
+# OpenTelemetry in Next.js
 
 Observability is crucial for understanding and optimizing the behavior and performance of your Next.js app.
 
@@ -15,9 +15,9 @@ We will use terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of
 > **Note:** We currently support observability bindings only in serverless functions.
 > We don't provide any for `edge` or client side code.
 
-## Getting Started with OpenTelemetry in Next.js
+## Getting Started
 
-Next.js supports OpenTelemetry which allows you to easily change your observability provider without changing your code.
+Next.js supports OpenTelemetry which is platform agnostic. You to easily change your observability provider without changing your code.
 Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more information about OpenTelemetry and how it works.
 
 Firstly you need to install required packages:
@@ -26,7 +26,8 @@ Firstly you need to install required packages:
 npm install @opentelemetry/api @opentelemetry/exporter-trace-otlp-http @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/semantic-conventions
 ```
 
-Next, you need to provide a `register` function that initializes OpenTelemetry tracer. We recommend using two files, in order to import OpenTelemetry dependencies in the correct environment.
+Next you add custom [`instrumentation.ts`](./instrumentation.md) file with OpenTelemetry setup.
+Since you can't import OpenTelemetry on `edge` we recommend creating second file, that get's only imported in correct environment.
 
 ```ts
 // instrumentation.ts
@@ -71,12 +72,13 @@ provider.register()
 
 ## Testing your instrumentation
 
-In order to display your instrumentation you will need a OpenTelemetry collector with a compatible backend. We recommend using our [OpenTelemetry dev environment](https://github.com/vercel/opentelemetry-collector-dev-setup).
+You need a OpenTelemetry collector with a compatible backend to test OpenTelemetry traces locally.
+We recommend using our [OpenTelemetry dev environment](https://github.com/vercel/opentelemetry-collector-dev-setup).
 
 If everything works well you should be able to see root server span labeled as `GET /requested/pathname`.
 All other spans from that particular trace will be nested under it.
 
-By default we emit just few spans, but internally Next.js traces almost all activities.
+By default we emit just few spans, but internally Next.js traces way more.
 If you want to dig deeper into our internals you can set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
