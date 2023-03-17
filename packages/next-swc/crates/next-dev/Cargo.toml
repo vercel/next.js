@@ -41,6 +41,11 @@ rustls-tls = ["next-core/rustls-tls"]
 __internal_nextjs_integration_test = [
   "next-core/__internal_nextjs_integration_test",
 ]
+# enable "HMR" for embedded assets
+dynamic_embed_contents = [
+  "next-core/dynamic_embed_contents",
+  "turbopack-node/dynamic_embed_contents",
+]
 
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
