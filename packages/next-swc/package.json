@@ -1,11 +1,11 @@
 {
   "name": "@next/swc",
-  "version": "13.2.5-canary.5",
+  "version": "13.2.5-canary.6",
   "private": true,
   "scripts": {
     "clean": "rm -rf ./native/*",
     "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin,rustls-tls --js false native",
-    "build-native-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin,native-tls --js false native",
+    "build-native-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --cargo-flags=--no-default-features --features plugin,native-tls --js false native",
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --js false native",
     "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls --js false native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next",
