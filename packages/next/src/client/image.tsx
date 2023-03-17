@@ -403,7 +403,8 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
           {...rest}
           // @ts-expect-error - TODO: upgrade to `@types/react@18`
           loading={loading}
-          fetchPriority={fetchPriority}
+          // Keep lowercase until https://github.com/facebook/react/pull/25927 lands
+          fetchpriority={fetchPriority}
           width={widthInt}
           height={heightInt}
           decoding="async"
@@ -958,7 +959,8 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               imageSrcSet={imgAttributes.srcSet}
               imageSizes={imgAttributes.sizes}
               crossOrigin={rest.crossOrigin}
-              fetchPriority={fetchPriority}
+              // Keep lowercase until https://github.com/facebook/react/pull/25927 lands
+              fetchpriority={fetchPriority}
             />
           </Head>
         ) : null}
