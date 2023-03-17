@@ -314,7 +314,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
-        turbo: /initial compilation/i,
+        turbo: /started server/i,
         start: /started server/i,
       }
       if (
