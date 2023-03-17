@@ -283,7 +283,7 @@ export default function Login() {
   useEffect(() => {
     // Prefetch the dashboard page
     router.prefetch('/dashboard')
-  }, [])
+  }, [router])
 
   return (
     <form onSubmit={handleSubmit}>
@@ -331,7 +331,7 @@ export default function Page() {
 
       return true
     })
-  }, [])
+  }, [router])
 
   return <p>Welcome to the page</p>
 }
@@ -425,7 +425,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeStart', handleRouteChange)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }
@@ -458,7 +458,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeError', handleRouteChangeError)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }

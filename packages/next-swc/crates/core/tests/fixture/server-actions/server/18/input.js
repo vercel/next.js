@@ -4,8 +4,6 @@ const v1 = 'v1';
 
 export function Item({ id1, id2 }) {
     const v2 = id2;
-    
-    // TODO: Fix the inline function cases.
     return <>
         <Button action={async () => {
             "use server";

@@ -28,6 +28,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
@@ -227,7 +228,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     isBot?: boolean
-    serverComponentManifest?: any
+    clientReferenceManifest?: ClientReferenceManifest
     serverCSSManifest?: any
     serverActionsManifest?: any
     nextFontManifest?: NextFontManifest
@@ -241,7 +242,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected serverComponentManifest?: any
+  protected clientReferenceManifest?: ClientReferenceManifest
   protected serverCSSManifest?: any
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
@@ -386,7 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasAppDir =
       !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
-    this.serverComponentManifest = serverComponents
+    this.clientReferenceManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
     this.serverCSSManifest = serverComponents
@@ -1250,7 +1251,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
+      this.clientReferenceManifest && req.headers[RSC.toLowerCase()]
     )
 
     // For pages we need to ensure the correct Vary header is set too, to avoid

@@ -46,8 +46,8 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
+import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -61,7 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
+import { METADATA_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
@@ -1958,8 +1958,7 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
-                resourceQuery: (queryString: string) =>
-                  queryString !== METADATA_IMAGE_RESOURCE_QUERY,
+                resourceQuery: { not: [METADATA_RESOURCE_QUERY] },
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
@@ -2225,11 +2224,11 @@ export default async function getBaseWebpackConfig(
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
-          ? new FlightManifestPlugin({
+          ? new ClientReferenceManifestPlugin({
               dev,
               appDir,
             })
-          : new FlightClientEntryPlugin({
+          : new ClientReferenceEntryPlugin({
               appDir,
               dev,
               isEdgeServer,
