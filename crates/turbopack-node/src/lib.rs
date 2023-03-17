@@ -188,6 +188,20 @@ async fn separate_assets(
     .cell())
 }
 
+/// Emit a basic package.json that sets the type of the package to commonjs.
+/// Currently code generated for Node is CommonJS, while authored code may be
+/// ESM, for example.
+pub(self) fn emit_package_json(dir: FileSystemPathVc) -> CompletionVc {
+    emit(
+        VirtualAssetVc::new(
+            dir.join("package.json"),
+            FileContent::Content(File::from("{\"type\": \"commonjs\"}")).into(),
+        )
+        .into(),
+        dir,
+    )
+}
+
 /// Creates a node.js renderer pool for an entrypoint.
 #[turbo_tasks::function]
 pub async fn get_renderer_pool(
@@ -198,21 +212,7 @@ pub async fn get_renderer_pool(
     output_root: FileSystemPathVc,
     debug: bool,
 ) -> Result<NodeJsPoolVc> {
-    // Emit a basic package.json that sets the type of the package to commonjs.
-    // Currently code generated for Node is CommonJS, while authored code may be
-    // ESM, for example.
-    //
-    // Note that this is placed at .next/server/package.json, while Next.js
-    // currently creates this file at .next/package.json.
-    emit(
-        VirtualAssetVc::new(
-            intermediate_output_path.join("package.json"),
-            FileContent::Content(File::from("{\"type\": \"commonjs\"}")).into(),
-        )
-        .into(),
-        intermediate_output_path,
-    )
-    .await?;
+    emit_package_json(intermediate_output_path).await?;
 
     emit(intermediate_asset, output_root).await?;
 
