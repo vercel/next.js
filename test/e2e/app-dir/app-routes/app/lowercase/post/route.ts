@@ -1,1 +1,1 @@
-export { POST as patch } from '../../../handlers/hello'
+export { POST as post } from '../../../handlers/hello'
