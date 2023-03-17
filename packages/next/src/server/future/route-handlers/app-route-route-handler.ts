@@ -37,6 +37,7 @@ import { IncrementalCache } from '../../lib/incremental-cache'
 import { AppConfig } from '../../../build/utils'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { NextURL } from '../../web/next-url'
+import { NextConfig } from '../../config-shared'
 
 // TODO-APP: This module has a dynamic require so when bundling for edge it causes issues.
 const NodeModuleLoader =
@@ -341,6 +342,7 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
 
 export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
   constructor(
+    private readonly nextConfigOutput: NextConfig['output'] = undefined,
     private readonly requestAsyncLocalStorageWrapper: AsyncStorageWrapper<
       RequestStore,
       RequestContext
@@ -484,6 +486,19 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               )
             }
 
+            if (this.nextConfigOutput === 'export') {
+              if (
+                !module.handlers.dynamic ||
+                module.handlers.dynamic === 'auto'
+              ) {
+                module.handlers.dynamic = 'error'
+              } else if (module.handlers.dynamic === 'force-dynamic') {
+                throw new Error(
+                  `export const dynamic = "force-dynamic" on route handler "${handle.name}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+                )
+              }
+            }
+
             switch (module.handlers.dynamic) {
               case 'force-dynamic':
                 staticGenerationStore.forceDynamic = true
@@ -492,8 +507,10 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               case 'force-static':
                 staticGenerationStore.forceStatic = true
                 break
+              case 'error':
+                staticGenerationStore.dynamicShouldError = true
+                break
               default:
-                // TODO: implement
                 break
             }
 

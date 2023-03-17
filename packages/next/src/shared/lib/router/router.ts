@@ -1096,7 +1096,9 @@ export default class Router implements BaseRouter {
             // a hard navigation
             if (matchesBflStatic || matchesBflDynamic) {
               handleHardNavigation({
-                url: addBasePath(addLocale(as, locale || this.locale)),
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
                 router: this,
               })
               return new Promise(() => {})

@@ -14,8 +14,8 @@ default = ["rustls-tls"]
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
 # (i.e wasmer/default vs wasmer/js-default) while cargo merges all the features at once.
 plugin = ["next-binding/__swc_core_binding_napi_plugin", "next-swc/plugin"]
-sentry_native_tls = ["_sentry_native_tls"]
-sentry_rustls = ["_sentry_rustls"]
+sentry_native_tls = ["sentry", "sentry/native-tls", "native-tls"]
+sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 
 native-tls = ["next-binding/__turbo_native_tls"]
 rustls-tls = ["next-binding/__turbo_rustls_tls"]
@@ -57,12 +57,10 @@ turbo-malloc = { workspace = true }
 # allow to specify alternative (rustls) instead via features.
 # Note to opt in rustls default-features should be disabled
 # (--no-default-features --features sentry_rustls)
-_sentry_native_tls = { package = "sentry", version = "0.27.0", optional = true }
-_sentry_rustls = { package = "sentry", version = "0.27.0", default-features = false, features = [
+sentry = { version = "0.27.0", default-features = false, features = [
   "backtrace",
   "contexts",
   "panic",
-  "rustls",
   "reqwest",
 ], optional = true }
 

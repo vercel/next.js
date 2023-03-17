@@ -254,9 +254,13 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutes() {
     const routes = super.getRoutes()
+    const nextConfigOutput = this.nextConfig.output
 
     if (this.hasAppDir) {
-      routes.handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
+      routes.handlers.set(
+        RouteKind.APP_ROUTE,
+        new AppRouteRouteHandler(nextConfigOutput)
+      )
     }
 
     return routes
@@ -852,9 +856,9 @@ export default class NextNodeServer extends BaseServer {
     renderOpts: RenderOpts
   ): Promise<RenderResult> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `serverComponentManifest` field.
+    // object here but only updating its `clientReferenceManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.serverComponentManifest = this.serverComponentManifest
+    renderOpts.clientReferenceManifest = this.clientReferenceManifest
     renderOpts.serverCSSManifest = this.serverCSSManifest
     renderOpts.nextFontManifest = this.nextFontManifest
 

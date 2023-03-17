@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
-import type {
-  FlightCSSManifest,
-  FlightManifest,
+import {
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
 } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type {
   ChildProp,
@@ -58,7 +58,10 @@ import { MetadataTree } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { collectMetadata } from '../../lib/metadata/resolve-metadata'
-import { isClientReference } from '../../build/is-client-reference'
+import {
+  getClientReferenceModuleKey,
+  isClientReference,
+} from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -217,7 +220,7 @@ interface FlightResponseRef {
 function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   req: ReadableStream<Uint8Array>,
-  serverComponentManifest: any,
+  clientReferenceManifest: ClientReferenceManifest,
   rscChunks: Uint8Array[],
   flightResponseRef: FlightResponseRef,
   nonce?: string
@@ -232,8 +235,8 @@ function useFlightResponse(
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {
     moduleMap: isEdgeRuntime
-      ? serverComponentManifest.__edge_ssr_module_mapping__
-      : serverComponentManifest.__ssr_module_mapping__,
+      ? clientReferenceManifest.edgeSSRModuleMapping
+      : clientReferenceManifest.ssrModuleMapping,
   })
   flightResponseRef.current = res
 
@@ -293,12 +296,12 @@ function createServerComponentRenderer<Props>(
   },
   {
     transformStream,
-    serverComponentManifest,
+    clientReferenceManifest,
     serverContexts,
     rscChunks,
   }: {
     transformStream: TransformStream<Uint8Array, Uint8Array>
-    serverComponentManifest: NonNullable<RenderOpts['serverComponentManifest']>
+    clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
     serverContexts: Array<
       [ServerContextName: string, JSONValue: Object | number | string]
     >
@@ -322,7 +325,7 @@ function createServerComponentRenderer<Props>(
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender {...(props as any)} />,
-        serverComponentManifest,
+        clientReferenceManifest.clientModules,
         {
           context: serverContexts,
           onError: serverComponentsErrorHandler,
@@ -340,7 +343,7 @@ function createServerComponentRenderer<Props>(
     const response = useFlightResponse(
       writable,
       reqStream,
-      serverComponentManifest,
+      clientReferenceManifest,
       rscChunks,
       flightResponseRef,
       nonce
@@ -402,18 +405,18 @@ function getSegmentParam(segment: string): {
  * Get inline <link> tags based on server CSS manifest. Only used when rendering to HTML.
  */
 function getCssInlinedLinkTags(
-  serverComponentManifest: FlightManifest,
-  serverCSSManifest: FlightCSSManifest,
+  clientReferenceManifest: ClientReferenceManifest,
+  serverCSSManifest: ClientCSSReferenceManifest,
   filePath: string,
   serverCSSForEntries: string[],
   injectedCSS: Set<string>,
   collectNewCSSImports?: boolean
 ): string[] {
-  const layoutOrPageCssModules = serverCSSManifest[filePath]
+  const layoutOrPageCssModules = serverCSSManifest.cssImports[filePath]
 
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
   const cssFilesForEntry = new Set(
-    serverComponentManifest.__entry_css_files__?.[filePathWithoutExt] || []
+    clientReferenceManifest.cssFiles?.[filePathWithoutExt] || []
   )
 
   if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
@@ -431,7 +434,10 @@ function getCssInlinedLinkTags(
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
       if (!injectedCSS.has(mod)) {
-        const modData = serverComponentManifest[mod + '#']
+        const modData =
+          clientReferenceManifest.clientModules[
+            getClientReferenceModuleKey(mod, '')
+          ]
         if (modData) {
           for (const chunk of modData.chunks) {
             // If the current entry in the final tree-shaked bundle has that CSS
@@ -454,17 +460,17 @@ function getCssInlinedLinkTags(
 }
 
 function getServerCSSForEntries(
-  serverCSSManifest: FlightCSSManifest,
+  serverCSSManifest: ClientCSSReferenceManifest,
   entries: string[]
 ) {
   const css = []
   for (const entry of entries) {
     const entryName = entry.replace(/\.[^.]+$/, '')
     if (
-      serverCSSManifest.__entry_css_mods__ &&
-      serverCSSManifest.__entry_css_mods__[entryName]
+      serverCSSManifest.cssModules &&
+      serverCSSManifest.cssModules[entryName]
     ) {
-      css.push(...serverCSSManifest.__entry_css_mods__[entryName])
+      css.push(...serverCSSManifest.cssModules[entryName])
     }
   }
   return css
@@ -474,7 +480,7 @@ function getServerCSSForEntries(
  * Get inline <link rel="preload" as="font"> tags based on server CSS manifest and next/font manifest. Only used when rendering to HTML.
  */
 function getPreloadedFontFilesInlineLinkTags(
-  serverCSSManifest: FlightCSSManifest,
+  serverCSSManifest: ClientCSSReferenceManifest,
   nextFontManifest: NextFontManifest | undefined,
   serverCSSForEntries: string[],
   filePath: string | undefined,
@@ -483,7 +489,7 @@ function getPreloadedFontFilesInlineLinkTags(
   if (!nextFontManifest || !filePath) {
     return null
   }
-  const layoutOrPageCss = serverCSSManifest[filePath]
+  const layoutOrPageCss = serverCSSManifest.cssImports[filePath]
 
   if (!layoutOrPageCss) {
     return null
@@ -631,14 +637,15 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     subresourceIntegrityManifest,
-    serverComponentManifest,
     serverActionsManifest,
-    serverCSSManifest = {},
     ComponentMod,
     dev,
     nextFontManifest,
     supportsDynamicHTML,
   } = renderOpts
+
+  const clientReferenceManifest = renderOpts.clientReferenceManifest!
+  const serverCSSManifest = renderOpts.serverCSSManifest!
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -727,12 +734,21 @@ export async function renderToHTMLOrFlight(
         ? crypto.randomUUID()
         : require('next/dist/compiled/nanoid').nanoid()
 
-    const searchParamsProps = { searchParams: query }
-
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
     const RenderFromTemplateContext =
       ComponentMod.RenderFromTemplateContext as typeof import('../../client/components/render-from-template-context').default
+    const createSearchParamsBailoutProxy =
+      ComponentMod.createSearchParamsBailoutProxy as typeof import('../../client/components/searchparams-bailout-proxy').createSearchParamsBailoutProxy
+    const StaticGenerationSearchParamsBailoutProvider =
+      ComponentMod.StaticGenerationSearchParamsBailoutProvider as typeof import('../../client/components/static-generation-searchparams-bailout-provider').default
+
+    const isStaticGeneration = staticGenerationStore.isStaticGeneration
+    // During static generation we need to call the static generation bailout when reading searchParams
+    const providedSearchParams = isStaticGeneration
+      ? createSearchParamsBailoutProxy()
+      : query
+    const searchParamsProps = { searchParams: providedSearchParams }
 
     /**
      * Server Context is specifically only available in Server Components.
@@ -918,8 +934,8 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
-        serverComponentManifest,
-        serverCSSManifest,
+        clientReferenceManifest,
+        serverCSSManifest!,
         filePath,
         serverCSSForEntries,
         injectedCSS
@@ -983,7 +999,7 @@ export async function renderToHTMLOrFlight(
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
-            serverComponentManifest,
+            clientReferenceManifest,
             serverCSSManifest!,
             layoutOrPagePath,
             serverCSSForEntries,
@@ -1271,6 +1287,8 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      const isClientComponent = isClientReference(layoutOrPageMod)
+
       const props = {
         ...parallelRouteComponents,
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
@@ -1278,11 +1296,19 @@ export async function renderToHTMLOrFlight(
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
         params: currentParams,
         // Query is only provided to page
-        ...(isPage ? searchParamsProps : {}),
+        ...(() => {
+          if (isClientComponent && isStaticGeneration) {
+            return {}
+          }
+
+          if (isPage) {
+            return searchParamsProps
+          }
+        })(),
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      if (!isClientReference(layoutOrPageMod)) {
+      if (!isClientComponent) {
         Component = await Promise.resolve().then(() =>
           preloadComponent(Component, props)
         )
@@ -1293,7 +1319,14 @@ export async function renderToHTMLOrFlight(
           return (
             <>
               {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
-              <Component {...props} />
+              {isPage && isClientComponent && isStaticGeneration ? (
+                <StaticGenerationSearchParamsBailoutProvider
+                  propsForComponent={props}
+                  Component={Component}
+                />
+              ) : (
+                <Component {...props} />
+              )}
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
@@ -1461,7 +1494,7 @@ export async function renderToHTMLOrFlight(
         )
         if (layoutPath) {
           getCssInlinedLinkTags(
-            serverComponentManifest,
+            clientReferenceManifest,
             serverCSSManifest!,
             layoutPath,
             serverCSSForEntries,
@@ -1544,7 +1577,7 @@ export async function renderToHTMLOrFlight(
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifest,
+        clientReferenceManifest.clientModules,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,
@@ -1585,7 +1618,7 @@ export async function renderToHTMLOrFlight(
 
     const serverComponentsRenderOpts = {
       transformStream: serverComponentsInlinedTransformStream,
-      serverComponentManifest,
+      clientReferenceManifest,
       serverContexts,
       rscChunks: [],
     }
