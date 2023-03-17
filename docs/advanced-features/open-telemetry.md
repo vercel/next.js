@@ -20,7 +20,7 @@ We will use terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of
 Next.js supports OpenTelemetry, which is platform agnostic. You can change your observability provider without changing your code.
 Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more information about OpenTelemetry and how it works.
 
-Firstly you need to install required packages:
+To get started, you must install the required packages:
 
 ```bash
 npm install @opentelemetry/api @opentelemetry/exporter-trace-otlp-http @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/semantic-conventions
