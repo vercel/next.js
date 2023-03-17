@@ -79,7 +79,7 @@ If everything works well you should be able to see root server span labeled as `
 All other spans from that particular trace will be nested under it.
 
 By default we emit a few spans, but internally Next.js traces way more.
-If you want to dig deeper into our internals you can set `NEXT_OTEL_VERBOSE=1`.
+To see more spans, you must set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
 
