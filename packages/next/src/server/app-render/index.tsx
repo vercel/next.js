@@ -1737,7 +1737,35 @@ export async function renderToHTMLOrFlight(
         )
 
         let polyfillsFlushed = false
-        const getServerInsertedHTML = (): Promise<string> => {
+        let flushedErrorMetaTagsUntilIndex = 0
+        const getServerInsertedHTML = () => {
+          // Loop through all the errors that have been captured but not yet
+          // flushed.
+          const errorMetaTags = []
+          for (
+            ;
+            flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
+            flushedErrorMetaTagsUntilIndex++
+          ) {
+            const error = allCapturedErrors[flushedErrorMetaTagsUntilIndex]
+            if (isNotFoundError(error)) {
+              errorMetaTags.push(
+                <meta name="robots" content="noindex" key={error.digest} />
+              )
+            } else if (isRedirectError(error)) {
+              const redirectUrl = getURLFromRedirectError(error)
+              if (redirectUrl) {
+                errorMetaTags.push(
+                  <meta
+                    httpEquiv="refresh"
+                    content={`0;url=${redirectUrl}`}
+                    key={error.digest}
+                  />
+                )
+              }
+            }
+          }
+
           const flushed = renderToString(
             <>
               {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
@@ -1756,6 +1784,7 @@ export async function renderToHTMLOrFlight(
                       />
                     )
                   })}
+              {errorMetaTags}
             </>
           )
           polyfillsFlushed = true

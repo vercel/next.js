@@ -3,3 +3,4 @@ export function bar() {}
 bar.$$typeof = Symbol.for("react.server.reference");
 bar.$$id = "ac840dcaf5e8197cb02b7f3a43c119b7a770b272";
 bar.$$bound = [];
+bar.$$with_bound = false;

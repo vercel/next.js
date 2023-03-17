@@ -181,6 +181,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
+      nextConfigOutput: opts.config.output,
     }
 
     return `next-edge-app-route-loader?${stringify(loaderParams)}!`

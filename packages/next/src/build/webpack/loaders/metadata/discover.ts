@@ -1,5 +1,4 @@
 import type webpack from 'webpack'
-import type { AppLoaderOptions } from '../next-app-loader'
 import type {
   CollectingMetadata,
   PossibleImageFileNameConvention,
@@ -11,7 +10,7 @@ const METADATA_TYPE = 'metadata'
 
 export const METADATA_RESOURCE_QUERY = '?__next_metadata'
 
-const staticAssetIconsImage = {
+export const STATIC_METADATA_IMAGES = {
   icon: {
     filename: 'icon',
     extensions: ['ico', 'jpg', 'jpeg', 'png', 'svg'],
@@ -74,18 +73,18 @@ async function enumMetadataFiles(
   return collectedFiles
 }
 
-export async function discoverStaticMetadataFiles(
+export async function createStaticMetadataFromRoute(
   resolvedDir: string,
   {
+    route,
     resolvePath,
     isRootLayer,
     loaderContext,
-    loaderOptions,
   }: {
+    route: string
     resolvePath: (pathname: string) => Promise<string>
     isRootLayer: boolean
     loaderContext: webpack.LoaderContext<any>
-    loaderOptions: AppLoaderOptions
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -101,18 +100,13 @@ export async function discoverStaticMetadataFiles(
     loaderContext,
   }
 
-  const metadataImageLoaderOptions = {
-    isDev: loaderOptions.isDev,
-    assetPrefix: loaderOptions.assetPrefix,
-  }
-
   async function collectIconModuleIfExists(
     type: PossibleImageFileNameConvention
   ) {
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
-      staticAssetIconsImage[type].filename,
-      staticAssetIconsImage[type].extensions,
+      STATIC_METADATA_IMAGES[type].filename,
+      STATIC_METADATA_IMAGES[type].extensions,
       opts
     )
     resolvedMetadataFiles
@@ -120,7 +114,7 @@ export async function discoverStaticMetadataFiles(
       .forEach((filepath) => {
         const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
           `next-metadata-image-loader?${stringify({
-            ...metadataImageLoaderOptions,
+            route,
             numericSizes:
               type === 'twitter' || type === 'opengraph' ? '1' : undefined,
             type,
@@ -149,8 +143,8 @@ export async function discoverStaticMetadataFiles(
   return hasStaticMetadataFiles ? staticImagesMetadata : null
 }
 
-export function buildMetadata(
-  metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>>
+export function createMetadataExportsCode(
+  metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>>
 ) {
   return metadata
     ? `${METADATA_TYPE}: {
