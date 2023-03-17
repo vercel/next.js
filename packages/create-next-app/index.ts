@@ -363,8 +363,9 @@ async function run(): Promise<void> {
 
         if (program.experimentalApp) {
           const nodeVersion = process.version
+          const [major, minor, _patch] = nodeVersion.split('v')[1].split('.')
 
-          if (!nodeVersion.includes('v16.8')) {
+          if (!(Number(major) >= 16 && Number(minor) >= 8)) {
             console.log(
               chalk.red(
                 'The experiemental `app/` directory requires at least Node v16.8.\n' +
