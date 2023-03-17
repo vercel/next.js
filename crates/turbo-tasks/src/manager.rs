@@ -605,12 +605,17 @@ impl<B: Backend + 'static> TurboTasks<B> {
         )
     }
 
+    /// Returns [UpdateInfo] with all updates aggregated over a given duration
+    /// (`aggregation`). Will wait until an update happens.
     pub async fn get_or_wait_aggregated_update_info(&self, aggregation: Duration) -> UpdateInfo {
         self.aggregated_update_info(aggregation, Duration::MAX)
             .await
             .unwrap()
     }
 
+    /// Returns [UpdateInfo] with all updates aggregated over a given duration
+    /// (`aggregation`). Will only return None when the timeout is reached while
+    /// waiting for the first update.
     pub async fn aggregated_update_info(
         &self,
         aggregation: Duration,
@@ -621,18 +626,19 @@ impl<B: Backend + 'static> TurboTasks<B> {
             .listen_with_note(|| "wait for update info".to_string());
         let wait_for_finish = {
             let (update, reason_set) = &mut *self.aggregated_update.lock().unwrap();
-            if let Some((duration, tasks)) = update.take() {
-                if aggregation.is_zero() {
+            if aggregation.is_zero() {
+                if let Some((duration, tasks)) = update.take() {
                     return Some(UpdateInfo {
                         duration,
                         tasks,
                         reasons: take(reason_set),
                         placeholder_for_future_fields: (),
                     });
+                } else {
+                    true
                 }
-                false
             } else {
-                true
+                update.is_none()
             }
         };
         if wait_for_finish {
@@ -678,7 +684,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 placeholder_for_future_fields: (),
             })
         } else {
-            None
+            panic!("aggregated_update_info must not called concurrently")
         }
     }
 
