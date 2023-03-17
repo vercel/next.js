@@ -105,4 +105,4 @@ export async function fetchGithubStars() {
 More documentation can be found in [OpenTelemetry docs](https://opentelemetry.io/docs/instrumentation/js/instrumentation/).
 
 We will call `register` function before your code runs in a new environment.
-You can start creating new spans and they should be correctly added to the exported trace.
+You can start creating new spans, and they should be correctly added to the exported trace.
