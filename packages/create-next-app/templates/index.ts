@@ -112,32 +112,48 @@ export const installTemplate = async ({
 
   if (srcDir) {
     await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
-    await Promise.all(
-      SRC_DIR_NAMES.map(async (file) => {
-        await fs.promises
-          .rename(path.join(root, file), path.join(root, 'src', file))
-          .catch((err) => {
-            if (err.code !== 'ENOENT') {
-              throw err
-            }
-          })
-      })
-    )
+    const promises = SRC_DIR_NAMES.map(async (file) => {
+      await fs.promises
+        .rename(path.join(root, file), path.join(root, 'src', file))
+        .catch((err) => {
+          if (err.code !== 'ENOENT') {
+            throw err
+          }
+        })
+    })
+
+    const isAppTemplate = template.startsWith('app')
+
     // Change the `Get started by editing pages/index` / `app/page` to include `src`
     const indexPageFile = path.join(
       'src',
-      template === 'app' ? 'app' : 'pages',
-      `${template === 'app' ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
+      isAppTemplate ? 'app' : 'pages',
+      `${isAppTemplate ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
     )
-    await fs.promises.writeFile(
-      indexPageFile,
-      (
-        await fs.promises.readFile(indexPageFile, 'utf8')
-      ).replace(
-        template === 'app' ? 'app/page' : 'pages/index',
-        template === 'app' ? 'src/app/page' : 'src/pages/index'
+    promises.push(
+      fs.promises.writeFile(
+        indexPageFile,
+        (await fs.promises.readFile(indexPageFile, 'utf8')).replace(
+          isAppTemplate ? 'app/page' : 'pages/index',
+          isAppTemplate ? 'src/app/page' : 'src/pages/index'
+        )
       )
     )
+
+    if (tailwind) {
+      const tailwindConfigFile = path.join(root, 'tailwind.config.js')
+      promises.push(
+        fs.promises.writeFile(
+          tailwindConfigFile,
+          (await fs.promises.readFile(tailwindConfigFile, 'utf8')).replace(
+            /\.\/(\w+)\/\*\*\/\*\.\{js\,ts\,jsx\,tsx\}/g,
+            './src/$1/**/*.{js,ts,jsx,tsx}'
+          )
+        )
+      )
+    }
+
+    await Promise.all(promises)
   }
 
   /**
