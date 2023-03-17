@@ -35,4 +35,4 @@ export const register() {
 }
 ```
 
-By doing this, you can have all your side-effects in one place and you can be sure that importing your files won't have unintended consequences.
+By doing this, you can colocate all of your side effects in one place in your code, and avoid any unintended consequences from importing files.
