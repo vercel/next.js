@@ -2,7 +2,7 @@
 description: Learn how to instrument your Next.js app.
 ---
 
-> **Note**: This feature is experimental, you need to explicitly opt-in by providing `experimental.instrumentationHook = true;` in your `next.config.js`.
+> **Note**: This feature is experimental. To use it, you must explicitly opt in by defining `experimental.instrumentationHook = true;` in your `next.config.js`.
 
 # `instrumentation.ts`
 
