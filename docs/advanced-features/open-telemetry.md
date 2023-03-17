@@ -17,7 +17,7 @@ We will use terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of
 
 ## Getting Started
 
-Next.js supports OpenTelemetry which is platform agnostic. You can change your observability provider without changing your code.
+Next.js supports OpenTelemetry, which is platform agnostic. You can change your observability provider without changing your code.
 Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more information about OpenTelemetry and how it works.
 
 Firstly you need to install required packages:
