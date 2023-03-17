@@ -1,11 +1,10 @@
 import { fileExists } from '../../lib/file-exists'
 import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
 import { nonNullable } from '../../lib/non-nullable'
-import { join, sep, normalize, extname } from 'path'
+import { join, sep, normalize } from 'path'
 import { promises } from 'fs'
 import { warn } from '../../build/output/log'
 import chalk from '../../lib/chalk'
-import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/discover'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
@@ -104,10 +103,8 @@ export function createValidFileMatcher(
    */
 
   /**
+   * Match the file if it's a metadata route file, static: if the file is a static metadata file
    *
-   * @param filePath the absolute path of the file
-   * @returns { matched: boolean, static: boolean }
-   *   matched: if the file is a metadata route file, static: if the file is a static metadata file
    */
   function isMetadataFile(filePath: string) {
     const appDirRelativePath = filePath.replace(appDirPath || '', '')

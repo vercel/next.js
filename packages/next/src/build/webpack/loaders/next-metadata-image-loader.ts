@@ -14,7 +14,7 @@ interface Options {
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { route, numericSizes } = options
+  const { type, route, numericSizes } = options
   const context = this.rootContext
 
   const opts = { context, content }
@@ -25,7 +25,13 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     opts
   )
 
-  const outputPath = route + '/' + interpolatedName
+  // No hash query for favicon.ico
+  const contentHash =
+    type === 'favicon'
+      ? ''
+      : loaderUtils.interpolateName(this, '[contenthash]', opts)
+  const outputPath =
+    route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
 
   let extension = loaderUtils.interpolateName(this, '[ext]', opts)
   if (extension === 'jpg') {

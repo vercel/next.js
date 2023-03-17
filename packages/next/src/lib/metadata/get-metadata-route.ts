@@ -20,9 +20,6 @@ export function normalizeMetadataRoute(page: string) {
     if (route === '/robots') {
       route += '.txt'
     }
-    if (route === '/favicon') {
-      route += '.ico'
-    }
     route = `${route}/route`
   }
   return route

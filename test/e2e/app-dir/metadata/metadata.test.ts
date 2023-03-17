@@ -428,7 +428,7 @@ createNextDescribe(
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
         expect($('[property="og:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/opengraph-image.png'
+          'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e'
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -437,7 +437,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/twitter-image.png'
+          'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e'
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
@@ -514,12 +514,12 @@ createNextDescribe(
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/icons\/static\/nested\/icon1\.png/
+          /\/icons\/static\/nested\/icon1\.png\?399de3b94b888afc/
         )
         expect($icon.attr('sizes')).toBe('32x32')
         expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
-          /\/icons\/static\/nested\/apple-icon\.png/
+          /\/icons\/static\/nested\/apple-icon\.png\?b76e8f0282c93c8e/
         )
         expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
@@ -529,11 +529,14 @@ createNextDescribe(
         const $ = await next.render$('/icons/static')
 
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-        const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
-        expect($icon.attr('href')).toMatch(/\/icons\/static\/icon\.png/)
+        expect($icon.attr('href')).toMatch(
+          /\/icons\/static\/icon\.png\?b76e8f0282c93c8e/
+        )
         expect($icon.attr('sizes')).toBe('114x114')
 
+        // No apple icon if it's not provided
+        const $appleIcon = $('head > link[rel="apple-touch-icon"]')
         expect($appleIcon.length).toBe(0)
       })
 
@@ -548,7 +551,7 @@ createNextDescribe(
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
-          }, /\/icons\/static\/icon2\.png/)
+          }, /\/icons\/static\/icon2\.png\?b76e8f0282c93c8e/)
 
           await next.renameFile(
             'app/icons/static/icon2.png',
@@ -641,6 +644,9 @@ createNextDescribe(
         const res = await next.fetch('/favicon.ico')
         expect(res.status).toBe(200)
         expect(res.headers.get('content-type')).toBe('image/x-icon')
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
       })
 
       it('should have icons as route', async () => {
@@ -651,8 +657,14 @@ createNextDescribe(
 
         expect(resAppleIcon.status).toBe(200)
         expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
+        expect(resAppleIcon.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
         expect(resIcon.status).toBe(200)
         expect(resIcon.headers.get('content-type')).toBe('image/png')
+        expect(resIcon.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
       })
 
       it('should support root dir robots.txt', async () => {
