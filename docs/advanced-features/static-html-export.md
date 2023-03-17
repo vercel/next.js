@@ -15,7 +15,7 @@ Next.js can be used to generate static applications, including using React in th
 
 The core of Next.js has been designed to enable starting as a static site (or Single-Page Application), if desired, and later upgrade to use powerful, dynamic features that require a server. For example, [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md), [Internationalized Routing](/docs/advanced-features/i18n-routing.md), [and more](#unsupported-features).
 
-Since Next.js supports this static export, it can be deployed and hosted anywhere you prefer.
+Since Next.js supports this static export, it can be deployed and hosted on any web server that can serve HTML/CSS/JS static assets.
 
 ## `next export`
 
