@@ -169,6 +169,14 @@ function runTests(mode) {
         await browser.elementById('responsive2').getAttribute('fetchpriority')
       ).toBe('high')
 
+      // Setting fetchPriority="low" directly should pass-through to <img>
+      expect(
+        await browser.elementById('pri-low').getAttribute('fetchpriority')
+      ).toBe('low')
+      expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
+        'lazy'
+      )
+
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
         .join('\n')
