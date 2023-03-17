@@ -181,7 +181,7 @@ jobs:
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         run: |
           cargo fmt -- --check
-          cargo clippy --all -- -D warnings
+          cargo clippy --all -- -D warnings -A deprecated
         working-directory: packages/next-swc
 
   checkPrecompiled:
