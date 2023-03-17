@@ -8,14 +8,14 @@ export function getNextFontError(
     const resourceResolveData = module.resourceResolveData
     if (
       !module.loaders.find((loader: any) =>
-        loader.loader.includes('next-font-loader/index.js')
+        /next-font-loader[/\\]index.js/.test(loader.loader)
       )
     ) {
       return false
     }
 
     // Parse the query and get the path of the file where the font function was called.
-    // provided by next-swc next_font_loaders
+    // provided by next-swc next-transform-font
     const file = JSON.parse(resourceResolveData.query.slice(1)).path
 
     if (err.name === 'NextFontError') {

@@ -8,6 +8,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
+import { callServer } from './app-call-server'
 
 /// <reference types="react-dom/experimental" />
 
@@ -24,7 +25,7 @@ const chunkFilenameMap: any = {}
 
 // eslint-disable-next-line no-undef
 __webpack_require__.u = (chunkId: any) => {
-  return chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId)
+  return encodeURI(chunkFilenameMap[chunkId] || getChunkScriptFilename(chunkId))
 }
 
 // Ignore the module ID transform in client.
@@ -150,7 +151,9 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
     },
   })
 
-  const newResponse = createFromReadableStream(readable)
+  const newResponse = createFromReadableStream(readable, {
+    callServer,
+  })
 
   rscCache.set(cacheKey, newResponse)
   return newResponse
@@ -218,6 +221,7 @@ export function hydrate() {
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              hashFragment: null,
             },
           }}
         >

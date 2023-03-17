@@ -24,7 +24,8 @@ import { getPkgPaths } from '../../../test/lib/create-next-install'
 
 const startsWithoutError = async (
   appDir: string,
-  modes = ['default', 'turbo']
+  modes = ['default', 'turbo'],
+  usingAppDirectory: boolean = false
 ) => {
   for (const mode of modes) {
     appDir = await fs.realpath(appDir)
@@ -42,7 +43,11 @@ const startsWithoutError = async (
 
       const apiRes = await fetchViaHTTP(appPort, '/api/hello')
       expect(apiRes.status).toBe(200)
-      expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+      if (usingAppDirectory) {
+        expect(await apiRes.text()).toEqual('Hello, Next.js!')
+      } else {
+        expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+      }
     } finally {
       await killApp(app)
     }
@@ -66,7 +71,7 @@ describe('create-next-app templates', () => {
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
-    useTempDir(async (cwd) => {
+    await useTempDir(async (cwd) => {
       const projectName = 'choose-ts-js'
 
       /**
@@ -75,6 +80,7 @@ describe('create-next-app templates', () => {
       const childProcess = createNextApp(
         [
           projectName,
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -106,7 +112,7 @@ describe('create-next-app templates', () => {
           resolve()
         })
         /**
-         * Simulate "Y" for TypeScript.
+         * Simulate "N" for TypeScript.
          */
         childProcess.stdin.write('N\n')
       })
@@ -120,6 +126,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -146,6 +153,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--eslint',
           '--src-dir',
           '--no-experimental-app',
@@ -173,7 +181,7 @@ describe('create-next-app templates', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'typescript-test'
       const childProcess = createNextApp(
-        [projectName, '--ts', '--eslint'],
+        [projectName, '--ts', '--no-tailwind', '--eslint'],
         {
           cwd,
           env: {
@@ -199,6 +207,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
@@ -227,6 +236,7 @@ describe('create-next-app templates', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--src-dir',
           '--no-experimental-app',
@@ -252,9 +262,104 @@ describe('create-next-app templates', () => {
       ])
     })
   })
+
+  it('should prompt user to choose if --import-alias is not provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'choose-import-alias'
+
+      /**
+       * Start the create-next-app call.
+       */
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--no-tailwind',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+      /**
+       * Bind the exit listener.
+       */
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+        childProcess.stdin.write('@/something/*\n')
+      })
+
+      /**
+       * Verify it correctly emitted a TS project by looking for tsconfig.
+       */
+      const tsConfig = require(path.join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        Object {
+          "@/something/*": Array [
+            "./*",
+          ],
+        }
+      `)
+    })
+  })
+
+  it('should prompt user to choose if --tailwind or --no-tailwind is not provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'choose-tailwind'
+
+      /**
+       * Start the create-next-app call.
+       */
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+          `--import-alias=@/*`,
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+      /**
+       * Wait for the prompt to display.
+       */
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
+      /**
+       * Bind the exit listener.
+       */
+      await new Promise<void>((resolve, reject) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          /**
+           * Verify it correctly emitted a Tailwind project by looking for tailwind.config.js.
+           */
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['tailwind.config.js'],
+          })
+          resolve()
+        })
+        /**
+         * Simulate "N" for Tailwind.
+         */
+        childProcess.stdin.write('N\n')
+      })
+    })
+  })
 })
 
-describe('create-next-app --experimental-app-dir', () => {
+describe('create-next-app --experimental-app', () => {
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
@@ -277,6 +382,7 @@ describe('create-next-app --experimental-app-dir', () => {
         [
           projectName,
           '--ts',
+          '--no-tailwind',
           '--experimental-app',
           '--eslint',
           '--no-src-dir',
@@ -291,7 +397,11 @@ describe('create-next-app --experimental-app-dir', () => {
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
-      await startsWithoutError(path.join(cwd, projectName))
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 
@@ -302,6 +412,7 @@ describe('create-next-app --experimental-app-dir', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--experimental-app',
           '--eslint',
           '--no-src-dir',
@@ -317,10 +428,11 @@ describe('create-next-app --experimental-app-dir', () => {
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
       // is landed
-      await startsWithoutError(path.join(cwd, projectName), [
-        'default',
-        'turbo',
-      ])
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 
@@ -331,6 +443,7 @@ describe('create-next-app --experimental-app-dir', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--experimental-app',
           '--eslint',
           '--src-dir',
@@ -352,10 +465,46 @@ describe('create-next-app --experimental-app-dir', () => {
         mode: 'js',
         srcDir: true,
       })
-      await startsWithoutError(path.join(cwd, projectName), [
-        'default',
-        'turbo',
-      ])
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
+    })
+  })
+
+  it('should create Tailwind CSS appDir projects with --tailwind', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'appdir-tailwind-test'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--tailwind',
+          '--experimental-app',
+          '--eslint',
+          '--no-src-dir',
+          `--import-alias=@/*`,
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'app-tw',
+        mode: 'ts',
+      })
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 })

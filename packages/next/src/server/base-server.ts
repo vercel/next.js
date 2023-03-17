@@ -28,7 +28,8 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -78,7 +79,6 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
-  FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
@@ -92,6 +92,9 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+import { getTracer } from './lib/trace/tracer'
+import { BaseServerSpan } from './lib/trace/constants'
+import { sendResponse } from './future/route-handlers/app-route-route-handler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -213,6 +216,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     fontManifest?: FontManifest
     disableOptimizedLoading?: boolean
     optimizeCss: any
+    nextConfigOutput: 'standalone' | 'export'
     nextScriptWorkers: any
     locale?: string
     locales?: string[]
@@ -224,9 +228,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     crossOrigin?: string
     supportsDynamicHTML?: boolean
     isBot?: boolean
-    serverComponentManifest?: any
+    clientReferenceManifest?: ClientReferenceManifest
     serverCSSManifest?: any
-    fontLoaderManifest?: FontLoaderManifest
+    serverActionsManifest?: any
+    nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
@@ -237,9 +242,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected router: Router
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
-  protected serverComponentManifest?: any
+  protected clientReferenceManifest?: ClientReferenceManifest
   protected serverCSSManifest?: any
-  protected fontLoaderManifest?: FontLoaderManifest
+  protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number
 
@@ -264,7 +269,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPrerenderManifest(): PrerenderManifest
   protected abstract getServerComponentManifest(): any
   protected abstract getServerCSSManifest(): any
-  protected abstract getFontLoaderManifest(): FontLoaderManifest | undefined
+  protected abstract getNextFontManifest(): NextFontManifest | undefined
   protected abstract attachRequestMeta(
     req: BaseNextRequest,
     parsedUrl: NextUrlWithParsedQuery
@@ -302,7 +307,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null>
+  ): Promise<RenderResult>
 
   protected abstract handleCompression(
     req: BaseNextRequest,
@@ -322,7 +327,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     forceReload?: boolean
   }): void
 
-  protected readonly matchers: RouteMatcherManager
+  // TODO-APP(@wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
+  public readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
@@ -381,13 +387,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.hasAppDir =
       !!this.nextConfig.experimental.appDir && this.getHasAppDir(dev)
     const serverComponents = this.hasAppDir
-    this.serverComponentManifest = serverComponents
+    this.clientReferenceManifest = serverComponents
       ? this.getServerComponentManifest()
       : undefined
     this.serverCSSManifest = serverComponents
       ? this.getServerCSSManifest()
       : undefined
-    this.fontLoaderManifest = this.getFontLoaderManifest()
+    this.nextFontManifest = this.getNextFontManifest()
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -405,13 +411,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           ? this.getFontManifest()
           : undefined,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
-      disableOptimizedLoading: this.nextConfig.experimental.runtime
-        ? true
-        : this.nextConfig.experimental.disableOptimizedLoading,
+      disableOptimizedLoading:
+        this.nextConfig.experimental.disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
-      runtime: this.nextConfig.experimental.runtime,
       serverComponents,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -508,7 +513,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     console.error(err)
   }
 
-  private async handleRequest(
+  public async handleRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    return getTracer().trace(
+      BaseServerSpan.handleRequest,
+      async () => await this.handleRequestImpl(req, res, parsedUrl)
+    )
+  }
+
+  private async handleRequestImpl(
     req: BaseNextRequest,
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
@@ -892,7 +908,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.run, async () =>
+      this.runImpl(req, res, parsedUrl)
+    )
+  }
+
+  private async runImpl(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<void> {
     this.handleCompression(req, res)
+
+    // set incremental cache to request meta so it can
+    // be passed down for edge functions and the fetch disk
+    // cache can be leveraged locally
+    if (
+      !(globalThis as any).__incrementalCache &&
+      !getRequestMeta(req, '_nextIncrementalCache')
+    ) {
+      const incrementalCache = this.getIncrementalCache({
+        requestHeaders: Object.assign({}, req.headers),
+      })
+      addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+    }
 
     try {
       const matched = await this.router.execute(req, res, parsedUrl)
@@ -911,6 +950,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async pipe(
+    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
+    partialContext: {
+      req: BaseNextRequest
+      res: BaseNextResponse
+      pathname: string
+      query: NextParsedUrlQuery
+    }
+  ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.pipe, async () =>
+      this.pipeImpl(fn, partialContext)
+    )
+  }
+
+  private async pipeImpl(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
     partialContext: {
       req: BaseNextRequest
@@ -980,6 +1033,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery,
     internalRender = false
   ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.render, async () =>
+      this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
+    )
+  }
+
+  private async renderImpl(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    parsedUrl?: NextUrlWithParsedQuery,
+    internalRender = false
+  ): Promise<void> {
     if (!pathname.startsWith('/')) {
       console.warn(
         `Cannot render page with path "${pathname}", did you mean "/${pathname}"?. See more info here: https://nextjs.org/docs/messages/render-no-starting-slash`
@@ -1031,6 +1097,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname,
   }: {
     pathname: string
+    requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
     originalAppPath?: string
   }): Promise<{
     staticPaths?: string[]
@@ -1056,6 +1123,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToResponseWithComponents(
+    requestContext: RequestContext,
+    findComponentsResult: FindComponentsResult
+  ): Promise<ResponsePayload | null> {
+    return getTracer().trace(
+      BaseServerSpan.renderToResponseWithComponents,
+      async () =>
+        this.renderToResponseWithComponentsImpl(
+          requestContext,
+          findComponentsResult
+        )
+    )
+  }
+
+  private async renderToResponseWithComponentsImpl(
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
@@ -1083,6 +1164,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const pathsResult = await this.getStaticPaths({
         pathname,
         originalAppPath: components.pathname,
+        requestHeaders: req.headers,
       })
 
       staticPaths = pathsResult.staticPaths
@@ -1115,7 +1197,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
     // unexpected SSR invocations
-    if (!isSSG && req.headers['x-middleware-prefetch']) {
+    if (
+      !isSSG &&
+      req.headers['x-middleware-prefetch'] &&
+      !(is404Page || pathname === '/_error')
+    ) {
       res.setHeader('x-middleware-skip', '1')
       res.body('{}').send()
       return null
@@ -1139,6 +1225,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
     }
+
     delete query.__nextDataReq
 
     // normalize req.url for SSG paths as it is not exposed
@@ -1164,8 +1251,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
+      this.clientReferenceManifest && req.headers[RSC.toLowerCase()]
     )
+
+    // For pages we need to ensure the correct Vary header is set too, to avoid
+    // caching issues when navigating between pages and app
+    if (!isAppPath && isFlightRequest) {
+      res.setHeader('vary', RSC_VARY_HEADER)
+    }
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isFlightRequest) {
@@ -1338,21 +1431,65 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    const incrementalCache = this.getIncrementalCache({
-      requestHeaders: Object.assign({}, req.headers),
-    })
-    if (
-      this.nextConfig.experimental.fetchCache &&
-      (!isEdgeRuntime(opts.runtime) ||
-        (this.serverOptions as any).webServerConfig)
-    ) {
-      delete req.headers[FETCH_CACHE_HEADER]
-    }
+
+    // use existing incrementalCache instance if available
+    const incrementalCache =
+      (globalThis as any).__incrementalCache ||
+      this.getIncrementalCache({
+        requestHeaders: Object.assign({}, req.headers),
+      })
+
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
+      const supportsDynamicHTML = !(isSSG || hasStaticPaths)
+
+      const match =
+        pathname !== '/_error' && !is404Page && !is500Page
+          ? getRequestMeta(req, '_nextMatch')
+          : undefined
+
+      if (match) {
+        const context = {
+          supportsDynamicHTML,
+          incrementalCache,
+        }
+        let response: Response | undefined = (await this.handlers.handle(
+          match,
+          req,
+          res,
+          context,
+          isSSG
+        )) as any
+
+        if (response) {
+          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+            const blob = await response.blob()
+            const headers = Object.fromEntries(response.headers)
+            if (!headers['content-type'] && blob.type) {
+              headers['content-type'] = blob.type
+            }
+            const cacheEntry: ResponseCacheEntry = {
+              value: {
+                kind: 'ROUTE',
+                status: response.status,
+                body: Buffer.from(await blob.arrayBuffer()),
+                headers,
+              },
+              revalidate:
+                ((context as any).store as any as { revalidate?: number })
+                  .revalidate || false,
+            }
+            return cacheEntry
+          }
+          // dynamic response so send here
+          await sendResponse(req, res, response)
+          return null
+        }
+      }
+
       let pageData: any
-      let body: RenderResult | null
+      let body: RenderResult
       let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
@@ -1378,7 +1515,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
-        ...(isAppPath && this.nextConfig.experimental.fetchCache
+        ...(isAppPath && this.nextConfig.experimental.appDir
           ? {
               incrementalCache,
               isRevalidate: this.minimalMode || isRevalidate,
@@ -1401,10 +1538,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 query: origQuery,
               })
             : resolvedUrl,
-      }
 
-      if (isSSG || hasStaticPaths) {
-        renderOpts.supportsDynamicHTML = false
+        supportsDynamicHTML,
       }
 
       const renderResult = await this.renderHTML(
@@ -1416,17 +1551,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
 
       body = renderResult
-      // TODO: change this to a different passing mechanism
-      pageData = (renderOpts as any).pageData
-      isrRevalidate = (renderOpts as any).revalidate
-      isNotFound = (renderOpts as any).isNotFound
-      isRedirect = (renderOpts as any).isRedirect
 
-      if (isAppPath && isSSG && isrRevalidate === 0) {
+      const renderResultMeta = renderResult.metadata()
+
+      pageData = renderResultMeta.pageData
+      isrRevalidate = renderResultMeta.revalidate
+      isNotFound = renderResultMeta.isNotFound
+      isRedirect = renderResultMeta.isRedirect
+
+      // we don't throw static to dynamic errors in dev as isSSG
+      // is a best guess in dev since we don't have the prerender pass
+      // to know whether the path is actually static or not
+      if (isAppPath && isSSG && isrRevalidate === 0 && !this.renderOpts.dev) {
         const staticBailoutInfo: {
           stack?: string
           description?: string
-        } = (renderOpts as any).staticBailoutInfo || {}
+        } = renderResultMeta.staticBailoutInfo || {}
 
         const err = new Error(
           `Page changed from static to dynamic at runtime ${urlPathname}${
@@ -1451,7 +1591,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       } else if (isRedirect) {
         value = { kind: 'REDIRECT', props: pageData }
       } else {
-        if (!body) {
+        if (body.isNull()) {
           return null
         }
         value = { kind: 'PAGE', html: body, pageData }
@@ -1472,7 +1612,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
-            ? await this.getStaticPaths({ pathname })
+            ? await this.getStaticPaths({
+                pathname,
+                requestHeaders: req.headers,
+              })
             : { staticPaths: undefined, fallbackMode: false })
         }
 
@@ -1674,15 +1817,38 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
+    } else if (cachedData.kind === 'ROUTE') {
+      await sendResponse(
+        req,
+        res,
+        new Response(cachedData.body, {
+          headers: new Headers((cachedData.headers || {}) as any),
+          status: cachedData.status || 200,
+        })
+      )
+      return null
     } else {
+      if (isAppPath) {
+        if (isDataReq && typeof cachedData.pageData !== 'string') {
+          throw new Error(
+            'invariant: Expected pageData to be a string for app data request but received ' +
+              typeof cachedData.pageData +
+              '. This is a bug in Next.js.'
+          )
+        }
+
+        return {
+          type: isDataReq ? 'rsc' : 'html',
+          body: isDataReq
+            ? RenderResult.fromStatic(cachedData.pageData as string)
+            : cachedData.html,
+        }
+      }
+
       return {
-        type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',
+        type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(
-              isAppPath
-                ? (cachedData.pageData as string)
-                : JSON.stringify(cachedData.pageData)
-            )
+          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }
@@ -1759,6 +1925,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToResponse(
+    ctx: RequestContext
+  ): Promise<ResponsePayload | null> {
+    return getTracer().trace(BaseServerSpan.renderToResponse, async () => {
+      return this.renderToResponseImpl(ctx)
+    })
+  }
+
+  private async renderToResponseImpl(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
@@ -1882,6 +2056,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
+    return getTracer().trace(BaseServerSpan.renderToHTML, async () => {
+      return this.renderToHTMLImpl(req, res, pathname, query)
+    })
+  }
+
+  private async renderToHTMLImpl(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
     return this.getStaticHTML((ctx) => this.renderToResponse(ctx), {
       req,
       res,
@@ -1891,6 +2076,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async renderError(
+    err: Error | null,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    setHeaders = true
+  ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.renderError, async () => {
+      return this.renderErrorImpl(err, req, res, pathname, query, setHeaders)
+    })
+  }
+
+  private async renderErrorImpl(
     err: Error | null,
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -1924,6 +2122,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   })
 
   private async renderErrorToResponse(
+    ctx: RequestContext,
+    err: Error | null
+  ): Promise<ResponsePayload | null> {
+    return getTracer().trace(BaseServerSpan.renderErrorToResponse, async () => {
+      return this.renderErrorToResponseImpl(ctx, err)
+    })
+  }
+
+  private async renderErrorToResponseImpl(
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {

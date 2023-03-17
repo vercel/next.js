@@ -25,6 +25,7 @@ export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<A
     manifest: Manifest
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     // This matcher only matches app routes.
+
     const pages = Object.keys(manifest).filter((page) => isAppRouteRoute(page))
 
     // Format the routes.

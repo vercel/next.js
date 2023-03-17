@@ -34,6 +34,7 @@ use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
 
+use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -51,7 +52,6 @@ pub mod amp_attributes;
 mod auto_cjs;
 pub mod disallow_re_export_all_in_page;
 pub mod next_dynamic;
-pub mod next_font_loaders;
 pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
@@ -125,7 +125,7 @@ pub struct TransformOptions {
     pub modularize_imports: Option<next_binding::swc::custom_transform::modularize_imports::Config>,
 
     #[serde(default)]
-    pub font_loaders: Option<next_font_loaders::Config>,
+    pub font_loaders: Option<next_transform_font::Config>,
 
     #[serde(default)]
     pub server_actions: Option<server_actions::Config>,
@@ -257,7 +257,7 @@ where
             None => Either::Right(noop()),
         },
         match &opts.font_loaders {
-            Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
+            Some(config) => Either::Left(next_font_loaders(config.clone())),
             None => Either::Right(noop()),
         },
         match &opts.server_actions {

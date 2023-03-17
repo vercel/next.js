@@ -30,6 +30,14 @@ import { fromNodeHeaders } from '../../web/utils'
 import type { ModuleLoader } from '../helpers/module-loader/module-loader'
 import { RouteHandler } from './route-handler'
 import * as Log from '../../../build/output/log'
+import { patchFetch } from '../../lib/patch-fetch'
+import { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import { StaticGenerationAsyncStorageWrapper } from '../../async-storage/static-generation-async-storage-wrapper'
+import { IncrementalCache } from '../../lib/incremental-cache'
+import { AppConfig } from '../../../build/utils'
+import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
+import { NextURL } from '../../web/next-url'
+import { NextConfig } from '../../config-shared'
 
 // TODO-APP: This module has a dynamic require so when bundling for edge it causes issues.
 const NodeModuleLoader =
@@ -60,7 +68,9 @@ export type AppRouteModule = {
   /**
    * Contains all the exported userland code.
    */
-  handlers: Record<HTTP_METHOD, AppRouteHandlerFn>
+  handlers: Record<HTTP_METHOD, AppRouteHandlerFn> &
+    Record<'dynamic', AppConfig['dynamic']> &
+    Record<'revalidate', AppConfig['revalidate']>
 
   /**
    * The exported async storage object for this worker/module.
@@ -71,6 +81,20 @@ export type AppRouteModule = {
    * The absolute path to the module file
    */
   resolvedPagePath: string
+
+  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+
+  serverHooks: typeof import('../../../client/components/hooks-server-context')
+
+  headerHooks: typeof import('../../../client/components/headers')
+
+  staticGenerationBailout: typeof import('../../../client/components/static-generation-bailout').staticGenerationBailout
+}
+
+export type StaticGenerationContext = {
+  incrementalCache?: IncrementalCache
+  supportsDynamicHTML: boolean
+  nextExport?: boolean
 }
 
 /**
@@ -99,7 +123,7 @@ function wrapRequest(req: BaseNextRequest): Request {
   })
 }
 
-function resolveHandlerError(err: any): Response {
+function resolveHandlerError(err: any, bubbleResult?: boolean): Response {
   if (isRedirectError(err)) {
     const redirect = getURLFromRedirectError(err)
     if (!redirect) {
@@ -115,12 +139,15 @@ function resolveHandlerError(err: any): Response {
     return handleNotFoundResponse()
   }
 
+  if (bubbleResult) {
+    throw err
+  }
   // TODO: validate the correct handling behavior
   Log.error(err)
   return handleInternalServerErrorResponse()
 }
 
-async function sendResponse(
+export async function sendResponse(
   req: BaseNextRequest,
   res: BaseNextResponse,
   response: Response
@@ -132,7 +159,7 @@ async function sendResponse(
     res.statusMessage = response.statusText
 
     // Copy over the response headers.
-    response.headers.forEach((value, name) => {
+    response.headers?.forEach((value, name) => {
       // The append handling is special cased for `set-cookie`.
       if (name.toLowerCase() === 'set-cookie') {
         res.setHeader(name, value)
@@ -168,13 +195,160 @@ async function sendResponse(
   }
 }
 
+function cleanURL(urlString: string): string {
+  const url = new URL(urlString)
+  url.host = 'localhost:3000'
+  url.search = ''
+  url.protocol = 'http'
+  return url.toString()
+}
+
+function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
+  function handleNextUrlBailout(prop: string | symbol) {
+    switch (prop) {
+      case 'search':
+      case 'searchParams':
+      case 'toString':
+      case 'href':
+      case 'origin':
+        module.staticGenerationBailout(`nextUrl.${prop as string}`)
+        return
+      default:
+        return
+    }
+  }
+
+  const cache: {
+    url?: string
+    toString?: () => string
+    headers?: Headers
+    cookies?: RequestCookies
+    searchParams?: URLSearchParams
+  } = {}
+
+  const handleForceStatic = (url: string, prop: string) => {
+    switch (prop) {
+      case 'search':
+        return ''
+      case 'searchParams':
+        if (!cache.searchParams) cache.searchParams = new URLSearchParams()
+
+        return cache.searchParams
+      case 'url':
+      case 'href':
+        if (!cache.url) cache.url = cleanURL(url)
+
+        return cache.url
+      case 'toJSON':
+      case 'toString':
+        if (!cache.url) cache.url = cleanURL(url)
+        if (!cache.toString) cache.toString = () => cache.url!
+
+        return cache.toString
+      case 'headers':
+        if (!cache.headers) cache.headers = new Headers()
+
+        return cache.headers
+      case 'cookies':
+        if (!cache.headers) cache.headers = new Headers()
+        if (!cache.cookies) cache.cookies = new RequestCookies(cache.headers)
+
+        return cache.cookies
+      case 'clone':
+        if (!cache.url) cache.url = cleanURL(url)
+
+        return () => new NextURL(cache.url!)
+      default:
+        break
+    }
+  }
+
+  const wrappedNextUrl = new Proxy(req.nextUrl, {
+    get(target, prop) {
+      handleNextUrlBailout(prop)
+
+      if (
+        module.handlers.dynamic === 'force-static' &&
+        typeof prop === 'string'
+      ) {
+        const result = handleForceStatic(target.href, prop)
+        if (result !== undefined) return result
+      }
+      const value = (target as any)[prop]
+
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
+    },
+    set(target, prop, value) {
+      handleNextUrlBailout(prop)
+      ;(target as any)[prop] = value
+      return true
+    },
+  })
+
+  const handleReqBailout = (prop: string | symbol) => {
+    switch (prop) {
+      case 'headers':
+        module.headerHooks.headers()
+        return
+      // if request.url is accessed directly instead of
+      // request.nextUrl we bail since it includes query
+      // values that can be relied on dynamically
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
+        module.staticGenerationBailout(`request.${prop}`)
+        return
+      default:
+        return
+    }
+  }
+
+  return new Proxy(req, {
+    get(target, prop) {
+      handleReqBailout(prop)
+
+      if (prop === 'nextUrl') {
+        return wrappedNextUrl
+      }
+
+      if (
+        module.handlers.dynamic === 'force-static' &&
+        typeof prop === 'string'
+      ) {
+        const result = handleForceStatic(target.url, prop)
+        if (result !== undefined) return result
+      }
+      const value = (target as any)[prop]
+
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
+    },
+    set(target, prop, value) {
+      handleReqBailout(prop)
+      ;(target as any)[prop] = value
+      return true
+    },
+  })
+}
+
 export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
   constructor(
+    private readonly nextConfigOutput: NextConfig['output'] = undefined,
     private readonly requestAsyncLocalStorageWrapper: AsyncStorageWrapper<
       RequestStore,
       RequestContext
     > = new RequestAsyncStorageWrapper(),
-    private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
+    protected readonly staticAsyncLocalStorageWrapper = new StaticGenerationAsyncStorageWrapper(),
+    protected readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
   ) {}
 
   private resolve(method: string, mod: AppRouteModule): AppRouteHandlerFn {
@@ -255,28 +429,107 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
 
   // TODO-APP: this is temporarily used for edge.
   public async execute(
-    { params }: AppRouteRouteMatch,
+    { params, definition }: AppRouteRouteMatch,
     module: AppRouteModule,
     req: BaseNextRequest,
     res: BaseNextResponse,
+    context?: StaticGenerationContext,
     // TODO-APP: this is temporarily used for edge.
     request?: Request
   ): Promise<Response> {
-    // This is added by the webpack loader, we load it directly from the module.
-    const { requestAsyncStorage } = module
-
     // Get the handler function for the given method.
     const handle = this.resolve(req.method, module)
+
+    // This is added by the webpack loader, we load it directly from the module.
+    const { requestAsyncStorage, staticGenerationAsyncStorage } = module
+
+    const requestContext: RequestContext =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? { req, res }
+        : {
+            req: (req as NodeNextRequest).originalRequest,
+            res: (res as NodeNextResponse).originalResponse,
+          }
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
     const response = await this.requestAsyncLocalStorageWrapper.wrap(
       requestAsyncStorage,
-      {
-        req: (req as NodeNextRequest).originalRequest,
-        res: (res as NodeNextResponse).originalResponse,
-      },
-      () => handle(request ? request : wrapRequest(req), { params })
+      requestContext,
+      () =>
+        this.staticAsyncLocalStorageWrapper.wrap(
+          staticGenerationAsyncStorage,
+          {
+            pathname: definition.pathname,
+            renderOpts: context ?? {
+              supportsDynamicHTML: false,
+            },
+          },
+          (staticGenerationStore) => {
+            // We can currently only statically optimize if only GET/HEAD
+            // are used as a Prerender can't be used conditionally based
+            // on the method currently
+            const nonStaticHandlers: ReadonlyArray<HTTP_METHOD> = [
+              'OPTIONS',
+              'POST',
+              'PUT',
+              'DELETE',
+              'PATCH',
+            ]
+            const usedNonStaticHandlers = nonStaticHandlers.filter(
+              (name) => name in module.handlers
+            )
+
+            if (usedNonStaticHandlers.length > 0) {
+              module.staticGenerationBailout(
+                `non-static methods used ${usedNonStaticHandlers.join(', ')}`
+              )
+            }
+
+            if (this.nextConfigOutput === 'export') {
+              if (
+                !module.handlers.dynamic ||
+                module.handlers.dynamic === 'auto'
+              ) {
+                module.handlers.dynamic = 'error'
+              } else if (module.handlers.dynamic === 'force-dynamic') {
+                throw new Error(
+                  `export const dynamic = "force-dynamic" on route handler "${handle.name}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+                )
+              }
+            }
+
+            switch (module.handlers.dynamic) {
+              case 'force-dynamic':
+                staticGenerationStore.forceDynamic = true
+                module.staticGenerationBailout(`dynamic = 'force-dynamic'`)
+                break
+              case 'force-static':
+                staticGenerationStore.forceStatic = true
+                break
+              case 'error':
+                staticGenerationStore.dynamicShouldError = true
+                break
+              default:
+                break
+            }
+
+            if (typeof staticGenerationStore.revalidate === 'undefined') {
+              staticGenerationStore.revalidate =
+                module.handlers.revalidate ?? false
+            }
+
+            // Wrap the request so we can add additional functionality to cases
+            // that might change it's output or affect the rendering.
+            const wrappedRequest = proxyRequest(
+              // TODO: investigate why/how this cast is necessary/possible
+              (request ? request : wrapRequest(req)) as NextRequest,
+              module
+            )
+
+            return handle(wrappedRequest, { params })
+          }
+        )
     )
 
     // If the handler did't return a valid response, then return the internal
@@ -325,24 +578,39 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
   public async handle(
     match: AppRouteRouteMatch,
     req: BaseNextRequest,
-    res: BaseNextResponse
-  ): Promise<void> {
+    res: BaseNextResponse,
+    context?: StaticGenerationContext,
+    bubbleResult?: boolean
+  ): Promise<any> {
     try {
       // Load the module using the module loader.
-      const module: AppRouteModule = await this.moduleLoader.load(
+      const appRouteModule: AppRouteModule = await this.moduleLoader.load(
         match.definition.filename
       )
-
-      // TODO: patch fetch
+      patchFetch(appRouteModule)
 
       // Execute the route to get the response.
-      const response = await this.execute(match, module, req, res)
+      const response = await this.execute(
+        match,
+        appRouteModule,
+        req,
+        res,
+        context
+      )
 
+      if (bubbleResult) {
+        return response
+      }
       // Send the response back to the response.
       await sendResponse(req, res, response)
     } catch (err) {
+      const response = resolveHandlerError(err, bubbleResult)
+
+      if (bubbleResult) {
+        return response
+      }
       // Get the correct response based on the error.
-      await sendResponse(req, res, resolveHandlerError(err))
+      await sendResponse(req, res, response)
     }
   }
 }

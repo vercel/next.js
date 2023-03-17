@@ -1,4 +1,5 @@
 import * as React from 'react'
+import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import {
   Dialog,
   DialogBody,
@@ -7,12 +8,14 @@ import {
 } from '../components/Dialog'
 import { Overlay } from '../components/Overlay'
 import { Terminal } from '../components/Terminal'
+import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { noop as css } from '../helpers/noop-template'
 
-export type BuildErrorProps = { message: string }
+export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
+  versionInfo,
 }) {
   const noop = React.useCallback(() => {}, [])
   return (
@@ -26,6 +29,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
         <DialogContent>
           <DialogHeader className="nextjs-container-build-error-header">
             <h4 id="nextjs__container_build_error_label">Failed to compile</h4>
+            {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
           </DialogHeader>
           <DialogBody className="nextjs-container-build-error-body">
             <Terminal content={message} />
@@ -45,6 +49,10 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
 }
 
 export const styles = css`
+  .nextjs-container-build-error-header {
+    display: flex;
+    align-items: center;
+  }
   .nextjs-container-build-error-header > h4 {
     line-height: 1.5;
     margin: 0;

@@ -320,17 +320,7 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   // Add more setup options before each test is run
   // setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
-  moduleDirectories: ['node_modules', '<rootDir>/'],
 
-  // If you're using [Module Path Aliases](https://nextjs.org/docs/advanced-features/module-path-aliases),
-  // you will have to add the moduleNameMapper in order for jest to resolve your absolute paths.
-  // The paths have to be matching with the paths option within the compilerOptions in the tsconfig.json
-  // For example:
-
-  moduleNameMapper: {
-    '@/(.*)$': '<rootDir>/src/$1',
-  },
   testEnvironment: 'jest-environment-jsdom',
 }
 
@@ -341,7 +331,7 @@ module.exports = createJestConfig(customJestConfig)
 Under the hood, `next/jest` is automatically configuring Jest for you, including:
 
 - Setting up `transform` using [SWC](https://nextjs.org/docs/advanced-features/compiler)
-- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`@next/font`](https://nextjs.org/docs/basic-features/font-optimization)
+- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`next/font`](https://nextjs.org/docs/basic-features/font-optimization)
 - Loading `.env` (and all variants) into `process.env`
 - Ignoring `node_modules` from test resolving and transforms
 - Ignoring `.next` from test resolving

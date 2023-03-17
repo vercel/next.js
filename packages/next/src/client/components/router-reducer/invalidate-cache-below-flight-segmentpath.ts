@@ -1,5 +1,5 @@
-import { CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightSegmentPath } from '../../../server/app-render'
+import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type { FlightSegmentPath } from '../../../server/app-render/types'
 
 /**
  * Fill cache up to the end of the flightSegmentPath, invalidating anything below it.

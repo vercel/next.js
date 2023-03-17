@@ -1,8 +1,15 @@
 import type { ServerRuntime } from '../../types'
 
+// in seconds
+export const CACHE_ONE_YEAR = 31536000
+
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
+
+// Pattern to detect instrumentation hooks file
+export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
+export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
@@ -73,6 +80,7 @@ export const WEBPACK_LAYERS = {
   shared: 'sc_shared',
   server: 'sc_server',
   client: 'sc_client',
+  action: 'sc_action',
   api: 'api',
   middleware: 'middleware',
   edgeAsset: 'edge-asset',

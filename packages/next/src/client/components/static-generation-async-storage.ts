@@ -6,10 +6,12 @@ export interface StaticGenerationStore {
   readonly pathname: string
   readonly incrementalCache?: import('../../server/lib/incremental-cache').IncrementalCache
   readonly isRevalidate?: boolean
+  readonly isPrerendering?: boolean
 
   forceDynamic?: boolean
-  revalidate?: boolean | number
+  revalidate?: false | number
   forceStatic?: boolean
+  dynamicShouldError?: boolean
   pendingRevalidates?: Promise<any>[]
 
   dynamicUsageDescription?: string

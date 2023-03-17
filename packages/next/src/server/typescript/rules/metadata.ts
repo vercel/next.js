@@ -8,7 +8,7 @@ import {
 } from '../utils'
 
 const TYPE_ANOTATION = ': Metadata'
-const TYPE_ANOTATION_ASYNC = ': Promise<Metadata> | Metadata'
+const TYPE_ANOTATION_ASYNC = ': Promise<Metadata>'
 const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
 
 // Find the `export const metadata = ...` node.
@@ -158,7 +158,10 @@ function updateVirtualFileWithType(
   if (ts.isFunctionDeclaration(node)) {
     if (isGenerateMetadata) {
       nodeEnd = node.body!.getFullStart()
-      annotation = TYPE_ANOTATION_ASYNC
+      const isAsync = node.modifiers?.some(
+        (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+      )
+      annotation = isAsync ? TYPE_ANOTATION_ASYNC : TYPE_ANOTATION
     } else {
       return
     }

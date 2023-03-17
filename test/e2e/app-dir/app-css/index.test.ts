@@ -8,9 +8,11 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: {
       swr: '2.0.0-rc.0',
+      '@picocss/pico': '1.5.7',
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',
+      '@next/mdx': 'canary',
     },
   },
   ({ next, isNextDev: isDev }) => {
@@ -42,6 +44,15 @@ createNextDescribe(
             )
           ).toBe('rgb(0, 128, 0)')
         })
+
+        it('should support external css imports', async () => {
+          const browser = await next.browser('/css/css-external')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('main')).paddingTop`
+            )
+          ).toBe('80px')
+        })
       })
 
       describe('server pages', () => {
@@ -67,28 +78,6 @@ createNextDescribe(
           const html = await next.render('/css/css-page')
           expect(html).not.toContain('/pages/_app.css')
         })
-
-        if (!isDev) {
-          it('should not include unused css modules in the page in prod', async () => {
-            const browser = await next.browser('/css/css-page/unused')
-            expect(
-              await browser.eval(
-                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
-              )
-            ).toBe(false)
-          })
-
-          it('should not include unused css modules in nested pages in prod', async () => {
-            const browser = await next.browser(
-              '/css/css-page/unused-nested/inner'
-            )
-            expect(
-              await browser.eval(
-                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included_in_inner_path')))`
-              )
-            ).toBe(false)
-          })
-        }
       })
 
       describe('client layouts', () => {
@@ -221,6 +210,27 @@ createNextDescribe(
         })
       })
 
+      describe('page extensions', () => {
+        it('should include css imported in MDX pages', async () => {
+          const browser = await next.browser('/mdx')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      })
+
+      describe('chunks', () => {
+        it('should bundle css resources into chunks', async () => {
+          const html = await next.render('/dashboard')
+          expect(
+            [...html.matchAll(/<link rel="stylesheet" href="[^.]+\.css"/g)]
+              .length
+          ).toBe(3)
+        })
+      })
+
       if (isDev) {
         describe('multiple entries', () => {
           it('should only inject the same style once if used by different layers', async () => {
@@ -240,7 +250,7 @@ createNextDescribe(
             // Even if it's deduped by Float, it should still only be included once in the payload.
             // There are two matches, one for the rendered <link> and one for the flight data.
             expect(
-              initialHtml.match(/duplicate-2_style_module_css\.css/g).length
+              initialHtml.match(/css-duplicate-2\/layout\.css/g).length
             ).toBe(2)
           })
 

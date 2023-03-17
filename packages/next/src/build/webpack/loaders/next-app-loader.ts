@@ -3,16 +3,36 @@ import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
+import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
+import {
+  createMetadataExportsCode,
+  createStaticMetadataFromRoute,
+  METADATA_RESOURCE_QUERY,
+} from './metadata/discover'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+
+export type AppLoaderOptions = {
+  name: string
+  pagePath: string
+  appDir: string
+  appPaths: string[] | null
+  pageExtensions: string[]
+  basePath: string
+  assetPrefix: string
+  rootDir?: string
+  tsconfigPath?: string
+  isDev?: boolean
+}
+type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
 const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -39,21 +59,27 @@ export type ComponentsType = {
 }
 
 async function createAppRouteCode({
+  name,
   pagePath,
   resolver,
+  pageExtensions,
 }: {
+  name: string
   pagePath: string
   resolver: PathResolver
+  pageExtensions: string[]
 }): Promise<string> {
-  // Split based on any specific path separators (both `/` and `\`)...
-  const splittedPath = pagePath.split(/[\\/]/)
-  // Then join all but the last part with the same separator, `/`...
-  const segmentPath = splittedPath.slice(0, -1).join('/')
-  // Then add the `/route` suffix...
-  const matchedPagePath = `${segmentPath}/route`
+  // routePath is the path to the route handler file,
+  // but could be aliased e.g. private-next-app-dir/favicon.ico
+  const routePath = pagePath.replace(/[\\/]/, '/')
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  const resolvedPagePath = await resolver(matchedPagePath)
+  let resolvedPagePath = (await resolver(routePath))!
+  if (isMetadataRoute(name)) {
+    resolvedPagePath = `next-metadata-route-loader?${stringify({
+      pageExtensions,
+    })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
+  }
 
   // TODO: verify if other methods need to be injected
   // TODO: validate that the handler exports at least one of the supported methods
@@ -63,6 +89,14 @@ async function createAppRouteCode({
 
     export * as handlers from ${JSON.stringify(resolvedPagePath)}
     export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
+
+    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+
+    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
+
+    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+
+    export * as headerHooks from 'next/dist/client/components/headers'
 
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
   `
@@ -75,7 +109,6 @@ async function createTreeCodeFromPath(
     resolvePath,
     resolveParallelSegments,
     loaderContext,
-    loaderOptions,
   }: {
     resolver: (
       pathname: string,
@@ -86,7 +119,6 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
-    loaderOptions: AppLoaderOptions
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -115,17 +147,18 @@ async function createTreeCodeFromPath(
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
-    let metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>> = null
+    let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
+      null
     try {
       const routerDirPath = `${appDirPrefix}${segmentPath}`
       const resolvedRouteDir = await resolver(routerDirPath, true)
 
       if (resolvedRouteDir) {
-        metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
+        metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
+          route: segmentPath,
           resolvePath,
           isRootLayer,
           loaderContext,
-          loaderOptions,
         })
       }
     } catch (err: any) {
@@ -148,7 +181,7 @@ async function createTreeCodeFromPath(
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
-          ${buildMetadata(metadata)}
+          ${createMetadataExportsCode(metadata)}
         }]`
         continue
       }
@@ -208,7 +241,7 @@ async function createTreeCodeFromPath(
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
-          ${definedFilePaths.length ? buildMetadata(metadata) : ''}
+          ${definedFilePaths.length ? createMetadataExportsCode(metadata) : ''}
         }
       ]`
     }
@@ -241,20 +274,6 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
-export type AppLoaderOptions = {
-  name: string
-  pagePath: string
-  appDir: string
-  appPaths: string[] | null
-  pageExtensions: string[]
-  basePath: string
-  assetPrefix: string
-  rootDir?: string
-  tsconfigPath?: string
-  isDev?: boolean
-}
-type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
-
 const nextAppLoader: AppLoader = async function nextAppLoader() {
   const loaderOptions = this.getOptions() || {}
   const {
@@ -269,16 +288,19 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
+  const page = name.replace(/^app/, '')
   buildInfo.route = {
-    page: name.replace(/^app/, ''),
+    page,
     absolutePagePath: createAbsolutePath(appDir, pagePath),
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
+
   const resolveOptions: any = {
     ...NODE_RESOLVE_OPTIONS,
     extensions,
   }
+
   const resolve = this.getResolve(resolveOptions)
 
   const normalizedAppPaths =
@@ -337,7 +359,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   if (isAppRouteRoute(name)) {
-    return createAppRouteCode({ pagePath, resolver })
+    return createAppRouteCode({ name, pagePath, resolver, pageExtensions })
   }
 
   const {
@@ -350,7 +372,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     loaderContext: this,
-    loaderOptions: loaderOptions,
   })
 
   if (!rootLayout) {
@@ -402,11 +423,16 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+
+    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+    export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
+    export { createSearchParamsBailoutProxy } from 'next/dist/client/components/searchparams-bailout-proxy'
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.browser'
+    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
   `
 

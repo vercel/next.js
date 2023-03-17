@@ -67,15 +67,15 @@ createNextDescribe(
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/comp2.js
+        "./app/comp2.js
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
 
-        The error was caused by importing 'styled-jsx/style.js' in 'app/comp2.js'.
+        The error was caused by using 'styled-jsx' in './app/comp2.js'. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
 
         Import trace for requested module:
-        app/comp2.js
-        app/comp1.js
-        app/page.js"
+        ./app/comp2.js
+        ./app/comp1.js
+        ./app/page.js"
       `)
 
       await cleanup()
@@ -142,15 +142,15 @@ createNextDescribe(
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/comp2.js
+        "./app/comp2.js
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
 
-        The error was caused by importing 'client-only-package/index.js' in 'app/comp2.js'.
+        The error was caused by importing 'client-only-package/index.js' in './app/comp2.js'.
 
         Import trace for requested module:
-        app/comp2.js
-        app/comp1.js
-        app/page.js"
+        ./app/comp2.js
+        ./app/comp1.js
+        ./app/page.js"
       `)
 
       await cleanup()
@@ -188,7 +188,7 @@ createNextDescribe(
           [
             'app/comp2.js',
             `
-            import "server-only-package"
+            import 'server-only-package'
             export function Comp2() {
               return (
                 <div>Hello world</div>
@@ -199,8 +199,7 @@ createNextDescribe(
           ],
           [
             'app/page.js',
-            `'use client'
-          import { Comp1 } from './comp1'
+            `import { Comp1 } from './comp1'
           
           export default function Page() {
             return <Comp1 />
@@ -210,21 +209,21 @@ createNextDescribe(
         ])
       )
 
-      const pageFile = 'app/page.js'
-      const content = await next.readFile(pageFile)
-      await session.patch(pageFile, '"use client"\n' + content)
+      const file = 'app/page.js'
+      const content = await next.readFile(file)
+      await session.patch(file, "'use client'\n" + content)
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/comp2.js
+        "./app/comp2.js
         'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
 
-        The error was caused by importing 'server-only-package/index.js' in 'app/comp2.js'.
+        The error was caused by importing 'server-only-package/index.js' in './app/comp2.js'.
 
         Import trace for requested module:
-          app/comp2.js
-          app/comp1.js
-          app/page.js"
+        ./app/comp2.js
+        ./app/comp1.js
+        ./app/page.js"
       `)
 
       await cleanup()

@@ -37,6 +37,68 @@ createNextDescribe(
       await cleanup()
     })
 
+    it('should throw an error when metadata export is used in client components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/client-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/client-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+
+      // Add `metadata` error
+      let uncomment = content.replace(
+        '// export const metadata',
+        'export const metadata'
+      )
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
+      )
+
+      // Restore file
+      await session.patch(pageFile, content)
+      expect(await session.hasRedbox(false)).toBe(false)
+
+      // Add `generateMetadata` error
+      uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
+      )
+
+      await cleanup()
+    })
+
+    it('should throw an error when metadata exports are used together in server components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/server-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+      const uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
+      )
+
+      await cleanup()
+    })
+
     it('should throw an error when getStaticProps is used', async () => {
       const { session, cleanup } = await sandbox(
         next,
@@ -222,7 +284,7 @@ createNextDescribe(
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
 
       await cleanup()
@@ -252,7 +314,7 @@ createNextDescribe(
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
 
       await cleanup()
@@ -301,8 +363,8 @@ createNextDescribe(
            \`----
 
         Maybe one of these should be marked as a client entry with \\"use client\\":
-        app/editor-links/component.js
-        app/editor-links/page.js"
+        ./app/editor-links/component.js
+        ./app/editor-links/page.js"
       `)
 
       await browser.waitForElementByCss('[data-with-open-in-editor-link]')
@@ -314,6 +376,93 @@ createNextDescribe(
       }
 
       await check(() => editorRequestsCount, /2/)
+
+      await cleanup()
+    })
+
+    it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+      const pagePath = 'app/metadata/mutate/page.js'
+      const content = `export default function page(props) {
+        return <p>mutate</p>
+      }
+
+      export async function generateMetadata(props, parent) {
+        const parentMetadata = await parent
+        parentMetadata.x = 1
+        return {
+          ...parentMetadata,
+        }
+      }`
+
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/metadata/mutate'
+      )
+
+      await session.patch(pagePath, content)
+
+      await check(
+        async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
+        /success/
+      )
+
+      expect(await session.getRedboxDescription()).toContain(
+        'Cannot add property x, object is not extensible'
+      )
+
+      await cleanup()
+    })
+
+    it('should show which import caused an error in node_modules', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          [
+            'node_modules/client-package/module2.js',
+            "import { useState } from 'react'",
+          ],
+          ['node_modules/client-package/module1.js', "import './module2.js'"],
+          ['node_modules/client-package/index.js', "import './module1.js'"],
+          [
+            'node_modules/client-package/package.json',
+            `
+        {
+          "name": "client-package",
+          "version": "0.0.1"
+        }
+      `,
+          ],
+          ['app/Component.js', "import 'client-package'"],
+          [
+            'app/page.js',
+            `
+          import './Component.js'
+          export default function Page() {
+            return <p>Hello world</p>
+          }`,
+          ],
+        ])
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/Component.js
+        ReactServerComponentsError:
+
+        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+           ,----
+         1 | import { useState } from 'react'
+           :          ^^^^^^^^
+           \`----
+
+        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
+
+        Maybe one of these should be marked as a client entry with \\"use client\\":
+          ./app/Component.js
+          ./app/page.js"
+      `)
 
       await cleanup()
     })
