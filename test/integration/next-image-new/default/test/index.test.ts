@@ -160,6 +160,9 @@ function runTests(mode) {
         await browser.elementById('basic-image').getAttribute('fetchpriority')
       ).toBe('high')
       expect(
+        await browser.elementById('load-eager').getAttribute('fetchpriority')
+      ).toBe(null)
+      expect(
         await browser.elementById('responsive1').getAttribute('fetchpriority')
       ).toBe('high')
       expect(
