@@ -198,6 +198,9 @@ createNextDescribe(
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-config-revalidate/revalidate-3.html',
+          'variable-config-revalidate/revalidate-3.rsc',
+          'variable-config-revalidate/revalidate-3/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
@@ -401,6 +404,11 @@ createNextDescribe(
             dataRoute: '/ssg-preview/test-2.rsc',
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
+          },
+          '/variable-config-revalidate/revalidate-3': {
+            dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-config-revalidate/revalidate-3',
           },
           '/variable-revalidate/authorization': {
             dataRoute: '/variable-revalidate/authorization.rsc',
