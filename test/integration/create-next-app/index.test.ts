@@ -818,4 +818,35 @@ describe('create next app', () => {
       projectFilesShouldExist({ cwd, projectName, files })
     })
   })
+
+  it('should exit if node version is not at least v16.8 and --experimental-app is true', async () => {
+    process.env.NODE_VERSION = 'v12.2.21'
+
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
+
+    await useTempDir(async (cwd) => {
+      const projectName = 'check-node-version-experimental-app'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--tailwind',
+          '--eslint',
+          '--src-dir',
+          '--experimental-app',
+        ],
+        {
+          cwd,
+          env: { ...process.env },
+        }
+      )
+
+      expect(res.exitCode).toBe(1)
+    })
+  })
 })
