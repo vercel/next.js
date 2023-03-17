@@ -17,7 +17,7 @@ So instead of adding `import 'package-with-side-effect'`, you can add this:
 ```ts
 // instrumentation.ts
 
-import {init} from 'package-init'
+import { init } from 'package-init'
 
 export const register() {
   init()
