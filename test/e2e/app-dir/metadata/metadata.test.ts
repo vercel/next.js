@@ -687,6 +687,23 @@ createNextDescribe(
         expect(invalidSitemapResponse.status).toBe(404)
       })
 
+      it('should support static manifest.webmanifest', async () => {
+        const res = await next.fetch('/manifest.webmanifest')
+        expect(res.headers.get('content-type')).toBe(
+          'application/manifest+json'
+        )
+        const manifest = await res.json()
+        expect(manifest).toMatchObject({
+          name: 'Next.js Static Manifest',
+          short_name: 'Next.js App',
+          description: 'Next.js App',
+          start_url: '/',
+          display: 'standalone',
+          background_color: '#fff',
+          theme_color: '#fff',
+        })
+      })
+
       if (isNextStart) {
         it('should build favicon.ico as a custom route', async () => {
           const appPathsManifest = JSON.parse(
