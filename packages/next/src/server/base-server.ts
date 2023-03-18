@@ -92,8 +92,10 @@ import { PagesRouteMatcherProvider } from './future/route-matcher-providers/page
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 import { getTracer } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { sendResponse } from './future/route-handlers/app-route-route-handler'
 import { I18NProvider } from './future/helpers/i18n-provider'
+import { sendResponse } from './send-response'
+import { RouteKind } from './future/route-kind'
+import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1443,37 +1445,56 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           supportsDynamicHTML,
           incrementalCache,
         }
-        let response: Response | undefined = (await this.handlers.handle(
-          match,
-          req,
-          res,
-          context,
-          isSSG
-        )) as any
 
-        if (response) {
-          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-            const blob = await response.blob()
-            const headers = Object.fromEntries(response.headers)
-            if (!headers['content-type'] && blob.type) {
-              headers['content-type'] = blob.type
+        try {
+          // Handle the match and collect the response if it's a static response.
+          const response = await this.handlers.handle(match, req, res, context)
+          if (response) {
+            // If the request is for a static response, we can cache it so long
+            // as it's not edge.
+            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+              const blob = await response.blob()
+
+              // Copy the headers from the response.
+              const headers = Object.fromEntries(response.headers)
+              if (!headers['content-type'] && blob.type) {
+                headers['content-type'] = blob.type
+              }
+
+              // Create the cache entry for the response.
+              const cacheEntry: ResponseCacheEntry = {
+                value: {
+                  kind: 'ROUTE',
+                  status: response.status,
+                  body: Buffer.from(await blob.arrayBuffer()),
+                  headers,
+                },
+                revalidate:
+                  ((context as any).store as any as { revalidate?: number })
+                    .revalidate || false,
+              }
+
+              return cacheEntry
             }
-            const cacheEntry: ResponseCacheEntry = {
-              value: {
-                kind: 'ROUTE',
-                status: response.status,
-                body: Buffer.from(await blob.arrayBuffer()),
-                headers,
-              },
-              revalidate:
-                ((context as any).store as any as { revalidate?: number })
-                  .revalidate || false,
-            }
-            return cacheEntry
+
+            // Send the response now that we have copied it into the cache.
+            await sendResponse(req, res, response)
+
+            return null
           }
-          // dynamic response so send here
-          await sendResponse(req, res, response)
-          return null
+        } catch (err) {
+          // If an error was thrown while handling an app route request, we
+          // should return a 500 response.
+          if (match.definition.kind === RouteKind.APP_ROUTE) {
+            // If this is during static generation, throw the error again.
+            if (isSSG) throw err
+
+            // Otherwise, send a 500 response.
+            Log.error(err)
+            await sendResponse(req, res, handleInternalServerErrorResponse())
+
+            return null
+          }
         }
       }
 
