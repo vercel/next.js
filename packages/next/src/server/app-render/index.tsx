@@ -15,6 +15,7 @@ import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
 
 // Import builtin react directly to avoid require cache conflicts
 import React from 'next/dist/compiled/react'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
