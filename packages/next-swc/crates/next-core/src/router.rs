@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
@@ -380,7 +380,7 @@ async fn route_internal(
         JavaScriptEvaluation::Single(Ok(val)) => {
             // If we received a single message from the router, then it must be a
             // rewrite/none/error. Middleware always comes in 2+ chunk streams.
-            let result: RouterIncomingMessage = parse_json_with_source_context(&val.to_str()?)?;
+            let result: RouterIncomingMessage = parse_json_with_source_context(val.to_str()?)?;
             Ok(match result {
                 RouterIncomingMessage::Rewrite { data } => RouterResult::Rewrite(data),
                 RouterIncomingMessage::None => RouterResult::None,
@@ -396,7 +396,7 @@ async fn route_internal(
                     // The first chunk is the Middleware's headers/status. Everything after that is
                     // body contents.
                     let headers: RouterIncomingMessage =
-                        parse_json_with_source_context(&first.to_str()?)?;
+                        parse_json_with_source_context(first.to_str()?)?;
 
                     // The double encoding here is annoying. It'd be a lot nicer if we could embed
                     // a buffer directly into the IPC message without having to wrap it in an
@@ -408,7 +408,8 @@ async fn route_internal(
                         };
                         let chunk: RouterIncomingMessage = match chunk
                             .to_str()
-                            .and_then(|s| parse_json_with_source_context(&s))
+                            .context("error decoding string")
+                            .and_then(parse_json_with_source_context)
                         {
                             Ok(c) => c,
                             Err(e) => return Err(e.to_string()),

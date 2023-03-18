@@ -604,7 +604,7 @@ pub async fn load_next_config_internal(
     .await?;
     match &*config_value {
         JavaScriptEvaluation::Single(Ok(val)) => {
-            let next_config: NextConfig = parse_json_with_source_context(&val.to_str()?)?;
+            let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
             let next_config = next_config.cell();
 
             Ok(next_config)
