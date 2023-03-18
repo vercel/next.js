@@ -75,7 +75,9 @@ async function createAppRouteCode({
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
-  if (isMetadataRoute(name)) {
+
+  const fileBaseName = path.basename(resolvedPagePath).split('.')[0]
+  if (isMetadataRoute(name) && fileBaseName !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`

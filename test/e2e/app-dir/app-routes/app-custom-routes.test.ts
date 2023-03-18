@@ -521,6 +521,17 @@ createNextDescribe(
       })
     })
 
+    describe('customized metadata routes', () => {
+      it('should work if conflict with metadata routes convention', async () => {
+        const res = await next.fetch('/robots.txt')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toBe(
+          'User-agent: *\nAllow: /\n\nSitemap: https://www.example.com/sitemap.xml'
+        )
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
