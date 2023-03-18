@@ -7,7 +7,7 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     CompletionVc, CompletionsVc, Value,
 };
-use turbo_tasks_bytes::{bytes::BytesValue, stream::Stream};
+use turbo_tasks_bytes::{bytes::Bytes, stream::Stream};
 use turbo_tasks_fs::{json::parse_json_with_source_context, to_sys_path, File, FileSystemPathVc};
 use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
 use turbopack_core::{
@@ -98,7 +98,7 @@ pub struct MiddlewareHeadersResponse {
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
-pub struct MiddlewareBodyResponse(BytesValue);
+pub struct MiddlewareBodyResponse(Bytes);
 
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "kebab-case")]
@@ -116,7 +116,7 @@ pub struct MiddlewareResponse {
     pub status_code: u16,
     pub headers: Vec<(String, String)>,
     #[turbo_tasks(trace_ignore)]
-    pub body: Stream<Result<BytesValue, String>>,
+    pub body: Stream<Result<Bytes, String>>,
 }
 
 #[derive(Debug)]
@@ -414,9 +414,7 @@ async fn route_internal(
                             Err(e) => return Err(e.to_string()),
                         };
                         match chunk {
-                            RouterIncomingMessage::MiddlewareBody { data } => {
-                                Ok(BytesValue::from(data))
-                            }
+                            RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
                             m => Err(format!("unexpected message type: {:#?}", m)),
                         }
                     });
