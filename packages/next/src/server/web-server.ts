@@ -36,7 +36,7 @@ interface WebServerOptions extends Options {
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     pagesRenderToHTML?: typeof import('./render').renderToHTML
-    appRenderToHTML?: typeof import('./app-render').renderToHTMLOrFlight
+    appRenderToHTML?: typeof import('./app-render/app-render').renderToHTMLOrFlight
     incrementalCacheHandler?: any
   }
 }
