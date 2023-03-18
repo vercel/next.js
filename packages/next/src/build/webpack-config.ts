@@ -688,7 +688,7 @@ export default async function getBaseWebpackConfig(
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
-        'You ase using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
+        'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
     }
   }
@@ -1917,18 +1917,20 @@ export default async function getBaseWebpackConfig(
                     use: swcLoaderForServerLayer,
                   },
                   {
-                    test: codeCondition.test,
+                    ...codeCondition,
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [
+                      staticGenerationAsyncStorageRegex,
+                      codeCondition.exclude,
+                    ],
                     use: [
                       ...(dev && isClient
                         ? [
                             require.resolve(
                               'next/dist/compiled/@next/react-refresh-utils/dist/loader'
                             ),
-                            defaultLoaders.babel,
                           ]
                         : []),
                       {
