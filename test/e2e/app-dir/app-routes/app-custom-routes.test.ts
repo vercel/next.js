@@ -6,7 +6,6 @@ import {
 } from './helpers'
 import { Readable } from 'stream'
 import { check } from 'next-test-utils'
-import { HTTP_METHODS } from 'packages/next/dist/server/web/http'
 
 createNextDescribe(
   'app-custom-routes',
