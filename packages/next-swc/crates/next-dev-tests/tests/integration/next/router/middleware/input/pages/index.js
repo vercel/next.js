@@ -10,23 +10,35 @@ export default function Foo() {
 }
 
 function runTests() {
-  it('should set header onto response', async () => {
+  it('should stream middleware response from node', async () => {
     let start = Date.now()
     const res = await fetch('/stream')
     const reader = res.body.getReader()
+    const decoder = new TextDecoder()
 
-    // we're only testing the timing
-    const { value, done } = await reader.read()
+    let data = ''
+    let first = true
+    while (true) {
+      // we're only testing the timing
+      const { value, done } = await reader.read()
 
-    // The body still stream for 1 second, we just want the first chunk
-    // to be delivered within 500ms.
-    expect(Date.now()).toBeGreaterThan(start + 50)
-    expect(Date.now()).toBeLessThan(start + 500)
-    console.log({ duration: Date.now() - start })
+      console.log({ data })
+      if (first) {
+        first = false
+        // The body still stream for 1 second, we just want the first chunk
+        // to be delivered within 500ms.
+        expect(Date.now()).toBeGreaterThan(start + 50)
+        expect(Date.now()).toBeLessThan(start + 500)
+        expect(done).toBe(false)
+      }
+      if (value) {
+        data += decoder.decode(value, { stream: !done })
+      }
 
-    // The value is a Uint8Array of the bytes
-    expect(value).toContain('0'.charCodeAt(0))
+      if (done) break
+    }
 
-    expect(done).toBe(false)
+    console.log({ data })
+    expect(data).toBe('0123456789')
   })
 }

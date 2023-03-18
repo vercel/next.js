@@ -7,7 +7,7 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     CompletionVc, CompletionsVc, Value,
 };
-use turbo_tasks_bytes::{bytes::Bytes, stream::Stream};
+use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_fs::{json::parse_json_with_source_context, to_sys_path, File, FileSystemPathVc};
 use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
 use turbopack_core::{
