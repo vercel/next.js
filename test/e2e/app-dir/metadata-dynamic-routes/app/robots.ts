@@ -1,6 +1,4 @@
-import type { RobotsFile } from 'next'
-
-export default function robots(): RobotsFile {
+export default function robots() {
   return {
     rules: [
       {
