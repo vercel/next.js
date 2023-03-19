@@ -483,7 +483,7 @@ describe('create-next-app --experimental-app', () => {
           '--tailwind',
           '--experimental-app',
           '--eslint',
-          '--src-dir',
+          '--no-src-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -499,7 +499,6 @@ describe('create-next-app --experimental-app', () => {
         projectName,
         template: 'app-tw',
         mode: 'ts',
-        srcDir: true,
       })
       await startsWithoutError(
         path.join(cwd, projectName),
