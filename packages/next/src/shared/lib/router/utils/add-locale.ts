@@ -12,15 +12,19 @@ export function addLocale(
   defaultLocale?: string,
   ignorePrefix?: boolean
 ) {
-  if (
-    locale &&
-    locale !== defaultLocale &&
-    (ignorePrefix ||
-      (!pathHasPrefix(path.toLowerCase(), `/${locale.toLowerCase()}`) &&
-        !pathHasPrefix(path.toLowerCase(), '/api')))
-  ) {
-    return addPathPrefix(path, `/${locale}`)
+  // If no locale was given or the locale is the default locale, we don't need
+  // to prefix the path.
+  if (!locale || locale === defaultLocale) return path
+
+  const lower = path.toLowerCase()
+
+  // If the path is an API path or the path already has the locale prefix, we
+  // don't need to prefix the path.
+  if (!ignorePrefix) {
+    if (pathHasPrefix(lower, '/api')) return path
+    if (pathHasPrefix(lower, `/${locale.toLowerCase()}`)) return path
   }
 
-  return path
+  // Add the locale prefix to the path.
+  return addPathPrefix(path, `/${locale}`)
 }
