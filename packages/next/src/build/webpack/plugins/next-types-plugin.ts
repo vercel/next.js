@@ -1,18 +1,19 @@
 import type { Rewrite, Redirect } from '../../../lib/load-custom-routes'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 
-import path from 'path'
-import { promises as fs } from 'fs'
-
+import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { parse } from 'next/dist/compiled/path-to-regexp'
+import path from 'path'
+
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { HTTP_METHODS } from '../../../server/web/http'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import { getPageFromPath } from '../../entries'
-import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { HTTP_METHODS } from '../../../server/web/http'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -355,7 +356,7 @@ declare namespace __next_route_internal_types__ {
       // This keeps autocompletion working for static routes.
       '| StaticRoutes'
     }
-    | \`\${StaticRoutes}\${Suffix}\`
+    | \`\${StaticRoutes}\${SearchOrHash}\`
     | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
     `
   }
@@ -510,7 +511,7 @@ export class NextTypesPlugin {
           relativePathToRoot.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
         )
         .replace(/\\/g, '/')
-      const assetPath = assetDirRelative + '/' + typePath.replace(/\\/g, '/')
+      const assetPath = assetDirRelative + '/' + normalizePathSep(typePath)
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
@@ -600,7 +601,7 @@ export class NextTypesPlugin {
 
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =
-              assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
+              assetDirRelative + '/' + normalizePathSep(linkTypePath)
             assets[assetPath] = new sources.RawSource(
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource
