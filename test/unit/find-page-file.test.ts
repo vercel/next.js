@@ -5,10 +5,17 @@ import {
 } from 'next/dist/server/lib/find-page-file'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
 
+import fs from 'fs'
 import { join } from 'path'
 
 const resolveDataDir = join(__dirname, 'isolated', '_resolvedata')
 const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
+
+// beforeAll(() => {
+// })
+// afterAll(() => {
+//   // jest.unmock('fs')
+// })
 
 describe('findPageFile', () => {
   it('should work', async () => {
@@ -46,6 +53,12 @@ describe('findPageFile', () => {
 })
 
 describe('createPageFileMatcher', () => {
+  beforeAll(() => {
+    const mockStatSync = jest.fn(() => ({ isFile: () => true }))
+    // @ts-ignore
+    jest.spyOn(fs, 'statSync').mockImplementation(mockStatSync)
+  })
+
   describe('isAppRouterPage', () => {
     const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
     const fileMatcher = createValidFileMatcher(pageExtensions, '')
@@ -71,9 +84,9 @@ describe('createPageFileMatcher', () => {
   })
 
   describe('isMetadataRouteFile', () => {
-    const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
-    const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
     it('should determine top level metadata routes', () => {
+      const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+      const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
       expect(fileMatcher.isMetadataFile('app/route.js')).toBe(false)
       expect(fileMatcher.isMetadataFile('app/page.js')).toBe(false)
       expect(fileMatcher.isMetadataFile('pages/index.js')).toBe(false)
