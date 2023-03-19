@@ -243,7 +243,7 @@ async function run(): Promise<void> {
         program.typescript = false
         program.javascript = true
       } else {
-        const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+        const styledTypeScript = chalk.hex('#0645ad')('TypeScript')
         const { typescript } = await prompts(
           {
             type: 'toggle',
@@ -280,7 +280,7 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.eslint = true
       } else {
-        const styledEslint = chalk.hex('#007acc')('ESLint')
+        const styledEslint = chalk.hex('#4b32c3')('ESLint')
         const { eslint } = await prompts({
           onState: onPromptState,
           type: 'toggle',
@@ -302,7 +302,7 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.tailwind = false
       } else {
-        const tw = chalk.hex('#007acc')('Tailwind CSS')
+        const tw = chalk.hex('#38BDF8')('Tailwind CSS')
         const { tailwind } = await prompts({
           onState: onPromptState,
           type: 'toggle',
