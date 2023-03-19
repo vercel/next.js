@@ -265,7 +265,8 @@ export class IncrementalCache {
   // get data from cache if available
   async get(
     pathname: string,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    revalidate?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
@@ -281,7 +282,7 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
-      const revalidate = cacheData.value.revalidate
+      revalidate = revalidate || cacheData.value.revalidate
       const age = Math.round(
         (Date.now() - (cacheData.lastModified || 0)) / 1000
       )

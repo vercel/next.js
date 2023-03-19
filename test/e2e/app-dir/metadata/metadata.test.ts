@@ -7,7 +7,7 @@ createNextDescribe(
   'app dir - metadata',
   {
     files: __dirname,
-    // skipDeployment: true,
+    skipDeployment: false,
   },
   ({ next, isNextDev, isNextStart }) => {
     const getTitle = (browser: BrowserInterface) =>
@@ -16,7 +16,7 @@ createNextDescribe(
     async function checkMeta(
       browser: BrowserInterface,
       queryValue: string,
-      expected: string | string[],
+      expected: string | string[] | undefined | null,
       queryKey: string = 'property',
       tag: string = 'meta',
       domAttributeField: string = 'content'
@@ -45,7 +45,7 @@ createNextDescribe(
       return async (
         tag: string,
         query: string,
-        expectedObject: Record<string, string>
+        expectedObject: Record<string, string | null | undefined>
       ) => {
         const props = await browser.eval(`
           const el = document.querySelector('${tag}[${query}]');
@@ -118,7 +118,7 @@ createNextDescribe(
         tag: string,
         queryKey: string,
         domAttributeField: string,
-        expected: Record<string, string | string[]>
+        expected: Record<string, string | string[] | undefined | null>
       ) => {
         await Promise.all(
           Object.keys(expected).map(async (key) => {
@@ -210,7 +210,7 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://github.com/manifest.json',
+          manifest: 'https://www.google.com/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
           preload: '/preload-url',
@@ -427,8 +427,8 @@ createNextDescribe(
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image"]').attr('content')).toMatch(
-          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.png/
+        expect($('[property="og:image"]').attr('content')).toBe(
+          'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e'
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -436,8 +436,8 @@ createNextDescribe(
         expect($('[property="og:image:width"]').attr('content')).toBe('114')
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
-        expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.png/
+        expect($('[name="twitter:image"]').attr('content')).toBe(
+          'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e'
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
@@ -514,12 +514,12 @@ createNextDescribe(
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/icon1\.png/
+          /\/icons\/static\/nested\/icon1\.png\?399de3b94b888afc/
         )
         expect($icon.attr('sizes')).toBe('32x32')
         expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/apple-icon\.png/
+          /\/icons\/static\/nested\/apple-icon\.png\?b76e8f0282c93c8e/
         )
         expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
@@ -529,13 +529,14 @@ createNextDescribe(
         const $ = await next.render$('/icons/static')
 
         const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-        const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/icon\.png/
+          /\/icons\/static\/icon\.png\?b76e8f0282c93c8e/
         )
         expect($icon.attr('sizes')).toBe('114x114')
 
+        // No apple icon if it's not provided
+        const $appleIcon = $('head > link[rel="apple-touch-icon"]')
         expect($appleIcon.length).toBe(0)
       })
 
@@ -550,7 +551,7 @@ createNextDescribe(
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
-          }, /\/_next\/static\/media\/metadata\/icon2\.png/)
+          }, /\/icons\/static\/icon2\.png\?b76e8f0282c93c8e/)
 
           await next.renameFile(
             'app/icons/static/icon2.png',
@@ -639,6 +640,33 @@ createNextDescribe(
     })
 
     describe('static routes', () => {
+      it('should have /favicon.ico as route', async () => {
+        const res = await next.fetch('/favicon.ico')
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toBe('image/x-icon')
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
+      })
+
+      it('should have icons as route', async () => {
+        const resIcon = await next.fetch('/icons/static/icon.png')
+        const resAppleIcon = await next.fetch(
+          '/icons/static/nested/apple-icon.png'
+        )
+
+        expect(resAppleIcon.status).toBe(200)
+        expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
+        expect(resAppleIcon.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
+        expect(resIcon.status).toBe(200)
+        expect(resIcon.headers.get('content-type')).toBe('image/png')
+        expect(resIcon.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
+      })
+
       it('should support root dir robots.txt', async () => {
         const res = await next.fetch('/robots.txt')
         expect(res.headers.get('content-type')).toBe('text/plain')
@@ -657,6 +685,23 @@ createNextDescribe(
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
         expect(invalidSitemapResponse.status).toBe(404)
+      })
+
+      it('should support static manifest.webmanifest', async () => {
+        const res = await next.fetch('/manifest.webmanifest')
+        expect(res.headers.get('content-type')).toBe(
+          'application/manifest+json'
+        )
+        const manifest = await res.json()
+        expect(manifest).toMatchObject({
+          name: 'Next.js Static Manifest',
+          short_name: 'Next.js App',
+          description: 'Next.js App',
+          start_url: '/',
+          display: 'standalone',
+          background_color: '#fff',
+          theme_color: '#fff',
+        })
       })
 
       if (isNextStart) {
