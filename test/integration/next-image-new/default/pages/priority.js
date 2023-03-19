@@ -43,6 +43,13 @@ const Page = () => {
         height="700"
         sizes="100vw"
       />
+      <Image
+        id="pri-low"
+        src="/test.webp"
+        width="100"
+        height="100"
+        fetchPriority="low"
+      />
       <p id="stubtext">This is the priority page</p>
     </div>
   )

@@ -31,13 +31,13 @@ export const STATIC_METADATA_IMAGES = {
     filename: 'twitter-image',
     extensions: ['jpg', 'jpeg', 'png', 'gif'],
   },
-}
+} as const
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
   dir: string,
   filename: string,
-  extensions: string[],
+  extensions: readonly string[],
   {
     resolvePath,
     loaderContext,

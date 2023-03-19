@@ -3,6 +3,7 @@ import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
+import type { I18NProvider } from '../future/helpers/i18n-provider'
 
 interface Options {
   base?: string | URL
@@ -13,6 +14,7 @@ interface Options {
     i18n?: I18NConfig | null
     trailingSlash?: boolean
   }
+  i18nProvider?: I18NProvider
 }
 
 const REGEX_LOCALHOST_HOSTNAME =
@@ -28,7 +30,7 @@ function parseURL(url: string | URL, base?: string | URL) {
 const Internal = Symbol('NextURLInternal')
 
 export class NextURL {
-  [Internal]: {
+  private [Internal]: {
     basePath: string
     buildId?: string
     flightSearchParameters?: Record<string, string>
@@ -66,30 +68,37 @@ export class NextURL {
       basePath: '',
     }
 
-    this.analyzeUrl()
+    this.analyze()
   }
 
-  private analyzeUrl() {
-    const pathnameInfo = getNextPathnameInfo(this[Internal].url.pathname, {
+  private analyze() {
+    const info = getNextPathnameInfo(this[Internal].url.pathname, {
       nextConfig: this[Internal].options.nextConfig,
       parseData: !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE,
+      i18nProvider: this[Internal].options.i18nProvider,
     })
 
-    this[Internal].domainLocale = detectDomainLocale(
-      this[Internal].options.nextConfig?.i18n?.domains,
-      getHostname(this[Internal].url, this[Internal].options.headers)
+    const hostname = getHostname(
+      this[Internal].url,
+      this[Internal].options.headers
     )
+    this[Internal].domainLocale = this[Internal].options.i18nProvider
+      ? this[Internal].options.i18nProvider.detectDomainLocale(hostname)
+      : detectDomainLocale(
+          this[Internal].options.nextConfig?.i18n?.domains,
+          hostname
+        )
 
     const defaultLocale =
       this[Internal].domainLocale?.defaultLocale ||
       this[Internal].options.nextConfig?.i18n?.defaultLocale
 
-    this[Internal].url.pathname = pathnameInfo.pathname
+    this[Internal].url.pathname = info.pathname
     this[Internal].defaultLocale = defaultLocale
-    this[Internal].basePath = pathnameInfo.basePath ?? ''
-    this[Internal].buildId = pathnameInfo.buildId
-    this[Internal].locale = pathnameInfo.locale ?? defaultLocale
-    this[Internal].trailingSlash = pathnameInfo.trailingSlash
+    this[Internal].basePath = info.basePath ?? ''
+    this[Internal].buildId = info.buildId
+    this[Internal].locale = info.locale ?? defaultLocale
+    this[Internal].trailingSlash = info.trailingSlash
   }
 
   private formatPathname() {
@@ -186,7 +195,7 @@ export class NextURL {
 
   set href(url: string) {
     this[Internal].url = parseURL(url)
-    this.analyzeUrl()
+    this.analyze()
   }
 
   get origin() {
