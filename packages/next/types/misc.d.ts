@@ -1,19 +1,35 @@
 /* eslint-disable import/no-extraneous-dependencies */
+declare module 'next/package.json'
+declare module 'next/dist/compiled/@napi-rs/triples'
+declare module 'next/dist/compiled/postcss-value-parser'
+declare module 'next/dist/compiled/icss-utils'
+declare module 'next/dist/compiled/postcss-modules-values'
+declare module 'next/dist/compiled/postcss-modules-local-by-default'
+declare module 'next/dist/compiled/postcss-modules-extract-imports'
+declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
-declare module 'next/dist/compiled/react-server-dom-webpack'
-declare module 'next/dist/compiled/react-server-dom-webpack/writer.browser.server'
+declare module 'next/dist/compiled/loader-utils2'
+declare module 'next/dist/compiled/react-server-dom-webpack/client'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/compiled/react-dom/server'
+declare module 'next/dist/compiled/react-dom/server.edge'
+declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
+declare module 'react-dom/server.browser'
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/client' {
-  export * from '@next/react-dev-overlay/lib/client'
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
+  export * from '@next/react-dev-overlay/dist/client'
 }
 
-declare module 'next/dist/compiled/@next/react-dev-overlay/middleware' {
-  export * from '@next/react-dev-overlay/lib/middleware'
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
+  export * from '@next/react-dev-overlay/dist/middleware'
 }
 
-declare module 'next/dist/compiled/@next/react-refresh-utils/ReactRefreshWebpackPlugin' {
+declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
 }
@@ -27,6 +43,8 @@ declare module 'next/dist/compiled/node-fetch' {
   export default m
   export * from 'node-fetch'
 }
+
+declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
@@ -44,11 +62,6 @@ declare module 'next/dist/compiled/chalk' {
 declare module 'next/dist/compiled/cssnano-simple' {
   const cssnanoSimple: any
   export = cssnanoSimple
-}
-
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
-  export = m
 }
 
 declare module 'next/dist/compiled/p-limit' {
@@ -118,6 +131,13 @@ declare module 'next/dist/compiled/arg/index.js' {
 
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
+}
+
+declare module 'next/dist/compiled/@next/font/dist/google' {
+  export * from '@next/font/google'
+}
+declare module 'next/dist/compiled/@next/font/dist/local' {
+  export * from '@next/font/local'
 }
 declare module 'next/dist/compiled/babel/traverse' {
   import traverse from '@babel/traverse'
@@ -259,30 +279,8 @@ declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
 }
-declare module 'next/dist/compiled/web-streams-polyfill' {
-  import m from 'web-streams-polyfill/ponyfill'
-  export = m
-}
-declare module 'next/dist/compiled/abort-controller' {
-  type BaseAbortController = typeof AbortController
-  type BaseAbortSignal = typeof AbortSignal
-  export { BaseAbortController as AbortController }
-  export { BaseAbortSignal as AbortSignal }
-}
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'
-  export = m
-}
-declare module 'next/dist/compiled/formdata-node' {
-  import m from 'formdata-node'
-  export = m
-}
-declare module 'next/dist/compiled/@peculiar/webcrypto' {
-  import m from '@peculiar/webcrypto'
-  export = m
-}
-declare module 'next/dist/compiled/uuid' {
-  import m from 'uuid'
   export = m
 }
 declare module 'next/dist/compiled/strip-ansi' {
@@ -311,6 +309,7 @@ declare module 'next/dist/compiled/postcss-scss' {
   import m from 'postcss-scss'
   export = m
 }
+
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -331,6 +330,8 @@ declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
+declare module 'next/dist/compiled/web-vitals-attribution' {}
+
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
@@ -346,15 +347,64 @@ declare module 'next/dist/compiled/process' {
   export = m
 }
 
-declare module 'pnp-webpack-plugin' {
-  import webpack from 'webpack4'
-
-  class PnpWebpackPlugin extends webpack.Plugin {}
-
-  export = PnpWebpackPlugin
+declare module 'next/dist/compiled/edge-runtime' {
+  import m from 'edge-runtime'
+  export = m
 }
 
-declare module NodeJS {
+declare module 'next/dist/compiled/@edge-runtime/cookies' {
+  export * from '@edge-runtime/cookies'
+}
+
+declare module 'next/dist/compiled/@edge-runtime/primitives' {
+  import * as m from '@edge-runtime/primitives'
+  export = m
+}
+
+declare module 'next/dist/compiled/@segment/ajv-human-errors' {
+  import * as m from '@segment/ajv-human-errors'
+  export = m
+}
+
+declare module 'next/dist/compiled/react' {
+  import * as m from 'react'
+  export = m
+}
+declare module 'next/dist/compiled/react-dom' {
+  import * as m from 'react-dom'
+  export = m
+}
+
+declare module 'next/dist/compiled/stacktrace-parser' {
+  import * as m from 'stacktrace-parser'
+  export = m
+}
+
+declare module 'next/dist/compiled/anser' {
+  import * as m from 'anser'
+  export = m
+}
+
+declare module 'next/dist/compiled/platform' {
+  import * as m from 'platform'
+  export = m
+}
+
+declare module 'next/dist/compiled/css.escape' {
+  export = CSS.escape
+}
+
+declare module 'next/dist/compiled/data-uri-to-buffer' {
+  import * as m from 'data-uri-to-buffer'
+  export = m
+}
+
+declare module 'next/dist/compiled/shell-quote' {
+  import * as m from 'shell-quote'
+  export = m
+}
+
+declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
   }
@@ -368,6 +418,12 @@ declare module 'next/dist/compiled/watchpack' {
 
   class Watchpack extends EventEmitter {
     constructor(options?: any)
+    watch(params: {
+      files?: string[]
+      directories?: string[]
+      startTime?: number
+      missing?: string[]
+    }): void
     watch(files: string[], directories: string[], startTime?: number): void
     close(): void
 
@@ -378,4 +434,18 @@ declare module 'next/dist/compiled/watchpack' {
   }
 
   export default Watchpack
+}
+
+declare module 'next/dist/compiled/is-animated' {
+  export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/@opentelemetry/api' {
+  import * as m from '@opentelemetry/api'
+  export = m
+}
+
+declare module 'next/dist/compiled/zod' {
+  import m from 'zod'
+  export = m
 }

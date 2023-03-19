@@ -16,8 +16,8 @@ export default function Page(props) {
       <p id="router-query">{JSON.stringify(router.query)}</p>
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
-      <Link href="/">
-        <a id="to-index">to /</a>
+      <Link href="/" id="to-index">
+        to /
       </Link>
       <br />
     </>

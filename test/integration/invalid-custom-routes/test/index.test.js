@@ -144,10 +144,6 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `\`destination\` is missing for route {"source":"/hello","permanent":false}`
-    )
-
-    expect(stderr).toContain(
       `\`source\` is not a string for route {"source":123,"destination":"/another","permanent":false}`
     )
 
@@ -157,14 +153,6 @@ const runTests = () => {
 
     expect(stderr).toContain(
       `\`statusCode\` is not undefined or valid statusCode for route {"source":"/hello","destination":"/another","statusCode":404}`
-    )
-
-    expect(stderr).toContain(
-      `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
-    )
-
-    expect(stderr).toContain(
-      `\`permanent\` is not set to \`true\` or \`false\` for route {"source":"/hello","destination":"/another","permanent":"yes"}`
     )
 
     expect(stderr).toContain(

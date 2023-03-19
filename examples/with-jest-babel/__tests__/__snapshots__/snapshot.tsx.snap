@@ -9,7 +9,7 @@ exports[`renders homepage unchanged 1`] = `
       <h1
         class="title"
       >
-        Welcome to
+        Welcome to 
         <a
           href="https://nextjs.org"
         >
@@ -19,7 +19,7 @@ exports[`renders homepage unchanged 1`] = `
       <p
         class="description"
       >
-        Get started by editing
+        Get started by editing 
         <code>
           pages/index.js
         </code>
@@ -82,32 +82,20 @@ exports[`renders homepage unchanged 1`] = `
         target="_blank"
       >
         Powered by
-
+         
         <span
           class="logo"
         >
-          <span
-            style="box-sizing: border-box; display: inline-block; overflow: hidden; background: none; opacity: 1; border: 0px; margin: 0px; padding: 0px; position: relative; max-width: 100%;"
-          >
-            <span
-              style="box-sizing: border-box; display: block; background: none; opacity: 1; border: 0px; margin: 0px; padding: 0px; max-width: 100%;"
-            >
-              <img
-                alt=""
-                aria-hidden="true"
-                src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmVyc2lvbj0iMS4xIi8+"
-                style="display: block; max-width: 100%; background: none; opacity: 1; border: 0px; margin: 0px; padding: 0px;"
-              />
-            </span>
-            <img
-              alt="Vercel Logo"
-              data-nimg="intrinsic"
-              decoding="async"
-              src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-              style="position: absolute; top: 0px; left: 0px; bottom: 0px; right: 0px; box-sizing: border-box; padding: 0px; margin: auto; display: block; width: 0px; height: 0px; min-width: 100%; max-width: 100%; min-height: 100%; max-height: 100%;"
-            />
-            <noscript />
-          </span>
+          <img
+            alt="Vercel Logo"
+            data-nimg="1"
+            decoding="async"
+            height="16"
+            loading="lazy"
+            src="/vercel.svg"
+            style="color: transparent;"
+            width="72"
+          />
         </span>
       </a>
     </footer>

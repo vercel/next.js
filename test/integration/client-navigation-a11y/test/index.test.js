@@ -11,7 +11,6 @@ import { join } from 'path'
 
 const context = {}
 const appDir = join(__dirname, '../')
-const nodeArgs = ['-r', join(appDir, '../../lib/react-17-require-hook.js')]
 
 const navigateTo = async (browser, selector) =>
   await browser
@@ -32,7 +31,6 @@ describe('Client Navigation accessibility', () => {
     context.appPort = await findPort()
     context.server = await launchApp(appDir, context.appPort, {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
-      nodeArgs,
     })
 
     const prerender = [

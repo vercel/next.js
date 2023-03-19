@@ -1,11 +1,16 @@
 module.exports = function (plop) {
-  function getFileName(str) {
-    return str.toLowerCase().replace(/ /g, '-')
-  }
+  const toFileName = (str) => str.toLowerCase().replace(/ /g, '-')
+  plop.setHelper('toFileName', toFileName)
 
   plop.setGenerator('test', {
     description: 'Create a new test',
     prompts: [
+      {
+        type: 'confirm',
+        name: 'appDir',
+        message: 'Is this test for the app directory?',
+        default: true,
+      },
       {
         type: 'input',
         name: 'name',
@@ -30,18 +35,18 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.name)
+      const appDirPath = data.appDir ? 'app-dir/' : ''
+      let templatePath = `test/${
+        data.type === 'unit' ? 'unit' : 'e2e'
+      }/${appDirPath}test-template`
+      let targetPath = `test/{{ type }}/${appDirPath}`
+
       return [
         {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example.txt`,
-          path: `test/{{type}}/${
-            data.type === 'unit'
-              ? `${fileName}.test.ts`
-              : `${fileName}/index.test.ts`
-          }`,
+          type: 'addMany',
+          templateFiles: `${templatePath}/**/*`,
+          base: templatePath,
+          destination: targetPath,
         },
       ]
     },
@@ -51,31 +56,48 @@ module.exports = function (plop) {
     description: 'Create a new error document',
     prompts: [
       {
+        name: 'name',
+        type: 'input',
+        message: 'Url path with dashes. E.g. circular-structure',
+      },
+      {
         name: 'title',
         type: 'input',
-        message: 'Title for the error',
+        message: 'Title for the error. E.g. Circular Structure',
+      },
+      {
+        name: 'why',
+        type: 'input',
+        message: 'What caused the error to happen?',
+      },
+      {
+        name: 'fix',
+        type: 'input',
+        message: 'What are the possible ways to fix it?',
       },
     ],
-    actions: function (data) {
-      const fileName = getFileName(data.title)
+    actions: function ({ name }) {
       return [
         {
           type: 'add',
-          path: `errors/${fileName}.md`,
+          path: `errors/{{ toFileName name }}.md`,
           templateFile: `errors/template.txt`,
         },
         {
           type: 'modify',
           path: 'errors/manifest.json',
-          transform(fileContents, data) {
+          transform(fileContents) {
             const manifestData = JSON.parse(fileContents)
             manifestData.routes[0].routes.push({
-              title: fileName,
-              path: `/errors/${fileName}.md`,
+              title: toFileName(name),
+              path: `/errors/${toFileName(name)}.md`,
             })
             return JSON.stringify(manifestData, null, 2)
           },
         },
+        `Url for the error: https://nextjs.org/docs/messages/${toFileName(
+          name
+        )}`,
       ]
     },
   })

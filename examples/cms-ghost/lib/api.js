@@ -7,7 +7,7 @@ const GHOST_API_KEY = process.env.GHOST_API_KEY || GHOST_API_KEY_DEFAULT
 const api = new GhostContentAPI({
   url: GHOST_API_URL,
   key: GHOST_API_KEY,
-  version: 'v3',
+  version: 'v3.0',
 })
 
 const is404 = (error) => /not found/i.test(error.message)

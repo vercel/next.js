@@ -1,0 +1,38 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1d1d1d;
+  width: 100%;
+}
+
+.header button {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  border: none;
+  background: none;
+  color: #fff;
+  padding: 15px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.user {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.label {
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.logo {
+  font-size: 18px;
+  margin: 15px;
+  color: #fff;
+}

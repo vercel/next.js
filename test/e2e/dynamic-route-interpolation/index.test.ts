@@ -2,6 +2,7 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
 
 describe('Dynamic Route Interpolation', () => {
   let next: NextInstance
@@ -10,14 +11,24 @@ describe('Dynamic Route Interpolation', () => {
     next = await createNext({
       files: {
         'pages/blog/[slug].js': `
+          import Link from "next/link"
+          import { useRouter } from "next/router"
+
           export function getServerSideProps({ params }) {
-            return { props: { slug: params.slug } }
+            return { props: { slug: params.slug, now: Date.now() } }
           }
 
           export default function Page(props) { 
-            return <p id="slug">{props.slug}</p>
+            const router = useRouter()
+            return (
+              <>
+                <p id="slug">{props.slug}</p>
+                <Link id="now" href={router.asPath}>
+                  {props.now}
+                </Link>
+              </>
+            )
           }
-
         `,
 
         'pages/api/dynamic/[slug].js': `
@@ -25,7 +36,6 @@ describe('Dynamic Route Interpolation', () => {
             const { slug } = req.query
             res.end('slug: ' + slug)
           }
-
         `,
       },
       dependencies: {},
@@ -59,5 +69,23 @@ describe('Dynamic Route Interpolation', () => {
   it('should work with brackets in API routes', async () => {
     const text = await renderViaHTTP(next.url, '/api/dynamic/[abc]')
     expect(text).toBe('slug: [abc]')
+  })
+
+  it('should bust data cache', async () => {
+    const browser = await webdriver(next.url, '/blog/login')
+    await browser.elementById('now').click() // fetch data once
+    const text = await browser.elementById('now').text()
+    await browser.elementById('now').click() // fetch data again
+    await browser.waitForElementByCss(`#now:not(:text("${text}"))`)
+    await browser.close()
+  })
+
+  it('should bust data cache with symbol', async () => {
+    const browser = await webdriver(next.url, '/blog/@login')
+    await browser.elementById('now').click() // fetch data once
+    const text = await browser.elementById('now').text()
+    await browser.elementById('now').click() // fetch data again
+    await browser.waitForElementByCss(`#now:not(:text("${text}"))`)
+    await browser.close()
   })
 })

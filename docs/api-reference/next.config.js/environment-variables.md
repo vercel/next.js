@@ -13,6 +13,8 @@ description: Learn to add and access environment variables in your Next.js appli
   </ul>
 </details>
 
+> <b>Note</b>: environment variables specified in this way will <b>always</b> be included in the JavaScript bundle, prefixing the environment variable name with `NEXT_PUBLIC_` only has an effect when specifying them [through the environment or .env files](/docs/basic-features/environment-variables.md).
+
 To add environment variables to the JavaScript bundle, open `next.config.js` and add the `env` config:
 
 ```js

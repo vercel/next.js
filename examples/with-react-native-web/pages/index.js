@@ -1,25 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native'
 
-export default function App(props) {
-  return (
-    <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.text}>
-        React Native for Web & Next.js
-      </Text>
-
-      <Text style={styles.link} accessibilityRole="link" href={`/alternate`}>
-        A universal link
-      </Text>
-
-      <View style={styles.textContainer}>
-        <Text accessibilityRole="header" aria-level="2" style={styles.text}>
-          Subheader
-        </Text>
-      </View>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
@@ -39,3 +19,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
 })
+
+export default function App(props) {
+  return (
+    <View style={styles.container}>
+      <Text accessibilityRole="header" style={styles.text}>
+        React Native for Web & Next.js
+      </Text>
+
+      <Text style={styles.link} accessibilityRole="link" href={`/alternate`}>
+        A universal link
+      </Text>
+
+      <View style={styles.textContainer}>
+        <Text accessibilityRole="header" aria-level="2" style={styles.text}>
+          Subheader
+        </Text>
+      </View>
+    </View>
+  )
+}

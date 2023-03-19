@@ -12,29 +12,21 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  File,
   renderViaHTTP,
   check,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 let app
 let appPort
 let previewCookie
 
-const getCacheFile = (path = '', serverless) => {
-  return join(
-    appDir,
-    '.next',
-    serverless ? 'serverless' : 'server',
-    'pages',
-    path
-  )
+const getCacheFile = (path = '') => {
+  return join(appDir, '.next', 'server', 'pages', path)
 }
 
-function runTests(isDev, serverless) {
+function runTests(isDev) {
   it('should get preview cookie correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/api/enable')
     previewCookie = ''
@@ -83,7 +75,7 @@ function runTests(isDev, serverless) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(getCacheFile('index.html', serverless))
+      const fsHtml = await fs.readFile(getCacheFile('index.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -125,9 +117,7 @@ function runTests(isDev, serverless) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(
-        getCacheFile('no-fallback/first.html', serverless)
-      )
+      const fsHtml = await fs.readFile(getCacheFile('no-fallback/first.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -165,9 +155,9 @@ function runTests(isDev, serverless) {
     })
 
     if (!isDev) {
-      expect(
-        await fs.exists(getCacheFile('no-fallback/second.html', serverless))
-      ).toBe(false)
+      expect(await fs.exists(getCacheFile('no-fallback/second.html'))).toBe(
+        false
+      )
     }
 
     const res2 = await fetchViaHTTP(appPort, '/no-fallback/second')
@@ -199,9 +189,7 @@ function runTests(isDev, serverless) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(
-        getCacheFile('fallback/first.html', serverless)
-      )
+      const fsHtml = await fs.readFile(getCacheFile('fallback/first.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -251,9 +239,7 @@ function runTests(isDev, serverless) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(
-        getCacheFile('fallback/second.html', serverless)
-      )
+      const fsHtml = await fs.readFile(getCacheFile('fallback/second.html'))
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({
@@ -301,25 +287,5 @@ describe('Preview mode with fallback pages', () => {
     afterAll(() => killApp(app))
 
     runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfig.write(`
-        module.exports = {
-          target: 'experimental-serverless-trace'
-        }
-      `)
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.delete()
-      await killApp(app)
-    })
-
-    runTests(true, true)
   })
 })

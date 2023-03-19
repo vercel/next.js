@@ -4,8 +4,8 @@ import Link from 'next/link'
 
 function page() {
   return (
-    <Link href="/">
-      <a id="nav">Client side nav</a>
+    <Link href="/" id="nav">
+      Client side nav
     </Link>
   )
 }

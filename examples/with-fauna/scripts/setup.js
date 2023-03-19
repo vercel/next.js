@@ -5,6 +5,7 @@ const readline = require('readline')
 const request = require('request')
 const { Client, query: Q } = require('faunadb')
 const streamToPromise = require('stream-to-promise')
+const { resolveDbDomain } = require('../lib/constants')
 
 const MakeLatestEntriesIndex = () =>
   Q.CreateIndex({
@@ -114,18 +115,20 @@ const resolveAdminKey = () => {
   })
 }
 
-const importSchema = (adminKey) =>
-  streamToPromise(
+const importSchema = (adminKey) => {
+  let domain = resolveDbDomain().replace('db', 'graphql')
+  return streamToPromise(
     fs.createReadStream('./schema.gql').pipe(
       request.post({
         model: 'merge',
-        uri: 'https://graphql.fauna.com/import',
+        uri: `https://${domain}/import`,
         headers: {
           Authorization: `Bearer ${adminKey}`,
         },
       })
     )
   ).then(String)
+}
 
 const findImportError = (msg) => {
   switch (true) {
@@ -140,7 +143,11 @@ const findImportError = (msg) => {
 
 const main = async () => {
   const adminKey = await resolveAdminKey()
-  const client = new Client({ secret: adminKey })
+
+  const client = new Client({
+    secret: adminKey,
+    domain: resolveDbDomain(),
+  })
 
   if (await isDatabasePrepared({ client })) {
     return console.info(

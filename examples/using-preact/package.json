@@ -5,14 +5,18 @@
     "build": "next build",
     "start": "next start"
   },
-  "devDependencies": {},
   "dependencies": {
-    "next": "^12.0.0",
-    "next-plugin-preact": "^3.0.6",
-    "preact": "^10.5.15",
-    "preact-render-to-string": "^5.1.19",
-    "react": "npm:@preact/compat@^17.0.2",
-    "react-dom": "npm:@preact/compat@^17.0.2",
-    "react-ssr-prepass": "npm:preact-ssr-prepass@^1.2.0"
+    "next": "latest",
+    "next-plugin-preact": "latest",
+    "preact": "^10.10.6",
+    "preact-render-to-string": "^5.2.3",
+    "react": "npm:@preact/compat@^17.1.1",
+    "react-dom": "npm:@preact/compat@^17.1.1",
+    "react-ssr-prepass": "npm:preact-ssr-prepass@1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.7.15",
+    "@types/react": "16.9.17",
+    "typescript": "4.8.2"
   }
 }

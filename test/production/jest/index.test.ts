@@ -5,12 +5,6 @@ import { renderViaHTTP } from 'next-test-utils'
 describe('next/jest', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    // react testing library is specific to react version
-    it('should bail on react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -21,10 +15,17 @@ describe('next/jest', () => {
             return <h1>Hello Dynamic</h1>;
           }
         `,
+        'styles/index.module.css': '.home { color: orange }',
         'pages/index.js': `
           import dynamic from "next/dynamic";
           import Image from "next/image";
           import img from "../public/vercel.svg";
+          import styles from "../styles/index.module.css";
+          import localFont from "next/font/local";
+          import { Inter } from "next/font/google";
+
+          const inter = Inter({ subsets: ["latin"] });
+          const myFont = localFont({ src: "./my-font.woff2" });
 
           const Comp = dynamic(() => import("../components/comp"), {
             loading: () => <h1>Loading...</h1>,
@@ -35,7 +36,8 @@ describe('next/jest', () => {
               <Comp />
               <Image src={img} alt="logo" placeholder="blur"/>
               <Image src={img} alt="logo 2"/>
-              <p>hello world</p>
+              <p className={styles.home}>hello world</p>
+              <p style={{ fontFamily: inter.style.fontFamily }} className={myFont.className}>hello world</p>
             </>
           } 
         `,
@@ -122,8 +124,10 @@ describe('next/jest', () => {
             expect(router.push._isMockFunction).toBeTruthy()
           })
         `,
+        'pages/my-font.woff2': 'fake font',
       },
       dependencies: {
+        '@next/font': 'canary',
         jest: '27.4.7',
         '@testing-library/jest-dom': '5.16.1',
         '@testing-library/react': '12.1.2',

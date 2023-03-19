@@ -83,16 +83,6 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
     })
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const errs = formValidate()
-    if (Object.keys(errs).length === 0) {
-      forNewPet ? postData(form) : putData(form)
-    } else {
-      setErrors({ errs })
-    }
-  }
-
   /* Makes sure pet info is filled for pet name, owner name, species, and image url*/
   const formValidate = () => {
     let err = {}
@@ -101,6 +91,16 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
     if (!form.species) err.species = 'Species is required'
     if (!form.image_url) err.image_url = 'Image URL is required'
     return err
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const errs = formValidate()
+    if (Object.keys(errs).length === 0) {
+      forNewPet ? postData(form) : putData(form)
+    } else {
+      setErrors({ errs })
+    }
   }
 
   return (

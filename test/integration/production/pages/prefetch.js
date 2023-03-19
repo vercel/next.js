@@ -5,23 +5,23 @@ export default () => {
     <div>
       <ul>
         <li>
-          <Link href="/" prefetch>
-            <a id="prefetch-1">index</a>
+          <Link href="/" prefetch id="prefetch-1">
+            index
           </Link>
         </li>
         <li>
-          <Link href="/process-env" prefetch>
-            <a id="prefetch-2">process env</a>
+          <Link href="/process-env" prefetch id="prefetch-2">
+            process env
           </Link>
         </li>
         <li>
-          <Link href="/counter" prefetch>
-            <a id="prefetch-3">counter</a>
+          <Link href="/counter" prefetch id="prefetch-3">
+            counter
           </Link>
         </li>
         <li>
-          <Link href="/about" prefetch>
-            <a id="prefetch-4">about</a>
+          <Link href="/about" prefetch id="prefetch-4">
+            about
           </Link>
         </li>
       </ul>

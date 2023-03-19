@@ -11,8 +11,8 @@ export default () => {
   })
 
   return (
-    <Link href="/">
-      <a ref={myRef}>Click me</a>
+    <Link href="/" ref={myRef}>
+      Click me
     </Link>
   )
 }

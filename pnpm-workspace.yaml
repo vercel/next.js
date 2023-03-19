@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+  - 'bench/vercel/'
+  - 'packages/next-swc/crates/next-dev-tests/test-harness'
+  - 'packages/next-swc/crates/next-dev-tests/tests'
+  - 'packages/next-swc/crates/next-core/js'

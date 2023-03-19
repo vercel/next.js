@@ -21,6 +21,10 @@ const variables = [
   'ENV_FILE_EXPANDED_CONCAT',
   'ENV_FILE_EXPANDED_ESCAPED',
   'ENV_FILE_KEY_EXCLAMATION',
+  'NEW_ENV_KEY',
+  'NEW_ENV_LOCAL_KEY',
+  'NEW_ENV_DEV_KEY',
+  'NEXT_PUBLIC_HELLO_WORLD',
 ]
 
 export async function getServerSideProps() {
@@ -39,10 +43,12 @@ export async function getServerSideProps() {
   }
 }
 
-export default ({ env }) => (
-  <>
-    <p>{JSON.stringify(env)}</p>
-    <div id="nextConfigEnv">{process.env.nextConfigEnv}</div>
-    <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
-  </>
-)
+export default function Page({ env }) {
+  return (
+    <>
+      <p>{JSON.stringify(env)}</p>
+      <div id="nextConfigEnv">{process.env.nextConfigEnv}</div>
+      <div id="nextConfigPublicEnv">{process.env.nextConfigPublicEnv}</div>
+    </>
+  )
+}

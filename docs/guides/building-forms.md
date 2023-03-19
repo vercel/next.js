@@ -13,7 +13,7 @@ This guide will teach you how to create a web form with Next.js.
 
 HTML forms are built using the `<form>` tag. It takes a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
-Here's the syntax of a HTML form:
+Here's the syntax of an HTML form:
 
 ```html
 <!-- Basic HTML Form -->
@@ -135,7 +135,7 @@ The below example shows using the `pattern` attribute on an `input` element:
     type="password"
     id="pswrd"
     name="pswrd"
-    pattern="[a-z]{0,9}"
+    pattern="[a-z0-9]{1,15}"
     title="Password should be digits (0 to 9) or alphabets (a to z)."
   />
 

@@ -1,13 +1,13 @@
-const escape = require('shell-quote').quote
+const { quote } = require('shell-quote')
 const { ESLint } = require('eslint')
 
 const eslint = new ESLint()
 const isWin = process.platform === 'win32'
 
 module.exports = {
-  '**/*.{js,jsx,ts,tsx}': (filenames) => {
+  '**/*.{js,jsx,mjs,ts,tsx,mts}': (filenames) => {
     const escapedFileNames = filenames
-      .map((filename) => `"${isWin ? filename : escape([filename])}"`)
+      .map((filename) => (isWin ? filename : escape([filename])))
       .join(' ')
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
@@ -15,14 +15,21 @@ module.exports = {
         .filter((file) => !eslint.isPathIgnored(file))
         .map((f) => `"${f}"`)
         .join(' ')}`,
+      `git add ${escapedFileNames}`,
     ]
   },
   '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
     const escapedFileNames = filenames
-      .map((filename) => `"${isWin ? filename : escape([filename])}"`)
+      .map((filename) => (isWin ? filename : escape([filename])))
       .join(' ')
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
+      `git add ${escapedFileNames}`,
     ]
   },
+}
+
+function escape(str) {
+  const escaped = quote(str)
+  return escaped.replace(/\\@/g, '@')
 }

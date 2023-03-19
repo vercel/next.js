@@ -7,12 +7,6 @@ const appDir = path.join(__dirname, 'app')
 describe('next/jest', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    // react testing library is specific to react version
-    it('should bail on react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -23,7 +17,7 @@ describe('next/jest', () => {
         import { RelayEnvironmentProvider } from 'react-relay'
         import { createMockEnvironment, MockPayloadGenerator } from 'relay-test-utils'
         
-        import Page from '../pages'
+        import Page from '@/pages'
         
         describe('test graphql tag transformation', () => {
           it('should work', async () => {
@@ -61,6 +55,7 @@ describe('next/jest', () => {
         'babel-plugin-relay': '^13.2.0',
         jsdom: '^19.0.0',
         'relay-compiler': '^13.0.1',
+        'relay-runtime': '^13.0.2',
         'relay-test-utils': '^13.0.2',
         typescript: '^4.6.3',
       },

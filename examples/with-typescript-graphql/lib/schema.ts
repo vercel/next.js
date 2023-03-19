@@ -1,14 +1,17 @@
-import { join } from 'path'
-import { makeExecutableSchema } from '@graphql-tools/schema'
-import { loadFilesSync } from '@graphql-tools/load-files'
-import { mergeTypeDefs } from '@graphql-tools/merge'
-import graphQLLetConfig from '../.graphql-let.yml'
-import resolvers from './resolvers'
+const typeDefs = /* GraphQL */ `
+  type User {
+    id: ID!
+    name: String!
+    status: String!
+  }
 
-const loadedFiles = loadFilesSync(join(process.cwd(), graphQLLetConfig.schema))
-const typeDefs = mergeTypeDefs(loadedFiles)
+  type Query {
+    viewer: User!
+  }
 
-export const schema = makeExecutableSchema({
-  typeDefs,
-  resolvers,
-})
+  type Mutation {
+    updateName(name: String!): User!
+  }
+`
+
+export default typeDefs

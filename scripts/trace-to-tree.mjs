@@ -127,6 +127,9 @@ const formatEvent = (event) => {
     case 'hot-reloader':
       head = `${chalk.bold.green(`hot reloader`)}`
       break
+    case 'export-page':
+      head = `${event.name} ${event.tags.path}  ${formatTimes(event)}`
+      break
     default:
       if (event.name.startsWith('build-module-')) {
         const { mergedChildren, childrenTimings, packageName } = event

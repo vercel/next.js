@@ -1,8 +1,10 @@
 # No HTML link for pages
 
+> Prevent usage of `<a>` elements to navigate to internal Next.js pages.
+
 ### Why This Error Occurred
 
-An HTML anchor element, `<a>`, was used to navigate to a page route without using the `Link` component.
+An `<a>` element was used to navigate to a page route without using the `next/link` component, causing unnecessary full page refreshes.
 
 The `Link` component is required in order to enable client-side route transitions between pages and provide a single-page app experience.
 
@@ -30,9 +32,7 @@ import Link from 'next/link'
 function Home() {
   return (
     <div>
-      <Link href="/about">
-        <a>About Us</a>
-      </Link>
+      <Link href="/about">About Us</Link>
     </div>
   )
 }

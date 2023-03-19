@@ -88,7 +88,7 @@ import ErrorBoundary from '../components/ErrorBoundary'
 function MyApp({ Component, pageProps }) {
   return (
     // Wrap the Component prop with ErrorBoundary component
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <ErrorBoundary>
       <Component {...pageProps} />
     </ErrorBoundary>
   )

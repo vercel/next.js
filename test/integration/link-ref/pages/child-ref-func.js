@@ -11,14 +11,13 @@ export default () => {
   })
 
   return (
-    <Link href="/">
-      <a
-        ref={(el) => {
-          myRef.current = el
-        }}
-      >
-        Click me
-      </a>
+    <Link
+      href="/"
+      ref={(el) => {
+        myRef.current = el
+      }}
+    >
+      Click me
     </Link>
   )
 }

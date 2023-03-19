@@ -1,0 +1,43 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "pipeline": {
+    "build-native": {
+      "dependsOn": ["^build-native"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin": {
+      "dependsOn": ["^build-native-no-plugin"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin-woa": {
+      "dependsOn": ["^build-native-no-plugin-woa"],
+      "outputs": ["native/*.node"]
+    },
+    "build-wasm": {
+      "dependsOn": ["^build-wasm"],
+      "outputs": ["crates/wasm/pkg/*"]
+    },
+    "cache-build-native": {
+      "dependsOn": ["^cache-build-native"],
+      "outputs": ["native/*.node"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "dependsOn": ["^dev"],
+      "outputs": ["dist/**"]
+    },
+    "typescript": {},
+    "test-pack": {
+      "dependsOn": ["^test-pack", "test-pack-global-deps"],
+      "outputs": ["packed-*.tgz"],
+      "env": ["NEXT_SWC_VERSION"]
+    },
+    "test-pack-global-deps": {
+      "inputs": ["../../scripts/test-pack-package.mts", "../../package.json"],
+      "cache": false
+    }
+  }
+}

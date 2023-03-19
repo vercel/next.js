@@ -3,9 +3,7 @@ import Link from 'next/link'
 export default () => {
   return (
     <p>
-      <Link href="/first">
-        <a>to /first</a>
-      </Link>
+      <Link href="/first">to /first</Link>
     </p>
   )
 }

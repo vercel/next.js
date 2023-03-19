@@ -1,4 +1,7 @@
+import os from 'os'
+import path from 'path'
 import execa from 'execa'
+import fs from 'fs-extra'
 import { NextInstance } from './base'
 import {
   TEST_PROJECT_NAME,
@@ -6,6 +9,7 @@ import {
   TEST_TOKEN,
 } from '../../../scripts/reset-vercel-project.mjs'
 import fetch from 'node-fetch'
+import { Span } from 'next/src/trace'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -17,22 +21,33 @@ export class NextDeployInstance extends NextInstance {
     return this._buildId
   }
 
-  public async setup() {
-    await super.createTestDir({ skipInstall: true })
+  public async setup(parentSpan: Span) {
+    await super.createTestDir({ parentSpan, skipInstall: true })
 
     // ensure Vercel CLI is installed
     try {
       const res = await execa('vercel', ['--version'])
-      console.log(`Using Vercel CLI version:`, res.stdout)
+      require('console').log(`Using Vercel CLI version:`, res.stdout)
     } catch (_) {
-      console.log(`Installing Vercel CLI`)
+      require('console').log(`Installing Vercel CLI`)
       await execa('npm', ['i', '-g', 'vercel@latest'], {
         stdio: 'inherit',
       })
     }
     const vercelFlags = ['--scope', TEST_TEAM_NAME]
     const vercelEnv = { ...process.env, TOKEN: TEST_TOKEN }
-    console.log(`Linking project at ${this.testDir}`)
+
+    // create auth file in CI
+    if (process.env.NEXT_TEST_JOB) {
+      const vcConfigDir = path.join(os.homedir(), '.vercel')
+      await fs.ensureDir(vcConfigDir)
+      await fs.writeFile(
+        path.join(vcConfigDir, 'auth.json'),
+        JSON.stringify({ token: TEST_TOKEN })
+      )
+      vercelFlags.push('--global-config', vcConfigDir)
+    }
+    require('console').log(`Linking project at ${this.testDir}`)
 
     // link the project
     const linkRes = await execa(
@@ -49,7 +64,21 @@ export class NextDeployInstance extends NextInstance {
         `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
       )
     }
-    console.log(`Deploying project at ${this.testDir}`)
+    require('console').log(`Deploying project at ${this.testDir}`)
+
+    const additionalEnv = []
+
+    for (const key of Object.keys(this.env || {})) {
+      additionalEnv.push('--build-env')
+      additionalEnv.push(`${key}=${this.env[key]}`)
+      additionalEnv.push('--env')
+      additionalEnv.push(`${key}=${this.env[key]}`)
+    }
+
+    additionalEnv.push('--build-env')
+    additionalEnv.push(
+      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
+    )
 
     const deployRes = await execa(
       'vercel',
@@ -58,9 +87,8 @@ export class NextDeployInstance extends NextInstance {
         '--build-env',
         'NEXT_PRIVATE_TEST_MODE=1',
         '--build-env',
-        'FORCE_RUNTIME_TAG=canary',
-        '--build-env',
         'NEXT_TELEMETRY_DISABLED=1',
+        ...additionalEnv,
         '--force',
         ...vercelFlags,
       ],
@@ -79,7 +107,7 @@ export class NextDeployInstance extends NextInstance {
     this._url = deployRes.stdout
     this._parsedUrl = new URL(this._url)
 
-    console.log(`Deployment URL: ${this._url}`)
+    require('console').log(`Deployment URL: ${this._url}`)
     const buildIdUrl = `${this._url}${
       this.basePath || ''
     }/_next/static/__BUILD_ID`
@@ -87,13 +115,13 @@ export class NextDeployInstance extends NextInstance {
     const buildIdRes = await fetch(buildIdUrl)
 
     if (!buildIdRes.ok) {
-      console.error(
+      require('console').error(
         `Failed to load buildId ${buildIdUrl} (${buildIdRes.status})`
       )
     }
     this._buildId = (await buildIdRes.text()).trim()
 
-    console.log(`Got buildId: ${this._buildId}`)
+    require('console').log(`Got buildId: ${this._buildId}`)
 
     const cliOutputRes = await fetch(
       `https://vercel.com/api/v1/deployments/${this._parsedUrl.hostname}/events?builds=1&direction=backward`,

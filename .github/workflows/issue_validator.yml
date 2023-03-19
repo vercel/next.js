@@ -1,0 +1,17 @@
+name: Validate issue
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: 'Run issue validator'
+        run: node ./.github/actions/issue-validator/index.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

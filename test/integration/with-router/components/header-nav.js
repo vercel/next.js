@@ -59,20 +59,21 @@ class HeaderNav extends React.Component {
     return (
       <nav>
         {Object.keys(pages).map((url) => (
-          <Link href={url} key={url} prefetch>
-            <a
-              className={`${this.state.activeURL === url ? 'active' : ''} ${
-                this.state.activeURLTopLevelRouter === url
-                  ? 'active-top-level-router'
-                  : ''
-              } ${
-                this.state.activeURLTopLevelRouterDeprecatedBehavior === url
-                  ? 'active-top-level-router-deprecated-behavior'
-                  : ''
-              }`}
-            >
-              {pages[url]}
-            </a>
+          <Link
+            href={url}
+            key={url}
+            prefetch
+            className={`${this.state.activeURL === url ? 'active' : ''} ${
+              this.state.activeURLTopLevelRouter === url
+                ? 'active-top-level-router'
+                : ''
+            } ${
+              this.state.activeURLTopLevelRouterDeprecatedBehavior === url
+                ? 'active-top-level-router-deprecated-behavior'
+                : ''
+            }`}
+          >
+            {pages[url]}
           </Link>
         ))}
       </nav>

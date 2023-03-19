@@ -4,9 +4,9 @@ description: Add client and server runtime configuration to your Next.js app.
 
 # Runtime Configuration
 
-> Generally you'll want to use [build-time environment variables](/docs/basic-features/environment-variables.md) to provide your configuration. The reason for this is that runtime configuration adds rendering / initialization overhead and is incompatible with [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md).
+> Note: This feature is considered legacy and does not work with [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md), [Output File Tracing](/docs/advanced-features/output-file-tracing.md#automatically-copying-traced-files), or [React Server Components](/docs/advanced-features/react-18/server-components.md). Please use [environment variables](/docs/basic-features/environment-variables.md) instead in order to avoid initialization overhead.
 
-To add runtime configuration to your app open `next.config.js` and add the `publicRuntimeConfig` and `serverRuntimeConfig` configs:
+To add runtime configuration to your app, open `next.config.js` and add the `publicRuntimeConfig` and `serverRuntimeConfig` configs:
 
 ```js
 module.exports = {
@@ -26,7 +26,7 @@ Place any server-only runtime config under `serverRuntimeConfig`.
 
 Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
-> A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` to opt-out of [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md). Runtime configuration won't be available to any page (or component in a page) without `getInitialProps`.
+> A page that relies on `publicRuntimeConfig` **must** use `getInitialProps` or `getServerSideProps` or your application must have a [Custom App](/docs/advanced-features/custom-app.md) with `getInitialProps` to opt-out of [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md). Runtime configuration won't be available to any page (or component in a page) without being server-side rendered.
 
 To get access to the runtime configs in your app use `next/config`, like so:
 

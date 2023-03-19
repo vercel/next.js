@@ -1,5 +1,11 @@
-module.exports = {
-  experimental: {
+// @ts-check
+
+/**
+ * @type {import('next').NextConfig}
+ **/
+const nextConfig = {
+  compiler: {
+    // Remove `console.*` output except `console.error`
     removeConsole: {
       exclude: ['error'],
     },
@@ -7,3 +13,5 @@ module.exports = {
     // removeConsole: true,
   },
 }
+
+module.exports = nextConfig

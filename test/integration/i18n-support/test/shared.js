@@ -71,8 +71,33 @@ export function runTests(ctx) {
           undefined,
           { redirect: 'manual' }
         )
+
+        if (locale !== 'en-US') {
+          expect(res.status).toBe(404)
+          expect(await res.text()).toContain('could not be found')
+        } else {
+          // We only 404 for non-default locale
+          expect(res.status).toBe(200)
+        }
+      }
+    }
+  })
+
+  it('should 404 for locale prefixed public folder files', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}/${locale}/files/texts/file.txt`,
+        undefined,
+        { redirect: 'manual' }
+      )
+
+      if (locale !== 'en-US') {
         expect(res.status).toBe(404)
         expect(await res.text()).toContain('could not be found')
+      } else {
+        // We only 404 for non-default locale
+        expect(res.status).toBe(200)
       }
     }
   })
@@ -361,6 +386,9 @@ export function runTests(ctx) {
       const href = await browser.elementByCss(element).getAttribute('href')
       expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
 
     browser = await webdriver(
       ctx.appPort,
@@ -380,6 +408,58 @@ export function runTests(ctx) {
         `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
       )
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
+  })
+
+  // The page is accessible on subpath as well as on the domain url without subpath.
+  // Once this is not the case the test will need to be changed to access it via domain.
+  // Beware of the different expectations on dev and prod version since the pre-rendering on dev does not work with domain locales
+  it('should prerender with the correct href for locale domain', async () => {
+    let browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      if (ctx.isDev) {
+        expect(href).toBe(`${ctx.basePath || ''}/go${pathname}`)
+      } else {
+        expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
+      }
+    }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
+
+    browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      if (ctx.isDev) {
+        expect(href).toBe(`${ctx.basePath || ''}/go-BE${pathname}`)
+      } else {
+        expect(href).toBe(
+          `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
+        )
+      }
+    }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
   })
 
   it('should render the correct href with locale domains but not on a locale domain', async () => {
@@ -1287,8 +1367,9 @@ export function runTests(ctx) {
     })
   })
 
-  it('should rewrite to API route correctly', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should rewrite to API route correctly for %s locale',
+    async (locale) => {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath || ''}${
@@ -1300,13 +1381,14 @@ export function runTests(ctx) {
         }
       )
 
+      expect(res.headers.get('content-type')).toContain('application/json')
       const data = await res.json()
       expect(data).toEqual({
         hello: true,
         query: {},
       })
     }
-  })
+  )
 
   it('should apply rewrites correctly', async () => {
     let res = await fetchViaHTTP(

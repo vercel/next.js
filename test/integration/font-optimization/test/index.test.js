@@ -9,36 +9,17 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  initNextServerScript,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
-const nodeArgs = [
-  '-r',
-  join(__dirname, '../../../lib/react-17-require-hook.js'),
-]
 
 const fsExists = (file) =>
   fs
     .access(file)
     .then(() => true)
     .catch(() => false)
-
-async function getBuildId(appDir) {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
-}
-
-const startServerlessEmulator = async (dir, port, opts = {}) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId(dir) }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env, false, opts)
-}
 
 describe('Font Optimization', () => {
   describe.each([
@@ -83,7 +64,6 @@ describe('Font Optimization', () => {
       preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
-      const nextConfig = join(appDir, 'next.config.js')
       let builtServerPagesDir
       let builtPage
       let appPort
@@ -124,7 +104,7 @@ describe('Font Optimization', () => {
         })
 
         it(`should inline the ${property} fonts for static pages`, async () => {
-          const html = await renderViaHTTP(appPort, '/index')
+          const html = await renderViaHTTP(appPort, '/')
           const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
           expect(
@@ -229,9 +209,7 @@ describe('Font Optimization', () => {
 
         // Re-run build to check if it works when build is cached
         it('should work when build is cached', async () => {
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           const testJson = JSON.parse(
             await fs.readFile(builtPage('font-manifest.json'), {
               encoding: 'utf-8',
@@ -246,13 +224,9 @@ describe('Font Optimization', () => {
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
           }
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           appPort = await findPort()
-          app = await nextStart(appDir, appPort, {
-            nodeArgs,
-          })
+          app = await nextStart(appDir, appPort)
           builtServerPagesDir = join(appDir, '.next', 'server')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
@@ -260,79 +234,17 @@ describe('Font Optimization', () => {
         runTests()
       })
 
-      describe('Font optimization for serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `
-            const path = require('path')
-            module.exports = require(path.join(__dirname, '../../../../lib/with-react-17.js'))({ target: 'serverless', cleanDistDir: false })
-            `,
-            'utf8'
-          )
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort, {
-            nodeArgs,
-          })
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
-      describe('Font optimization for emulated serverless apps', () => {
-        const origNextConfig = fs.readFileSync(nextConfig)
-
-        beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `
-            const path = require('path')
-            module.exports = require(path.join(__dirname, '../../../../lib/with-react-17.js'))({ target: 'experimental-serverless-trace', cleanDistDir: false })
-            `,
-            'utf8'
-          )
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
-          appPort = await findPort()
-          app = await startServerlessEmulator(appDir, appPort, {
-            nodeArgs,
-          })
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(async () => {
-          await fs.writeFile(nextConfig, origNextConfig)
-          await killApp(app)
-        })
-        runTests()
-      })
-
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await nextBuild(appDir, undefined, {
-            nodeArgs,
-          })
+          await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),
             '[]',
             'utf8'
           )
           appPort = await findPort()
-          app = await nextStart(appDir, appPort, {
-            nodeArgs,
-          })
-          builtServerPagesDir = join(appDir, '.next', 'serverless')
+          app = await nextStart(appDir, appPort)
+          builtServerPagesDir = join(appDir, '.next', 'server')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(() => killApp(app))
@@ -364,5 +276,71 @@ describe('Font Optimization', () => {
     const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
     const { code } = await nextBuild(appDir)
     expect(code).toBe(0)
+  })
+
+  describe('font override', () => {
+    let app, appPort
+
+    beforeAll(async () => {
+      const appDir = join(fixturesDir, 'font-override')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    it('should inline font-override values', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      const inlineStyle = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
+      )
+      const inlineStyleMultiple = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
+      )
+      expect(inlineStyle.length).toBe(1)
+      expect(inlineStyle.html()).toContain(
+        '@font-face{font-family:"Roboto Fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
+      )
+      expect(inlineStyleMultiple.length).toBe(1)
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
+      )
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"Open Sans Fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
+      )
+    })
+  })
+
+  describe('font override with size adjust', () => {
+    let app, appPort
+
+    beforeAll(async () => {
+      const appDir = join(fixturesDir, 'font-override-size-adjust')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+    it('should inline font-override values', async () => {
+      const html = await renderViaHTTP(appPort, '/')
+      const $ = cheerio.load(html)
+      const inlineStyle = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
+      )
+      const inlineStyleMultiple = $(
+        'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
+      )
+      expect(inlineStyle.length).toBe(1)
+      expect(inlineStyle.html()).toContain(
+        '@font-face{font-family:"Roboto Fallback";ascent-override:92.49%;descent-override:24.34%;line-gap-override:0.00%;size-adjust:100.30%;src:local("Arial")}'
+      )
+      expect(inlineStyleMultiple.length).toBe(1)
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:76.28%;descent-override:21.23%;line-gap-override:0.00%;size-adjust:127.17%;src:local("Times New Roman")}'
+      )
+      expect(inlineStyleMultiple.html()).toContain(
+        '@font-face{font-family:"Open Sans Fallback";ascent-override:101.58%;descent-override:27.84%;line-gap-override:0.00%;size-adjust:105.22%;src:local("Arial")}'
+      )
+    })
   })
 })

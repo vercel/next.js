@@ -11,6 +11,7 @@ import {
 import { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
+import stripAnsi from 'strip-ansi'
 
 const dir = join(__dirname, '..')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
@@ -178,6 +179,34 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test('--port 0', async () => {
+      const output = await runNextCommandDev([dir, '--port', '0'], true)
+      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      expect(matches).not.toBe(null)
+
+      const port = parseInt(matches[1])
+      // Regression test: port 0 was interpreted as if no port had been
+      // provided, falling back to 3000.
+      expect(port).not.toBe(3000)
+
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
+    test('PORT=0', async () => {
+      const output = await runNextCommandDev([dir], true, {
+        env: { PORT: 0 },
+      })
+      const matches = /on 0.0.0.0:(\d+)/.exec(output)
+      expect(matches).not.toBe(null)
+
+      const port = parseInt(matches[1])
+      // Regression test: port 0 was interpreted as if no port had been
+      // provided, falling back to 3000.
+      expect(port).not.toBe(3000)
+
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+    })
+
     test("NODE_OPTIONS='--inspect'", async () => {
       // this test checks that --inspect works by launching a single debugger for the main Next.js process,
       // not for its subprocesses
@@ -226,7 +255,7 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch('ready')
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
-      expect(stdout).toBeFalsy()
+      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('--hostname', async () => {
@@ -249,6 +278,16 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommandDev(
+        [dir, '--hostname', '::', '--port', port],
+        true
+      )
+      expect(output).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+    })
+
     test('should warn when unknown argument provided', async () => {
       const { stderr } = await runNextCommand(['dev', '--random'], {
         stderr: true,
@@ -264,7 +303,7 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 1000)
+        setTimeout(() => instance.kill('SIGINT'), 2000)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
         ignoreFail: true,
@@ -279,7 +318,7 @@ describe('CLI Usage', () => {
     })
     test('should exit when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 1000)
+        setTimeout(() => instance.kill('SIGTERM'), 2000)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
         ignoreFail: true,
@@ -316,6 +355,18 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
+    })
+
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommand(
+        ['start', '--hostname', '::', '--port', port],
+        {
+          stdout: true,
+        }
+      )
+      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -392,6 +443,54 @@ describe('CLI Usage', () => {
       })
       expect(output.stderr).toContain(
         'Invalid project directory provided, no such directory'
+      )
+    })
+
+    test('--keepAliveTimeout string arg', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'string'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
+      )
+    })
+
+    test('--keepAliveTimeout negative number', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout=-100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
+      )
+    })
+
+    test('--keepAliveTimeout Infinity', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', 'Infinity'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).toContain(
+        'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
+      )
+    })
+
+    test('--keepAliveTimeout happy path', async () => {
+      const { stderr } = await runNextCommand(
+        ['start', '--keepAliveTimeout', '100'],
+        {
+          stderr: true,
+        }
+      )
+      expect(stderr).not.toContain(
+        'Invalid keep alive timeout provided, expected a non negative number'
       )
     })
   })
@@ -491,12 +590,8 @@ describe('CLI Usage', () => {
         stdout: true,
         stderr: true,
       })
+      expect((info.stderr || '').toLowerCase()).not.toContain('error')
 
-      // when a stable release is done the non-latest canary
-      // warning will show so skip this check for the stable release
-      if (pkg.version.includes('-canary')) {
-        expect(info.stderr || '').toBe('')
-      }
       expect(info.stdout).toMatch(
         new RegExp(`
     Operating System:
@@ -510,6 +605,7 @@ describe('CLI Usage', () => {
       pnpm: .*
     Relevant packages:
       next: .*
+      eslint-config-next: .*
       react: .*
       react-dom: .*
 `)

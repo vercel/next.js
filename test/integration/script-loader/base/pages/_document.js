@@ -1,5 +1,4 @@
 import * as React from 'react'
-/// @ts-ignore
 import { Main, NextScript, Head, Html } from 'next/document'
 import Script from 'next/script'
 
@@ -27,6 +26,10 @@ export default function Document() {
       <body>
         <Main />
         <NextScript />
+        <Script
+          src="https://www.google-analytics.com/analytics.js?a=scriptBeforeInteractive"
+          strategy="beforeInteractive"
+        ></Script>
         <div id="text" />
       </body>
     </Html>

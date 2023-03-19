@@ -10,8 +10,8 @@ export default function Page({ prop }) {
   return (
     <>
       <div id="prop">{prop}</div>
-      <Link href="?prop=foo">
-        <a id="link">Click me</a>
+      <Link href="?prop=foo" id="link">
+        Click me
       </Link>
       <button id="router-push" onClick={() => router.push('?prop=bar')}>
         Push me

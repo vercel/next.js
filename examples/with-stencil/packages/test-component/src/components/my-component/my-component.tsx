@@ -7,6 +7,7 @@ import { format } from '../../utils/utils'
   styleUrl: 'my-component.css',
   shadow: true,
 })
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class MyComponent {
   /**
    * The first name

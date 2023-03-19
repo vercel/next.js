@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 START_DIR=$PWD
 # gets last argument which should be the project dir
@@ -36,4 +36,4 @@ if [ ! -z $HAS_CONFLICTING_DEP ] || [ ! -d "$PROJECT_DIR/node_modules" ];then
 fi
 
 cd $START_DIR
-yarn next $@
+pnpm next $@

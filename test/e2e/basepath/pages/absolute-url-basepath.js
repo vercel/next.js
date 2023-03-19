@@ -13,11 +13,12 @@ export default function Page({ port }) {
   const router = useRouter()
   return (
     <>
-      <Link href={`http://localhost:${port}${router.basePath}/something-else`}>
-        <a id="absolute-link">
-          http://localhost:{port}
-          {router.basePath}/something-else
-        </a>
+      <Link
+        href={`http://localhost:${port}${router.basePath}/something-else`}
+        id="absolute-link"
+      >
+        http://localhost:{port}
+        {router.basePath}/something-else
       </Link>
     </>
   )

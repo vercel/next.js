@@ -98,7 +98,9 @@ module.exports = (context) => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
       const readPath = join(__dirname, `../.next/static/${buildId}`)
-      const buildFiles = await recursiveReadDir(readPath, /\.js$/)
+      const buildFiles = await recursiveReadDir(readPath, (f) =>
+        /\.js$/.test(f)
+      )
 
       if (buildFiles.length < 1) {
         throw new Error('Could not locate any build files')
@@ -321,9 +323,8 @@ module.exports = (context) => {
         try {
           browser = await webdriver(context.appPort, '/svg-image')
           await browser.eval(`document.getElementById("img").scrollIntoView()`)
-          expect(
-            await browser.elementById('img').getAttribute('src')
-          ).toContain('xss.svg')
+          const src = await browser.elementById('img').getAttribute('src')
+          expect(src).toMatch(/_next\/image\?.*xss\.svg/)
           expect(await browser.elementById('msg').text()).toBe('safe')
           browser = await webdriver(
             context.appPort,

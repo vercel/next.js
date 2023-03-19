@@ -5,9 +5,7 @@ const whoami = preval`
   module.exports = userInfo.username
 `
 
-export default WhoAmI
-
-function WhoAmI() {
+export default function WhoAmI() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center' }}>
       <h1>

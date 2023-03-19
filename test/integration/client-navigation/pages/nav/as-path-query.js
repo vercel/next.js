@@ -15,16 +15,18 @@ export default withRouter(({ router: { asPath, query } }) => {
         <Link
           href="/nav/as-path-query?something=hello"
           as="/something/hello?something=hello"
+          id="hello"
         >
-          <a id="hello">hello</a>
+          hello
         </Link>
       </div>
       <div>
         <Link
           href="/nav/as-path-query?something=else"
           as="/something/hello?something=else"
+          id="hello2"
         >
-          <a id="hello2">hello</a>
+          hello
         </Link>
       </div>
     </div>

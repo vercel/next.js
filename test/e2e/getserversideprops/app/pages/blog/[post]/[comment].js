@@ -17,8 +17,8 @@ export default ({ post, comment, time }) => {
       <p>Post: {post}</p>
       <p>Comment: {comment}</p>
       <span>time: {time}</span>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

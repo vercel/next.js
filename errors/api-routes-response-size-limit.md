@@ -2,12 +2,27 @@
 
 #### Why This Error Occurred
 
-API Routes are meant to respond quickly and are not intended to support responding with large amounts of data. The maximum size of responses is 4 MB.
+API Routes are meant to respond quickly and are not intended to support responding with large amounts of data. The maximum size of responses is 4MB.
 
 #### Possible Ways to Fix It
 
-Limit your API Route responses to less than 4 MB. If you need to support sending large files to the client, you should consider using a dedicated media host for those assets. See link below for suggestions.
+If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false` inside your API Route.
 
-### Useful Links
+```js
+export const config = {
+  api: {
+    responseLimit: false,
+  },
+}
+```
 
-[Tips to avoid the 5 MB limit](https://vercel.com/support/articles/how-to-bypass-vercel-5mb-body-size-limit-serverless-functions)
+`responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
+This value will be the maximum response size before a warning is displayed. The default value is 4MB.
+
+```js
+export const config = {
+  api: {
+    responseLimit: '8mb',
+  },
+}
+```

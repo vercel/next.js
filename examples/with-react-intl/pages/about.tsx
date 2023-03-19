@@ -1,19 +1,20 @@
+import type { GetServerSidePropsContext } from 'next'
 import { FormattedRelativeTime, useIntl } from 'react-intl'
-import Layout from '../components/Layout'
 import loadIntlMessages from '../helper/loadIntlMessages'
-import { InferGetStaticPropsType } from 'next'
+import Layout from '../components/Layout'
 
-export async function getStaticProps(ctx) {
+export async function getStaticProps({
+  locale,
+  defaultLocale,
+}: GetServerSidePropsContext) {
   return {
     props: {
-      intlMessages: await loadIntlMessages(ctx),
+      intlMessages: await loadIntlMessages(locale as string, defaultLocale),
     },
   }
 }
 
-type AboutPageProps = InferGetStaticPropsType<typeof getStaticProps>
-
-export default function AboutPage(props: AboutPageProps) {
+export default function AboutPage() {
   const intl = useIntl()
   return (
     <Layout

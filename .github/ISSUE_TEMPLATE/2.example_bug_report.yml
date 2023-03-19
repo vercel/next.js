@@ -1,30 +1,30 @@
-name: Example Bug Report
+name: Bug Report for Examples
 description: Create a bug report for one of the Next.js examples
-labels: 'type: example,template: bug'
+labels: ['area: examples']
 body:
   - type: markdown
     attributes:
-      value: Thanks for taking the time to file a bug report for [one of the examples](https://github.com/vercel/next.js/tree/canary/examples)! Please fill out this form as completely as possible.
-  - type: markdown
-    attributes:
-      value: If you leave out sections there is a high likelihood it will be moved to the GitHub Discussions ["Help" section](https://github.com/vercel/next.js/discussions/categories/help).
+      value: |
+        *Note:* If you leave out sections, the issue might be moved to the ["Help" section](https://github.com/vercel/next.js/discussions/categories/help).
+        Thanks for taking the time to file a bug report for [one of the examples](https://github.com/vercel/next.js/tree/canary/examples)! Please fill out this form as completely as possible.
   - type: checkboxes
     attributes:
       label: Verify canary release
-      description: '`next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
+      description: 'Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
       options:
-        - label: I verified that the issue exists in Next.js canary release
+        - label: I verified that the issue exists in the latest Next.js canary release
           required: true
   - type: textarea
     attributes:
       label: Provide environment information
       description: Please run `next info` in the root directory of your project and paste the results. You might need to use `npx --no-install next info` if next is not in the current PATH.
+      render: bash
     validations:
       required: true
   - type: input
     attributes:
       label: Which example does this report relate to?
-      description: "See a complete list in the [examples folder](https://github.com/vercel/next.js/tree/canary/examples). For example: with-styled-components. Note: Examples not in the examples folder might be maintained by the example's library author. Check out their projects before opening the issue on Next.js"
+      description: "See a complete list in the [examples folder](https://github.com/vercel/next.js/tree/canary/examples). For example: `with-styled-components`. Note: Examples not in the examples folder might be maintained by the example's library author. Check out their projects before opening the issue on Next.js"
     validations:
       required: true
   - type: input
@@ -50,7 +50,7 @@ body:
   - type: textarea
     attributes:
       label: To Reproduce
-      description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository. Screenshots can be provided in the issue body below.
+      description: Steps to reproduce the behavior, please provide a clear description of how to reproduce the issue, based on the relevant example. Screenshots can be provided in the issue body below. If using code blocks, make sure that [syntax highlighting is correct](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) and double check that the rendered preview is not broken.
     validations:
       required: true
   - type: markdown

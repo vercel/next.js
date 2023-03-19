@@ -95,7 +95,14 @@ export function install(
      */
     const child = spawn(command, args, {
       stdio: 'inherit',
-      env: { ...process.env, ADBLOCK: '1', DISABLE_OPENCOLLECTIVE: '1' },
+      env: {
+        ...process.env,
+        ADBLOCK: '1',
+        // we set NODE_ENV to development as pnpm skips dev
+        // dependencies when production
+        NODE_ENV: 'development',
+        DISABLE_OPENCOLLECTIVE: '1',
+      },
     })
     child.on('close', (code) => {
       if (code !== 0) {

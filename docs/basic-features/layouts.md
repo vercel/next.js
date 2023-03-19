@@ -4,12 +4,9 @@ description: Learn how to share components and state between Next.js pages with 
 
 # Layouts
 
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/layout-component">layout-component</a></li>
-  </ul>
-</details>
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
 The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 
@@ -61,9 +58,9 @@ import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
 
 export default function Page() {
-  return {
+  return (
     /** Your content */
-  }
+  )
 }
 
 Page.getLayout = function getLayout(page) {
@@ -102,11 +99,10 @@ When using TypeScript, you must first create a new type for your pages which inc
 import type { ReactElement } from 'react'
 import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
+import type { NextPageWithLayout } from './_app'
 
-export default function Page() {
-  return {
-    /** Your content */
-  }
+const Page: NextPageWithLayout = () => {
+  return <p>hello world</p>
 }
 
 Page.getLayout = function getLayout(page: ReactElement) {
@@ -116,6 +112,8 @@ Page.getLayout = function getLayout(page: ReactElement) {
     </Layout>
   )
 }
+
+export default Page
 ```
 
 ```tsx
@@ -125,7 +123,7 @@ import type { ReactElement, ReactNode } from 'react'
 import type { NextPage } from 'next'
 import type { AppProps } from 'next/app'
 
-type NextPageWithLayout = NextPage & {
+export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
   getLayout?: (page: ReactElement) => ReactNode
 }
 
@@ -180,6 +178,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/custom-app.md">
     <b>Custom App:</b>
-    <small>Learn more about how Next.js initialize pages.</small>
+    <small>Learn more about how Next.js initializes pages.</small>
   </a>
 </div>

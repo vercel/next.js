@@ -72,11 +72,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
+    let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
       if (actionInfo.isRelease) {
         logger('Release detected, resetting mainRepo to last stable tag')
         const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
+        mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         console.log('using latestStable', lastStableTag)
         await checkoutRef(lastStableTag, mainRepoDir)
@@ -105,9 +107,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     for (const dir of repoDirs) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
+        const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
+
         let buildCommand = `cd ${dir}${
           !statsConfig.skipInitialInstall
-            ? ' && yarn install --network-timeout 1000000'
+            ? usePnpm
+              ? // --no-frozen-lockfile is used here to tolerate lockfile
+                // changes from merging latest changes
+                ` && pnpm install --no-frozen-lockfile && pnpm run build`
+              : ' && yarn install --network-timeout 1000000'
             : ''
         }`
 
@@ -118,20 +126,22 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         // in case of noisy environment slowing down initial repo build
         await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
-      await fs.copy(
-        path.join(__dirname, '../native'),
-        path.join(dir, 'packages/next-swc/native')
-      )
-      // TODO: remove after next stable release (current v12.0.4)
-      await fs.copy(
-        path.join(__dirname, '../native'),
-        path.join(dir, 'packages/next/native')
-      )
+
+      await fs
+        .copy(
+          path.join(__dirname, '../native'),
+          path.join(dir, 'packages/next-swc/native')
+        )
+        .catch(console.error)
 
       logger(`Linking packages in ${dir}`)
-      const pkgPaths = await linkPackages(dir)
+      const isMainRepo = dir === mainRepoDir
+      const pkgPaths = await linkPackages({
+        repoDir: dir,
+        nextSwcVersion: isMainRepo ? mainNextSwcVersion : undefined,
+      })
 
-      if (dir === mainRepoDir) mainRepoPkgPaths = pkgPaths
+      if (isMainRepo) mainRepoPkgPaths = pkgPaths
       else diffRepoPkgPaths = pkgPaths
     }
 

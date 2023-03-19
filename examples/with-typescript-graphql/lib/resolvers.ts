@@ -1,5 +1,4 @@
-import { QueryResolvers, MutationResolvers } from '@graphql-types@'
-import { ResolverContext } from './apollo'
+import { Resolvers } from './resolvers-types'
 
 const userProfile = {
   id: String(1),
@@ -7,17 +6,18 @@ const userProfile = {
   status: 'cached',
 }
 
-const Query: Required<QueryResolvers<ResolverContext>> = {
-  viewer(_parent, _args, _context, _info) {
-    return userProfile
+const resolvers: Resolvers = {
+  Query: {
+    viewer(_parent, _args, _context, _info) {
+      return userProfile
+    },
+  },
+  Mutation: {
+    updateName(_parent, _args, _context, _info) {
+      userProfile.name = _args.name
+      return userProfile
+    },
   },
 }
 
-const Mutation: Required<MutationResolvers<ResolverContext>> = {
-  updateName(_parent, _args, _context, _info) {
-    userProfile.name = _args.name
-    return userProfile
-  },
-}
-
-export default { Query, Mutation }
+export default resolvers

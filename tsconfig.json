@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "baseUrl": ".",
+    "types": ["react", "jest", "node", "trusted-types"],
     "paths": {
       "next-test-utils": ["test/lib/next-test-utils"],
       "amp-test-utils": ["test/lib/amp-test-utils"],
@@ -17,5 +18,11 @@
       "e2e-utils": ["test/lib/e2e-utils"]
     }
   },
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/**/test/*"]
+  "include": [
+    "test/jest.d.ts",
+    "test/**/*.test.ts",
+    "test/**/*.test.tsx",
+    "test/**/test/*",
+    "packages/next/types/webpack.d.ts"
+  ]
 }

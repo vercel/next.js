@@ -7,13 +7,11 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  File,
 } from 'next-test-utils'
 
 let app
 let appPort
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const runTests = () => {
   it('should have gip in __NEXT_DATA__', async () => {
@@ -48,21 +46,6 @@ describe('getInitialProps', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await nextConfig.replace('// replace me', `target: 'serverless', `)
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      nextConfig.restore()
-    })
 
     runTests()
   })

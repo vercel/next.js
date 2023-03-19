@@ -19,8 +19,8 @@ export default ({ slug }) => {
   return (
     <>
       <p id="param">Hi {slug}!</p>{' '}
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

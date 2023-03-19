@@ -12,6 +12,10 @@ declare namespace NodeJS {
   interface ProcessEnv {
     readonly NODE_ENV: 'development' | 'production' | 'test'
   }
+
+  interface RequestInit extends globalThis.RequestInit {
+    next?: NextFetchRequestConfig | undefined
+  }
 }
 
 declare module '*.module.css' {
@@ -31,4 +35,13 @@ declare module '*.module.scss' {
 
 interface Window {
   MSInputMethodContext?: unknown
+  __NEXT_HMR_CB?: null | ((message?: string) => void)
+}
+
+interface NextFetchRequestConfig {
+  revalidate?: number | false
+}
+
+interface RequestInit {
+  next?: NextFetchRequestConfig | undefined
 }

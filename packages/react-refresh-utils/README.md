@@ -10,8 +10,8 @@ Its API is not stable as that of Next.js, nor does it follow semver rules.
 
 All entrypoints below must wired into your build tooling for this to work.
 
-### `@next/react-refresh-utils/loader`
+### `@next/react-refresh-utils/dist/loader`
 
-### `@next/react-refresh-utils/ReactRefreshWebpackPlugin`
+### `@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin`
 
-### `@next/react-refresh-utils/runtime`
+### `@next/react-refresh-utils/dist/runtime`

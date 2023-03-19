@@ -33,15 +33,19 @@ export default (context, env) => {
     expect(ssrId).toEqual(csrId)
   })
 
-  it('should contain dynamicIds in next data for basic dynamic imports', async () => {
-    const html = await renderViaHTTP(context.appPort, '/dynamic-imports')
-    const $ = cheerio.load(html)
-    const { dynamicIds } = JSON.parse($('#__NEXT_DATA__').html())
+  it('should contain dynamicIds in next data for dynamic imports', async () => {
+    async function expectToContainPreload(page) {
+      const html = await renderViaHTTP(context.appPort, `/${page}`)
+      const $ = cheerio.load(html)
+      const { dynamicIds } = JSON.parse($('#__NEXT_DATA__').html())
 
-    if (env === 'dev') {
-      expect(dynamicIds).toContain('dynamic-imports.js -> ../components/foo')
-    } else {
-      expect(dynamicIds.length).toBe(1)
+      if (env === 'dev') {
+        expect(dynamicIds).toContain(`${page}.js -> ../components/foo`)
+      } else {
+        expect(dynamicIds.length).toBe(1)
+      }
     }
+    await expectToContainPreload('dynamic')
+    await expectToContainPreload('dynamic-suspense')
   })
 }

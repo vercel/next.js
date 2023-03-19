@@ -13,8 +13,8 @@ export default class Error extends React.Component {
       <div>
         <div id="errorStatusCode">{this.props.statusCode || 'unknown'}</div>
         <p>
-          <Link href="/">
-            <a id="errorGoHome">go home</a>
+          <Link href="/" id="errorGoHome">
+            go home
           </Link>
         </p>
       </div>

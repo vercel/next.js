@@ -5,7 +5,7 @@
 Your application is using a Middleware function that is using parameters from the deprecated API.
 
 ```typescript
-// _middleware.js
+// middleware.js
 import { NextResponse } from 'next/server'
 
 export function middleware(event) {
@@ -24,7 +24,7 @@ export function middleware(event) {
 Update to use the new API for Middleware:
 
 ```typescript
-// _middleware.js
+// middleware.js
 import { NextResponse } from 'next/server'
 
 export function middleware(request) {

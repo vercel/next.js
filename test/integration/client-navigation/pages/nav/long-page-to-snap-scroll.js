@@ -6,8 +6,8 @@ const LongPageToSnapScroll = () => {
   const router = useRouter()
   return (
     <div id="long-page-to-snap-scroll">
-      <Link href="#item-400">
-        <a id="scroll-to-item-400">Go to item 400</a>
+      <Link href="#item-400" id="scroll-to-item-400">
+        Go to item 400
       </Link>
 
       {Array.from({ length: 500 }, (x, i) => i + 1).map((i) => {
@@ -18,8 +18,8 @@ const LongPageToSnapScroll = () => {
         )
       })}
 
-      <Link href="/snap-scroll-position">
-        <a id="goto-snap-scroll-position">Go to snap scroll declarative</a>
+      <Link href="/snap-scroll-position" id="goto-snap-scroll-position">
+        Go to snap scroll declarative
       </Link>
       <div
         id="goto-snap-scroll-position-imperative"

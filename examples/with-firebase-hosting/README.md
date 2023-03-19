@@ -15,14 +15,18 @@ If you are having issues, feel free to tag @jthegedus in the [issue you create o
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
-# or
+```
+
+```bash
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
-# or
-pnpm create next-app -- --example with-firebase-hosting with-firebase-hosting-app
+```
+
+```bash
+pnpm create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
 **Important:** Update `.firebaserc` and add your firebase project ID.
@@ -70,7 +74,7 @@ The crucial files for the setup:
 - `firebase.json`
 - `firebaseFunctions.js`
 - `src/next.config.js`
-- In `package.json`: `firebase-*` packages.
+- In `package.json`: `firebase-*` packages, `main` property defining the entry point as `firebaseFunctions.js`
 
 ## References
 

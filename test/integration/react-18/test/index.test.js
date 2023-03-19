@@ -55,20 +55,31 @@ function runTestsAgainstRuntime(runtime) {
         it('should recover after undefined exported as default', async () => {
           const browser = await webdriver(context.appPort, '/invalid')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
             `Error: The default export is not a React Component in page: "/invalid"`
           )
         })
       }
+
+      it('should not have invalid config warning', async () => {
+        await renderViaHTTP(context.appPort, '/')
+        expect(context.stderr).not.toContain('not exist in this version')
+      })
     },
     {
       beforeAll: (env) => {
         if (env === 'dev') {
           invalidPage.write(`export const value = 1`)
         }
-        nextConfig.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
-        indexPage.replace("// runtime: 'edge'", `runtime: '${runtime}'`)
+        nextConfig.replace(
+          "// runtime: 'experimental-edge'",
+          `runtime: '${runtime}'`
+        )
+        indexPage.replace(
+          "// runtime: 'experimental-edge'",
+          `runtime: '${runtime}'`
+        )
       },
       afterAll: (env) => {
         if (env === 'dev') {
@@ -81,7 +92,7 @@ function runTestsAgainstRuntime(runtime) {
   )
 }
 
-runTestsAgainstRuntime('edge')
+runTestsAgainstRuntime('experimental-edge')
 runTestsAgainstRuntime('nodejs')
 
 function runTests(name, fn, opts) {

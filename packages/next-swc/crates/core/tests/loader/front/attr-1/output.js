@@ -1,4 +1,4 @@
-import _JSXStyle from "next/dist/shared/lib/styled-jsx";
+import _JSXStyle from "styled-jsx/style";
 export default function Foo() {
     return /*#__PURE__*/ React.createElement("div", {
         render: function(v) {
@@ -10,4 +10,4 @@ export default function Foo() {
     }, React.createElement(_JSXStyle, {
         id: "eb368961fd3b0a99"
     }, "span.jsx-eb368961fd3b0a99{color:red}"));
-};
+}
