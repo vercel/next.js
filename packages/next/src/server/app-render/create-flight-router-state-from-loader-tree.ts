@@ -1,7 +1,6 @@
 import { LoaderTree } from '../lib/app-dir-module'
 import { FlightRouterState, Segment } from './types'
 import { GetDynamicParamFromSegment } from './index'
-import { stringify } from 'querystring'
 
 // TODO-APP: Move __PAGE__ to a shared constant
 const PAGE_SEGMENT_KEY = '__PAGE__'
@@ -13,7 +12,7 @@ export function addSearchParamsIfPageSegment(
   const isPageSegment = segment === PAGE_SEGMENT_KEY
 
   if (isPageSegment) {
-    const stringifiedQuery = stringify(searchParams)
+    const stringifiedQuery = JSON.stringify(searchParams)
     return stringifiedQuery !== '' ? segment + '?' + stringifiedQuery : segment
   }
 
