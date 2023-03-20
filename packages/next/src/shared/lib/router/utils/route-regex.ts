@@ -15,9 +15,10 @@ export interface RouteRegex {
 /**
  * Parses a given parameter from a route to a data structure that can be used
  * to generate the parametrized route. Examples:
- *   - `[...slug]` -> `{ name: 'slug', repeat: true, optional: true }`
- *   - `[foo]` -> `{ name: 'foo', repeat: false, optional: true }`
- *   - `bar` -> `{ name: 'bar', repeat: false, optional: false }`
+ *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: true }`
+ *   - `...slug` -> `{ key: 'slug', repeat: true, optional: false }`
+ *   - `[foo]` -> `{ key: 'foo', repeat: false, optional: true }`
+ *   - `bar` -> `{ key: 'bar', repeat: false, optional: false }`
  */
 function parseParameter(param: string) {
   const optional = param.startsWith('[') && param.endsWith(']')

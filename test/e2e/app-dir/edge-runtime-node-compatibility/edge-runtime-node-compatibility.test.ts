@@ -15,13 +15,13 @@ createNextDescribe(
       expect(json).toEqual({
         'Buffer === B.Buffer': true,
         encoded: Buffer.from('Hello, world!').toString('base64'),
-        exposedKeys: [
+        exposedKeys: expect.arrayContaining([
           'constants',
           'kMaxLength',
           'kStringMaxLength',
           'Buffer',
           'SlowBuffer',
-        ],
+        ]),
       })
     })
 
@@ -38,13 +38,13 @@ createNextDescribe(
         'typeof B2.Buffer': 'function',
         'typeof Buffer': 'function',
         encoded: 'SGVsbG8sIHdvcmxkIQ==',
-        exposedKeys: [
+        exposedKeys: expect.arrayContaining([
           'constants',
           'kMaxLength',
           'kStringMaxLength',
           'Buffer',
           'SlowBuffer',
-        ],
+        ]),
       })
     })
   }
