@@ -841,10 +841,7 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [loaderTreeSegment, parallelRoutes, components] =
-          loaderTreeToFilter
-
-        const segment = addSearchParamsIfPageSegment(loaderTreeSegment, query)
+        const [segment, parallelRoutes, components] = loaderTreeToFilter
 
         const parallelRoutesKeys = Object.keys(parallelRoutes)
         const { layout } = components
@@ -870,9 +867,10 @@ export async function renderToHTMLOrFlight(
                 [segmentParam.param]: segmentParam.value,
               }
             : parentParams
-        const actualSegment: Segment = segmentParam
-          ? segmentParam.treeSegment
-          : segment
+        const actualSegment: Segment = addSearchParamsIfPageSegment(
+          segmentParam ? segmentParam.treeSegment : segment,
+          query
+        )
 
         /**
          * Decide if the current segment is where rendering has to start.
