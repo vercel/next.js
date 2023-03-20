@@ -177,7 +177,7 @@ async function createTreeCodeFromPath(
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {
+        props[parallelKey] = `['__PAGE__', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],

@@ -90,7 +90,7 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
-import { getTracer } from './lib/trace/tracer'
+import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { sendResponse } from './future/route-handlers/app-route-route-handler'
 import { I18NProvider } from './future/helpers/i18n-provider'
@@ -520,7 +520,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     return getTracer().trace(
       BaseServerSpan.handleRequest,
-      async () => this.handleRequestImpl(req, res, parsedUrl)
+      {
+        spanName: [req.method, req.url].join(' '),
+        kind: SpanKind.SERVER,
+        attributes: {
+          'http.method': req.method,
+          'http.target': req.url,
+        },
+      },
+      async (span) =>
+        this.handleRequestImpl(req, res, parsedUrl).finally(() =>
+          span?.setAttributes({
+            'http.status_code': res.statusCode,
+          })
+        )
     )
   }
 
@@ -1907,9 +1920,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    return getTracer().trace(BaseServerSpan.renderToResponse, async () => {
-      return this.renderToResponseImpl(ctx)
-    })
+    return getTracer().trace(
+      BaseServerSpan.renderToResponse,
+      {
+        spanName: `rendering page`,
+        attributes: {
+          'next.pathname': ctx.pathname,
+        },
+      },
+      async () => {
+        return this.renderToResponseImpl(ctx)
+      }
+    )
   }
 
   private async renderToResponseImpl(
