@@ -335,8 +335,10 @@ export default class Router {
       },
     }
 
-    // when x-matched-path is specified we can short short circuit resolving
-    const matchedPath = req.headers['x-matched-path'] as string
+    // when x-invoke-path is specified we can short short circuit resolving
+    // we only honor this header if we are inside of a render worker to
+    // prevent external users coercing the routing path
+    const matchedPath = req.headers['x-invoke-path'] as string
     const curRoutes = matchedPath
       ? this.compiledRoutes.filter((r) => {
           return (
@@ -345,7 +347,7 @@ export default class Router {
         })
       : this.compiledRoutes
 
-    if (matchedPath) {
+    if (process.env.__NEXT_PRIVATE_RENDER_WORKER && matchedPath) {
       const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
       parsedUrlUpdated.pathname = parsedMatchedPath.pathname
       Object.assign(

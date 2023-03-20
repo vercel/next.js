@@ -1394,7 +1394,7 @@ export default class NextNodeServer extends BaseServer {
               }
             }
             const invokeQueryStr = keptQuery.toString()
-            const matchedPath = `${invokePathname}${
+            const invokePath = `${invokePathname}${
               invokeQueryStr ? `?${invokeQueryStr}` : ''
             }`
 
@@ -1408,7 +1408,7 @@ export default class NextNodeServer extends BaseServer {
             }
             const invokeHeaders: typeof req.headers = {
               ...req.headers,
-              'x-matched-path': matchedPath,
+              'x-invoke-path': invokePath,
             }
             for (const key of [
               'content-length',
