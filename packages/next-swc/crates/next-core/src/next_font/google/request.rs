@@ -5,15 +5,13 @@ use serde::Deserialize;
 /// `next/font/google/target.css?{"path": "index.js", "import": "Inter"...`
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NextFontRequest {
-    pub path: String,
+pub(super) struct NextFontRequest {
     pub import: String,
     pub arguments: Vec<NextFontRequestArguments>,
-    pub variable_name: String,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct NextFontRequestArguments {
+pub(super) struct NextFontRequestArguments {
     pub weight: Option<OneOrManyStrings>,
     pub subsets: Option<Vec<String>>,
     pub style: Option<OneOrManyStrings>,
@@ -29,7 +27,7 @@ pub struct NextFontRequestArguments {
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub enum OneOrManyStrings {
+pub(super) enum OneOrManyStrings {
     One(String),
     Many(Vec<String>),
 }

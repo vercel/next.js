@@ -8,6 +8,7 @@ const Page = () => {
       <Image
         priority
         id="basic-image"
+        alt="basic-image"
         src="/test.jpg"
         width="400"
         height="400"
@@ -15,6 +16,7 @@ const Page = () => {
       <Image
         priority
         id="basic-image-crossorigin"
+        alt="basic-image-crossorigin"
         src="/test.jpg"
         width="400"
         height="400"
@@ -23,6 +25,7 @@ const Page = () => {
       <Image
         loading="eager"
         id="load-eager"
+        alt="load-eager"
         src="/test.png"
         width="400"
         height="400"
@@ -30,6 +33,7 @@ const Page = () => {
       <Image
         priority
         id="responsive1"
+        alt="responsive1"
         src="/wide.png"
         width="1200"
         height="700"
@@ -38,10 +42,19 @@ const Page = () => {
       <Image
         priority
         id="responsive2"
+        alt="responsive2"
         src="/wide.png"
         width="1200"
         height="700"
         sizes="100vw"
+      />
+      <Image
+        id="pri-low"
+        alt="pri-low"
+        src="/test.webp"
+        width="100"
+        height="100"
+        fetchPriority="low"
       />
       <p id="stubtext">This is the priority page</p>
     </div>
