@@ -2,7 +2,7 @@ import { fileExists } from '../../lib/file-exists'
 import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
 import { nonNullable } from '../../lib/non-nullable'
 import { join, sep, normalize } from 'path'
-import fs, { promises as fsPromises } from 'fs'
+import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
 import chalk from '../../lib/chalk'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
@@ -108,13 +108,11 @@ export function createValidFileMatcher(
    * It needs to be a file which doesn't match the custom metadata routes e.g. `app/robots.txt/route.js`
    */
   function isMetadataFile(filePath: string) {
-    const appDirRelativePath = filePath.replace(appDirPath || '', '')
-    const stat = fs.statSync(filePath)
+    const appDirRelativePath = appDirPath
+      ? filePath.replace(appDirPath, '')
+      : filePath
 
-    return (
-      stat.isFile() &&
-      isMetadataRouteFile(appDirRelativePath, pageExtensions, true)
-    )
+    return isMetadataRouteFile(appDirRelativePath, pageExtensions, true)
   }
 
   // Determine if the file is leaf node page file or route file under layouts,

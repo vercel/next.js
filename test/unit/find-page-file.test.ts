@@ -4,18 +4,10 @@ import {
   createValidFileMatcher,
 } from 'next/dist/server/lib/find-page-file'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
-
-import fs from 'fs'
 import { join } from 'path'
 
 const resolveDataDir = join(__dirname, 'isolated', '_resolvedata')
 const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
-
-// beforeAll(() => {
-// })
-// afterAll(() => {
-//   // jest.unmock('fs')
-// })
 
 describe('findPageFile', () => {
   it('should work', async () => {
@@ -53,12 +45,6 @@ describe('findPageFile', () => {
 })
 
 describe('createPageFileMatcher', () => {
-  beforeAll(() => {
-    const mockStatSync = jest.fn(() => ({ isFile: () => true }))
-    // @ts-ignore
-    jest.spyOn(fs, 'statSync').mockImplementation(mockStatSync)
-  })
-
   describe('isAppRouterPage', () => {
     const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
     const fileMatcher = createValidFileMatcher(pageExtensions, '')
