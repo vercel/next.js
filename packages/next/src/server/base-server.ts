@@ -520,7 +520,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     return getTracer().trace(
       BaseServerSpan.handleRequest,
-      async () => await this.handleRequestImpl(req, res, parsedUrl)
+      async () => this.handleRequestImpl(req, res, parsedUrl)
     )
   }
 
