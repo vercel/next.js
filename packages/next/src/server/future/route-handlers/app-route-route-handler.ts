@@ -369,7 +369,7 @@ function validateModule(mod: AppRouteModule) {
 
   // If there is no methods exported by this module, then return a not found
   // response.
-  if (HTTP_METHODS.every((method) => !(method in handlers))) {
+  if (!HTTP_METHODS.some((method) => method in handlers)) {
     Log.error(
       `No HTTP methods exported in '${resolvedPagePath}'. Export a named export for each HTTP method.`
     )
