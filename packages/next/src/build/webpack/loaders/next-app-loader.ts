@@ -212,9 +212,13 @@ async function createTreeCodeFromPath(
         })
       )
 
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
+
       if (!rootLayout) {
-        const layoutPath = filePaths.find(
-          ([type, filePath]) => type === 'layout' && !!filePath
+        const layoutPath = definedFilePaths.find(
+          ([type]) => type === 'layout'
         )?.[1]
         rootLayout = layoutPath
 
@@ -225,9 +229,6 @@ async function createTreeCodeFromPath(
         }
       }
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      )
       props[parallelKey] = `[
         '${
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment

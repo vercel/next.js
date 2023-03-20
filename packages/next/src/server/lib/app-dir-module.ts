@@ -1,4 +1,4 @@
-import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 
 /**
  * LoaderTree is generated in next-app-loader.
