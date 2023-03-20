@@ -1139,19 +1139,11 @@ export async function renderToHTML(
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!BuiltinFunctionalDocument) {
-        throw new Error(
-          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-        )
-      }
-    }
-
-    if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       if (BuiltinFunctionalDocument) {
         Document = BuiltinFunctionalDocument
       } else {
         throw new Error(
-          '`getInitialProps` in Document component is not supported with React Server Components.'
+          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
       }
     }
