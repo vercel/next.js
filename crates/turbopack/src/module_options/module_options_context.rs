@@ -24,6 +24,49 @@ pub struct WebpackLoadersOptions {
     pub placeholder_for_future_extensions: (),
 }
 
+/// The kind of decorators transform to use.
+/// [TODO]: might need bikeshed for the name (Ecma)
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub enum DecoratorsKind {
+    Legacy,
+    Ecma,
+}
+
+/// Configuration options for the decorators transform.
+/// This is not part of Typescript transform: while there are typescript
+/// specific transforms (legay decorators), there is an ecma decorator transform
+/// as well for the JS.
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone, Debug)]
+pub struct DecoratorsOptions {
+    pub decorators_kind: Option<DecoratorsKind>,
+    /// Option to control whether to emit decorator metadata.
+    /// (https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata)
+    /// This'll be applied only if `decorators_type` and
+    /// `enable_typescript_transform` is enabled.
+    pub emit_decorators_metadata: bool,
+    /// Mimic babel's `decorators.decoratorsBeforeExport` option.
+    /// This'll be applied only if `decorators_type` is enabled.
+    /// ref: https://github.com/swc-project/swc/blob/d4ebb5e6efbed0758f25e46e8f74d7c47ec6cb8f/crates/swc_ecma_parser/src/lib.rs#L327
+    /// [TODO]: this option is not actively being used currently.
+    pub decorators_before_export: bool,
+    pub use_define_for_class_fields: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl DecoratorsOptionsVc {
+    #[turbo_tasks::function]
+    pub fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
+impl Default for DecoratorsOptionsVc {
+    fn default() -> Self {
+        Self::default()
+    }
+}
+
 /// Subset of Typescript options configured via tsconfig.json or jsconfig.json,
 /// which affects the runtime transform output.
 #[turbo_tasks::value(shared)]
@@ -89,6 +132,8 @@ pub struct ModuleOptionsContext {
     pub enable_types: bool,
     #[serde(default)]
     pub enable_typescript_transform: Option<TypescriptTransformOptionsVc>,
+    #[serde(default)]
+    pub decorators: Option<DecoratorsOptionsVc>,
     #[serde(default)]
     pub enable_mdx: bool,
     #[serde(default)]

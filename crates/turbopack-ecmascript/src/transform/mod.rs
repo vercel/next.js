@@ -46,6 +46,16 @@ pub enum EcmascriptInputTransform {
         #[serde(default)]
         use_define_for_class_fields: bool,
     },
+    Decorators {
+        #[serde(default)]
+        is_legacy: bool,
+        #[serde(default)]
+        is_ecma: bool,
+        #[serde(default)]
+        emit_decorators_metadata: bool,
+        #[serde(default)]
+        use_define_for_class_fields: bool,
+    },
 }
 
 /// The CustomTransformer trait allows you to implement your own custom SWC
@@ -219,6 +229,25 @@ impl EcmascriptInputTransform {
                     ..Default::default()
                 };
                 program.visit_mut_with(&mut strip_with_config(config, top_level_mark));
+            }
+            EcmascriptInputTransform::Decorators {
+                is_legacy,
+                is_ecma: _,
+                emit_decorators_metadata,
+                use_define_for_class_fields,
+            } => {
+                use swc_core::ecma::transforms::proposal::decorators::{decorators, Config};
+                let config = Config {
+                    legacy: *is_legacy,
+                    emit_metadata: *emit_decorators_metadata,
+                    use_define_for_class_fields: *use_define_for_class_fields,
+                };
+
+                let p = std::mem::replace(program, Program::Module(Module::dummy()));
+                *program = p.fold_with(&mut chain!(
+                    decorators(config),
+                    inject_helpers(unresolved_mark)
+                ));
             }
             EcmascriptInputTransform::ClientDirective(transition_name) => {
                 let transition_name = &*transition_name.await?;
