@@ -14,12 +14,11 @@ let appPort
 const appDir = join(__dirname, '..')
 
 const runTests = () => {
-  const consoleSpy = jest.spyOn(console, 'log')
-
   it('should print web-vitals to console', async () => {
+    const consoleSpy = jest.spyOn(console, 'log')
     await webdriver(appPort, '/')
     await waitFor(1000)
-    expect(consoleSpy).toBeCalledWith({})
+    expect(consoleSpy).toHaveBeenCalledWith({})
   })
 }
 
