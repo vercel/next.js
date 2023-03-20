@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
   forwardRef,
+  version,
 } from 'react'
 import Head from '../shared/lib/head'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
@@ -367,6 +368,23 @@ function handleLoading(
   })
 }
 
+function getDynamicProps(
+  fetchPriority?: string
+): Record<string, string | undefined> {
+  const [majorStr, minorStr] = version.split('.')
+  const major = parseInt(majorStr, 10)
+  const minor = parseInt(minorStr, 10)
+  if (major > 18 || (major === 18 && minor >= 3)) {
+    // In React 18.3.0 or newer, we must use camelCase
+    // prop to avoid "Warning: Invalid DOM property".
+    // See https://github.com/facebook/react/pull/25927
+    return { fetchPriority }
+  }
+  // In React 18.2.0 or older, we must use lowercase prop
+  // to avoid "Warning: Invalid DOM property".
+  return { fetchpriority: fetchPriority }
+}
+
 const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   (
     {
@@ -401,10 +419,9 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       <>
         <img
           {...rest}
+          {...getDynamicProps(fetchPriority)}
           // @ts-expect-error - TODO: upgrade to `@types/react@18`
           loading={loading}
-          // Keep lowercase until https://github.com/facebook/react/pull/25927 lands
-          fetchpriority={fetchPriority}
           width={widthInt}
           height={heightInt}
           decoding="async"
@@ -959,8 +976,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               imageSrcSet={imgAttributes.srcSet}
               imageSizes={imgAttributes.sizes}
               crossOrigin={rest.crossOrigin}
-              // Keep lowercase until https://github.com/facebook/react/pull/25927 lands
-              fetchpriority={fetchPriority}
+              {...getDynamicProps(fetchPriority)}
             />
           </Head>
         ) : null}
