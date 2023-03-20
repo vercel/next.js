@@ -962,22 +962,29 @@ export async function renderToHTML(
     }
 
     try {
-      data = await getTracer().trace(RenderSpan.getServerSideProps, async () =>
-        getServerSideProps({
-          req: req as IncomingMessage & {
-            cookies: NextApiRequestCookies
-          },
-          res: resOrProxy,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
+      data = await getTracer().trace(
+        RenderSpan.getServerSideProps,
+        {
+          spanName: `getServerSideProps ${pathname}`,
+        },
+        async () =>
+          getServerSideProps({
+            req: req as IncomingMessage & {
+              cookies: NextApiRequestCookies
+            },
+            res: resOrProxy,
+            query,
+            resolvedUrl: renderOpts.resolvedUrl as string,
+            ...(pageIsDynamic
+              ? { params: params as ParsedUrlQuery }
+              : undefined),
+            ...(previewData !== false
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
       )
       canAccessRes = false
     } catch (serverSidePropsError: any) {
