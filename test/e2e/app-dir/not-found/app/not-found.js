@@ -1,3 +1,3 @@
 export default function Page() {
-  return <h1>Not Found</h1>
+  return <h1>This Is The Not Found Page</h1>
 }
