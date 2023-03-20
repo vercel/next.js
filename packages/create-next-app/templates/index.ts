@@ -114,7 +114,6 @@ export const installTemplate = async ({
     await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
-        console.log('renaming', file)
         await fs.promises
           .rename(path.join(root, file), path.join(root, 'src', file))
           .catch((err) => {
