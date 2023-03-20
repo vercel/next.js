@@ -123,7 +123,7 @@ function getEntrypointsFromTree(
 
   const currentPath = [...parentPath, currentSegment]
 
-  if (!isFirst && currentSegment === '') {
+  if (!isFirst && currentSegment === '__PAGE__') {
     // TODO get rid of '' at the start of tree
     return [treePathToEntrypoint(currentPath.slice(1))]
   }
