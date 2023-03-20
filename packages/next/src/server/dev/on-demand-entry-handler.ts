@@ -121,9 +121,11 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const currentPath = [...parentPath, currentSegment]
+  const isPageSegment = currentSegment.startsWith('__PAGE')
 
-  if (!isFirst && currentSegment === '__PAGE__') {
+  const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
+
+  if (!isFirst && isPageSegment) {
     // TODO get rid of '' at the start of tree
     return [treePathToEntrypoint(currentPath.slice(1))]
   }
