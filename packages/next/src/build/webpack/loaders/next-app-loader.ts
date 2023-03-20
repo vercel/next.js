@@ -186,7 +186,6 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
         [
           ...segments,
@@ -194,6 +193,12 @@ async function createTreeCodeFromPath(
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
         ]
       )
+
+      const parallelSegmentPath =
+        segmentPath +
+        '/' +
+        (parallelKey === 'children' ? '' : `@${parallelKey}/`) +
+        (Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment)
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
