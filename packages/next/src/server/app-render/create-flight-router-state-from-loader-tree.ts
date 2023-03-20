@@ -13,7 +13,9 @@ export function addSearchParamsIfPageSegment(
 
   if (isPageSegment) {
     const stringifiedQuery = JSON.stringify(searchParams)
-    return stringifiedQuery !== '' ? segment + '?' + stringifiedQuery : segment
+    return stringifiedQuery !== '{}'
+      ? segment + '?' + stringifiedQuery
+      : segment
   }
 
   return segment
