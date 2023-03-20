@@ -110,14 +110,11 @@ export function navigateReducer(
 
       const applied = applyFlightData(state, cache, flightDataPath)
 
-      const hardNavigate =
-        // TODO-APP: Revisit searchParams support
-        search !== locationSearch ||
-        shouldHardNavigate(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
-          state.tree
-        )
+      const hardNavigate = shouldHardNavigate(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        state.tree
+      )
 
       if (hardNavigate) {
         cache.status = CacheStates.READY
