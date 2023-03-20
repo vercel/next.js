@@ -12,7 +12,6 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-import { stringify } from 'querystring'
 // Import builtin react directly to avoid require cache conflicts
 import React from 'next/dist/compiled/react'
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
