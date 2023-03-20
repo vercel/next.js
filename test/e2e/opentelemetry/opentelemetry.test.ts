@@ -109,11 +109,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/pages",
-              "next.span_name": "rendering /pages",
+              "next.span_name": "rendering page",
               "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
-            "name": "rendering /pages",
+            "name": "rendering page",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -122,11 +122,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/pages",
-              "next.span_name": "resolving route /pages",
+              "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
-            "name": "resolving route /pages",
+            "name": "resolving page into components",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -159,11 +159,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/pages/params/stuff",
-              "next.span_name": "rendering /pages/params/stuff",
+              "next.span_name": "rendering page",
               "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
-            "name": "rendering /pages/params/stuff",
+            "name": "rendering page",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -172,11 +172,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/pages/params/[param]",
-              "next.span_name": "resolving route /pages/params/[param]",
+              "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
-            "name": "resolving route /pages/params/[param]",
+            "name": "resolving page into components",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -224,11 +224,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/app/rsc-fetch",
-              "next.span_name": "rendering /app/rsc-fetch",
+              "next.span_name": "rendering page",
               "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
-            "name": "rendering /app/rsc-fetch",
+            "name": "rendering page",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -237,11 +237,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/app/rsc-fetch/page",
-              "next.span_name": "resolving route /app/rsc-fetch/page",
+              "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
-            "name": "resolving route /app/rsc-fetch/page",
+            "name": "resolving page into components",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -286,11 +286,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.pathname": "/pages/getServerSideProps",
-              "next.span_name": "rendering /pages/getServerSideProps",
+              "next.span_name": "rendering page",
               "next.span_type": "BaseServer.renderToResponse",
             },
             "kind": 0,
-            "name": "rendering /pages/getServerSideProps",
+            "name": "rendering page",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -299,11 +299,11 @@ createNextDescribe(
           Object {
             "attributes": Object {
               "next.route": "/pages/getServerSideProps",
-              "next.span_name": "resolving route /pages/getServerSideProps",
+              "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
             },
             "kind": 0,
-            "name": "resolving route /pages/getServerSideProps",
+            "name": "resolving page into components",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
