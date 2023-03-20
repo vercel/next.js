@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
+use turbo_tasks::primitives::OptionStringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -97,9 +98,12 @@ impl ModuleOptionsVc {
         if enable_styled_components {
             transforms.push(EcmascriptInputTransform::StyledComponents)
         }
-        if enable_jsx {
+        if let Some(enable_jsx) = enable_jsx {
+            let jsx = enable_jsx.await?;
             transforms.push(EcmascriptInputTransform::React {
                 refresh: enable_react_refresh,
+                import_source: OptionStringVc::cell(jsx.import_source.clone()),
+                runtime: OptionStringVc::cell(jsx.runtime.clone()),
             });
         }
 

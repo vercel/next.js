@@ -60,11 +60,19 @@ impl WebpackLoadersOptions {
     }
 }
 
+// [TODO]: should enabled_react_refresh belong to this options?
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone, Debug)]
+pub struct JsxTransformOptions {
+    pub import_source: Option<String>,
+    pub runtime: Option<String>,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ModuleOptionsContext {
     #[serde(default)]
-    pub enable_jsx: bool,
+    pub enable_jsx: Option<JsxTransformOptionsVc>,
     #[serde(default)]
     pub enable_emotion: bool,
     #[serde(default)]
