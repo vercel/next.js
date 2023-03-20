@@ -41,13 +41,12 @@ export function navigateReducer(
   const {
     url,
     isExternalUrl,
-    locationSearch,
     navigateType,
     cache,
     mutable,
     forceOptimisticNavigation,
   } = action
-  const { pathname, search, hash } = url
+  const { pathname, hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
 
