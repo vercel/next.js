@@ -314,7 +314,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
-        turbo: /initial compilation/i,
+        turbo: /started server/i,
         start: /started server/i,
       }
       if (
@@ -562,7 +562,7 @@ export async function check(
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
   }
   return false
 }
