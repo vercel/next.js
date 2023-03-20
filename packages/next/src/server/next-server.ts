@@ -965,7 +965,7 @@ export default class NextNodeServer extends BaseServer {
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {
-        spanName: `resolving route ${pathname}`,
+        spanName: `resolving page into components`,
         attributes: {
           'next.route': pathname,
         },
