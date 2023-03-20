@@ -37,7 +37,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-test-generator = { workspace = true }
+testing = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 # For matching on errors from chromiumoxide. Keep in
 # sync with chromiumoxide's tungstenite requirement.

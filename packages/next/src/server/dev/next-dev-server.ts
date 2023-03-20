@@ -322,7 +322,9 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           buildId: this.buildId,
         }
-      ) // In development we can't give a default path mapping
+      )
+
+      // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
@@ -1178,6 +1180,7 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
+    // TODO: see if we can remove this in the future
     if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
@@ -1193,15 +1196,14 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished = false } =
-      (await this.hotReloader?.run(
+    if (this.hotReloader) {
+      const { finished = false } = await this.hotReloader.run(
         req.originalRequest,
         res.originalResponse,
         parsedUrl
-      )) || {}
+      )
 
-    if (finished) {
-      return
+      if (finished) return
     }
 
     if (originalPathname) {
