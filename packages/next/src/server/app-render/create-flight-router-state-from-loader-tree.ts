@@ -1,7 +1,24 @@
 import { LoaderTree } from '../lib/app-dir-module'
-import { FlightRouterState } from './types'
+import { FlightRouterState, Segment } from './types'
 import { GetDynamicParamFromSegment } from './index'
 import { stringify } from 'querystring'
+
+// TODO-APP: Move __PAGE__ to a shared constant
+const PAGE_SEGMENT_KEY = '__PAGE__'
+
+export function addSearchParamsIfPageSegment(
+  segment: Segment,
+  searchParams: any
+) {
+  const isPageSegment = segment === PAGE_SEGMENT_KEY
+
+  if (isPageSegment) {
+    const stringifiedQuery = stringify(searchParams)
+    return stringifiedQuery !== '' ? segment + '?' + stringifiedQuery : segment
+  }
+
+  return segment
+}
 
 export function createFlightRouterStateFromLoaderTree(
   [segment, parallelRoutes, { layout }]: LoaderTree,
@@ -10,14 +27,10 @@ export function createFlightRouterStateFromLoaderTree(
   rootLayoutIncluded = false
 ): FlightRouterState {
   const dynamicParam = getDynamicParamFromSegment(segment)
-
   const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment
-  const isPageSegment = segment === '__PAGE__'
-  const stringifiedQuery = stringify(searchParams)
 
   const segmentTree: FlightRouterState = [
-    treeSegment +
-      (isPageSegment && stringifiedQuery !== '' ? '?' + stringifiedQuery : ''),
+    addSearchParamsIfPageSegment(treeSegment, searchParams),
     {},
   ]
 

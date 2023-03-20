@@ -69,7 +69,10 @@ import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { renderToString } from './render-to-string'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import { validateURL } from './validate-url'
-import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
+import {
+  addSearchParamsIfPageSegment,
+  createFlightRouterStateFromLoaderTree,
+} from './create-flight-router-state-from-loader-tree'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -613,19 +616,15 @@ export async function renderToHTMLOrFlight(
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             if (isPrefetch && Loading) {
-              const isPageSegment = childSegment === '__PAGE__'
-              const stringifiedQuery = stringify(query)
-
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
                 current: null,
-                segment:
-                  (childSegmentParam
+                segment: addSearchParamsIfPageSegment(
+                  childSegmentParam
                     ? childSegmentParam.treeSegment
-                    : childSegment) +
-                  (isPageSegment && stringifiedQuery !== ''
-                    ? '?' + stringifiedQuery
-                    : ''),
+                    : childSegment,
+                  query
+                ),
               }
 
               // This is turned back into an object below.
@@ -664,17 +663,14 @@ export async function renderToHTMLOrFlight(
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             })
 
-            const isPageSegment = childSegment === '__PAGE__'
-            const stringifiedQuery = stringify(query)
             const childProp: ChildProp = {
               current: <ChildComponent />,
-              segment:
-                (childSegmentParam
+              segment: addSearchParamsIfPageSegment(
+                childSegmentParam
                   ? childSegmentParam.treeSegment
-                  : childSegment) +
-                (isPageSegment && stringifiedQuery !== ''
-                  ? '?' + stringifiedQuery
-                  : ''),
+                  : childSegment,
+                query
+              ),
             }
 
             const segmentPath = createSegmentPath(currentSegmentPath)
@@ -847,13 +843,9 @@ export async function renderToHTMLOrFlight(
       }): Promise<FlightDataPath> => {
         const [loaderTreeSegment, parallelRoutes, components] =
           loaderTreeToFilter
-        const stringifiedQuery = stringify(query)
 
-        const segment =
-          loaderTreeSegment === '__PAGE__'
-            ? loaderTreeSegment +
-              (stringifiedQuery !== '' ? '?' + stringifiedQuery : '')
-            : loaderTreeSegment
+        const segment = addSearchParamsIfPageSegment(loaderTreeSegment, query)
+
         const parallelRoutesKeys = Object.keys(parallelRoutes)
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
