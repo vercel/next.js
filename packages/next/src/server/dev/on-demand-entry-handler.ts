@@ -581,48 +581,46 @@ export function onDemandEntryHandler({
   }, pingIntervalTime + 1000).unref()
 
   function handleAppDirPing(
-    _tree: FlightRouterState
+    tree: FlightRouterState
   ): { success: true } | { invalid: true } {
-    return { success: true }
-    // TODO-APP: Re-enable on-demand-entries-ping.
-    // const pages = getEntrypointsFromTree(tree, true)
-    // let toSend: { invalid: true } | { success: true } = { invalid: true }
+    const pages = getEntrypointsFromTree(tree, true)
+    let toSend: { invalid: true } | { success: true } = { invalid: true }
 
-    // for (const page of pages) {
-    //   for (const compilerType of [
-    //     COMPILER_NAMES.client,
-    //     COMPILER_NAMES.server,
-    //     COMPILER_NAMES.edgeServer,
-    //   ]) {
-    //     const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
-    //     const entryInfo = curEntries[entryKey]
+    for (const page of pages) {
+      for (const compilerType of [
+        COMPILER_NAMES.client,
+        COMPILER_NAMES.server,
+        COMPILER_NAMES.edgeServer,
+      ]) {
+        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryInfo = curEntries[entryKey]
 
-    //     // If there's no entry, it may have been invalidated and needs to be re-built.
-    //     if (!entryInfo) {
-    //       // if (page !== lastEntry) client pings, but there's no entry for page
-    //       continue
-    //     }
+        // If there's no entry, it may have been invalidated and needs to be re-built.
+        if (!entryInfo) {
+          // if (page !== lastEntry) client pings, but there's no entry for page
+          continue
+        }
 
-    //     // We don't need to maintain active state of anything other than BUILT entries
-    //     if (entryInfo.status !== BUILT) continue
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) continue
 
-    //     // If there's an entryInfo
-    //     if (!lastServerAccessPagesForAppDir.includes(entryKey)) {
-    //       lastServerAccessPagesForAppDir.unshift(entryKey)
+        // If there's an entryInfo
+        if (!lastServerAccessPagesForAppDir.includes(entryKey)) {
+          lastServerAccessPagesForAppDir.unshift(entryKey)
 
-    //       // Maintain the buffer max length
-    //       // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
-    //       if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
-    //         lastServerAccessPagesForAppDir.pop()
-    //       }
-    //     }
-    //     entryInfo.lastActiveTime = Date.now()
-    //     entryInfo.dispose = false
-    //     toSend = { success: true }
-    //   }
-    // }
+          // Maintain the buffer max length
+          // TODO: verify that the current pageKey is not at the end of the array as multiple entrypoints can exist
+          if (lastServerAccessPagesForAppDir.length > pagesBufferLength) {
+            lastServerAccessPagesForAppDir.pop()
+          }
+        }
+        entryInfo.lastActiveTime = Date.now()
+        entryInfo.dispose = false
+        toSend = { success: true }
+      }
+    }
 
-    // return toSend
+    return toSend
   }
 
   function handlePing(pg: string) {
