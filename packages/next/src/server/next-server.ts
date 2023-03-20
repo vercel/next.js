@@ -99,7 +99,6 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
-import { Worker } from 'next/dist/compiled/jest-worker'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './lib/utils'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
@@ -276,6 +275,7 @@ export default class NextNodeServer extends BaseServer {
       }
 
       const createWorker = (type: string) => {
+        const { Worker } = require('next/dist/compiled/jest-worker')
         const worker = new Worker(require.resolve('./lib/render-server'), {
           numWorkers: 1,
           // TODO: do we want to allow more than 10 OOM restarts?

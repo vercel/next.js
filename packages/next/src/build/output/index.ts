@@ -96,11 +96,11 @@ export function formatAmpMessages(amp: AmpPageStatus) {
 }
 
 const buildStore = createStore<BuildStatusStore>({
-  // @ts-ignore initial value
+  // @ts-expect-error initial value
   client: {},
-  // @ts-ignore initial value
+  // @ts-expect-error initial value
   server: {},
-  // @ts-ignore initial value
+  // @ts-expect-error initial value
   edgeServer: {},
 })
 let buildWasDone = false

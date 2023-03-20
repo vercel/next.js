@@ -363,9 +363,6 @@ const configSchema = {
         pageEnv: {
           type: 'boolean',
         },
-        preCompiledNextServer: {
-          type: 'boolean',
-        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',

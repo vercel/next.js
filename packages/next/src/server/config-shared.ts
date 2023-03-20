@@ -122,7 +122,6 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -652,7 +651,6 @@ export const defaultConfig: NextConfig = {
   experimental: {
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
-    preCompiledNextServer: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
