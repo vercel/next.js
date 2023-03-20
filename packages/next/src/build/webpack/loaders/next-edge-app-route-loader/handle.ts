@@ -3,7 +3,10 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { NextConfig } from '../../../../server/config-shared'
-import { AppRouteRouteHandler } from '../../../../server/future/route-handlers/app-route-route-handler'
+import {
+  AppRouteModule,
+  AppRouteRouteHandler,
+} from '../../../../server/future/route-handlers/app-route-route-handler'
 import { RouteKind } from '../../../../server/future/route-kind'
 import { AppRouteRouteMatcher } from '../../../../server/future/route-matchers/app-route-route-matcher'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
@@ -11,7 +14,7 @@ import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-
 
 type HandleProps = {
   page: string
-  mod: any
+  mod: AppRouteModule
   nextConfigOutput: NextConfig['output']
 }
 

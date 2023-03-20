@@ -59,7 +59,7 @@ describe('config-output-export', () => {
       },
     })
     expect(stderr).toContain(
-      'Specified "i18n" cannot but used with "output: export".'
+      'Specified "i18n" cannot be used with "output: export".'
     )
   })
 
@@ -69,7 +69,7 @@ describe('config-output-export', () => {
       rewrites: [{ source: '/from', destination: '/to' }],
     })
     expect(stderr).toContain(
-      'Specified "rewrites" cannot but used with "output: export".'
+      'Specified "rewrites" cannot be used with "output: export".'
     )
   })
 
@@ -79,7 +79,7 @@ describe('config-output-export', () => {
       redirects: [{ source: '/from', destination: '/to', permanent: true }],
     })
     expect(stderr).toContain(
-      'Specified "redirects" cannot but used with "output: export".'
+      'Specified "redirects" cannot be used with "output: export".'
     )
   })
 
@@ -94,7 +94,7 @@ describe('config-output-export', () => {
       ],
     })
     expect(stderr).toContain(
-      'Specified "headers" cannot but used with "output: export".'
+      'Specified "headers" cannot be used with "output: export".'
     )
   })
 
