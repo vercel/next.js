@@ -529,7 +529,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         },
       },
       async (span) =>
-        await this.handleRequestImpl(req, res, parsedUrl).finally(() =>
+        this.handleRequestImpl(req, res, parsedUrl).finally(() =>
           span?.setAttributes({
             'http.status_code': res.statusCode,
           })
