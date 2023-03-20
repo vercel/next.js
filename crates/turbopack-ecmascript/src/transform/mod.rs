@@ -16,7 +16,7 @@ use swc_core::{
         visit::{FoldWith, VisitMutWith},
     },
 };
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::primitives::{OptionStringVc, StringVc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::environment::EnvironmentVc;
 
@@ -33,6 +33,10 @@ pub enum EcmascriptInputTransform {
     React {
         #[serde(default)]
         refresh: bool,
+        // swc.jsc.transform.react.importSource
+        import_source: OptionStringVc,
+        // swc.jsc.transform.react.runtime,
+        runtime: OptionStringVc,
     },
     StyledComponents,
     StyledJsx,
@@ -104,22 +108,45 @@ impl EcmascriptInputTransform {
             ..
         } = ctx;
         match self {
-            EcmascriptInputTransform::React { refresh } => {
+            EcmascriptInputTransform::React {
+                refresh,
+                import_source,
+                runtime,
+            } => {
+                use swc_core::ecma::transforms::react::{Options, Runtime};
+                let runtime = if let Some(runtime) = &*runtime.await? {
+                    match runtime.as_str() {
+                        "classic" => Runtime::Classic,
+                        "automatic" => Runtime::Automatic,
+                        _ => {
+                            return Err(anyhow::anyhow!(
+                                "Invalid value for swc.jsc.transform.react.runtime: {}",
+                                runtime
+                            ))
+                        }
+                    }
+                } else {
+                    Runtime::Automatic
+                };
+
+                let config = Options {
+                    runtime: Some(runtime),
+                    development: Some(true),
+                    import_source: (&*import_source.await?).clone(),
+                    refresh: if *refresh {
+                        Some(swc_core::ecma::transforms::react::RefreshOptions {
+                            ..Default::default()
+                        })
+                    } else {
+                        None
+                    },
+                    ..Default::default()
+                };
+
                 program.visit_mut_with(&mut react(
                     source_map.clone(),
                     Some(comments.clone()),
-                    swc_core::ecma::transforms::react::Options {
-                        runtime: Some(swc_core::ecma::transforms::react::Runtime::Automatic),
-                        development: Some(true),
-                        refresh: if *refresh {
-                            Some(swc_core::ecma::transforms::react::RefreshOptions {
-                                ..Default::default()
-                            })
-                        } else {
-                            None
-                        },
-                        ..Default::default()
-                    },
+                    config,
                     top_level_mark,
                 ));
             }

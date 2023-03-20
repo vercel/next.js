@@ -20,7 +20,7 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     condition::ContextCondition,
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
-    module_options::ModuleOptionsContext,
+    module_options::{JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext},
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
@@ -191,7 +191,9 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         TransitionsByNameVc::cell(HashMap::new()),
         compile_time_info,
         ModuleOptionsContext {
-            enable_jsx: true,
+            enable_jsx: Some(JsxTransformOptionsVc::cell(JsxTransformOptions {
+                ..Default::default()
+            })),
             enable_emotion: true,
             enable_styled_components: true,
             preset_env_versions: Some(env),
