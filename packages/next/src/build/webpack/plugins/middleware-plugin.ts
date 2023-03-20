@@ -858,17 +858,19 @@ export default class MiddlewarePlugin {
   }
 }
 
-const supportedEdgePolyfills = new Set([
+export const SUPPORTED_NATIVE_MODULES = [
   'buffer',
   'events',
   'assert',
   'util',
   'async_hooks',
-])
+] as const
+
+const supportedEdgePolyfills = new Set<string>(SUPPORTED_NATIVE_MODULES)
 
 export function getEdgePolyfilledModules() {
   const records: Record<string, string> = {}
-  for (const mod of supportedEdgePolyfills) {
+  for (const mod of SUPPORTED_NATIVE_MODULES) {
     records[mod] = `commonjs node:${mod}`
     records[`node:${mod}`] = `commonjs node:${mod}`
   }

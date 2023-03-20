@@ -2,54 +2,24 @@ use std::cmp::Ordering;
 
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{indexset, IndexSet};
-use turbo_tasks::primitives::{StringVc, U32Vc};
 
-use super::options::{FontData, FontWeights, NextFontGoogleOptionsVc};
+use super::options::{FontData, FontWeights};
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct FontAxes {
-    pub(crate) wght: IndexSet<String>,
-    pub(crate) ital: IndexSet<FontItal>,
-    pub(crate) variable_axes: Option<Vec<(String, String)>>,
+pub(super) struct FontAxes {
+    pub(super) wght: IndexSet<String>,
+    pub(super) ital: IndexSet<FontStyle>,
+    pub(super) variable_axes: Option<Vec<(String, String)>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) enum FontItal {
+pub(super) enum FontStyle {
     Italic,
     Normal,
 }
 
-#[turbo_tasks::value(shared)]
-pub(crate) enum FontFamilyType {
-    WebFont,
-    Fallback,
-}
-
-#[turbo_tasks::function]
-pub(crate) async fn get_scoped_font_family(
-    ty: FontFamilyTypeVc,
-    options: NextFontGoogleOptionsVc,
-    request_hash: U32Vc,
-) -> Result<StringVc> {
-    let options = options.await?;
-    let hash = {
-        let mut hash = format!("{:x?}", request_hash.await?);
-        hash.truncate(6);
-        hash
-    };
-
-    let font_family_base = options.font_family.replace(' ', "_");
-    let ty = &*ty.await?;
-    let font_family = match ty {
-        FontFamilyType::WebFont => font_family_base,
-        FontFamilyType::Fallback => format!("{}_Fallback", font_family_base),
-    };
-
-    Ok(StringVc::cell(format!("__{}_{}", font_family, hash)))
-}
-
 // Derived from https://github.com/vercel/next.js/blob/9e098da0915a2a4581bebe2270953a1216be1ba4/packages/font/src/google/utils.ts#L232
-pub(crate) fn get_font_axes(
+pub(super) fn get_font_axes(
     font_data: &FontData,
     font_family: &str,
     weights: &FontWeights,
@@ -66,10 +36,10 @@ pub(crate) fn get_font_axes(
         let has_normal = styles.contains(&"normal".to_owned());
         let mut set = IndexSet::new();
         if has_normal {
-            set.insert(FontItal::Normal);
+            set.insert(FontStyle::Normal);
         }
         if has_italic {
-            set.insert(FontItal::Italic);
+            set.insert(FontStyle::Italic);
         }
         set
     };
@@ -134,7 +104,7 @@ pub(crate) fn get_font_axes(
 }
 
 // Derived from https://github.com/vercel/next.js/blob/9e098da0915a2a4581bebe2270953a1216be1ba4/packages/font/src/google/utils.ts#L128
-pub(crate) fn get_stylesheet_url(
+pub(super) fn get_stylesheet_url(
     root_url: &str,
     font_family: &str,
     axes: &FontAxes,
@@ -170,12 +140,12 @@ pub(crate) fn get_stylesheet_url(
 
                     // If Normal is the only requested variant, it's safe to omit the ital axis
                     // entirely. Otherwise, include all variants.
-                    if matches!(ital, FontItal::Italic) || axes.ital.len() > 1 {
+                    if matches!(ital, FontStyle::Italic) || axes.ital.len() > 1 {
                         variant.push((
                             "ital",
                             match ital {
-                                FontItal::Normal => "0",
-                                FontItal::Italic => "1",
+                                FontStyle::Normal => "0",
+                                FontStyle::Italic => "1",
                             },
                         ));
                     }
@@ -264,9 +234,9 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::get_font_axes;
-    use crate::next_font_google::{
+    use crate::next_font::google::{
         options::{FontData, FontWeights},
-        util::{get_stylesheet_url, FontAxes, FontItal},
+        util::{get_stylesheet_url, FontAxes, FontStyle},
         GOOGLE_FONTS_STYLESHEET_URL,
     };
 
@@ -442,7 +412,7 @@ mod tests {
                 "Roboto Mono",
                 &FontAxes {
                     wght: indexset! {"500".to_owned()},
-                    ital: indexset! {FontItal::Normal},
+                    ital: indexset! {FontStyle::Normal},
                     variable_axes: None
                 },
                 "optional"
@@ -461,7 +431,7 @@ mod tests {
                 "Roboto Serif",
                 &FontAxes {
                     wght: indexset! {"500".to_owned()},
-                    ital: indexset! {FontItal::Normal},
+                    ital: indexset! {FontStyle::Normal},
                     variable_axes: Some(vec![
                         ("GRAD".to_owned(), "-50..100".to_owned()),
                         ("opsz".to_owned(), "8..144".to_owned()),
@@ -484,7 +454,7 @@ mod tests {
                 "Roboto Serif",
                 &FontAxes {
                     wght: indexset! {"500".to_owned(), "300".to_owned()},
-                    ital: indexset! {FontItal::Normal, FontItal::Italic},
+                    ital: indexset! {FontStyle::Normal, FontStyle::Italic},
                     variable_axes: Some(vec![
                         ("GRAD".to_owned(), "-50..100".to_owned()),
                         ("opsz".to_owned(), "8..144".to_owned()),
