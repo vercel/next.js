@@ -672,6 +672,7 @@ import BOOTSTRAP from {};
             chunking_context,
             intermediate_output_path,
             output_root: intermediate_output_path.root(),
+            project_dir: this.project_path,
         }
         .cell())
     }
@@ -745,6 +746,7 @@ impl AppRouteVc {
             chunking_context,
             intermediate_output_path: this.intermediate_output_path,
             output_root: this.output_root,
+            project_dir: this.project_path,
         }
         .cell())
     }
