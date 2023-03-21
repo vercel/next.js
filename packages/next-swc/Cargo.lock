@@ -3008,6 +3008,7 @@ version = "0.1.0"
 dependencies = [
  "mdxjs",
  "modularize_imports",
+ "next-build",
  "next-dev",
  "node-file-trace",
  "styled_components",
@@ -3015,6 +3016,19 @@ dependencies = [
  "swc_core",
  "swc_emotion",
  "testing",
+]
+
+[[package]]
+name = "next-build"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "next-core",
+ "turbo-malloc",
+ "turbo-tasks",
+ "turbo-tasks-build",
+ "turbo-tasks-memory",
+ "vergen",
 ]
 
 [[package]]
