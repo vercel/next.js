@@ -117,18 +117,26 @@ export async function createStaticMetadataFromRoute(
         const [filename, ext] = path.basename(filepath).split('.')
         const isDynamicResource = pageExtensions.includes(ext)
 
-        // () => Promise<ImageMetaInfo>
+        // imageModule type: () => Promise<ImageMetaInfo>
         const imageModule = isDynamicResource
           ? `(async () => {
             let { alt, size, contentType } = await import(/* webpackMode: "lazy" */ ${JSON.stringify(
               filepath
             )})
-            return {
+
+            const props = {
               alt,
-              size,
-              contentType,
+              type: contentType,
               url: ${JSON.stringify(route + '/' + filename)},
             }
+            if (size) {
+              ${
+                type === 'twitter' || type === 'opengraph'
+                  ? 'props.width = size.width; props.height = size.height;'
+                  : 'props.sizes = size.width + "x" + size.height;'
+              }
+            }
+            return props
           })`
           : `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
               `next-metadata-image-loader?${stringify({

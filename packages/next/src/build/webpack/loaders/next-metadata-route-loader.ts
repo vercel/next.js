@@ -42,7 +42,6 @@ const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
   )}, '')
 const buffer = fs.readFileSync(filePath)
 
-
 export function GET() {
   return new NextResponse(buffer, {
     headers: {

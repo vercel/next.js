@@ -147,14 +147,18 @@ createNextDescribe(
 
     it('should inject dynamic metadata properly to head', async () => {
       const $ = await next.render$('/')
-      const iconUrl = $('link[rel="icon"]').attr('href')
-      const appleIconUrl = $('link[rel="apple-touch-icon"]').attr('href')
+      const $icon = $('link[rel="icon"]')
+      const $appleIcon = $('link[rel="apple-touch-icon"]')
       const ogImageUrl = $('meta[property="og:image"]').attr('content')
       const twitterImageUrl = $('meta[name="twitter:image"]').attr('content')
 
       // non absolute urls
-      expect(iconUrl).toBe('/icon')
-      expect(appleIconUrl).toBe('/apple-icon')
+      expect($icon.attr('href')).toBe('/icon')
+      expect($icon.attr('sizes')).toBe('512x512')
+      expect($icon.attr('type')).toBe('image/png')
+      expect($appleIcon.attr('href')).toBe('/apple-icon')
+      expect($appleIcon.attr('sizes')).toBe(undefined)
+      expect($appleIcon.attr('type')).toBe('image/png')
 
       // absolute urls
       expect(ogImageUrl).toBe(

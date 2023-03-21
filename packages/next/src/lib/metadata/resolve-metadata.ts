@@ -206,9 +206,8 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver: any) =>
-      interopDefault(await iconResolver()) as MetadataImageModule
+    async (iconResolver: () => Promise<MetadataImageModule>) =>
+      interopDefault(await iconResolver())
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
@@ -232,11 +231,6 @@ async function resolveStaticMetadata(components: ComponentsType) {
   }
 
   return staticMetadata
-}
-
-function isLayout(loaderTree: LoaderTree) {
-  const { layout } = loaderTree[2]
-  return typeof layout !== 'undefined'
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]

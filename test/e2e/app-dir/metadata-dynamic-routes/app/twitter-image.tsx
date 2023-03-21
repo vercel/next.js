@@ -1,6 +1,7 @@
 import { ImageResponse } from '@vercel/og'
 
 export const alt = 'Twitter'
+export const size = { width: 1600, height: 900 }
 
 export default function twitter() {
   return new ImageResponse(
@@ -18,6 +19,7 @@ export default function twitter() {
       >
         Twitter Image
       </div>
-    )
+    ),
+    size
   )
 }
