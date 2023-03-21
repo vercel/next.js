@@ -135,6 +135,7 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
+import { ExportOptions } from '../export'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2291,7 +2292,8 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-          const exportOptions = {
+          const exportOptions: ExportOptions = {
+            isInvokedFromCli: false,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -3046,6 +3048,21 @@ export default async function build(
               path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
+      }
+
+      if (config.output === 'export') {
+        // TODO: change dirDir above to remove the need for outDir.
+        // We could do something like `next build --distDir .nexttemp`
+        // and then `next export --distDir .nexttemp --outDir out`
+        const exportApp: typeof import('../export').default =
+          require('../export').default
+        const options: ExportOptions = {
+          silent: true,
+          threads: config.experimental.cpus,
+          outdir: path.join(dir, 'out'),
+          isInvokedFromCli: false,
+        }
+        await exportApp(dir, options, nextBuildSpan, config)
       }
 
       await nextBuildSpan

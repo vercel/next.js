@@ -143,7 +143,7 @@ const createProgress = (total: number, label: string) => {
   }
 }
 
-interface ExportOptions {
+export interface ExportOptions {
   outdir: string
   silent?: boolean
   threads?: number
@@ -154,6 +154,7 @@ interface ExportOptions {
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   appPaths?: string[]
+  isInvokedFromCli: boolean
 }
 
 export default async function exportApp(
@@ -162,6 +163,12 @@ export default async function exportApp(
   span: Span,
   configuration?: NextConfigComplete
 ): Promise<void> {
+  if (options.isInvokedFromCli && configuration?.output === 'export') {
+    Log.warn(
+      '"next export" is no longer needed because "output: export" is configured in next.config.js'
+    )
+    return
+  }
   const nextExportSpan = span.traceChild('next-export')
   const hasAppDir = !!options.appPaths
 
