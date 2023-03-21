@@ -320,8 +320,8 @@ export async function renderToHTMLOrFlight(
         loaderTree: tree,
         props: layerProps,
         array: metadataItems,
-        pathname: currentTreePrefix
-          // __PAGE__ shouldn't be shown in a pathname
+        route: currentTreePrefix
+          // __PAGE__ shouldn't be shown in a route
           .filter((s) => s !== PAGE_SEGMENT_KEY)
           .join('/'),
       })
