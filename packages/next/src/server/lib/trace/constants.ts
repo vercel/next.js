@@ -72,6 +72,7 @@ enum StartServerSpan {
 
 enum RenderSpan {
   getServerSideProps = 'Render.getServerSideProps',
+  getStaticProps = 'Render.getStaticProps',
   renderToString = 'Render.renderToString',
   renderDocument = 'Render.renderDocument',
   createBodyResult = 'Render.createBodyResult',
@@ -117,6 +118,7 @@ type SpanTypes =
 export const NextVanillaSpanAllowlist = [
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
+  RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
   RenderSpan.renderDocument,

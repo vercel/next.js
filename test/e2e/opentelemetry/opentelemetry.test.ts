@@ -266,6 +266,18 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.span_name": "getStaticProps /pages/[param]/getStaticProps",
+                "next.span_type": "Render.getStaticProps",
+              },
+              "kind": 0,
+              "name": "getStaticProps /pages/[param]/getStaticProps",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
                 "next.span_name": "render page (pages) /pages/[param]/getStaticProps",
                 "next.span_type": "Render.renderDocument",
               },
