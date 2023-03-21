@@ -2458,6 +2458,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
+              if (route === '/not-found') return
 
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
