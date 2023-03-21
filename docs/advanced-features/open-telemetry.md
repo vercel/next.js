@@ -29,7 +29,7 @@ npm install @opentelemetry/api @opentelemetry/exporter-trace-otlp-http @opentele
 Next, create a custom [`instrumentation.ts`](./instrumentation.md) file in the root of the project.
 Since you can't import OpenTelemetry in `register` functions executed on the Edge Runtime, we recommend creating second file that will only be imported if the runtime is `nodejs`.
 
-The following example demonstrates an `instrumenation.ts` file that checks the runtime, then imports the code it needs to run:
+The following example demonstrates an `instrumentation.ts` file that checks the runtime, then imports the code it needs to run:
 
 ```ts
 // instrumentation.ts
