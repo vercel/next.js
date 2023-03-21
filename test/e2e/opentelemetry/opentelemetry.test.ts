@@ -153,6 +153,18 @@ createNextDescribe(
                 "code": 0,
               },
             },
+            Object {
+              "attributes": Object {
+                "next.span_name": "generateMetadata",
+                "next.span_type": "ResolveMetadata.generateMetadata",
+              },
+              "kind": 0,
+              "name": "generateMetadata",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
           ]
         `)
       })

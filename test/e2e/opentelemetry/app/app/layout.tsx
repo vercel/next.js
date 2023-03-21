@@ -10,3 +10,7 @@ export default async function Layout({
     </html>
   )
 }
+
+export async function generateMetadata() {
+  return {}
+}
