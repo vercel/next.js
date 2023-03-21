@@ -130,6 +130,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/app/layout",
                 "next.span_name": "generateMetadata /app/layout",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
@@ -142,6 +143,7 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
+                "next.route": "/app/rsc-fetch/page",
                 "next.span_name": "generateMetadata /app/rsc-fetch/page",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
