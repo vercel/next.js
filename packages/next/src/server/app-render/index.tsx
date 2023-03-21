@@ -12,7 +12,6 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-
 // Import builtin react directly to avoid require cache conflicts
 import React from 'next/dist/compiled/react'
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
@@ -69,8 +68,22 @@ import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { renderToString } from './render-to-string'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import { validateURL } from './validate-url'
+import {
+  addSearchParamsIfPageSegment,
+  createFlightRouterStateFromLoaderTree,
+} from './create-flight-router-state-from-loader-tree'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+export type GetDynamicParamFromSegment = (
+  // [slug] / [[slug]] / [...slug]
+  segment: string
+) => {
+  param: string
+  value: string | string[] | null
+  treeSegment: Segment
+  type: DynamicParamTypesShort
+} | null
 
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
@@ -217,15 +230,10 @@ export async function renderToHTMLOrFlight(
     /**
      * Parse the dynamic segment and return the associated value.
      */
-    const getDynamicParamFromSegment = (
+    const getDynamicParamFromSegment: GetDynamicParamFromSegment = (
       // [slug] / [[slug]] / [...slug]
       segment: string
-    ): {
-      param: string
-      value: string | string[] | null
-      treeSegment: Segment
-      type: DynamicParamTypesShort
-    } | null => {
+    ) => {
       const segmentParam = getSegmentParam(segment)
       if (!segmentParam) {
         return null
@@ -324,36 +332,6 @@ export async function renderToHTMLOrFlight(
       }
 
       return [null, metadataItems]
-    }
-
-    const createFlightRouterStateFromLoaderTree = (
-      [segment, parallelRoutes, { layout }]: LoaderTree,
-      rootLayoutIncluded = false
-    ): FlightRouterState => {
-      const dynamicParam = getDynamicParamFromSegment(segment)
-
-      const segmentTree: FlightRouterState = [
-        dynamicParam ? dynamicParam.treeSegment : segment,
-        {},
-      ]
-
-      if (!rootLayoutIncluded && typeof layout !== 'undefined') {
-        rootLayoutIncluded = true
-        segmentTree[4] = true
-      }
-
-      segmentTree[1] = Object.keys(parallelRoutes).reduce(
-        (existingValue, currentValue) => {
-          existingValue[currentValue] = createFlightRouterStateFromLoaderTree(
-            parallelRoutes[currentValue],
-            rootLayoutIncluded
-          )
-          return existingValue
-        },
-        {} as FlightRouterState[1]
-      )
-
-      return segmentTree
     }
 
     let defaultRevalidate: false | undefined | number = false
@@ -640,9 +618,12 @@ export async function renderToHTMLOrFlight(
               const childProp: ChildProp = {
                 // Null indicates the tree is not fully rendered
                 current: null,
-                segment: childSegmentParam
-                  ? childSegmentParam.treeSegment
-                  : childSegment,
+                segment: addSearchParamsIfPageSegment(
+                  childSegmentParam
+                    ? childSegmentParam.treeSegment
+                    : childSegment,
+                  query
+                ),
               }
 
               // This is turned back into an object below.
@@ -683,9 +664,12 @@ export async function renderToHTMLOrFlight(
 
             const childProp: ChildProp = {
               current: <ChildComponent />,
-              segment: childSegmentParam
-                ? childSegmentParam.treeSegment
-                : childSegment,
+              segment: addSearchParamsIfPageSegment(
+                childSegmentParam
+                  ? childSegmentParam.treeSegment
+                  : childSegment,
+                query
+              ),
             }
 
             const segmentPath = createSegmentPath(currentSegmentPath)
@@ -857,6 +841,7 @@ export async function renderToHTMLOrFlight(
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
+
         const parallelRoutesKeys = Object.keys(parallelRoutes)
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
@@ -881,9 +866,10 @@ export async function renderToHTMLOrFlight(
                 [segmentParam.param]: segmentParam.value,
               }
             : parentParams
-        const actualSegment: Segment = segmentParam
-          ? segmentParam.treeSegment
-          : segment
+        const actualSegment: Segment = addSearchParamsIfPageSegment(
+          segmentParam ? segmentParam.treeSegment : segment,
+          query
+        )
 
         /**
          * Decide if the current segment is where rendering has to start.
@@ -902,7 +888,11 @@ export async function renderToHTMLOrFlight(
           return [
             actualSegment,
             // Create router state using the slice of the loaderTree
-            createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
+            createFlightRouterStateFromLoaderTree(
+              loaderTreeToFilter,
+              getDynamicParamFromSegment,
+              query
+            ),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
             isPrefetch && !Boolean(components.loading)
               ? null
@@ -1074,7 +1064,12 @@ export async function renderToHTMLOrFlight(
       ? {
           validateRootLayout: {
             assetPrefix: renderOpts.assetPrefix,
-            getTree: () => createFlightRouterStateFromLoaderTree(loaderTree),
+            getTree: () =>
+              createFlightRouterStateFromLoaderTree(
+                loaderTree,
+                getDynamicParamFromSegment,
+                query
+              ),
           },
         }
       : {}
@@ -1101,7 +1096,11 @@ export async function renderToHTMLOrFlight(
           asNotFound: props.asNotFound,
         })
 
-        const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
+        const initialTree = createFlightRouterStateFromLoaderTree(
+          loaderTree,
+          getDynamicParamFromSegment,
+          query
+        )
 
         return (
           <>
