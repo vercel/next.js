@@ -2,7 +2,7 @@ import { ImageResponse } from '@vercel/og'
 
 export const alt = 'Twitter'
 
-export default function () {
+export default function twitter() {
   return new ImageResponse(
     (
       <div

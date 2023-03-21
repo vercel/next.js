@@ -1,6 +1,8 @@
 import { ImageResponse } from '@vercel/og'
 
-export default function appleIcon() {
+export const alt = 'Open Graph'
+
+export default function og({ params }) {
   return new ImageResponse(
     (
       <div
@@ -10,12 +12,11 @@ export default function appleIcon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 88,
-          background: '#fff',
-          color: '#000',
+          fontSize: 128,
+          background: 'lavender',
         }}
       >
-        Apple Icon
+        Dynamic Open Graph - {params.slug}
       </div>
     )
   )

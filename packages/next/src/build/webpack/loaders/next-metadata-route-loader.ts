@@ -84,8 +84,10 @@ function getDynamicImageRouteCode(resourcePath: string) {
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
 
-export async function GET(req) {
-  return handler(req)
+export async function GET(req, ctx) {
+  const res = await handler({ params: ctx.params })
+  res.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
+  return res
 }
 `
 }

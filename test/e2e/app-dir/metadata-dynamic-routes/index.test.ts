@@ -96,9 +96,9 @@ createNextDescribe(
 
         expect(res.headers.get('content-type')).toBe('image/png')
         // TODO-METADATA: revisit caching for og
-        // expect(res.headers.get('cache-control')).toBe(
-        //   'public, max-age=0, must-revalidate'
-        // )
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
       })
 
       it('should render og image with twitter-image dynamic routes', async () => {
@@ -106,9 +106,9 @@ createNextDescribe(
 
         expect(res.headers.get('content-type')).toBe('image/png')
         // TODO-METADATA: revisit caching for og
-        // expect(res.headers.get('cache-control')).toBe(
-        //   'public, max-age=0, must-revalidate'
-        // )
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
       })
     })
 
@@ -118,9 +118,9 @@ createNextDescribe(
 
         expect(res.headers.get('content-type')).toBe('image/png')
         // TODO-METADATA: revisit caching for og
-        // expect(res.headers.get('cache-control')).toBe(
-        //   'public, max-age=0, must-revalidate'
-        // )
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
       })
 
       it('should render icon with favicon dynamic routes', async () => {
@@ -128,20 +128,18 @@ createNextDescribe(
 
         expect(res.headers.get('content-type')).toBe('image/png')
         // TODO-METADATA: revisit caching for og
-        // expect(res.headers.get('cache-control')).toBe(
-        //   'public, max-age=0, must-revalidate'
-        // )
+        expect(res.headers.get('cache-control')).toBe(
+          'public, max-age=0, must-revalidate'
+        )
       })
     })
 
     it('should inject dynamic metadata properly to head', async () => {
       const $ = await next.render$('/')
       const iconUrl = $('link[rel="icon"]').attr('href')
-      const appleIconUrl = $('link[rel="icon"]').attr('href')
+      const appleIconUrl = $('link[rel="apple-touch-icon"]').attr('href')
       const ogImageUrl = $('meta[property="og:image"]').attr('content')
-      const twitterImageUrl = $('meta[property="twitter:image"]').attr(
-        'content'
-      )
+      const twitterImageUrl = $('meta[name="twitter:image"]').attr('content')
 
       // non absolute urls
       expect(iconUrl).toBe('/icon')
@@ -159,7 +157,7 @@ createNextDescribe(
       expect($('meta[property="og:image:alt"]').attr('content')).toBe(
         'Open Graph'
       )
-      expect($('meta[property="twitter:image:alt"]').attr('content')).toBe(
+      expect($('meta[name="twitter:image:alt"]').attr('content')).toBe(
         'Twitter'
       )
     })

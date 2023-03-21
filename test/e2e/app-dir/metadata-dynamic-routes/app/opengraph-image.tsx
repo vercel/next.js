@@ -2,7 +2,7 @@ import { ImageResponse } from '@vercel/og'
 
 export const alt = 'Open Graph'
 
-export default function () {
+export default function og() {
   return new ImageResponse(
     (
       <div

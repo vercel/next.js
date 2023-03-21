@@ -1,6 +1,6 @@
 import { ImageResponse } from '@vercel/og'
 
-export default function () {
+export default function icon() {
   return new ImageResponse(
     (
       <div
