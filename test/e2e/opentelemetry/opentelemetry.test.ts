@@ -85,64 +85,76 @@ createNextDescribe(
         await next.fetch('/app/rsc-fetch')
 
         expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-                  Array [
-                    Object {
-                      "attributes": Object {
-                        "http.method": "GET",
-                        "http.url": "https://vercel.com/",
-                        "net.peer.name": "vercel.com",
-                        "next.span_name": "fetch GET https://vercel.com/",
-                        "next.span_type": "AppRender.fetch",
-                      },
-                      "kind": 2,
-                      "name": "fetch GET https://vercel.com/",
-                      "parentId": "[parent-id]",
-                      "status": Object {
-                        "code": 0,
-                      },
-                    },
-                    Object {
-                      "attributes": Object {
-                        "next.span_name": "render page (app) /app/rsc-fetch",
-                        "next.span_type": "AppRender.getBodyResult",
-                      },
-                      "kind": 0,
-                      "name": "render page (app) /app/rsc-fetch",
-                      "parentId": "[parent-id]",
-                      "status": Object {
-                        "code": 0,
-                      },
-                    },
-                    Object {
-                      "attributes": Object {
-                        "http.method": "GET",
-                        "http.status_code": 200,
-                        "http.target": "/app/rsc-fetch",
-                        "next.span_name": "GET /app/rsc-fetch",
-                        "next.span_type": "BaseServer.handleRequest",
-                      },
-                      "kind": 1,
-                      "name": "GET /app/rsc-fetch",
-                      "parentId": undefined,
-                      "status": Object {
-                        "code": 0,
-                      },
-                    },
-                    Object {
-                      "attributes": Object {
-                        "next.route": "/app/rsc-fetch/page",
-                        "next.span_name": "resolving page into components",
-                        "next.span_type": "NextNodeServer.findPageComponents",
-                      },
-                      "kind": 0,
-                      "name": "resolving page into components",
-                      "parentId": "[parent-id]",
-                      "status": Object {
-                        "code": 0,
-                      },
-                    },
-                  ]
-              `)
+          Array [
+            Object {
+              "attributes": Object {
+                "http.method": "GET",
+                "http.url": "https://vercel.com/",
+                "net.peer.name": "vercel.com",
+                "next.span_name": "fetch GET https://vercel.com/",
+                "next.span_type": "AppRender.fetch",
+              },
+              "kind": 2,
+              "name": "fetch GET https://vercel.com/",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
+                "next.span_name": "render page (app) /app/rsc-fetch",
+                "next.span_type": "AppRender.getBodyResult",
+              },
+              "kind": 0,
+              "name": "render page (app) /app/rsc-fetch",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
+                "http.method": "GET",
+                "http.status_code": 200,
+                "http.target": "/app/rsc-fetch",
+                "next.span_name": "GET /app/rsc-fetch",
+                "next.span_type": "BaseServer.handleRequest",
+              },
+              "kind": 1,
+              "name": "GET /app/rsc-fetch",
+              "parentId": undefined,
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
+                "next.route": "/app/rsc-fetch/page",
+                "next.span_name": "resolving page into components",
+                "next.span_type": "NextNodeServer.findPageComponents",
+              },
+              "kind": 0,
+              "name": "resolving page into components",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
+                "next.span_name": "generateMetadata",
+                "next.span_type": "ResolveMetadata.generateMetadata",
+              },
+              "kind": 0,
+              "name": "generateMetadata",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+          ]
+        `)
       })
 
       it('should handle route handlers in app router', async () => {

@@ -25,6 +25,8 @@ import {
   resolveViewport,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
+import { getTracer } from '../../server/lib/trace/tracer'
+import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
@@ -190,7 +192,14 @@ async function getDefinedMetadata(
   }
   return (
     (mod.generateMetadata
-      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      ? (parent: ResolvingMetadata) =>
+          getTracer().trace(
+            ResolveMetadataSpan.generateMetadata,
+            {
+              spanName: `generateMetadata`,
+            },
+            () => mod.generateMetadata(props, parent)
+          )
       : mod.metadata) || null
   )
 }

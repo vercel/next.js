@@ -96,6 +96,10 @@ enum AppRouteRouteHandlersSpan {
   runHandler = 'AppRouteRouteHandlers.runHandler',
 }
 
+enum ResolveMetadataSpan {
+  generateMetadata = 'ResolveMetadata.generateMetadata',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -107,6 +111,7 @@ type SpanTypes =
   | `${AppRenderSpan}`
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
+  | `${ResolveMetadataSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
@@ -118,6 +123,7 @@ export const NextVanillaSpanAllowlist = [
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
+  ResolveMetadataSpan.generateMetadata,
 ]
 
 export {
@@ -132,4 +138,5 @@ export {
   AppRenderSpan,
   NodeSpan,
   AppRouteRouteHandlersSpan,
+  ResolveMetadataSpan,
 }
