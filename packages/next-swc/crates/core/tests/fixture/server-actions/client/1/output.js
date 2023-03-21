@@ -5,6 +5,11 @@
 export default async function $$ACTION_0(...args) {
     return __build_action__($$ACTION_0, args);
 };
+import ensureServerEntryExports from "private-next-rsc-action-proxy";
+ensureServerEntryExports([
+    myAction,
+    $$ACTION_0
+]);
 myAction.$$typeof = Symbol.for("react.server.reference");
 myAction.$$id = "e10665baac148856374b2789aceb970f66fec33e";
 myAction.$$bound = [];
