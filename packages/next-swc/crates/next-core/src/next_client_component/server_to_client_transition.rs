@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::OptionStringVc, Value};
 use turbopack::{
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
@@ -57,7 +57,11 @@ impl Transition for NextServerToClientTransition {
                 EcmascriptInputTransform::TypeScript {
                     use_define_for_class_fields: false,
                 },
-                EcmascriptInputTransform::React { refresh: false },
+                EcmascriptInputTransform::React {
+                    refresh: false,
+                    import_source: OptionStringVc::cell(None),
+                    runtime: OptionStringVc::cell(None),
+                },
             ]),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {

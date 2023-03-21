@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{primitives::OptionStringVc, TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbopack::{
@@ -658,7 +658,11 @@ import BOOTSTRAP from {};
                 context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::React { refresh: false },
+                    EcmascriptInputTransform::React {
+                        refresh: false,
+                        import_source: OptionStringVc::cell(None),
+                        runtime: OptionStringVc::cell(None),
+                    },
                     EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: false,
                     },
