@@ -2,7 +2,7 @@ use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
+    primitives::{OptionStringVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -721,7 +721,11 @@ impl SsrEntryVc {
                     EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: false,
                     },
-                    EcmascriptInputTransform::React { refresh: false },
+                    EcmascriptInputTransform::React {
+                        refresh: false,
+                        import_source: OptionStringVc::cell(None),
+                        runtime: OptionStringVc::cell(None),
+                    },
                 ]),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(inner_assets),
