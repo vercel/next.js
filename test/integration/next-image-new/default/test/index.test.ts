@@ -183,6 +183,7 @@ function runTests(mode) {
       expect(warnings).not.toMatch(
         /was detected as the Largest Contentful Paint/gm
       )
+      expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
 
       // should preload with crossorigin
       expect(

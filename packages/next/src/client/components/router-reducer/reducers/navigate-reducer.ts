@@ -41,13 +41,12 @@ export function navigateReducer(
   const {
     url,
     isExternalUrl,
-    locationSearch,
     navigateType,
     cache,
     mutable,
     forceOptimisticNavigation,
   } = action
-  const { pathname, search, hash } = url
+  const { pathname, hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
 
@@ -110,14 +109,11 @@ export function navigateReducer(
 
       const applied = applyFlightData(state, cache, flightDataPath)
 
-      const hardNavigate =
-        // TODO-APP: Revisit searchParams support
-        search !== locationSearch ||
-        shouldHardNavigate(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
-          state.tree
-        )
+      const hardNavigate = shouldHardNavigate(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        state.tree
+      )
 
       if (hardNavigate) {
         cache.status = CacheStates.READY

@@ -23,7 +23,11 @@ export function normalizeMetadataRoute(page: string) {
     if (route === '/manifest') {
       route += '.webmanifest'
     }
-    route = `${route}/route`
+    // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
+    // If it's a metadata file route, we need to append /route to the page.
+    if (!route.endsWith('/route')) {
+      route = `${route}/route`
+    }
   }
   return route
 }
