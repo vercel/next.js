@@ -9,7 +9,6 @@ import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
 import { spawn } from 'child_process'
-import { NextBuildContext } from '../build-context'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -472,7 +471,7 @@ function loadNative(isCustomTurbopack = false) {
             require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
           }
         },
-        nextBuild: (options: typeof NextBuildContext) => {
+        nextBuild: (options: unknown) => {
           return bindings.nextBuild(options)
         },
         startTrace: (options = {}, turboTasks: unknown) =>
