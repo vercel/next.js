@@ -40,7 +40,6 @@ import { NextURL } from '../../web/next-url'
 import { NextConfig } from '../../config-shared'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import path from 'path'
 import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
 import { WebNextRequest } from '../../base-http/web'
 
@@ -301,9 +300,12 @@ function proxyRequest(
 
 function getPathnameFromAbsolutePath(absolutePath: string) {
   // Remove prefix including app dir
-  const appDir = path.sep + 'app' + path.sep
+  let appDir = '/app/'
+  if (!absolutePath.includes(appDir)) {
+    appDir = '\\app\\'
+  }
   const [, ...parts] = absolutePath.split(appDir)
-  const relativePath = path.sep + parts.join(appDir)
+  const relativePath = appDir[0] + parts.join(appDir)
 
   // remove extension
   const pathname = relativePath.split('.').slice(0, -1).join('.')
