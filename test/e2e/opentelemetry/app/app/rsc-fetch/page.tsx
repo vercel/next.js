@@ -1,4 +1,4 @@
-// We are fetching our own API
+// We want to trace this fetch in runtime
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {

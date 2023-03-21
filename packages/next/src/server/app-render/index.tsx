@@ -1157,6 +1157,10 @@ export async function renderToHTMLOrFlight(
 
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
+      {
+        spanName: `render page (app) ${pathname}`,
+      },
+
       async ({
         asNotFound,
       }: {
@@ -1315,7 +1319,7 @@ export async function renderToHTMLOrFlight(
       }
     )
 
-    // For action requests, we handle them differently with a sepcial render result.
+    // For action requests, we handle them differently with a special render result.
     let actionId = req.headers[ACTION.toLowerCase()] as string
     const isFormAction =
       req.method === 'POST' &&

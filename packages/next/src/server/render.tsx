@@ -1333,7 +1333,7 @@ export async function renderToHTML(
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {
-      spanName: `render page ${renderOpts.pathname}`,
+      spanName: `render page (pages) ${renderOpts.pathname}`,
     },
     async () => renderDocument()
   )

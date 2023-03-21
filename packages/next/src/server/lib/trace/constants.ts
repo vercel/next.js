@@ -104,6 +104,7 @@ export const NextVanillaSpanAllowlist = [
   NextNodeServerSpan.findPageComponents,
   RenderSpan.getServerSideProps,
   AppRenderSpan.fetch,
+  AppRenderSpan.getBodyResult,
   RenderSpan.renderDocument,
 ]
 

@@ -186,6 +186,18 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
+              "next.span_name": "render page (app) /app/rsc-fetch",
+              "next.span_type": "AppRender.getBodyResult",
+            },
+            "kind": 0,
+            "name": "render page (app) /app/rsc-fetch",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
               "http.method": "GET",
               "http.status_code": 200,
               "http.target": "/app/rsc-fetch",
@@ -263,11 +275,11 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.span_name": "render page /pages/getServerSideProps",
+              "next.span_name": "render page (pages) /pages/getServerSideProps",
               "next.span_type": "Render.renderDocument",
             },
             "kind": 0,
-            "name": "render page /pages/getServerSideProps",
+            "name": "render page (pages) /pages/getServerSideProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -312,11 +324,11 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.span_name": "render page /pages/static/[param]/getStaticProps",
+              "next.span_name": "render page (pages) /pages/static/[param]/getStaticProps",
               "next.span_type": "Render.renderDocument",
             },
             "kind": 0,
-            "name": "render page /pages/static/[param]/getStaticProps",
+            "name": "render page (pages) /pages/static/[param]/getStaticProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
