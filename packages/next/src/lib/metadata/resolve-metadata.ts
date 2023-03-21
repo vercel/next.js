@@ -183,7 +183,8 @@ function merge(
 
 async function getDefinedMetadata(
   mod: any,
-  props: any
+  props: any,
+  pathname: string
 ): Promise<Metadata | MetadataResolver | null> {
   // Layer is a client component, we just skip it. It can't have metadata exported.
   // Return early to avoid accessing properties error for client references.
@@ -196,7 +197,7 @@ async function getDefinedMetadata(
           getTracer().trace(
             ResolveMetadataSpan.generateMetadata,
             {
-              spanName: `generateMetadata`,
+              spanName: `generateMetadata ${pathname}`,
             },
             () => mod.generateMetadata(props, parent)
           )
@@ -240,14 +241,27 @@ async function resolveStaticMetadata(components: ComponentsType) {
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
-export async function collectMetadata(
-  loaderTree: LoaderTree,
-  props: any,
+export async function collectMetadata({
+  loaderTree,
+  props,
+  array,
+  pathname,
+}: {
+  loaderTree: LoaderTree
+  props: any
   array: MetadataItems
-) {
-  const mod = await getLayoutOrPageModule(loaderTree)
+  pathname: string
+}) {
+  const [mod, modType] = await getLayoutOrPageModule(loaderTree)
+
+  if (modType) {
+    pathname += `/${modType}`
+  }
+
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
-  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+  const metadataExport = mod
+    ? await getDefinedMetadata(mod, props, pathname)
+    : null
 
   array.push([metadataExport, staticFilesMetadata])
 }

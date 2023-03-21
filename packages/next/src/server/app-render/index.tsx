@@ -72,6 +72,7 @@ import {
   addSearchParamsIfPageSegment,
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -279,12 +280,21 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    async function resolveHead(
-      tree: LoaderTree,
-      parentParams: { [key: string]: any },
+    async function resolveHead({
+      tree,
+      parentParams,
+      metadataItems,
+      treePrefix = [],
+    }: {
+      tree: LoaderTree
+      parentParams: { [key: string]: any }
       metadataItems: MetadataItems
-    ): Promise<[React.ReactNode, MetadataItems]> {
+      /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+      treePrefix?: string[]
+    }): Promise<[React.ReactNode, MetadataItems]> {
       const [segment, parallelRoutes, { head, page }] = tree
+      const currentTreePrefix = [...treePrefix, segment]
+      console.log(currentTreePrefix, tree)
       const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -306,15 +316,24 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      await collectMetadata(tree, layerProps, metadataItems)
+      await collectMetadata({
+        loaderTree: tree,
+        props: layerProps,
+        array: metadataItems,
+        pathname: currentTreePrefix
+          // __PAGE__ shouldn't be shown in a pathname
+          .filter((s) => s !== PAGE_SEGMENT_KEY)
+          .join('/'),
+      })
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const [returnedHead] = await resolveHead(
-          childTree,
-          currentParams,
-          metadataItems
-        )
+        const [returnedHead] = await resolveHead({
+          tree: childTree,
+          parentParams: currentParams,
+          metadataItems,
+          treePrefix: currentTreePrefix,
+        })
         if (returnedHead) {
           return [returnedHead, metadataItems]
         }
@@ -473,7 +492,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = await getLayoutOrPageModule(tree)
+      const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -979,11 +998,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const [resolvedHead, metadataItems] = await resolveHead(
-        loaderTree,
-        {},
-        []
-      )
+      const [resolvedHead, metadataItems] = await resolveHead({
+        tree: loaderTree,
+        parentParams: {},
+        metadataItems: [],
+      })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1074,7 +1093,11 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
+    const [initialHead, metadataItems] = await resolveHead({
+      tree: loaderTree,
+      parentParams: {},
+      metadataItems: [],
+    })
 
     /**
      * A new React Component that renders the provided React Component
