@@ -66,7 +66,11 @@ createNextDescribe(
     }
     const sanitizeSpans = (spans: SavedSpan[]) =>
       spans
-        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+        .sort((a, b) =>
+          (a.attributes?.span_type ?? '').localeCompare(
+            b.attributes?.span_type ?? ''
+          )
+        )
         .map(sanitizeSpan)
 
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
@@ -93,15 +97,13 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/pages",
-              "next.span_name": "GET /pages",
-              "next.span_type": "BaseServer.handleRequest",
+              "next.route": "/pages",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
-            "kind": 1,
-            "name": "GET /pages",
-            "parentId": undefined,
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -121,13 +123,15 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.route": "/pages",
-              "next.span_name": "resolving page into components",
-              "next.span_type": "NextNodeServer.findPageComponents",
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages",
+              "next.span_name": "GET /pages",
+              "next.span_type": "BaseServer.handleRequest",
             },
-            "kind": 0,
-            "name": "resolving page into components",
-            "parentId": "[parent-id]",
+            "kind": 1,
+            "name": "GET /pages",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
@@ -143,15 +147,13 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/pages/params/stuff",
-              "next.span_name": "GET /pages/params/stuff",
-              "next.span_type": "BaseServer.handleRequest",
+              "next.route": "/pages/params/[param]",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
-            "kind": 1,
-            "name": "GET /pages/params/stuff",
-            "parentId": undefined,
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -171,13 +173,15 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.route": "/pages/params/[param]",
-              "next.span_name": "resolving page into components",
-              "next.span_type": "NextNodeServer.findPageComponents",
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages/params/stuff",
+              "next.span_name": "GET /pages/params/stuff",
+              "next.span_type": "BaseServer.handleRequest",
             },
-            "kind": 0,
-            "name": "resolving page into components",
-            "parentId": "[parent-id]",
+            "kind": 1,
+            "name": "GET /pages/params/stuff",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
@@ -193,6 +197,19 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {
+              "next.route": "/app/rsc-fetch/page",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
+            },
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
               "http.method": "GET",
               "http.url": "https://vercel.com/",
               "net.peer.name": "vercel.com",
@@ -201,6 +218,19 @@ createNextDescribe(
             },
             "kind": 2,
             "name": "fetch GET https://vercel.com/",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/app/rsc-fetch",
+              "next.span_name": "rendering page",
+              "next.span_type": "BaseServer.renderToResponse",
+            },
+            "kind": 0,
+            "name": "rendering page",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
@@ -221,32 +251,6 @@ createNextDescribe(
               "code": 0,
             },
           },
-          Object {
-            "attributes": Object {
-              "next.pathname": "/app/rsc-fetch",
-              "next.span_name": "rendering page",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering page",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.route": "/app/rsc-fetch/page",
-              "next.span_name": "resolving page into components",
-              "next.span_type": "NextNodeServer.findPageComponents",
-            },
-            "kind": 0,
-            "name": "resolving page into components",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
         ]
       `)
     })
@@ -258,15 +262,13 @@ createNextDescribe(
         Array [
           Object {
             "attributes": Object {
-              "http.method": "GET",
-              "http.status_code": 200,
-              "http.target": "/pages/getServerSideProps",
-              "next.span_name": "GET /pages/getServerSideProps",
-              "next.span_type": "BaseServer.handleRequest",
+              "next.route": "/pages/getServerSideProps",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
             },
-            "kind": 1,
-            "name": "GET /pages/getServerSideProps",
-            "parentId": undefined,
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -310,13 +312,15 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.route": "/pages/getServerSideProps",
-              "next.span_name": "resolving page into components",
-              "next.span_type": "NextNodeServer.findPageComponents",
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages/getServerSideProps",
+              "next.span_name": "GET /pages/getServerSideProps",
+              "next.span_type": "BaseServer.handleRequest",
             },
-            "kind": 0,
-            "name": "resolving page into components",
-            "parentId": "[parent-id]",
+            "kind": 1,
+            "name": "GET /pages/getServerSideProps",
+            "parentId": undefined,
             "status": Object {
               "code": 0,
             },
