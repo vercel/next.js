@@ -13,7 +13,10 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
 import BufferImplementation from 'node:buffer'
@@ -144,20 +147,19 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
   }
 }
 
-const NativeModuleMap = new Map<string, unknown>([
-  [
-    'node:buffer',
-    pick(BufferImplementation, [
+const NativeModuleMap = (() => {
+  const mods: Record<
+    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    unknown
+  > = {
+    'node:buffer': pick(BufferImplementation, [
       'constants',
       'kMaxLength',
       'kStringMaxLength',
       'Buffer',
       'SlowBuffer',
     ]),
-  ],
-  [
-    'node:events',
-    pick(EventsImplementation, [
+    'node:events': pick(EventsImplementation, [
       'EventEmitter',
       'captureRejectionSymbol',
       'defaultMaxListeners',
@@ -166,22 +168,42 @@ const NativeModuleMap = new Map<string, unknown>([
       'on',
       'once',
     ]),
-  ],
-  [
-    'node:async_hooks',
-    pick(AsyncHooksImplementation, ['AsyncLocalStorage', 'AsyncResource']),
-  ],
-  [
-    'node:assert',
-    // TODO: check if need to pick specific properties
-    AssertImplementation,
-  ],
-  [
-    'node:util',
-    // TODO: check if need to pick specific properties
-    UtilImplementation,
-  ],
-])
+    'node:async_hooks': pick(AsyncHooksImplementation, [
+      'AsyncLocalStorage',
+      'AsyncResource',
+    ]),
+    'node:assert': pick(AssertImplementation, [
+      'AssertionError',
+      'deepEqual',
+      'deepStrictEqual',
+      'doesNotMatch',
+      'doesNotReject',
+      'doesNotThrow',
+      'equal',
+      'fail',
+      'ifError',
+      'match',
+      'notDeepEqual',
+      'notDeepStrictEqual',
+      'notEqual',
+      'notStrictEqual',
+      'ok',
+      'rejects',
+      'strict',
+      'strictEqual',
+      'throws',
+    ]),
+    'node:util': pick(UtilImplementation, [
+      '_extend' as any,
+      'callbackify',
+      'format',
+      'inherits',
+      'promisify',
+      'types',
+    ]),
+  }
+  return new Map(Object.entries(mods))
+})()
 
 /**
  * Create a module cache specific for the provided parameters. It includes

@@ -562,6 +562,26 @@ createNextDescribe(
           }
         )
       })
+
+      describe('invalid exports', () => {
+        it('should print an error when exporting a default handler in dev', async () => {
+          const res = await next.fetch('/default')
+
+          // Ensure we get a 405 (Method Not Allowed) response when there is no
+          // exported handler for the GET method.
+          expect(res.status).toEqual(405)
+
+          await check(() => {
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
+            )
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            return 'yes'
+          }, 'yes')
+        })
+      })
     }
   }
 )
