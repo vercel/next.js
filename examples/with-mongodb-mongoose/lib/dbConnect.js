@@ -9,9 +9,7 @@ if (!MONGODB_URI) {
 }
 
 
-/**
-Deprecation warning fixes
-*/
+// Deprecation warning fixes
 mongoose.set("strictQuery", true);
 
 /**
