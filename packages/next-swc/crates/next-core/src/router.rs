@@ -31,7 +31,7 @@ use turbopack_ecmascript::{
 use turbopack_node::{
     evaluate::{evaluate, JavaScriptValue},
     execution_context::{ExecutionContext, ExecutionContextVc},
-    StructuredError,
+    source_map::StructuredError,
 };
 
 use crate::{
