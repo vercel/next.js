@@ -294,7 +294,6 @@ export async function renderToHTMLOrFlight(
     }): Promise<[React.ReactNode, MetadataItems]> {
       const [segment, parallelRoutes, { head, page }] = tree
       const currentTreePrefix = [...treePrefix, segment]
-      console.log(currentTreePrefix, tree)
       const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
