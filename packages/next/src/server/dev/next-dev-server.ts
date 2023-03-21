@@ -492,9 +492,10 @@ export default class DevServer extends Server {
           devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
-            pagesDir: this.dir,
+            dir: this.dir,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: false,
+            pagesType: 'root',
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -531,9 +532,10 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isAppPath ? this.appDir! : this.pagesDir!,
+            dir: isAppPath ? this.appDir! : this.pagesDir!,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
+            pagesType: isAppPath ? 'app' : 'pages',
           })
 
           if (

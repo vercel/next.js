@@ -756,5 +756,12 @@ createNextDescribe(
         }
       })
     })
+
+    it('should not effect metadata images convention like files under pages directory', async () => {
+      const iconHtml = await next.render('/blog/icon')
+      const ogHtml = await next.render('/blog/opengraph-image')
+      expect(iconHtml).toContain('pages-icon-page')
+      expect(ogHtml).toContain('pages-opengraph-image-page')
+    })
   }
 )
