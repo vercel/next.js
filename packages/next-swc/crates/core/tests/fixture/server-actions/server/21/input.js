@@ -1,4 +1,4 @@
-import { validator } from 'auth'
+import { validator, another } from 'auth'
 
 const x = 1
 
@@ -13,3 +13,7 @@ export default function Page () {
 validator(async () => {
   'use server'
 })
+
+another(validator(async () => {
+  'use server'
+}))

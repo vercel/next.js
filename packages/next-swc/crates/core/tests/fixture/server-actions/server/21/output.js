@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ $$ACTION_1,$$ACTION_3,$$ACTION_5,$$ACTION_7 */ import { validator } from 'auth';
+/* __next_internal_action_entry_do_not_use__ $$ACTION_1,$$ACTION_3,$$ACTION_5,$$ACTION_7,$$ACTION_9,$$ACTION_11,$$ACTION_13 */ import { validator, another } from 'auth';
 const x = 1;
 export default function Page() {
     const y = 1;
@@ -21,3 +21,12 @@ export const $$ACTION_5 = async (closure)=>{};
 var $$ACTION_4;
 export const $$ACTION_7 = validator($$ACTION_5);
 var $$ACTION_6;
+$$ACTION_12 = another(($$ACTION_10 = validator(($$ACTION_8 = async ()=>$$ACTION_9($$ACTION_8.$$bound), $$ACTION_8.$$typeof = Symbol.for("react.server.reference"), $$ACTION_8.$$id = "0d0ca9684921f1c6dc36a2ec55ce57ba31407820", $$ACTION_8.$$bound = [
+    y
+], $$ACTION_8)), $$ACTION_10.$$typeof = Symbol.for("react.server.reference"), $$ACTION_10.$$id = "dd70487b74c2c510c55e3e68aa3614cfa780850d", $$ACTION_10.$$bound = $$ACTION_8.$$bound, $$ACTION_10)), $$ACTION_12.$$typeof = Symbol.for("react.server.reference"), $$ACTION_12.$$id = "57cbac1f8911efd298cb885cba89919b14153dc1", $$ACTION_12.$$bound = $$ACTION_10.$$bound, $$ACTION_12;
+export const $$ACTION_9 = async (closure)=>{};
+var $$ACTION_8;
+export const $$ACTION_11 = validator($$ACTION_9);
+var $$ACTION_10;
+export const $$ACTION_13 = another($$ACTION_11);
+var $$ACTION_12;
