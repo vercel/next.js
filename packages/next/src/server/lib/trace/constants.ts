@@ -102,7 +102,6 @@ type SpanTypes =
 export const NextVanillaSpanAllowlist = [
   BaseServerSpan.handleRequest,
   NextNodeServerSpan.findPageComponents,
-  BaseServerSpan.renderToResponse,
   RenderSpan.getServerSideProps,
   AppRenderSpan.fetch,
   RenderSpan.renderDocument,

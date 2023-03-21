@@ -112,19 +112,6 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/pages",
-              "next.span_name": "rendering page",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering page",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
               "next.route": "/pages",
               "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
@@ -156,19 +143,6 @@ createNextDescribe(
             "kind": 1,
             "name": "GET /pages/params/stuff",
             "parentId": undefined,
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
-              "next.pathname": "/pages/params/stuff",
-              "next.span_name": "rendering page",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering page",
-            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -227,19 +201,6 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/app/rsc-fetch",
-              "next.span_name": "rendering page",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering page",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
               "next.route": "/app/rsc-fetch/page",
               "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
@@ -277,19 +238,6 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.pathname": "/pages/getServerSideProps",
-              "next.span_name": "rendering page",
-              "next.span_type": "BaseServer.renderToResponse",
-            },
-            "kind": 0,
-            "name": "rendering page",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {
               "next.route": "/pages/getServerSideProps",
               "next.span_name": "resolving page into components",
               "next.span_type": "NextNodeServer.findPageComponents",
@@ -315,11 +263,60 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
-              "next.span_name": "Render page /pages/getServerSideProps",
+              "next.span_name": "render page /pages/getServerSideProps",
               "next.span_type": "Render.renderDocument",
             },
             "kind": 0,
-            "name": "Render page /pages/getServerSideProps",
+            "name": "render page /pages/getServerSideProps",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+        ]
+      `)
+    })
+
+    it("should handle getStaticProps when fallback: 'blocking'", async () => {
+      await next.fetch('/pages/static/param/getStaticProps')
+
+      expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
+        Array [
+          Object {
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages/static/param/getStaticProps",
+              "next.span_name": "GET /pages/static/param/getStaticProps",
+              "next.span_type": "BaseServer.handleRequest",
+            },
+            "kind": 1,
+            "name": "GET /pages/static/param/getStaticProps",
+            "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.route": "/pages/static/[param]/getStaticProps",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
+            },
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.span_name": "render page /pages/static/[param]/getStaticProps",
+              "next.span_type": "Render.renderDocument",
+            },
+            "kind": 0,
+            "name": "render page /pages/static/[param]/getStaticProps",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
