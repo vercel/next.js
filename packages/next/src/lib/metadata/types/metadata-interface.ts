@@ -538,7 +538,7 @@ type RobotsFile = {
   // Apply rules for all
   rules:
     | {
-        userAgent?: undefined | '*'
+        userAgent?: string | string[]
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
@@ -554,10 +554,10 @@ type RobotsFile = {
   host?: string
 }
 
-type SitemapFile = Array<{
+type Sitemap = Array<{
   url: string
   lastModified?: string | Date
 }>
 
 export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata, RobotsFile, SitemapFile }
+export { Metadata, ResolvedMetadata, RobotsFile as Robots, Sitemap }

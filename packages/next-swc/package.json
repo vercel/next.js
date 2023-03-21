@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "13.2.5-canary.6",
+  "version": "13.2.5-canary.9",
   "private": true,
   "scripts": {
     "clean": "rm -rf ./native/*",

@@ -6,6 +6,7 @@
   "autoprefixer",
   "aws-crt",
   "bcrypt",
+  "better-sqlite3",
   "canvas",
   "cypress",
   "eslint",

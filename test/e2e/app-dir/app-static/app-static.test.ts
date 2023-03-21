@@ -50,6 +50,47 @@ createNextDescribe(
       })
     }
 
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should revalidate correctly with config and fetch revalidate', async () => {
+        const initial$ = await next.render$(
+          '/variable-config-revalidate/revalidate-3'
+        )
+        const initialDate = initial$('#date').text()
+        const initialData = initial$('#data').text()
+
+        expect(initialDate).toBeTruthy()
+        expect(initialData).toBeTruthy()
+
+        let revalidatedDate
+        let revalidatedData
+
+        // wait for a fresh revalidation
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+
+          revalidatedDate = $('#date').text()
+          revalidatedData = $('#data').text()
+
+          expect(revalidatedData).not.toBe(initialDate)
+          expect(revalidatedDate).not.toBe(initialData)
+          return 'success'
+        }, 'success')
+
+        // the date should revalidate first after 3 seconds
+        // while the fetch data stays in place for 15 seconds
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+          expect($('#date').text()).not.toBe(revalidatedDate)
+          expect($('#data').text()).toBe(revalidatedData)
+          return 'success'
+        }, 'success')
+      })
+    }
+
     it('should include statusCode in cache', async () => {
       const $ = await next.render$('/variable-revalidate/status-code')
       const origData = JSON.parse($('#page-data').text())
@@ -163,6 +204,9 @@ createNextDescribe(
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-config-revalidate/revalidate-3.html',
+          'variable-config-revalidate/revalidate-3.rsc',
+          'variable-config-revalidate/revalidate-3/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
@@ -366,6 +410,11 @@ createNextDescribe(
             dataRoute: '/ssg-preview/test-2.rsc',
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
+          },
+          '/variable-config-revalidate/revalidate-3': {
+            dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-config-revalidate/revalidate-3',
           },
           '/variable-revalidate/authorization': {
             dataRoute: '/variable-revalidate/authorization.rsc',
