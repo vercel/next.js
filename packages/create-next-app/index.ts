@@ -462,7 +462,6 @@ async function notifyUpdate(): Promise<void> {
 run()
   .then(notifyUpdate)
   .catch(async (reason) => {
-    console.log()
     console.log('Aborting installation.')
     if (reason.command) {
       console.log(`  ${chalk.cyan(reason.command)} has failed.`)
