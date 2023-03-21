@@ -92,7 +92,7 @@ When a request is made to a path that hasn’t been generated, Next.js will serv
 
 > Note: Check if your upstream data provider has caching enabled by default. You might need to disable (e.g. `useCdn: false`), otherwise a revalidation won't be able to pull fresh data to update the ISR cache. Caching can occur at a CDN (for an endpoint being requested) when it returns the `Cache-Control` header.
 
-## On-demand Revalidation
+## On-Demand Revalidation
 
 If you set a `revalidate` time of `60`, all visitors will see the same generated version of your site for one minute. The only way to invalidate the cache is from someone visiting that page after the minute has passed.
 
