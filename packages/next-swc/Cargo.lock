@@ -337,7 +337,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "serde",
 ]
@@ -3209,7 +3209,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "clap 4.1.8",
@@ -6518,7 +6518,7 @@ dependencies = [
 [[package]]
 name = "turbo-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "mimalloc",
 ]
@@ -6526,7 +6526,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6556,7 +6556,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -6568,7 +6568,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -6582,7 +6582,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -6599,7 +6599,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6628,7 +6628,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "base16",
  "hex",
@@ -6640,7 +6640,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "convert_case 0.6.0",
@@ -6654,7 +6654,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6664,7 +6664,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6686,7 +6686,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-testing"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6698,7 +6698,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -6724,7 +6724,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "clap 4.1.8",
@@ -6740,7 +6740,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6767,7 +6767,7 @@ dependencies = [
 [[package]]
 name = "turbopack-create-test-app"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "clap 4.1.8",
@@ -6780,7 +6780,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6802,7 +6802,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -6821,7 +6821,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -6853,7 +6853,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6888,7 +6888,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "serde",
@@ -6903,7 +6903,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "serde",
@@ -6918,7 +6918,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -6933,7 +6933,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "futures",
@@ -6959,7 +6959,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "serde",
@@ -6975,7 +6975,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -6986,7 +6986,7 @@ dependencies = [
 [[package]]
 name = "turbopack-test-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?branch=alexkirsz/web-700-customizable-runtime-in-ecmascript#259436bc9307b49d9e7e89c8e7d6a688a05184bb"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230321.2#549d314ab407f2fef4269075e6908d32201439bf"
 dependencies = [
  "anyhow",
  "once_cell",
