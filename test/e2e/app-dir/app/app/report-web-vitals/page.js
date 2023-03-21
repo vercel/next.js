@@ -1,4 +1,4 @@
-import Reporter from '../components/reporter'
+import Reporter from './reporter'
 
 export default function component() {
   return (
