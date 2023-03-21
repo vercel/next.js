@@ -402,11 +402,7 @@ async fn route_internal(
                     // a buffer directly into the IPC message without having to wrap it in an
                     // object.
                     let body = read.map(|data| {
-                        let chunk = match data {
-                            Ok(c) => c,
-                            Err(e) => return Err(e.message),
-                        };
-                        let chunk: RouterIncomingMessage = match chunk
+                        let chunk: RouterIncomingMessage = match data?
                             .to_str()
                             .context("error decoding string")
                             .and_then(parse_json_with_source_context)
@@ -424,7 +420,7 @@ async fn route_internal(
                         RouterIncomingMessage::MiddlewareHeaders { data } => MiddlewareResponse {
                             status_code: data.status_code,
                             headers: data.headers,
-                            body: Stream::from_stream(body),
+                            body: Stream::from(body),
                         },
                         _ => return Ok(RouterResult::Error.cell()),
                     }

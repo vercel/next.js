@@ -38,7 +38,9 @@ function runTests() {
       if (done) break
     }
 
-    console.log({ data })
     expect(data).toBe('0123456789')
+
+    const second = await fetch('/stream').then((r) => r.text())
+    expect(data).toBe(second)
   })
 }
