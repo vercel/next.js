@@ -3,7 +3,10 @@ use indoc::formatdoc;
 use turbo_tasks::primitives::{OptionStringVc, StringVc};
 
 use super::FontCssPropertiesVc;
-use crate::next_font::{font_fallback::FontFallbackVc, stylesheet::build_fallback_definition};
+use crate::next_font::{
+    font_fallback::{FontFallbackVc, FontFallbacksVc},
+    stylesheet::build_fallback_definition,
+};
 
 #[turbo_tasks::function]
 pub(super) async fn build_stylesheet(
@@ -15,7 +18,9 @@ pub(super) async fn build_stylesheet(
     let mut stylesheet = base_stylesheet
         .as_ref()
         .map_or_else(|| "".to_owned(), |s| s.to_owned());
-    if let Some(definition) = &*build_fallback_definition(font_fallback).await? {
+    if let Some(definition) =
+        &*build_fallback_definition(FontFallbacksVc::cell(vec![font_fallback])).await?
+    {
         stylesheet.push_str(definition);
     }
     stylesheet.push_str(&build_font_class_rules(font_css_properties).await?);

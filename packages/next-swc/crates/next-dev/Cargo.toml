@@ -34,7 +34,6 @@ tokio_console = [
 ]
 profile = []
 custom_allocator = ["turbo-malloc/custom_allocator"]
-next-font-local = ["next-core/next-font-local"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 # Internal only. Enabled when building for the Next.js integration test suite.
