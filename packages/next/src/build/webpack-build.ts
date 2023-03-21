@@ -409,7 +409,7 @@ async function webpackBuildWithWorker() {
 
   const combinedResult = {
     duration: 0,
-    turbotraceContext: {} as any,
+    turbotraceContext: {} as TurbotraceContext,
   }
   // order matters here
   const ORDERED_COMPILER_NAMES = [
@@ -447,9 +447,9 @@ async function webpackBuildWithWorker() {
     if (curResult.turbotraceContext?.entriesTrace) {
       combinedResult.turbotraceContext = curResult.turbotraceContext
 
-      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace
+      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace!
       if (entryNameMap) {
-        combinedResult.turbotraceContext.entriesTrace.entryNameMap = new Map(
+        combinedResult.turbotraceContext.entriesTrace!.entryNameMap = new Map(
           entryNameMap
         )
       }
