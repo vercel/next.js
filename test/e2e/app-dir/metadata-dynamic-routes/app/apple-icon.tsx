@@ -15,7 +15,7 @@ export default function () {
           color: '#000',
         }}
       >
-        Icon
+        Apple Icon
       </div>
     )
   )

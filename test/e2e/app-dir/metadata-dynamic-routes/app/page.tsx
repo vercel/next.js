@@ -5,7 +5,6 @@ export default function Page() {
 }
 
 export const metadata = {
-  // TODO-METADATA: auto generate metadataBase for og/tw images, and warn users if they're not configured
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL('https://deploy-preview-abc.vercel.app'),
   title: 'index page',
 }

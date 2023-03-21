@@ -1,5 +1,7 @@
 import { ImageResponse } from '@vercel/og'
 
+export const alt = 'Twitter'
+
 export default function () {
   return new ImageResponse(
     (
@@ -10,12 +12,11 @@ export default function () {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: 88,
-          background: '#fff',
-          color: '#000',
+          fontSize: 128,
+          background: 'lavender',
         }}
       >
-        Icon
+        Twitter Image
       </div>
     )
   )
