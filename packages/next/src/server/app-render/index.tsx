@@ -1373,6 +1373,14 @@ export async function renderToHTMLOrFlight(
             res.statusCode = 404
             return new RenderResult(await bodyResult({ asNotFound: true }))
           }
+
+          if (isFetchAction) {
+            res.statusCode = 500
+            return new RenderResult(
+              (err as Error)?.message ?? 'Internal Server Error'
+            )
+          }
+
           throw err
         }
       } else {
