@@ -1179,7 +1179,7 @@ export async function renderToHTMLOrFlight(
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
-        spanName: `render page (app) ${pathname}`,
+        spanName: `render route (app) ${pathname}`,
       },
       async ({
         asNotFound,
