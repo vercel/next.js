@@ -376,11 +376,6 @@ export default async function exportApp(
 
     // Get the exportPathMap from the config file
     if (typeof nextConfig.exportPathMap !== 'function') {
-      if (!options.silent) {
-        Log.info(
-          `No "exportPathMap" found in "${nextConfig.configFile}". Generating map from "./pages"`
-        )
-      }
       nextConfig.exportPathMap = async (defaultMap) => {
         return defaultMap
       }
