@@ -8,7 +8,7 @@ export function getStaticProps() {
   }
 }
 
-// We want to make sure that we are running getStaticProps on server and thus we are creating a traces for it.
+// We don't want to render in build time
 export async function getStaticPaths() {
   return {
     paths: [],
