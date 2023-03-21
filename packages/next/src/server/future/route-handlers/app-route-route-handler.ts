@@ -38,6 +38,9 @@ import { AppConfig } from '../../../build/utils'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { NextURL } from '../../web/next-url'
 import { NextConfig } from '../../config-shared'
+import { getTracer } from '../../lib/trace/tracer'
+import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
+import path from 'path'
 
 // TODO-APP: This module has a dynamic require so when bundling for edge it causes issues.
 const NodeModuleLoader =
@@ -340,6 +343,16 @@ function proxyRequest(req: NextRequest, module: AppRouteModule): NextRequest {
   })
 }
 
+function getPathnameFromAbsolutePath(absolutePath: string) {
+  // Remove prefix including app dir
+  const appDir = path.sep + 'app' + path.sep
+  const [, ...parts] = absolutePath.split(appDir)
+  const relativePath = path.sep + parts.join(appDir)
+
+  // remove extension
+  const pathname = relativePath.split('.').slice(0, -1).join('.')
+  return pathname
+}
 export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
   constructor(
     private readonly nextConfigOutput: NextConfig['output'] = undefined,
@@ -527,7 +540,16 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               module
             )
 
-            return handle(wrappedRequest, { params })
+            return getTracer().trace(
+              AppRouteRouteHandlersSpan.runHandler,
+              {
+                // TODO: propagate this pathname from route matcher
+                spanName: `executing api route (app) ${getPathnameFromAbsolutePath(
+                  module.resolvedPagePath
+                )}`,
+              },
+              () => handle(wrappedRequest, { params })
+            )
           }
         )
     )

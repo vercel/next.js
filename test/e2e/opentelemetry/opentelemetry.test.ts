@@ -152,8 +152,19 @@ createNextDescribe(
           Array [
             Object {
               "attributes": Object {
+                "next.span_name": "executing api route (app) /api/app/data/route",
+                "next.span_type": "AppRouteRouteHandlers.runHandler",
+              },
+              "kind": 0,
+              "name": "executing api route (app) /api/app/data/route",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
                 "http.method": "GET",
-                "http.status_code": 200,
                 "http.target": "/api/app/data",
                 "next.span_name": "GET /api/app/data",
                 "next.span_type": "BaseServer.handleRequest",
