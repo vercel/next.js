@@ -14,8 +14,11 @@ export function staticGenerationBailout(reason: string): boolean | never {
     )
   }
 
-  if (staticGenerationStore?.isStaticGeneration) {
+  if (staticGenerationStore) {
     staticGenerationStore.revalidate = 0
+  }
+
+  if (staticGenerationStore?.isStaticGeneration) {
     const err = new DynamicServerError(reason)
 
     staticGenerationStore.dynamicUsageDescription = reason

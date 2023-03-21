@@ -50,6 +50,26 @@ createNextDescribe(
       })
     }
 
+    it('should correctly skip caching POST fetch for POST handler', async () => {
+      const res = await next.fetch('/route-handler/post', {
+        method: 'POST',
+      })
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data).toBeTruthy()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/route-handler/post', {
+          method: 'POST',
+        })
+        expect(res2.status).toBe(200)
+        const newData = await res2.json()
+        expect(newData).toBeTruthy()
+        expect(newData).not.toEqual(data)
+      }
+    })
+
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate correctly with config and fetch revalidate', async () => {
         const initial$ = await next.render$(
@@ -192,6 +212,7 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler/post/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
