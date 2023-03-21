@@ -5,6 +5,12 @@ async function bar() {}
 export { bar as baz };
 async function qux() {}
 export { qux as default };
+import ensureServerEntryExports from "private-next-rsc-action-proxy";
+ensureServerEntryExports([
+    foo,
+    bar,
+    qux
+]);
 foo.$$typeof = Symbol.for("react.server.reference");
 foo.$$id = "ab21efdafbe611287bc25c0462b1e0510d13e48b";
 foo.$$bound = [];
