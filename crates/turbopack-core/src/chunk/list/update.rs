@@ -136,8 +136,9 @@ pub(super) async fn update_chunk_list(
             let chunk_update = content.update(TraitRef::cell(from_version.clone())).await?;
 
             match &*chunk_update {
-                // Getting a total or not found update from a merger is unexpected. If it happens,
-                // we have no better option than to short-circuit the update.
+                // Getting a total or not found update from a merger is unexpected. If it
+                // happens, we have no better option than to short-circuit
+                // the update.
                 Update::Total(_) => {
                     return Ok(Update::Total(TotalUpdate {
                         to: to_version.into(),

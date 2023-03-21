@@ -64,21 +64,44 @@ pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     })
 }
 
-/// Converts a serializable value into a valid JavaScript expression.
-pub fn stringify_js<T>(s: &T) -> String
+pub struct StringifyJs<'a, T>(pub &'a T)
 where
-    T: Serialize + ?Sized,
-{
-    serde_json::to_string(s).unwrap()
-}
+    T: ?Sized;
 
-/// Converts a serializable value into a pretty-printed valid JavaScript
-/// expression.
-pub fn stringify_js_pretty<T>(s: &T) -> String
+impl<'a, T> std::fmt::Display for StringifyJs<'a, T>
 where
     T: Serialize + ?Sized,
 {
-    serde_json::to_string_pretty(s).unwrap()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        /// [`std::fmt::Formatter`] does not implement [`std::io::Write`],
+        /// so we need to wrap it in a struct that does.
+        struct DisplayWriter<'a, 'b> {
+            f: &'a mut std::fmt::Formatter<'b>,
+        }
+
+        impl<'a, 'b> std::io::Write for DisplayWriter<'a, 'b> {
+            fn write(&mut self, bytes: &[u8]) -> std::result::Result<usize, std::io::Error> {
+                self.f
+                    .write_str(
+                        std::str::from_utf8(bytes)
+                            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?,
+                    )
+                    .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                Ok(bytes.len())
+            }
+
+            fn flush(&mut self) -> std::result::Result<(), std::io::Error> {
+                unreachable!()
+            }
+        }
+
+        let to_writer = match f.alternate() {
+            true => serde_json::to_writer_pretty,
+            false => serde_json::to_writer,
+        };
+
+        Ok(to_writer(DisplayWriter { f }, self.0).map_err(|_err| std::fmt::Error)?)
+    }
 }
 
 pub struct FormatIter<T: Iterator, F: Fn() -> T>(pub F);

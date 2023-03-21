@@ -204,7 +204,7 @@ impl ModuleOptionsVc {
                     if let Some(options) = enable_postcss_transform {
                         let execution_context = execution_context
                             .context("execution_context is required for the postcss_transform")?
-                            .join("postcss");
+                            .with_layer("postcss");
 
                         let import_map = if let Some(postcss_package) = options.postcss_package {
                             package_import_map_from_import_mapping("postcss", postcss_package)
@@ -318,7 +318,7 @@ impl ModuleOptionsVc {
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let execution_context = execution_context
                 .context("execution_context is required for webpack_loaders")?
-                .join("webpack_loaders");
+                .with_layer("webpack_loaders");
             let import_map = if let Some(loader_runner_package) =
                 webpack_loaders_options.loader_runner_package
             {

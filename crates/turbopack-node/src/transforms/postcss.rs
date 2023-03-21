@@ -210,7 +210,7 @@ impl PostCssTransformedAssetVc {
 
         let ExecutionContext {
             project_path,
-            intermediate_output_path,
+            chunking_context,
             env,
         } = *this.execution_context.await?;
         let source_content = this.source.content();
@@ -232,14 +232,14 @@ impl PostCssTransformedAssetVc {
         let postcss_executor = postcss_executor(context, config_path);
         let css_fs_path = this.source.ident().path().await?;
         let css_path = css_fs_path.path.as_str();
+
         let config_value = evaluate(
-            project_path,
             postcss_executor,
             project_path,
             env,
             this.source.ident(),
             context,
-            intermediate_output_path,
+            chunking_context,
             None,
             vec![
                 JsonValueVc::cell(content.into()),

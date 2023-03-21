@@ -9,9 +9,9 @@ use swc_core::{
     },
     quote,
 };
-use turbopack_core::chunk::ChunkingContextVc;
 
 use crate::{
+    chunk::EcmascriptChunkingContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor, magic_identifier,
     references::AstPathVc,
@@ -37,7 +37,10 @@ impl EsmModuleItemVc {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmModuleItem {
     #[turbo_tasks::function]
-    async fn code_generation(&self, _context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        _context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;

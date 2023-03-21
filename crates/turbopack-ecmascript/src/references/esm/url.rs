@@ -6,8 +6,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
-        ChunkingTypeOptionVc,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
     },
     environment::{Rendering, RenderingVc},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
@@ -22,7 +21,7 @@ use turbopack_core::{
 
 use super::base::{ReferencedAsset, ReferencedAssetVc};
 use crate::{
-    chunk::{EcmascriptChunkItem, EcmascriptChunkPlaceable},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContextVc},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,
@@ -111,7 +110,7 @@ impl CodeGenerateable for UrlAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self_vc: UrlAssetReferenceVc,
-        context: ChunkingContextVc,
+        context: EcmascriptChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;
         let mut visitors = vec![];

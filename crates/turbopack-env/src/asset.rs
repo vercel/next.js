@@ -17,9 +17,9 @@ use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
         EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+        EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
     },
-    utils::stringify_js,
+    utils::StringifyJs,
 };
 
 /// The `process.env` asset, responsible for initializing the env (shared by all
@@ -76,7 +76,7 @@ impl EcmascriptChunkPlaceable for ProcessEnvAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: ProcessEnvAssetVc,
-        context: ChunkingContextVc,
+        context: EcmascriptChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
         ProcessEnvChunkItem {
             context,
@@ -94,7 +94,7 @@ impl EcmascriptChunkPlaceable for ProcessEnvAsset {
 
 #[turbo_tasks::value]
 struct ProcessEnvChunkItem {
-    context: ChunkingContextVc,
+    context: EcmascriptChunkingContextVc,
     inner: ProcessEnvAssetVc,
 }
 
@@ -114,7 +114,7 @@ impl ChunkItem for ProcessEnvChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ProcessEnvChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> ChunkingContextVc {
+    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
         self.context
     }
 
@@ -134,7 +134,7 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
             // env can be used to inject live code into the output.
             // TODO this is not completely correct as env vars need to ignore casing
             // So `process.env.path === process.env.PATH === process.env.PaTh`
-            writeln!(code, "env[{}] = {};", stringify_js(name), val)?;
+            writeln!(code, "env[{}] = {};", StringifyJs(name), val)?;
         }
 
         Ok(EcmascriptChunkItemContent {

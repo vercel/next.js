@@ -8,18 +8,21 @@ use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::FileSystemPathOptionVc;
 use turbopack_core::chunk::{
     optimize::{optimize_by_common_parent, ChunkOptimizer, ChunkOptimizerVc},
-    ChunkGroupVc, ChunkVc, ChunkingContextVc, ChunksVc,
+    ChunkGroupVc, ChunkVc, ChunksVc,
 };
 
-use super::{evaluate::EcmascriptChunkEvaluate, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc};
+use super::{
+    runtime::EcmascriptChunkRuntime, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
+    EcmascriptChunkingContextVc,
+};
 
 #[turbo_tasks::value]
-pub struct EcmascriptChunkOptimizer(ChunkingContextVc);
+pub struct EcmascriptChunkOptimizer(EcmascriptChunkingContextVc);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkOptimizerVc {
     #[turbo_tasks::function]
-    pub fn new(context: ChunkingContextVc) -> Self {
+    pub fn new(context: EcmascriptChunkingContextVc) -> Self {
         EcmascriptChunkOptimizer(context).cell()
     }
 }
@@ -53,6 +56,7 @@ async fn merge_chunks(
     first: EcmascriptChunkVc,
     chunks: &[EcmascriptChunkVc],
 ) -> Result<EcmascriptChunkVc> {
+    let first = first.await?;
     let chunks = chunks.iter().copied().try_join().await?;
     let main_entries = chunks
         .iter()
@@ -62,13 +66,14 @@ async fn merge_chunks(
         .iter()
         .flat_map(|e| e.iter().copied())
         .collect::<IndexSet<_>>();
-    let evaluate = chunks.iter().find_map(|e| e.evaluate);
-    let first = first.await?;
+    let runtime = first
+        .runtime
+        .merge(chunks.iter().skip(1).map(|chunk| chunk.runtime).collect());
     Ok(EcmascriptChunkVc::new_normalized(
         first.context,
         EcmascriptChunkPlaceablesVc::cell(main_entries.into_iter().collect()),
         None,
-        evaluate,
+        runtime,
         Value::new(first.availability_info),
     ))
 }
@@ -391,22 +396,13 @@ async fn optimize_ecmascript(
         }
         for chunk in local.iter_mut() {
             let content = (*chunk).await?;
-            if let Some(evaluate) = content.evaluate {
-                let evaluate = evaluate.await?;
-                *chunk = EcmascriptChunkVc::new_normalized(
-                    content.context,
-                    content.main_entries,
-                    content.omit_entries,
-                    Some(
-                        EcmascriptChunkEvaluate {
-                            evaluate_entries: evaluate.evaluate_entries,
-                            chunk_group: Some(chunk_group),
-                        }
-                        .cell(),
-                    ),
-                    Value::new(content.availability_info),
-                )
-            }
+            *chunk = EcmascriptChunkVc::new_normalized(
+                content.context,
+                content.main_entries,
+                content.omit_entries,
+                content.runtime.with_chunk_group(chunk_group),
+                Value::new(content.availability_info),
+            )
         }
         unoptimized_count = local.len();
         chunks.extend(local.into_iter().map(|c| (c, None)));

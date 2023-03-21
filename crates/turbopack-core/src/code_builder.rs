@@ -6,7 +6,9 @@ use std::{
 
 use anyhow::Result;
 use sourcemap::SourceMapBuilder;
+use turbo_tasks::primitives::U64Vc;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapSection, SourceMapVc},
@@ -173,6 +175,17 @@ impl GenerateSourceMap for Code {
         }
 
         Ok(SourceMapVc::new_sectioned(sections))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl CodeVc {
+    /// Returns the hash of the source code of this Code.
+    #[turbo_tasks::function]
+    pub async fn source_code_hash(self) -> Result<U64Vc> {
+        let code = self.await?;
+        let hash = hash_xxh3_hash64(code.source_code());
+        Ok(U64Vc::cell(hash))
     }
 }
 

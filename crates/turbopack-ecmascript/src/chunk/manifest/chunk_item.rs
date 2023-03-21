@@ -1,21 +1,25 @@
 use anyhow::{anyhow, bail, Result};
 use indexmap::IndexSet;
 use indoc::formatdoc;
+use serde::Serialize;
 use turbo_tasks::ValueToString;
 use turbopack_core::{
     asset::Asset,
-    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkingContext, ChunkingContextVc},
+    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkingContext},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
 
 use super::chunk_asset::ManifestChunkAssetVc;
 use crate::{
-    chunk::item::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemVc,
+    chunk::{
+        item::{
+            EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+            EcmascriptChunkItemVc,
+        },
+        EcmascriptChunkingContextVc,
     },
-    utils::stringify_js_pretty,
+    utils::StringifyJs,
 };
 
 /// The ManifestChunkItem generates a __turbopack_load__ call for every chunk
@@ -23,14 +27,14 @@ use crate::{
 /// __turbopack_import__ the actual module that was dynamically imported.
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
-    pub context: ChunkingContextVc,
+    pub context: EcmascriptChunkingContextVc,
     pub manifest: ManifestChunkAssetVc,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> ChunkingContextVc {
+    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
         self.context
     }
 
@@ -61,15 +65,24 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
         let chunk_list_path = chunk_group.chunk_list_path().await?;
         let chunk_list_path = output_root
-            .get_path_to(&*chunk_list_path)
+            .get_path_to(&chunk_list_path)
             .ok_or(anyhow!("chunk list path is not in output root"))?;
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ManifestChunkExport<'a> {
+            chunks: IndexSet<String>,
+            list: &'a str,
+        }
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({{ chunks: {chunk_paths}, list: {chunk_list_path} }});
+                __turbopack_export_value__({:#});
             "#,
-            chunk_paths = stringify_js_pretty(&chunk_server_paths),
-            chunk_list_path = stringify_js_pretty(&chunk_list_path),
+            StringifyJs(&ManifestChunkExport {
+                chunks: chunk_server_paths,
+                list: chunk_list_path,
+            })
         };
 
         Ok(EcmascriptChunkItemContent {

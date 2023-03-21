@@ -16,13 +16,15 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, ValueToString};
 use turbopack_core::{
     asset::Asset,
-    chunk::ChunkingContextVc,
     issue::{analyze::AnalyzeIssue, IssueSeverity},
 };
 
 use super::{base::ReferencedAsset, EsmAssetReferenceVc};
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptExports},
+    chunk::{
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkingContextVc,
+        EcmascriptExports,
+    },
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::esm::base::insert_hoisted_stmt,
@@ -137,7 +139,7 @@ impl CodeGenerateable for EsmExports {
     #[turbo_tasks::function]
     async fn code_generation(
         self_vc: EsmExportsVc,
-        _context: ChunkingContextVc,
+        _context: EcmascriptChunkingContextVc,
     ) -> Result<CodeGenerationVc> {
         let this = self_vc.await?;
         let mut visitors = Vec::new();

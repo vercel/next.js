@@ -39,7 +39,7 @@ impl Asset for EcmascriptChunkSourceMapAsset {
     async fn content(&self) -> Result<AssetContentVc> {
         let sm = self
             .chunk
-            .chunk_content()
+            .runtime_content()
             .generate_source_map()
             .to_rope()
             .await?;

@@ -27,10 +27,7 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, dev::DevChunkingContextVc, ChunkableAsset,
-        ChunkableAssetVc,
-    },
+    chunk::{availability_info::AvailabilityInfo, ChunkableAsset, ChunkableAssetVc},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
@@ -40,11 +37,13 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
 fn register() {
     turbopack::register();
+    turbopack_dev::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
 }
 
