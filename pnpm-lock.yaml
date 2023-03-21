@@ -992,7 +992,7 @@ importers:
       '@types/react': ^18.0.26
       '@types/react-dom': ^18.0.9
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-dev-runtime': https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.2
+      '@vercel/turbopack-dev-runtime': https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1004,7 +1004,7 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-dev-runtime': '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.2_react-refresh@0.12.0'
+      '@vercel/turbopack-dev-runtime': '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3_react-refresh@0.12.0'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -25414,9 +25414,9 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.2_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.2}
-    id: '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.2'
+  '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3}
+    id: '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3'
     name: '@vercel/turbopack-dev-runtime'
     version: 0.0.0
     dependencies:
