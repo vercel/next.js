@@ -43,9 +43,13 @@ function mergeStaticMetadata(
   if (!staticFilesMetadata) return
   const { icon, apple, opengraph, twitter } = staticFilesMetadata
   if (icon || apple) {
-    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
-    if (icon) metadata.icons.icon.push(...icon)
-    if (apple) metadata.icons.apple.push(...apple)
+    // if (!metadata.icons)
+    metadata.icons = {
+      icon: icon || [],
+      apple: apple || [],
+    }
+    // if (icon) metadata.icons.icon.push(...icon)
+    // if (apple) metadata.icons.apple.push(...apple)
   }
   if (twitter) {
     const resolvedTwitter = resolveTwitter(
@@ -242,9 +246,7 @@ export async function collectMetadata(
   array: MetadataItems
 ) {
   const mod = await getLayoutOrPageModule(loaderTree)
-  const staticFilesMetadata = isLayout(loaderTree)
-    ? null
-    : await resolveStaticMetadata(loaderTree[2])
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
   const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
 
   array.push([metadataExport, staticFilesMetadata])
