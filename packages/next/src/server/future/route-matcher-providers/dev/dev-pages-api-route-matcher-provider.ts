@@ -34,7 +34,11 @@ export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvid
     // pages directory.
     this.expression = new RegExp(`\\.(?:${extensions.join('|')})$`)
 
-    const pageNormalizer = new AbsoluteFilenameNormalizer(pagesDir, extensions)
+    const pageNormalizer = new AbsoluteFilenameNormalizer(
+      pagesDir,
+      extensions,
+      'pages'
+    )
 
     const bundlePathNormalizer = new Normalizers([
       pageNormalizer,

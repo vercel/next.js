@@ -111,7 +111,8 @@ export function createPagesMapping({
         )
       )
 
-      const route = normalizeMetadataRoute(pageKey)
+      const route =
+        pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
       result[route] = normalizedPath
       return result
     },
