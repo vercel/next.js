@@ -649,6 +649,7 @@ import BOOTSTRAP from {};
         )
         .layer("ssr")
         .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
+        .chunk_source_maps(false)
         .build();
 
         Ok(NodeRenderingEntry {
@@ -721,6 +722,7 @@ impl AppRouteVc {
         )
         .layer("ssr")
         .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
+        .chunk_source_maps(false)
         .build();
 
         let entry = this.context.with_transition("next-route").process(
