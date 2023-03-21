@@ -135,7 +135,6 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
-import { ExportOptions } from '../export'
 import type { ExportOptions } from '../export'
 
 export type SsgRoute = {
