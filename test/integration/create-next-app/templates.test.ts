@@ -309,6 +309,56 @@ describe('create-next-app templates', () => {
     })
   })
 
+  it('should work with --tailwind and --src together', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'tailwind-js-src'
+
+      /**
+       * Start the create-next-app call.
+       */
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--js',
+          '--no-eslint',
+          '--tailwind',
+          '--src-dir',
+          '--no-experimental-app',
+          `--import-alias=@/*`,
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+      /**
+       * Wait for the prompt to display.
+       */
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
+      /**
+       * Bind the exit listener.
+       */
+      await new Promise<void>((resolve, reject) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          /**
+           * Verify it correctly emitted a Tailwind project by looking for tailwind.config.js.
+           */
+          projectFilesShouldExist({
+            cwd,
+            projectName,
+            files: ['tailwind.config.js'],
+          })
+          resolve()
+        })
+        /**
+         * Simulate "N" for Tailwind.
+         */
+        childProcess.stdin.write('N\n')
+      })
+    })
+  })
+
   it('should prompt user to choose if --tailwind or --no-tailwind is not provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'choose-tailwind'
@@ -483,7 +533,7 @@ describe('create-next-app --experimental-app', () => {
           '--tailwind',
           '--experimental-app',
           '--eslint',
-          '--no-src-dir',
+          '--src-dir',
           `--import-alias=@/*`,
         ],
         {
@@ -499,6 +549,7 @@ describe('create-next-app --experimental-app', () => {
         projectName,
         template: 'app-tw',
         mode: 'ts',
+        srcDir: true,
       })
       await startsWithoutError(
         path.join(cwd, projectName),

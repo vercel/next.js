@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc, U32Vc},
@@ -10,48 +9,22 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::issue::IssueSeverity;
 
-use super::{get_scoped_font_family, options::NextFontGoogleOptionsVc, FontFamilyType};
-use crate::{next_font_google::issue::NextFontIssue, util::load_next_json};
-
-struct DefaultFallbackFont {
-    name: String,
-    az_avg_width: f64,
-    units_per_em: u32,
-}
-
-// From https://github.com/vercel/next.js/blob/a3893bf69c83fb08e88c87bf8a21d987a0448c8e/packages/font/src/utils.ts#L4
-static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> = Lazy::new(|| DefaultFallbackFont {
-    name: "Arial".to_owned(),
-    az_avg_width: 934.5116279069767,
-    units_per_em: 2048,
-});
-
-static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> = Lazy::new(|| DefaultFallbackFont {
-    name: "Times New Roman".to_owned(),
-    az_avg_width: 854.3953488372093,
-    units_per_em: 2048,
-});
-
-#[turbo_tasks::value(transparent)]
-pub(crate) struct AutomaticFontFallback {
-    pub scoped_font_family: StringVc,
-    pub local_font_family: StringVc,
-    pub adjustment: Option<FontAdjustment>,
-}
-
-#[turbo_tasks::value(transparent)]
-pub(crate) enum FontFallback {
-    Automatic(AutomaticFontFallbackVc),
-    /// There was an issue loading the font metrics data. Since resolving the
-    /// font css cannot fail, proper Errors cannot be returned. Emit an issue,
-    /// return this and omit fallback information instead.
-    Error,
-    Manual(StringsVc),
-}
+use super::options::NextFontGoogleOptionsVc;
+use crate::{
+    next_font::{
+        font_fallback::{
+            AutomaticFontFallback, FontAdjustment, FontFallback, FontFallbackVc,
+            DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
+        },
+        issue::NextFontIssue,
+        util::{get_scoped_font_family, FontFamilyType},
+    },
+    util::load_next_json,
+};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct FontMetricsMapEntry {
+pub(super) struct FontMetricsMapEntry {
     category: String,
     ascent: i32,
     descent: i32,
@@ -61,28 +34,16 @@ pub(crate) struct FontMetricsMapEntry {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-pub(crate) struct FontAdjustment {
-    pub ascent: f64,
-    pub descent: f64,
-    pub line_gap: f64,
-    pub size_adjust: f64,
-}
-
-// Necessary since floating points in this struct don't implement Eq, but it's
-// required for turbo tasks values.
-impl Eq for FontAdjustment {}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-pub(crate) struct Font {
+pub(super) struct Font {
     pub font_family: String,
     pub adjustment: Option<FontAdjustment>,
 }
 
 #[turbo_tasks::function]
-pub(crate) async fn get_font_fallback(
+pub(super) async fn get_font_fallback(
     context: FileSystemPathVc,
     options_vc: NextFontGoogleOptionsVc,
     request_hash: U32Vc,
@@ -106,7 +67,7 @@ pub(crate) async fn get_font_fallback(
                             AutomaticFontFallback {
                                 scoped_font_family: get_scoped_font_family(
                                     FontFamilyType::Fallback.cell(),
-                                    options_vc,
+                                    options_vc.font_family(),
                                     request_hash,
                                 ),
                                 local_font_family: StringVc::cell(fallback.font_family),
@@ -189,7 +150,7 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
-    use crate::next_font_google::font_fallback::{lookup_fallback, Font};
+    use crate::next_font::google::font_fallback::{lookup_fallback, Font};
 
     #[test]
     fn test_fallback_from_metrics_sans_serif() -> Result<()> {
