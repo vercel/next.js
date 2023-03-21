@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import imageSize from 'image-size'
 
 createNextDescribe(
   'app dir - metadata dynamic routes',
@@ -95,7 +96,6 @@ createNextDescribe(
         const res = await next.fetch('/opengraph-image')
 
         expect(res.headers.get('content-type')).toBe('image/png')
-        // TODO-METADATA: revisit caching for og
         expect(res.headers.get('cache-control')).toBe(
           'public, max-age=0, must-revalidate'
         )
@@ -105,10 +105,23 @@ createNextDescribe(
         const res = await next.fetch('/twitter-image')
 
         expect(res.headers.get('content-type')).toBe('image/png')
-        // TODO-METADATA: revisit caching for og
         expect(res.headers.get('cache-control')).toBe(
           'public, max-age=0, must-revalidate'
         )
+      })
+
+      it('should support params as argument in dynamic routes', async () => {
+        const bufferBig = await (
+          await next.fetch('/dynamic/big/opengraph-image')
+        ).buffer()
+        const bufferSmall = await (
+          await next.fetch('/dynamic/small/opengraph-image')
+        ).buffer()
+
+        const sizeBig = imageSize(bufferBig)
+        const sizeSmall = imageSize(bufferSmall)
+        expect([sizeBig.width, sizeBig.height]).toEqual([1200, 630])
+        expect([sizeSmall.width, sizeSmall.height]).toEqual([600, 315])
       })
     })
 
@@ -117,7 +130,6 @@ createNextDescribe(
         const res = await next.fetch('/icon')
 
         expect(res.headers.get('content-type')).toBe('image/png')
-        // TODO-METADATA: revisit caching for og
         expect(res.headers.get('cache-control')).toBe(
           'public, max-age=0, must-revalidate'
         )
@@ -127,7 +139,6 @@ createNextDescribe(
         const res = await next.fetch('/apple-icon')
 
         expect(res.headers.get('content-type')).toBe('image/png')
-        // TODO-METADATA: revisit caching for og
         expect(res.headers.get('cache-control')).toBe(
           'public, max-age=0, must-revalidate'
         )

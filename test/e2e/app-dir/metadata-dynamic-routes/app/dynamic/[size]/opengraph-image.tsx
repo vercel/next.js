@@ -3,6 +3,8 @@ import { ImageResponse } from '@vercel/og'
 export const alt = 'Open Graph'
 
 export default function og({ params }) {
+  const big = params.size === 'big'
+  const background = big ? 'orange' : '#000'
   return new ImageResponse(
     (
       <div
@@ -13,11 +15,20 @@ export default function og({ params }) {
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 128,
-          background: 'lavender',
         }}
       >
-        Dynamic Open Graph - {params.slug}
+        <div
+          style={{
+            width: 200,
+            height: 200,
+            background,
+          }}
+        />
       </div>
-    )
+    ),
+    {
+      width: big === true ? 1200 : 600,
+      height: big === true ? 630 : 315,
+    }
   )
 }
