@@ -88,6 +88,10 @@ enum RouterSpan {
   executeRoute = 'Router.executeRoute',
 }
 
+enum NodeSpan {
+  runHandler = 'Node.runHandler',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -97,6 +101,7 @@ type SpanTypes =
   | `${RenderSpan}`
   | `${RouterSpan}`
   | `${AppRenderSpan}`
+  | `${NodeSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
@@ -106,6 +111,7 @@ export const NextVanillaSpanAllowlist = [
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
   RenderSpan.renderDocument,
+  NodeSpan.runHandler,
 ]
 
 export {
@@ -118,4 +124,5 @@ export {
   RenderSpan,
   RouterSpan,
   AppRenderSpan,
+  NodeSpan,
 }

@@ -372,24 +372,36 @@ createNextDescribe(
         await next.fetch('/api/pages/basic')
 
         expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
-                  Array [
-                    Object {
-                      "attributes": Object {
-                        "http.method": "GET",
-                        "http.status_code": 200,
-                        "http.target": "/api/pages/basic",
-                        "next.span_name": "GET /api/pages/basic",
-                        "next.span_type": "BaseServer.handleRequest",
-                      },
-                      "kind": 1,
-                      "name": "GET /api/pages/basic",
-                      "parentId": undefined,
-                      "status": Object {
-                        "code": 0,
-                      },
-                    },
-                  ]
-              `)
+          Array [
+            Object {
+              "attributes": Object {
+                "http.method": "GET",
+                "http.status_code": 200,
+                "http.target": "/api/pages/basic",
+                "next.span_name": "GET /api/pages/basic",
+                "next.span_type": "BaseServer.handleRequest",
+              },
+              "kind": 1,
+              "name": "GET /api/pages/basic",
+              "parentId": undefined,
+              "status": Object {
+                "code": 0,
+              },
+            },
+            Object {
+              "attributes": Object {
+                "next.span_name": "executing api route (pages) /api/pages/basic",
+                "next.span_type": "Node.runHandler",
+              },
+              "kind": 0,
+              "name": "executing api route (pages) /api/pages/basic",
+              "parentId": "[parent-id]",
+              "status": Object {
+                "code": 0,
+              },
+            },
+          ]
+        `)
       })
     })
   }
