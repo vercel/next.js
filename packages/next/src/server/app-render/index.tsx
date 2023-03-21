@@ -1159,7 +1159,6 @@ export async function renderToHTMLOrFlight(
       {
         spanName: `render page (app) ${pathname}`,
       },
-
       async ({
         asNotFound,
       }: {

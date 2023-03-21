@@ -116,7 +116,6 @@ type SpanTypes =
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
   BaseServerSpan.handleRequest,
-  NextNodeServerSpan.findPageComponents,
   RenderSpan.getServerSideProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
