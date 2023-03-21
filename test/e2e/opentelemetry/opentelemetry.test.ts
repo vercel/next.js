@@ -58,13 +58,16 @@ createNextDescribe(
       delete span.duration
       delete span.id
       delete span.links
+      delete span.events
       delete span.timestamp
       delete span.traceId
       span.parentId = span.parentId === undefined ? undefined : '[parent-id]'
       return span
     }
     const sanitizeSpans = (spans: SavedSpan[]) =>
-      spans.sort((a, b) => a.name.localeCompare(b.name)).map(sanitizeSpan)
+      spans
+        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+        .map(sanitizeSpan)
 
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
       await waitForRootSpan(numberOfRootTraces)
@@ -89,31 +92,42 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages",
+              "next.span_name": "GET /pages",
+              "next.span_type": "BaseServer.handleRequest",
             },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextServer.getRequestHandler",
+            "kind": 1,
+            "name": "GET /pages",
             "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/pages",
+              "next.span_name": "rendering page",
+              "next.span_type": "BaseServer.renderToResponse",
+            },
+            "kind": 0,
+            "name": "rendering page",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.route": "/pages",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
+            },
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -128,31 +142,42 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages/params/stuff",
+              "next.span_name": "GET /pages/params/stuff",
+              "next.span_type": "BaseServer.handleRequest",
             },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextServer.getRequestHandler",
+            "kind": 1,
+            "name": "GET /pages/params/stuff",
             "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/pages/params/stuff",
+              "next.span_name": "rendering page",
+              "next.span_type": "BaseServer.renderToResponse",
+            },
+            "kind": 0,
+            "name": "rendering page",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.route": "/pages/params/[param]",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
+            },
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -167,42 +192,57 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "events": Array [],
+            "attributes": Object {
+              "http.method": "GET",
+              "http.url": "https://vercel.com/",
+              "net.peer.name": "vercel.com",
+              "next.span_name": "fetch GET https://vercel.com/",
+              "next.span_type": "AppRender.fetch",
+            },
             "kind": 2,
-            "name": "AppRender.fetch",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 2,
-              "message": "Request cannot be constructed from a URL that includes credentials: https://user:pass@vercel.com",
-            },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
+            "name": "fetch GET https://vercel.com/",
             "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
           },
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/app/rsc-fetch",
+              "next.span_name": "GET /app/rsc-fetch",
+              "next.span_type": "BaseServer.handleRequest",
             },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextServer.getRequestHandler",
+            "kind": 1,
+            "name": "GET /app/rsc-fetch",
             "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/app/rsc-fetch",
+              "next.span_name": "rendering page",
+              "next.span_type": "BaseServer.renderToResponse",
+            },
+            "kind": 0,
+            "name": "rendering page",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.route": "/app/rsc-fetch/page",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
+            },
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -212,36 +252,59 @@ createNextDescribe(
     })
 
     it('should handle getServerSideProps', async () => {
-      await next.fetch('/pager/getServerSideProps')
+      await next.fetch('/pages/getServerSideProps')
 
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "BaseServer.renderToResponse",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/pages/getServerSideProps",
+              "next.span_name": "GET /pages/getServerSideProps",
+              "next.span_type": "BaseServer.handleRequest",
             },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextNodeServer.findPageComponents",
-            "parentId": "[parent-id]",
-            "status": Object {
-              "code": 0,
-            },
-          },
-          Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextServer.getRequestHandler",
+            "kind": 1,
+            "name": "GET /pages/getServerSideProps",
             "parentId": undefined,
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.span_name": "getServerSideProps /pages/getServerSideProps",
+              "next.span_type": "Render.getServerSideProps",
+            },
+            "kind": 0,
+            "name": "getServerSideProps /pages/getServerSideProps",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.pathname": "/pages/getServerSideProps",
+              "next.span_name": "rendering page",
+              "next.span_type": "BaseServer.renderToResponse",
+            },
+            "kind": 0,
+            "name": "rendering page",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
+              "next.route": "/pages/getServerSideProps",
+              "next.span_name": "resolving page into components",
+              "next.span_type": "NextNodeServer.findPageComponents",
+            },
+            "kind": 0,
+            "name": "resolving page into components",
+            "parentId": "[parent-id]",
             "status": Object {
               "code": 0,
             },
@@ -256,10 +319,15 @@ createNextDescribe(
       expect(await getSanitizedTraces(1)).toMatchInlineSnapshot(`
         Array [
           Object {
-            "attributes": Object {},
-            "events": Array [],
-            "kind": 0,
-            "name": "NextServer.getRequestHandler",
+            "attributes": Object {
+              "http.method": "GET",
+              "http.status_code": 200,
+              "http.target": "/api/pages/basic",
+              "next.span_name": "GET /api/pages/basic",
+              "next.span_type": "BaseServer.handleRequest",
+            },
+            "kind": 1,
+            "name": "GET /api/pages/basic",
             "parentId": undefined,
             "status": Object {
               "code": 0,
