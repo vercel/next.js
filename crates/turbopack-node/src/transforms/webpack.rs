@@ -136,7 +136,7 @@ impl WebpackLoadersProcessedAssetVc {
 
         let ExecutionContext {
             project_path,
-            intermediate_output_path,
+            chunking_context,
             env,
         } = *this.execution_context.await?;
         let source_content = this.source.content();
@@ -157,13 +157,12 @@ impl WebpackLoadersProcessedAssetVc {
         let resource_path = resource_fs_path.path.as_str();
         let loaders = this.loaders.await?;
         let config_value = evaluate(
-            project_path,
             webpack_loaders_executor,
             project_path,
             env,
             this.source.ident(),
             context,
-            intermediate_output_path,
+            chunking_context,
             None,
             vec![
                 JsonValueVc::cell(content.into()),

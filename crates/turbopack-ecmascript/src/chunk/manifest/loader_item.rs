@@ -5,7 +5,7 @@ use indoc::writedoc;
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbopack_core::{
     asset::Asset,
-    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkingContext, ChunkingContextVc},
+    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkingContext},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
@@ -18,8 +18,9 @@ use crate::{
             EcmascriptChunkItemVc,
         },
         placeable::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
+        EcmascriptChunkingContextVc,
     },
-    utils::stringify_js,
+    utils::StringifyJs,
 };
 
 #[turbo_tasks::function]
@@ -71,7 +72,7 @@ impl ChunkItem for ManifestLoaderItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Result<ChunkingContextVc> {
+    async fn chunking_context(&self) -> Result<EcmascriptChunkingContextVc> {
         Ok(self.manifest.await?.chunking_context)
     }
 
@@ -139,9 +140,9 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
                     }});
                 }});
             "#,
-            chunk_server_path = stringify_js(chunk_server_path),
-            item_id = stringify_js(item_id),
-            dynamic_id = stringify_js(dynamic_id),
+            chunk_server_path = StringifyJs(chunk_server_path),
+            item_id = StringifyJs(item_id),
+            dynamic_id = StringifyJs(dynamic_id),
         )?;
 
         Ok(EcmascriptChunkItemContent {

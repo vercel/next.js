@@ -15,13 +15,14 @@ use turbo_tasks::{
     ValueToString, ValueToStringVc,
 };
 use turbopack_core::{
-    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
+    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
 use super::pattern_mapping::{PatternMappingVc, ResolveType::Cjs};
 use crate::{
+    chunk::EcmascriptChunkingContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::{
@@ -115,7 +116,10 @@ impl AmdDefineWithDependenciesCodeGenVc {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     #[turbo_tasks::function]
-    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
         let resolved_elements = self
@@ -128,7 +132,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                             PatternMappingVc::resolve_request(
                                 *request,
                                 self.origin,
-                                context,
+                                context.into(),
                                 cjs_resolve(self.origin, *request),
                                 Value::new(Cjs),
                             )

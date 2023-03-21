@@ -24,7 +24,7 @@ use url::Url;
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::utils::stringify_js;
+use crate::utils::StringifyJs;
 
 pub mod builtin;
 pub mod graph;
@@ -249,7 +249,7 @@ impl Display for ConstantValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ConstantValue::Undefined => write!(f, "undefined"),
-            ConstantValue::Str(str) => f.write_str(&stringify_js(str.as_str())),
+            ConstantValue::Str(str) => write!(f, "{}", StringifyJs(str.as_str())),
             ConstantValue::True => write!(f, "true"),
             ConstantValue::False => write!(f, "false"),
             ConstantValue::Null => write!(f, "null"),

@@ -13,7 +13,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{dev::DevChunkingContextVc, ChunkGroupVc},
+    chunk::{ChunkGroupVc, ChunkingContext, ChunkingContextVc},
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
@@ -46,25 +46,15 @@ pub enum JavaScriptValue {
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
-    context_path: FileSystemPathVc,
     module_asset: AssetVc,
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
     context: AssetContextVc,
-    intermediate_output_path: FileSystemPathVc,
+    chunking_context: ChunkingContextVc,
     runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
     additional_invalidation: CompletionVc,
     debug: bool,
 ) -> Result<NodeJsPoolVc> {
-    let chunking_context = DevChunkingContextVc::builder(
-        context_path,
-        intermediate_output_path,
-        intermediate_output_path.join("chunks"),
-        intermediate_output_path.join("assets"),
-        context.compile_time_info().environment(),
-    )
-    .build();
-
     let runtime_asset = EcmascriptModuleAssetVc::new(
         SourceAssetVc::new(embed_file_path("ipc/evaluate.ts")).into(),
         context,
@@ -85,7 +75,7 @@ pub async fn get_evaluate_pool(
     } else {
         Cow::Owned(format!("{file_name}.js"))
     };
-    let path = intermediate_output_path.join(file_name.as_ref());
+    let path = chunking_context.output_root().join(file_name.as_ref());
     let entry_module = EcmascriptModuleAssetVc::new_with_inner_assets(
         VirtualAssetVc::new(
             runtime_asset.ident().path().join("evaluate.js"),
@@ -140,8 +130,8 @@ pub async fn get_evaluate_pool(
             entry_module.as_evaluated_chunk(chunking_context, runtime_entries),
         ),
     };
-    emit_package_json(intermediate_output_path).await?;
-    emit(bootstrap.cell().into(), intermediate_output_path).await?;
+    emit_package_json(chunking_context.output_root()).await?;
+    emit(bootstrap.cell().into(), chunking_context.output_root()).await?;
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
@@ -182,25 +172,23 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
 /// evaluated result automatically.
 #[turbo_tasks::function]
 pub async fn evaluate(
-    context_path: FileSystemPathVc,
     module_asset: AssetVc,
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
     context_ident_for_issue: AssetIdentVc,
     context: AssetContextVc,
-    intermediate_output_path: FileSystemPathVc,
+    chunking_context: ChunkingContextVc,
     runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
     args: Vec<JsonValueVc>,
     additional_invalidation: CompletionVc,
     debug: bool,
 ) -> Result<JavaScriptValueVc> {
     let pool = get_evaluate_pool(
-        context_path,
         module_asset,
         cwd,
         env,
         context,
-        intermediate_output_path,
+        chunking_context,
         runtime_entries,
         additional_invalidation,
         debug,

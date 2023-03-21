@@ -2,17 +2,14 @@ use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc,
-        ChunkingTypeOptionVc, ModuleId,
-    },
+    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingTypeOptionVc, ModuleId},
     reference::{AssetReference, AssetReferenceVc},
     resolve::ResolveResultVc,
 };
 
 use super::{base::ReferencedAsset, EsmAssetReferenceVc};
 use crate::{
-    chunk::{EcmascriptChunkItem, EcmascriptChunkPlaceable},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContextVc},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,
@@ -63,7 +60,10 @@ impl ChunkableAssetReference for EsmModuleIdAssetReference {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {

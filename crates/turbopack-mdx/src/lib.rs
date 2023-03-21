@@ -19,8 +19,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContentVc, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
-        EcmascriptExportsVc,
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+        EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
     },
     AnalyzeEcmascriptModuleResultVc, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc,
@@ -138,7 +138,7 @@ impl EcmascriptChunkPlaceable for MdxModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: MdxModuleAssetVc,
-        context: ChunkingContextVc,
+        context: EcmascriptChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
         MdxChunkItemVc::cell(MdxChunkItem {
             module: self_vc,
@@ -169,7 +169,7 @@ impl ResolveOrigin for MdxModuleAsset {
 #[turbo_tasks::value]
 struct MdxChunkItem {
     module: MdxModuleAssetVc,
-    context: ChunkingContextVc,
+    context: EcmascriptChunkingContextVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -188,7 +188,7 @@ impl ChunkItem for MdxChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for MdxChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> ChunkingContextVc {
+    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
         self.context
     }
 

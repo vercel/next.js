@@ -6,8 +6,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
-        ChunkingTypeOptionVc,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
     },
     reference::{AssetReference, AssetReferenceVc},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
@@ -15,6 +14,7 @@ use turbopack_core::{
 
 use super::super::pattern_mapping::{PatternMapping, PatternMappingVc, ResolveType::EsmAsync};
 use crate::{
+    chunk::EcmascriptChunkingContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,
@@ -71,11 +71,14 @@ impl ChunkableAssetReference for EsmAsyncAssetReference {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
-    async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let pm = PatternMappingVc::resolve_request(
             self.request,
             self.origin,
-            context,
+            context.into(),
             esm_resolve(self.origin, self.request),
             Value::new(EsmAsync),
         )

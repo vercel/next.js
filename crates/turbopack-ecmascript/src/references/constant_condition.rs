@@ -1,10 +1,10 @@
 use anyhow::Result;
 use swc_core::quote;
 use turbo_tasks::Value;
-use turbopack_core::chunk::ChunkingContextVc;
 
 use super::AstPathVc;
 use crate::{
+    chunk::EcmascriptChunkingContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
 };
@@ -37,7 +37,10 @@ impl ConstantConditionVc {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for ConstantCondition {
     #[turbo_tasks::function]
-    async fn code_generation(&self, _context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        _context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let value = self.value;
         let visitors = [
             create_visitor!(exact &self.path.await?, visit_mut_expr(expr: &mut Expr) {

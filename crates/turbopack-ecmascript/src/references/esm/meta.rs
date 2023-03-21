@@ -7,9 +7,9 @@ use swc_core::{
     quote,
 };
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::chunk::ChunkingContextVc;
 
 use crate::{
+    chunk::EcmascriptChunkingContextVc,
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor, magic_identifier,
     references::{as_abs_path, esm::base::insert_hoisted_stmt, AstPathVc},
@@ -37,7 +37,10 @@ impl ImportMetaBindingVc {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for ImportMetaBinding {
     #[turbo_tasks::function]
-    async fn code_generation(&self, _context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        _context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let path = as_abs_path(self.path).await?.as_str().map_or_else(
             || {
                 quote!(
@@ -86,7 +89,10 @@ impl ImportMetaRefVc {
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for ImportMetaRef {
     #[turbo_tasks::function]
-    async fn code_generation(&self, _context: ChunkingContextVc) -> Result<CodeGenerationVc> {
+    async fn code_generation(
+        &self,
+        _context: EcmascriptChunkingContextVc,
+    ) -> Result<CodeGenerationVc> {
         let ast_path = &self.ast_path.await?;
         let visitor = create_visitor!(ast_path, visit_mut_expr(expr: &mut Expr) {
             *expr = Expr::Ident(meta_ident());

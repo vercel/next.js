@@ -28,9 +28,9 @@ use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
         EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+        EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
     },
-    utils::stringify_js,
+    utils::StringifyJs,
 };
 
 #[turbo_tasks::function]
@@ -99,12 +99,12 @@ impl EcmascriptChunkPlaceable for StaticModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: StaticModuleAssetVc,
-        context: ChunkingContextVc,
+        context: EcmascriptChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
         ModuleChunkItemVc::cell(ModuleChunkItem {
             module: self_vc,
             context,
-            static_asset: self_vc.static_asset(context),
+            static_asset: self_vc.static_asset(context.into()),
         })
         .into()
     }
@@ -164,7 +164,7 @@ impl Asset for StaticAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: StaticModuleAssetVc,
-    context: ChunkingContextVc,
+    context: EcmascriptChunkingContextVc,
     static_asset: StaticAssetVc,
 }
 
@@ -191,7 +191,7 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> ChunkingContextVc {
+    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
         self.context
     }
 
@@ -200,7 +200,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
                 "__turbopack_export_value__({path});",
-                path = stringify_js(&format!("/{}", &*self.static_asset.ident().path().await?))
+                path = StringifyJs(&format_args!(
+                    "/{}",
+                    &*self.static_asset.ident().path().await?
+                ))
             )
             .into(),
             ..Default::default()

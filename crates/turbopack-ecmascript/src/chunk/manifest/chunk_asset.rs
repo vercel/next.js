@@ -19,7 +19,7 @@ use crate::chunk::{
         EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptExports,
         EcmascriptExportsVc,
     },
-    EcmascriptChunkVc,
+    EcmascriptChunkVc, EcmascriptChunkingContextVc,
 };
 
 #[turbo_tasks::function]
@@ -45,7 +45,7 @@ fn chunk_list_modifier() -> StringVc {
 #[turbo_tasks::value(shared)]
 pub struct ManifestChunkAsset {
     pub asset: ChunkableAssetVc,
-    pub chunking_context: ChunkingContextVc,
+    pub chunking_context: EcmascriptChunkingContextVc,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -54,7 +54,7 @@ impl ManifestChunkAssetVc {
     #[turbo_tasks::function]
     pub fn new(
         asset: ChunkableAssetVc,
-        chunking_context: ChunkingContextVc,
+        chunking_context: EcmascriptChunkingContextVc,
         availability_info: Value<AvailabilityInfo>,
     ) -> Self {
         Self::cell(ManifestChunkAsset {
@@ -69,7 +69,7 @@ impl ManifestChunkAssetVc {
         let this = self.await?;
         Ok(ChunkGroupVc::from_asset(
             this.asset,
-            this.chunking_context,
+            this.chunking_context.into(),
             Value::new(this.availability_info),
         ))
     }
@@ -77,7 +77,10 @@ impl ManifestChunkAssetVc {
     #[turbo_tasks::function]
     pub async fn manifest_chunk(self) -> Result<ChunkVc> {
         let this = self.await?;
-        Ok(self.as_chunk(this.chunking_context, Value::new(this.availability_info)))
+        Ok(self.as_chunk(
+            this.chunking_context.into(),
+            Value::new(this.availability_info),
+        ))
     }
 }
 
@@ -136,7 +139,7 @@ impl EcmascriptChunkPlaceable for ManifestChunkAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self_vc: ManifestChunkAssetVc,
-        context: ChunkingContextVc,
+        context: EcmascriptChunkingContextVc,
     ) -> EcmascriptChunkItemVc {
         ManifestChunkItem {
             context,
