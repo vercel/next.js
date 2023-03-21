@@ -126,7 +126,7 @@ createNextDescribe(
     })
 
     describe('icon image routes', () => {
-      it('should render icon with favicon dynamic routes', async () => {
+      it('should render icon with dynamic routes', async () => {
         const res = await next.fetch('/icon')
 
         expect(res.headers.get('content-type')).toBe('image/png')
@@ -135,7 +135,7 @@ createNextDescribe(
         )
       })
 
-      it('should render icon with favicon dynamic routes', async () => {
+      it('should render apple icon with dynamic routes', async () => {
         const res = await next.fetch('/apple-icon')
 
         expect(res.headers.get('content-type')).toBe('image/png')
