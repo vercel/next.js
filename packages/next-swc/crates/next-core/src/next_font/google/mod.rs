@@ -2,11 +2,10 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use turbo_tasks::{
-    primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc},
+    primitives::{OptionStringVc, StringVc, U32Vc},
     Value,
 };
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc};
-use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     resolve::{
         options::{
@@ -22,26 +21,25 @@ use turbopack_core::{
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use self::{
-    font_fallback::{get_font_fallback, FontFallback, FontFallbackVc},
-    options::{FontWeights, NextFontGoogleOptionsVc},
+    font_fallback::get_font_fallback,
+    options::{options_from_request, FontDataEntry, FontWeights, NextFontGoogleOptionsVc},
     stylesheet::build_stylesheet,
-    util::{get_scoped_font_family, FontFamilyType},
+    util::{get_font_axes, get_stylesheet_url},
 };
-use crate::{
-    embed_js::next_js_file_path,
-    next_font_google::{
-        options::FontDataEntry,
-        util::{get_font_axes, get_stylesheet_url},
+use super::{
+    font_fallback::{FontFallback, FontFallbackVc},
+    util::{
+        get_request_hash, get_request_id, get_scoped_font_family, FontCssProperties,
+        FontCssPropertiesVc, FontFamilyType,
     },
-    util::load_next_json,
 };
+use crate::{embed_js::next_js_file_path, util::load_next_json};
 
-pub(crate) mod font_fallback;
-pub(crate) mod issue;
-pub(crate) mod options;
-pub(crate) mod request;
-pub(crate) mod stylesheet;
-pub(crate) mod util;
+pub mod font_fallback;
+pub mod options;
+pub mod request;
+pub mod stylesheet;
+pub mod util;
 
 pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2";
 
@@ -87,7 +85,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         let properties = get_font_css_properties(options, fallback, request_hash).await?;
         let js_asset = VirtualAssetVc::new(
                 next_js_file_path("internal/font/google")
-                    .join(&format!("{}.js", get_request_id(*query_vc, font_data).await?)),
+                    .join(&format!("{}.js", get_request_id(options.font_family(), request_hash).await?)),
                 FileContent::Content(
                     formatdoc!(
                         r#"
@@ -112,6 +110,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
                         properties
                             .weight
                             .await?
+                            .as_ref()
                             .map(|w| format!("fontWeight: {},\n", w))
                             .unwrap_or_else(|| "".to_owned()),
                         properties
@@ -169,11 +168,14 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         let options = font_options_from_query_map(*query_vc, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
         let request_hash = get_request_hash(*query_vc);
-        let scoped_font_family =
-            get_scoped_font_family(FontFamilyType::WebFont.cell(), options, request_hash);
+        let scoped_font_family = get_scoped_font_family(
+            FontFamilyType::WebFont.cell(),
+            options.font_family(),
+            request_hash,
+        );
         let css_virtual_path = next_js_file_path("internal/font/google").join(&format!(
             "/{}.module.css",
-            get_request_id(*query_vc, font_data).await?
+            get_request_id(options.font_family(), request_hash).await?
         ));
 
         // When running Next.js integration tests, use the mock data available in
@@ -220,7 +222,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
-                update_stylesheet(s, options, scoped_font_family)
+                update_google_stylesheet(s, options, scoped_font_family)
                     .await?
                     .clone_value(),
             ),
@@ -258,7 +260,7 @@ async fn load_font_data(project_root: FileSystemPathVc) -> Result<FontDataVc> {
 }
 
 #[turbo_tasks::function]
-async fn update_stylesheet(
+async fn update_google_stylesheet(
     stylesheet: StringVc,
     options: NextFontGoogleOptionsVc,
     scoped_font_family: StringVc,
@@ -269,34 +271,6 @@ async fn update_stylesheet(
         &format!("font-family: '{}';", &*options.await?.font_family),
         &format!("font-family: '{}';", &*scoped_font_family.await?),
     )))
-}
-
-#[turbo_tasks::function]
-async fn get_request_id(query_vc: QueryMapVc, font_data: FontDataVc) -> Result<StringVc> {
-    let options = font_options_from_query_map(query_vc, font_data).await?;
-
-    Ok(StringVc::cell(format!(
-        "{}_{:x?}",
-        options.font_family.to_lowercase().replace(' ', "_"),
-        get_request_hash(query_vc).await?,
-    )))
-}
-
-#[turbo_tasks::function]
-async fn get_request_hash(query_vc: QueryMapVc) -> Result<U32Vc> {
-    let query = &*query_vc.await?;
-    let query = query.as_ref().context("Query map must be present")?;
-    let mut to_hash = vec![];
-    for (k, v) in query {
-        to_hash.push(k);
-        to_hash.push(v);
-    }
-
-    Ok(U32Vc::cell(
-        // Truncate the has to u32. These hashes are ultimately displayed as 8-character
-        // hexadecimal values.
-        hash_xxh3_hash64(to_hash) as u32,
-    ))
 }
 
 #[turbo_tasks::function]
@@ -331,14 +305,6 @@ async fn get_stylesheet_url_from_options(
     )?))
 }
 
-#[turbo_tasks::value(transparent)]
-pub(crate) struct FontCssProperties {
-    font_family: StringVc,
-    weight: OptionU16Vc,
-    style: OptionStringVc,
-    variable: OptionStringVc,
-}
-
 #[turbo_tasks::function]
 async fn get_font_css_properties(
     options_vc: NextFontGoogleOptionsVc,
@@ -346,10 +312,14 @@ async fn get_font_css_properties(
     request_hash: U32Vc,
 ) -> Result<FontCssPropertiesVc> {
     let options = &*options_vc.await?;
-    let scoped_font_family =
-        &*get_scoped_font_family(FontFamilyType::WebFont.cell(), options_vc, request_hash).await?;
+    let scoped_font_family = &*get_scoped_font_family(
+        FontFamilyType::WebFont.cell(),
+        options_vc.font_family(),
+        request_hash,
+    )
+    .await?;
 
-    let mut font_families = vec![scoped_font_family.clone()];
+    let mut font_families = vec![format!("'{}'", scoped_font_family.clone())];
     let font_fallback = &*font_fallback.await?;
     match font_fallback {
         FontFallback::Manual(fonts) => {
@@ -357,26 +327,16 @@ async fn get_font_css_properties(
         }
         FontFallback::Automatic(fallback) => {
             let fallback = &*fallback.await?;
-            font_families.push((*fallback.scoped_font_family.await?).clone());
+            font_families.push(format!("'{}'", *fallback.scoped_font_family.await?));
         }
         FontFallback::Error => {}
     }
 
-    if let Some(fallback) = &options.fallback {
-        font_families.extend_from_slice(fallback);
-    }
-
     Ok(FontCssPropertiesVc::cell(FontCssProperties {
-        font_family: StringVc::cell(
-            font_families
-                .iter()
-                .map(|f| format!("'{}'", f))
-                .collect::<Vec<String>>()
-                .join(", "),
-        ),
-        weight: OptionU16Vc::cell(match &options.weights {
+        font_family: StringVc::cell(font_families.join(", ")),
+        weight: OptionStringVc::cell(match &options.weights {
             FontWeights::Variable => None,
-            FontWeights::Fixed(weights) => weights.first().cloned(),
+            FontWeights::Fixed(weights) => weights.first().map(|w| w.to_string()),
         }),
         style: OptionStringVc::cell(options.styles.first().cloned()),
         variable: OptionStringVc::cell(options.variable.clone()),
@@ -403,7 +363,7 @@ async fn font_options_from_query_map(
             bail!("Expected one entry");
         };
 
-    self::options::options_from_request(&parse_json_with_source_context(json)?, &*font_data.await?)
+    options_from_request(&parse_json_with_source_context(json)?, &*font_data.await?)
         .map(|o| NextFontGoogleOptionsVc::new(Value::new(o)))
 }
 

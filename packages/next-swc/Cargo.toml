@@ -5,6 +5,7 @@ members = [
   "crates/napi",
   "crates/wasm",
   "crates/next-binding",
+  "crates/next-build",
   "crates/next-core",
   "crates/next-dev",
   "crates/next-dev-tests",

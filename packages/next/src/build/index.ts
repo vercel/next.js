@@ -255,7 +255,8 @@ export default async function build(
   debugOutput = false,
   runLint = true,
   noMangling = false,
-  appDirOnly = false
+  appDirOnly = false,
+  turboNextBuild = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -1010,8 +1011,17 @@ export default async function build(
           ignore: [] as string[],
         }))
 
+      let binding = (await loadBindings()) as any
+
+      async function turbopackBuild() {
+        const turboNextBuildStart = process.hrtime()
+        await binding.turbo.nextBuild(NextBuildContext)
+        const [duration] = process.hrtime(turboNextBuildStart)
+        return { duration, turbotraceContext: null }
+      }
+
       const { duration: webpackBuildDuration, turbotraceContext } =
-        await webpackBuild()
+        turboNextBuild ? await turbopackBuild() : await webpackBuild()
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {
@@ -1026,7 +1036,6 @@ export default async function build(
         if (!turbotraceContext) {
           return
         }
-        let binding = (await loadBindings()) as any
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -1069,11 +1078,9 @@ export default async function build(
             if (filesTracedFromEntries.length) {
               // The turbo trace doesn't provide the traced file type and reason at present
               // let's write the traced files into the first [entry].nft.json
-              // @ts-expect-error types
-              const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
-                // @ts-expect-error types
-                ([k]) => k.startsWith(turbotraceContextAppDir)
-              )
+              const [[, entryName]] = Array.from<[string, string]>(
+                entryNameMap.entries()
+              ).filter(([k]) => k.startsWith(turbotraceContextAppDir))
               const traceOutputPath = path.join(
                 outputPath,
                 `../${entryName}.js.nft.json`
@@ -1797,7 +1804,6 @@ export default async function build(
       } else if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
-          let binding = (await loadBindings()) as any
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo.startTrace
           }
