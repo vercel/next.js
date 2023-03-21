@@ -45,7 +45,6 @@ import fs from 'fs-extra'
         '@next/swc-android-arm-eabi': 'canary',
         '@next/swc-darwin-arm64': 'canary',
         '@next/swc-darwin-x64': 'canary',
-        '@next/swc-linux-arm-gnueabihf': 'canary',
         '@next/swc-linux-arm64-gnu': 'canary',
         '@next/swc-linux-arm64-musl': 'canary',
         '@next/swc-linux-x64-gnu': 'canary',

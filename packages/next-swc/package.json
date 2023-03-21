@@ -19,7 +19,6 @@
       "additional": [
         "i686-pc-windows-msvc",
         "aarch64-unknown-linux-gnu",
-        "armv7-unknown-linux-gnueabihf",
         "aarch64-apple-darwin",
         "x86_64-unknown-linux-musl",
         "aarch64-unknown-linux-musl",
