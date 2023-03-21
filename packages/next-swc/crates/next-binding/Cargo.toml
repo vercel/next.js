@@ -74,6 +74,7 @@ __swc_core_binding_wasm_plugin = ["swc_core/plugin_transform_host_js"]
 __swc_core_testing_transform = ["swc_core/testing_transform"]
 
 __turbo = []
+__turbo_next_build = ["__turbo", "next-build"]
 __turbo_next_dev_server = ["__turbo", "next-dev/serializable"]
 __turbo_node_file_trace = ["__turbo", "node-file-trace/node-api"]
 
@@ -102,6 +103,9 @@ __swc_testing = ["__swc", "testing"]
 [dependencies]
 mdxjs = { optional = true, workspace = true }
 modularize_imports = { optional = true, workspace = true }
+next-build = { optional = true, path = "../next-build", default-features = false, features = [
+  "custom_allocator",
+] }
 # TODO: Not sure what's going on, but using `workspace = true` noops `default-features = false`?
 next-dev = { optional = true, path = "../next-dev", default-features = false, features = [
   "custom_allocator",
