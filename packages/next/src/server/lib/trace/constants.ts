@@ -105,6 +105,7 @@ export const NextVanillaSpanAllowlist = [
   BaseServerSpan.renderToResponse,
   RenderSpan.getServerSideProps,
   AppRenderSpan.fetch,
+  RenderSpan.renderDocument,
 ]
 
 export {

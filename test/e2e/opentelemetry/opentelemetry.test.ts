@@ -285,6 +285,18 @@ createNextDescribe(
           },
           Object {
             "attributes": Object {
+              "next.span_name": "Render page /pages/getServerSideProps",
+              "next.span_type": "Render.renderDocument",
+            },
+            "kind": 0,
+            "name": "Render page /pages/getServerSideProps",
+            "parentId": "[parent-id]",
+            "status": Object {
+              "code": 0,
+            },
+          },
+          Object {
+            "attributes": Object {
               "next.pathname": "/pages/getServerSideProps",
               "next.span_name": "rendering page",
               "next.span_type": "BaseServer.renderToResponse",
