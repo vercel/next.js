@@ -2,6 +2,11 @@
 export default foo;
 const bar = async function() {};
 export { bar };
+import ensureServerEntryExports from "private-next-rsc-action-proxy";
+ensureServerEntryExports([
+    foo,
+    bar
+]);
 foo.$$typeof = Symbol.for("react.server.reference");
 foo.$$id = "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d";
 foo.$$bound = [];
