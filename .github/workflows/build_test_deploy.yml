@@ -1498,6 +1498,8 @@ jobs:
         with:
           envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION VM_RELEASE
           usesh: true
+          sync: rsync
+          copyback: false
           mem: 6000
           prepare: |
             pkg install -y -f curl node libnghttp2

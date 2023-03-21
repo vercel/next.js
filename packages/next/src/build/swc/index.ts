@@ -471,6 +471,9 @@ function loadNative(isCustomTurbopack = false) {
             require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
           }
         },
+        nextBuild: (options: unknown) => {
+          return bindings.nextBuild(options)
+        },
         startTrace: (options = {}, turboTasks: unknown) =>
           bindings.runTurboTracing(
             toBuffer({ exact: true, ...options }),
