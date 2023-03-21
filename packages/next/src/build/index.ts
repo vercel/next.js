@@ -2302,25 +2302,7 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-          const exportOptions: ExportOptions = {
-            isInvokedFromCli: false,
-            silent: false,
-            buildExport: true,
-            debugOutput,
-            threads: config.experimental.cpus,
-            pages: combinedPages,
-            outdir: path.join(distDir, 'export'),
-            statusMessage: 'Generating static pages',
-            exportPageWorker: sharedPool
-              ? staticWorkers.exportPage.bind(staticWorkers)
-              : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await staticWorkers.end()
-                }
-              : undefined,
-            appPaths,
-          }
+
           const exportConfig: NextConfigComplete = {
             ...config,
             initialPageRevalidationMap: {},
@@ -2440,7 +2422,28 @@ export default async function build(
             },
           }
 
-          await exportApp(dir, exportOptions, nextBuildSpan, exportConfig)
+          const exportOptions: ExportOptions = {
+            isInvokedFromCli: false,
+            nextConfig: exportConfig,
+            silent: false,
+            buildExport: true,
+            debugOutput,
+            threads: config.experimental.cpus,
+            pages: combinedPages,
+            outdir: path.join(distDir, 'export'),
+            statusMessage: 'Generating static pages',
+            exportPageWorker: sharedPool
+              ? staticWorkers.exportPage.bind(staticWorkers)
+              : undefined,
+            endWorker: sharedPool
+              ? async () => {
+                  await staticWorkers.end()
+                }
+              : undefined,
+            appPaths,
+          }
+
+          await exportApp(dir, exportOptions, nextBuildSpan)
 
           const postBuildSpinner = createSpinner({
             prefixText: `${Log.prefixes.info} Finalizing page optimization`,
@@ -3067,12 +3070,13 @@ export default async function build(
         const exportApp: typeof import('../export').default =
           require('../export').default
         const options: ExportOptions = {
+          isInvokedFromCli: false,
+          nextConfig: config,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, 'out'),
-          isInvokedFromCli: false,
         }
-        await exportApp(dir, options, nextBuildSpan, config)
+        await exportApp(dir, options, nextBuildSpan)
       }
 
       await nextBuildSpan
