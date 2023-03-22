@@ -57,8 +57,10 @@ turbo-malloc = { workspace = true, default-features = false }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
+turbopack = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-dev = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-node = { workspace = true }
 webbrowser = { workspace = true }

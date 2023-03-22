@@ -46,7 +46,7 @@
     "next-no-sourcemaps": "cross-env NEXT_TELEMETRY_DISABLED=1 node --trace-deprecation packages/next/dist/bin/next",
     "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
-    "postinstall": "git config feature.manyFiles true && node scripts/install-native.mjs",
+    "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
     "version": "npx pnpm@7.24.3 install && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
     "sync-react": "node ./scripts/sync-react.js"
@@ -95,7 +95,7 @@
     "@typescript-eslint/eslint-plugin": "4.29.1",
     "@typescript-eslint/parser": "4.29.1",
     "@vercel/fetch": "6.1.1",
-    "@vercel/og": "0.0.20",
+    "@vercel/og": "0.4.0",
     "@webassemblyjs/ast": "1.11.1",
     "@webassemblyjs/floating-point-hex-parser": "1.11.1",
     "@webassemblyjs/helper-api-error": "1.11.1",
