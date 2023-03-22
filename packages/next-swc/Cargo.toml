@@ -46,37 +46,37 @@ swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2", default-features = false }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbo-updater = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-dev = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
-turbopack-tests = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230322.2" }
+auto-hash-map = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have", default-features = false }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have", default-features = false }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-updater = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-core = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-css = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-dev = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-json = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-mdx = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-node = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-static = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbopack-tests = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
 
 # General Deps
 

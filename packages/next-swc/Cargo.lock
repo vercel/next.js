@@ -337,7 +337,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "serde",
 ]
@@ -3223,7 +3223,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "clap 4.1.8",
@@ -6532,7 +6532,7 @@ dependencies = [
 [[package]]
 name = "turbo-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "mimalloc",
 ]
@@ -6540,7 +6540,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6570,7 +6570,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -6582,7 +6582,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -6596,7 +6596,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -6613,7 +6613,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6642,7 +6642,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "base16",
  "hex",
@@ -6654,7 +6654,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "convert_case 0.6.0",
@@ -6668,7 +6668,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6678,7 +6678,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6700,7 +6700,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-testing"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -6712,7 +6712,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -6738,7 +6738,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "clap 4.1.8",
@@ -6754,7 +6754,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6781,7 +6781,7 @@ dependencies = [
 [[package]]
 name = "turbopack-create-test-app"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "clap 4.1.8",
@@ -6794,7 +6794,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6816,7 +6816,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -6835,7 +6835,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -6867,7 +6867,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6902,7 +6902,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "serde",
@@ -6917,7 +6917,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "serde",
@@ -6932,7 +6932,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -6947,13 +6947,16 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "futures",
  "futures-retry",
  "indexmap",
  "mime",
+ "once_cell",
+ "owo-colors",
+ "regex",
  "serde",
  "serde_json",
  "serde_qs",
@@ -6973,7 +6976,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "serde",
@@ -6989,7 +6992,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -7000,7 +7003,7 @@ dependencies = [
 [[package]]
 name = "turbopack-test-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-230322.2#abc1f63953ea48046ff3fbab3bf5b51db6288385"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/web-547-errors-from-nodejs-do-not-have#3246eaed1d8f6ba4ff001351070ba1b4724e31d5"
 dependencies = [
  "anyhow",
  "once_cell",
