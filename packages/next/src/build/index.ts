@@ -282,6 +282,16 @@ export default async function build(
         .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
       NextBuildContext.config = config
 
+      let configOutDir = 'out'
+      if (config.output === 'export' && config.distDir !== '.next') {
+        // In the past, a user had to run "next build" to generate
+        // ".next" (or whatever the distDir) followed by "next export"
+        // to generate "out" (or whatever the outDir). However, when
+        // "output: export" is configured, "next build" does both steps.
+        // So the user-configured dirDir is actually the outDir.
+        configOutDir = config.distDir
+        config.distDir = '.next'
+      }
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -3064,9 +3074,6 @@ export default async function build(
       }
 
       if (config.output === 'export') {
-        // TODO: change dirDir above to remove the need for outDir.
-        // We could do something like `next build --distDir .nexttemp`
-        // and then `next export --distDir .nexttemp --outDir out`
         const exportApp: typeof import('../export').default =
           require('../export').default
         const options: ExportOptions = {
@@ -3074,7 +3081,7 @@ export default async function build(
           nextConfig: config,
           silent: true,
           threads: config.experimental.cpus,
-          outdir: path.join(dir, 'out'),
+          outdir: path.join(dir, configOutDir),
         }
         await exportApp(dir, options, nextBuildSpan)
       }

@@ -20,14 +20,14 @@ import {
 
 const glob = promisify(globOrig)
 const appDir = join(__dirname, '..')
-const distDir = join(__dirname, '.next')
+const distDir = join(appDir, '.next')
 const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
 const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
-async function getFiles() {
-  const opts = { cwd: exportDir, nodir: true }
+async function getFiles(cwd = exportDir) {
+  const opts = { cwd, nodir: true }
   const files = ((await glob('**/*', opts)) as string[])
     .filter((f) => !f.startsWith('_next/static/chunks/'))
     .sort()
@@ -322,5 +322,43 @@ describe('app dir with output export', () => {
       'index.txt',
       'robots.txt',
     ])
+  })
+  it('should correctly emit exported assets to config.distDir', async () => {
+    const outputDir = join(appDir, 'output')
+    await fs.remove(distDir)
+    await fs.remove(outputDir)
+    nextConfig.replace(
+      'trailingSlash: true,',
+      `trailingSlash: true,
+       distDir: 'output',`
+    )
+    try {
+      await nextBuild(appDir)
+      expect(await getFiles(outputDir)).toEqual([
+        '404.html',
+        '404/index.html',
+        '_next/static/media/test.3f1a293b.png',
+        '_next/static/test-build-id/_buildManifest.js',
+        '_next/static/test-build-id/_ssgManifest.js',
+        'another/first/index.html',
+        'another/first/index.txt',
+        'another/index.html',
+        'another/index.txt',
+        'another/second/index.html',
+        'another/second/index.txt',
+        'api/json',
+        'api/txt',
+        'favicon.ico',
+        'image-import/index.html',
+        'image-import/index.txt',
+        'index.html',
+        'index.txt',
+        'robots.txt',
+      ])
+    } finally {
+      nextConfig.restore()
+      await fs.remove(distDir)
+      await fs.remove(outputDir)
+    }
   })
 })
