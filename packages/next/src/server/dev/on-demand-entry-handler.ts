@@ -2,7 +2,10 @@ import type ws from 'ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
-import type { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+import type {
+  DynamicParamTypesShort,
+  FlightRouterState,
+} from '../app-render/types'
 
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
@@ -51,7 +54,7 @@ function treePathToEntrypoint(
   const path =
     (parentPath ? parentPath + '/' : '') +
     (parallelRouteKey !== 'children' && !segment.startsWith('@')
-      ? parallelRouteKey + '/'
+      ? `@${parallelRouteKey}/`
       : '') +
     (segment === '' ? 'page' : segment)
 
@@ -118,9 +121,11 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const currentPath = [...parentPath, currentSegment]
+  const isPageSegment = currentSegment.startsWith('__PAGE__')
 
-  if (!isFirst && currentSegment === '') {
+  const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
+
+  if (!isFirst && isPageSegment) {
     // TODO get rid of '' at the start of tree
     return [treePathToEntrypoint(currentPath.slice(1))]
   }

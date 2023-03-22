@@ -22,6 +22,12 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    // TODO: remove after v16 is officially deprecated
+    if (process.version.startsWith('v16.')) {
+      it('should skip for v16 node.js', () => {})
+      return
+    }
+
     let prerenderManifest
 
     beforeAll(async () => {
@@ -30,6 +36,100 @@ createNextDescribe(
           await next.readFile('.next/prerender-manifest.json')
         )
       }
+    })
+
+    if (isDev) {
+      it('should error correctly for invalid params from generateStaticParams', async () => {
+        await next.patchFile(
+          'app/invalid/[slug]/page.js',
+          `
+            export function generateStaticParams() {
+              return [{slug: { invalid: true }}]
+            }
+          `
+        )
+        const html = await next.render('/invalid/first')
+        await next.deleteFile('app/invalid/[slug]/page.js')
+        expect(html).toContain(
+          'A required parameter (slug) was not provided as a string received object'
+        )
+      })
+    }
+
+    it('should correctly skip caching POST fetch for POST handler', async () => {
+      const res = await next.fetch('/route-handler/post', {
+        method: 'POST',
+      })
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data).toBeTruthy()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/route-handler/post', {
+          method: 'POST',
+        })
+        expect(res2.status).toBe(200)
+        const newData = await res2.json()
+        expect(newData).toBeTruthy()
+        expect(newData).not.toEqual(data)
+      }
+    })
+
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should revalidate correctly with config and fetch revalidate', async () => {
+        const initial$ = await next.render$(
+          '/variable-config-revalidate/revalidate-3'
+        )
+        const initialDate = initial$('#date').text()
+        const initialData = initial$('#data').text()
+
+        expect(initialDate).toBeTruthy()
+        expect(initialData).toBeTruthy()
+
+        let revalidatedDate
+        let revalidatedData
+
+        // wait for a fresh revalidation
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+
+          revalidatedDate = $('#date').text()
+          revalidatedData = $('#data').text()
+
+          expect(revalidatedData).not.toBe(initialDate)
+          expect(revalidatedDate).not.toBe(initialData)
+          return 'success'
+        }, 'success')
+
+        // the date should revalidate first after 3 seconds
+        // while the fetch data stays in place for 15 seconds
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+          expect($('#date').text()).not.toBe(revalidatedDate)
+          expect($('#data').text()).toBe(revalidatedData)
+          return 'success'
+        }, 'success')
+      })
+    }
+
+    it('should include statusCode in cache', async () => {
+      const $ = await next.render$('/variable-revalidate/status-code')
+      const origData = JSON.parse($('#page-data').text())
+
+      expect(origData.status).toBe(404)
+
+      await check(async () => {
+        const new$ = await next.render$('/variable-revalidate/status-code')
+        const newData = JSON.parse(new$('#page-data').text())
+        expect(newData.status).toBe(origData.status)
+        expect(newData.text).not.toBe(origData.text)
+        return 'success'
+      }, 'success')
     })
 
     if (isNextStart) {
@@ -69,6 +169,7 @@ createNextDescribe(
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -118,6 +219,7 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler/post/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -130,6 +232,9 @@ createNextDescribe(
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-config-revalidate/revalidate-3.html',
+          'variable-config-revalidate/revalidate-3.rsc',
+          'variable-config-revalidate/revalidate-3/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
@@ -152,6 +257,9 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/status-code.html',
+          'variable-revalidate/status-code.rsc',
+          'variable-revalidate/status-code/page.js',
         ])
       })
 
@@ -331,6 +439,11 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
           },
+          '/variable-config-revalidate/revalidate-3': {
+            dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-config-revalidate/revalidate-3',
+          },
           '/variable-revalidate/authorization': {
             dataRoute: '/variable-revalidate/authorization.rsc',
             initialRevalidateSeconds: 10,
@@ -355,6 +468,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
+          },
+          '/variable-revalidate/status-code': {
+            dataRoute: '/variable-revalidate/status-code.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/status-code',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({
@@ -1034,6 +1152,26 @@ createNextDescribe(
 
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).not.toBe($2('#now').text())
+      }
+    })
+
+    it('should allow dynamic routes to access cookies', async () => {
+      for (const slug of ['books', 'frameworks']) {
+        for (let i = 0; i < 2; i++) {
+          let $ = await next.render$(
+            `/force-dynamic-prerender/${slug}`,
+            {},
+            { headers: { cookie: 'session=value' } }
+          )
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('has cookie')
+
+          $ = await next.render$(`/force-dynamic-prerender/${slug}`)
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('no cookie')
+        }
       }
     })
 

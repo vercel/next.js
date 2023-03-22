@@ -1096,7 +1096,9 @@ export default class Router implements BaseRouter {
             // a hard navigation
             if (matchesBflStatic || matchesBflDynamic) {
               handleHardNavigation({
-                url: addBasePath(addLocale(as, locale || this.locale)),
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
                 router: this,
               })
               return new Promise(() => {})
@@ -2430,7 +2432,9 @@ export default class Router implements BaseRouter {
                 options.unstable_skipClientCache ||
                 (options.priority &&
                   !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
-            }).then(() => false)
+            })
+              .then(() => false)
+              .catch(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),

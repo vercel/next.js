@@ -29,7 +29,7 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 export { NextConfig } from '../dist/server/config'
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-export { Metadata } from '../dist/lib/metadata/types/metadata-interface'
+export type { Metadata } from '../dist/lib/metadata/types/metadata-interface'
 
 // Extend the React types with missing properties
 declare module 'react' {

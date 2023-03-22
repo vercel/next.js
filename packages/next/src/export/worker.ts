@@ -40,7 +40,8 @@ import { mockRequest } from '../server/lib/mock-request'
 import { RouteKind } from '../server/future/route-kind'
 import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
 import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
-import { isAppRouteRoute, isMetadataRoute } from '../lib/is-app-route-route'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { AppRouteRouteMatch } from '../server/future/route-matches/app-route-route-match'
 
 loadRequireHook()
 
@@ -85,6 +86,7 @@ interface ExportPageInput {
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  nextConfigOuput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -143,6 +145,7 @@ export default async function exportPage({
   isrMemoryCacheSize,
   fetchCache,
   incrementalCacheHandlerPath,
+  nextConfigOuput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -167,8 +170,7 @@ export default async function exportPage({
       let renderAmpPath = ampPath
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
-      const isRouteHandler =
-        isAppDir && (isAppRouteRoute(page) || isMetadataRoute(page))
+      const isRouteHandler = isAppDir && isAppRouteRoute(page)
 
       if (isAppDir) {
         outDir = join(distDir, 'server/app')
@@ -293,9 +295,10 @@ export default async function exportPage({
       let htmlFilepath = join(outDir, htmlFilename)
 
       await promises.mkdir(baseDir, { recursive: true })
-      let renderResult
+      let renderResult: RenderResult | undefined
       let curRenderOpts: RenderOpts = {}
-      const { renderToHTML } = require('../server/render')
+      const { renderToHTML } =
+        require('../server/render') as typeof import('../server/render')
       let renderMethod = renderToHTML
       let inAmpMode = false,
         hybridAmp = false
@@ -391,24 +394,26 @@ export default async function exportPage({
             incrementalCache: curRenderOpts.incrementalCache,
           }
 
+          const match: AppRouteRouteMatch = {
+            params: query,
+            definition: {
+              filename: posix.join(distDir, 'server', 'app', page),
+              bundlePath: posix.join('app', page),
+              kind: RouteKind.APP_ROUTE,
+              page,
+              pathname: path,
+            },
+          }
+
           try {
-            const routeHandler = new AppRouteRouteHandler()
-            const response: Response = await routeHandler.handle(
-              {
-                params: query,
-                definition: {
-                  filename: posix.join(distDir, 'server', 'app', page),
-                  bundlePath: posix.join('app', page),
-                  kind: RouteKind.APP_ROUTE,
-                  page,
-                  pathname: path,
-                },
-              },
+            const handler = new AppRouteRouteHandler(nextConfigOuput)
+            const response = await handler.handle(
+              match,
               nodeReq,
               nodeRes,
-              staticContext,
-              true
+              staticContext
             )
+
             // we don't consider error status for static generation
             // except for 404
             // TODO: do we want to cache other status codes?
@@ -460,16 +465,18 @@ export default async function exportPage({
           try {
             curRenderOpts.params ||= {}
 
+            const isNotFoundPage = page === '/not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              page,
+              isNotFoundPage ? '/404' : page,
               query,
               curRenderOpts as any
             )
-            const html = result?.toUnchunkedString()
-            const flightData = (curRenderOpts as any).pageData
-            const revalidate = (curRenderOpts as any).revalidate
+            const html = result.toUnchunkedString()
+            const renderResultMeta = result.metadata()
+            const flightData = renderResultMeta.pageData
+            const revalidate = renderResultMeta.revalidate
             results.fromBuildExportRevalidate = revalidate
 
             if (revalidate !== 0) {
@@ -484,7 +491,7 @@ export default async function exportPage({
               )
             }
 
-            const { staticBailoutInfo = {} } = curRenderOpts as any
+            const staticBailoutInfo = renderResultMeta.staticBailoutInfo || {}
 
             if (
               revalidate === 0 &&
@@ -574,7 +581,7 @@ export default async function exportPage({
         }
       }
 
-      results.ssgNotFound = (curRenderOpts as any).isNotFound
+      results.ssgNotFound = renderResult?.metadata().isNotFound
 
       const validateAmp = async (
         rawAmpHtml: string,
@@ -597,7 +604,13 @@ export default async function exportPage({
         }
       }
 
-      const html = renderResult ? renderResult.toUnchunkedString() : ''
+      const html =
+        renderResult && !renderResult.isNull()
+          ? renderResult.toUnchunkedString()
+          : ''
+
+      let ampRenderResult: Awaited<ReturnType<typeof renderMethod>> | undefined
+
       if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
@@ -614,7 +627,6 @@ export default async function exportPage({
         try {
           await promises.access(ampHtmlFilepath)
         } catch (_) {
-          let ampRenderResult
           // make sure it doesn't exist from manual mapping
           try {
             ampRenderResult = await renderMethod(
@@ -631,9 +643,10 @@ export default async function exportPage({
             }
           }
 
-          const ampHtml = ampRenderResult
-            ? ampRenderResult.toUnchunkedString()
-            : ''
+          const ampHtml =
+            ampRenderResult && !ampRenderResult.isNull()
+              ? ampRenderResult.toUnchunkedString()
+              : ''
           if (!curRenderOpts.ampSkipValidation) {
             await validateAmp(ampHtml, page + '?amp=1')
           }
@@ -642,7 +655,9 @@ export default async function exportPage({
         }
       }
 
-      if ((curRenderOpts as any).pageData) {
+      const renderResultMeta =
+        renderResult?.metadata() || ampRenderResult?.metadata() || {}
+      if (renderResultMeta.pageData) {
         const dataFile = join(
           pagesDataDir,
           htmlFilename.replace(/\.html$/, '.json')
@@ -651,19 +666,19 @@ export default async function exportPage({
         await promises.mkdir(dirname(dataFile), { recursive: true })
         await promises.writeFile(
           dataFile,
-          JSON.stringify((curRenderOpts as any).pageData),
+          JSON.stringify(renderResultMeta.pageData),
           'utf8'
         )
 
         if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
-            JSON.stringify((curRenderOpts as any).pageData),
+            JSON.stringify(renderResultMeta.pageData),
             'utf8'
           )
         }
       }
-      results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
+      results.fromBuildExportRevalidate = renderResultMeta.revalidate
 
       if (!results.ssgNotFound) {
         // don't attempt writing to disk if getStaticProps returned not found

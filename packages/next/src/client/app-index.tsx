@@ -8,6 +8,24 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
+import { callServer } from './app-call-server'
+import { isNextRouterError } from './components/is-next-router-error'
+
+// Since React doesn't call onerror for errors caught in error boundaries.
+const origConsoleError = window.console.error
+window.console.error = (...args) => {
+  if (isNextRouterError(args[0])) {
+    return
+  }
+  origConsoleError.apply(window.console, args)
+}
+
+window.addEventListener('error', (ev: WindowEventMap['error']): void => {
+  if (isNextRouterError(ev.error)) {
+    ev.preventDefault()
+    return
+  }
+})
 
 /// <reference types="react-dom/experimental" />
 
@@ -151,26 +169,7 @@ function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
   })
 
   const newResponse = createFromReadableStream(readable, {
-    async callServer(id: string, args: any[]) {
-      console.log('callServer', id, args)
-
-      const actionId = id
-
-      // Fetching the current url with the action header.
-      // TODO: Refactor this to look up from a manifest.
-      const res = await fetch('', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Next-Action': actionId,
-        },
-        body: JSON.stringify({
-          bound: args,
-        }),
-      })
-
-      return res.json()
-    },
+    callServer,
   })
 
   rscCache.set(cacheKey, newResponse)
@@ -239,6 +238,7 @@ export function hydrate() {
             changeByServerResponse: () => {},
             focusAndScrollRef: {
               apply: false,
+              hashFragment: null,
             },
           }}
         >

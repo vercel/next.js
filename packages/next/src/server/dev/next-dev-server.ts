@@ -322,7 +322,9 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           buildId: this.buildId,
         }
-      ) // In development we can't give a default path mapping
+      )
+
+      // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
@@ -490,8 +492,10 @@ export default class DevServer extends Server {
           devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
-            pagesDir: this.dir,
+            dir: this.dir,
             extensions: this.nextConfig.pageExtensions,
+            keepIndex: false,
+            pagesType: 'root',
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -528,12 +532,14 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isAppPath ? this.appDir! : this.pagesDir!,
+            dir: isAppPath ? this.appDir! : this.pagesDir!,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
+            pagesType: isAppPath ? 'app' : 'pages',
           })
 
           if (
+            !isAppPath &&
             pageName.startsWith('/api/') &&
             this.nextConfig.output === 'export'
           ) {
@@ -1157,6 +1163,7 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
+    // TODO: see if we can remove this in the future
     if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
@@ -1172,15 +1179,14 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished = false } =
-      (await this.hotReloader?.run(
+    if (this.hotReloader) {
+      const { finished = false } = await this.hotReloader.run(
         req.originalRequest,
         res.originalResponse,
         parsedUrl
-      )) || {}
+      )
 
-    if (finished) {
-      return
+      if (finished) return
     }
 
     if (originalPathname) {
@@ -1534,6 +1540,7 @@ export default class DevServer extends Server {
     staticPaths?: string[]
     fallbackMode?: false | 'static' | 'blocking'
   }> {
+    const isAppPath = Boolean(originalAppPath)
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -1560,7 +1567,7 @@ export default class DevServer extends Server {
         locales,
         defaultLocale,
         originalAppPath,
-        isAppPath: !!originalAppPath,
+        isAppPath,
         requestHeaders,
         incrementalCacheHandlerPath:
           this.nextConfig.experimental.incrementalCacheHandlerPath,
@@ -1578,7 +1585,7 @@ export default class DevServer extends Server {
     )
       .then((res) => {
         const { paths: staticPaths = [], fallback } = res.value
-        if (this.nextConfig.output === 'export') {
+        if (!isAppPath && this.nextConfig.output === 'export') {
           if (fallback === 'blocking') {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
@@ -1658,7 +1665,7 @@ export default class DevServer extends Server {
       // When the new page is compiled, we need to reload the server component
       // manifest.
       if (!!this.appDir) {
-        this.serverComponentManifest = super.getServerComponentManifest()
+        this.clientReferenceManifest = super.getServerComponentManifest()
         this.serverCSSManifest = super.getServerCSSManifest()
       }
       this.nextFontManifest = super.getNextFontManifest()

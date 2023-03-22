@@ -534,5 +534,30 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
       } & DeprecatedMetadataFields)
 }
 
+type RobotsFile = {
+  // Apply rules for all
+  rules:
+    | {
+        userAgent?: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }
+    // Apply rules for specific user agents
+    | Array<{
+        userAgent: string | string[]
+        allow?: string | string[]
+        disallow?: string | string[]
+        crawlDelay?: number
+      }>
+  sitemap?: string | string[]
+  host?: string
+}
+
+type Sitemap = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+
 export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata }
+export { Metadata, ResolvedMetadata, RobotsFile as Robots, Sitemap }
