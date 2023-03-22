@@ -111,7 +111,6 @@ async function createTreeCodeFromPath(
     resolvePath,
     resolveParallelSegments,
     loaderContext,
-    pageExtensions,
   }: {
     resolver: (
       pathname: string,
@@ -122,7 +121,6 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
-    pageExtensions: string[]
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -163,7 +161,6 @@ async function createTreeCodeFromPath(
           resolvePath,
           isRootLayer,
           loaderContext,
-          pageExtensions,
         })
       }
     } catch (err: any) {
@@ -222,9 +219,13 @@ async function createTreeCodeFromPath(
         })
       )
 
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
+
       if (!rootLayout) {
-        const layoutPath = filePaths.find(
-          ([type, filePath]) => type === 'layout' && !!filePath
+        const layoutPath = definedFilePaths.find(
+          ([type]) => type === 'layout'
         )?.[1]
         rootLayout = layoutPath
 
@@ -235,9 +236,6 @@ async function createTreeCodeFromPath(
         }
       }
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      )
       props[parallelKey] = `[
         '${
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment
@@ -382,7 +380,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     loaderContext: this,
-    pageExtensions,
   })
 
   if (!rootLayout) {

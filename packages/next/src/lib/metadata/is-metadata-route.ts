@@ -48,7 +48,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
+              STATIC_METADATA_IMAGES.icon.extensions
             )}`
           : ''
       }`
@@ -57,7 +57,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
+              STATIC_METADATA_IMAGES.apple.extensions
             )}`
           : ''
       }`
@@ -66,7 +66,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.opengraph.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.opengraph.extensions)
+              STATIC_METADATA_IMAGES.opengraph.extensions
             )}`
           : ''
       }`
@@ -75,7 +75,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
+              STATIC_METADATA_IMAGES.twitter.extensions
             )}`
           : ''
       }`
@@ -85,16 +85,9 @@ export function isMetadataRouteFile(
   return metadataRouteFilesRegex.some((r) => r.test(appDirRelativePath))
 }
 
-/*
- * Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
- * e.g.
- * /app/robots -> /robots
- * app/robots -> /robots
- * /robots -> /robots
- */
 export function isMetadataRoute(route: string): boolean {
-  let page = route.replace(/^\/?app\//, '').replace(/\/route$/, '')
-  if (page[0] !== '/') page = '/' + page
+  // Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
+  const page = route.replace(/^\/?app/, '').replace(/\/route$/, '')
 
   return (
     !page.endsWith('/page') &&
