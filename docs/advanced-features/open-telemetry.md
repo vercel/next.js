@@ -10,15 +10,19 @@ Observability is crucial for understanding and optimizing the behavior and perfo
 
 As applications become more complex, it becomes increasingly difficult to identify and diagnose issues that may arise. By leveraging observability tools, such as logging and metrics, developers can gain insights into their application's behavior and identify areas for optimization. With observability, developers can proactively address issues before they become major problems and provide a better user experience. Therefore, it is highly recommended to use observability in your Next.js applications to improve performance, optimize resources, and enhance user experience.
 
-We will use terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of which can be found in [the OpenTelemetry Observability Primer](https://opentelemetry.io/docs/concepts/observability-primer/).
+We recommend using OpenTelemetry for instrumenting your apps.
+It's a platform agnostic way to instrument apps that allows you to change your observability provider without changing your code.
+Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more information about OpenTelemetry and how it works.
 
-> **Note:** We currently support observability bindings only in serverless functions.
+This documentation uses terms like _Span_, _Trace_ or _Exporter_ throughout this doc, all of which can be found in [the OpenTelemetry Observability Primer](https://opentelemetry.io/docs/concepts/observability-primer/).
+
+Next.js supports OpenTelemetry instrumentation out of the box, that means that we already instrumented Next.js itself.
+When you enable OpenTelemetry you we will automatically wrap all your functions like `getStaticProps` in a _spans_ with helpful attributes.
+
+> **Note:** We currently support OpenTelemetry bindings only in serverless functions.
 > We don't provide any for `edge` or client side code.
 
 ## Getting Started
-
-Next.js supports OpenTelemetry, which is platform agnostic. You can change your observability provider without changing your code.
-Read [Official OpenTelemetry docs](https://opentelemetry.io/docs/) for more information about OpenTelemetry and how it works.
 
 To get started, you must install the required packages:
 
