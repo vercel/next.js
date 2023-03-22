@@ -115,7 +115,7 @@ You can also manually deploy the [`next export`](/docs/advanced-features/static-
 
 ### Serverless
 
-- [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
+- [AWS Amplify](https://aws.amazon.com/amplify/hosting)
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
 - [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
 - [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
