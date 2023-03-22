@@ -21,15 +21,7 @@ let BACKEND;
         }
 
         for (const moduleId of params.runtimeModuleIds) {
-          try {
-            getOrInstantiateRuntimeModule(moduleId, chunkPath);
-          } catch (err) {
-            console.error(
-              `The following error occurred while evaluating runtime entries of ${chunkPath}:`
-            );
-            console.error(err);
-            return;
-          }
+          getOrInstantiateRuntimeModule(moduleId, chunkPath);
         }
       }
     },

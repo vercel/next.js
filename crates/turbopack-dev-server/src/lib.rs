@@ -28,7 +28,10 @@ use turbo_tasks::{
     run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, RawVc,
     TransientInstance, TransientValue, TurboTasksApi,
 };
-use turbopack_core::issue::{IssueReporter, IssueReporterVc, IssueVc};
+use turbopack_core::{
+    error::PrettyPrintError,
+    issue::{IssueReporter, IssueReporterVc, IssueVc},
+};
 
 use self::{
     source::{ContentSourceResultVc, ContentSourceVc},
@@ -202,13 +205,13 @@ impl DevServerBuilder {
                             Ok(r) => Ok::<_, hyper::http::Error>(r),
                             Err(e) => {
                                 println!(
-                                    "[500] error: {:?} ({})",
-                                    e,
-                                    FormatDuration(start.elapsed())
+                                    "[500] error ({}): {}",
+                                    FormatDuration(start.elapsed()),
+                                    PrettyPrintError(&e),
                                 );
                                 Ok(Response::builder()
                                     .status(500)
-                                    .body(hyper::Body::from(format!("{:?}", e,)))?)
+                                    .body(hyper::Body::from(format!("{}", PrettyPrintError(&e))))?)
                             }
                         }
                     }

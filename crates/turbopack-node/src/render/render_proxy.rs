@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc};
+use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, error::PrettyPrintError};
 use turbopack_dev_server::source::{BodyVc, ProxyResult, ProxyResultVc};
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
@@ -121,7 +121,7 @@ async fn proxy_error(
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
 ) -> Result<ProxyResultVc> {
-    let message = format!("{error:?}");
+    let message = format!("{}", PrettyPrintError(&error));
 
     let status = match operation {
         Some(operation) => Some(operation.wait_or_kill().await?),

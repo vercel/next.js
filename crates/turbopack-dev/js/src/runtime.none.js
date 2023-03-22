@@ -116,15 +116,7 @@ let BACKEND;
    */
   function instantiateRuntimeModules(runtimeModuleIds, chunkPath) {
     for (const moduleId of runtimeModuleIds) {
-      try {
-        getOrInstantiateRuntimeModule(moduleId, chunkPath);
-      } catch (err) {
-        console.error(
-          `The following error occurred while evaluating runtime entries of ${chunkPath}:`
-        );
-        console.error(err);
-        return;
-      }
+      getOrInstantiateRuntimeModule(moduleId, chunkPath);
     }
   }
 })();
