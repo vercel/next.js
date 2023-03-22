@@ -13,7 +13,7 @@ use turbopack::{evaluate_context::node_evaluate_asset_context, transition::Trans
 use turbopack_core::{
     asset::AssetVc,
     changed::any_content_changed,
-    chunk::dev::DevChunkingContextVc,
+    chunk::ChunkingContext,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention::Middleware, ServerAddrVc},
     ident::AssetIdentVc,
@@ -23,6 +23,7 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
@@ -354,10 +355,9 @@ async fn route_internal(
 ) -> Result<RouterResultVc> {
     let ExecutionContext {
         project_path,
-        intermediate_output_path,
+        chunking_context,
         env,
     } = *execution_context.await?;
-    let intermediate_output_path = intermediate_output_path.join("router");
 
     let context = node_evaluate_asset_context(
         project_path,
@@ -365,7 +365,7 @@ async fn route_internal(
         Some(edge_transition_map(
             server_addr,
             project_path,
-            intermediate_output_path,
+            chunking_context.output_root(),
             next_config,
             execution_context,
         )),
@@ -382,13 +382,12 @@ async fn route_internal(
         bail!("Next.js requires a disk path to check for valid routes");
     };
     let result = evaluate(
-        project_path,
         router_asset,
         project_path,
         env,
         AssetIdentVc::from_path(project_path),
         context,
-        intermediate_output_path,
+        chunking_context.with_layer("router"),
         None,
         vec![
             JsonValueVc::cell(request),

@@ -1,4 +1,4 @@
-import type { Issue } from "@vercel/turbopack-runtime/types/protocol";
+import type { Issue } from "@vercel/turbopack-dev-runtime/types/protocol";
 
 import * as Bus from "./internal/bus";
 import { parseStack } from "./internal/helpers/parseStack";

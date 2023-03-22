@@ -18,7 +18,7 @@ pub async fn resolve_runtime_request(
             bail!("turbopack runtime asset is not placeable")
         }
     } else {
-        // The @vercel/turbopack-runtime module is not installed.
+        // The @vercel/turbopack-dev-runtime module is not installed.
         bail!("could not resolve the `{}` module", runtime_request_path)
     }
 }
