@@ -73,6 +73,7 @@ import {
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -1234,7 +1235,7 @@ export async function renderToHTMLOrFlight(
         const getServerInsertedHTML = () => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
-          const errorMetaTags = []
+          const errorMetaTags = [...DEFAULT_METADATA_TAGS]
           for (
             ;
             flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
@@ -1316,7 +1317,6 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
-          const shouldNotIndex = isNotFoundError(err)
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
@@ -1328,11 +1328,7 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer,
             element: (
               <html id="__next_error__">
-                <head>
-                  {shouldNotIndex ? (
-                    <meta name="robots" content="noindex" />
-                  ) : null}
-                </head>
+                <head></head>
                 <body></body>
               </html>
             ),
