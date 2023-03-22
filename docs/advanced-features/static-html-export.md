@@ -27,6 +27,7 @@ Update your `next.config.js` file to include `output: "export"` like the followi
  */
 const nextConfig = {
   output: 'export',
+  distDir: 'out',
 }
 
 module.exports = nextConfig
