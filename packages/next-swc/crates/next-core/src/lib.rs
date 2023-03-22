@@ -42,6 +42,7 @@ pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
     turbo_tasks_fetch::register();
+    turbopack_dev::register();
     turbopack_dev_server::register();
     turbopack_node::register();
     turbopack::register();

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{primitives::OptionStringVc, Value};
-use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
     module_options::ModuleOptionsContextVc,
@@ -10,7 +9,9 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
+    asset::AssetVc,
+    chunk::{ChunkingContext, ChunkingContextVc},
+    compile_time_info::CompileTimeInfoVc,
     context::AssetContext,
 };
 use turbopack_ecmascript::{
@@ -33,7 +34,6 @@ pub struct NextClientTransition {
     pub client_module_options_context: ModuleOptionsContextVc,
     pub client_resolve_options_context: ResolveOptionsContextVc,
     pub client_chunking_context: ChunkingContextVc,
-    pub server_root: FileSystemPathVc,
     pub runtime_entries: RuntimeEntriesVc,
 }
 
@@ -99,9 +99,10 @@ impl Transition for NextClientTransition {
 
         let asset = ChunkGroupFilesAsset {
             asset: asset.into(),
+            // This ensures that the chunk group files asset will strip out the _next prefix from
+            // all chunk paths, which is what the Next.js renderer code expects.
+            client_root: self.client_chunking_context.output_root().join("_next"),
             chunking_context: self.client_chunking_context,
-            base_path: self.server_root.join("_next"),
-            server_root: self.server_root,
             runtime_entries: Some(runtime_entries),
         };
 

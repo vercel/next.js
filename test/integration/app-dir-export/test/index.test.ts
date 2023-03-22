@@ -235,4 +235,25 @@ describe('app dir with output export', () => {
       'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".'
     )
   })
+  it('should throw when exportPathMap configured', async () => {
+    nextConfig.replace(
+      'trailingSlash: true,',
+      `trailingSlash: true,
+       exportPathMap: async function (map) {
+        return map
+      },`
+    )
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    let result = { code: 0, stderr: '' }
+    try {
+      result = await nextBuild(appDir, [], { stderr: true })
+    } finally {
+      nextConfig.restore()
+    }
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
+    )
+  })
 })

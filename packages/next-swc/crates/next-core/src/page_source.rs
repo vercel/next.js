@@ -11,12 +11,13 @@ use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::AssetVc,
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    chunk::ChunkingContextVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
@@ -123,7 +124,6 @@ pub async fn create_page_source(
         client_module_options_context,
         client_resolve_options_context,
         client_compile_time_info,
-        server_root,
         runtime_entries: client_runtime_entries,
     }
     .cell()

@@ -55,7 +55,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1
       '@typescript-eslint/parser': 4.29.1
       '@vercel/fetch': 6.1.1
-      '@vercel/og': 0.0.20
+      '@vercel/og': 0.4.0
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -232,7 +232,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1_qxyn66xcaddhgaahwkbomftvi4
       '@typescript-eslint/parser': 4.29.1_6x3mpmmsttbpxxsctsorxedanu
       '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
-      '@vercel/og': 0.0.20
+      '@vercel/og': 0.4.0
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -444,7 +444,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.2.5-canary.10
+      '@next/eslint-plugin-next': 13.2.5-canary.12
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -517,12 +517,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.2.5-canary.10
-      '@next/polyfill-module': 13.2.5-canary.10
-      '@next/polyfill-nomodule': 13.2.5-canary.10
-      '@next/react-dev-overlay': 13.2.5-canary.10
-      '@next/react-refresh-utils': 13.2.5-canary.10
-      '@next/swc': 13.2.5-canary.10
+      '@next/env': 13.2.5-canary.12
+      '@next/polyfill-module': 13.2.5-canary.12
+      '@next/polyfill-nomodule': 13.2.5-canary.12
+      '@next/react-dev-overlay': 13.2.5-canary.12
+      '@next/react-refresh-utils': 13.2.5-canary.12
+      '@next/swc': 13.2.5-canary.12
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
@@ -992,7 +992,7 @@ importers:
       '@types/react': ^18.0.26
       '@types/react-dom': ^18.0.9
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-runtime': https://gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94
+      '@vercel/turbopack-dev-runtime': https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1004,7 +1004,7 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-runtime': '@gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94_react-refresh@0.12.0'
+      '@vercel/turbopack-dev-runtime': '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3_react-refresh@0.12.0'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -6308,8 +6308,8 @@ packages:
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
     dev: true
 
-  /@resvg/resvg-wasm/2.0.0-alpha.4:
-    resolution: {integrity: sha512-pWIG9a/x1ky8gXKRhPH1OPKpHFoMN1ISLbJ+O+gPXQHIAKhNd5I28RlWf7q576hAOQA9JZTlo3p/M2uyLzJmmw==}
+  /@resvg/resvg-wasm/2.4.1:
+    resolution: {integrity: sha512-yi6R0HyHtsoWTRA06Col4WoDs7SvlXU3DLMNP2bdAgs7HK18dTEVl1weXgxRzi8gwLteGUbIg29zulxIB3GSdg==}
     engines: {node: '>= 10'}
     dev: true
 
@@ -7494,10 +7494,6 @@ packages:
       '@types/yargs-parser': 13.1.0
     dev: true
 
-  /@types/yoga-layout/1.9.2:
-    resolution: {integrity: sha512-S9q47ByT2pPvD65IvrWp7qppVMpk9WGMbVq9wbWZOHg6tnXSD4vyhao6nOSBwwfDdV2p3Kx9evA9vI+XWTfDvw==}
-    dev: true
-
   /@typescript-eslint/eslint-plugin/4.29.1_qxyn66xcaddhgaahwkbomftvi4:
     resolution: {integrity: sha512-AHqIU+SqZZgBEiWOrtN94ldR3ZUABV5dUG94j8Nms9rQnHFc8fvDOue/58K4CFz6r8OtDDc35Pw9NQPWo0Ayrw==}
     engines: {node: ^10.12.0 || >=12.0.0}
@@ -7735,13 +7731,13 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og/0.0.20:
-    resolution: {integrity: sha512-089P+TfqWz0xBxjOvOhkZIDDtfrLcye94H4IZ+SqxoGPWpNGXaBvRJER/z5SoJxJRcCAL8tPiK5zdjRskM6tLw==}
+  /@vercel/og/0.4.0:
+    resolution: {integrity: sha512-FFjXYCD5ZM0VotC9niy11qf4m6D99JVQ73P/uCLJl/r2PeOj0l26xwTEQ4HHJ/yZ6ncByCNoWAjk+S0fjMJmwg==}
     engines: {node: '>=16'}
     dependencies:
-      '@resvg/resvg-wasm': 2.0.0-alpha.4
-      satori: 0.0.43
-      yoga-wasm-web: 0.1.2
+      '@resvg/resvg-wasm': 2.4.1
+      satori: 0.4.1
+      yoga-wasm-web: 0.3.0
     dev: true
 
   /@webassemblyjs/ast/1.11.1:
@@ -8833,6 +8829,11 @@ packages:
       isobject: 3.0.1
       mixin-deep: 1.3.2
       pascalcase: 0.1.1
+
+  /base64-js/0.0.8:
+    resolution: {integrity: sha512-3XSA2cR/h/73EzlXXdU6YNycmYI7+kicTxks4eJg2g39biHR84slg2+des+p7iHYhbRg/udIS4TD53WabcOUkw==}
+    engines: {node: '>= 0.4'}
+    dev: true
 
   /base64-js/1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
@@ -16408,6 +16409,13 @@ packages:
     resolution: {integrity: sha512-FWWMIEOxz3GwUI4Ts/IvgVy6LPvoMPgjMdQ185nN6psJyBJ4yOpzqm695/h5umdLJg2vW3GR5iG11MAkR2AzJA==}
     dev: true
 
+  /linebreak/1.1.0:
+    resolution: {integrity: sha512-MHp03UImeVhB7XZtjd0E4n6+3xr5Dq/9xI/5FptGk5FrbDR3zagPa2DS6U8ks/3HjbKWG9Q1M2ufOzxV2qLYSQ==}
+    dependencies:
+      base64-js: 0.0.8
+      unicode-trie: 2.0.0
+    dev: true
+
   /lines-and-columns/1.1.6:
     resolution: {integrity: sha512-8ZmlJFVK9iCmtLz19HpSsR8HaAMWBT284VMNednLwlIMDP2hJDCIhUp0IZ2xUcZ+Ob6BM0VvCSJwzASDM45NLQ==}
 
@@ -22269,8 +22277,8 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori/0.0.43:
-    resolution: {integrity: sha512-SzYwr+LsELWRJU9KMviEOE9TdShry+R5AdS54YQvgAVKFDN4yniAIzwQk1/z2TtIx0ceUT9zTeosWAoWvJBEtQ==}
+  /satori/0.4.1:
+    resolution: {integrity: sha512-uQm4+vQj57E9PO/ASAlxsRb+78fHkRUmkNLBBmfuEeGNLGqJ9ufYU7TzYP4XH60PLHYt9Wz1jSsgcAe2cz7+ng==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
@@ -22278,8 +22286,9 @@ packages:
       css-box-shadow: 1.0.0-3
       css-to-react-native: 3.0.0
       emoji-regex: 10.2.1
+      linebreak: 1.1.0
       postcss-value-parser: 4.2.0
-      yoga-layout-prebuilt: 1.10.0
+      yoga-wasm-web: 0.3.3
     dev: true
 
   /sax/1.2.4:
@@ -25392,15 +25401,12 @@ packages:
     engines: {node: '>=12.20'}
     dev: true
 
-  /yoga-layout-prebuilt/1.10.0:
-    resolution: {integrity: sha512-YnOmtSbv4MTf7RGJMK0FvZ+KD8OEe/J5BNnR0GHhD8J/XcG/Qvxgszm0Un6FTHWW4uHlTgP0IztiXQnGyIR45g==}
-    engines: {node: '>=8'}
-    dependencies:
-      '@types/yoga-layout': 1.9.2
+  /yoga-wasm-web/0.3.0:
+    resolution: {integrity: sha512-rD3L4jyMlO1m+RWU60lNwZQK5zmzglCV5fI1gTRikmpv3YzmNIZQbjyfE6cMNb9Xaly/C1SwemYGbsiOekMvnQ==}
     dev: true
 
-  /yoga-wasm-web/0.1.2:
-    resolution: {integrity: sha512-8SkgawHcA0RUbMrnhxbaQkZDBi8rMed8pQHixkFF9w32zGhAwZ9/cOHWlpYfr6RCx42Yp3siV45/jPEkJxsk6w==}
+  /yoga-wasm-web/0.3.3:
+    resolution: {integrity: sha512-N+d4UJSJbt/R3wqY7Coqs5pcV0aUj2j9IaQ3rNj9bVCLld8tTGKRa2USARjnvZJWVx1NDmQev8EknoczaOQDOA==}
     dev: true
 
   /zod/3.21.4:
@@ -25414,10 +25420,10 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94}
-    id: '@gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94'
-    name: '@vercel/turbopack-runtime'
+  '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3}
+    id: '@gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3'
+    name: '@vercel/turbopack-dev-runtime'
     version: 0.0.0
     dependencies:
       '@next/react-refresh-utils': 13.2.4_react-refresh@0.12.0

@@ -1,14 +1,11 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
-    },
-    utils::stringify_js,
+use turbopack::ecmascript::chunk::{
+    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    EcmascriptExports, EcmascriptExportsVc,
 };
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -21,7 +18,7 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
-use turbopack_ecmascript::utils::stringify_js_pretty;
+use turbopack_ecmascript::{chunk::EcmascriptChunkingContextVc, utils::StringifyJs};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -76,16 +73,21 @@ impl ChunkableAsset for WithClientChunksAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for WithClientChunksAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self_vc: WithClientChunksAssetVc,
-        context: ChunkingContextVc,
-    ) -> EcmascriptChunkItemVc {
-        WithClientChunksChunkItem {
-            context: context.with_layer("rsc"),
+        context: EcmascriptChunkingContextVc,
+    ) -> Result<EcmascriptChunkItemVc> {
+        Ok(WithClientChunksChunkItem {
+            context: EcmascriptChunkingContextVc::resolve_from(context.with_layer("rsc"))
+                .await?
+                .context(
+                    "ChunkingContextVc::with_layer should not return a different kind of chunking \
+                     context",
+                )?,
             inner: self_vc,
         }
         .cell()
-        .into()
+        .into())
     }
 
     #[turbo_tasks::function]
@@ -97,14 +99,14 @@ impl EcmascriptChunkPlaceable for WithClientChunksAsset {
 
 #[turbo_tasks::value]
 struct WithClientChunksChunkItem {
-    context: ChunkingContextVc,
+    context: EcmascriptChunkingContextVc,
     inner: WithClientChunksAssetVc,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> ChunkingContextVc {
+    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
         self.context
     }
 
@@ -113,7 +115,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
         let inner = self.inner.await?;
         let group = ChunkGroupVc::from_asset(
             inner.asset.into(),
-            self.context,
+            self.context.into(),
             Value::new(AvailabilityInfo::Root {
                 current_availability_root: inner.asset.into(),
             }),
@@ -140,7 +142,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
             }
         }
 
-        let module_id = stringify_js(&*inner.asset.as_chunk_item(self.context).id().await?);
+        let module_id = inner.asset.as_chunk_item(self.context).id().await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 // We store the chunks in a binding, otherwise a new array would be created every
@@ -150,10 +152,10 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
                         default: () => __turbopack_import__({}),
                         chunks: () => chunks,
                     }});
-                    const chunks = {};
+                    const chunks = {:#};
                 "#,
-                module_id,
-                stringify_js_pretty(&client_chunks),
+                StringifyJs(&module_id),
+                StringifyJs(&client_chunks),
             )
             .into(),
             ..Default::default()
