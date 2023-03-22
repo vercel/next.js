@@ -3,3 +3,5 @@
     return null;
 }
 }
+import ensureServerEntryExports from "private-next-rsc-action-proxy";
+ensureServerEntryExports([]);
