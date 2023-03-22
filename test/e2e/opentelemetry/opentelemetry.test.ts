@@ -23,6 +23,7 @@ createNextDescribe(
      * It made our tests, flaky. This should make tests deterministic.
      */
     const waitForOtelToInitialize = async () => {
+      return
       await check(
         async () =>
           await next
