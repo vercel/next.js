@@ -1,3 +1,4 @@
+import execa from 'execa'
 import fs from 'fs-extra'
 import * as pty from 'node-pty'
 import path from 'path'
@@ -53,6 +54,13 @@ const pagesFiles: File[] = [
   `,
   },
 ]
+
+beforeAll(async () => {
+  if (process.env.CI && process.platform === 'linux') {
+    await execa('sudo', ['apt', 'update'], { stdio: 'inherit' })
+    await execa('sudo', ['apt', 'install', 'libc6', '-y'], { stdio: 'inherit' })
+  }
+})
 
 it.each([
   { name: 'app dir', files: appDirFiles },
@@ -113,7 +121,9 @@ it.each([
     })
 
     ptyProcess.onData(function (data) {
-      output.push(stripAnsi(data))
+      stripAnsi(data)
+        .split('\n')
+        .forEach((line) => output.push(line))
       process.stdout.write(data)
     })
 
@@ -175,10 +185,10 @@ it.each([
     expect(generatingStaticIdx).not.toBe(-1)
     expect(finalizingOptimization).not.toBe(-1)
 
-    expect(optimizedBuildIdx).toBeLessThanOrEqual(compiledIdx)
-    expect(compiledIdx).toBeLessThanOrEqual(collectingPageDataIdx)
-    expect(collectingPageDataIdx).toBeLessThanOrEqual(generatingStaticIdx)
-    expect(generatingStaticIdx).toBeLessThanOrEqual(finalizingOptimization)
+    expect(optimizedBuildIdx).toBeLessThan(compiledIdx)
+    expect(compiledIdx).toBeLessThan(collectingPageDataIdx)
+    expect(collectingPageDataIdx).toBeLessThan(generatingStaticIdx)
+    expect(generatingStaticIdx).toBeLessThan(finalizingOptimization)
   } finally {
     await fs.remove(appDir)
   }
