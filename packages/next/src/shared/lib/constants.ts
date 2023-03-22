@@ -96,6 +96,7 @@ export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
+export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },

@@ -38,6 +38,8 @@ import { AppConfig } from '../../../build/utils'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { NextURL } from '../../web/next-url'
 import { NextConfig } from '../../config-shared'
+import { getTracer } from '../../lib/trace/tracer'
+import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
 import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
 import { WebNextRequest } from '../../base-http/web'
 
@@ -296,6 +298,20 @@ function proxyRequest(
   })
 }
 
+function getPathnameFromAbsolutePath(absolutePath: string) {
+  // Remove prefix including app dir
+  let appDir = '/app/'
+  if (!absolutePath.includes(appDir)) {
+    appDir = '\\app\\'
+  }
+  const [, ...parts] = absolutePath.split(appDir)
+  const relativePath = appDir[0] + parts.join(appDir)
+
+  // remove extension
+  const pathname = relativePath.split('.').slice(0, -1).join('.')
+  return pathname
+}
+
 /**
  * Validate that the module is exporting methods supported by the handler.
  *
@@ -532,7 +548,16 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               module
             )
 
-            return handle(wrappedRequest, { params })
+            return getTracer().trace(
+              AppRouteRouteHandlersSpan.runHandler,
+              {
+                // TODO: propagate this pathname from route matcher
+                spanName: `executing api route (app) ${getPathnameFromAbsolutePath(
+                  module.resolvedPagePath
+                )}`,
+              },
+              () => handle(wrappedRequest, { params })
+            )
           }
         )
     )
