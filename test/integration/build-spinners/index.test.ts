@@ -1,4 +1,4 @@
-import execa from 'execa'
+import pty from 'node-pty'
 import fs from 'fs-extra'
 import path from 'path'
 import stripAnsi from 'strip-ansi'
@@ -53,16 +53,6 @@ const pagesFiles: File[] = [
   `,
   },
 ]
-
-let pty: typeof import('node-pty')
-
-beforeAll(async () => {
-  if (process.env.NEXT_TEST_JOB && process.platform === 'linux') {
-    await execa('sudo', ['apt', 'update'], { stdio: 'inherit' })
-    await execa('sudo', ['apt', 'install', 'libc6', '-y'], { stdio: 'inherit' })
-  }
-  pty = require('node-pty')
-})
 
 it.each([
   { name: 'app dir', files: appDirFiles },
