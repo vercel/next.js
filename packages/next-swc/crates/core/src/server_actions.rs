@@ -918,8 +918,56 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }
                 }
             }
-            new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
             new.append(&mut self.extra_items);
+
+            // Ensure that the exports are valid by appending a check
+            // import { ensureServerEntryExports } from 'private-next-rsc-action-proxy'
+            // ensureServerEntryExports([action1, action2, ...])
+            let ensure_ident = private_ident!("ensureServerEntryExports");
+            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                span: DUMMY_SP,
+                specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                    span: DUMMY_SP,
+                    local: ensure_ident.clone(),
+                })],
+                src: Box::new(Str {
+                    span: DUMMY_SP,
+                    value: "private-next-rsc-action-proxy".into(),
+                    raw: None,
+                }),
+                type_only: false,
+                asserts: None,
+            })));
+            new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Call(CallExpr {
+                    span: DUMMY_SP,
+                    callee: Callee::Expr(Box::new(Expr::Ident(ensure_ident))),
+                    args: vec![ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Array(ArrayLit {
+                            span: DUMMY_SP,
+                            elems: self
+                                .exported_idents
+                                .iter()
+                                .map(|e| {
+                                    Some(ExprOrSpread {
+                                        spread: None,
+                                        expr: Box::new(Expr::Ident(Ident::new(
+                                            e.0 .0.clone(),
+                                            DUMMY_SP.with_ctxt(e.0 .1),
+                                        ))),
+                                    })
+                                })
+                                .collect(),
+                        })),
+                    }],
+                    type_args: None,
+                })),
+            })));
+
+            // Append annotations to the end of the file.
+            new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
         }
 
         *stmts = new;

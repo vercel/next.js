@@ -20,12 +20,11 @@ describe('AbsoluteFilenameNormalizer', () => {
   ])(
     "normalizes '$pathname' to '$expected'",
     ({ pathname, expected, name }) => {
-      const normalizer = new AbsoluteFilenameNormalizer(`<root>/${name}`, [
-        'ts',
-        'tsx',
-        'js',
-        'jsx',
-      ])
+      const normalizer = new AbsoluteFilenameNormalizer(
+        `<root>/${name}`,
+        ['ts', 'tsx', 'js', 'jsx'],
+        name as 'app' | 'pages' | 'root'
+      )
 
       expect(normalizer.normalize(pathname)).toEqual(expected)
     }

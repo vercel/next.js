@@ -521,6 +521,17 @@ createNextDescribe(
       })
     })
 
+    describe('customized metadata routes', () => {
+      it('should work if conflict with metadata routes convention', async () => {
+        const res = await next.fetch('/robots.txt')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toBe(
+          'User-agent: *\nAllow: /\n\nSitemap: https://www.example.com/sitemap.xml'
+        )
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
@@ -550,6 +561,26 @@ createNextDescribe(
             }, 'yes')
           }
         )
+      })
+
+      describe('invalid exports', () => {
+        it('should print an error when exporting a default handler in dev', async () => {
+          const res = await next.fetch('/default')
+
+          // Ensure we get a 405 (Method Not Allowed) response when there is no
+          // exported handler for the GET method.
+          expect(res.status).toEqual(405)
+
+          await check(() => {
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
+            )
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            return 'yes'
+          }, 'yes')
+        })
       })
     }
   }

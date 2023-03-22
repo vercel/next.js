@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc};
 use turbopack_ecmascript::{
-    utils::stringify_js, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+    utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
@@ -60,7 +60,7 @@ impl PageLoaderAssetVc {
         writeln!(
             result,
             "const PAGE_PATH = {};\n",
-            stringify_js(&format!("/{}", &*this.pathname.await?))
+            StringifyJs(&format_args!("/{}", &*this.pathname.await?))
         )?;
 
         let page_loader_path = next_js_file_path("entry/page-loader.ts");
@@ -137,9 +137,9 @@ impl Asset for PageLoaderAsset {
             .collect();
 
         let content = format!(
-            "__turbopack_load_page_chunks__({}, {})\n",
-            stringify_js(&this.pathname.await?),
-            stringify_js(&chunk_paths)
+            "__turbopack_load_page_chunks__({}, {:#})\n",
+            StringifyJs(&this.pathname.await?),
+            StringifyJs(&chunk_paths)
         );
 
         Ok(AssetContentVc::from(File::from(content)))

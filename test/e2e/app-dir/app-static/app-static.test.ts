@@ -50,40 +50,66 @@ createNextDescribe(
       })
     }
 
-    it('should revalidate correctly with config and fetch revalidate', async () => {
-      const initial$ = await next.render$(
-        '/variable-config-revalidate/revalidate-3'
-      )
-      const initialDate = initial$('#date').text()
-      const initialData = initial$('#data').text()
+    it('should correctly skip caching POST fetch for POST handler', async () => {
+      const res = await next.fetch('/route-handler/post', {
+        method: 'POST',
+      })
+      expect(res.status).toBe(200)
 
-      expect(initialDate).toBeTruthy()
-      expect(initialData).toBeTruthy()
+      const data = await res.json()
+      expect(data).toBeTruthy()
 
-      let revalidatedDate
-      let revalidatedData
-
-      // wait for a fresh revalidation
-      await check(async () => {
-        const $ = await next.render$('/variable-config-revalidate/revalidate-3')
-
-        revalidatedDate = $('#date').text()
-        revalidatedData = $('#data').text()
-
-        expect(revalidatedData).not.toBe(initialDate)
-        expect(revalidatedDate).not.toBe(initialData)
-        return 'success'
-      }, 'success')
-
-      // the date should revalidate first after 3 seconds
-      // while the fetch data stays in place for 15 seconds
-      await check(async () => {
-        const $ = await next.render$('/variable-config-revalidate/revalidate-3')
-        expect($('#date').text()).not.toBe(revalidatedDate)
-        expect($('#data').text()).toBe(revalidatedData)
-        return 'success'
-      }, 'success')
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/route-handler/post', {
+          method: 'POST',
+        })
+        expect(res2.status).toBe(200)
+        const newData = await res2.json()
+        expect(newData).toBeTruthy()
+        expect(newData).not.toEqual(data)
+      }
     })
+
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should revalidate correctly with config and fetch revalidate', async () => {
+        const initial$ = await next.render$(
+          '/variable-config-revalidate/revalidate-3'
+        )
+        const initialDate = initial$('#date').text()
+        const initialData = initial$('#data').text()
+
+        expect(initialDate).toBeTruthy()
+        expect(initialData).toBeTruthy()
+
+        let revalidatedDate
+        let revalidatedData
+
+        // wait for a fresh revalidation
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+
+          revalidatedDate = $('#date').text()
+          revalidatedData = $('#data').text()
+
+          expect(revalidatedData).not.toBe(initialDate)
+          expect(revalidatedDate).not.toBe(initialData)
+          return 'success'
+        }, 'success')
+
+        // the date should revalidate first after 3 seconds
+        // while the fetch data stays in place for 15 seconds
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+          expect($('#date').text()).not.toBe(revalidatedDate)
+          expect($('#data').text()).toBe(revalidatedData)
+          return 'success'
+        }, 'success')
+      })
+    }
 
     it('should include statusCode in cache', async () => {
       const $ = await next.render$('/variable-revalidate/status-code')
@@ -137,6 +163,7 @@ createNextDescribe(
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -186,6 +213,7 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler/post/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -1118,6 +1146,26 @@ createNextDescribe(
 
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).not.toBe($2('#now').text())
+      }
+    })
+
+    it('should allow dynamic routes to access cookies', async () => {
+      for (const slug of ['books', 'frameworks']) {
+        for (let i = 0; i < 2; i++) {
+          let $ = await next.render$(
+            `/force-dynamic-prerender/${slug}`,
+            {},
+            { headers: { cookie: 'session=value' } }
+          )
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('has cookie')
+
+          $ = await next.render$(`/force-dynamic-prerender/${slug}`)
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('no cookie')
+        }
       }
     })
 
