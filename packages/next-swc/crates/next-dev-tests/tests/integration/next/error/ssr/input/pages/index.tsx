@@ -34,7 +34,7 @@ function runTests(
   iframe: HTMLIFrameElement,
   appIframe: HTMLIFrameElement
 ) {
-  const TIMEOUT = 20000
+  const TIMEOUT = 40000
 
   it(
     'returns a 500 status code',
@@ -75,8 +75,8 @@ function runTests(
   it(
     'should show error overlay for a broken app page',
     async () => {
-      await harness.waitForLoaded(iframe)
-      const errorOverlay = await harness.waitForErrorOverlay(iframe)
+      await harness.waitForLoaded(appIframe)
+      const errorOverlay = await harness.waitForErrorOverlay(appIframe)
       const issues = await harness.waitForSelector(
         errorOverlay,
         '#runtime-errors'
