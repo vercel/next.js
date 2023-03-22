@@ -11,7 +11,6 @@ import { requestAsyncStorage } from "next/dist/client/components/request-async-s
 
 enhanceGlobals();
 
-// @ts-expect-error ENTRY is set from rust code
 import * as handlers from "ENTRY";
 const mod = {
   handlers,
@@ -25,6 +24,7 @@ const mod = {
 const handler = getHandle({
   mod,
   page: `/${PAGE}`,
+  nextConfigOutput: undefined
 });
 
 // @ts-ignore
