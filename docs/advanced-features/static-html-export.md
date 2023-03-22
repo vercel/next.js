@@ -54,6 +54,24 @@ In this example, `next build` will generate a `dist` directory containing the HT
 
 Learn more about [Setting a custom build directory](/docs/api-reference/next.config.js/setting-a-custom-build-directory.md).
 
+If you want to change the output directory structure to always include a trailing slash, you can configure `trailingSlash` like the following:
+
+```js
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+}
+
+module.exports = nextConfig
+```
+
+This will change links so that `href="/about"` will instead be `herf="/about/"`. It will also change the output so that `out/about.html` will instead emit `out/about/index.html`.
+
+Learn more about [Trailing Slash](/docs/api-reference/next.config.js/trailing-slash.md).
+
 ## Supported Features
 
 The majority of core Next.js features needed to build a static site are supported, including:
