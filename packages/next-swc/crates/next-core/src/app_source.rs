@@ -551,11 +551,11 @@ impl AppRendererVc {
                             let mut imports = BTreeMap::new();
                             for (key, file) in segment.files.iter() {
                                 let file_str = file.to_string().await?;
-                                let identifier = magic_identifier::encode(&format!(
+                                let identifier = magic_identifier::mangle(&format!(
                                     "imported namespace {}",
                                     file_str
                                 ));
-                                let chunks_identifier = magic_identifier::encode(&format!(
+                                let chunks_identifier = magic_identifier::mangle(&format!(
                                     "client chunks for {}",
                                     file_str
                                 ));
