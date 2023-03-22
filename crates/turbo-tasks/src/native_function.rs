@@ -45,11 +45,11 @@ impl Debug for NativeFunction {
 impl NativeFunction {
     pub fn new(
         name: String,
-        bind_fn: impl (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static,
+        bind_fn: Box<dyn (Fn(&Vec<TaskInput>) -> Result<NativeTaskFn>) + Send + Sync + 'static>,
     ) -> Self {
         Self {
             name,
-            bind_fn: Box::new(bind_fn),
+            bind_fn,
             executed_count: AtomicUsize::new(0),
         }
     }
