@@ -45,13 +45,9 @@ function mergeStaticMetadata(
   if (!staticFilesMetadata) return
   const { icon, apple, opengraph, twitter } = staticFilesMetadata
   if (icon || apple) {
-    // if (!metadata.icons)
-    metadata.icons = {
-      icon: icon || [],
-      apple: apple || [],
-    }
-    // if (icon) metadata.icons.icon.push(...icon)
-    // if (apple) metadata.icons.apple.push(...apple)
+    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
+    if (icon) metadata.icons.icon.push(...icon)
+    if (apple) metadata.icons.apple.push(...apple)
   }
   if (twitter) {
     const resolvedTwitter = resolveTwitter(
@@ -219,8 +215,9 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (iconResolver: () => Promise<MetadataImageModule>) =>
-      interopDefault(await iconResolver())
+    // TODO-APP: share the typing between next-metadata-image-loader and here
+    async (iconResolver: any) =>
+      interopDefault(await iconResolver()) as MetadataImageModule
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
