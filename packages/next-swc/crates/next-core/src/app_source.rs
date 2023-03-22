@@ -15,7 +15,6 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::dev::DevChunkingContextVc,
     compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
@@ -23,6 +22,7 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
@@ -30,7 +30,7 @@ use turbopack_dev_server::{
     },
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::stringify_js,
+    chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::StringifyJs,
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 use turbopack_env::ProcessEnvAssetVc;
@@ -107,7 +107,6 @@ async fn next_client_transition(
 
     Ok(NextClientTransition {
         is_app: true,
-        server_root,
         client_chunking_context,
         client_module_options_context,
         client_resolve_options_context,
@@ -575,7 +574,7 @@ impl AppRendererVc {
                                     ));
                                 }
                             }
-                            Ok((stringify_js(segment_path), imports))
+                            Ok((StringifyJs(segment_path).to_string(), imports))
                         });
                         futures
                     })
@@ -600,7 +599,7 @@ impl AppRendererVc {
                     "import {}, {{ chunks as {} }} from {};\n",
                     identifier,
                     chunks_identifier,
-                    stringify_js(p)
+                    StringifyJs(p)
                 )?
             }
         }
@@ -610,7 +609,7 @@ impl AppRendererVc {
                 r#"("TURBOPACK {{ transition: next-client }}");
 import BOOTSTRAP from {};
 "#,
-                stringify_js(&page)
+                StringifyJs(&page)
             )?;
         }
 
@@ -621,7 +620,7 @@ import BOOTSTRAP from {};
                 writeln!(
                     result,
                     "    {key}: {{ module: {identifier}, chunks: {chunks_identifier} }},",
-                    key = stringify_js(key),
+                    key = StringifyJs(key),
                 )?;
             }
             result += "  },";
