@@ -5,6 +5,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::ChunkingContextVc,
+    error::PrettyPrintError,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
@@ -147,7 +148,8 @@ async fn static_error(
     operation: Option<NodeJsOperation>,
     fallback_page: DevHtmlAssetVc,
 ) -> Result<AssetContentVc> {
-    let message = format!("{error:?}")
+    let error = format!("{}", PrettyPrintError(&error));
+    let message = error
         // TODO this is pretty inefficient
         .replace('&', "&amp;")
         .replace('>', "&gt;")
@@ -174,7 +176,7 @@ async fn static_error(
 
     let issue = RenderingIssue {
         context: path,
-        message: StringVc::cell(format!("{error:?}")),
+        message: StringVc::cell(error),
         status: status.and_then(|status| status.code()),
     };
 
