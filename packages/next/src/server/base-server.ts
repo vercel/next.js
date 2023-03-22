@@ -1982,7 +1982,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       {
         spanName: `rendering page`,
         attributes: {
-          'next.pathname': ctx.pathname,
+          'next.route': ctx.pathname,
         },
       },
       async () => {
