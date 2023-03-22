@@ -243,7 +243,7 @@ function addRedirectsRewritesRouteTypes(
               return
             }
           } else if (token.modifier === '?') {
-            if (/^[a-zA-Z0-9_\/]*$/.test(token.pattern)) {
+            if (/^[a-zA-Z0-9_/]*$/.test(token.pattern)) {
               // An optional slug with plain text only, fork the route.
               append(token.prefix)
               fork(token.pattern)
