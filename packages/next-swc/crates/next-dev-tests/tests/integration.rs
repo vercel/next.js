@@ -564,9 +564,19 @@ impl Issue for NormalizedIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
         let str = self.0.description().await?;
-        let regex = Regex::new(r"\n  at (.+) \((.+)\)").unwrap();
+        let regex1 = Regex::new(r"\n  +at (.+) \((.+)\)(?: \[.+\])?").unwrap();
+        let regex2 = Regex::new(r"\n  +at ()(.+) \[.+\]").unwrap();
+        let regex3 = Regex::new(r"\n  +\[at .+\]").unwrap();
         Ok(StringVc::cell(
-            regex.replace_all(&str, StackTraceReplacer).to_string(),
+            regex3
+                .replace_all(
+                    &regex2.replace_all(
+                        &regex1.replace_all(&str, StackTraceReplacer),
+                        StackTraceReplacer,
+                    ),
+                    "",
+                )
+                .to_string(),
         ))
     }
 
