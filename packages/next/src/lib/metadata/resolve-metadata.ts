@@ -25,6 +25,8 @@ import {
   resolveViewport,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
+import { getTracer } from '../../server/lib/trace/tracer'
+import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
@@ -181,7 +183,8 @@ function merge(
 
 async function getDefinedMetadata(
   mod: any,
-  props: any
+  props: any,
+  route: string
 ): Promise<Metadata | MetadataResolver | null> {
   // Layer is a client component, we just skip it. It can't have metadata exported.
   // Return early to avoid accessing properties error for client references.
@@ -190,7 +193,17 @@ async function getDefinedMetadata(
   }
   return (
     (mod.generateMetadata
-      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      ? (parent: ResolvingMetadata) =>
+          getTracer().trace(
+            ResolveMetadataSpan.generateMetadata,
+            {
+              spanName: `generateMetadata ${route}`,
+              attributes: {
+                'next.route': route,
+              },
+            },
+            () => mod.generateMetadata(props, parent)
+          )
       : mod.metadata) || null
   )
 }
@@ -231,14 +244,27 @@ async function resolveStaticMetadata(components: ComponentsType) {
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
-export async function collectMetadata(
-  loaderTree: LoaderTree,
-  props: any,
+export async function collectMetadata({
+  loaderTree,
+  props,
+  array,
+  route,
+}: {
+  loaderTree: LoaderTree
+  props: any
   array: MetadataItems
-) {
-  const mod = await getLayoutOrPageModule(loaderTree)
+  route: string
+}) {
+  const [mod, modType] = await getLayoutOrPageModule(loaderTree)
+
+  if (modType) {
+    route += `/${modType}`
+  }
+
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
-  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+  const metadataExport = mod
+    ? await getDefinedMetadata(mod, props, route)
+    : null
 
   array.push([metadataExport, staticFilesMetadata])
 }
