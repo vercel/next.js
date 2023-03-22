@@ -136,6 +136,7 @@ importers:
       nanoid: 3.1.30
       next: workspace:*
       node-fetch: 2.6.7
+      node-pty: 0.10.1
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       pixrem: 5.0.0
@@ -313,6 +314,7 @@ importers:
       nanoid: 3.1.30
       next: link:packages/next
       node-fetch: 2.6.7
+      node-pty: 0.10.1
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       pixrem: 5.0.0
@@ -18199,6 +18201,13 @@ packages:
       resolve: 1.22.1
       title-case: 3.0.3
       upper-case: 2.0.2
+    dev: true
+
+  /node-pty/0.10.1:
+    resolution: {integrity: sha512-JTdtUS0Im/yRsWJSx7yiW9rtpfmxqxolrtnyKwPLI+6XqTAPW/O2MjS8FYL4I5TsMbH2lVgDb2VMjp+9LoQGNg==}
+    requiresBuild: true
+    dependencies:
+      nan: 2.15.0
     dev: true
 
   /node-releases/2.0.3:
