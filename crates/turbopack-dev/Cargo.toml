@@ -9,6 +9,10 @@ autobenches = false
 [lib]
 bench = false
 
+[features]
+# enable "HMR" for embedded assets
+dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
+
 [dependencies]
 anyhow = { workspace = true }
 indexmap = { workspace = true }
