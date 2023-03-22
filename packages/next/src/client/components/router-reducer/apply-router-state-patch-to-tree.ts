@@ -55,6 +55,7 @@ function applyPatch(
 
   return patchTree
 }
+
 /**
  * Apply the router state from the Flight response. Creates a new router state tree.
  */
@@ -83,7 +84,7 @@ export function applyRouterStatePatchToTree(
 
   let parallelRoutePatch
   if (lastSegment) {
-    parallelRoutePatch = treePatch
+    parallelRoutePatch = applyPatch(treePatch, parallelRoutes[parallelRouteKey])
   } else {
     parallelRoutePatch = applyRouterStatePatchToTree(
       flightSegmentPath.slice(2),
