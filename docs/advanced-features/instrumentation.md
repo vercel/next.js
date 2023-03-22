@@ -34,3 +34,19 @@ export const register() {
 ```
 
 By doing this, you can colocate all of your side effects in one place in your code, and avoid any unintended consequences from importing files.
+
+We call `register` in all environments, so it's necessary to conditionally require any code that doesn't support both `edge` and `nodejs`. You can use environment variable `NEXT_RUNTIME` to get the current environment. Importing environment specific code would look like this:
+
+```ts
+// /instrumentation.ts
+
+export const register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    require('./instrumentation-node')
+  }
+
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    require('./instrumentation-edge')
+  }
+}
+```
