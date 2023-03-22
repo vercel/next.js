@@ -1189,6 +1189,14 @@ createNextDescribe(
       }
     })
 
+    it('should not error with force-dynamic and catch-all routes', async () => {
+      // Regression test for https://github.com/vercel/next.js/issues/45603
+      const res = await next.fetch('/force-dynamic-catch-all/slug/a')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('Dynamic catch-all route')
+    })
+
     it('should not error with generateStaticParams and authed data on revalidate', async () => {
       const res = await next.fetch('/gen-params-dynamic-revalidate/one')
       const html = await res.text()
