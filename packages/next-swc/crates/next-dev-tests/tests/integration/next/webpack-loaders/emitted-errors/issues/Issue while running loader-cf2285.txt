@@ -1,9 +1,9 @@
 PlainIssue {
-    severity: Warning,
+    severity: Error,
     context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/webpack-loaders/emitted-errors/input/pages/hello.emit",
     category: "loaders",
     title: "Issue while running loader",
-    description: "Error: Warning!\n",
+    description: "Error: Error!",
     detail: "",
     documentation_link: "",
     source: None,
