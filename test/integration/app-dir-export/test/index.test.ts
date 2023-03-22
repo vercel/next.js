@@ -258,7 +258,7 @@ describe('app dir with output export', () => {
       'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
     )
   })
-  it('should warn about "next export" is no longer needed', async () => {
+  it('should warn about "next export" is no longer needed with config', async () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     await nextBuild(appDir)
@@ -322,6 +322,58 @@ describe('app dir with output export', () => {
       'index.txt',
       'robots.txt',
     ])
+  })
+  it('should warn with deprecation message when no config.output detected for next export', async () => {
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    nextConfig.replace(`output: 'export',`, '')
+    try {
+      await nextBuild(appDir)
+      expect(await getFiles()).toEqual([])
+      let stdout = ''
+      let stderr = ''
+      await nextExport(
+        appDir,
+        { outdir: exportDir },
+        {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        }
+      )
+      expect(stderr).toContain(
+        'warn  - "next export" is deprecated in favor of "output: export" in next.config.js'
+      )
+      expect(stdout).toContain('Export successful. Files written to')
+      expect(await getFiles()).toEqual([
+        '404.html',
+        '404/index.html',
+        '_next/static/media/test.3f1a293b.png',
+        '_next/static/test-build-id/_buildManifest.js',
+        '_next/static/test-build-id/_ssgManifest.js',
+        'another/first/index.html',
+        'another/first/index.txt',
+        'another/index.html',
+        'another/index.txt',
+        'another/second/index.html',
+        'another/second/index.txt',
+        'api/json',
+        'api/txt',
+        'favicon.ico',
+        'image-import/index.html',
+        'image-import/index.txt',
+        'index.html',
+        'index.txt',
+        'robots.txt',
+      ])
+    } finally {
+      nextConfig.restore()
+      await fs.remove(distDir)
+      await fs.remove(exportDir)
+    }
   })
   it('should correctly emit exported assets to config.distDir', async () => {
     const outputDir = join(appDir, 'output')

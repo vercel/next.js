@@ -180,11 +180,17 @@ export default async function exportApp(
         .traceChild('load-next-config')
         .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
 
-    if (options.isInvokedFromCli && nextConfig.output === 'export') {
-      Log.warn(
-        '"next export" is no longer needed when "output: export" is configured in next.config.js'
-      )
-      return
+    if (options.isInvokedFromCli) {
+      if (nextConfig.output === 'export') {
+        Log.warn(
+          '"next export" is no longer needed when "output: export" is configured in next.config.js'
+        )
+        return
+      } else {
+        Log.warn(
+          '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+        )
+      }
     }
 
     const threads = options.threads || nextConfig.experimental.cpus
