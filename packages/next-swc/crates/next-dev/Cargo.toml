@@ -45,6 +45,7 @@ __internal_nextjs_integration_test = [
 dynamic_embed_contents = [
   "next-core/dynamic_embed_contents",
   "turbopack-node/dynamic_embed_contents",
+  "turbopack-dev/dynamic_embed_contents",
 ]
 
 [dependencies]
