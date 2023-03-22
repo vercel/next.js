@@ -24,7 +24,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ) {
     super(appDir, reader)
 
-    const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
+    const pageNormalizer = new AbsoluteFilenameNormalizer(
+      appDir,
+      extensions,
+      'app'
+    )
 
     this.normalizers = {
       page: pageNormalizer,

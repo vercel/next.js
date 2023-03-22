@@ -14,5 +14,9 @@ export async function callServer(id: string, bound: any[]) {
     }),
   })
 
+  if (!res.ok) {
+    throw new Error(await res.text())
+  }
+
   return (await res.json())[0]
 }

@@ -1,9 +1,12 @@
+import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
+const moduleProxy =
+  'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
 export default async function transformSource(
   this: any,
@@ -47,7 +50,7 @@ export default async function transformSource(
     }
 
     let esmSource = `
-    import { createProxy } from "private-next-rsc-mod-ref-proxy"
+    import { createProxy } from "${moduleProxy}"
     const proxy = createProxy(${proxyFilepath})
     `
     let cnt = 0
@@ -70,5 +73,9 @@ export default async function transformSource(
     }
   }
 
-  return callback(null, source, sourceMap)
+  return callback(
+    null,
+    source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
+    sourceMap
+  )
 }

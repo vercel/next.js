@@ -8,13 +8,13 @@ import type {
   Issue,
   ResourceIdentifier,
   ServerMessage,
-} from "@vercel/turbopack-runtime/types/protocol";
+} from "@vercel/turbopack-dev-runtime/types/protocol";
 import type {
   ChunkPath,
   ModuleId,
   UpdateCallback,
   TurbopackGlobals,
-} from "@vercel/turbopack-runtime/types";
+} from "@vercel/turbopack-dev-runtime/types";
 
 import stripAnsi from "@vercel/turbopack-next/compiled/strip-ansi";
 

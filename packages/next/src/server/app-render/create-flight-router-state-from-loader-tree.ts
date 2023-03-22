@@ -1,9 +1,7 @@
 import { LoaderTree } from '../lib/app-dir-module'
 import { FlightRouterState, Segment } from './types'
 import { GetDynamicParamFromSegment } from './index'
-
-// TODO-APP: Move __PAGE__ to a shared constant
-const PAGE_SEGMENT_KEY = '__PAGE__'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 
 export function addSearchParamsIfPageSegment(
   segment: Segment,
