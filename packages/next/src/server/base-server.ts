@@ -538,12 +538,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             'http.status_code': res.statusCode,
           })
           const rootSpanAttributes = getTracer().getRootSpanAttributes()
+          // We were unable to get attributes, probably OTEL is not enabled
+          if (!rootSpanAttributes) return
+
           if (
-            rootSpanAttributes?.get('next.span_type') !==
+            rootSpanAttributes.get('next.span_type') !==
             BaseServerSpan.handleRequest
           ) {
             console.warn(
-              `Unexpected root span type '${rootSpanAttributes?.get(
+              `Unexpected root span type '${rootSpanAttributes.get(
                 'next.span_type'
               )}'. Please report this Next.js issue https://github.com/vercel/next.js`
             )
