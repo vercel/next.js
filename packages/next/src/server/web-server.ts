@@ -17,7 +17,6 @@ import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -167,15 +166,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getServerComponentManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts
-      .serverComponentManifest
+      .clientReferenceManifest
   }
   protected getServerCSSManifest() {
     return this.serverOptions.webServerConfig.extendRenderOpts.serverCSSManifest
   }
 
-  protected getFontLoaderManifest() {
-    return this.serverOptions.webServerConfig.extendRenderOpts
-      .fontLoaderManifest
+  protected getNextFontManifest() {
+    return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
   protected generateRoutes(): RouterOptions {
@@ -233,8 +231,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
               pathname,
               this.nextConfig.i18n.locales
             )
-            const { defaultLocale } =
-              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+            const domainLocale = this.i18nProvider?.detectDomainLocale(hostname)
 
             let detectedLocale = ''
 
@@ -245,7 +242,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
             _parsedUrl.query.__nextLocale = detectedLocale
             _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || this.nextConfig.i18n.defaultLocale
+              domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
 
             if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
               _parsedUrl.query.__nextLocale =
@@ -308,16 +305,15 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.nextConfig.i18n?.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+        if (this.i18nProvider) {
+          const { detectedLocale } = await this.i18nProvider.analyze(pathname, {
+            defaultLocale: undefined,
+          })
+          if (detectedLocale) {
+            parsedUrl.query.__nextLocale = detectedLocale
           }
         }
+
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (isAPIRoute(pathname)) {
@@ -375,7 +371,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null> {
+  ): Promise<RenderResult> {
     const { pagesRenderToHTML, appRenderToHTML } =
       this.serverOptions.webServerConfig
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML

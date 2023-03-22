@@ -48,6 +48,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -99,7 +100,7 @@ export function createPagesMapping({
         previousPages[pageKey] = pagePath
       }
 
-      result[pageKey] = normalizePathSep(
+      const normalizedPath = normalizePathSep(
         join(
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
@@ -109,6 +110,10 @@ export function createPagesMapping({
           pagePath
         )
       )
+
+      const route =
+        pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
+      result[route] = normalizedPath
       return result
     },
     {}
@@ -177,6 +182,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
+      nextConfigOutput: opts.config.output,
     }
 
     return `next-edge-app-route-loader?${stringify(loaderParams)}!`

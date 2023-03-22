@@ -8,9 +8,9 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
+import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
-  private readonly expression: RegExp
   private readonly normalizers: {
     page: Normalizer
     pathname: Normalizer
@@ -24,11 +24,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ) {
     super(appDir, reader)
 
-    // Match any route file that ends with `/route.${extension}` under the app
-    // directory.
-    this.expression = new RegExp(`[/\\\\]route\\.(?:${extensions.join('|')})$`)
-
-    const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
+    const pageNormalizer = new AbsoluteFilenameNormalizer(
+      appDir,
+      extensions,
+      'app'
+    )
 
     this.normalizers = {
       page: pageNormalizer,
@@ -51,10 +51,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
-
       const page = this.normalizers.page.normalize(filename)
+
+      // If the file isn't a match for this matcher, then skip it.
+      if (!isAppRouteRoute(page)) continue
+
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 

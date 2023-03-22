@@ -149,7 +149,10 @@ export class IncrementalCache {
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
-  async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
+  async fetchCacheKey(
+    url: string,
+    init: RequestInit | Request = {}
+  ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
     const MAIN_KEY_PREFIX = 'v1'
@@ -240,7 +243,6 @@ export class IncrementalCache {
       init.referrer,
       init.referrerPolicy,
       init.integrity,
-      init.next,
       init.cache,
       bodyChunks,
     ])
@@ -263,7 +265,8 @@ export class IncrementalCache {
   // get data from cache if available
   async get(
     pathname: string,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    revalidate?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
@@ -279,7 +282,7 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
-      const revalidate = cacheData.value.revalidate
+      revalidate = revalidate || cacheData.value.revalidate
       const age = Math.round(
         (Date.now() - (cacheData.lastModified || 0)) / 1000
       )

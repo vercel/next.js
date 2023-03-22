@@ -1,36 +1,38 @@
-import type { MetadataImageModule } from './metadata/types'
+import type {
+  MetadataImageModule,
+  PossibleImageFileNameConvention,
+} from './metadata/types'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
+import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
 interface Options {
-  isDev: boolean
-  assetPrefix: string
+  route: string
   numericSizes: boolean
-}
-
-const mimeTypeMap = {
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  ico: 'image/x-icon',
-  svg: 'image/svg+xml',
-  avif: 'image/avif',
-  webp: 'image/webp',
+  type: PossibleImageFileNameConvention
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { assetPrefix, isDev, numericSizes } = options
+  const { type, route, numericSizes } = options
   const context = this.rootContext
 
   const opts = { context, content }
 
-  // e.g. icon.png -> server/static/media/metadata/icon.399de3b9.png
   const interpolatedName = loaderUtils.interpolateName(
     this,
-    '/static/media/metadata/[name].[hash:8].[ext]',
+    '[name].[ext]',
     opts
   )
-  const outputPath = assetPrefix + '/_next' + interpolatedName
+
+  // No hash query for favicon.ico
+  const contentHash =
+    type === 'favicon'
+      ? ''
+      : loaderUtils.interpolateName(this, '[contenthash]', opts)
+  const outputPath =
+    route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
+
   let extension = loaderUtils.interpolateName(this, '[ext]', opts)
   if (extension === 'jpg') {
     extension = 'jpeg'
@@ -46,8 +48,8 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const imageData: MetadataImageModule = {
     url: outputPath,
-    ...(extension in mimeTypeMap && {
-      type: mimeTypeMap[extension as keyof typeof mimeTypeMap],
+    ...(extension in imageExtMimeTypeMap && {
+      type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
     ...(numericSizes
       ? { width: imageSize.width as number, height: imageSize.height as number }
@@ -60,8 +62,6 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   }
 
   const stringifiedData = JSON.stringify(imageData)
-
-  this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
 
   return `export default ${stringifiedData};`
 }

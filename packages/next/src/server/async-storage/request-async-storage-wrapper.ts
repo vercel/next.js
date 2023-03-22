@@ -3,11 +3,9 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { PreviewData } from '../../../types'
 import type { RequestStore } from '../../client/components/request-async-storage'
-import {
-  ReadonlyHeaders,
-  ReadonlyRequestCookies,
-  type RenderOpts,
-} from '../app-render'
+import type { RenderOpts } from '../app-render/types'
+import { ReadonlyHeaders } from '../app-render/readonly-headers'
+import { ReadonlyRequestCookies } from '../app-render/readonly-request-cookies'
 import { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { tryGetPreviewData } from '../api-utils/node'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'

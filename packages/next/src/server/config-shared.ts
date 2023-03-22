@@ -143,6 +143,10 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
+  /**
+   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#appdir
+   */
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -183,10 +187,11 @@ export interface ExperimentalConfig {
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
 
-  // A list of packages that should be treated as external in the RSC server build
+  /**
+   * A list of packages that should be treated as external in the RSC server build.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages
+   */
   serverComponentsExternalPackages?: string[]
-
-  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
@@ -208,10 +213,18 @@ export interface ExperimentalConfig {
     /** in `MB` */
     memoryLimit?: number
   }
+
+  /**
+   * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#mdxrs
+   */
   mdxRs?: boolean
 
-  // Generate Route types and enable type checking for Link and Router.push, etc.
-  // This option requires `appDir` to be enabled first.
+  /**
+   * Generate Route types and enable type checking for Link and Router.push, etc.
+   * This option requires `appDir` to be enabled first.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#typedroutes
+   */
   typedRoutes?: boolean
 
   /**
@@ -226,7 +239,11 @@ export interface ExperimentalConfig {
 }
 
 export type ExportPathMap = {
-  [path: string]: { page: string; query?: Record<string, string | string[]> }
+  [path: string]: {
+    page: string
+    query?: Record<string, string | string[]>
+    _isAppDir?: boolean
+  }
 }
 
 /**
@@ -553,7 +570,11 @@ export interface NextConfig extends Record<string, any> {
    */
   output?: 'standalone' | 'export'
 
-  // A list of packages that should always be transpiled and bundled in the server
+  /**
+   * Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the
+   * `next-transpile-modules` package.
+   * @see [transpilePackages](https://beta.nextjs.org/docs/api-reference/next.config.js#transpilepackages)
+   */
   transpilePackages?: string[]
 
   skipMiddlewareUrlNormalize?: boolean

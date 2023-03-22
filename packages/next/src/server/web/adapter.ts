@@ -152,11 +152,22 @@ export async function adapter(params: {
      * with an internal header so the client knows which component to load
      * from the data request.
      */
-    if (isDataReq) {
-      response.headers.set(
-        'x-nextjs-rewrite',
-        relativizeURL(String(rewriteUrl), String(requestUrl))
+    const relativizedRewrite = relativizeURL(
+      String(rewriteUrl),
+      String(requestUrl)
+    )
+
+    if (
+      isDataReq &&
+      // if the rewrite is external and external rewrite
+      // resolving config is enabled don't add this header
+      // so the upstream app can set it instead
+      !(
+        process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE &&
+        relativizedRewrite.match(/http(s)?:\/\//)
       )
+    ) {
+      response.headers.set('x-nextjs-rewrite', relativizedRewrite)
     }
   }
 

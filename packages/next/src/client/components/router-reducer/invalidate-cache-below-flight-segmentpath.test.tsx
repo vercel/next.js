@@ -1,5 +1,5 @@
 import React from 'react'
-import type { FlightData } from '../../../server/app-render'
+import type { FlightData } from '../../../server/app-render/types'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
 import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'

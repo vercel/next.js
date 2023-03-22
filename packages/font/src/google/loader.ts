@@ -1,16 +1,14 @@
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 // @ts-ignore
 import * as Log from 'next/dist/build/output/log'
-import {
-  fetchCSSFromGoogleFonts,
-  fetchFontFile,
-  findFontFilesInCss,
-  getFallbackFontOverrideMetrics,
-  getFontAxes,
-  getUrl,
-  validateData,
-} from './utils'
-import { nextFontError } from '../utils'
+import { validateGoogleFontFunctionCall } from './validate-google-font-function-call'
+import { getFontAxes } from './get-font-axes'
+import { getGoogleFontsUrl } from './get-google-fonts-url'
+import { nextFontError } from '../next-font-error'
+import { findFontFilesInCss } from './find-font-files-in-css'
+import { getFallbackFontOverrideMetrics } from './get-fallback-font-override-metrics'
+import { fetchCSSFromGoogleFonts } from './fetch-css-from-google-fonts'
+import { fetchFontFile } from './fetch-font-file'
 
 const cssCache = new Map<string, string | null>()
 const fontCache = new Map<string, Buffer | null>()
@@ -30,11 +28,9 @@ function escapeStringRegexp(str: string) {
 const nextFontGoogleFontLoader: FontLoader = async ({
   functionName,
   data,
-  config,
   emitFontFile,
   isDev,
   isServer,
-  loaderContext,
 }) => {
   const {
     fontFamily,
@@ -47,7 +43,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     adjustFontFallback,
     variable,
     subsets,
-  } = validateData(functionName, data, config)
+  } = validateGoogleFontFunctionCall(functionName, data[0])
 
   // Validate and get the font axes required to generated the URL
   const fontAxes = getFontAxes(
@@ -58,7 +54,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
   )
 
   // Generate the Google Fonts URL from the font family, axes and display value
-  const url = getUrl(fontFamily, fontAxes, display)
+  const url = getGoogleFontsUrl(fontFamily, fontAxes, display)
 
   // Get precalculated fallback font metrics, used to generate the fallback font CSS
   const adjustFontFallbackMetrics: AdjustFontFallback | undefined =
@@ -85,7 +81,10 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     // Fetch CSS from Google Fonts or get it from the cache
     let fontFaceDeclarations = hasCachedCSS
       ? cssCache.get(url)
-      : await fetchCSSFromGoogleFonts(url, fontFamily).catch(() => null)
+      : await fetchCSSFromGoogleFonts(url, fontFamily, isDev).catch((err) => {
+          console.error(err)
+          return null
+        })
     if (!hasCachedCSS) {
       cssCache.set(url, fontFaceDeclarations ?? null)
     } else {
@@ -111,7 +110,10 @@ const nextFontGoogleFontLoader: FontLoader = async ({
         // Download the font file or get it from cache
         const fontFileBuffer = hasCachedFont
           ? fontCache.get(googleFontFileUrl)
-          : await fetchFontFile(googleFontFileUrl).catch(() => null)
+          : await fetchFontFile(googleFontFileUrl, isDev).catch((err) => {
+              console.error(err)
+              return null
+            })
         if (!hasCachedFont) {
           fontCache.set(googleFontFileUrl, fontFileBuffer ?? null)
         } else {
@@ -159,10 +161,8 @@ const nextFontGoogleFontLoader: FontLoader = async ({
       css: updatedCssResponse,
     }
   } catch (err) {
-    loaderContext.cacheable(false)
     if (isDev) {
       if (isServer) {
-        console.error(err)
         Log.error(
           `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.`
         )

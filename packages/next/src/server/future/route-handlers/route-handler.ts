@@ -6,7 +6,6 @@ export interface RouteHandler<M extends RouteMatch = RouteMatch> {
     match: M,
     req: BaseNextRequest,
     res: BaseNextResponse,
-    context?: any,
-    bubbleResult?: boolean
-  ): Promise<any>
+    context?: any
+  ): Promise<Response>
 }

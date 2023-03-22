@@ -63,7 +63,7 @@ import {
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
@@ -134,6 +134,8 @@ import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
+import { createValidFileMatcher } from '../server/lib/find-page-file'
+import type { ExportOptions } from '../export'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -254,7 +256,8 @@ export default async function build(
   debugOutput = false,
   runLint = true,
   noMangling = false,
-  appDirOnly = false
+  appDirOnly = false,
+  turboNextBuild = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -465,6 +468,7 @@ export default async function build(
           // prevent showing jest-worker internal error as it
           // isn't helpful for users and clutters output
           if (isError(err) && err.message === 'Call retries were exceeded') {
+            await telemetry.flush()
             process.exit(1)
           }
           throw err
@@ -475,6 +479,14 @@ export default async function build(
       // we dynamically generate types for each layout and page in the app
       // directory.
       if (!appDir) await startTypeChecking()
+
+      if (appDir && 'exportPathMap' in config) {
+        Log.error(
+          'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
+        )
+        await telemetry.flush()
+        process.exit(1)
+      }
 
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
@@ -491,15 +503,17 @@ export default async function build(
 
       NextBuildContext.buildSpinner = buildSpinner
 
+      const validFileMatcher = createValidFileMatcher(
+        config.pageExtensions,
+        appDir
+      )
+
       const pagesPaths =
         !appDirOnly && pagesDir
           ? await nextBuildSpan
               .traceChild('collect-pages')
               .traceAsyncFn(() =>
-                recursiveReadDir(
-                  pagesDir,
-                  new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-                )
+                recursiveReadDir(pagesDir, validFileMatcher.isPageFile)
               )
           : []
 
@@ -509,12 +523,7 @@ export default async function build(
         appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              new RegExp(
-                `^(page|route)\\.(?:${config.pageExtensions.join('|')})$`
-              )
-            )
+            recursiveReadDir(appDir, validFileMatcher.isAppRouterPage)
           )
       }
 
@@ -638,6 +647,7 @@ export default async function build(
         for (const [pagePath, appPath] of conflictingAppPagePaths) {
           Log.error(`  "${pagePath}" - "${appPath}"`)
         }
+        await telemetry.flush()
         process.exit(1)
       }
 
@@ -991,8 +1001,8 @@ export default async function build(
               : null,
             BUILD_ID_FILE,
             appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
-            path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
-            path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+            path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+            path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
             ...(hasInstrumentationHook
               ? [
                   path.join(
@@ -1011,8 +1021,17 @@ export default async function build(
           ignore: [] as string[],
         }))
 
+      let binding = (await loadBindings()) as any
+
+      async function turbopackBuild() {
+        const turboNextBuildStart = process.hrtime()
+        await binding.turbo.nextBuild(NextBuildContext)
+        const [duration] = process.hrtime(turboNextBuildStart)
+        return { duration, turbotraceContext: null }
+      }
+
       const { duration: webpackBuildDuration, turbotraceContext } =
-        await webpackBuild()
+        turboNextBuild ? await turbopackBuild() : await webpackBuild()
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {
@@ -1027,7 +1046,6 @@ export default async function build(
         if (!turbotraceContext) {
           return
         }
-        let binding = (await loadBindings()) as any
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -1070,11 +1088,9 @@ export default async function build(
             if (filesTracedFromEntries.length) {
               // The turbo trace doesn't provide the traced file type and reason at present
               // let's write the traced files into the first [entry].nft.json
-              // @ts-expect-error types
-              const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
-                // @ts-expect-error types
-                ([k]) => k.startsWith(turbotraceContextAppDir)
-              )
+              const [[, entryName]] = Array.from<[string, string]>(
+                entryNameMap.entries()
+              ).filter(([k]) => k.startsWith(turbotraceContextAppDir))
               const traceOutputPath = path.join(
                 outputPath,
                 `../${entryName}.js.nft.json`
@@ -1283,7 +1299,7 @@ export default async function build(
               enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
-              pageRuntime: config.experimental.runtime,
+              nextConfigOutput: config.output,
             })
         )
 
@@ -1463,6 +1479,12 @@ export default async function build(
                           edgeInfo,
                           pageType,
                           hasServerComponents: !!appDir,
+                          incrementalCacheHandlerPath:
+                            config.experimental.incrementalCacheHandlerPath,
+                          isrFlushToDisk: config.experimental.isrFlushToDisk,
+                          maxMemoryCacheSize:
+                            config.experimental.isrMemoryCacheSize,
+                          nextConfigOutput: config.output,
                         })
                       }
                     )
@@ -1792,7 +1814,6 @@ export default async function build(
       } else if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
-          let binding = (await loadBindings()) as any
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo.startTrace
           }
@@ -2280,7 +2301,7 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-          const exportOptions = {
+          const exportOptions: ExportOptions = {
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2298,7 +2319,7 @@ export default async function build(
               : undefined,
             appPaths,
           }
-          const exportConfig: any = {
+          const exportConfig: NextConfigComplete = {
             ...config,
             initialPageRevalidationMap: {},
             initialPageMetaMap: {},
