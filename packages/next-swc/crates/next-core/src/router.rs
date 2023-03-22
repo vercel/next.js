@@ -29,7 +29,7 @@ use turbopack_ecmascript::{
     EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
 };
 use turbopack_node::{
-    evaluate::{evaluate, JavaScriptEvaluation},
+    evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
     StructuredError,
 };
@@ -376,59 +376,55 @@ async fn route_internal(
     )
     .await?;
 
-    match &*result {
-        JavaScriptEvaluation::Single(Ok(val)) => {
-            // If we received a single message from the router, then it must be a
-            // rewrite/none/error. Middleware always comes in 2+ chunk streams.
-            let result: RouterIncomingMessage = parse_json_with_source_context(val.to_str()?)?;
-            Ok(match result {
-                RouterIncomingMessage::Rewrite { data } => RouterResult::Rewrite(data),
-                RouterIncomingMessage::None => RouterResult::None,
-                _ => RouterResult::Error,
-            }
-            .cell())
-        }
-        JavaScriptEvaluation::Stream(stream) => {
-            let mut read = stream.read();
+    let mut read = result.read();
 
-            let middleware = match read.next().await {
-                Some(Ok(first)) => {
-                    // The first chunk is the Middleware's headers/status. Everything after that is
-                    // body contents.
-                    let headers: RouterIncomingMessage =
-                        parse_json_with_source_context(first.to_str()?)?;
+    let Some(Ok(first)) = read.next().await else {
+        return Ok(RouterResult::Error.cell());
+    };
+    let first: RouterIncomingMessage = parse_json_with_source_context(first.to_str()?)?;
 
-                    // The double encoding here is annoying. It'd be a lot nicer if we could embed
-                    // a buffer directly into the IPC message without having to wrap it in an
-                    // object.
-                    let body = read.map(|data| {
-                        let chunk: RouterIncomingMessage = match data?
-                            .to_str()
-                            .context("error decoding string")
-                            .and_then(parse_json_with_source_context)
-                        {
-                            Ok(c) => c,
-                            Err(e) => return Err(e.to_string()),
-                        };
-                        match chunk {
-                            RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
-                            m => Err(format!("unexpected message type: {:#?}", m)),
-                        }
-                    });
+    let (res, read) = match first {
+        RouterIncomingMessage::Rewrite { data } => (RouterResult::Rewrite(data), Some(read)),
 
-                    match headers {
-                        RouterIncomingMessage::MiddlewareHeaders { data } => MiddlewareResponse {
-                            status_code: data.status_code,
-                            headers: data.headers,
-                            body: Stream::from(body),
-                        },
-                        _ => return Ok(RouterResult::Error.cell()),
-                    }
+        RouterIncomingMessage::MiddlewareHeaders { data } => {
+            // The double encoding here is annoying. It'd be a lot nicer if we could embed
+            // a buffer directly into the IPC message without having to wrap it in an
+            // object.
+            let body = read.map(|data| {
+                let chunk: RouterIncomingMessage = match data?
+                    .to_str()
+                    .context("error decoding string")
+                    .and_then(parse_json_with_source_context)
+                {
+                    Ok(c) => c,
+                    Err(e) => return Err(e.to_string()),
+                };
+                match chunk {
+                    RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
+                    m => Err(format!("unexpected message type: {:#?}", m)),
                 }
-                _ => return Ok(RouterResult::Error.cell()),
+            });
+            let middleware = MiddlewareResponse {
+                status_code: data.status_code,
+                headers: data.headers,
+                body: Stream::from(body),
             };
-            Ok(RouterResult::Middleware(middleware).cell())
+
+            (RouterResult::Middleware(middleware), None)
         }
-        _ => Ok(RouterResult::Error.cell()),
+
+        RouterIncomingMessage::None => (RouterResult::None, Some(read)),
+        _ => (RouterResult::Error, Some(read)),
+    };
+
+    // Middleware will naturally drain the full stream, but the rest only take a
+    // single item. In order to free the NodeJsOperation, we must pull another
+    // value out of the stream.
+    if let Some(mut read) = read {
+        if let Some(v) = read.next().await {
+            bail!("unexpected message type: {:#?}", v);
+        }
     }
+
+    Ok(res.cell())
 }
