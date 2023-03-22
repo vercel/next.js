@@ -11,32 +11,33 @@ function applyPatch(
   initialTree: FlightRouterState,
   patchTree: FlightRouterState
 ): FlightRouterState {
-  const [segment, parallelRoutes] = initialTree
+  const [initialSegment, initialParallelRoutes] = initialTree
+  const [patchSegment, patchParallelRoutes] = patchTree
 
-  if (matchSegment(segment, patchTree[0])) {
+  if (matchSegment(initialSegment, patchSegment)) {
     const newParallelRoutes: FlightRouterState[1] = {}
-    for (const key in parallelRoutes) {
+    for (const key in initialParallelRoutes) {
       const isInPatchTreeParallelRoutes =
-        typeof patchTree[1][key] !== 'undefined'
+        typeof patchParallelRoutes[key] !== 'undefined'
       if (isInPatchTreeParallelRoutes) {
         newParallelRoutes[key] = applyPatch(
-          parallelRoutes[key],
-          patchTree[1][key]
+          initialParallelRoutes[key],
+          patchParallelRoutes[key]
         )
       } else {
-        newParallelRoutes[key] = parallelRoutes[key]
+        newParallelRoutes[key] = initialParallelRoutes[key]
       }
     }
 
-    for (const key in patchTree[1]) {
+    for (const key in patchParallelRoutes) {
       if (newParallelRoutes[key]) {
         continue
       }
 
-      newParallelRoutes[key] = patchTree[1][key]
+      newParallelRoutes[key] = patchParallelRoutes[key]
     }
 
-    const tree: FlightRouterState = [segment, newParallelRoutes]
+    const tree: FlightRouterState = [initialSegment, newParallelRoutes]
 
     if (initialTree[2]) {
       tree[2] = initialTree[2]
