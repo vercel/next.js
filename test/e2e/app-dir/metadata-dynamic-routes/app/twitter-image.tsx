@@ -2,7 +2,6 @@ import { ImageResponse } from '@vercel/og'
 
 export const alt = 'Twitter'
 export const size = { width: 1600, height: 900 }
-export const runtime = 'experimental-edge'
 
 export default function twitter() {
   return new ImageResponse(

@@ -2,8 +2,6 @@ import { ImageResponse } from '@vercel/og'
 
 export const contentType = 'image/png'
 
-export const runtime = 'experimental-edge'
-
 export default function appleIcon() {
   return new ImageResponse(
     (

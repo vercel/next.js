@@ -1,7 +1,6 @@
 import { ImageResponse } from '@vercel/og'
 
 export const alt = 'Open Graph'
-export const runtime = 'experimental-edge'
 
 export default function og() {
   return new ImageResponse(
