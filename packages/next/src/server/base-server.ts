@@ -1322,6 +1322,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       opts.isBot = isBotRequest
     }
 
+    // In development, we always want to generate dynamic HTML.
+    if (
+      !isDataReq &&
+      isAppPath &&
+      opts.dev &&
+      opts.supportsDynamicHTML === false
+    ) {
+      opts.supportsDynamicHTML = true
+    }
+
     const defaultLocale = isSSG
       ? this.nextConfig.i18n?.defaultLocale
       : query.__nextDefaultLocale
@@ -1446,7 +1456,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
-      const supportsDynamicHTML = !(isSSG || hasStaticPaths)
+      // In development, we always want to generate dynamic HTML.
+      const supportsDynamicHTML =
+        (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths)
 
       const match =
         pathname !== '/_error' && !is404Page && !is500Page
@@ -1667,43 +1679,45 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           fallbackMode = 'blocking'
         }
 
+        // We use `ssgCacheKey` here as it is normalized to match the encoding
+        // from getStaticPaths along with including the locale.
+        //
+        // We use the `resolvedUrlPathname` for the development case when this
+        // is an app path since it doesn't include locale information.
+        let staticPathKey =
+          ssgCacheKey ?? (opts.dev && isAppPath ? resolvedUrlPathname : null)
+        if (staticPathKey && query.amp) {
+          staticPathKey = staticPathKey.replace(/\.amp$/, '')
+        }
+
+        const isPageIncludedInStaticPaths =
+          staticPathKey && staticPaths?.includes(staticPathKey)
+
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
         //
-        // * Data requests always block.
-        //
-        // * Blocking mode fallback always blocks.
-        //
-        // * Preview mode toggles all pages to be resolved in a blocking manner.
-        //
-        // * Non-dynamic pages should block (though this is an impossible
+        // - Data requests always block.
+        // - Blocking mode fallback always blocks.
+        // - Preview mode toggles all pages to be resolved in a blocking manner.
+        // - Non-dynamic pages should block (though this is an impossible
         //   case in production).
-        //
-        // * Dynamic pages should return their skeleton if not defined in
+        // - Dynamic pages should return their skeleton if not defined in
         //   getStaticPaths, then finish the data request on the client-side.
         //
         if (
           process.env.NEXT_RUNTIME !== 'edge' &&
-          this.minimalMode !== true &&
+          !this.minimalMode &&
           fallbackMode !== 'blocking' &&
-          ssgCacheKey &&
+          staticPathKey &&
           !didRespond &&
           !isPreviewMode &&
           isDynamicPathname &&
-          // Development should trigger fallback when the path is not in
-          // `getStaticPaths`
-          (isProduction ||
-            !staticPaths ||
-            !staticPaths.includes(
-              // we use ssgCacheKey here as it is normalized to match the
-              // encoding from getStaticPaths along with including the locale
-              query.amp ? ssgCacheKey.replace(/\.amp$/, '') : ssgCacheKey
-            ))
+          (isProduction || !staticPaths || !isPageIncludedInStaticPaths)
         ) {
           if (
             // In development, fall through to render to handle missing
             // getStaticPaths.
-            (isProduction || staticPaths) &&
+            (isProduction || (staticPaths && staticPaths?.length > 0)) &&
             // When fallback isn't present, abort this render so we 404
             fallbackMode !== 'static'
           ) {

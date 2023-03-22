@@ -14,14 +14,16 @@ export class AbsoluteFilenameNormalizer implements Normalizer {
    */
   constructor(
     private readonly dir: string,
-    private readonly extensions: ReadonlyArray<string>
+    private readonly extensions: ReadonlyArray<string>,
+    private readonly pagesType: 'pages' | 'app' | 'root'
   ) {}
 
   public normalize(pathname: string): string {
     return absolutePathToPage(pathname, {
       extensions: this.extensions,
       keepIndex: false,
-      pagesDir: this.dir,
+      dir: this.dir,
+      pagesType: this.pagesType,
     })
   }
 }
