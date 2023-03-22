@@ -215,7 +215,7 @@ export const installTemplate = async ({
    * Add Tailwind CSS dependencies.
    */
   if (tailwind) {
-    dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
+    dependencies.push('tailwindcss', 'postcss', 'autoprefixer','prettier','prettier-plugin-tailwindcss')
   }
 
   /**
