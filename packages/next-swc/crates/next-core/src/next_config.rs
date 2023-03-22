@@ -13,6 +13,7 @@ use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::Asset,
     changed::any_content_changed,
+    chunk::ChunkingContext,
     context::AssetContext,
     ident::AssetIdentVc,
     issue::IssueContextExt,
@@ -558,7 +559,7 @@ pub async fn load_next_config_internal(
 ) -> Result<NextConfigVc> {
     let ExecutionContext {
         project_path,
-        intermediate_output_path,
+        chunking_context,
         env,
     } = *execution_context.await?;
     let mut import_map = ImportMap::default();
@@ -587,14 +588,14 @@ pub async fn load_next_config_internal(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
+
     let config_value = evaluate(
-        project_path,
         load_next_config_asset,
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),
         context,
-        intermediate_output_path,
+        chunking_context.with_layer("next_config"),
         None,
         vec![],
         config_changed,

@@ -41,6 +41,7 @@ import {
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
+import { RedirectBoundary } from './redirect-boundary'
 
 const isServer = typeof window === 'undefined'
 
@@ -312,8 +313,10 @@ function Router({
 
   const content = (
     <>
-      {cache.subTreeData}
-      <AppRouterAnnouncer tree={tree} />
+      <RedirectBoundary>
+        {cache.subTreeData}
+        <AppRouterAnnouncer tree={tree} />
+      </RedirectBoundary>
     </>
   )
 
