@@ -74,6 +74,9 @@ import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
+const arrayEquals = (a: any[], b: any[]) =>
+  a.length === b.length && a.every((v, i) => v === b[i])
+
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 export type GetDynamicParamFromSegment = (
@@ -923,7 +926,10 @@ export async function renderToHTMLOrFlight(
           // Last item in the tree
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
-          flightRouterState[3] === 'refetch'
+          flightRouterState[3] === 'refetch' ||
+          // The layout needs to be re-rendered because the parallel slots differ,
+          // so that the layout can render the correct components in the new slots.
+          !arrayEquals(parallelRoutesKeys, Object.keys(flightRouterState[1]))
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           return [
