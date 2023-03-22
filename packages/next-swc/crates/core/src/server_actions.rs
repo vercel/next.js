@@ -239,7 +239,7 @@ impl<C: Comments> ServerActions<C> {
                 for (i, p) in a.params.iter().enumerate() {
                     new_params.push(Pat::Assign(pat_to_assign_pat(
                         i,
-                        &p,
+                        p,
                         &closure_arg,
                         &ids_from_closure,
                     )));
@@ -593,7 +593,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             {
                 if !self.in_action_fn && !self.in_action_file {
                     for n in &mut a.params {
-                        collect_pat_idents(&n, &mut self.closure_idents);
+                        collect_pat_idents(n, &mut self.closure_idents);
                     }
                 }
             }
