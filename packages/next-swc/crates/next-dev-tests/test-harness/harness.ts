@@ -51,7 +51,7 @@ globalThis.nsObj = function nsObj(obj) {
   return obj;
 };
 
-function wait(ms: number): Promise<void> {
+export function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
@@ -65,6 +65,56 @@ async function waitForPath(contentWindow: Window, path: string): Promise<void> {
 
     await wait(1);
   }
+}
+
+export function waitForLoaded(iframe: HTMLIFrameElement): Promise<void> {
+  return new Promise((resolve) => {
+    if (
+      iframe.contentDocument != null &&
+      iframe.contentDocument.readyState === 'complete'
+    ) {
+      resolve()
+    } else {
+      iframe.addEventListener('load', () => {
+        resolve()
+      })
+    }
+  })
+}
+
+export function waitForSelector(
+  node: ParentNode | HTMLIFrameElement | ShadowRoot,
+  selector: string
+): Promise<Element> {
+  return new Promise((resolve, reject) => {
+    const document = 'contentDocument' in node ? node.contentDocument! : node
+    const timeout = 30000
+    let element = document.querySelector(selector)
+    if (element) {
+      return resolve(element)
+    }
+    const observer = new MutationObserver(async () => {
+      let el = document.querySelector(selector)
+      if (el) {
+        resolve(el)
+        observer.disconnect()
+      }
+    })
+    observer.observe(document, { childList: true, subtree: true })
+    if (timeout) {
+      setTimeout(() => {
+        observer.disconnect()
+        reject(new Error(`Timed out waiting for selector "${selector}"`))
+      }, timeout)
+    }
+  })
+}
+
+export async function waitForErrorOverlay(
+  node: ParentNode | HTMLIFrameElement
+): Promise<ShadowRoot> {
+  let element = await waitForSelector(node, 'nextjs-portal')
+  return element.shadowRoot!
 }
 
 export function waitForHydration(
