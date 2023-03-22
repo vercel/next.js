@@ -2,22 +2,38 @@ import { useEffect, useRef } from 'react'
 
 export default function Page() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const appIframeRef = useRef<HTMLIFrameElement | null>(null)
 
   useEffect(() => {
     // Only run on client
     import('@turbo/pack-test-harness').then((mod) =>
-      runTests(mod, iframeRef.current!)
+      runTests(mod, iframeRef.current!, appIframeRef.current)
     )
   })
 
   return (
-    <iframe style={{ width: 800, height: 600 }} src="/broken" ref={iframeRef} />
+    <>
+      <iframe
+        style={{ width: 800, height: 600 }}
+        src="/broken"
+        ref={iframeRef}
+      />
+      <iframe
+        style={{ width: 800, height: 600 }}
+        src="/broken-app"
+        ref={appIframeRef}
+      />
+    </>
   )
 }
 
 type Harness = typeof import('@turbo/pack-test-harness')
 
-function runTests(harness: Harness, iframe: HTMLIFrameElement) {
+function runTests(
+  harness: Harness,
+  iframe: HTMLIFrameElement,
+  appIframe: HTMLIFrameElement
+) {
   const TIMEOUT = 20000
 
   it(
