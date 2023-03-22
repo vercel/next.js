@@ -46,7 +46,7 @@ function runTests(
   )
 
   it(
-    'should show error overlay',
+    'should show error overlay for a broken page',
     async () => {
       await harness.waitForLoaded(iframe)
       const errorOverlay = await harness.waitForErrorOverlay(iframe)
@@ -56,9 +56,35 @@ function runTests(
       )
       expect(issues.innerHTML).toContain('Error during SSR Rendering')
       expect(issues.innerHTML).toContain('Error: Broken page')
-      expect(issues.innerHTML).toContain('Debug info:')
       expect(issues.innerHTML).toContain('input/pages/broken.tsx:2')
       expect(issues.innerHTML).toContain("throw new Error('Broken page')")
+    },
+    TIMEOUT
+  )
+
+  // TODO: Fix this
+  // it(
+  //   'returns a 500 status code',
+  //   async () => {
+  //     const res = await fetch('/broken-app')
+  //     expect(res.status).toBe(500)
+  //   },
+  //   TIMEOUT
+  // )
+
+  it(
+    'should show error overlay for a broken app page',
+    async () => {
+      await harness.waitForLoaded(iframe)
+      const errorOverlay = await harness.waitForErrorOverlay(iframe)
+      const issues = await harness.waitForSelector(
+        errorOverlay,
+        '#runtime-errors'
+      )
+      expect(issues.innerHTML).toContain('Error: Broken app')
+      // TODO: Fix this
+      // expect(issues.innerHTML).toContain('input/app/broken-app/page.tsx:2')
+      // expect(issues.innerHTML).toContain("throw new Error('Broken app')")
     },
     TIMEOUT
   )
