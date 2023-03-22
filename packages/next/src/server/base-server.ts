@@ -544,7 +544,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             console.warn(
               `Unexpected root span type '${rootSpanAttributes?.get(
                 'next.span_type'
-              )}'. This is a Next.js bug. Please report this. `
+              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
             )
             return
           }
