@@ -533,7 +533,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-          span?.setAttributes({
+          if (!span) return
+          span.setAttributes({
             'http.status_code': res.statusCode,
           })
           const rootSpanAttributes = getTracer().getRootSpanAttributes()
@@ -551,11 +552,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const route = rootSpanAttributes.get('next.route')
           if (route) {
-            span?.setAttributes({
+            span.setAttributes({
               'next.route': route,
               'http.route': route,
             })
-            span?.updateName(`${method} ${route}`)
+            span.updateName(`${method} ${route}`)
           }
         })
     )
