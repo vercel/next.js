@@ -323,7 +323,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .chunk_source_maps(false)
+    .reference_chunk_source_maps(false)
     .build();
 
     let data_intermediate_output_path = intermediate_output_path.join("data");
@@ -338,7 +338,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
-    .chunk_source_maps(false)
+    .reference_chunk_source_maps(false)
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -476,7 +476,7 @@ async fn create_not_found_page_source(
         ),
         server_context.compile_time_info().environment(),
     )
-    .chunk_source_maps(false)
+    .reference_chunk_source_maps(false)
     .build();
 
     let client_chunking_context = get_client_chunking_context(
