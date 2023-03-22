@@ -26,6 +26,28 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
 const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
+const expectedFiles = [
+  '404.html',
+  '404/index.html',
+  '_next/static/media/test.3f1a293b.png',
+  '_next/static/test-build-id/_buildManifest.js',
+  '_next/static/test-build-id/_ssgManifest.js',
+  'another/first/index.html',
+  'another/first/index.txt',
+  'another/index.html',
+  'another/index.txt',
+  'another/second/index.html',
+  'another/second/index.txt',
+  'api/json',
+  'api/txt',
+  'favicon.ico',
+  'image-import/index.html',
+  'image-import/index.txt',
+  'index.html',
+  'index.txt',
+  'robots.txt',
+]
+
 async function getFiles(cwd = exportDir) {
   const opts = { cwd, nodir: true }
   const files = ((await glob('**/*', opts)) as string[])
@@ -165,27 +187,7 @@ describe('app dir with output export', () => {
     { dynamic: "'force-static'" },
   ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
     await runTests({ dynamicPage: dynamic })
-    expect(await getFiles()).toEqual([
-      '404.html',
-      '404/index.html',
-      '_next/static/media/test.3f1a293b.png',
-      '_next/static/test-build-id/_buildManifest.js',
-      '_next/static/test-build-id/_ssgManifest.js',
-      'another/first/index.html',
-      'another/first/index.txt',
-      'another/index.html',
-      'another/index.txt',
-      'another/second/index.html',
-      'another/second/index.txt',
-      'api/json',
-      'api/txt',
-      'favicon.ico',
-      'image-import/index.html',
-      'image-import/index.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ])
+    expect(await getFiles()).toEqual(expectedFiles)
   })
   it("should throw when dynamic 'force-dynamic' on page", async () => {
     slugPage.replace(
@@ -262,27 +264,7 @@ describe('app dir with output export', () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     await nextBuild(appDir)
-    expect(await getFiles()).toEqual([
-      '404.html',
-      '404/index.html',
-      '_next/static/media/test.3f1a293b.png',
-      '_next/static/test-build-id/_buildManifest.js',
-      '_next/static/test-build-id/_ssgManifest.js',
-      'another/first/index.html',
-      'another/first/index.txt',
-      'another/index.html',
-      'another/index.txt',
-      'another/second/index.html',
-      'another/second/index.txt',
-      'api/json',
-      'api/txt',
-      'favicon.ico',
-      'image-import/index.html',
-      'image-import/index.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ])
+    expect(await getFiles()).toEqual(expectedFiles)
     let stdout = ''
     let stderr = ''
     await nextExport(
@@ -301,27 +283,7 @@ describe('app dir with output export', () => {
       'warn  - "next export" is no longer needed when "output: export" is configured in next.config.js'
     )
     expect(stdout).toContain('Export successful. Files written to')
-    expect(await getFiles()).toEqual([
-      '404.html',
-      '404/index.html',
-      '_next/static/media/test.3f1a293b.png',
-      '_next/static/test-build-id/_buildManifest.js',
-      '_next/static/test-build-id/_ssgManifest.js',
-      'another/first/index.html',
-      'another/first/index.txt',
-      'another/index.html',
-      'another/index.txt',
-      'another/second/index.html',
-      'another/second/index.txt',
-      'api/json',
-      'api/txt',
-      'favicon.ico',
-      'image-import/index.html',
-      'image-import/index.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ])
+    expect(await getFiles()).toEqual(expectedFiles)
   })
   it('should warn with deprecation message when no config.output detected for next export', async () => {
     await fs.remove(distDir)
@@ -348,27 +310,7 @@ describe('app dir with output export', () => {
         'warn  - "next export" is deprecated in favor of "output: export" in next.config.js'
       )
       expect(stdout).toContain('Export successful. Files written to')
-      expect(await getFiles()).toEqual([
-        '404.html',
-        '404/index.html',
-        '_next/static/media/test.3f1a293b.png',
-        '_next/static/test-build-id/_buildManifest.js',
-        '_next/static/test-build-id/_ssgManifest.js',
-        'another/first/index.html',
-        'another/first/index.txt',
-        'another/index.html',
-        'another/index.txt',
-        'another/second/index.html',
-        'another/second/index.txt',
-        'api/json',
-        'api/txt',
-        'favicon.ico',
-        'image-import/index.html',
-        'image-import/index.txt',
-        'index.html',
-        'index.txt',
-        'robots.txt',
-      ])
+      expect(await getFiles()).toEqual(expectedFiles)
     } finally {
       nextConfig.restore()
       await fs.remove(distDir)
@@ -386,27 +328,7 @@ describe('app dir with output export', () => {
     )
     try {
       await nextBuild(appDir)
-      expect(await getFiles(outputDir)).toEqual([
-        '404.html',
-        '404/index.html',
-        '_next/static/media/test.3f1a293b.png',
-        '_next/static/test-build-id/_buildManifest.js',
-        '_next/static/test-build-id/_ssgManifest.js',
-        'another/first/index.html',
-        'another/first/index.txt',
-        'another/index.html',
-        'another/index.txt',
-        'another/second/index.html',
-        'another/second/index.txt',
-        'api/json',
-        'api/txt',
-        'favicon.ico',
-        'image-import/index.html',
-        'image-import/index.txt',
-        'index.html',
-        'index.txt',
-        'robots.txt',
-      ])
+      expect(await getFiles(outputDir)).toEqual(expectedFiles)
     } finally {
       nextConfig.restore()
       await fs.remove(distDir)
