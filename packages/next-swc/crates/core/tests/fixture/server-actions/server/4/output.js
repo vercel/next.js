@@ -5,6 +5,12 @@ function d() {}
 function Foo() {
     async function e() {}
 }
+import ensureServerEntryExports from "private-next-rsc-action-proxy";
+ensureServerEntryExports([
+    a,
+    b,
+    c
+]);
 a.$$typeof = Symbol.for("react.server.reference");
 a.$$id = "6e7bc104e4d6e7fda190c4a51be969cfd0be6d6d";
 a.$$bound = [];
