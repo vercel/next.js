@@ -958,6 +958,7 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
+    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {

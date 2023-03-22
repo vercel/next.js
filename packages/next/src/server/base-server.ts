@@ -520,22 +520,44 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: [req.method, req.url].join(' '),
+        spanName: `${method} ${req.url}`,
         kind: SpanKind.SERVER,
         attributes: {
-          'http.method': req.method,
+          'http.method': method,
           'http.target': req.url,
         },
       },
       async (span) =>
-        this.handleRequestImpl(req, res, parsedUrl).finally(() =>
+        this.handleRequestImpl(req, res, parsedUrl).finally(() => {
           span?.setAttributes({
             'http.status_code': res.statusCode,
           })
-        )
+          const rootSpanAttributes = getTracer().getRootSpanAttributes()
+          if (
+            rootSpanAttributes?.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
+            console.warn(
+              `Unexpected root span type '${rootSpanAttributes?.get(
+                'next.span_type'
+              )}'. This is a Next.js bug. Please report this. `
+            )
+            return
+          }
+
+          const route = rootSpanAttributes.get('next.route')
+          if (route) {
+            span?.setAttributes({
+              'next.route': route,
+              'http.route': route,
+            })
+            span?.updateName(`${method} ${route}`)
+          }
+        })
     )
   }
 
