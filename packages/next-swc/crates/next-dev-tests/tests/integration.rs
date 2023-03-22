@@ -6,7 +6,7 @@ use regex::{Captures, Regex, Replacer};
 use std::{
     env,
     fmt::Write,
-    future::Future,
+    future::{pending, Future},
     net::SocketAddr,
     panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     path::{Path, PathBuf},
@@ -69,9 +69,11 @@ struct JestTestResult {
 }
 
 lazy_static! {
-    // Allows for interactive manual debugging of a test case in a browser with:
-    // `TURBOPACK_DEBUG_BROWSER=1 cargo test -p next-dev-tests -- test_my_pattern --nocapture`
+    /// Allows for interactive manual debugging of a test case in a browser with:
+    /// `TURBOPACK_DEBUG_BROWSER=1 cargo test -p next-dev-tests -- test_my_pattern --nocapture`
     static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
+    /// Only starts the dev server on port 3000, but doesn't spawn a browser or run any tests.
+    static ref DEBUG_START: bool = env::var("TURBOPACK_DEBUG_START").is_ok();
 }
 
 fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
@@ -161,6 +163,8 @@ fn test_skipped_fails(resource: PathBuf) {
 async fn run_test(resource: PathBuf) -> JestRunResult {
     register();
 
+    let is_debug_start = *DEBUG_START;
+
     let resource = canonicalize(resource).unwrap();
     assert!(resource.exists(), "{} does not exist", resource.display());
     assert!(
@@ -181,7 +185,11 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let test_dir = resource.to_path_buf();
     let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
-    let requested_addr = get_free_local_addr().unwrap();
+    let requested_addr = if is_debug_start {
+        "127.0.0.1:3000".parse().unwrap()
+    } else {
+        get_free_local_addr().unwrap()
+    };
 
     let mock_dir = resource.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
@@ -218,6 +226,16 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
         event_type = "ready".green(),
         address = server.addr
     );
+
+    if *DEBUG_START {
+        webbrowser::open(&server.addr.to_string()).unwrap();
+        tokio::select! {
+            _ = mock_server_future => {},
+            _ = pending() => {},
+            _ = server.future => {},
+        };
+        panic!("Never resolves")
+    }
 
     let result = tokio::select! {
         // Poll the mock_server first to add the env var
