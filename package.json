@@ -95,7 +95,7 @@
     "@typescript-eslint/eslint-plugin": "4.29.1",
     "@typescript-eslint/parser": "4.29.1",
     "@vercel/fetch": "6.1.1",
-    "@vercel/og": "0.4.0",
+    "@vercel/og": "0.4.1",
     "@webassemblyjs/ast": "1.11.1",
     "@webassemblyjs/floating-point-hex-parser": "1.11.1",
     "@webassemblyjs/helper-api-error": "1.11.1",

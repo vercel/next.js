@@ -55,7 +55,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1
       '@typescript-eslint/parser': 4.29.1
       '@vercel/fetch': 6.1.1
-      '@vercel/og': 0.4.0
+      '@vercel/og': 0.4.1
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -233,7 +233,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1_qxyn66xcaddhgaahwkbomftvi4
       '@typescript-eslint/parser': 4.29.1_6x3mpmmsttbpxxsctsorxedanu
       '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
-      '@vercel/og': 0.4.0
+      '@vercel/og': 0.4.1
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -7733,8 +7733,8 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og/0.4.0:
-    resolution: {integrity: sha512-FFjXYCD5ZM0VotC9niy11qf4m6D99JVQ73P/uCLJl/r2PeOj0l26xwTEQ4HHJ/yZ6ncByCNoWAjk+S0fjMJmwg==}
+  /@vercel/og/0.4.1:
+    resolution: {integrity: sha512-N8SXkbmQQRK0iHpqwUe50Fe8JO3sx2ByV6hgPTi16ONiMdqOM9uzE4QMWoY1Oa0uYZuUVA30sEB84mVMn+gT3w==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
