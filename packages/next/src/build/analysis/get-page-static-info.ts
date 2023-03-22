@@ -30,6 +30,7 @@ export interface MiddlewareMatcher {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  originalSource: string
 }
 
 export interface PageStaticInfo {
@@ -46,9 +47,20 @@ const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
 
 export type RSCModuleType = 'server' | 'client'
-export function getRSCModuleInformation(source: string): RSCMeta {
-  const clientRefs = source.match(CLIENT_MODULE_LABEL)?.[1]?.split(',')
+export function getRSCModuleInformation(
+  source: string,
+  isServerLayer = true
+): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+
+  if (!isServerLayer) {
+    return {
+      type: RSC_MODULE_TYPES.client,
+      actions,
+    }
+  }
+
+  const clientRefs = source.match(CLIENT_MODULE_LABEL)?.[1]?.split(',')
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
   return { type, actions, clientRefs }
@@ -197,6 +209,7 @@ export function getMiddlewareMatchers(
     return {
       ...rest,
       regexp: parsedPage.regexStr,
+      originalSource: source,
     }
   })
 }

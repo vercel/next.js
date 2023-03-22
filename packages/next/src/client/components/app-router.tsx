@@ -12,7 +12,10 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { reducer } from './router-reducer/router-reducer'
 import {
@@ -35,9 +38,9 @@ import {
   createInitialRouterState,
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
-import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
+import { AppRouterAnnouncer } from './app-router-announcer'
 
 const isServer = typeof window === 'undefined'
 
@@ -59,8 +62,6 @@ const HotReloader:
     ? null
     : (require('./react-dev-overlay/hot-reloader-client')
         .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
-
-const prefetched = new Set<string>()
 
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
@@ -180,41 +181,23 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: async (href) => {
-        const hrefWithBasePath = addBasePath(href)
-
         // If prefetch has already been triggered, don't trigger it again.
-        if (
-          prefetched.has(hrefWithBasePath) ||
-          (typeof window !== 'undefined' && isBot(window.navigator.userAgent))
-        ) {
+        if (isBot(window.navigator.userAgent)) {
           return
         }
-        prefetched.add(hrefWithBasePath)
-        const url = new URL(hrefWithBasePath, location.origin)
+        const url = new URL(addBasePath(href), location.origin)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
         }
-        try {
-          const routerTree = window.history.state?.tree || initialTree
-          const serverResponse = await fetchServerResponse(
+
+        // @ts-ignore startTransition exists
+        React.startTransition(() => {
+          dispatch({
+            type: ACTION_PREFETCH,
             url,
-            // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-            routerTree,
-            true
-          )
-          // @ts-ignore startTransition exists
-          React.startTransition(() => {
-            dispatch({
-              type: ACTION_PREFETCH,
-              url,
-              tree: routerTree,
-              serverResponse,
-            })
           })
-        } catch (err) {
-          console.error('PREFETCH ERROR', err)
-        }
+        })
       },
       replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
@@ -247,7 +230,7 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch, initialTree])
+  }, [dispatch])
 
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
@@ -327,7 +310,12 @@ function Router({
     }
   }, [onPopState])
 
-  const content = <>{cache.subTreeData}</>
+  const content = (
+    <>
+      {cache.subTreeData}
+      <AppRouterAnnouncer tree={tree} />
+    </>
+  )
 
   return (
     <PathnameContext.Provider value={pathname}>

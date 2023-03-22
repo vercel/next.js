@@ -1,7 +1,7 @@
-import {
+import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render'
+} from '../../../server/app-render/types'
 import { matchSegment } from '../match-segments'
 
 /**

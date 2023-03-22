@@ -1,7 +1,7 @@
 // useLayoutSegments() // Only the segments for the current place. ['children', 'dashboard', 'children', 'integrations'] -> /dashboard/integrations (/dashboard/layout.js would get ['children', 'dashboard', 'children', 'integrations'])
 
 import { useContext, useMemo } from 'react'
-import type { FlightRouterState } from '../../server/app-render'
+import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -152,7 +152,7 @@ function getSelectedLayoutSegmentPath(
   if (!node) return segmentPath
   const segment = node[0]
   const segmentValue = Array.isArray(segment) ? segment[1] : segment
-  if (!segmentValue) return segmentPath
+  if (!segmentValue || segmentValue === '__PAGE__') return segmentPath
 
   segmentPath.push(segmentValue)
 

@@ -195,6 +195,7 @@ describe('accumulateMetadata', () => {
               minimumScale: 1,
               maximumScale: 1,
               viewportFit: 'cover',
+              userScalable: false,
               interactiveWidget: 'overlays-content',
             },
           },
@@ -204,7 +205,95 @@ describe('accumulateMetadata', () => {
       const metadata = await accumulateMetadata(metadataItems)
       expect(metadata).toMatchObject({
         viewport:
-          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=overlays-content',
+          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=overlays-content',
+      })
+    })
+  })
+
+  describe('alternate', () => {
+    it('should support string alternate', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: '/relative',
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: '/relative' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support alternate descriptors', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: '/relative',
+              languages: {
+                'en-US': [
+                  { url: '/en-US', title: 'en' },
+                  { url: '/zh_CN', title: 'zh' },
+                ],
+              },
+              media: {
+                'only screen and (max-width: 600px)': [
+                  { url: '/mobile', title: 'mobile' },
+                ],
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: '/relative' },
+          languages: {
+            'en-US': [
+              { url: '/en-US', title: 'en' },
+              { url: '/zh_CN', title: 'zh' },
+            ],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [
+              { url: '/mobile', title: 'mobile' },
+            ],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
       })
     })
   })

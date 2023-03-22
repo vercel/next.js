@@ -22,13 +22,124 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    let prerenderManifest
+
+    beforeAll(async () => {
+      if (isNextStart) {
+        prerenderManifest = JSON.parse(
+          await next.readFile('.next/prerender-manifest.json')
+        )
+      }
+    })
+
+    if (isDev) {
+      it('should error correctly for invalid params from generateStaticParams', async () => {
+        await next.patchFile(
+          'app/invalid/[slug]/page.js',
+          `
+            export function generateStaticParams() {
+              return [{slug: { invalid: true }}]
+            }
+          `
+        )
+        const html = await next.render('/invalid/first')
+        await next.deleteFile('app/invalid/[slug]/page.js')
+        expect(html).toContain(
+          'A required parameter (slug) was not provided as a string received object'
+        )
+      })
+    }
+
+    it('should correctly skip caching POST fetch for POST handler', async () => {
+      const res = await next.fetch('/route-handler/post', {
+        method: 'POST',
+      })
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data).toBeTruthy()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/route-handler/post', {
+          method: 'POST',
+        })
+        expect(res2.status).toBe(200)
+        const newData = await res2.json()
+        expect(newData).toBeTruthy()
+        expect(newData).not.toEqual(data)
+      }
+    })
+
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should revalidate correctly with config and fetch revalidate', async () => {
+        const initial$ = await next.render$(
+          '/variable-config-revalidate/revalidate-3'
+        )
+        const initialDate = initial$('#date').text()
+        const initialData = initial$('#data').text()
+
+        expect(initialDate).toBeTruthy()
+        expect(initialData).toBeTruthy()
+
+        let revalidatedDate
+        let revalidatedData
+
+        // wait for a fresh revalidation
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+
+          revalidatedDate = $('#date').text()
+          revalidatedData = $('#data').text()
+
+          expect(revalidatedData).not.toBe(initialDate)
+          expect(revalidatedDate).not.toBe(initialData)
+          return 'success'
+        }, 'success')
+
+        // the date should revalidate first after 3 seconds
+        // while the fetch data stays in place for 15 seconds
+        await check(async () => {
+          const $ = await next.render$(
+            '/variable-config-revalidate/revalidate-3'
+          )
+          expect($('#date').text()).not.toBe(revalidatedDate)
+          expect($('#data').text()).toBe(revalidatedData)
+          return 'success'
+        }, 'success')
+      })
+    }
+
+    it('should include statusCode in cache', async () => {
+      const $ = await next.render$('/variable-revalidate/status-code')
+      const origData = JSON.parse($('#page-data').text())
+
+      expect(origData.status).toBe(404)
+
+      await check(async () => {
+        const new$ = await next.render$('/variable-revalidate/status-code')
+        const newData = JSON.parse(new$('#page-data').text())
+        expect(newData.status).toBe(origData.status)
+        expect(newData.text).not.toBe(origData.text)
+        return 'success'
+      }, 'success')
+    })
+
     if (isNextStart) {
       it('should output HTML/RSC files for static paths', async () => {
         const files = (
           await glob('**/*', {
             cwd: join(next.testDir, '.next/server/app'),
           })
-        ).filter((file) => file.match(/.*\.(js|html|rsc)$/))
+        )
+          .filter((file) => file.match(/.*\.(js|html|rsc)$/))
+          .map((file) => {
+            return file.replace(
+              /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+              'partial-gen-params-no-additional-$1/$2/RAND'
+            )
+          })
 
         expect(files).toEqual([
           '(new)/custom/page.js',
@@ -52,12 +163,16 @@ createNextDescribe(
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
           'force-static/page.js',
           'force-static/second.html',
           'force-static/second.rsc',
+          'gen-params-dynamic-revalidate/[slug]/page.js',
+          'gen-params-dynamic-revalidate/one.html',
+          'gen-params-dynamic-revalidate/one.rsc',
           'gen-params-dynamic/[slug]/page.js',
           'hooks/use-pathname/[slug]/page.js',
           'hooks/use-pathname/slug.html',
@@ -71,6 +186,34 @@ createNextDescribe(
           'hooks/use-search-params/with-suspense.html',
           'hooks/use-search-params/with-suspense.rsc',
           'hooks/use-search-params/with-suspense/page.js',
+          'partial-gen-params-no-additional-lang/[lang]/[slug]/page.js',
+          'partial-gen-params-no-additional-lang/en/RAND.html',
+          'partial-gen-params-no-additional-lang/en/RAND.rsc',
+          'partial-gen-params-no-additional-lang/en/first.html',
+          'partial-gen-params-no-additional-lang/en/first.rsc',
+          'partial-gen-params-no-additional-lang/en/second.html',
+          'partial-gen-params-no-additional-lang/en/second.rsc',
+          'partial-gen-params-no-additional-lang/fr/RAND.html',
+          'partial-gen-params-no-additional-lang/fr/RAND.rsc',
+          'partial-gen-params-no-additional-lang/fr/first.html',
+          'partial-gen-params-no-additional-lang/fr/first.rsc',
+          'partial-gen-params-no-additional-lang/fr/second.html',
+          'partial-gen-params-no-additional-lang/fr/second.rsc',
+          'partial-gen-params-no-additional-slug/[lang]/[slug]/page.js',
+          'partial-gen-params-no-additional-slug/en/RAND.html',
+          'partial-gen-params-no-additional-slug/en/RAND.rsc',
+          'partial-gen-params-no-additional-slug/en/first.html',
+          'partial-gen-params-no-additional-slug/en/first.rsc',
+          'partial-gen-params-no-additional-slug/en/second.html',
+          'partial-gen-params-no-additional-slug/en/second.rsc',
+          'partial-gen-params-no-additional-slug/fr/RAND.html',
+          'partial-gen-params-no-additional-slug/fr/RAND.rsc',
+          'partial-gen-params-no-additional-slug/fr/first.html',
+          'partial-gen-params-no-additional-slug/fr/first.rsc',
+          'partial-gen-params-no-additional-slug/fr/second.html',
+          'partial-gen-params-no-additional-slug/fr/second.rsc',
+          'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler/post/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -83,38 +226,42 @@ createNextDescribe(
           'ssr-forced/page.js',
           'static-to-dynamic-error-forced/[id]/page.js',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-config-revalidate/revalidate-3.html',
+          'variable-config-revalidate/revalidate-3.rsc',
+          'variable-config-revalidate/revalidate-3/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
-          'variable-revalidate-edge/post-method-cached/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
+          'variable-revalidate-edge/post-method/page.js',
           'variable-revalidate-edge/revalidate-3/page.js',
-          'variable-revalidate/authorization-cached.html',
-          'variable-revalidate/authorization-cached.rsc',
-          'variable-revalidate/authorization-cached/page.js',
+          'variable-revalidate/authorization.html',
+          'variable-revalidate/authorization.rsc',
           'variable-revalidate/authorization/page.js',
-          'variable-revalidate/cookie-cached.html',
-          'variable-revalidate/cookie-cached.rsc',
-          'variable-revalidate/cookie-cached/page.js',
+          'variable-revalidate/cookie.html',
+          'variable-revalidate/cookie.rsc',
           'variable-revalidate/cookie/page.js',
           'variable-revalidate/encoding.html',
           'variable-revalidate/encoding.rsc',
           'variable-revalidate/encoding/page.js',
           'variable-revalidate/no-store/page.js',
-          'variable-revalidate/post-method-cached/page.js',
+          'variable-revalidate/post-method-request/page.js',
+          'variable-revalidate/post-method.html',
+          'variable-revalidate/post-method.rsc',
           'variable-revalidate/post-method/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/status-code.html',
+          'variable-revalidate/status-code.rsc',
+          'variable-revalidate/status-code/page.js',
         ])
       })
 
       it('should have correct prerender-manifest entries', async () => {
-        const manifest = JSON.parse(
-          await next.readFile('.next/prerender-manifest.json')
-        )
+        const curManifest = JSON.parse(JSON.stringify(prerenderManifest))
 
-        Object.keys(manifest.dynamicRoutes).forEach((key) => {
-          const item = manifest.dynamicRoutes[key]
+        for (const key of Object.keys(curManifest.dynamicRoutes)) {
+          const item = curManifest.dynamicRoutes[key]
 
           if (item.dataRouteRegex) {
             item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
@@ -122,10 +269,25 @@ createNextDescribe(
           if (item.routeRegex) {
             item.routeRegex = normalizeRegEx(item.routeRegex)
           }
-        })
+        }
 
-        expect(manifest.version).toBe(4)
-        expect(manifest.routes).toEqual({
+        for (const key of Object.keys(curManifest.routes)) {
+          const newKey = key.replace(
+            /partial-gen-params-no-additional-([\w]{1,})\/([\w]{1,})\/([\d]{1,})/,
+            'partial-gen-params-no-additional-$1/$2/RAND'
+          )
+          if (newKey !== key) {
+            const route = curManifest.routes[key]
+            delete curManifest.routes[key]
+            curManifest.routes[newKey] = {
+              ...route,
+              dataRoute: `${newKey}.rsc`,
+            }
+          }
+        }
+
+        expect(curManifest.version).toBe(4)
+        expect(curManifest.routes).toEqual({
           '/blog/tim': {
             initialRevalidateSeconds: 10,
             srcRoute: '/blog/[author]',
@@ -181,6 +343,66 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/hooks/use-search-params/with-suspense',
           },
+          '/partial-gen-params-no-additional-lang/en/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-lang/en/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/en/first': {
+            dataRoute: '/partial-gen-params-no-additional-lang/en/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/en/second': {
+            dataRoute: '/partial-gen-params-no-additional-lang/en/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/fr/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-lang/fr/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/fr/first': {
+            dataRoute: '/partial-gen-params-no-additional-lang/fr/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-lang/fr/second': {
+            dataRoute: '/partial-gen-params-no-additional-lang/fr/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-lang/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/en/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-slug/en/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/en/first': {
+            dataRoute: '/partial-gen-params-no-additional-slug/en/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/en/second': {
+            dataRoute: '/partial-gen-params-no-additional-slug/en/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/fr/RAND': {
+            dataRoute: '/partial-gen-params-no-additional-slug/fr/RAND.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/fr/first': {
+            dataRoute: '/partial-gen-params-no-additional-slug/fr/first.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
+          '/partial-gen-params-no-additional-slug/fr/second': {
+            dataRoute: '/partial-gen-params-no-additional-slug/fr/second.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
+          },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
             initialRevalidateSeconds: false,
@@ -190,6 +412,11 @@ createNextDescribe(
             dataRoute: '/force-static/second.rsc',
             initialRevalidateSeconds: false,
             srcRoute: '/force-static/[slug]',
+          },
+          '/gen-params-dynamic-revalidate/one': {
+            dataRoute: '/gen-params-dynamic-revalidate/one.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/gen-params-dynamic-revalidate/[slug]',
           },
           '/ssg-preview': {
             dataRoute: '/ssg-preview.rsc',
@@ -206,28 +433,43 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/ssg-preview/[[...route]]',
           },
-          '/variable-revalidate/authorization-cached': {
-            dataRoute: '/variable-revalidate/authorization-cached.rsc',
+          '/variable-config-revalidate/revalidate-3': {
+            dataRoute: '/variable-config-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/authorization-cached',
+            srcRoute: '/variable-config-revalidate/revalidate-3',
           },
-          '/variable-revalidate/cookie-cached': {
-            dataRoute: '/variable-revalidate/cookie-cached.rsc',
+          '/variable-revalidate/authorization': {
+            dataRoute: '/variable-revalidate/authorization.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/authorization',
+          },
+          '/variable-revalidate/cookie': {
+            dataRoute: '/variable-revalidate/cookie.rsc',
             initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/cookie-cached',
+            srcRoute: '/variable-revalidate/cookie',
           },
           '/variable-revalidate/encoding': {
             dataRoute: '/variable-revalidate/encoding.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/encoding',
           },
+          '/variable-revalidate/post-method': {
+            dataRoute: '/variable-revalidate/post-method.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/post-method',
+          },
           '/variable-revalidate/revalidate-3': {
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
           },
+          '/variable-revalidate/status-code': {
+            dataRoute: '/variable-revalidate/status-code.rsc',
+            initialRevalidateSeconds: 3,
+            srcRoute: '/variable-revalidate/status-code',
+          },
         })
-        expect(manifest.dynamicRoutes).toEqual({
+        expect(curManifest.dynamicRoutes).toEqual({
           '/blog/[author]/[slug]': {
             routeRegex: normalizeRegEx('^/blog/([^/]+?)/([^/]+?)(?:/)?$'),
             dataRoute: '/blog/[author]/[slug].rsc',
@@ -242,9 +484,23 @@ createNextDescribe(
           },
           '/dynamic-error/[id]': {
             dataRoute: '/dynamic-error/[id].rsc',
-            dataRouteRegex: '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/gen-params-dynamic-revalidate/[slug]': {
+            dataRoute: '/gen-params-dynamic-revalidate/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
@@ -254,6 +510,38 @@ createNextDescribe(
             fallback: null,
             routeRegex: normalizeRegEx(
               '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/partial-gen-params-no-additional-lang/[lang]/[slug]': {
+            dataRoute:
+              '/partial-gen-params-no-additional-lang/[lang]/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: false,
+            routeRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/partial-gen-params-no-additional-slug/[lang]/[slug]': {
+            dataRoute:
+              '/partial-gen-params-no-additional-slug/[lang]/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: false,
+            routeRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/partial-gen-params/[lang]/[slug]': {
+            dataRoute: '/partial-gen-params/[lang]/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
           '/force-static/[slug]': {
@@ -365,6 +653,166 @@ createNextDescribe(
       })
     }
 
+    it('should handle partial-gen-params with default dynamicParams correctly', async () => {
+      const res = await next.fetch('/partial-gen-params/en/first')
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      const params = JSON.parse($('#params').text())
+
+      expect(params).toEqual({ lang: 'en', slug: 'first' })
+    })
+
+    it('should handle partial-gen-params with layout dynamicParams = false correctly', async () => {
+      for (const { path, status, params } of [
+        // these checks don't work with custom memory only
+        // cache handler
+        ...(process.env.CUSTOM_CACHE_HANDLER
+          ? []
+          : [
+              {
+                path: '/partial-gen-params-no-additional-lang/en/first',
+                status: 200,
+                params: { lang: 'en', slug: 'first' },
+              },
+            ]),
+        {
+          path: '/partial-gen-params-no-additional-lang/de/first',
+          status: 404,
+          params: {},
+        },
+        {
+          path: '/partial-gen-params-no-additional-lang/en/non-existent',
+          status: 404,
+          params: {},
+        },
+      ]) {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(status)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const curParams = JSON.parse($('#params').text() || '{}')
+
+        expect(curParams).toEqual(params)
+      }
+    })
+
+    it('should handle partial-gen-params with page dynamicParams = false correctly', async () => {
+      for (const { path, status, params } of [
+        // these checks don't work with custom memory only
+        // cache handler
+        ...(process.env.CUSTOM_CACHE_HANDLER
+          ? []
+          : [
+              {
+                path: '/partial-gen-params-no-additional-slug/en/first',
+                status: 200,
+                params: { lang: 'en', slug: 'first' },
+              },
+            ]),
+        {
+          path: '/partial-gen-params-no-additional-slug/de/first',
+          status: 404,
+          params: {},
+        },
+        {
+          path: '/partial-gen-params-no-additional-slug/en/non-existent',
+          status: 404,
+          params: {},
+        },
+      ]) {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(status)
+
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const curParams = JSON.parse($('#params').text() || '{}')
+
+        expect(curParams).toEqual(params)
+      }
+    })
+
+    // fetch cache in generateStaticParams needs fs for persistence
+    // so doesn't behave as expected with custom in memory only
+    // cache handler
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should honor fetch cache in generateStaticParams', async () => {
+        const initialRes = await next.fetch(
+          `/partial-gen-params-no-additional-lang/en/first`
+        )
+
+        expect(initialRes.status).toBe(200)
+
+        // we can't read prerender-manifest from deployment
+        if (isNextDeploy) return
+
+        let langFetchSlug
+        let slugFetchSlug
+
+        if (isDev) {
+          await check(() => {
+            const matches = stripAnsi(next.cliOutput).match(
+              /partial-gen-params fetch ([\d]{1,})/
+            )
+
+            if (matches[1]) {
+              langFetchSlug = matches[1]
+              slugFetchSlug = langFetchSlug
+            }
+            return langFetchSlug ? 'success' : next.cliOutput
+          }, 'success')
+        } else {
+          // the fetch cache can potentially be a miss since
+          // the generateStaticParams are executed parallel
+          // in separate workers so parse value from
+          // prerender-manifest
+          const routes = Object.keys(prerenderManifest.routes)
+
+          for (const route of routes) {
+            const langSlug = route.match(
+              /partial-gen-params-no-additional-lang\/en\/([\d]{1,})/
+            )?.[1]
+
+            if (langSlug) {
+              langFetchSlug = langSlug
+            }
+
+            const slugSlug = route.match(
+              /partial-gen-params-no-additional-slug\/en\/([\d]{1,})/
+            )?.[1]
+
+            if (slugSlug) {
+              slugFetchSlug = slugSlug
+            }
+          }
+        }
+        require('console').log({ langFetchSlug, slugFetchSlug })
+
+        for (const { pathname, slug } of [
+          {
+            pathname: '/partial-gen-params-no-additional-lang/en',
+            slug: langFetchSlug,
+          },
+          {
+            pathname: '/partial-gen-params-no-additional-slug/en',
+            slug: slugFetchSlug,
+          },
+        ]) {
+          const res = await next.fetch(`${pathname}/${slug}`)
+          expect(res.status).toBe(200)
+          expect(
+            JSON.parse(
+              cheerio
+                .load(await res.text())('#params')
+                .text()
+            )
+          ).toEqual({ lang: 'en', slug })
+        }
+      })
+    }
+
     it('should honor fetch cache correctly', async () => {
       await check(async () => {
         const res = await fetchViaHTTP(
@@ -423,35 +871,11 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should not cache correctly with authorization header', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/authorization'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/authorization'
-        )
-        expect(res2.status).toBe(200)
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect($2('#page-data').text()).not.toBe(pageData)
-      }
-    })
-
     it('should cache correctly with authorization header and revalidate', async () => {
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/authorization-cached'
+          '/variable-revalidate/authorization'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -462,7 +886,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/authorization-cached'
+          '/variable-revalidate/authorization'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -474,30 +898,6 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should not cache correctly with POST method', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
-        '/variable-revalidate/post-method'
-      )
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/post-method'
-        )
-        expect(res2.status).toBe(200)
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect($2('#page-data').text()).not.toBe(pageData)
-      }
-    })
-
     it('should not cache correctly with POST method request init', async () => {
       const res = await fetchViaHTTP(
         next.url,
@@ -507,7 +907,7 @@ createNextDescribe(
       const html = await res.text()
       const $ = cheerio.load(html)
 
-      const pageData = $('#page-data').text()
+      const pageData2 = $('#page-data2').text()
 
       for (let i = 0; i < 3; i++) {
         const res2 = await fetchViaHTTP(
@@ -518,7 +918,7 @@ createNextDescribe(
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
 
-        expect($2('#page-data').text()).not.toBe(pageData)
+        expect($2('#page-data2').text()).not.toBe(pageData2)
       }
     })
 
@@ -526,7 +926,7 @@ createNextDescribe(
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -545,7 +945,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -564,7 +964,7 @@ createNextDescribe(
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate-edge/post-method-cached'
+          '/variable-revalidate-edge/post-method'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -579,7 +979,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate-edge/post-method-cached'
+          '/variable-revalidate-edge/post-method'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -599,7 +999,7 @@ createNextDescribe(
       await check(async () => {
         const res = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res.status).toBe(200)
         const html = await res.text()
@@ -610,7 +1010,7 @@ createNextDescribe(
 
         const res2 = await fetchViaHTTP(
           next.url,
-          '/variable-revalidate/post-method-cached'
+          '/variable-revalidate/post-method'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
@@ -622,30 +1022,9 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should not cache correctly with cookie header', async () => {
-      const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
-      expect(res.status).toBe(200)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      const pageData = $('#page-data').text()
-
-      for (let i = 0; i < 3; i++) {
-        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
-        expect(res2.status).toBe(200)
-        const html2 = await res2.text()
-        const $2 = cheerio.load(html2)
-
-        expect($2('#page-data').text()).not.toBe(pageData)
-      }
-    })
-
     it('should cache correctly with cookie header and revalidate', async () => {
       await check(async () => {
-        const res = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/cookie-cached'
-        )
+        const res = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
         expect(res.status).toBe(200)
         const html = await res.text()
         const $ = cheerio.load(html)
@@ -653,10 +1032,7 @@ createNextDescribe(
         const layoutData = $('#layout-data').text()
         const pageData = $('#page-data').text()
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          '/variable-revalidate/cookie-cached'
-        )
+        const res2 = await fetchViaHTTP(next.url, '/variable-revalidate/cookie')
         expect(res2.status).toBe(200)
         const html2 = await res2.text()
         const $2 = cheerio.load(html2)
@@ -773,6 +1149,26 @@ createNextDescribe(
       }
     })
 
+    it('should allow dynamic routes to access cookies', async () => {
+      for (const slug of ['books', 'frameworks']) {
+        for (let i = 0; i < 2; i++) {
+          let $ = await next.render$(
+            `/force-dynamic-prerender/${slug}`,
+            {},
+            { headers: { cookie: 'session=value' } }
+          )
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('has cookie')
+
+          $ = await next.render$(`/force-dynamic-prerender/${slug}`)
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('no cookie')
+        }
+      }
+    })
+
     it('should not error with generateStaticParams and dynamic data', async () => {
       const res = await next.fetch('/gen-params-dynamic/one')
       const html = await res.text()
@@ -791,6 +1187,26 @@ createNextDescribe(
             .text()
         ).not.toBe(data)
       }
+    })
+
+    it('should not error with generateStaticParams and authed data on revalidate', async () => {
+      const res = await next.fetch('/gen-params-dynamic-revalidate/one')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('gen-params-dynamic/[slug]')
+      expect(html).toContain('one')
+      const initData = cheerio.load(html)('#data').text()
+
+      await check(async () => {
+        const res2 = await next.fetch('/gen-params-dynamic-revalidate/one')
+
+        expect(res2.status).toBe(200)
+
+        const $ = cheerio.load(await res2.text())
+        expect($('#data').text()).toBeTruthy()
+        expect($('#data').text()).not.toBe(initData)
+        return 'success'
+      }, 'success')
     })
 
     it('should honor dynamic = "force-static" correctly', async () => {

@@ -3,13 +3,12 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { PreviewData } from '../../../types'
 import type { RequestStore } from '../../client/components/request-async-storage'
-import {
-  ReadonlyHeaders,
-  ReadonlyRequestCookies,
-  type RenderOpts,
-} from '../app-render'
+import type { RenderOpts } from '../app-render/types'
+import { ReadonlyHeaders } from '../app-render/readonly-headers'
+import { ReadonlyRequestCookies } from '../app-render/readonly-request-cookies'
 import { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { tryGetPreviewData } from '../api-utils/node'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
@@ -20,8 +19,8 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
 }
 
 export type RequestContext = {
-  req: IncomingMessage
-  res: ServerResponse
+  req: IncomingMessage | BaseNextRequest
+  res: ServerResponse | BaseNextResponse
   renderOpts?: RenderOpts
 }
 
@@ -49,7 +48,7 @@ export class RequestAsyncStorageWrapper
   public wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
     context: RequestContext,
-    callback: () => Result
+    callback: (store: RequestStore) => Result
   ): Result {
     return RequestAsyncStorageWrapper.wrap(storage, context, callback)
   }
@@ -60,7 +59,7 @@ export class RequestAsyncStorageWrapper
   public static wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
     { req, res, renderOpts }: RequestContext,
-    callback: () => Result
+    callback: (store: RequestStore) => Result
   ): Result {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
@@ -105,6 +104,6 @@ export class RequestAsyncStorageWrapper
       previewData,
     }
 
-    return storage.run(store, callback)
+    return storage.run(store, callback, store)
   }
 }

@@ -535,7 +535,7 @@ function fetchNextData({
               return { dataHref, response, text, json: {}, cacheKey }
             }
 
-            if (!hasMiddleware && response.status === 404) {
+            if (response.status === 404) {
               if (tryToParseAsJSON(text)?.notFound) {
                 return {
                   dataHref,
@@ -1096,7 +1096,9 @@ export default class Router implements BaseRouter {
             // a hard navigation
             if (matchesBflStatic || matchesBflDynamic) {
               handleHardNavigation({
-                url: addBasePath(addLocale(as, locale || this.locale)),
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
                 router: this,
               })
               return new Promise(() => {})
@@ -1123,7 +1125,7 @@ export default class Router implements BaseRouter {
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
 
-    if (!isQueryUpdating) {
+    if (!isQueryUpdating && !options.shallow) {
       await this._bfl(as, undefined, options.locale)
     }
 
@@ -1509,7 +1511,7 @@ export default class Router implements BaseRouter {
         isMiddlewareRewrite,
       })
 
-      if (!isQueryUpdating) {
+      if (!isQueryUpdating && !options.shallow) {
         await this._bfl(
           as,
           'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,
@@ -1647,6 +1649,7 @@ export default class Router implements BaseRouter {
             routeProps: { shallow: false },
             locale: nextState.locale,
             isPreview: nextState.isPreview,
+            isNotFound: true,
           })
 
           if ('type' in routeInfo) {
@@ -1913,6 +1916,7 @@ export default class Router implements BaseRouter {
     unstable_skipClientCache,
     isQueryUpdating,
     isMiddlewareRewrite,
+    isNotFound,
   }: {
     route: string
     pathname: string
@@ -1926,6 +1930,7 @@ export default class Router implements BaseRouter {
     unstable_skipClientCache?: boolean
     isQueryUpdating?: boolean
     isMiddlewareRewrite?: boolean
+    isNotFound?: boolean
   }) {
     /**
      * This `route` binding can change if there's a rewrite
@@ -1959,7 +1964,7 @@ export default class Router implements BaseRouter {
         dataHref: this.pageLoader.getDataHref({
           href: formatWithValidation({ pathname, query }),
           skipInterpolation: true,
-          asPath: resolvedAs,
+          asPath: isNotFound ? '/404' : resolvedAs,
           locale,
         }),
         hasMiddleware: true,
@@ -1981,7 +1986,7 @@ export default class Router implements BaseRouter {
           ? null
           : await withMiddlewareEffects({
               fetchData: () => fetchNextData(fetchNextDataParams),
-              asPath: resolvedAs,
+              asPath: isNotFound ? '/404' : resolvedAs,
               locale: locale,
               router: this,
             }).catch((err) => {
@@ -1994,6 +1999,12 @@ export default class Router implements BaseRouter {
               }
               throw err
             })
+
+      // when rendering error routes we don't apply middleware
+      // effects
+      if (data && (pathname === '/_error' || pathname === '/404')) {
+        data.effect = undefined
+      }
 
       if (isQueryUpdating) {
         if (!data) {
@@ -2421,7 +2432,9 @@ export default class Router implements BaseRouter {
                 options.unstable_skipClientCache ||
                 (options.priority &&
                   !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
-            }).then(() => false)
+            })
+              .then(() => false)
+              .catch(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),

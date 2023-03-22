@@ -284,7 +284,7 @@ createNextDescribe(
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
 
       await cleanup()
@@ -314,7 +314,7 @@ createNextDescribe(
            \`----
 
         Import path:
-        app/server-with-errors/error-file/error.js"
+        ./app/server-with-errors/error-file/error.js"
       `)
 
       await cleanup()
@@ -363,8 +363,8 @@ createNextDescribe(
            \`----
 
         Maybe one of these should be marked as a client entry with \\"use client\\":
-        app/editor-links/component.js
-        app/editor-links/page.js"
+        ./app/editor-links/component.js
+        ./app/editor-links/page.js"
       `)
 
       await browser.waitForElementByCss('[data-with-open-in-editor-link]')
@@ -376,6 +376,93 @@ createNextDescribe(
       }
 
       await check(() => editorRequestsCount, /2/)
+
+      await cleanup()
+    })
+
+    it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+      const pagePath = 'app/metadata/mutate/page.js'
+      const content = `export default function page(props) {
+        return <p>mutate</p>
+      }
+
+      export async function generateMetadata(props, parent) {
+        const parentMetadata = await parent
+        parentMetadata.x = 1
+        return {
+          ...parentMetadata,
+        }
+      }`
+
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/metadata/mutate'
+      )
+
+      await session.patch(pagePath, content)
+
+      await check(
+        async () => ((await session.hasRedbox(true)) ? 'success' : 'fail'),
+        /success/
+      )
+
+      expect(await session.getRedboxDescription()).toContain(
+        'Cannot add property x, object is not extensible'
+      )
+
+      await cleanup()
+    })
+
+    it('should show which import caused an error in node_modules', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          [
+            'node_modules/client-package/module2.js',
+            "import { useState } from 'react'",
+          ],
+          ['node_modules/client-package/module1.js', "import './module2.js'"],
+          ['node_modules/client-package/index.js', "import './module1.js'"],
+          [
+            'node_modules/client-package/package.json',
+            `
+        {
+          "name": "client-package",
+          "version": "0.0.1"
+        }
+      `,
+          ],
+          ['app/Component.js', "import 'client-package'"],
+          [
+            'app/page.js',
+            `
+          import './Component.js'
+          export default function Page() {
+            return <p>Hello world</p>
+          }`,
+          ],
+        ])
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/Component.js
+        ReactServerComponentsError:
+
+        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+           ,----
+         1 | import { useState } from 'react'
+           :          ^^^^^^^^
+           \`----
+
+        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
+
+        Maybe one of these should be marked as a client entry with \\"use client\\":
+          ./app/Component.js
+          ./app/page.js"
+      `)
 
       await cleanup()
     })

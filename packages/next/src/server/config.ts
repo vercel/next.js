@@ -260,6 +260,29 @@ function assignDefaults(
 
   const result = { ...defaultConfig, ...config }
 
+  if (result.output === 'export') {
+    if (result.i18n) {
+      throw new Error(
+        'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+    if (result.rewrites) {
+      throw new Error(
+        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+    if (result.redirects) {
+      throw new Error(
+        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+    if (result.headers) {
+      throw new Error(
+        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+      )
+    }
+  }
+
   if (typeof result.assetPrefix !== 'string') {
     throw new Error(
       `Specified assetPrefix is not a string, found type "${typeof result.assetPrefix}" https://nextjs.org/docs/messages/invalid-assetprefix`
