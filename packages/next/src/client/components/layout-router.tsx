@@ -24,6 +24,7 @@ import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -416,64 +417,6 @@ function LoadingBoundary({
   }
 
   return <>{children}</>
-}
-
-interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  asNotFound?: boolean
-  children: React.ReactNode
-}
-
-class NotFoundErrorBoundary extends React.Component<
-  NotFoundBoundaryProps,
-  { notFoundTriggered: boolean }
-> {
-  constructor(props: NotFoundBoundaryProps) {
-    super(props)
-    this.state = { notFoundTriggered: !!props.asNotFound }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (error?.digest === 'NEXT_NOT_FOUND') {
-      return { notFoundTriggered: true }
-    }
-    // Re-throw if error is not for 404
-    throw error
-  }
-
-  render() {
-    if (this.state.notFoundTriggered) {
-      return (
-        <>
-          <meta name="robots" content="noindex" />
-          {this.props.notFoundStyles}
-          {this.props.notFound}
-        </>
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-function NotFoundBoundary({
-  notFound,
-  notFoundStyles,
-  asNotFound,
-  children,
-}: NotFoundBoundaryProps) {
-  return notFound ? (
-    <NotFoundErrorBoundary
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      {children}
-    </NotFoundErrorBoundary>
-  ) : (
-    <>{children}</>
-  )
 }
 
 /**
