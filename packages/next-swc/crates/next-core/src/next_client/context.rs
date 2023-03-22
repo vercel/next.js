@@ -15,13 +15,14 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    chunk::ChunkingContextVc,
     compile_time_defines,
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     resolve::{parse::RequestVc, pattern::Pattern},
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_node::execution_context::ExecutionContextVc;
 
