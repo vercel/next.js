@@ -2,7 +2,7 @@
 # https://help.github.com/en/articles/about-code-owners
 
 *          @timneutkens @ijjk @shuding @huozhi @feedthejim
-/.github/  @timneutkens @ijjk @shuding @huozhi @feedthejim @styfle @padmaia @balazsorban44 @jankaifer
+/.github/  @vercel/next-js
 /docs/     @timneutkens @ijjk @shuding @huozhi @feedthejim @styfle @padmaia @leerob @balazsorban44 @jankaifer
 /errors/   @timneutkens @ijjk @shuding @huozhi @feedthejim @styfle @padmaia @leerob @balazsorban44 @jankaifer
 /examples/ @timneutkens @ijjk @shuding @feedthejim @leerob @steven-tey @balazsorban44 @jankaifer
