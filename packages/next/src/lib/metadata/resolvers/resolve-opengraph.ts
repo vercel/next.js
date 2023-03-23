@@ -130,7 +130,6 @@ export const resolveTwitter: FieldResolverWithMetadataBase<'twitter'> = (
   resolved.images = resolveImages(twitter.images, metadataBase)
 
   if ('card' in resolved) {
-    resolved.card = resolved.card
     switch (resolved.card) {
       case 'player': {
         resolved.players = resolveAsArrayOrUndefined(resolved.players) || []
