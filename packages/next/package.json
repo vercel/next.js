@@ -80,6 +80,7 @@
     ]
   },
   "dependencies": {
+    "@capsizecss/metrics": "1.1.0",
     "@next/env": "13.2.5-canary.12",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
