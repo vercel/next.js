@@ -40,6 +40,7 @@ pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {
     turbo_tasks::register();
+    turbo_tasks_bytes::register();
     turbo_tasks_fs::register();
     turbo_tasks_fetch::register();
     turbopack_dev::register();

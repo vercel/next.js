@@ -9,7 +9,10 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
+// @ts-expect-error internal package is injected by Rust
 import middlewareChunkGroup from "MIDDLEWARE_CHUNK_GROUP";
+
+// @ts-expect-error internal package is injected by Rust
 import middlewareConfig from "MIDDLEWARE_CONFIG";
 
 type RouterRequest = {
@@ -30,17 +33,13 @@ type RouteResult =
     };
 
 type IpcOutgoingMessage = {
-  type: "jsonValue";
-  data: string;
+  type: "value";
+  data: string | Buffer;
 };
 
 type MessageData =
   | { type: "middleware-headers"; data: MiddlewareHeadersResponse }
   | { type: "middleware-body"; data: Uint8Array }
-  | {
-      type: "full-middleware";
-      data: { headers: MiddlewareHeadersResponse; body: number[] };
-    }
   | {
       type: "rewrite";
       data: RewriteResponse;
@@ -75,8 +74,10 @@ async function getResolveRoute(
   );
 
   return await makeResolver(dir, nextConfig, {
-    files: middlewareChunkGroup.filter((f) => /\.[mc]?js$/.test(f)),
-    matcher: middlewareConfig.matcher,
+    files: (middlewareChunkGroup as string[]).filter((f) =>
+      /\.[mc]?js$/.test(f)
+    ),
+    matcher: (middlewareConfig as { matcher: string[] }).matcher,
   });
 }
 
@@ -136,9 +137,9 @@ export default async function route(
 }
 
 async function handleClientResponse(
-  _ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
+  ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
   clientResponse: IncomingMessage
-): Promise<MessageData> {
+): Promise<MessageData | void> {
   if (clientResponse.headers["x-nextjs-route-result"] === "1") {
     clientResponse.setEncoding("utf8");
     // We're either a redirect or a rewrite
@@ -171,31 +172,21 @@ async function handleClientResponse(
     headers: toPairs(clientResponse.rawHeaders),
   };
 
-  // TODO: support streaming middleware
-  // ipc.send({
-  //   type: "jsonValue",
-  //   data: JSON.stringify({
-  //     type: "middleware-headers",
-  //     data: responseHeaders,
-  //   }),
-  // });
-  // ipc.send({
-  //   type: "jsonValue",
-  //   data: JSON.stringify({
-  //     type: "middleware-body",
-  //     data: chunk as Buffer,
-  //   }),
-  // });
+  ipc.send({
+    type: "value",
+    data: JSON.stringify({
+      type: "middleware-headers",
+      data: responseHeaders,
+    }),
+  });
 
-  const buffers = [];
   for await (const chunk of clientResponse) {
-    buffers.push(chunk as Buffer);
+    ipc.send({
+      type: "value",
+      data: JSON.stringify({
+        type: "middleware-body",
+        data: (chunk as Buffer).toJSON().data,
+      }),
+    });
   }
-  return {
-    type: "full-middleware",
-    data: {
-      headers: responseHeaders,
-      body: Buffer.concat(buffers).toJSON().data,
-    },
-  };
 }
