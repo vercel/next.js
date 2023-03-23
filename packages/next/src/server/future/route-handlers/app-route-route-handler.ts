@@ -74,7 +74,8 @@ export type AppRouteModule = {
    */
   handlers: Record<HTTP_METHOD, AppRouteHandlerFn> &
     Record<'dynamic', AppConfig['dynamic']> &
-    Record<'revalidate', AppConfig['revalidate']>
+    Record<'revalidate', AppConfig['revalidate']> &
+    Record<'fetchCache', AppConfig['fetchCache']>
 
   /**
    * The exported async storage object for this worker/module.
@@ -483,8 +484,11 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
           staticGenerationAsyncStorage,
           {
             pathname: definition.pathname,
-            renderOpts: context ?? {
-              supportsDynamicHTML: false,
+            renderOpts: {
+              fetchCache: module.handlers.fetchCache,
+              ...(context ?? {
+                supportsDynamicHTML: false,
+              }),
             },
           },
           (staticGenerationStore) => {

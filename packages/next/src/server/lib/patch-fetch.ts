@@ -99,6 +99,15 @@ export function patchFetch({
             ? _headers
             : new Headers(_headers || {})
 
+        const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
+        const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
+        const isDefaultNoStore =
+          staticGenerationStore.fetchCache === 'default-no-store'
+        const isOnlyNoStore =
+          staticGenerationStore.fetchCache === 'only-no-store'
+        const isForceNoStore =
+          staticGenerationStore.fetchCache === 'force-no-store'
+
         const hasUnCacheableHeader =
           initHeaders.get('authorization') || initHeaders.get('cookie')
 
