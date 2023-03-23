@@ -9,6 +9,7 @@ edition = "2021"
 bench = false
 
 [dependencies]
+allsorts = { workspace = true }
 anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
