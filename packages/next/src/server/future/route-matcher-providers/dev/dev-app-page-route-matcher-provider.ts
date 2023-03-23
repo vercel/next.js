@@ -64,7 +64,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       const page = this.normalizers.page.normalize(filename)
       const pathname = this.normalizers.pathname
         .normalize(filename)
-        .replaceAll('%5F', '_')
+        .replace(/%5F/g, '_')
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       // Save the normalization results.

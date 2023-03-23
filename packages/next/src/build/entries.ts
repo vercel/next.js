@@ -89,7 +89,7 @@ export function createPagesMapping({
 
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
-        pageKey = pageKey.replaceAll('%5F', '_')
+        pageKey = pageKey.replace(/%5F/g, '_')
       }
 
       if (pageKey in result) {

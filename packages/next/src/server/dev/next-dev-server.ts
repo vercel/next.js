@@ -559,7 +559,7 @@ export default class DevServer extends Server {
             }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName).replaceAll('%5F', '_')
+            pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
