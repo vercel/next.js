@@ -11,7 +11,7 @@ import { FlightResponseRef } from './flight-response-ref'
 export function createServerComponentRenderer<Props>(
   ComponentToRender: (props: Props) => any,
   ComponentMod: {
-    renderToReadableStream: any
+    ReactServerDOMServer: any
     __next_app_webpack_require__?: any
   },
   {
@@ -43,7 +43,7 @@ export function createServerComponentRenderer<Props>(
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = (props: Props) => {
     if (!RSCStream) {
-      RSCStream = ComponentMod.renderToReadableStream(
+      RSCStream = ComponentMod.ReactServerDOMServer.renderToReadableStream(
         <ComponentToRender {...(props as any)} />,
         clientReferenceManifest.clientModules,
         {
