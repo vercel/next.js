@@ -11,7 +11,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
-  RSC_MOD_REF_PROXY_ALIAS,
+  RSC_ACTION_PROXY_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -35,6 +35,7 @@ import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
 import MiddlewarePlugin, {
+  getEdgePolyfilledModules,
   handleWebpackExternalForEdgeRuntime,
 } from './webpack/plugins/middleware-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -46,8 +47,8 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
-import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
+import { ClientReferenceEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -61,7 +62,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
+import { METADATA_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
@@ -687,7 +688,7 @@ export default async function getBaseWebpackConfig(
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
-        'You ase using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
+        'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
     }
   }
@@ -786,12 +787,21 @@ export default async function getBaseWebpackConfig(
 
   const swcLoaderForServerLayer = hasServerComponents
     ? useSWCLoader
-      ? getSwcLoader({ isServerLayer: true })
+      ? [getSwcLoader({ isServerLayer: true })]
       : // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
         // This will cause some performance overhead but
         // acceptable as Babel will not be recommended.
         [getSwcLoader({ isServerLayer: true }), getBabelLoader()]
+    : []
+  const swcLoaderForClientLayer = hasServerComponents
+    ? useSWCLoader
+      ? [getSwcLoader({ isServerLayer: false })]
+      : // When using Babel, we will have to add the SWC loader
+        // as an additional pass to handle RSC correctly.
+        // This will cause some performance overhead but
+        // acceptable as Babel will not be recommended.
+        [getSwcLoader({ isServerLayer: false }), getBabelLoader()]
     : []
 
   // Loader for API routes needs to be differently configured as it shouldn't
@@ -1040,8 +1050,8 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 
-      [RSC_MOD_REF_PROXY_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/module-proxy',
+      [RSC_ACTION_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1227,7 +1237,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1451,6 +1461,7 @@ export default async function getBaseWebpackConfig(
                     './cjs/react-dom-server-legacy.browser.development.js':
                       '{}',
                   },
+                  getEdgePolyfilledModules(),
                   handleWebpackExternalForEdgeRuntime,
                 ]
               : []),
@@ -1699,6 +1710,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-loader',
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
+        'next-flight-client-action-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1727,7 +1739,9 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: WEBPACK_LAYERS.server,
+                issuerLayer: {
+                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                },
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1796,6 +1810,7 @@ export default async function getBaseWebpackConfig(
                     WEBPACK_LAYERS.server,
                     WEBPACK_LAYERS.client,
                     WEBPACK_LAYERS.appClient,
+                    WEBPACK_LAYERS.action,
                   ],
                 },
                 resolve: {
@@ -1817,7 +1832,9 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: [staticGenerationAsyncStorageRegex],
-                    issuerLayer: WEBPACK_LAYERS.server,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                    },
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1888,7 +1905,9 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: WEBPACK_LAYERS.server,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+                    },
                     exclude: [staticGenerationAsyncStorageRegex],
                     use: swcLoaderForServerLayer,
                   },
@@ -1896,6 +1915,29 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resourceQuery: /__edge_ssr_entry__/,
                     use: swcLoaderForServerLayer,
+                  },
+                  {
+                    ...codeCondition,
+                    issuerLayer: {
+                      or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
+                    },
+                    exclude: [
+                      staticGenerationAsyncStorageRegex,
+                      codeCondition.exclude,
+                    ],
+                    use: [
+                      ...(dev && isClient
+                        ? [
+                            require.resolve(
+                              'next/dist/compiled/@next/react-refresh-utils/dist/loader'
+                            ),
+                          ]
+                        : []),
+                      {
+                        loader: 'next-flight-client-action-loader',
+                      },
+                      ...swcLoaderForClientLayer,
+                    ],
                   },
                 ]
               : []),
@@ -1920,8 +1962,7 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
-                resourceQuery: (queryString: string) =>
-                  queryString !== METADATA_IMAGE_RESOURCE_QUERY,
+                resourceQuery: { not: [METADATA_RESOURCE_QUERY] },
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
@@ -2037,7 +2078,9 @@ export default async function getBaseWebpackConfig(
         {
           test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
-          issuerLayer: WEBPACK_LAYERS.server,
+          issuerLayer: {
+            or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.action],
+          },
           options: {
             message:
               "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
@@ -2185,11 +2228,11 @@ export default async function getBaseWebpackConfig(
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
       hasServerComponents &&
         (isClient
-          ? new FlightManifestPlugin({
+          ? new ClientReferenceManifestPlugin({
               dev,
               appDir,
             })
-          : new FlightClientEntryPlugin({
+          : new ClientReferenceEntryPlugin({
               appDir,
               dev,
               isEdgeServer,

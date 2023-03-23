@@ -1,14 +1,14 @@
-import { Toast } from "../components/Toast";
-import { AlertOctagon, AlertTriangle, CloseIcon } from "../icons";
-import { noop as css } from "../helpers/noop-template";
+import { Toast } from '../components/Toast'
+import { AlertOctagon, AlertTriangle, CloseIcon } from '../icons'
+import { noop as css } from '../helpers/noop-template'
 
 export type ErrorsToastProps = {
-  errorCount: number;
-  warningCount: number;
-  severity: "error" | "warning";
-  onClick: () => void;
-  onClose: () => void;
-};
+  errorCount: number
+  warningCount: number
+  severity: 'error' | 'warning'
+  onClick: () => void
+  onClose: () => void
+}
 
 export function ErrorsToast({
   errorCount,
@@ -17,42 +17,51 @@ export function ErrorsToast({
   onClick,
   onClose,
 }: ErrorsToastProps) {
-  let message = "";
+  let message = ''
 
   if (errorCount > 0) {
-    message += errorCount + " " + (errorCount > 1 ? "Errors" : "Error");
+    message += errorCount + ' ' + (errorCount > 1 ? 'Errors' : 'Error')
   }
   if (warningCount > 0) {
     if (errorCount > 0) {
-      message += " and ";
+      message += ' and '
     }
 
-    message += warningCount + " " + (warningCount > 1 ? "Warnings" : "Warning");
+    message += warningCount + ' ' + (warningCount > 1 ? 'Warnings' : 'Warning')
   }
 
   return (
-    <Toast className="toast-errors" onClick={onClick} data-severity={severity}>
+    <Toast
+      className="toast-errors"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+      data-severity={severity}
+    >
       <div className="toast-errors-body">
-        {severity == "error" && <AlertOctagon />}
-        {severity == "warning" && <AlertTriangle />}
+        {severity == 'error' && <AlertOctagon />}
+        {severity == 'warning' && <AlertTriangle />}
         <span>{message}</span>
         <button
           data-toast-errors-hide-button
           className="toast-errors-hide-button"
           type="button"
           onClick={(e) => {
-            e.stopPropagation();
-            onClose();
+            e.preventDefault()
+            e.stopPropagation()
+            onClose()
           }}
           aria-label={
-            { error: "Hide Errors", warning: "Hide Warnings" }[severity]
+            { error: 'Hide Errors', warning: 'Hide Warnings' }[severity]
           }
         >
           <CloseIcon />
         </button>
       </div>
     </Toast>
-  );
+  )
 }
 
 export const styles = css`
@@ -91,4 +100,4 @@ export const styles = css`
   .toast-errors-hide-button:hover {
     opacity: 1;
   }
-`;
+`

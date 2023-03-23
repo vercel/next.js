@@ -41,6 +41,7 @@ import { RouteKind } from '../server/future/route-kind'
 import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
 import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { AppRouteRouteMatch } from '../server/future/route-matches/app-route-route-match'
 
 loadRequireHook()
 
@@ -85,6 +86,7 @@ interface ExportPageInput {
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  nextConfigOuput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -143,6 +145,7 @@ export default async function exportPage({
   isrMemoryCacheSize,
   fetchCache,
   incrementalCacheHandlerPath,
+  nextConfigOuput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -391,24 +394,26 @@ export default async function exportPage({
             incrementalCache: curRenderOpts.incrementalCache,
           }
 
+          const match: AppRouteRouteMatch = {
+            params: query,
+            definition: {
+              filename: posix.join(distDir, 'server', 'app', page),
+              bundlePath: posix.join('app', page),
+              kind: RouteKind.APP_ROUTE,
+              page,
+              pathname: path,
+            },
+          }
+
           try {
-            const routeHandler = new AppRouteRouteHandler()
-            const response: Response = await routeHandler.handle(
-              {
-                params: query,
-                definition: {
-                  filename: posix.join(distDir, 'server', 'app', page),
-                  bundlePath: posix.join('app', page),
-                  kind: RouteKind.APP_ROUTE,
-                  page,
-                  pathname: path,
-                },
-              },
+            const handler = new AppRouteRouteHandler(nextConfigOuput)
+            const response = await handler.handle(
+              match,
               nodeReq,
               nodeRes,
-              staticContext,
-              true
+              staticContext
             )
+
             // we don't consider error status for static generation
             // except for 404
             // TODO: do we want to cache other status codes?
@@ -460,10 +465,11 @@ export default async function exportPage({
           try {
             curRenderOpts.params ||= {}
 
+            const isNotFoundPage = page === '/not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              page,
+              isNotFoundPage ? '/404' : page,
               query,
               curRenderOpts as any
             )

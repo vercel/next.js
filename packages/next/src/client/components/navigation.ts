@@ -4,6 +4,7 @@ import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
+  GlobalLayoutRouterContext,
   LayoutRouterContext,
 } from '../../shared/lib/app-router-context'
 import {
@@ -132,7 +133,41 @@ export function useRouter(): import('../../shared/lib/app-router-context').AppRo
   return router
 }
 
+interface Params {
+  [key: string]: string
+}
 // TODO-APP: handle parallel routes
+function getSelectedParams(
+  tree: FlightRouterState,
+  params: Params = {}
+): Params {
+  // After first parallel route prefer children, if there's no children pick the first parallel route.
+  const parallelRoutes = tree[1]
+  const node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
+
+  if (!node) return params
+  const segment = node[0]
+  const isDynamicParameter = Array.isArray(segment)
+  const segmentValue = isDynamicParameter ? segment[1] : segment
+  if (!segmentValue || segmentValue === '__PAGE__') return params
+
+  if (isDynamicParameter) {
+    params[segment[0]] = segment[1]
+  }
+
+  return getSelectedParams(node, params)
+}
+
+export function useParams() {
+  clientHookInServerComponentError('useParams')
+  const { tree } = useContext(GlobalLayoutRouterContext)
+  return getSelectedParams(tree)
+}
+
+// TODO-APP: handle parallel routes
+/**
+ * Get the canonical parameters from the current level to the leaf node.
+ */
 function getSelectedLayoutSegmentPath(
   tree: FlightRouterState,
   parallelRouteKey: string,
@@ -152,7 +187,7 @@ function getSelectedLayoutSegmentPath(
   if (!node) return segmentPath
   const segment = node[0]
   const segmentValue = Array.isArray(segment) ? segment[1] : segment
-  if (!segmentValue) return segmentPath
+  if (!segmentValue || segmentValue === '__PAGE__') return segmentPath
 
   segmentPath.push(segmentValue)
 

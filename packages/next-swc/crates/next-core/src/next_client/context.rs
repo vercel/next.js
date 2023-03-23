@@ -8,20 +8,21 @@ use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack::{
     module_options::{
         module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        PostCssTransformOptions, WebpackLoadersOptions,
+        JsxTransformOptions, PostCssTransformOptions, WebpackLoadersOptions,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    chunk::ChunkingContextVc,
     compile_time_defines,
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     resolve::{parse::RequestVc, pattern::Pattern},
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_node::execution_context::ExecutionContextVc;
 
@@ -156,7 +157,13 @@ pub async fn get_client_module_options_context(
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
-        enable_jsx: true,
+        enable_jsx: Some(
+            JsxTransformOptions {
+                import_source: None,
+                runtime: None,
+            }
+            .cell(),
+        ),
         enable_emotion: true,
         enable_react_refresh,
         enable_styled_components: true,

@@ -202,26 +202,65 @@ function addRedirectsRewritesRouteTypes(
     }
 
     if (Array.isArray(tokens)) {
-      let normalizedRoute = ''
+      const possibleNormalizedRoutes = ['']
+      let slugCnt = 1
 
-      for (const token of tokens) {
-        if (typeof token === 'object') {
-          if (token.modifier === '*') {
-            normalizedRoute += `${token.prefix}[[...${token.name}]]`
-          } else if (token.modifier === '+') {
-            normalizedRoute += `${token.prefix}[...${token.name}]`
-          } else {
-            normalizedRoute += `${token.prefix}[${token.name}]`
-            // TODO: Optional modifier `?` is not supported yet.
-          }
-        } else if (typeof token === 'string') {
-          normalizedRoute += token
+      function append(suffix: string) {
+        for (let i = 0; i < possibleNormalizedRoutes.length; i++) {
+          possibleNormalizedRoutes[i] += suffix
         }
       }
 
-      const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
+      function fork(suffix: string) {
+        const currentLength = possibleNormalizedRoutes.length
+        for (let i = 0; i < currentLength; i++) {
+          possibleNormalizedRoutes.push(possibleNormalizedRoutes[i] + suffix)
+        }
+      }
 
-      routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
+      for (const token of tokens) {
+        if (typeof token === 'object') {
+          // Make sure the slug is always named.
+          const slug =
+            token.name || (slugCnt++ === 1 ? 'slug' : `slug${slugCnt}`)
+
+          if (token.modifier === '*') {
+            append(`${token.prefix}[[...${slug}]]`)
+          } else if (token.modifier === '+') {
+            append(`${token.prefix}[...${slug}]`)
+          } else if (token.modifier === '') {
+            if (token.pattern === '[^\\/#\\?]+?') {
+              // A safe slug
+              append(`${token.prefix}[${slug}]`)
+            } else if (token.pattern === '.*') {
+              // An optional catch-all slug
+              append(`${token.prefix}[[...${slug}]]`)
+            } else if (token.pattern === '.+') {
+              // A catch-all slug
+              append(`${token.prefix}[...${slug}]`)
+            } else {
+              // Other regex patterns are not supported. Skip this route.
+              return
+            }
+          } else if (token.modifier === '?') {
+            if (/^[a-zA-Z0-9_/]*$/.test(token.pattern)) {
+              // An optional slug with plain text only, fork the route.
+              append(token.prefix)
+              fork(token.pattern)
+            } else {
+              // Optional modifier `?` and regex patterns are not supported.
+              return
+            }
+          }
+        } else if (typeof token === 'string') {
+          append(token)
+        }
+      }
+
+      for (const normalizedRoute of possibleNormalizedRoutes) {
+        const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
+        routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
+      }
     }
   }
 
@@ -371,6 +410,11 @@ export class NextTypesPlugin {
     if (!this.typedRoutes) return
 
     const isApp = filePath.startsWith(this.appDir + path.sep)
+    const isPages = !isApp && filePath.startsWith(this.pagesDir + path.sep)
+
+    if (!isApp && !isPages) {
+      return
+    }
 
     // Filter out non-page files in app dir
     if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
@@ -379,7 +423,7 @@ export class NextTypesPlugin {
 
     // Filter out non-page files in pages dir
     if (
-      !isApp &&
+      isPages &&
       /[/\\](?:_app|_document|_error|404|500)\.[^.]+$/.test(filePath)
     ) {
       return

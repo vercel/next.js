@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
@@ -246,7 +247,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  serverComponentManifest?: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: any
   nextFontManifest?: NextFontManifest
   distDir?: string
@@ -565,7 +566,7 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  let isPreview
+  let isPreview: boolean | undefined = undefined
   let previewData: PreviewData
 
   if (
@@ -760,15 +761,24 @@ export async function renderToHTML(
     let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
     try {
-      data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
+      data = await getTracer().trace(
+        RenderSpan.getStaticProps,
+        {
+          spanName: `getStaticProps ${pathname}`,
+        },
+        () =>
+          getStaticProps!({
+            ...(pageIsDynamic
+              ? { params: query as ParsedUrlQuery }
+              : undefined),
+            ...(isPreview
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
+      )
     } catch (staticPropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -961,22 +971,29 @@ export async function renderToHTML(
     }
 
     try {
-      data = await getTracer().trace(RenderSpan.getServerSideProps, async () =>
-        getServerSideProps({
-          req: req as IncomingMessage & {
-            cookies: NextApiRequestCookies
-          },
-          res: resOrProxy,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
+      data = await getTracer().trace(
+        RenderSpan.getServerSideProps,
+        {
+          spanName: `getServerSideProps ${pathname}`,
+        },
+        async () =>
+          getServerSideProps({
+            req: req as IncomingMessage & {
+              cookies: NextApiRequestCookies
+            },
+            res: resOrProxy,
+            query,
+            resolvedUrl: renderOpts.resolvedUrl as string,
+            ...(pageIsDynamic
+              ? { params: params as ParsedUrlQuery }
+              : undefined),
+            ...(previewData !== false
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
       )
       canAccessRes = false
     } catch (serverSidePropsError: any) {
@@ -1131,19 +1148,11 @@ export async function renderToHTML(
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!BuiltinFunctionalDocument) {
-        throw new Error(
-          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-        )
-      }
-    }
-
-    if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       if (BuiltinFunctionalDocument) {
         Document = BuiltinFunctionalDocument
       } else {
         throw new Error(
-          '`getInitialProps` in Document component is not supported with React Server Components.'
+          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
       }
     }
@@ -1324,6 +1333,9 @@ export async function renderToHTML(
 
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
+    {
+      spanName: `render route (pages) ${renderOpts.pathname}`,
+    },
     async () => renderDocument()
   )
   if (!documentResult) {

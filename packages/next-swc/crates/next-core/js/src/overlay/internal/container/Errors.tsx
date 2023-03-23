@@ -1,50 +1,53 @@
-import * as React from "react";
+import * as React from 'react'
 
-import { Issue } from "@vercel/turbopack-runtime/types/protocol";
+import { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
 
 import {
   TYPE_UNHANDLED_ERROR,
   TYPE_UNHANDLED_REJECTION,
   UnhandledError,
   UnhandledRejection,
-} from "../bus";
+} from '../bus'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogHeaderTabList,
   DialogProps,
-} from "../components/Dialog";
-import { Overlay } from "../components/Overlay";
-import { Tab, TabPanel, Tabs } from "../components/Tabs";
-import { getErrorByType, ReadyRuntimeError } from "../helpers/getErrorByType";
-import { getErrorSource } from "../helpers/nodeStackFrames";
-import { noop as css } from "../helpers/noop-template";
-import { AlertOctagon, PackageX } from "../icons";
-import { RuntimeErrorsDialogBody } from "./RuntimeError";
-import { TurbopackIssuesDialogBody } from "../container/TurbopackIssue";
-import { ErrorsToast } from "../container/ErrorsToast";
+} from '../components/Dialog'
+import { Overlay } from '../components/Overlay'
+import { Tab, TabPanel, Tabs } from '../components/Tabs'
+import {
+  getErrorByType,
+  getUnresolvedErrorByType,
+  ReadyRuntimeError,
+} from '../helpers/getErrorByType'
+import { noop as css } from '../helpers/noop-template'
+import { AlertOctagon, PackageX } from '../icons'
+import { RuntimeErrorsDialogBody } from './RuntimeError'
+import { TurbopackIssuesDialogBody } from '../container/TurbopackIssue'
+import { ErrorsToast } from '../container/ErrorsToast'
 
 export type SupportedErrorEvent = {
-  id: number;
-  event: UnhandledError | UnhandledRejection;
-};
+  id: number
+  event: UnhandledError | UnhandledRejection
+}
 export type ErrorsProps = {
-  issues: Issue[];
-  errors: SupportedErrorEvent[];
-};
+  issues: Issue[]
+  errors: SupportedErrorEvent[]
+}
 
-type ReadyErrorEvent = ReadyRuntimeError;
+type ReadyErrorEvent = ReadyRuntimeError
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
-  const { event } = ev;
+  const { event } = ev
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`;
+      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
     default: {
-      return "";
+      return ''
     }
   }
 }
@@ -54,45 +57,48 @@ function useResolvedErrors(
 ): [ReadyRuntimeError[], boolean] {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
-  );
+  )
 
   const [readyErrors, nextError] = React.useMemo<
     [ReadyErrorEvent[], SupportedErrorEvent | null]
   >(() => {
-    const ready: ReadyErrorEvent[] = [];
-    let next: SupportedErrorEvent | null = null;
+    const ready: ReadyErrorEvent[] = []
+    let next: SupportedErrorEvent | null = null
 
     // Ensure errors are displayed in the order they occurred in:
     for (let idx = 0; idx < errors.length; ++idx) {
-      const e = errors[idx];
-      const { id } = e;
+      const e = errors[idx]
+      const { id } = e
       if (id in lookups) {
-        ready.push(lookups[id]);
-        continue;
+        ready.push(lookups[id])
+        continue
       }
 
       // Check for duplicate errors
       if (idx > 0) {
-        const prev = errors[idx - 1];
+        const prev = errors[idx - 1]
         if (getErrorSignature(prev) === getErrorSignature(e)) {
-          continue;
+          continue
         }
       }
 
-      next = e;
-      break;
+      // Show unresolved errors as fallback
+      ready.push(getUnresolvedErrorByType(e))
+
+      next = e
+      break
     }
 
-    return [ready, next];
-  }, [errors, lookups]);
+    return [ready, next]
+  }, [errors, lookups])
 
-  const isLoading = readyErrors.length === 0 && errors.length > 1;
+  const isLoading = readyErrors.length === 0 && errors.length > 1
 
   React.useEffect(() => {
     if (nextError == null) {
-      return;
+      return
     }
-    let mounted = true;
+    let mounted = true
 
     getErrorByType(nextError).then(
       (resolved) => {
@@ -100,28 +106,28 @@ function useResolvedErrors(
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
         if (mounted) {
-          setLookups((m) => ({ ...m, [resolved.id]: resolved }));
+          setLookups((m) => ({ ...m, [resolved.id]: resolved }))
         }
       },
       () => {
         // TODO: handle this, though an edge case
       }
-    );
+    )
 
     return () => {
-      mounted = false;
-    };
-  }, [nextError]);
+      mounted = false
+    }
+  }, [nextError])
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but let's handle it.
   React.useEffect(() => {
     if (errors.length === 0) {
-      setLookups({});
+      setLookups({})
     }
-  }, [errors.length]);
+  }, [errors.length])
 
-  return [readyErrors, isLoading];
+  return [readyErrors, isLoading]
 }
 
 const enum DisplayState {
@@ -130,221 +136,349 @@ const enum DisplayState {
   Hidden,
 }
 
-type DisplayStateAction = (e?: MouseEvent | TouchEvent) => void;
+type DisplayStateAction = (e?: MouseEvent | TouchEvent) => void
 
 type DisplayStateActions = {
-  fullscreen: DisplayStateAction;
-  minimize: DisplayStateAction;
-  hide: DisplayStateAction;
-};
+  fullscreen: DisplayStateAction
+  minimize: DisplayStateAction
+  hide: DisplayStateAction
+}
 
 function useDisplayState(
   initialState: DisplayState
 ): [DisplayState, DisplayStateActions] {
   const [displayState, setDisplayState] =
-    React.useState<DisplayState>(initialState);
+    React.useState<DisplayState>(initialState)
 
   const actions = React.useMemo<DisplayStateActions>(
     () => ({
       fullscreen: (e) => {
-        e?.preventDefault();
-        setDisplayState(DisplayState.Fullscreen);
+        e?.preventDefault()
+        setDisplayState(DisplayState.Fullscreen)
       },
       minimize: (e) => {
-        e?.preventDefault();
-        setDisplayState(DisplayState.Minimized);
+        e?.preventDefault()
+        setDisplayState(DisplayState.Minimized)
       },
       hide: (e) => {
-        e?.preventDefault();
-        setDisplayState(DisplayState.Hidden);
+        e?.preventDefault()
+        setDisplayState(DisplayState.Hidden)
       },
     }),
     []
-  );
+  )
 
-  return [displayState, actions];
+  return [displayState, actions]
 }
 
 const enum TabId {
-  TurbopackErrors = "turbopack-issues",
-  TurbopackWarnings = "turbopack-warnings",
-  RuntimeErrors = "runtime-errors",
+  TurbopackErrors = 'turbopack-issues',
+  TurbopackWarnings = 'turbopack-warnings',
+  TurbopackExternal = 'turbopack-external',
+  RuntimeErrors = 'runtime-errors',
+  RuntimeWarnings = 'runtime-warnings',
 }
 
 const TAB_PRIORITY = [
   TabId.TurbopackErrors,
   TabId.RuntimeErrors,
   TabId.TurbopackWarnings,
-];
+]
+
+function isWarning(issue: Issue) {
+  return !['bug', 'fatal', 'error'].includes(issue.severity)
+}
+
+function isUserCode(issue: Issue) {
+  return !issue.context || !issue.context.includes('node_modules')
+}
+
+function isRuntimeWarning(error: ReadyRuntimeError) {
+  return [
+    'This Suspense boundary received an update before it finished hydrating.',
+    'Hydration failed because the initial UI does not match what was rendered on the server.',
+    'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+  ].some((message) => error.error.message.includes(message))
+}
+
+interface TabConfig {
+  id: string
+  icon: any
+  title: {
+    one: string
+    many: string
+    short: string
+  }
+  message: any
+  items: (input: { readyErrors: ReadyRuntimeError[]; issues: Issue[] }) => any[]
+  autoOpen: boolean
+  severity: 'error' | 'warning' | 'none'
+  as: any
+}
+
+const TABS: TabConfig[] = [
+  {
+    id: TabId.RuntimeErrors,
+    icon: <AlertOctagon />,
+    title: {
+      one: 'Runtime Error',
+      many: 'Runtime Errors',
+      short: 'Err',
+    },
+    message: (
+      <>Unhandled errors that happened during execution of application code.</>
+    ),
+    items: ({ readyErrors }) => {
+      return readyErrors.filter((e) => !isRuntimeWarning(e))
+    },
+    severity: 'error',
+    autoOpen: true,
+    as: RuntimeErrorsDialogBody,
+  },
+  {
+    id: TabId.TurbopackErrors,
+    icon: <PackageX />,
+    title: {
+      one: 'Turbopack Error',
+      many: 'Turbopack Errors',
+      short: 'Err',
+    },
+    message: (
+      <>
+        Error that happened during compilation of applications code.
+        <br />
+        The application might work partially, but that's unlikely.
+      </>
+    ),
+    items: ({ issues }) => {
+      return issues.filter((i) => isUserCode(i) && !isWarning(i))
+    },
+    severity: 'error',
+    autoOpen: true,
+    as: TurbopackIssuesDialogBody,
+  },
+  {
+    id: TabId.RuntimeWarnings,
+    icon: <AlertOctagon />,
+    title: {
+      one: 'Runtime Warnings',
+      many: 'Runtime Warningss',
+      short: 'Warn',
+    },
+    message: (
+      <>
+        Unhandled errors that happened during execution of application code.
+        <br />
+        The application might work partially, but that's unlikely.
+      </>
+    ),
+    items: ({ readyErrors }) => {
+      return readyErrors.filter((e) => isRuntimeWarning(e))
+    },
+    severity: 'warning',
+    autoOpen: false,
+    as: RuntimeErrorsDialogBody,
+  },
+  {
+    id: TabId.TurbopackWarnings,
+    icon: <PackageX />,
+    title: {
+      one: 'Turbopack Warning',
+      many: 'Turbopack Warnings',
+      short: 'Warn',
+    },
+    message: (
+      <>
+        Warnings that were found during compilation of applications code.
+        <br />
+        The application probably work, but these issues should still be
+        addressed eventually.
+      </>
+    ),
+    items: ({ issues }) => {
+      return issues.filter((i) => isUserCode(i) && isWarning(i))
+    },
+    severity: 'warning',
+    autoOpen: false,
+    as: TurbopackIssuesDialogBody,
+  },
+  {
+    id: TabId.TurbopackExternal,
+    icon: <PackageX />,
+    title: {
+      one: 'Turbopack External Problem',
+      many: 'Turbopack External Problems',
+      short: 'Ext',
+    },
+    message: (
+      <>
+        Errors or warnings that happened during compilation of non-application
+        code.
+        <br />
+        The application might be affected by them.
+      </>
+    ),
+    items: ({ issues }) => {
+      return issues.filter((i) => !isUserCode(i) && !isWarning(i))
+    },
+    severity: 'none',
+    autoOpen: false,
+    as: TurbopackIssuesDialogBody,
+  },
+]
+
+// "instantiates" all tabs, filters out the ones that don't have any items
+function createTabs({
+  issues,
+  readyErrors,
+}: {
+  issues: Issue[]
+  readyErrors: ReadyRuntimeError[]
+}) {
+  const tabs = TABS.map((tab) => ({
+    ...tab,
+    items: tab.items({ issues, readyErrors }),
+  }))
+
+  return tabs.filter((tab) => tab.items.length > 0)
+}
+
+function itemHash(item: object) {
+  return JSON.stringify(item)
+}
 
 export function Errors({ issues, errors }: ErrorsProps) {
-  const [readyErrors, isLoading] = useResolvedErrors(errors);
+  const [readyErrors, _isLoading] = useResolvedErrors(errors)
 
-  const turbopackWarnings = issues.filter(
-    (issue) => !["bug", "fatal", "error"].includes(issue.severity)
-  );
-  const turbopackErrors = issues.filter((issue) =>
-    ["bug", "fatal", "error"].includes(issue.severity)
-  );
+  const tabs = React.useMemo(
+    () => createTabs({ issues, readyErrors }),
+    [issues, readyErrors]
+  )
 
-  const hasTurbopackWarnings = turbopackWarnings.length > 0;
-  const hasTurbopackErrors = turbopackErrors.length > 0;
+  // Selected tab, null means it's closed
+  const [selectedTab, setSelectedTab] = React.useState<string | null>(null)
 
-  const hasErrors = errors.length !== 0;
-  const hasServerError = readyErrors.some((err) =>
-    ["server", "edge-server"].includes(getErrorSource(err.error) || "")
-  );
+  // Toast is hidden
+  const [hidden, setHidden] = React.useState(false)
 
-  // TODO for now it's already closable, but in future we might want to block users from using a broken app
-  // const isClosable = !isLoading && !hasTurbopackErrors && !hasServerError;
-  const isClosable = true;
-
-  const defaultTab =
-    TAB_PRIORITY.find(
-      (tabId) =>
-        ({
-          [TabId.TurbopackErrors]: turbopackErrors.length > 0,
-          [TabId.TurbopackWarnings]: turbopackWarnings.length > 0,
-          [TabId.RuntimeErrors]: hasErrors,
-        }[tabId])
-    ) ?? TabId.RuntimeErrors;
-
-  const [selectedTab, setSelectedTab] = React.useState<string>(defaultTab);
+  // Already seen issue ids, to auto open the dialog on new errors
+  const [seenIds, setSeenIds] = React.useState(() => new Set())
 
   React.useEffect(() => {
-    if (defaultTab === TabId.TurbopackErrors) {
-      setSelectedTab(TabId.TurbopackErrors);
+    const newSeenIds = new Set()
+    let change = false
+    let autoOpen = false
+
+    // When the selected tab disappears we will go to another important tab or close the overlay
+    if (selectedTab && !tabs.some((tab) => tab.id === selectedTab)) {
+      const otherImportantTab = tabs.find((tab) => tab.autoOpen)
+      if (otherImportantTab) {
+        setSelectedTab(otherImportantTab.id)
+      } else {
+        setSelectedTab(null)
+      }
+    } else {
+      autoOpen = true
     }
-  }, [defaultTab]);
 
-  const onlyHasWarnings = !hasErrors && !hasTurbopackErrors;
+    // When there is a new item we open the overlay when autoOpen is set
+    for (const tab of tabs) {
+      for (const item of tab.items) {
+        newSeenIds.add(itemHash(item))
+        if (!seenIds.has(itemHash(item))) {
+          change = true
+          setHidden(false)
+          if (autoOpen && tab.autoOpen) {
+            setSelectedTab(tab.id)
+          }
+        }
+      }
+    }
 
-  const [stateDisplayState, { fullscreen, minimize, hide }] = useDisplayState(
-    onlyHasWarnings ? DisplayState.Minimized : DisplayState.Fullscreen
-  );
-  let displayState = stateDisplayState;
-
-  if (!isClosable) {
-    displayState = DisplayState.Fullscreen;
-  }
+    if (change || newSeenIds.size !== seenIds.size) setSeenIds(newSeenIds)
+  }, [selectedTab, tabs, seenIds])
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
-  if (!hasErrors && !hasTurbopackWarnings && !hasTurbopackErrors) {
-    return null;
+  if (tabs.length === 0) {
+    return null
   }
 
-  if (displayState === DisplayState.Hidden) {
-    return null;
+  if (hidden) {
+    return null
   }
 
-  if (displayState === DisplayState.Minimized) {
+  if (selectedTab === null || !tabs.some((tab) => tab.id === selectedTab)) {
+    const errors = tabs.reduce(
+      (sum, tab) => sum + (tab.severity === 'error' ? tab.items.length : 0),
+      0
+    )
+    const warnings = tabs.reduce(
+      (sum, tab) => sum + (tab.severity === 'warning' ? tab.items.length : 0),
+      0
+    )
+
+    if (errors === 0 && warnings === 0) return null
+
     return (
       <ErrorsToast
-        errorCount={readyErrors.length + turbopackErrors.length}
-        warningCount={turbopackWarnings.length}
-        severity={onlyHasWarnings ? "warning" : "error"}
-        onClick={fullscreen}
-        onClose={hide}
+        errorCount={errors}
+        warningCount={warnings}
+        severity={errors > 0 ? 'error' : 'warning'}
+        onClick={() => setSelectedTab(tabs[0].id)}
+        onClose={() => setHidden(true)}
       />
-    );
+    )
   }
 
   return (
     <ErrorsDialog
       aria-labelledby="nextjs__container_errors_label"
       aria-describedby="nextjs__container_errors_desc"
-      onClose={isClosable ? minimize : undefined}
+      onClose={() => setSelectedTab(null)}
     >
       <Tabs
-        defaultId={defaultTab}
+        defaultId={TabId.RuntimeErrors}
         selectedId={selectedTab}
         onChange={setSelectedTab}
       >
         <DialogHeader
           className="errors-header"
-          close={isClosable ? minimize : undefined}
+          close={() => setSelectedTab(null)}
         >
           <DialogHeaderTabList>
-            {hasTurbopackErrors && (
+            {tabs.map((tab, i) => (
               <Tab
-                id={TabId.TurbopackErrors}
-                next={
-                  hasTurbopackWarnings
-                    ? TabId.TurbopackWarnings
-                    : hasErrors
-                    ? TabId.RuntimeErrors
-                    : undefined
-                }
-                data-severity="error"
+                key={tab.id}
+                id={tab.id}
+                next={tabs[(i + 1) % tabs.length].id}
+                prev={tabs[(i + tabs.length - 1) % tabs.length].id}
+                data-severity={tab.severity}
               >
-                <PackageX />
-                {turbopackErrors.length} Turbopack Error
-                {turbopackErrors.length > 1 ? "s" : ""}
+                {tab.icon} {tab.items.length}{' '}
+                {tabs.length > 3
+                  ? tab.title.short
+                  : tab.items.length > 1
+                  ? tab.title.many
+                  : tab.title.one}
               </Tab>
-            )}
-            {hasTurbopackWarnings && (
-              <Tab
-                id={TabId.TurbopackWarnings}
-                prev={hasTurbopackErrors ? TabId.TurbopackErrors : undefined}
-                next={hasErrors ? TabId.RuntimeErrors : undefined}
-                data-severity="warning"
-              >
-                <PackageX />
-                {turbopackWarnings.length} Turbopack Warning
-                {turbopackWarnings.length > 1 ? "s" : ""}
-              </Tab>
-            )}
-            {hasErrors && (
-              <Tab
-                id={TabId.RuntimeErrors}
-                prev={
-                  hasTurbopackWarnings
-                    ? TabId.TurbopackWarnings
-                    : hasTurbopackErrors
-                    ? TabId.TurbopackErrors
-                    : undefined
-                }
-                data-severity="error"
-              >
-                <AlertOctagon />
-                {isLoading
-                  ? "Loading Runtime Errors ..."
-                  : `${readyErrors.length} Runtime Error${
-                      readyErrors.length > 1 ? "s" : ""
-                    }`}
-              </Tab>
-            )}
+            ))}
           </DialogHeaderTabList>
         </DialogHeader>
-        {hasTurbopackErrors && (
+        {tabs.map((tab) => (
           <TabPanel
-            as={TurbopackIssuesDialogBody}
-            id={TabId.TurbopackErrors}
-            issues={turbopackErrors}
+            key={tab.id}
+            id={tab.id}
+            as={tab.as}
+            items={tab.items}
+            message={tab.message}
+            severity={tab.severity}
             className="errors-body"
           />
-        )}
-        {hasTurbopackWarnings && (
-          <TabPanel
-            as={TurbopackIssuesDialogBody}
-            id={TabId.TurbopackWarnings}
-            issues={turbopackWarnings}
-            className="errors-body"
-          />
-        )}
-        {hasErrors && (
-          <TabPanel
-            as={RuntimeErrorsDialogBody}
-            id={TabId.RuntimeErrors}
-            isLoading={isLoading}
-            readyErrors={readyErrors}
-            className="errors-body"
-          />
-        )}
+        ))}
       </Tabs>
     </ErrorsDialog>
-  );
+  )
 }
 
 function ErrorsDialog({ children, ...props }: DialogProps) {
@@ -354,7 +488,7 @@ function ErrorsDialog({ children, ...props }: DialogProps) {
         <DialogContent>{children}</DialogContent>
       </Dialog>
     </Overlay>
-  );
+  )
 }
 
 export const styles = css`
@@ -364,11 +498,11 @@ export const styles = css`
     margin-right: var(--size-gap);
   }
 
-  .errors-header > .tab-list > .tab[data-severity="error"] > svg {
+  .errors-header > .tab-list > .tab[data-severity='error'] > svg {
     color: var(--color-error);
   }
 
-  .errors-header > .tab-list > .tab[data-severity="warning"] > svg {
+  .errors-header > .tab-list > .tab[data-severity='warning'] > svg {
     color: var(--color-warning);
   }
 
@@ -376,11 +510,11 @@ export const styles = css`
     position: relative;
   }
 
-  .errors-header > .tab-list > .tab[data-severity="error"]::after {
+  .errors-header > .tab-list > .tab[data-severity='error']::after {
     border-top-color: var(--color-error);
   }
 
-  .errors-header > .tab-list > .tab[data-severity="warning"]::after {
+  .errors-header > .tab-list > .tab[data-severity='warning']::after {
     border-top-color: var(--color-warning);
   }
 
@@ -430,11 +564,11 @@ export const styles = css`
     overflow-wrap: break-word;
   }
 
-  .errors-body > h2[data-severity="error"] {
+  .errors-body > h2[data-severity='error'] {
     color: var(--color-error);
   }
 
-  .errors-body > h2[data-severity="warning"] {
+  .errors-body > h2[data-severity='warning'] {
     color: var(--color-warning);
   }
 
@@ -454,4 +588,4 @@ export const styles = css`
   .errors-body > h5 {
     margin-bottom: var(--size-gap);
   }
-`;
+`

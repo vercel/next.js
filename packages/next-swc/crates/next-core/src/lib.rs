@@ -1,5 +1,6 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
+#![feature(box_syntax)]
 
 mod app_render;
 mod app_source;
@@ -15,7 +16,7 @@ mod next_client_chunks;
 mod next_client_component;
 pub mod next_config;
 mod next_edge;
-mod next_font_google;
+mod next_font;
 pub mod next_image;
 mod next_import_map;
 mod next_route_matcher;
@@ -39,8 +40,10 @@ pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {
     turbo_tasks::register();
+    turbo_tasks_bytes::register();
     turbo_tasks_fs::register();
     turbo_tasks_fetch::register();
+    turbopack_dev::register();
     turbopack_dev_server::register();
     turbopack_node::register();
     turbopack::register();

@@ -8,7 +8,7 @@ import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
-import { isClientReference } from '../../build/is-client-reference'
+import { isClientReference } from '../client-reference'
 import {
   getLayoutOrPageModule,
   LoaderTree,
@@ -25,6 +25,10 @@ import {
   resolveViewport,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
+import { getTracer } from '../../server/lib/trace/tracer'
+import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
+import { Twitter } from './types/twitter-types'
+import { OpenGraph } from './types/opengraph-types'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
@@ -41,31 +45,27 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata
 ) {
   if (!staticFilesMetadata) return
-  const { icon, apple, opengraph, twitter } = staticFilesMetadata
+  const { icon, apple, openGraph, twitter } = staticFilesMetadata
   if (icon || apple) {
-    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
-    if (icon) metadata.icons.icon.push(...icon)
-    if (apple) metadata.icons.apple.push(...apple)
+    metadata.icons = {
+      icon: icon || [],
+      apple: apple || [],
+    }
   }
   if (twitter) {
     const resolvedTwitter = resolveTwitter(
-      {
-        card: 'summary_large_image',
-        images: twitter,
-      },
+      { ...metadata.twitter, images: twitter } as Twitter,
       metadata.metadataBase
     )
-    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
+    metadata.twitter = resolvedTwitter
   }
 
-  if (opengraph) {
-    const resolvedOg = resolveOpenGraph(
-      {
-        images: opengraph,
-      },
+  if (openGraph) {
+    const resolvedOpenGraph = resolveOpenGraph(
+      { ...metadata.openGraph, images: openGraph } as OpenGraph,
       metadata.metadataBase
     )
-    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
+    metadata.openGraph = resolvedOpenGraph
   }
 
   return metadata
@@ -181,7 +181,8 @@ function merge(
 
 async function getDefinedMetadata(
   mod: any,
-  props: any
+  props: any,
+  route: string
 ): Promise<Metadata | MetadataResolver | null> {
   // Layer is a client component, we just skip it. It can't have metadata exported.
   // Return early to avoid accessing properties error for client references.
@@ -190,7 +191,17 @@ async function getDefinedMetadata(
   }
   return (
     (mod.generateMetadata
-      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      ? (parent: ResolvingMetadata) =>
+          getTracer().trace(
+            ResolveMetadataSpan.generateMetadata,
+            {
+              spanName: `generateMetadata ${route}`,
+              attributes: {
+                'next.route': route,
+              },
+            },
+            () => mod.generateMetadata(props, parent)
+          )
       : mod.metadata) || null
   )
 }
@@ -202,9 +213,8 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver: any) =>
-      interopDefault(await iconResolver()) as MetadataImageModule
+    async (iconResolver: () => Promise<MetadataImageModule>) =>
+      interopDefault(await iconResolver())
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
@@ -213,17 +223,17 @@ async function resolveStaticMetadata(components: ComponentsType) {
   const { metadata } = components
   if (!metadata) return null
 
-  const [icon, apple, opengraph, twitter] = await Promise.all([
+  const [icon, apple, openGraph, twitter] = await Promise.all([
     collectStaticImagesFiles(metadata, 'icon'),
     collectStaticImagesFiles(metadata, 'apple'),
-    collectStaticImagesFiles(metadata, 'opengraph'),
+    collectStaticImagesFiles(metadata, 'openGraph'),
     collectStaticImagesFiles(metadata, 'twitter'),
   ])
 
   const staticMetadata = {
     icon,
     apple,
-    opengraph,
+    openGraph,
     twitter,
   }
 
@@ -231,14 +241,27 @@ async function resolveStaticMetadata(components: ComponentsType) {
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
-export async function collectMetadata(
-  loaderTree: LoaderTree,
-  props: any,
+export async function collectMetadata({
+  loaderTree,
+  props,
+  array,
+  route,
+}: {
+  loaderTree: LoaderTree
+  props: any
   array: MetadataItems
-) {
-  const mod = await getLayoutOrPageModule(loaderTree)
+  route: string
+}) {
+  const [mod, modType] = await getLayoutOrPageModule(loaderTree)
+
+  if (modType) {
+    route += `/${modType}`
+  }
+
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
-  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+  const metadataExport = mod
+    ? await getDefinedMetadata(mod, props, route)
+    : null
 
   array.push([metadataExport, staticFilesMetadata])
 }

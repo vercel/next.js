@@ -3,6 +3,7 @@ import type { NextConfigComplete } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
+import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
@@ -25,7 +26,7 @@ export function getRender({
   reactLoadableManifest,
   appRenderToHTML,
   pagesRenderToHTML,
-  serverComponentManifest,
+  clientReferenceManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
   serverActionsManifest,
@@ -47,7 +48,7 @@ export function getRender({
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest: any
   serverActionsManifest: any
   appServerMod: any
@@ -79,7 +80,7 @@ export function getRender({
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        serverComponentManifest,
+        clientReferenceManifest,
         serverCSSManifest,
         serverActionsManifest,
       },

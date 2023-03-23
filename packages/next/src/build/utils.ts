@@ -54,7 +54,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { isClientReference } from './is-client-reference'
+import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
@@ -1935,7 +1935,15 @@ const server = http.createServer(async (req, res) => {
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
+const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
 
+if (
+  !Number.isNaN(keepAliveTimeout) &&
+    Number.isFinite(keepAliveTimeout) &&
+    keepAliveTimeout >= 0
+) {
+  server.keepAliveTimeout = keepAliveTimeout
+}
 server.listen(currentPort, (err) => {
   if (err) {
     console.error("Failed to start server", err)

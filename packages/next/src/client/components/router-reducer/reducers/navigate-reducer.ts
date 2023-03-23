@@ -1,17 +1,9 @@
-import {
-  CacheNode,
-  CacheStates,
-} from '../../../../shared/lib/app-router-context'
-import type {
-  FlightDataPath,
-  FlightSegmentPath,
-} from '../../../../server/app-render/types'
+import { CacheStates } from '../../../../shared/lib/app-router-context'
+import type { FlightSegmentPath } from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
-import { fillCacheWithNewSubTreeData } from '../fill-cache-with-new-subtree-data'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
 import { fillCacheWithDataProperty } from '../fill-cache-with-data-property'
 import { createOptimisticTree } from '../create-optimistic-tree'
@@ -24,81 +16,8 @@ import type {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-
-export function handleMutable(
-  state: ReadonlyReducerState,
-  mutable: Mutable
-): ReducerState {
-  return {
-    // Set href.
-    canonicalUrl:
-      typeof mutable.canonicalUrl !== 'undefined'
-        ? mutable.canonicalUrl === state.canonicalUrl
-          ? state.canonicalUrl
-          : mutable.canonicalUrl
-        : state.canonicalUrl,
-    pushRef: {
-      pendingPush:
-        typeof mutable.pendingPush !== 'undefined'
-          ? mutable.pendingPush
-          : state.pushRef.pendingPush,
-      mpaNavigation:
-        typeof mutable.mpaNavigation !== 'undefined'
-          ? mutable.mpaNavigation
-          : state.pushRef.mpaNavigation,
-    },
-    // All navigation requires scroll and focus management to trigger.
-    focusAndScrollRef: {
-      apply:
-        typeof mutable.applyFocusAndScroll !== 'undefined'
-          ? mutable.applyFocusAndScroll
-          : state.focusAndScrollRef.apply,
-      hashFragment:
-        // Empty hash should trigger default behavior of scrolling layout into view.
-        // #top is handled in layout-router.
-        mutable.hashFragment && mutable.hashFragment !== ''
-          ? // Remove leading # and decode hash to make non-latin hashes work.
-            decodeURIComponent(mutable.hashFragment.slice(1))
-          : null,
-    },
-    // Apply cache.
-    cache: mutable.cache ? mutable.cache : state.cache,
-    prefetchCache: state.prefetchCache,
-    // Apply patched router state.
-    tree:
-      typeof mutable.patchedTree !== 'undefined'
-        ? mutable.patchedTree
-        : state.tree,
-  }
-}
-
-export function applyFlightData(
-  state: ReadonlyReducerState,
-  cache: CacheNode,
-  flightDataPath: FlightDataPath
-): boolean {
-  // The one before last item is the router state tree patch
-  const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
-
-  // Handles case where prefetch only returns the router tree patch without rendered components.
-  if (subTreeData === null) {
-    return false
-  }
-
-  if (flightDataPath.length === 3) {
-    cache.status = CacheStates.READY
-    cache.subTreeData = subTreeData
-    fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
-  } else {
-    // Copy subTreeData for the root node of the cache.
-    cache.status = CacheStates.READY
-    cache.subTreeData = state.cache.subTreeData
-    // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
-  }
-
-  return true
-}
+import { handleMutable } from '../handle-mutable'
+import { applyFlightData } from '../apply-flight-data'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -122,13 +41,12 @@ export function navigateReducer(
   const {
     url,
     isExternalUrl,
-    locationSearch,
     navigateType,
     cache,
     mutable,
     forceOptimisticNavigation,
   } = action
-  const { pathname, search, hash } = url
+  const { pathname, hash } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'
 
@@ -143,14 +61,45 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchValues = state.prefetchCache.get(href)
+  const prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
   if (prefetchValues) {
     // The one before last item is the router state tree patch
-    const { flightData, tree: newTree, canonicalUrlOverride } = prefetchValues
+    const { treeAtTimeOfPrefetch, data } = prefetchValues
+
+    // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
+    const [flightData, canonicalUrlOverride] = readRecordValue(data!)
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {
       return handleExternalUrl(state, mutable, flightData, pendingPush)
+    }
+
+    // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
+    const flightDataPath = flightData[0]
+    const flightSegmentPath = flightDataPath.slice(
+      0,
+      -3
+    ) as unknown as FlightSegmentPath
+    // The one before last item is the router state tree patch
+    const [treePatch] = flightDataPath.slice(-3)
+
+    // Create new tree based on the flightSegmentPath and router state patch
+    let newTree = applyRouterStatePatchToTree(
+      // TODO-APP: remove ''
+      ['', ...flightSegmentPath],
+      state.tree,
+      treePatch
+    )
+
+    // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
+    // TODO-APP: This should instead fill in the missing pieces in `state.tree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
+    if (newTree === null) {
+      newTree = applyRouterStatePatchToTree(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        treeAtTimeOfPrefetch,
+        treePatch
+      )
     }
 
     if (newTree !== null) {
@@ -158,23 +107,13 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
-      // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-      const flightDataPath = flightData[0]
-      const flightSegmentPath = flightDataPath.slice(
-        0,
-        -3
-      ) as unknown as FlightSegmentPath
-
       const applied = applyFlightData(state, cache, flightDataPath)
 
-      const hardNavigate =
-        // TODO-APP: Revisit searchParams support
-        search !== locationSearch ||
-        shouldHardNavigate(
-          // TODO-APP: remove ''
-          ['', ...flightSegmentPath],
-          state.tree
-        )
+      const hardNavigate = shouldHardNavigate(
+        // TODO-APP: remove ''
+        ['', ...flightSegmentPath],
+        state.tree
+      )
 
       if (hardNavigate) {
         cache.status = CacheStates.READY

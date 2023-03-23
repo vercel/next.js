@@ -45,9 +45,17 @@ Options:
 
     Initialize as a JavaScript project.
 
+  --tailwind
+
+    Initialize with Tailwind CSS config. (default)
+
+  --no-tailwind
+
+    Initialize without Tailwind CSS config.
+
   --eslint
 
-    Initialize with eslint config.
+    Initialize with ESLint config.
 
   --experimental-app
 
