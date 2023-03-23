@@ -434,10 +434,14 @@ export async function renderToHTMLOrFlight(
         template,
         error,
         loading,
-        defaultPage,
-        page = defaultPage,
         'not-found': notFound,
       } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
