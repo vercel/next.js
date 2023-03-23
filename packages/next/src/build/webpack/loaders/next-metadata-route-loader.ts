@@ -42,7 +42,6 @@ const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
   )}, '')
 const buffer = fs.readFileSync(filePath)
 
-
 export function GET() {
   return new NextResponse(buffer, {
     headers: {
@@ -56,7 +55,7 @@ export const dynamic = 'force-static'
 `
 }
 
-function getDynamicRouteCode(resourcePath: string) {
+function getDynamicTextRouteCode(resourcePath: string) {
   return `\
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
@@ -79,6 +78,19 @@ export async function GET() {
 `
 }
 
+function getDynamicImageRouteCode(resourcePath: string) {
+  return `\
+import { NextResponse } from 'next/server'
+import handler from ${JSON.stringify(resourcePath)}
+
+export async function GET(req, ctx) {
+  const res = await handler({ params: ctx.params })
+  res.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
+  return res
+}
+`
+}
+
 // `import.meta.url` is the resource name of the current module.
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
@@ -87,12 +99,23 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
     const { resourcePath } = this
     const { pageExtensions } = this.getOptions()
 
-    const ext = path.extname(resourcePath).slice(1)
-    const isStatic = !pageExtensions.includes(ext)
+    const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
+    const isDynamic = pageExtensions.includes(ext)
 
-    const code = isStatic
-      ? getStaticRouteCode(resourcePath)
-      : getDynamicRouteCode(resourcePath)
+    let code = ''
+    if (isDynamic) {
+      if (
+        fileBaseName === 'sitemap' ||
+        fileBaseName === 'robots' ||
+        fileBaseName === 'manifest'
+      ) {
+        code = getDynamicTextRouteCode(resourcePath)
+      } else {
+        code = getDynamicImageRouteCode(resourcePath)
+      }
+    } else {
+      code = getStaticRouteCode(resourcePath)
+    }
 
     return code
   }
