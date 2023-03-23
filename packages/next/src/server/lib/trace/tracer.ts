@@ -233,6 +233,9 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
+          const onCleanup = () => {
+            rootSpanAttributesStore.delete(spanId)
+          }
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
@@ -252,20 +255,22 @@ class NextTracerImpl implements NextTracer {
             const result = fn(span)
 
             if (isPromise(result)) {
-              result.then(
-                () => span.end(),
-                (err) => closeSpanWithError(span, err)
-              )
+              result
+                .then(
+                  () => span.end(),
+                  (err) => closeSpanWithError(span, err)
+                )
+                .finally(onCleanup)
             } else {
               span.end()
+              onCleanup()
             }
 
             return result
           } catch (err: any) {
             closeSpanWithError(span, err)
+            onCleanup()
             throw err
-          } finally {
-            rootSpanAttributesStore.delete(spanId)
           }
         }
       )
