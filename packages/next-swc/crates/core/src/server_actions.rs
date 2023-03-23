@@ -1228,7 +1228,7 @@ fn pat_to_assign_pat(
     index: usize,
     p: &Pat,
     closure_arg: &Ident,
-    ids_from_closure: &Vec<Name>,
+    ids_from_closure: &[Name],
 ) -> AssignPat {
     let maybe_rest_pat = if let Pat::Rest(RestPat {
         arg: box arg_pat, ..
