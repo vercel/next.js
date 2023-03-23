@@ -126,7 +126,6 @@
     "chalk": "5.0.1",
     "cheerio": "0.22.0",
     "cookie": "0.4.1",
-    "configstore": "",
     "cors": "2.8.5",
     "coveralls": "3.0.3",
     "create-next-app": "workspace:*",
