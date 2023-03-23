@@ -7,7 +7,7 @@ async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
   const semverType = args[args.indexOf('--semver-type') + 1]
-  const isCanary = releaseType === 'canary'
+  const isCanary = releaseType !== 'stable'
 
   if (releaseType !== 'stable' && releaseType !== 'canary') {
     console.log(`Invalid release type ${releaseType}, must be stable or canary`)
