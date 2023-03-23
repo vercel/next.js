@@ -11,13 +11,13 @@ __turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__$28$json$29__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__$28$json$29__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__$28$json$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__$28$json$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__$28$json$29__["default"].name);
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__$28$json$29$__["default"].name);
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__$28$json$29__["default"]["this-is"]);
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__$28$json$29$__["default"]["this-is"]);
 
 })()),
 }

@@ -224,7 +224,7 @@
         ),
     ),
     (
-        "e#1",
+        "e#2",
         Variable(
             (
                 Atom('*anonymous function 116*' type=dynamic),
@@ -233,7 +233,7 @@
         ),
     ),
     (
-        "e#2",
+        "e#6",
         Function(
             4,
             155,
@@ -259,7 +259,7 @@
         Variable(
             (
                 Atom('e' type=static),
-                #2,
+                #6,
             ),
         ),
     ),
@@ -310,16 +310,7 @@
         ),
     ),
     (
-        "xe#3",
-        Variable(
-            (
-                Atom('*anonymous function 339*' type=dynamic),
-                #0,
-            ),
-        ),
-    ),
-    (
-        "xe#4",
+        "xe#12",
         Function(
             4,
             385,
@@ -341,11 +332,20 @@
         ),
     ),
     (
+        "xe#8",
+        Variable(
+            (
+                Atom('*anonymous function 339*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
         "xf",
         Variable(
             (
                 Atom('xe' type=inline),
-                #4,
+                #12,
             ),
         ),
     ),

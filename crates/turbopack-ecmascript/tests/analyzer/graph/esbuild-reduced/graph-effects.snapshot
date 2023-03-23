@@ -107,7 +107,7 @@
         obj: Variable(
             (
                 Atom('knownWindowsPackages' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: FreeVar(
@@ -171,7 +171,7 @@
         func: Variable(
             (
                 Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         args: [],
@@ -418,7 +418,7 @@
         func: Variable(
             (
                 Atom('generateBinPath' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         args: [],

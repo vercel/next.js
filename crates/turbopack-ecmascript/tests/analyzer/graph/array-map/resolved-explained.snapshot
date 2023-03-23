@@ -15,15 +15,15 @@ d = [
     (undefined | "\"../lib/b.js\"/resolved/lib/index.js")
 ]
 
-file#2 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
 file#3 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
 file#4 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+file#5 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 

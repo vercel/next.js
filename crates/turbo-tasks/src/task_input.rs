@@ -321,7 +321,7 @@ impl<'de> Deserialize<'de> for SharedValue {
     }
 }
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 #[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum TaskInput {
     TaskOutput(TaskId),

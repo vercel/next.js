@@ -1,28 +1,68 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
+    fmt::Display,
     future::Future,
     mem::take,
     path::{Path, PathBuf},
-    pin::Pin,
     process::{ExitStatus, Stdio},
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use anyhow::{bail, Context, Result};
+use futures::join;
 use indexmap::IndexSet;
+use owo_colors::{OwoColorize, Style};
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     io::{
         stderr, stdout, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt,
-        BufReader,
+        BufReader, Stderr, Stdout,
     },
     net::{TcpListener, TcpStream},
-    process::{Child, Command},
+    process::{Child, ChildStderr, ChildStdout, Command},
     select,
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
+use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
+
+use crate::{source_map::apply_source_mapping, AssetsForSourceMappingVc};
+
+#[derive(Clone, Copy)]
+pub enum FormattingMode {
+    /// No formatting, just print the output
+    Plain,
+    /// Use ansi colors to format the output
+    AnsiColors,
+}
+
+impl FormattingMode {
+    pub fn magic_identifier<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
+        match self {
+            FormattingMode::Plain => format!("{{{}}}", content),
+            FormattingMode::AnsiColors => format!("{{{}}}", content).italic().to_string(),
+        }
+    }
+
+    pub fn lowlight<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
+        match self {
+            FormattingMode::Plain => Style::new(),
+            FormattingMode::AnsiColors => Style::new().dimmed(),
+        }
+        .style(content)
+    }
+
+    pub fn highlight<'a>(&self, content: impl Display + 'a) -> impl Display + 'a {
+        match self {
+            FormattingMode::Plain => Style::new(),
+            FormattingMode::AnsiColors => Style::new().bold().underline(),
+        }
+        .style(content)
+    }
+}
 
 enum NodeJsPoolProcess {
     Spawned(SpawnedNodeJsPoolProcess),
@@ -32,6 +72,9 @@ enum NodeJsPoolProcess {
 struct SpawnedNodeJsPoolProcess {
     child: Child,
     listener: TcpListener,
+    assets_for_source_mapping: AssetsForSourceMappingVc,
+    assets_root: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
     shared_stdout: SharedOutputSet,
     shared_stderr: SharedOutputSet,
     debug: bool,
@@ -40,8 +83,44 @@ struct SpawnedNodeJsPoolProcess {
 struct RunningNodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-    stdout_future: Pin<Box<dyn Future<Output = ()> + Send>>,
-    stderr_future: Pin<Box<dyn Future<Output = ()> + Send>>,
+    assets_for_source_mapping: AssetsForSourceMappingVc,
+    assets_root: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
+    stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
+    stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
+}
+
+impl RunningNodeJsPoolProcess {
+    pub async fn apply_source_mapping<'a>(
+        &self,
+        text: &'a str,
+        formatting_mode: FormattingMode,
+    ) -> Result<Cow<'a, str>> {
+        let text = unmangle_identifiers(text, |content| formatting_mode.magic_identifier(content));
+        match text {
+            Cow::Borrowed(text) => {
+                apply_source_mapping(
+                    text,
+                    self.assets_for_source_mapping,
+                    self.assets_root,
+                    self.project_dir,
+                    formatting_mode,
+                )
+                .await
+            }
+            Cow::Owned(ref text) => {
+                let cow = apply_source_mapping(
+                    text,
+                    self.assets_for_source_mapping,
+                    self.assets_root,
+                    self.project_dir,
+                    formatting_mode,
+                )
+                .await?;
+                Ok(Cow::Owned(cow.into_owned()))
+            }
+        }
+    }
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -58,102 +137,186 @@ static GLOBAL_OUTPUT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_ne
 static MARKER: &[u8] = b"TURBOPACK_OUTPUT_";
 static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 
-/// Pipes the `stream` from `final_stream`, but uses `shared` to deduplicate
-/// lines that has beem emitted by other `handle_output_stream` instances with
-/// the same `shared` before.
-async fn handle_output_stream(
-    mut stream: BufReader<impl AsyncRead + Unpin>,
+struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
+    stream: BufReader<R>,
     shared: SharedOutputSet,
-    mut final_stream: impl AsyncWrite + Unpin,
-) {
-    let mut buffer = Vec::new();
-    let mut own_output = HashMap::new();
-    let mut nesting: u32 = 0;
-    let mut in_stack = None;
-    let mut stack_trace_buffer = Vec::new();
-    loop {
-        let start = buffer.len();
-        match stream.read_until(b'\n', &mut buffer).await {
-            Ok(0) => {
-                break;
-            }
-            Err(err) => {
-                eprintln!("error reading from stream: {}", err);
-                break;
-            }
-            Ok(_) => {}
-        }
-        if buffer.len() - start == MARKER.len() + 2 && &buffer[start..buffer.len() - 2] == MARKER {
-            // This is new line
-            buffer.pop();
-            // This is the type
-            match buffer.pop() {
-                Some(b'B') => {
-                    stack_trace_buffer.clear();
-                    buffer.truncate(start);
-                    nesting += 1;
-                    in_stack = None;
-                    continue;
+    assets_for_source_mapping: AssetsForSourceMappingVc,
+    root: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
+    final_stream: W,
+}
+
+impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
+    /// Pipes the `stream` from `final_stream`, but uses `shared` to deduplicate
+    /// lines that has beem emitted by other [OutputStreamHandler] instances
+    /// with the same `shared` before.
+    /// Returns when one operation is done.
+    pub async fn handle_operation(&mut self) -> Result<()> {
+        let Self {
+            stream,
+            shared,
+            assets_for_source_mapping,
+            root,
+            project_dir,
+            final_stream,
+        } = self;
+
+        async fn write_final<W: AsyncWrite + Unpin>(
+            mut bytes: &[u8],
+            final_stream: &mut W,
+        ) -> Result<()> {
+            let _lock = GLOBAL_OUTPUT_LOCK.lock().await;
+            while !bytes.is_empty() {
+                let count = final_stream.write(bytes).await?;
+                if count == 0 {
+                    bail!("Failed to write to final stream as it was closed");
                 }
-                Some(b'E') => {
-                    buffer.truncate(start);
-                    if let Some(in_stack) = in_stack {
-                        if nesting != 0 {
-                            stack_trace_buffer = buffer[in_stack..].to_vec();
-                        }
-                        buffer.truncate(in_stack);
+                bytes = &bytes[count..];
+            }
+            Ok(())
+        }
+
+        async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
+            bytes: &[u8],
+            assets_for_source_mapping: AssetsForSourceMappingVc,
+            root: FileSystemPathVc,
+            project_dir: FileSystemPathVc,
+            final_stream: &mut W,
+        ) -> Result<()> {
+            if let Ok(text) = std::str::from_utf8(bytes) {
+                let text = unmangle_identifiers(text, |content| {
+                    format!("{{{}}}", content).italic().to_string()
+                });
+                match apply_source_mapping(
+                    text.as_ref(),
+                    assets_for_source_mapping,
+                    root,
+                    project_dir,
+                    FormattingMode::AnsiColors,
+                )
+                .await
+                {
+                    Err(e) => {
+                        write_final(
+                            format!("Error applying source mapping: {e}\n").as_bytes(),
+                            final_stream,
+                        )
+                        .await?;
+                        write_final(text.as_bytes(), final_stream).await?;
                     }
-                    nesting = nesting.saturating_sub(1);
-                    in_stack = None;
-                    if nesting == 0 {
-                        let line = Arc::from(take(&mut buffer).into_boxed_slice());
-                        let stack_trace = if stack_trace_buffer.is_empty() {
-                            None
-                        } else {
-                            Some(Arc::from(take(&mut stack_trace_buffer).into_boxed_slice()))
-                        };
-                        let entry = OutputEntry {
-                            data: line,
-                            stack_trace,
-                        };
-                        let occurance_number = *own_output
-                            .entry(entry.clone())
-                            .and_modify(|c| *c += 1)
-                            .or_insert(0);
-                        let new_entry = {
-                            let mut shared = shared.lock().unwrap();
-                            shared.insert((entry.clone(), occurance_number))
-                        };
-                        if !new_entry {
-                            // This line has been printed by another process, so we don't need to
-                            // print it again.
-                            continue;
-                        }
-                        let _lock = GLOBAL_OUTPUT_LOCK.lock().await;
-                        if final_stream.write(&entry.data).await.is_err() {
-                            // Whatever happened with stdout/stderr, we can't write to it anymore.
-                            break;
-                        }
+                    Ok(text) => {
+                        write_final(text.as_bytes(), final_stream).await?;
                     }
                 }
-                Some(b'S') => {
-                    buffer.truncate(start);
-                    in_stack = Some(start);
-                    continue;
-                }
-                _ => {}
+            } else {
+                write_final(bytes, final_stream).await?;
             }
+            Ok(())
         }
-        if nesting != 0 {
-            // When inside of a marked output we want to aggregate until the end marker
-            continue;
+
+        let mut buffer = Vec::new();
+        let mut own_output = HashMap::new();
+        let mut nesting: u32 = 0;
+        let mut in_stack = None;
+        let mut stack_trace_buffer = Vec::new();
+        loop {
+            let start = buffer.len();
+            match stream.read_until(b'\n', &mut buffer).await {
+                Ok(0) => {
+                    break;
+                }
+                Err(err) => {
+                    eprintln!("error reading from stream: {}", err);
+                    break;
+                }
+                Ok(_) => {}
+            }
+            if buffer.len() - start == MARKER.len() + 2
+                && &buffer[start..buffer.len() - 2] == MARKER
+            {
+                // This is new line
+                buffer.pop();
+                // This is the type
+                match buffer.pop() {
+                    Some(b'B') => {
+                        stack_trace_buffer.clear();
+                        buffer.truncate(start);
+                        nesting += 1;
+                        in_stack = None;
+                        continue;
+                    }
+                    Some(b'E') => {
+                        buffer.truncate(start);
+                        if let Some(in_stack) = in_stack {
+                            if nesting != 0 {
+                                stack_trace_buffer = buffer[in_stack..].to_vec();
+                            }
+                            buffer.truncate(in_stack);
+                        }
+                        nesting = nesting.saturating_sub(1);
+                        in_stack = None;
+                        if nesting == 0 {
+                            let line = Arc::from(take(&mut buffer).into_boxed_slice());
+                            let stack_trace = if stack_trace_buffer.is_empty() {
+                                None
+                            } else {
+                                Some(Arc::from(take(&mut stack_trace_buffer).into_boxed_slice()))
+                            };
+                            let entry = OutputEntry {
+                                data: line,
+                                stack_trace,
+                            };
+                            let occurrence_number = *own_output
+                                .entry(entry.clone())
+                                .and_modify(|c| *c += 1)
+                                .or_insert(0);
+                            let new_entry = {
+                                let mut shared = shared.lock().unwrap();
+                                shared.insert((entry.clone(), occurrence_number))
+                            };
+                            if !new_entry {
+                                // This line has been printed by another process, so we don't need
+                                // to print it again.
+                                continue;
+                            }
+                            write_source_mapped_final(
+                                &entry.data,
+                                *assets_for_source_mapping,
+                                *root,
+                                *project_dir,
+                                final_stream,
+                            )
+                            .await?;
+                        }
+                    }
+                    Some(b'S') => {
+                        buffer.truncate(start);
+                        in_stack = Some(start);
+                        continue;
+                    }
+                    Some(b'D') => {
+                        // operation done
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            if nesting != 0 {
+                // When inside of a marked output we want to aggregate until the end marker
+                continue;
+            }
+
+            write_source_mapped_final(
+                &buffer,
+                *assets_for_source_mapping,
+                *root,
+                *project_dir,
+                final_stream,
+            )
+            .await?;
+            buffer.clear();
         }
-        let _lock = GLOBAL_OUTPUT_LOCK.lock().await;
-        if final_stream.write(&buffer).await.is_err() {
-            // Whatever happened with stdout/stderr, we can't write to it anymore.
-            break;
-        }
-        buffer.clear();
+        Ok(())
     }
 }
 
@@ -162,6 +325,9 @@ impl NodeJsPoolProcess {
         cwd: &Path,
         env: &HashMap<String, String>,
         entrypoint: &Path,
+        assets_for_source_mapping: AssetsForSourceMappingVc,
+        assets_root: FileSystemPathVc,
+        project_dir: FileSystemPathVc,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
@@ -199,6 +365,9 @@ impl NodeJsPoolProcess {
             listener,
             child,
             debug,
+            assets_for_source_mapping,
+            assets_root,
+            project_dir,
             shared_stdout,
             shared_stderr,
         }))
@@ -209,6 +378,9 @@ impl NodeJsPoolProcess {
             NodeJsPoolProcess::Spawned(SpawnedNodeJsPoolProcess {
                 mut child,
                 listener,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
                 shared_stdout,
                 shared_stderr,
                 debug,
@@ -274,16 +446,31 @@ impl NodeJsPoolProcess {
                 let child_stdout = BufReader::new(child.stdout.take().unwrap());
                 let child_stderr = BufReader::new(child.stderr.take().unwrap());
 
-                let stdout_future =
-                    Box::pin(handle_output_stream(child_stdout, shared_stdout, stdout()));
-                let stderr_future =
-                    Box::pin(handle_output_stream(child_stderr, shared_stderr, stderr()));
+                let stdout_handler = OutputStreamHandler {
+                    stream: child_stdout,
+                    shared: shared_stdout,
+                    assets_for_source_mapping,
+                    root: assets_root,
+                    project_dir,
+                    final_stream: stdout(),
+                };
+                let stderr_handler = OutputStreamHandler {
+                    stream: child_stderr,
+                    shared: shared_stderr,
+                    assets_for_source_mapping,
+                    root: assets_root,
+                    project_dir,
+                    final_stream: stderr(),
+                };
 
                 RunningNodeJsPoolProcess {
                     child: Some(child),
                     connection,
-                    stdout_future,
-                    stderr_future,
+                    assets_for_source_mapping,
+                    assets_root,
+                    project_dir,
+                    stdout_handler,
+                    stderr_handler,
                 }
             }
             NodeJsPoolProcess::Running(running) => running,
@@ -308,11 +495,14 @@ impl RunningNodeJsPoolProcess {
                 .context("reading packet data")?;
             Ok(packet_data)
         };
-        select! {
-            result = recv_future => result,
-            _ = &mut self.stdout_future => bail!("stdout stream ended unexpectedly"),
-            _ = &mut self.stderr_future => bail!("stderr stream ended unexpectedly"),
-        }
+        let (result, stdout, stderr) = join!(
+            recv_future,
+            self.stdout_handler.handle_operation(),
+            self.stderr_handler.handle_operation(),
+        );
+        stdout?;
+        stderr?;
+        result
     }
 
     async fn send(&mut self, packet_data: Vec<u8>) -> Result<()> {
@@ -347,6 +537,9 @@ pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<String, String>,
+    pub assets_for_source_mapping: AssetsForSourceMappingVc,
+    pub assets_root: FileSystemPathVc,
+    pub project_dir: FileSystemPathVc,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
@@ -365,6 +558,9 @@ impl NodeJsPool {
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<String, String>,
+        assets_for_source_mapping: AssetsForSourceMappingVc,
+        assets_root: FileSystemPathVc,
+        project_dir: FileSystemPathVc,
         concurrency: usize,
         debug: bool,
     ) -> Self {
@@ -372,6 +568,9 @@ impl NodeJsPool {
             cwd,
             entrypoint,
             env,
+            assets_for_source_mapping,
+            assets_root,
+            project_dir,
             processes: Arc::new(Mutex::new(Vec::new())),
             semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             shared_stdout: Arc::new(Mutex::new(IndexSet::new())),
@@ -393,6 +592,9 @@ impl NodeJsPool {
                 self.cwd.as_path(),
                 &self.env,
                 self.entrypoint.as_path(),
+                self.assets_for_source_mapping,
+                self.assets_root,
+                self.project_dir,
                 self.shared_stdout.clone(),
                 self.shared_stderr.clone(),
                 self.debug,
@@ -498,6 +700,18 @@ impl NodeJsOperation {
 
     pub fn disallow_reuse(&mut self) {
         self.allow_process_reuse = false;
+    }
+
+    pub async fn apply_source_mapping<'a>(
+        &self,
+        text: &'a str,
+        formatting_mode: FormattingMode,
+    ) -> Result<Cow<'a, str>> {
+        if let Some(process) = self.process.as_ref() {
+            process.apply_source_mapping(text, formatting_mode).await
+        } else {
+            Ok(Cow::Borrowed(text))
+        }
     }
 }
 

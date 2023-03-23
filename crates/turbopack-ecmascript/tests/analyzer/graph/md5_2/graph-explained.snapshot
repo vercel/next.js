@@ -22,7 +22,9 @@ HH = md5["_hh"]
 
 II = md5["_ii"]
 
-a#3 = (
+a#10 = arguments[0]
+
+a#4 = (
   | 1732584193
   | FF(a, b, c, d, m[(i + 0)], 7, ???*0*)
   | FF(a, b, c, d, m[(i + 4)], 7, ???*1*)
@@ -54,17 +56,17 @@ a#3 = (
 - *9* unsupported expression
 - *10* unsupported expression
 
-a#4 = arguments[0]
-
-a#5 = arguments[0]
-
-a#6 = arguments[0]
-
 a#7 = arguments[0]
+
+a#8 = arguments[0]
+
+a#9 = arguments[0]
 
 aa = a
 
-b#3 = (
+b#10 = arguments[1]
+
+b#4 = (
   | ???*0*
   | FF(b, c, d, a, m[(i + 3)], 22, ???*1*)
   | FF(b, c, d, a, m[(i + 7)], 22, ???*2*)
@@ -97,19 +99,19 @@ b#3 = (
 - *11* unsupported expression
 - *12* unsupported expression
 
-b#4 = arguments[1]
-
-b#5 = arguments[1]
-
-b#6 = arguments[1]
-
 b#7 = arguments[1]
+
+b#8 = arguments[1]
+
+b#9 = arguments[1]
 
 bb = b
 
 bin = FreeVar(Require)("charenc")["bin"]
 
-c#3 = (
+c#10 = arguments[2]
+
+c#4 = (
   | ???*0*
   | FF(c, d, a, b, m[(i + 2)], 17, 606105819)
   | FF(c, d, a, b, m[(i + 6)], 17, ???*1*)
@@ -140,19 +142,19 @@ c#3 = (
 - *9* unsupported expression
 - *10* unsupported expression
 
-c#4 = arguments[2]
-
-c#5 = arguments[2]
-
-c#6 = arguments[2]
-
 c#7 = arguments[2]
+
+c#8 = arguments[2]
+
+c#9 = arguments[2]
 
 cc = c
 
 crypt = FreeVar(Require)("crypt")
 
-d#3 = (
+d#10 = arguments[3]
+
+d#4 = (
   | 271733878
   | FF(d, a, b, c, m[(i + 1)], 12, ???*0*)
   | FF(d, a, b, c, m[(i + 5)], 12, 1200080426)
@@ -186,13 +188,11 @@ d#3 = (
 - *11* unsupported expression
 - *12* unsupported expression
 
-d#4 = arguments[3]
-
-d#5 = arguments[3]
-
-d#6 = arguments[3]
-
 d#7 = arguments[3]
+
+d#8 = arguments[3]
+
+d#9 = arguments[3]
 
 dd = d
 
@@ -209,7 +209,9 @@ m = crypt["bytesToWords"](message)
 
 md5 = *anonymous function 181*
 
-message#3 = (
+message#11 = arguments[0]
+
+message#4 = (
   | arguments[0]
   | bin["stringToBytes"](message)
   | utf8["stringToBytes"](message)
@@ -217,17 +219,7 @@ message#3 = (
   | message["toString"]()
 )
 
-message#8 = arguments[0]
-
-n#4 = (a + ???*0* + ???*1* + t)
-- *0* unsupported expression
-- *1* unsupported expression
-
-n#5 = (a + ???*0* + ???*1* + t)
-- *0* unsupported expression
-- *1* unsupported expression
-
-n#6 = (a + ???*0* + ???*1* + t)
+n#10 = (a + ???*0* + ???*1* + t)
 - *0* unsupported expression
 - *1* unsupported expression
 
@@ -235,32 +227,40 @@ n#7 = (a + ???*0* + ???*1* + t)
 - *0* unsupported expression
 - *1* unsupported expression
 
-options#3 = arguments[1]
+n#8 = (a + ???*0* + ???*1* + t)
+- *0* unsupported expression
+- *1* unsupported expression
 
-options#8 = arguments[1]
+n#9 = (a + ???*0* + ???*1* + t)
+- *0* unsupported expression
+- *1* unsupported expression
 
-s#4 = arguments[5]
+options#11 = arguments[1]
 
-s#5 = arguments[5]
+options#4 = arguments[1]
 
-s#6 = arguments[5]
+s#10 = arguments[5]
 
 s#7 = arguments[5]
 
-t#4 = arguments[6]
+s#8 = arguments[5]
 
-t#5 = arguments[6]
+s#9 = arguments[5]
 
-t#6 = arguments[6]
+t#10 = arguments[6]
 
 t#7 = arguments[6]
 
+t#8 = arguments[6]
+
+t#9 = arguments[6]
+
 utf8 = FreeVar(Require)("charenc")["utf8"]
 
-x#4 = arguments[4]
-
-x#5 = arguments[4]
-
-x#6 = arguments[4]
+x#10 = arguments[4]
 
 x#7 = arguments[4]
+
+x#8 = arguments[4]
+
+x#9 = arguments[4]

@@ -16,7 +16,9 @@ use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleA
 use super::{
     issue::RenderingIssue, RenderDataVc, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
 };
-use crate::{get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, trace_stack};
+use crate::{
+    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, source_map::trace_stack,
+};
 
 #[turbo_tasks::value]
 pub enum StaticResult {
@@ -58,6 +60,7 @@ pub async fn render_static(
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
     data: RenderDataVc,
 ) -> Result<StaticResultVc> {
     let intermediate_asset = get_intermediate_asset(
@@ -70,6 +73,7 @@ pub async fn render_static(
         intermediate_asset,
         intermediate_output_path,
         output_root,
+        project_dir,
         /* debug */ false,
     );
     // Read this strongly consistent, since we don't want to run inconsistent
@@ -92,6 +96,7 @@ pub async fn render_static(
             data,
             intermediate_asset,
             intermediate_output_path,
+            project_dir,
         )
         .await
         {
@@ -110,6 +115,7 @@ async fn run_static_operation(
     data: RenderDataVc,
     intermediate_asset: AssetVc,
     intermediate_output_path: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
 ) -> Result<StaticResultVc> {
     let data = data.await?;
 
@@ -136,7 +142,15 @@ async fn run_static_operation(
                 HeaderListVc::cell(headers),
             ),
             RenderStaticIncomingMessage::Error(error) => {
-                bail!(trace_stack(error, intermediate_asset, intermediate_output_path).await?)
+                bail!(
+                    trace_stack(
+                        error,
+                        intermediate_asset,
+                        intermediate_output_path,
+                        project_dir
+                    )
+                    .await?
+                )
             }
         },
     )

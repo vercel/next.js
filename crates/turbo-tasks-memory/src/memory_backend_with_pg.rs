@@ -53,17 +53,12 @@ impl Debug for TaskType {
 
 // dirty+active+scheduled -> clean+active+done -> dirty+active+done+scheduled
 
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug, Default)]
 enum TaskFreshness {
+    #[default]
     NeverExecuted,
     Dirty,
     Done,
-}
-
-impl Default for TaskFreshness {
-    fn default() -> Self {
-        TaskFreshness::NeverExecuted
-    }
 }
 
 #[derive(Debug)]

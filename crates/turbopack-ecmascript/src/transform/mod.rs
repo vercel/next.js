@@ -142,7 +142,7 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(true),
-                    import_source: (&*import_source.await?).clone(),
+                    import_source: import_source.await?.clone_value(),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
                             ..Default::default()

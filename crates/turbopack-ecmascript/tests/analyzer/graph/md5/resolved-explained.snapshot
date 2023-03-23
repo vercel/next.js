@@ -1,48 +1,48 @@
-a#10 = ???*0*
+a#14 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+a#15 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#11 = ???*0*
+a#16 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#12 = ???*0*
+a#17 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#13 = ???*0*
+a#18 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-a#5 = ???*0*
+a#7 = ???*0*
 - *0* max number of linking steps reached
 
-a#9 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#10 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#11 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#12 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#13 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#5 = ???*0*
-- *0* max number of linking steps reached
-
-b#9 = ???*0*
+b#14 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
+
+b#15 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#16 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#17 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#18 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#7 = ???*0*
+- *0* max number of linking steps reached
 
 bitRotateLeft = (...) => (undefined | ???*0*)
 - *0* unsupported expression
@@ -54,46 +54,46 @@ bytes = (???*0* | ???*1*)
 
 bytesToWords = (...) => (undefined | output)
 
-c#10 = ???*0*
+c#15 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#11 = ???*0*
+c#16 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#12 = ???*0*
+c#17 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#13 = ???*0*
+c#18 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#5 = ???*0*
+c#7 = ???*0*
 - *0* max number of linking steps reached
 
 cnt = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-d#10 = ???*0*
+d#15 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#11 = ???*0*
+d#16 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#12 = ???*0*
+d#17 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#13 = ???*0*
+d#18 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#5 = ???*0*
+d#7 = ???*0*
 - *0* max number of linking steps reached
 
 hex = (???*0* | ???*1*)
@@ -111,25 +111,25 @@ hex = (???*0* | ???*1*)
 
 hexTab = "0123456789abcdef"
 
-i#2 = 0
-
-i#4 = (???*0* | 0)
-- *0* i
-  ⚠️  pattern without value
+i#3 = 0
 
 i#5 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-i#6 = (???*0* | 0)
+i#7 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-input#4 = ???*0*
+i#9 = (???*0* | 0)
+- *0* i
+  ⚠️  pattern without value
+
+input#5 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-input#6 = ???*0*
+input#9 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -202,90 +202,90 @@ oldc = ???*0*
 oldd = ???*0*
 - *0* max number of linking steps reached
 
-output#4 = []
+output#5 = []
 
-output#6 = []
+output#9 = []
 
 q = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-s#10 = ???*0*
-- *0* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-s#11 = ???*0*
-- *0* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-s#12 = ???*0*
-- *0* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-s#13 = ???*0*
-- *0* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-s#9 = ???*0*
+s#14 = ???*0*
 - *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+s#15 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+s#16 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+s#17 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+s#18 = ???*0*
+- *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
 safeAdd = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
-t#10 = ???*0*
-- *0* arguments[6]
-  ⚠️  function calls are not analysed yet
-
-t#11 = ???*0*
-- *0* arguments[6]
-  ⚠️  function calls are not analysed yet
-
-t#12 = ???*0*
-- *0* arguments[6]
-  ⚠️  function calls are not analysed yet
-
-t#13 = ???*0*
-- *0* arguments[6]
-  ⚠️  function calls are not analysed yet
-
-t#9 = ???*0*
+t#14 = ???*0*
 - *0* arguments[5]
+  ⚠️  function calls are not analysed yet
+
+t#15 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#16 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#17 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#18 = ???*0*
+- *0* arguments[6]
   ⚠️  function calls are not analysed yet
 
 wordsToMd5 = (...) => (undefined | [a, b, c, d])
 
-x#10 = ???*0*
-- *0* arguments[4]
-  ⚠️  function calls are not analysed yet
-
-x#11 = ???*0*
-- *0* arguments[4]
-  ⚠️  function calls are not analysed yet
-
 x#12 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+x#14 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+x#15 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-x#13 = ???*0*
+x#16 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-x#4 = (???*0* | ???*1*)
+x#17 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#18 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#5 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
 
-x#5 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
 x#7 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-x#9 = ???*0*
-- *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
 y = ???*0*

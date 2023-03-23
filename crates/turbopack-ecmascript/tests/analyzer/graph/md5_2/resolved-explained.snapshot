@@ -22,44 +22,44 @@ HH = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"]
 
 II = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"]
 
-a#3 = ???*0*
-- *0* max number of linking steps reached
+a#10 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 a#4 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-a#5 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-a#6 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+- *0* max number of linking steps reached
 
 a#7 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+a#8 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+a#9 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
 aa = ???*0*
 - *0* max number of linking steps reached
 
-b#3 = ???*0*
-- *0* max number of linking steps reached
+b#10 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 b#4 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#5 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
-
-b#6 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+- *0* max number of linking steps reached
 
 b#7 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#8 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+b#9 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -68,22 +68,22 @@ bb = ???*0*
 
 bin = module<charenc, {}>["bin"]
 
-c#3 = ???*0*
-- *0* max number of linking steps reached
+c#10 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 c#4 = ???*0*
-- *0* arguments[2]
-  ⚠️  function calls are not analysed yet
-
-c#5 = ???*0*
-- *0* arguments[2]
-  ⚠️  function calls are not analysed yet
-
-c#6 = ???*0*
-- *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+- *0* max number of linking steps reached
 
 c#7 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+c#8 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+c#9 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
@@ -92,22 +92,22 @@ cc = ???*0*
 
 crypt = module<crypt, {}>
 
-d#3 = ???*0*
-- *0* max number of linking steps reached
+d#10 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 d#4 = ???*0*
-- *0* arguments[3]
-  ⚠️  function calls are not analysed yet
-
-d#5 = ???*0*
-- *0* arguments[3]
-  ⚠️  function calls are not analysed yet
-
-d#6 = ???*0*
-- *0* arguments[3]
-  ⚠️  function calls are not analysed yet
+- *0* max number of linking steps reached
 
 d#7 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+d#8 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
+
+d#9 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
@@ -142,7 +142,11 @@ m = module<crypt, {}>["bytesToWords"]((???*0* | ???*1* | ???*3*))
 
 md5 = (...) => (undefined | crypt["endian"]([a, b, c, d]))
 
-message#3 = (
+message#11 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+message#4 = (
   | ???*0*
   | module<charenc, {}>["bin"]["stringToBytes"]((???*1* | ???*2* | ???*4*))
   | module<charenc, {}>["utf8"]["stringToBytes"]((???*8* | ???*9* | ???*11*))
@@ -192,27 +196,7 @@ message#3 = (
 - *20* arguments[0]
   ⚠️  function calls are not analysed yet
 
-message#8 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-n#4 = (???*0* + ???*1* + ???*2* + ???*3*)
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* arguments[6]
-  ⚠️  function calls are not analysed yet
-
-n#5 = (???*0* + ???*1* + ???*2* + ???*3*)
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* arguments[6]
-  ⚠️  function calls are not analysed yet
-
-n#6 = (???*0* + ???*1* + ???*2* + ???*3*)
+n#10 = (???*0* + ???*1* + ???*2* + ???*3*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -228,23 +212,31 @@ n#7 = (???*0* + ???*1* + ???*2* + ???*3*)
 - *3* arguments[6]
   ⚠️  function calls are not analysed yet
 
-options#3 = ???*0*
+n#8 = (???*0* + ???*1* + ???*2* + ???*3*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+- *2* unsupported expression
+- *3* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+n#9 = (???*0* + ???*1* + ???*2* + ???*3*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+- *2* unsupported expression
+- *3* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+options#11 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-options#8 = ???*0*
+options#4 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-s#4 = ???*0*
-- *0* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-s#5 = ???*0*
-- *0* arguments[5]
-  ⚠️  function calls are not analysed yet
-
-s#6 = ???*0*
+s#10 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
@@ -252,15 +244,15 @@ s#7 = ???*0*
 - *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-t#4 = ???*0*
-- *0* arguments[6]
+s#8 = ???*0*
+- *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-t#5 = ???*0*
-- *0* arguments[6]
+s#9 = ???*0*
+- *0* arguments[5]
   ⚠️  function calls are not analysed yet
 
-t#6 = ???*0*
+t#10 = ???*0*
 - *0* arguments[6]
   ⚠️  function calls are not analysed yet
 
@@ -268,20 +260,28 @@ t#7 = ???*0*
 - *0* arguments[6]
   ⚠️  function calls are not analysed yet
 
+t#8 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
+t#9 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
+
 utf8 = module<charenc, {}>["utf8"]
 
-x#4 = ???*0*
-- *0* arguments[4]
-  ⚠️  function calls are not analysed yet
-
-x#5 = ???*0*
-- *0* arguments[4]
-  ⚠️  function calls are not analysed yet
-
-x#6 = ???*0*
+x#10 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
 x#7 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#8 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
+
+x#9 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet

@@ -1,12 +1,12 @@
-a#2 = arguments[0]
-
-a#5 = arguments[0]
+a#3 = arguments[0]
 
 a#6 = arguments[0]
 
-b#4 = arguments[0]
+a#9 = arguments[0]
 
-b#7 = arguments[0]
+b#10 = arguments[0]
+
+b#5 = arguments[0]
 
 inner = (...) => (undefined | (a + b))
 

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_stream::stream as generator;
 use futures_retry::{FutureRetry, RetryPolicy};
 use indexmap::indexmap;
@@ -32,9 +32,10 @@ use turbopack_ecmascript::{
 use crate::{
     bootstrap::NodeJsBootstrapAsset,
     embed_js::embed_file_path,
-    emit, emit_package_json,
-    pool::{NodeJsOperation, NodeJsPool, NodeJsPoolVc},
-    StructuredError,
+    emit, emit_package_json, internal_assets_for_source_mapping,
+    pool::{FormattingMode, NodeJsOperation, NodeJsPool, NodeJsPoolVc},
+    source_map::StructuredError,
+    AssetsForSourceMappingVc,
 };
 
 #[derive(Serialize)]
@@ -168,9 +169,16 @@ pub async fn get_evaluate_pool(
         chunk_group: ChunkGroupVc::from_chunk(
             entry_module.as_evaluated_chunk(chunking_context, runtime_entries),
         ),
-    };
-    emit_package_json(chunking_context.output_root()).await?;
-    emit(bootstrap.cell().into(), chunking_context.output_root()).await?;
+    }
+    .cell()
+    .into();
+
+    let output_root = chunking_context.output_root();
+    let emit_package = emit_package_json(output_root);
+    let emit = emit(bootstrap, output_root);
+    let assets_for_source_mapping = internal_assets_for_source_mapping(bootstrap, output_root);
+    emit_package.await?;
+    emit.await?;
     let pool = NodeJsPool::new(
         cwd,
         entrypoint,
@@ -179,6 +187,9 @@ pub async fn get_evaluate_pool(
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect(),
+        assets_for_source_mapping,
+        output_root,
+        chunking_context.context_path().root(),
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -278,7 +289,7 @@ pub async fn evaluate(
             }
 
             loop {
-                let output = tri!(pull_operation(&mut operation, cwd, context_ident_for_issue).await);
+                let output = tri!(pull_operation(&mut operation, cwd, &pool, context_ident_for_issue, chunking_context).await);
 
                 match output {
                     LoopResult::Continue(data) => {
@@ -312,7 +323,9 @@ pub async fn evaluate(
 async fn pull_operation(
     operation: &mut NodeJsOperation,
     cwd: FileSystemPathVc,
+    pool: &NodeJsPool,
     context_ident_for_issue: AssetIdentVc,
+    chunking_context: ChunkingContextVc,
 ) -> Result<LoopResult> {
     let mut file_dependencies = Vec::new();
     let mut dir_dependencies = Vec::new();
@@ -323,7 +336,9 @@ async fn pull_operation(
                 EvaluationIssue {
                     error: error.clone(),
                     context_ident: context_ident_for_issue,
-                    cwd,
+                    assets_for_source_mapping: pool.assets_for_source_mapping,
+                    assets_root: pool.assets_root,
+                    project_dir: chunking_context.context_path().root(),
                 }
                 .cell()
                 .as_issue()
@@ -357,9 +372,11 @@ async fn pull_operation(
             EvalJavaScriptIncomingMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
                     context: context_ident_for_issue.path(),
-                    cwd,
                     error,
                     severity: severity.cell(),
+                    assets_for_source_mapping: pool.assets_for_source_mapping,
+                    assets_root: pool.assets_root,
+                    project_dir: chunking_context.context_path().root(),
                 }
                 .cell()
                 .as_issue()
@@ -384,8 +401,10 @@ async fn pull_operation(
 #[turbo_tasks::value(shared)]
 pub struct EvaluationIssue {
     pub context_ident: AssetIdentVc,
-    pub cwd: FileSystemPathVc,
     pub error: StructuredError,
+    pub assets_for_source_mapping: AssetsForSourceMappingVc,
+    pub assets_root: FileSystemPathVc,
+    pub project_dir: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -407,13 +426,14 @@ impl Issue for EvaluationIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        let cwd = to_sys_path(self.cwd.root())
-            .await?
-            .context("Must have path on disk")?;
-
         Ok(StringVc::cell(
             self.error
-                .print(Default::default(), &cwd.to_string_lossy())
+                .print(
+                    self.assets_for_source_mapping,
+                    self.assets_root,
+                    self.project_dir,
+                    FormattingMode::Plain,
+                )
                 .await?,
         ))
     }
@@ -499,9 +519,11 @@ async fn dir_dependency_shallow(glob: ReadGlobResultVc) -> Result<CompletionVc> 
 #[turbo_tasks::value(shared)]
 pub struct EvaluateEmittedErrorIssue {
     pub context: FileSystemPathVc,
-    pub cwd: FileSystemPathVc,
     pub severity: IssueSeverityVc,
     pub error: StructuredError,
+    pub assets_for_source_mapping: AssetsForSourceMappingVc,
+    pub assets_root: FileSystemPathVc,
+    pub project_dir: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -528,13 +550,14 @@ impl Issue for EvaluateEmittedErrorIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<StringVc> {
-        let root = to_sys_path(self.cwd.root())
-            .await?
-            .context("Must have path on disk")?;
-
         Ok(StringVc::cell(
             self.error
-                .print(Default::default(), &root.to_string_lossy())
+                .print(
+                    self.assets_for_source_mapping,
+                    self.assets_root,
+                    self.project_dir,
+                    FormattingMode::Plain,
+                )
                 .await?,
         ))
     }

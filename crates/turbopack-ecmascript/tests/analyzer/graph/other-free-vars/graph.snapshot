@@ -23,7 +23,7 @@
                 Variable(
                     (
                         Atom('O' type=inline),
-                        #1,
+                        #2,
                     ),
                 ),
             ],
@@ -36,7 +36,7 @@
             Variable(
                 (
                     Atom('O' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(

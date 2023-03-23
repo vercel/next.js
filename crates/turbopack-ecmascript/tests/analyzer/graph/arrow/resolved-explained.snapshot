@@ -26,9 +26,9 @@ c = (...) => (undefined | 1)
 
 d = (...) => (undefined | 2)
 
-e#1 = (...) => (undefined | 3)
+e#2 = (...) => (undefined | 3)
 
-e#2 = (...) => (undefined | 4)
+e#6 = (...) => (undefined | 4)
 
 f = (...) => (undefined | 4)
 
@@ -42,8 +42,8 @@ xc = (...) => (undefined | 1)
 
 xd = (...) => (undefined | 2)
 
-xe#3 = (...) => (undefined | 3)
+xe#12 = (...) => (undefined | 4)
 
-xe#4 = (...) => (undefined | 4)
+xe#8 = (...) => (undefined | 3)
 
 xf = (...) => (undefined | 4)

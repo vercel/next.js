@@ -1,36 +1,36 @@
 [
     (
-        "a#2",
+        "a#3",
         Argument(
             1,
             0,
         ),
     ),
     (
-        "a#5",
+        "a#6",
         Argument(
             87,
             0,
         ),
     ),
     (
-        "a#6",
+        "a#9",
         Argument(
             197,
             0,
         ),
     ),
     (
-        "b#4",
+        "b#10",
         Argument(
-            26,
+            219,
             0,
         ),
     ),
     (
-        "b#7",
+        "b#5",
         Argument(
-            219,
+            26,
             0,
         ),
     ),
@@ -51,13 +51,13 @@
                             Variable(
                                 (
                                     Atom('a' type=static),
-                                    #6,
+                                    #9,
                                 ),
                             ),
                             Variable(
                                 (
                                     Atom('b' type=static),
-                                    #7,
+                                    #10,
                                 ),
                             ),
                         ],
@@ -82,7 +82,7 @@
                         Variable(
                             (
                                 Atom('inner' type=inline),
-                                #6,
+                                #9,
                             ),
                         ),
                         [
@@ -113,7 +113,7 @@
                     Variable(
                         (
                             Atom('a' type=static),
-                            #5,
+                            #6,
                         ),
                     ),
                     Add(
@@ -124,7 +124,7 @@
                                 Variable(
                                     (
                                         Atom('r' type=inline),
-                                        #1,
+                                        #2,
                                     ),
                                 ),
                                 [
@@ -134,7 +134,7 @@
                                             Variable(
                                                 (
                                                     Atom('a' type=static),
-                                                    #5,
+                                                    #6,
                                                 ),
                                             ),
                                             Constant(
@@ -170,7 +170,7 @@
                 Variable(
                     (
                         Atom('x' type=static),
-                        #1,
+                        #2,
                     ),
                 ),
                 [
@@ -201,7 +201,7 @@
             Variable(
                 (
                     Atom('r' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             [
@@ -222,7 +222,7 @@
             Variable(
                 (
                     Atom('outer' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             [
@@ -250,7 +250,7 @@
                     Variable(
                         (
                             Atom('y' type=inline),
-                            #3,
+                            #4,
                         ),
                     ),
                 ],
@@ -274,13 +274,13 @@
                             Variable(
                                 (
                                     Atom('a' type=static),
-                                    #2,
+                                    #3,
                                 ),
                             ),
                             Variable(
                                 (
                                     Atom('b' type=static),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ],

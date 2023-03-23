@@ -76,7 +76,13 @@ impl ContentSource for NextSourceMapTraceContentSource {
 
         let wrapped = WrappedContentSourceVc::new(
             self_vc.await?.asset_source,
-            NextSourceMapTraceContentProcessorVc::new(id, line, column, frame.name).into(),
+            NextSourceMapTraceContentProcessorVc::new(
+                id,
+                line,
+                column,
+                frame.name.map(|c| c.to_string()),
+            )
+            .into(),
         );
         Ok(ContentSourceResultVc::exact(
             ContentSourceContent::Rewrite(
@@ -159,13 +165,13 @@ impl ContentSourceProcessor for NextSourceMapTraceContentProcessor {
         };
 
         let sm = if let Some(id) = &self.id {
-            let section = gen.by_section(id).await?;
-            match &*section {
-                Some(sm) => *sm,
-                None => return Ok(ContentSourceContentVc::not_found()),
-            }
+            gen.by_section(id).await?
         } else {
-            gen.generate_source_map()
+            gen.generate_source_map().await?
+        };
+        let sm = match &*sm {
+            Some(sm) => *sm,
+            None => return Ok(ContentSourceContentVc::not_found()),
         };
 
         let traced = SourceMapTraceVc::new(sm, self.line, self.column, self.name.clone());

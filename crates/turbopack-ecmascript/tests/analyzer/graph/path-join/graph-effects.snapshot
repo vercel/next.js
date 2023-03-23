@@ -107,7 +107,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -167,7 +167,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -238,7 +238,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -298,7 +298,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -369,7 +369,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -429,7 +429,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -500,7 +500,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -560,7 +560,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -631,7 +631,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -691,7 +691,7 @@
         obj: Variable(
             (
                 Atom('path' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(

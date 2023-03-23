@@ -17,8 +17,6 @@ e = (...) => undefined
 
 f = (...) => undefined
 
-x#2 = 1
-
 x#3 = 1
 
 x#4 = 1
@@ -27,9 +25,9 @@ x#5 = 1
 
 x#6 = 1
 
-x#8 = 1
+x#7 = 1
 
-y#2 = 1
+x#9 = 1
 
 y#3 = 1
 
@@ -39,16 +37,18 @@ y#5 = 1
 
 y#6 = 1
 
-y#8 = 1
+y#7 = 1
 
-z#2 = (...) => undefined
+y#9 = 1
 
-z#5 = ???*0*
-- *0* unsupported expression
+z#3 = (...) => undefined
 
 z#6 = ???*0*
 - *0* unsupported expression
 
-z#8 = (...) => undefined
+z#7 = ???*0*
+- *0* unsupported expression
+
+z#9 = (...) => undefined
 
 z2 = (...) => undefined

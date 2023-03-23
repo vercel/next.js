@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{Chunk, ChunkGroupVc, ChunkingContext, ModuleId, ModuleIdReadRef},
     code_builder::{CodeBuilder, CodeVc},
     environment::ChunkLoading,
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc, SourceMapVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
     version::{
         MergeableVersionedContent, MergeableVersionedContentVc, UpdateVc, VersionVc,
         VersionedContent, VersionedContentMergerVc, VersionedContentVc,
@@ -278,7 +278,7 @@ impl MergeableVersionedContent for EcmascriptDevChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self_vc: EcmascriptDevChunkContentVc) -> SourceMapVc {
+    fn generate_source_map(self_vc: EcmascriptDevChunkContentVc) -> OptionSourceMapVc {
         self_vc.code().generate_source_map()
     }
 
@@ -290,7 +290,7 @@ impl GenerateSourceMap for EcmascriptDevChunkContent {
             for (entry_id, entry) in self.entries.await?.iter() {
                 if id == **entry_id {
                     let sm = entry.code.generate_source_map();
-                    return Ok(OptionSourceMapVc::cell(Some(sm)));
+                    return Ok(sm);
                 }
             }
         }

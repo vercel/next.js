@@ -160,16 +160,17 @@ pub(super) async fn update_ecmascript_merged_chunk(
         .map(|content| async move {
             let content_ref = content.await?;
             let output_root = content_ref.chunking_context.output_root().await?;
-            let chunk_path = content_ref.chunk.path().await?;
-            Ok((*content, content_ref, output_root, chunk_path))
+            let path = content_ref.chunk.path().await?;
+            Ok((*content, content_ref, output_root, path))
         })
         .try_join()
         .await?;
 
     let mut merged_update = EcmascriptMergedUpdate::default();
 
-    for (content, content_ref, output_root, chunk_path) in &to_contents {
-        let Some(chunk_path) = output_root.get_path_to(chunk_path) else {
+    for (content, content_ref, output_root, path) in &to_contents {
+        let Some(chunk_path) = output_root
+            .get_path_to(path) else {
             continue;
         };
 

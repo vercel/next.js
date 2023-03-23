@@ -24,10 +24,10 @@ const __TURBOPACK__default__export__ = "turbopack";
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2d$and$2d$dynamic$2f$input$2f$vercel$2e$mjs__$28$ecmascript$29__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2d$and$2d$dynamic$2f$input$2f$vercel$2e$mjs__$28$ecmascript$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2d$and$2d$dynamic$2f$input$2f$vercel$2e$mjs__$28$ecmascript$29__["default"]);
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2d$and$2d$dynamic$2f$input$2f$vercel$2e$mjs__$28$ecmascript$29$__["default"]);
 __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript, manifest chunk, loader)")(__turbopack_import__).then(console.log);
 
 })()),

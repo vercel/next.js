@@ -7,7 +7,7 @@ use std::fmt::Write;
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
-use turbo_tasks_fs::{rope::Rope, File, FileSystemPathOptionVc, FileSystemPathVc};
+use turbo_tasks_fs::{rope::Rope, File, FileSystemPathOptionVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
@@ -26,7 +26,7 @@ use turbopack_core::{
     },
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::PrimaryResolveResult,
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
 };
 use writer::expand_imports;
 
@@ -103,11 +103,10 @@ impl CssChunkVc {
     #[turbo_tasks::function]
     async fn chunk_content(self) -> Result<CssChunkContentVc> {
         let this = self.await?;
-        let chunk_path = self.path();
         Ok(CssChunkContentVc::new(
             this.main_entries,
             this.context,
-            chunk_path,
+            self,
         ))
     }
 }
@@ -116,7 +115,7 @@ impl CssChunkVc {
 struct CssChunkContent {
     main_entries: CssChunkPlaceablesVc,
     context: ChunkingContextVc,
-    chunk_path: FileSystemPathVc,
+    chunk: CssChunkVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -125,12 +124,12 @@ impl CssChunkContentVc {
     async fn new(
         main_entries: CssChunkPlaceablesVc,
         context: ChunkingContextVc,
-        chunk_path: FileSystemPathVc,
+        chunk: CssChunkVc,
     ) -> Result<Self> {
         Ok(CssChunkContent {
             main_entries,
             context,
-            chunk_path,
+            chunk,
         }
         .cell())
     }
@@ -140,7 +139,7 @@ impl CssChunkContentVc {
         use std::io::Write;
 
         let this = self.await?;
-        let chunk_name = this.chunk_path.to_string();
+        let chunk_name = this.chunk.path().to_string();
 
         let mut body = CodeBuilder::default();
         let mut external_imports = IndexSet::new();
@@ -161,8 +160,13 @@ impl CssChunkContentVc {
 
         code.push_code(&body.build());
 
-        if code.has_source_map() {
-            let chunk_path = this.chunk_path.await?;
+        if *this
+            .context
+            .reference_chunk_source_maps(this.chunk.into())
+            .await?
+            && code.has_source_map()
+        {
+            let chunk_path = this.chunk.path().await?;
             write!(
                 code,
                 "\n/*# sourceMappingURL={}.map*/",
@@ -184,7 +188,7 @@ impl CssChunkContentVc {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for CssChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self_vc: CssChunkContentVc) -> SourceMapVc {
+    fn generate_source_map(self_vc: CssChunkContentVc) -> OptionSourceMapVc {
         self_vc.code().generate_source_map()
     }
 }
@@ -349,7 +353,13 @@ impl Asset for CssChunk {
         for chunk_group in content.async_chunk_groups.iter() {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
-        references.push(CssChunkSourceMapAssetReferenceVc::new(self_vc).into());
+        if *this
+            .context
+            .reference_chunk_source_maps(self_vc.into())
+            .await?
+        {
+            references.push(CssChunkSourceMapAssetReferenceVc::new(self_vc).into());
+        }
         Ok(AssetReferencesVc::cell(references))
     }
 }
@@ -357,7 +367,7 @@ impl Asset for CssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for CssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self_vc: CssChunkVc) -> SourceMapVc {
+    fn generate_source_map(self_vc: CssChunkVc) -> OptionSourceMapVc {
         self_vc.chunk_content().generate_source_map()
     }
 }

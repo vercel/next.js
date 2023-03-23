@@ -38,7 +38,7 @@
             hi: BytePos(
                 15,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -100,7 +100,7 @@
             hi: BytePos(
                 67,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -167,7 +167,7 @@
             hi: BytePos(
                 122,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
 ]

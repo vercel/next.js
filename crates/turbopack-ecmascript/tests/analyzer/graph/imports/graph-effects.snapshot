@@ -38,7 +38,7 @@
             hi: BytePos(
                 9,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -80,7 +80,7 @@
             hi: BytePos(
                 31,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -122,7 +122,7 @@
             hi: BytePos(
                 34,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -162,7 +162,7 @@
             hi: BytePos(
                 61,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -207,7 +207,7 @@
             hi: BytePos(
                 159,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -252,7 +252,7 @@
             hi: BytePos(
                 171,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
     ImportedBinding {
@@ -295,7 +295,7 @@
             hi: BytePos(
                 183,
             ),
-            ctxt: #1,
+            ctxt: #2,
         },
     },
 ]

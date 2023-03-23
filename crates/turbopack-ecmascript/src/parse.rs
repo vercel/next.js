@@ -7,7 +7,7 @@ use swc_core::{
         errors::{Handler, HANDLER},
         input::StringInput,
         source_map::SourceMapGenConfig,
-        BytePos, FileName, Globals, LineCol, Mark, SourceMap, GLOBALS,
+        BytePos, FileName, Globals, LineCol, Mark, GLOBALS,
     },
     ecma::{
         ast::{EsVersion, Program},
@@ -27,7 +27,8 @@ use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
+    SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -52,7 +53,7 @@ pub enum ParseResult {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         globals: Globals,
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        source_map: Arc<SourceMap>,
+        source_map: Arc<swc_core::common::SourceMap>,
     },
     Unparseable,
     NotFound,
@@ -73,7 +74,7 @@ pub struct ParseResultSourceMap {
     /// to source locations. I don't know what it is, really, but it's not
     /// that.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    source_map: Arc<SourceMap>,
+    source_map: Arc<swc_core::common::SourceMap>,
 
     /// The position mappings that can generate a real source map given a (SWC)
     /// SourceMap.
@@ -88,7 +89,10 @@ impl PartialEq for ParseResultSourceMap {
 }
 
 impl ParseResultSourceMap {
-    pub fn new(source_map: Arc<SourceMap>, mappings: Vec<(BytePos, LineCol)>) -> Self {
+    pub fn new(
+        source_map: Arc<swc_core::common::SourceMap>,
+        mappings: Vec<(BytePos, LineCol)>,
+    ) -> Self {
         ParseResultSourceMap {
             source_map,
             mappings,
@@ -99,13 +103,15 @@ impl ParseResultSourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for ParseResultSourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> SourceMapVc {
+    fn generate_source_map(&self) -> OptionSourceMapVc {
         let map = self.source_map.build_source_map_with_config(
             &self.mappings,
             None,
             InlineSourcesContentConfig {},
         );
-        SourceMapVc::new_regular(map)
+        OptionSourceMapVc::cell(Some(
+            turbopack_core::source_map::SourceMap::new_regular(map).cell(),
+        ))
     }
 }
 
@@ -117,8 +123,9 @@ struct InlineSourcesContentConfig {}
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
-            // The Custom filename surrounds the name with <>.
-            FileName::Custom(s) => format!("/{}", s),
+            FileName::Custom(s) => {
+                format!("/{SOURCE_MAP_ROOT_NAME}/{s}")
+            }
             _ => f.to_string(),
         }
     }
@@ -136,6 +143,7 @@ pub async fn parse(
 ) -> Result<ParseResultVc> {
     let content = source.content();
     let fs_path = &*source.ident().path().await?;
+    let ident = &*source.ident().to_string().await?;
     let file_path_hash = *hash_ident(source.ident().to_string()).await? as u128;
     let ty = ty.into_value();
     Ok(match &*content.await? {
@@ -147,6 +155,7 @@ pub async fn parse(
                     match parse_content(
                         string.into_owned(),
                         fs_path,
+                        ident,
                         file_path_hash,
                         source,
                         ty,
@@ -174,12 +183,13 @@ pub async fn parse(
 async fn parse_content(
     string: String,
     fs_path: &FileSystemPath,
+    ident: &str,
     file_path_hash: u128,
     source: AssetVc,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<ParseResultVc> {
-    let source_map: Arc<SourceMap> = Default::default();
+    let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let handler = Handler::with_emitter(
         true,
         false,
@@ -199,7 +209,7 @@ async fn parse_content(
             })
         },
         async {
-            let file_name = FileName::Custom(fs_path.path.clone());
+            let file_name = FileName::Custom(ident.to_string());
             let fm = source_map.new_source_file(file_name.clone(), string);
 
             let comments = SwcComments::default();

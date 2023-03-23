@@ -3,7 +3,7 @@ use std::{io::Write, ops::Deref, sync::Arc};
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sourcemap::SourceMap as CrateMap;
+use sourcemap::{SourceMap as CrateMap, SourceMapBuilder};
 use turbo_tasks::TryJoinIterExt;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder, RopeVc};
 
@@ -13,7 +13,7 @@ use crate::source_pos::SourcePos;
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
-    fn generate_source_map(&self) -> SourceMapVc;
+    fn generate_source_map(&self) -> OptionSourceMapVc;
 
     /// Returns an individual section of the larger source map, if found.
     fn by_section(&self, _section: &str) -> OptionSourceMapVc {
@@ -24,7 +24,7 @@ pub trait GenerateSourceMap {
 /// The source map spec lists 2 formats, a regular format where a single map
 /// covers the entire file, and an "index" sectioned format where multiple maps
 /// cover different regions of the file.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum SourceMap {
     /// A regular source map covers an entire file.
     Regular(#[turbo_tasks(trace_ignore)] RegularSourceMap),
@@ -95,17 +95,31 @@ impl<'a> From<sourcemap::Token<'a>> for Token {
     }
 }
 
-impl SourceMapVc {
+impl SourceMap {
     /// Creates a new SourceMap::Regular Vc out of a sourcemap::SourceMap
     /// ("CrateMap") instance.
     pub fn new_regular(map: CrateMap) -> Self {
-        SourceMap::Regular(RegularSourceMap::new(map)).cell()
+        SourceMap::Regular(RegularSourceMap::new(map))
     }
 
     /// Creates a new SourceMap::Sectioned Vc out of a collection of source map
     /// sections.
     pub fn new_sectioned(sections: Vec<SourceMapSection>) -> Self {
-        SourceMap::Sectioned(SectionedSourceMap::new(sections)).cell()
+        SourceMap::Sectioned(SectionedSourceMap::new(sections))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl SourceMapVc {
+    /// A source map that contains no actual source location information (no
+    /// `sources`, no mappings that point into a source). This is used to tell
+    /// Chrome that the generated code starting at a particular offset is no
+    /// longer part of the previous section's mappings.
+    #[turbo_tasks::function]
+    pub fn empty() -> Self {
+        let mut builder = SourceMapBuilder::new(None);
+        builder.add(0, 0, 0, 0, None, None);
+        SourceMap::new_regular(builder.into_sourcemap()).cell()
     }
 }
 

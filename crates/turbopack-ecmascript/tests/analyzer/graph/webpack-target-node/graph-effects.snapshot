@@ -3,7 +3,7 @@
         obj: Variable(
             (
                 Atom('exports' type=inline),
-                #1,
+                #3,
             ),
         ),
         prop: Constant(
@@ -93,7 +93,7 @@
         obj: Variable(
             (
                 Atom('exports' type=inline),
-                #1,
+                #3,
             ),
         ),
         prop: Constant(
@@ -183,7 +183,7 @@
         obj: Variable(
             (
                 Atom('exports' type=inline),
-                #1,
+                #3,
             ),
         ),
         prop: Constant(
@@ -273,7 +273,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #2,
+                #4,
             ),
         ),
         prop: Constant(
@@ -403,7 +403,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #2,
+                #4,
             ),
         ),
         prop: Constant(
@@ -418,7 +418,7 @@
                 Variable(
                     (
                         Atom('__webpack_exports__' type=dynamic),
-                        #2,
+                        #4,
                     ),
                 ),
             ),
@@ -534,7 +534,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #2,
+                #4,
             ),
         ),
         prop: Constant(
@@ -664,7 +664,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #2,
+                #4,
             ),
         ),
         prop: Constant(
@@ -679,7 +679,7 @@
                 Variable(
                     (
                         Atom('__webpack_exports__' type=dynamic),
-                        #2,
+                        #4,
                     ),
                 ),
             ),
@@ -948,7 +948,7 @@
         obj: Variable(
             (
                 Atom('promises_namespaceObject' type=dynamic),
-                #2,
+                #4,
             ),
         ),
         prop: Constant(
@@ -1123,7 +1123,7 @@
         obj: Variable(
             (
                 Atom('promises_namespaceObject' type=dynamic),
-                #2,
+                #4,
             ),
         ),
         prop: Constant(
@@ -1297,7 +1297,7 @@
             Variable(
                 (
                     Atom('res' type=inline),
-                    #4,
+                    #5,
                 ),
             ),
             Constant(
@@ -1461,7 +1461,7 @@
         obj: Variable(
             (
                 Atom('res' type=inline),
-                #4,
+                #5,
             ),
         ),
         prop: Constant(
@@ -1623,7 +1623,7 @@
         obj: Variable(
             (
                 Atom('res' type=inline),
-                #4,
+                #5,
             ),
         ),
         prop: Constant(
@@ -1789,7 +1789,7 @@
             Variable(
                 (
                     Atom('res' type=inline),
-                    #4,
+                    #5,
                 ),
             ),
             Constant(
@@ -1832,7 +1832,7 @@
                             Variable(
                                 (
                                     Atom('users' type=inline),
-                                    #2,
+                                    #4,
                                 ),
                             ),
                         ),
@@ -1847,7 +1847,7 @@
                             Variable(
                                 (
                                     Atom('hello' type=inline),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ),
@@ -2071,7 +2071,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #1,
+                #3,
             ),
         ),
         prop: Constant(
@@ -2158,7 +2158,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #1,
+                #3,
             ),
         ),
         prop: Constant(
@@ -2173,7 +2173,7 @@
                 Variable(
                     (
                         Atom('exports' type=inline),
-                        #1,
+                        #3,
                     ),
                 ),
             ),
@@ -2246,7 +2246,7 @@
         obj: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #1,
+                #3,
             ),
         ),
         prop: Constant(
@@ -2370,7 +2370,7 @@
         func: Variable(
             (
                 Atom('__webpack_require__' type=dynamic),
-                #1,
+                #3,
             ),
         ),
         args: [
@@ -2466,7 +2466,7 @@
         func: Variable(
             (
                 Atom('__webpack_exec__' type=dynamic),
-                #1,
+                #3,
             ),
         ),
         args: [

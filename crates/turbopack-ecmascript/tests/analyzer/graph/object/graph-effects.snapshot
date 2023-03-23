@@ -3,7 +3,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -54,7 +54,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -105,7 +105,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -156,7 +156,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -207,7 +207,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -258,7 +258,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -309,7 +309,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -360,7 +360,7 @@
         obj: Variable(
             (
                 Atom('object' type=static),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -411,7 +411,7 @@
         obj: Variable(
             (
                 Atom('object_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -462,7 +462,7 @@
         obj: Variable(
             (
                 Atom('object_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -513,7 +513,7 @@
         obj: Variable(
             (
                 Atom('object_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -564,7 +564,7 @@
         obj: Variable(
             (
                 Atom('object_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -615,7 +615,7 @@
         obj: Variable(
             (
                 Atom('unknown_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -666,7 +666,7 @@
         obj: Variable(
             (
                 Atom('unknown_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -717,7 +717,7 @@
         obj: Variable(
             (
                 Atom('unknown_spread' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -768,7 +768,7 @@
         obj: Variable(
             (
                 Atom('object2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -819,7 +819,7 @@
         obj: Variable(
             (
                 Atom('object2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -870,7 +870,7 @@
         obj: Variable(
             (
                 Atom('object2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -921,7 +921,7 @@
         obj: Variable(
             (
                 Atom('object2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -972,7 +972,7 @@
         obj: Variable(
             (
                 Atom('object2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(

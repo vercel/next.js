@@ -13,7 +13,7 @@
                     Variable(
                         (
                             Atom('value2' type=inline),
-                            #3,
+                            #4,
                         ),
                     ),
                 ],
@@ -34,7 +34,7 @@
                     Variable(
                         (
                             Atom('value' type=inline),
-                            #2,
+                            #3,
                         ),
                     ),
                 ],

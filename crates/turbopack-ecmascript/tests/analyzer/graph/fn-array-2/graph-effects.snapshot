@@ -3,7 +3,7 @@
         func: Variable(
             (
                 Atom('c' type=inline),
-                #1,
+                #2,
             ),
         ),
         args: [

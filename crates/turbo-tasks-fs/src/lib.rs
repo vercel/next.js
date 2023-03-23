@@ -99,7 +99,7 @@ impl DiskWatcher {
     fn restore_if_watching(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
         if self.watching.contains(dir_path) {
             let mut watcher = self.watcher.lock().unwrap();
-            self.start_watching(&mut watcher, dir_path, &root_path)?;
+            self.start_watching(&mut watcher, dir_path, root_path)?;
         }
         Ok(())
     }

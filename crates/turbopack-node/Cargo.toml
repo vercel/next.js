@@ -17,10 +17,14 @@ dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
 anyhow = { workspace = true }
 async-stream = "0.3.4"
 bytes = { workspace = true }
+const_format = "0.2.30"
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
+once_cell = { workspace = true }
+owo-colors = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }
@@ -30,6 +34,7 @@ turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }

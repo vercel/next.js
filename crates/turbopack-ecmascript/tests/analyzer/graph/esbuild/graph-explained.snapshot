@@ -23,11 +23,11 @@ binTargetPath = path["join"](esbuildLibDir, `pnpapi-${pkg}-${path["basename"](su
 
 command = esbuildCommandAndArgs()[0]
 
-e#5 = ???*0*
+e#10 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-e#6 = ???*0*
+e#15 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
@@ -73,7 +73,7 @@ pkg#3 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[plat
 - *0* pkg
   ⚠️  pattern without value
 
-pkg#4 = pkgAndSubpathForCurrentPlatform()["pkg"]
+pkg#7 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
 pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
 
@@ -83,6 +83,6 @@ subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath
   ⚠️  pattern without value
 
-subpath#4 = pkgAndSubpathForCurrentPlatform()["subpath"]
+subpath#7 = pkgAndSubpathForCurrentPlatform()["subpath"]
 
 x = args["concat"]("--service=0.14.12", "--ping")

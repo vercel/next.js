@@ -29,6 +29,9 @@ mod utils;
 pub mod version;
 pub mod virtual_asset;
 
+pub const PROJECT_FILESYSTEM_NAME: &str = "project";
+pub const SOURCE_MAP_ROOT_NAME: &str = "turbopack";
+
 pub fn register() {
     turbo_tasks::register();
     turbo_tasks_fs::register();
