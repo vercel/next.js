@@ -282,16 +282,6 @@ export default async function build(
         .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
       NextBuildContext.config = config
 
-      let configOutDir = 'out'
-      if (config.output === 'export' && config.distDir !== '.next') {
-        // In the past, a user had to run "next build" to generate
-        // ".next" (or whatever the distDir) followed by "next export"
-        // to generate "out" (or whatever the outDir). However, when
-        // "output: export" is configured, "next build" does both steps.
-        // So the user-configured dirDir is actually the outDir.
-        configOutDir = config.distDir
-        config.distDir = '.next'
-      }
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -2324,7 +2314,24 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-
+          const exportOptions: ExportOptions = {
+            silent: false,
+            buildExport: true,
+            debugOutput,
+            threads: config.experimental.cpus,
+            pages: combinedPages,
+            outdir: path.join(distDir, 'export'),
+            statusMessage: 'Generating static pages',
+            exportPageWorker: sharedPool
+              ? staticWorkers.exportPage.bind(staticWorkers)
+              : undefined,
+            endWorker: sharedPool
+              ? async () => {
+                  await staticWorkers.end()
+                }
+              : undefined,
+            appPaths,
+          }
           const exportConfig: NextConfigComplete = {
             ...config,
             initialPageRevalidationMap: {},
@@ -2444,28 +2451,7 @@ export default async function build(
             },
           }
 
-          const exportOptions: ExportOptions = {
-            isInvokedFromCli: false,
-            nextConfig: exportConfig,
-            silent: false,
-            buildExport: true,
-            debugOutput,
-            threads: config.experimental.cpus,
-            pages: combinedPages,
-            outdir: path.join(distDir, 'export'),
-            statusMessage: 'Generating static pages',
-            exportPageWorker: sharedPool
-              ? staticWorkers.exportPage.bind(staticWorkers)
-              : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await staticWorkers.end()
-                }
-              : undefined,
-            appPaths,
-          }
-
-          await exportApp(dir, exportOptions, nextBuildSpan)
+          await exportApp(dir, exportOptions, nextBuildSpan, exportConfig)
 
           const postBuildSpinner = createSpinner({
             prefixText: `${Log.prefixes.info} Finalizing page optimization`,
@@ -3111,19 +3097,6 @@ export default async function build(
               path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
-      }
-
-      if (config.output === 'export') {
-        const exportApp: typeof import('../export').default =
-          require('../export').default
-        const options: ExportOptions = {
-          isInvokedFromCli: false,
-          nextConfig: config,
-          silent: true,
-          threads: config.experimental.cpus,
-          outdir: path.join(dir, configOutDir),
-        }
-        await exportApp(dir, options, nextBuildSpan)
       }
 
       await nextBuildSpan

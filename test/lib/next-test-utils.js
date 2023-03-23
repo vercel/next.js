@@ -216,16 +216,13 @@ export function runNextCommand(argv, options = {}) {
     let mergedStdio = ''
 
     let stderrOutput = ''
-    if (options.stderr || options.onStderr) {
+    if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
         mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
-        }
-        if (typeof options.onStderr === 'function') {
-          options.onStderr(chunk.toString())
         }
       })
     } else {
@@ -235,16 +232,13 @@ export function runNextCommand(argv, options = {}) {
     }
 
     let stdoutOutput = ''
-    if (options.stdout || options.onStdout) {
+    if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
         mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
-        }
-        if (typeof options.onStdout === 'function') {
-          options.onStdout(chunk.toString())
         }
       })
     } else {

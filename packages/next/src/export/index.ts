@@ -145,7 +145,6 @@ const createProgress = (total: number, label: string) => {
 
 export interface ExportOptions {
   outdir: string
-  isInvokedFromCli: boolean
   silent?: boolean
   threads?: number
   debugOutput?: boolean
@@ -155,13 +154,13 @@ export interface ExportOptions {
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   appPaths?: string[]
-  nextConfig?: NextConfigComplete
 }
 
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  span: Span
+  span: Span,
+  configuration?: NextConfigComplete
 ): Promise<void> {
   const nextExportSpan = span.traceChild('next-export')
   const hasAppDir = !!options.appPaths
@@ -175,24 +174,10 @@ export default async function exportApp(
       .traceFn(() => loadEnvConfig(dir, false, Log))
 
     const nextConfig =
-      options.nextConfig ||
+      configuration ||
       (await nextExportSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
-
-    if (options.isInvokedFromCli) {
-      if (nextConfig.output === 'export') {
-        Log.warn(
-          '"next export" is no longer needed when "output: export" is configured in next.config.js'
-        )
-        return
-      } else {
-        Log.warn(
-          '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-    }
-
     const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
 
@@ -642,7 +627,7 @@ export default async function exportApp(
         )
     }
 
-    const timeout = nextConfig?.staticPageGenerationTimeout || 0
+    const timeout = configuration?.staticPageGenerationTimeout || 0
     let infoPrinted = false
     let exportPage: typeof import('./worker').default
     let endWorker: () => Promise<void>
@@ -729,22 +714,23 @@ export default async function exportApp(
             errorPaths.push(page !== path ? `${page}: ${path}` : path)
           }
 
-          if (options.buildExport) {
+          if (options.buildExport && configuration) {
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
-              nextConfig.initialPageRevalidationMap[path] =
+              configuration.initialPageRevalidationMap[path] =
                 result.fromBuildExportRevalidate
             }
 
             if (typeof result.fromBuildExportMeta !== 'undefined') {
-              nextConfig.initialPageMetaMap[path] = result.fromBuildExportMeta
+              configuration.initialPageMetaMap[path] =
+                result.fromBuildExportMeta
             }
 
             if (result.ssgNotFound === true) {
-              nextConfig.ssgNotFoundPaths.push(path)
+              configuration.ssgNotFoundPaths.push(path)
             }
 
-            const durations = (nextConfig.pageDurationMap[pathMap.page] =
-              nextConfig.pageDurationMap[pathMap.page] || {})
+            const durations = (configuration.pageDurationMap[pathMap.page] =
+              configuration.pageDurationMap[pathMap.page] || {})
             durations[path] = result.duration
           }
 
