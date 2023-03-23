@@ -75,7 +75,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
 
         let request_hash = get_request_hash(*query_vc);
         let options_vc = font_options_from_query_map(*query_vc);
-        let font_fallbacks = get_font_fallbacks(context, options_vc, request_hash);
+        let font_fallbacks = get_font_fallbacks(options_vc, request_hash);
         let properties =
             &*get_font_css_properties(options_vc, font_fallbacks, request_hash).await?;
         let file_content = formatdoc!(
@@ -164,7 +164,7 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
             "/{}.module.css",
             get_request_id(options.font_family(), request_hash).await?
         ));
-        let fallback = get_font_fallbacks(context, options, request_hash);
+        let fallback = get_font_fallbacks(options, request_hash);
 
         let stylesheet = build_stylesheet(
             font_options_from_query_map(*query_vc),

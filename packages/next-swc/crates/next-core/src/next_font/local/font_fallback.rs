@@ -1,6 +1,5 @@
 use anyhow::Result;
 use turbo_tasks::primitives::{StringVc, StringsVc, U32Vc};
-use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{options::NextFontLocalOptionsVc, request::AdjustFontFallback};
 use crate::next_font::{
@@ -10,7 +9,6 @@ use crate::next_font::{
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallbacks(
-    _context: FileSystemPathVc,
     options_vc: NextFontLocalOptionsVc,
     request_hash: U32Vc,
 ) -> Result<FontFallbacksVc> {
