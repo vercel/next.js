@@ -1052,7 +1052,7 @@ export async function renderToHTMLOrFlight(
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
-      const readable = ComponentMod.ReactServerDOMServer.renderToReadableStream(
+      const readable = ComponentMod.renderToReadableStream(
         flightData,
         clientReferenceManifest.clientModules,
         {

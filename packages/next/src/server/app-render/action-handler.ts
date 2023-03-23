@@ -40,7 +40,7 @@ export async function handleAction({
         let bound = []
 
         const workerName = 'app' + pathname
-        const { decodeReply } = ComponentMod.ReactServerDOMServer
+        const { decodeReply } = ComponentMod
 
         if (isMultipartAction) {
           const formFields: any[] = []
