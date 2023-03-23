@@ -183,11 +183,10 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  resolvedBaseUrl,
   pagesDir,
   hasServerComponents,
-}: // This is not passed yet as "paths" resolving needs a test first
-// resolvedBaseUrl,
-any) {
+}: any) {
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
@@ -197,7 +196,7 @@ any) {
     nextConfig,
     jsConfig,
     hasServerComponents,
-    // resolvedBaseUrl,
+    resolvedBaseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -250,14 +249,16 @@ any) {
     hasServerComponents,
     isServerLayer,
   })
+  baseOptions.fontLoaders = {
+    fontLoaders: [
+      'next/font/local',
+      'next/font/google',
 
-  if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
-    baseOptions.fontLoaders = {
-      fontLoaders: nextConfig.experimental.fontLoaders.map(
-        ({ loader }: any) => loader
-      ),
-      relativeFilePathFromRoot,
-    }
+      // TODO: remove this in the next major version
+      '@next/font/local',
+      '@next/font/google',
+    ],
+    relativeFilePathFromRoot,
   }
 
   const isNextDist = nextDistPath.test(filename)

@@ -15,7 +15,7 @@ export type EdgeSSRLoaderQuery = {
   appDirLoader?: string
   pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
-  hasFontLoaders: boolean
+  incrementalCacheHandlerPath?: string
 }
 
 /*
@@ -45,7 +45,7 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoader: appDirLoaderBase64,
     pagesType,
     sriEnabled,
-    hasFontLoaders,
+    incrementalCacheHandlerPath,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -92,7 +92,7 @@ export default async function edgeSSRLoader(this: any) {
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
 
     enhanceGlobals()
-
+    
     const pageType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
@@ -119,17 +119,22 @@ export default async function edgeSSRLoader(this: any) {
       const appRenderToHTML = null
     `
     }
+    
+    const incrementalCacheHandler = ${
+      incrementalCacheHandlerPath
+        ? `require("${incrementalCacheHandlerPath}")`
+        : 'null'
+    }
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
     const rscManifest = self.__RSC_MANIFEST
     const rscCssManifest = self.__RSC_CSS_MANIFEST
+    const rscServerManifest = self.__RSC_SERVER_MANIFEST
     const subresourceIntegrityManifest = ${
       sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
     }
-    const fontLoaderManifest = ${
-      hasFontLoaders ? 'self.__FONT_LOADER_MANIFEST' : 'undefined'
-    }
+    const nextFontManifest = self.__NEXT_FONT_MANIFEST
 
     const render = getRender({
       pageType,
@@ -144,12 +149,14 @@ export default async function edgeSSRLoader(this: any) {
       appRenderToHTML,
       pagesRenderToHTML,
       reactLoadableManifest,
-      serverComponentManifest: ${isServerComponent} ? rscManifest : null,
+      clientReferenceManifest: ${isServerComponent} ? rscManifest : null,
       serverCSSManifest: ${isServerComponent} ? rscCssManifest : null,
+      serverActionsManifest: ${isServerComponent} ? rscServerManifest : null,
       subresourceIntegrityManifest,
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
-      fontLoaderManifest,
+      nextFontManifest,
+      incrementalCacheHandler,
     })
 
     export const ComponentMod = pageMod

@@ -100,7 +100,7 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 - [Digital Ocean App Platform](https://docs.digitalocean.com/tutorials/app-nextjs-deploy/)
 - [Google Cloud Run](https://github.com/vercel/next.js/tree/canary/examples/with-docker)
 - [Heroku](https://elements.heroku.com/buildpacks/mars/heroku-nextjs)
-- [Railway](https://railway.app/new/starters/nextjs-prisma)
+- [Railway](https://docs.railway.app/getting-started)
 - [Render](https://render.com/docs/deploy-nextjs-app)
 
 > **Note:** There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](/docs/deployment.md#docker-image).
@@ -115,7 +115,7 @@ You can also manually deploy the [`next export`](/docs/advanced-features/static-
 
 ### Serverless
 
-- [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
+- [AWS Amplify](https://aws.amazon.com/blogs/mobile/amplify-next-js-13/)
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
 - [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
 - [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)

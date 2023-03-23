@@ -1,5 +1,5 @@
 import React from 'react'
-import { FlightRouterState } from '../../../../server/app-render'
+import type { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -80,6 +80,7 @@ describe('serverPatchReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -122,6 +123,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -227,6 +229,7 @@ describe('serverPatchReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -235,6 +238,7 @@ describe('serverPatchReducer', () => {
     })
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -280,6 +284,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {

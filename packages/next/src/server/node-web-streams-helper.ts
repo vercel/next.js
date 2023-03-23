@@ -1,5 +1,8 @@
-import type { FlightRouterState } from './app-render'
+import type { FlightRouterState } from './app-render/types'
 import { nonNullable } from '../lib/non-nullable'
+import { getTracer } from './lib/trace/tracer'
+import { AppRenderSpan } from './lib/trace/constants'
+import type RenderResult from './render-result'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate
@@ -12,10 +15,28 @@ export function encodeText(input: string) {
   return new TextEncoder().encode(input)
 }
 
-export function decodeText(input?: Uint8Array, textDecoder?: TextDecoder) {
-  return textDecoder
-    ? textDecoder.decode(input, { stream: true })
-    : new TextDecoder().decode(input)
+export function decodeText(
+  input: Uint8Array | undefined,
+  textDecoder: TextDecoder
+) {
+  return textDecoder.decode(input, { stream: true })
+}
+
+export const streamToBufferedResult = async (
+  renderResult: RenderResult
+): Promise<string> => {
+  const renderChunks: string[] = []
+  const textDecoder = new TextDecoder()
+
+  const writable = {
+    write(chunk: any) {
+      renderChunks.push(decodeText(chunk, textDecoder))
+    },
+    end() {},
+    destroy() {},
+  }
+  await renderResult.pipe(writable as any)
+  return renderChunks.join('')
 }
 
 export function readableStreamTee<T = any>(
@@ -149,7 +170,9 @@ export function renderToInitialStream({
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {
-  return ReactDOMServer.renderToReadableStream(element, streamOptions)
+  return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
+    ReactDOMServer.renderToReadableStream(element, streamOptions)
+  )
 }
 
 function createHeadInsertionTransformStream(
@@ -157,6 +180,7 @@ function createHeadInsertionTransformStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
   let freezing = false
+  const textDecoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
@@ -172,7 +196,7 @@ function createHeadInsertionTransformStream(
         controller.enqueue(chunk)
         freezing = true
       } else {
-        const content = decodeText(chunk)
+        const content = decodeText(chunk, textDecoder)
         const index = content.indexOf('</head>')
         if (index !== -1) {
           const insertedHeadContent =
@@ -289,11 +313,12 @@ export function createRootLayoutValidatorStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
   let foundBody = false
+  const textDecoder = new TextDecoder()
 
   return new TransformStream({
     async transform(chunk, controller) {
       if (!foundHtml || !foundBody) {
-        const content = decodeText(chunk)
+        const content = decodeText(chunk, textDecoder)
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
         }

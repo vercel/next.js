@@ -11,10 +11,96 @@ createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
-    // TODO-APP: enable after deploy support is added
-    skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    describe('works with api prefix correctly', () => {
+      it('statically generates correctly with no dynamic usage', async () => {
+        if (isNextStart) {
+          expect(
+            await next.readFile('.next/server/app/api/hello.json.body')
+          ).toBeTruthy()
+          expect(
+            await next.readFile('.next/server/app/api/hello.json.meta')
+          ).toBeTruthy()
+        }
+        expect(JSON.parse(await next.render('/api/hello.json'))).toEqual({
+          pathname: '/api/hello.json',
+        })
+      })
+
+      it('does not statically generate with dynamic usage', async () => {
+        if (isNextStart) {
+          expect(
+            await next
+              .readFile('.next/server/app/api/dynamic.body')
+              .catch(() => '')
+          ).toBeFalsy()
+          expect(
+            await next
+              .readFile('.next/server/app/api/dynamic.meta')
+              .catch(() => '')
+          ).toBeFalsy()
+        }
+        expect(JSON.parse(await next.render('/api/dynamic'))).toEqual({
+          pathname: '/api/dynamic',
+          query: {},
+        })
+      })
+    })
+
+    describe('works with generateStaticParams correctly', () => {
+      it.each([
+        '/static/first/data.json',
+        '/static/second/data.json',
+        '/static/three/data.json',
+      ])('responds correctly on %s', async (path) => {
+        expect(JSON.parse(await next.render(path))).toEqual({
+          params: { slug: path.split('/')[2] },
+          now: expect.any(Number),
+        })
+        if (isNextStart) {
+          await check(async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+            return 'success'
+          }, 'success')
+        }
+      })
+
+      it.each([
+        '/revalidate-1/first/data.json',
+        '/revalidate-1/second/data.json',
+        '/revalidate-1/three/data.json',
+      ])('revalidates correctly on %s', async (path) => {
+        const data = JSON.parse(await next.render(path))
+        expect(data).toEqual({
+          params: { slug: path.split('/')[2] },
+          now: expect.any(Number),
+        })
+
+        await check(async () => {
+          expect(data).not.toEqual(JSON.parse(await next.render(path)))
+          return 'success'
+        }, 'success')
+
+        if (isNextStart) {
+          await check(async () => {
+            expect(
+              await next.readFile(`.next/server/app/${path}.body`)
+            ).toBeTruthy()
+            expect(
+              await next.readFile(`.next/server/app/${path}.meta`)
+            ).toBeTruthy()
+            return 'success'
+          }, 'success')
+        }
+      })
+    })
+
     describe('basic fetch request with a response', () => {
       describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
         'made via a %s request',
@@ -47,6 +133,14 @@ createNextDescribe(
       describe('request', () => {
         it('can read query parameters', async () => {
           const res = await next.fetch('/advanced/query?ping=pong')
+
+          expect(res.status).toEqual(200)
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
+
+        it('can read query parameters (edge)', async () => {
+          const res = await next.fetch('/edge/advanced/query?ping=pong')
 
           expect(res.status).toEqual(200)
           const meta = getRequestMeta(res.headers)
@@ -117,9 +211,42 @@ createNextDescribe(
         })
       }
 
+      it('can handle handle a streaming request and streaming response (edge)', async () => {
+        const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
+        let index = 0
+        const stream = new Readable({
+          read() {
+            if (index >= body.length) return this.push(null)
+
+            this.push(body[index] + '\n')
+            index++
+          },
+        })
+
+        const res = await next.fetch('/edge/advanced/body/streaming', {
+          method: 'POST',
+          body: stream,
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual(body.join('\n') + '\n')
+      })
+
       it('can read a JSON encoded body', async () => {
         const body = { ping: 'pong' }
         const res = await next.fetch('/advanced/body/json', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
+      it('can read a JSON encoded body (edge)', async () => {
+        const body = { ping: 'pong' }
+        const res = await next.fetch('/edge/advanced/body/json', {
           method: 'POST',
           body: JSON.stringify(body),
         })
@@ -154,9 +281,43 @@ createNextDescribe(
         })
       }
 
+      it('can read a streamed JSON encoded body (edge)', async () => {
+        const body = { ping: 'pong' }
+        const encoded = JSON.stringify(body)
+        let index = 0
+        const stream = new Readable({
+          async read() {
+            if (index >= encoded.length) return this.push(null)
+
+            this.push(encoded[index])
+            index++
+          },
+        })
+        const res = await next.fetch('/edge/advanced/body/json', {
+          method: 'POST',
+          body: stream,
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
       it('can read the text body', async () => {
         const body = 'hello, world'
         const res = await next.fetch('/advanced/body/text', {
+          method: 'POST',
+          body,
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
+      it('can read the text body (edge)', async () => {
+        const body = 'hello, world'
+        const res = await next.fetch('/edge/advanced/body/text', {
           method: 'POST',
           body,
         })
@@ -312,6 +473,65 @@ createNextDescribe(
       })
     })
 
+    describe('edge functions', () => {
+      it('returns response using edge runtime', async () => {
+        const res = await next.fetch('/edge')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toContain('hello, world')
+      })
+
+      it('returns a response when headers are accessed', async () => {
+        const meta = { ping: 'pong' }
+        const res = await next.fetch('/edge/headers', {
+          headers: withRequestMeta(meta),
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.json()).toEqual(meta)
+      })
+    })
+
+    describe('dynamic = "force-static"', () => {
+      it('strips search, headers, and domain from request', async () => {
+        const res = await next.fetch('/dynamic?query=true', {
+          headers: {
+            accept: 'application/json',
+            cookie: 'session=true',
+          },
+        })
+
+        const url = 'http://localhost:3000/dynamic'
+
+        expect(res.status).toEqual(200)
+        expect(await res.json()).toEqual({
+          nextUrl: {
+            href: url,
+            search: '',
+            searchParams: null,
+            clone: url,
+          },
+          req: {
+            url,
+            headers: null,
+          },
+          headers: null,
+          cookies: null,
+        })
+      })
+    })
+
+    describe('customized metadata routes', () => {
+      it('should work if conflict with metadata routes convention', async () => {
+        const res = await next.fetch('/robots.txt')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toBe(
+          'User-agent: *\nAllow: /\n\nSitemap: https://www.example.com/sitemap.xml'
+        )
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
@@ -341,6 +561,26 @@ createNextDescribe(
             }, 'yes')
           }
         )
+      })
+
+      describe('invalid exports', () => {
+        it('should print an error when exporting a default handler in dev', async () => {
+          const res = await next.fetch('/default')
+
+          // Ensure we get a 405 (Method Not Allowed) response when there is no
+          // exported handler for the GET method.
+          expect(res.status).toEqual(405)
+
+          await check(() => {
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
+            )
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            return 'yes'
+          }, 'yes')
+        })
       })
     }
   }

@@ -16,6 +16,13 @@ const ArchName = arch()
 const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
+const infoLog = (...args: any[]) => {
+  if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
+    return
+  }
+  Log.info(...args)
+}
+
 // Allow to specify an absolute path to the custom turbopack binary to load.
 // If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
 // binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
@@ -213,7 +220,7 @@ async function loadWasm(importPath = '') {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      Log.info('Using wasm build of next-swc')
+      infoLog('Using wasm build of next-swc')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
@@ -292,7 +299,7 @@ function loadNative(isCustomTurbopack = false) {
   for (const triple of triples) {
     try {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      Log.info('Using locally built binary of @next/swc')
+      infoLog('Using locally built binary of @next/swc')
       break
     } catch (e) {}
   }
@@ -424,13 +431,17 @@ function loadNative(isCustomTurbopack = false) {
 
               let child = spawn(__INTERNAL_CUSTOM_TURBOPACK_BINARY, args, {
                 stdio: 'pipe',
-                env: {
-                  ...process.env,
-                },
               })
               child.on('message', (message: any) => {
-                console.log(message)
+                require('console').log(message)
               })
+              child.stdout.on('data', (data: any) => {
+                require('console').log(data.toString())
+              })
+              child.stderr.on('data', (data: any) => {
+                require('console').log(data.toString())
+              })
+
               child.on('close', (code: any) => {
                 if (code !== 0) {
                   reject({
@@ -459,6 +470,9 @@ function loadNative(isCustomTurbopack = false) {
 
             require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
           }
+        },
+        nextBuild: (options: unknown) => {
+          return bindings.nextBuild(options)
         },
         startTrace: (options = {}, turboTasks: unknown) =>
           bindings.runTurboTracing(

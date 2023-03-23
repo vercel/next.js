@@ -5,6 +5,7 @@ import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
+  GenerateParams,
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
@@ -12,6 +13,9 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../../build/webpack/require-hook'
+import { IncrementalCache } from '../lib/incremental-cache'
+import * as serverHooks from '../../client/components/hooks-server-context'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 
 type RuntimeConfig = any
 
@@ -39,6 +43,11 @@ export async function loadStaticPaths({
   defaultLocale,
   isAppPath,
   originalAppPath,
+  isrFlushToDisk,
+  fetchCacheKeyPrefix,
+  maxMemoryCacheSize,
+  requestHeaders,
+  incrementalCacheHandlerPath,
 }: {
   distDir: string
   pathname: string
@@ -49,6 +58,11 @@ export async function loadStaticPaths({
   defaultLocale?: string
   isAppPath?: boolean
   originalAppPath?: string
+  isrFlushToDisk?: boolean
+  fetchCacheKeyPrefix?: string
+  maxMemoryCacheSize?: number
+  requestHeaders: IncrementalCache['requestHeaders']
+  incrementalCacheHandlerPath?: string
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
@@ -84,13 +98,33 @@ export async function loadStaticPaths({
   workerWasUsed = true
 
   if (isAppPath) {
-    const generateParams = await collectGenerateParams(
-      components.ComponentMod.tree
-    )
+    const handlers = components.ComponentMod.handlers
+    const generateParams: GenerateParams = handlers
+      ? [
+          {
+            config: {
+              revalidate: handlers.revalidate,
+              dynamic: handlers.dynamic,
+              dynamicParams: handlers.dynamicParams,
+            },
+            generateStaticParams: handlers.generateStaticParams,
+            segmentPath: pathname,
+          },
+        ]
+      : await collectGenerateParams(components.ComponentMod.tree)
+
     return buildAppStaticPaths({
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
+      distDir,
+      requestHeaders,
+      incrementalCacheHandlerPath,
+      serverHooks,
+      staticGenerationAsyncStorage,
+      isrFlushToDisk,
+      fetchCacheKeyPrefix,
+      maxMemoryCacheSize,
     })
   }
 

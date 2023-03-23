@@ -31,3 +31,10 @@ export type MetadataImageModule = {
       height?: number
     }
 )
+
+export type PossibleImageFileNameConvention =
+  | 'icon'
+  | 'apple'
+  | 'favicon'
+  | 'twitter'
+  | 'opengraph'

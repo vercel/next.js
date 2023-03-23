@@ -3,7 +3,7 @@ import type { fetchServerResponse as fetchServerResponseType } from '../fetch-se
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../../server/app-render'
+} from '../../../../server/app-render/types'
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -140,6 +140,7 @@ describe('serverPatchReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -185,6 +186,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -319,6 +321,7 @@ describe('serverPatchReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -328,6 +331,7 @@ describe('serverPatchReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -376,6 +380,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {
@@ -497,6 +502,7 @@ describe('serverPatchReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -547,6 +553,7 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: true,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
       cache: {

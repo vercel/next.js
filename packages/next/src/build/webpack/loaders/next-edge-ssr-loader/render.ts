@@ -1,9 +1,10 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-import type { FontLoaderManifest } from '../../plugins/font-loader-manifest-plugin'
+import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
+import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
 import {
@@ -25,12 +26,14 @@ export function getRender({
   reactLoadableManifest,
   appRenderToHTML,
   pagesRenderToHTML,
-  serverComponentManifest,
+  clientReferenceManifest,
   subresourceIntegrityManifest,
   serverCSSManifest,
+  serverActionsManifest,
   config,
   buildId,
-  fontLoaderManifest,
+  nextFontManifest,
+  incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -45,12 +48,14 @@ export function getRender({
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
-  serverComponentManifest: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest: any
+  serverActionsManifest: any
   appServerMod: any
-  config: NextConfig
+  config: NextConfigComplete
   buildId: string
-  fontLoaderManifest: FontLoaderManifest
+  nextFontManifest: NextFontManifestPlugin
+  incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
@@ -58,7 +63,7 @@ export function getRender({
     buildManifest,
     reactLoadableManifest,
     subresourceIntegrityManifest,
-    fontLoaderManifest,
+    nextFontManifest,
     Document,
     App: appMod?.default as AppType,
   }
@@ -75,13 +80,16 @@ export function getRender({
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
-        serverComponentManifest,
+        clientReferenceManifest,
         serverCSSManifest,
+        serverActionsManifest,
       },
       appRenderToHTML,
       pagesRenderToHTML,
+      incrementalCacheHandler,
       loadComponent: async (pathname) => {
         if (isAppPath) return null
+
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -91,6 +99,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            isAppPath: !!pageMod.__next_app_webpack_require__,
             pathname,
           }
         }

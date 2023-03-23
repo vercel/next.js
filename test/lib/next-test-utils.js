@@ -314,7 +314,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
-        turbo: /initial compilation/i,
+        turbo: /started server/i,
         start: /started server/i,
       }
       if (
@@ -533,11 +533,16 @@ export async function startCleanStaticServer(dir) {
 
 // check for content in 1 second intervals timing out after
 // 30 seconds
-export async function check(contentFn, regex, hardError = true) {
+export async function check(
+  contentFn,
+  regex,
+  hardError = true,
+  maxRetries = 30
+) {
   let content
   let lastErr
 
-  for (let tries = 0; tries < 30; tries++) {
+  for (let tries = 0; tries < maxRetries; tries++) {
     try {
       content = await contentFn()
       if (typeof regex === 'string') {
@@ -557,7 +562,7 @@ export async function check(contentFn, regex, hardError = true) {
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
 
   if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
   }
   return false
 }
@@ -669,16 +674,27 @@ export async function hasRedbox(browser, expected = true) {
 
 export async function getRedboxHeader(browser) {
   return retry(
-    () =>
-      evaluate(browser, () => {
+    () => {
+      if (shouldRunTurboDevTest()) {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+            p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
           )
         const root = portal.shadowRoot
-        return root.querySelector('[data-nextjs-dialog-header]').innerText
-      }),
+        return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+      } else {
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-dialog-header]').innerText
+        })
+      }
+    },
     10000,
     500,
     'getRedboxHeader'

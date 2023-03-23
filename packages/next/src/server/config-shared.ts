@@ -16,6 +16,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  target?: string
 }
 
 export interface I18NConfig {
@@ -113,10 +114,12 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  clientRouterFilter?: boolean
+  clientRouterFilterRedirects?: boolean
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
-  fetchCache?: boolean
+  fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   preCompiledNextServer?: boolean
@@ -141,6 +144,10 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
+  /**
+   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#appdir
+   */
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -163,15 +170,9 @@ export interface ExperimentalConfig {
   forceSwcTransforms?: boolean
 
   /**
-   * The option for the minifier of [SWC compiler](https://swc.rs).
-   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   * This option is removed
    */
-  swcMinifyDebugOptions?: {
-    compress?: object
-    mangle?: object
-  }
+  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -187,10 +188,11 @@ export interface ExperimentalConfig {
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
 
-  // A list of packages that should be treated as external in the RSC server build
+  /**
+   * A list of packages that should be treated as external in the RSC server build.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages
+   */
   serverComponentsExternalPackages?: string[]
-
-  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
@@ -212,20 +214,37 @@ export interface ExperimentalConfig {
     /** in `MB` */
     memoryLimit?: number
   }
+
+  /**
+   * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#mdxrs
+   */
   mdxRs?: boolean
 
-  // Generate Route types and enable type checking for Link and Router.push, etc.
-  // This option requires `appDir` to be enabled first.
+  /**
+   * Generate Route types and enable type checking for Link and Router.push, etc.
+   * This option requires `appDir` to be enabled first.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#typedroutes
+   */
   typedRoutes?: boolean
 
   /**
    * This option is to enable running the Webpack build in a worker thread.
    */
   webpackBuildWorker?: boolean
+
+  /**
+   *
+   */
+  instrumentationHook?: boolean
 }
 
 export type ExportPathMap = {
-  [path: string]: { page: string; query?: Record<string, string | string[]> }
+  [path: string]: {
+    page: string
+    query?: Record<string, string | string[]>
+    _isAppDir?: boolean
+  }
 }
 
 /**
@@ -542,9 +561,21 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
-  output?: 'standalone'
+  /**
+   * The type of build output.
+   * - `undefined`: The default build output, `.next` directory, that works with production mode `next start` or a hosting provider like Vercel
+   * - `'standalone'`: A standalone build output, `.next/standalone` directory, that only includes necessary files/dependencies. Useful for self-hosting in a Docker container.
+   * - `'export'`: An exported build output, `out` directory, that only includes static HTML/CSS/JS. Useful for self-hosting without a Node.js server.
+   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
+   * @see [Static HTML Export](https://nextjs.org/docs/advanced-features/static-html-export)
+   */
+  output?: 'standalone' | 'export'
 
-  // A list of packages that should always be transpiled and bundled in the server
+  /**
+   * Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the
+   * `next-transpile-modules` package.
+   * @see [transpilePackages](https://beta.nextjs.org/docs/api-reference/next.config.js#transpilepackages)
+   */
   transpilePackages?: string[]
 
   skipMiddlewareUrlNormalize?: boolean
@@ -569,7 +600,6 @@ export interface NextConfig extends Record<string, any> {
 export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
-  webpackDevMiddleware: null,
   eslint: {
     ignoreDuringBuilds: false,
   },
@@ -610,7 +640,7 @@ export const defaultConfig: NextConfig = {
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
-  reactStrictMode: null,
+  reactStrictMode: false,
   httpAgentOptions: {
     keepAlive: true,
   },
@@ -620,8 +650,10 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    clientRouterFilter: false,
+    clientRouterFilterRedirects: false,
     preCompiledNextServer: false,
-    fetchCache: false,
+    fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     runtime: undefined,
@@ -656,7 +688,6 @@ export const defaultConfig: NextConfig = {
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
-    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
     amp: undefined,
@@ -667,44 +698,9 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    instrumentationHook: false,
   },
 }
-
-export function setFontLoaderDefaults(config: NextConfig) {
-  try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    require('@next/font/package.json')
-
-    const googleFontLoader = {
-      loader: '@next/font/google',
-    }
-    const localFontLoader = {
-      loader: '@next/font/local',
-    }
-    if (!config.experimental) {
-      config.experimental = {}
-    }
-    if (!config.experimental.fontLoaders) {
-      config.experimental.fontLoaders = []
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === googleFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(googleFontLoader)
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === localFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(localFontLoader)
-    }
-  } catch {}
-}
-
-setFontLoaderDefaults(defaultConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

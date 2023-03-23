@@ -11,7 +11,7 @@ const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
-  require.resolve('../../../compiled/react-server-dom-webpack/client'),
+  require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
@@ -85,7 +85,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         // ensure we reset the cache for sc_server components
         // loaded via react-server-dom-webpack
         const reactServerDomModId = require.resolve(
-          'next/dist/compiled/react-server-dom-webpack/client'
+          'next/dist/compiled/react-server-dom-webpack/client.edge'
         )
         const reactServerDomMod = require.cache[reactServerDomModId]
 

@@ -1,9 +1,12 @@
+import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
+const moduleProxy =
+  'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
 export default async function transformSource(
   this: any,
@@ -22,6 +25,46 @@ export default async function transformSource(
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.rsc = getRSCModuleInformation(source)
 
+  const isESM = this._module?.parser?.sourceType === 'module'
+
+  // A client boundary.
+  if (isESM && buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
+    const clientRefs = buildInfo.rsc.clientRefs!
+    if (clientRefs.includes('*')) {
+      return callback(
+        new Error(
+          `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+        )
+      )
+    }
+
+    // For ESM, we can't simply export it as a proxy via `module.exports`.
+    // Use multiple named exports instead.
+    const proxyFilepath = source.match(/createProxy\((.+)\)/)?.[1]
+    if (!proxyFilepath) {
+      return callback(
+        new Error(
+          `Failed to find the proxy file path in the client boundary. This is a bug in Next.js.`
+        )
+      )
+    }
+
+    let esmSource = `
+    import { createProxy } from "${moduleProxy}"
+    const proxy = createProxy(${proxyFilepath})
+    `
+    let cnt = 0
+    for (const ref of clientRefs) {
+      if (ref === 'default') {
+        esmSource += `\nexport default proxy.default`
+      } else {
+        esmSource += `\nconst e${cnt} = proxy["${ref}"]\nexport { e${cnt++} as ${ref} }`
+      }
+    }
+
+    return callback(null, esmSource, sourceMap)
+  }
+
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {
     if (noopHeadPath === this.resourcePath) {
       warnOnce(
@@ -30,5 +73,9 @@ export default async function transformSource(
     }
   }
 
-  return callback(null, source, sourceMap)
+  return callback(
+    null,
+    source.replace(RSC_MOD_REF_PROXY_ALIAS, moduleProxy),
+    sourceMap
+  )
 }

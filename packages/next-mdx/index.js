@@ -22,6 +22,7 @@ module.exports =
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
         config.resolve.alias['next-mdx-import-source-file'] = [
+          'private-next-root-dir/src/mdx-components',
           'private-next-root-dir/mdx-components',
           '@mdx-js/react',
         ]

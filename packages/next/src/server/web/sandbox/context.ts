@@ -13,9 +13,17 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
+import BufferImplementation from 'node:buffer'
+import EventsImplementation from 'node:events'
+import AssertImplementation from 'node:assert'
+import UtilImplementation from 'node:util'
+import AsyncHooksImplementation from 'node:async_hooks'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -139,6 +147,64 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
   }
 }
 
+const NativeModuleMap = (() => {
+  const mods: Record<
+    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    unknown
+  > = {
+    'node:buffer': pick(BufferImplementation, [
+      'constants',
+      'kMaxLength',
+      'kStringMaxLength',
+      'Buffer',
+      'SlowBuffer',
+    ]),
+    'node:events': pick(EventsImplementation, [
+      'EventEmitter',
+      'captureRejectionSymbol',
+      'defaultMaxListeners',
+      'errorMonitor',
+      'listenerCount',
+      'on',
+      'once',
+    ]),
+    'node:async_hooks': pick(AsyncHooksImplementation, [
+      'AsyncLocalStorage',
+      'AsyncResource',
+    ]),
+    'node:assert': pick(AssertImplementation, [
+      'AssertionError',
+      'deepEqual',
+      'deepStrictEqual',
+      'doesNotMatch',
+      'doesNotReject',
+      'doesNotThrow',
+      'equal',
+      'fail',
+      'ifError',
+      'match',
+      'notDeepEqual',
+      'notDeepStrictEqual',
+      'notEqual',
+      'notStrictEqual',
+      'ok',
+      'rejects',
+      'strict',
+      'strictEqual',
+      'throws',
+    ]),
+    'node:util': pick(UtilImplementation, [
+      '_extend' as any,
+      'callbackify',
+      'format',
+      'inherits',
+      'promisify',
+      'types',
+    ]),
+  }
+  return new Map(Object.entries(mods))
+})()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -154,6 +220,17 @@ async function createModuleContext(options: ModuleContextOptions) {
         : undefined,
     extend: (context) => {
       context.process = createProcessPolyfill(options)
+
+      Object.defineProperty(context, 'require', {
+        enumerable: false,
+        value: (id: string) => {
+          const value = NativeModuleMap.get(id)
+          if (!value) {
+            throw TypeError('Native module not found: ' + id)
+          }
+          return value
+        },
+      })
 
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()

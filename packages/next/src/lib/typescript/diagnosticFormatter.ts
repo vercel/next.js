@@ -18,10 +18,10 @@ function getFormattedLinkDiagnosticMessageText(
   if (typeof message === 'string' && diagnostic.code === 2322) {
     const match =
       message.match(
-        /Type '"(.+)"' is not assignable to type 'Route<string> | URL'\./
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\./
       ) ||
       message.match(
-        /Type '"(.+)"' is not assignable to type 'URL | Route<string>'\./
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\./
       )
 
     if (match) {
@@ -29,39 +29,60 @@ function getFormattedLinkDiagnosticMessageText(
       return `"${chalk.bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
-    } else if (message === "Type 'string' is not assignable to type 'never'.") {
+    } else if (
+      message === "Type 'string' is not assignable to type 'UrlObject'."
+    ) {
+      const relatedMessage = diagnostic.relatedInformation?.[0]?.messageText
       if (
-        diagnostic.relatedInformation?.[0]?.messageText ===
-        `The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & LinkRestProps & { href: never; }`
+        typeof relatedMessage === 'string' &&
+        relatedMessage.match(
+          /The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & /
+        )
       ) {
         return `Invalid \`href\` property of \`Link\`: the route does not exist. If it is intentional, please type it explicitly with \`as Route\`.`
       }
+    }
+  } else if (typeof message === 'string' && diagnostic.code === 2820) {
+    const match =
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'RouteImpl<.+> \| UrlObject'\. Did you mean '"(.+)"'?/
+      ) ||
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'UrlObject \| RouteImpl<.+>'\. Did you mean '"(.+)"'?/
+      )
+
+    if (match) {
+      const [, href, suggestion] = match
+      return `"${chalk.bold(
+        href
+      )}" is not an existing route. Did you mean "${chalk.bold(
+        suggestion
+      )}" instead? If it is intentional, please type it explicitly with \`as Route\`.`
     }
   }
 }
 
 function getFormattedLayoutAndPageDiagnosticMessageText(
-  baseDir: string,
+  relativeSourceFilepath: string,
   diagnostic: import('typescript').Diagnostic
 ) {
-  const message = diagnostic.messageText
-  const sourceFilepath =
-    diagnostic.file?.text.trim().match(/^\/\/ File: (.+)\n/)?.[1] || ''
+  const message =
+    typeof diagnostic.messageText === 'string'
+      ? diagnostic
+      : diagnostic.messageText
+  const messageText = message.messageText
 
-  if (sourceFilepath && typeof message !== 'string') {
-    const relativeSourceFile = path.relative(baseDir, sourceFilepath)
-    const type = /page\.[^.]+$/.test(relativeSourceFile) ? 'Page' : 'Layout'
+  if (typeof messageText === 'string') {
+    const type = /page\.[^.]+$/.test(relativeSourceFilepath) ? 'Page' : 'Layout'
 
     // Reference of error codes:
     // https://github.com/Microsoft/TypeScript/blob/main/src/compiler/diagnosticMessages.json
     switch (message.code) {
       case 2344:
-        const filepathAndType = message.messageText.match(
-          /typeof import\("(.+)"\)/
-        )
+        const filepathAndType = messageText.match(/typeof import\("(.+)"\)/)
         if (filepathAndType) {
           let main = `${type} "${chalk.bold(
-            relativeSourceFile
+            relativeSourceFilepath
           )}" does not match the required types of a Next.js ${type}.`
 
           function processNext(
@@ -173,16 +194,16 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
             }
           }
 
-          processNext(1, message.next)
+          if ('next' in message) processNext(1, message.next)
           return main
         }
 
-        const invalidExportFnArg = message.messageText.match(
+        const invalidExportFnArg = messageText.match(
           /Type 'OmitWithTag<(.+), .+, "(.+)">' does not satisfy the constraint/
         )
         if (invalidExportFnArg) {
           const main = `${type} "${chalk.bold(
-            relativeSourceFile
+            relativeSourceFilepath
           )}" has an invalid "${chalk.bold(
             invalidExportFnArg[2]
           )}" export:\n  Type "${chalk.bold(
@@ -191,12 +212,12 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           return main
         }
 
-        const invalidExportFnReturn = message.messageText.match(
+        const invalidExportFnReturn = messageText.match(
           /Type '{ __tag__: "(.+)"; __return_type__: (.+); }' does not satisfy/
         )
         if (invalidExportFnReturn) {
           let main = `${type} "${chalk.bold(
-            relativeSourceFile
+            relativeSourceFilepath
           )}" has an invalid export:\n  "${chalk.bold(
             invalidExportFnReturn[2]
           )}" is not a valid ${invalidExportFnReturn[1]} return type:`
@@ -226,27 +247,50 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
             }
           }
 
-          processNext(1, message.next)
+          if ('next' in message) processNext(1, message.next)
           return main
         }
 
         break
       case 2345:
-        const filepathAndInvalidExport = message.messageText.match(
+        const filepathAndInvalidExport = messageText.match(
           /'typeof import\("(.+)"\)'.+Impossible<"(.+)">/
         )
         if (filepathAndInvalidExport) {
           const main = `${type} "${chalk.bold(
-            relativeSourceFile
+            relativeSourceFilepath
           )}" exports an invalid "${chalk.bold(
             filepathAndInvalidExport[2]
           )}" field. ${type} should only export a default React component and configuration options. Learn more: https://nextjs.org/docs/messages/invalid-segment-export`
           return main
         }
         break
+      case 2559:
+        const invalid = messageText.match(
+          /Type '(.+)' has no properties in common with type '(.+)'/
+        )
+        if (invalid) {
+          const main = `${type} "${chalk.bold(
+            relativeSourceFilepath
+          )}" contains an invalid type "${chalk.bold(invalid[1])}" as ${
+            invalid[2]
+          }.`
+          return main
+        }
+        break
       default:
     }
   }
+}
+
+function getAppEntrySourceFilePath(
+  baseDir: string,
+  diagnostic: import('typescript').Diagnostic
+) {
+  const sourceFilepath =
+    diagnostic.file?.text.trim().match(/^\/\/ File: (.+)\n/)?.[1] || ''
+
+  return path.relative(baseDir, sourceFilepath)
 }
 
 export function getFormattedDiagnostic(
@@ -263,14 +307,18 @@ export function getFormattedDiagnostic(
 
   let message = ''
 
+  const appPath = isLayoutOrPageError
+    ? getAppEntrySourceFilePath(baseDir, diagnostic)
+    : null
   const linkReason = getFormattedLinkDiagnosticMessageText(diagnostic)
-  const layoutReason =
-    !linkReason && isLayoutOrPageError
-      ? getFormattedLayoutAndPageDiagnosticMessageText(baseDir, diagnostic)
+  const appReason =
+    !linkReason && isLayoutOrPageError && appPath
+      ? getFormattedLayoutAndPageDiagnosticMessageText(appPath, diagnostic)
       : null
+
   const reason =
     linkReason ||
-    layoutReason ||
+    appReason ||
     ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
   const category = diagnostic.category
   switch (category) {
@@ -325,6 +373,8 @@ export function getFormattedDiagnostic(
         },
         { forceColor: true }
       )
+  } else if (isLayoutOrPageError && appPath) {
+    message = chalk.cyan(appPath) + '\n' + message
   }
 
   return message

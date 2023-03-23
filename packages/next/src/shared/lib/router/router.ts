@@ -535,7 +535,7 @@ function fetchNextData({
               return { dataHref, response, text, json: {}, cacheKey }
             }
 
-            if (!hasMiddleware && response.status === 404) {
+            if (response.status === 404) {
               if (tryToParseAsJSON(text)?.notFound) {
                 return {
                   dataHref,
@@ -697,6 +697,10 @@ export default class Router implements BaseRouter {
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
   _initialMatchesMiddlewarePromise: Promise<boolean>
+  // static entries filter
+  _bfl_s?: import('../../lib/bloom-filter').BloomFilter
+  // dynamic entires filter
+  _bfl_d?: import('../../lib/bloom-filter').BloomFilter
 
   private state: Readonly<{
     route: string
@@ -770,6 +774,34 @@ export default class Router implements BaseRouter {
       styleSheets: [
         /* /_app does not need its stylesheets managed */
       ],
+    }
+
+    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      const { BloomFilter } =
+        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+      const staticFilterData:
+        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
+        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+      const dynamicFilterData: typeof staticFilterData = process.env
+        .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+      if (staticFilterData?.hashes) {
+        this._bfl_s = new BloomFilter(
+          staticFilterData.size,
+          staticFilterData.hashes
+        )
+        this._bfl_s.import(staticFilterData)
+      }
+
+      if (dynamicFilterData?.hashes) {
+        this._bfl_d = new BloomFilter(
+          dynamicFilterData.size,
+          dynamicFilterData.hashes
+        )
+        this._bfl_d.import(dynamicFilterData)
+      }
     }
 
     // Backwards compat for Router.router.events
@@ -1020,6 +1052,63 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
+  async _bfl(as: string, resolvedAs?: string, locale?: string | false) {
+    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      let matchesBflStatic = false
+      let matchesBflDynamic = false
+
+      for (const curAs of [as, resolvedAs]) {
+        if (curAs) {
+          const asNoSlash = removeTrailingSlash(
+            new URL(curAs, 'http://n').pathname
+          )
+          const asNoSlashLocale = addBasePath(
+            addLocale(asNoSlash, locale || this.locale)
+          )
+
+          if (
+            asNoSlash !==
+            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+          ) {
+            matchesBflStatic =
+              matchesBflStatic ||
+              !!this._bfl_s?.has(asNoSlash) ||
+              !!this._bfl_s?.has(asNoSlashLocale)
+
+            for (const normalizedAS of [asNoSlash, asNoSlashLocale]) {
+              // if any sub-path of as matches a dynamic filter path
+              // it should be hard navigated
+              const curAsParts = normalizedAS.split('/')
+              for (
+                let i = 0;
+                !matchesBflDynamic && i < curAsParts.length + 1;
+                i++
+              ) {
+                const currentPart = curAsParts.slice(0, i).join('/')
+                if (currentPart && this._bfl_d?.has(currentPart)) {
+                  matchesBflDynamic = true
+                  break
+                }
+              }
+            }
+
+            // if the client router filter is matched then we trigger
+            // a hard navigation
+            if (matchesBflStatic || matchesBflDynamic) {
+              handleHardNavigation({
+                url: addBasePath(
+                  addLocale(as, locale || this.locale, this.defaultLocale)
+                ),
+                router: this,
+              })
+              return new Promise(() => {})
+            }
+          }
+        }
+      }
+    }
+  }
+
   private async change(
     method: HistoryMethod,
     url: string,
@@ -1035,6 +1124,11 @@ export default class Router implements BaseRouter {
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
+
+    if (!isQueryUpdating && !options.shallow) {
+      await this._bfl(as, undefined, options.locale)
+    }
+
     let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
@@ -1399,6 +1493,8 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as, routeProps)
     }
 
+    const isErrorRoute = this.pathname === '/404' || this.pathname === '/_error'
+
     try {
       let routeInfo = await this.getRouteInfo({
         route,
@@ -1414,6 +1510,14 @@ export default class Router implements BaseRouter {
         isQueryUpdating: isQueryUpdating && !this.isFallback,
         isMiddlewareRewrite,
       })
+
+      if (!isQueryUpdating && !options.shallow) {
+        await this._bfl(
+          as,
+          'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,
+          nextState.locale
+        )
+      }
 
       if ('route' in routeInfo && isMiddlewareMatch) {
         pathname = routeInfo.route || route
@@ -1545,6 +1649,7 @@ export default class Router implements BaseRouter {
             routeProps: { shallow: false },
             locale: nextState.locale,
             isPreview: nextState.isPreview,
+            isNotFound: true,
           })
 
           if ('type' in routeInfo) {
@@ -1588,10 +1693,7 @@ export default class Router implements BaseRouter {
       // wasn't originally present. This is also why this block is before the
       // below `changeState` call which updates the browser's history (changing
       // the URL).
-      if (
-        isQueryUpdating &&
-        (this.pathname === '/404' || this.pathname === '/_error')
-      ) {
+      if (isQueryUpdating && isErrorRoute) {
         routeInfo = await this.getRouteInfo({
           route: this.pathname,
           pathname: this.pathname,
@@ -1601,6 +1703,7 @@ export default class Router implements BaseRouter {
           routeProps: { shallow: false },
           locale: nextState.locale,
           isPreview: nextState.isPreview,
+          isQueryUpdating: isQueryUpdating && !this.isFallback,
         })
 
         if ('type' in routeInfo) {
@@ -1813,6 +1916,7 @@ export default class Router implements BaseRouter {
     unstable_skipClientCache,
     isQueryUpdating,
     isMiddlewareRewrite,
+    isNotFound,
   }: {
     route: string
     pathname: string
@@ -1826,6 +1930,7 @@ export default class Router implements BaseRouter {
     unstable_skipClientCache?: boolean
     isQueryUpdating?: boolean
     isMiddlewareRewrite?: boolean
+    isNotFound?: boolean
   }) {
     /**
      * This `route` binding can change if there's a rewrite
@@ -1859,7 +1964,7 @@ export default class Router implements BaseRouter {
         dataHref: this.pageLoader.getDataHref({
           href: formatWithValidation({ pathname, query }),
           skipInterpolation: true,
-          asPath: resolvedAs,
+          asPath: isNotFound ? '/404' : resolvedAs,
           locale,
         }),
         hasMiddleware: true,
@@ -1881,7 +1986,7 @@ export default class Router implements BaseRouter {
           ? null
           : await withMiddlewareEffects({
               fetchData: () => fetchNextData(fetchNextDataParams),
-              asPath: resolvedAs,
+              asPath: isNotFound ? '/404' : resolvedAs,
               locale: locale,
               router: this,
             }).catch((err) => {
@@ -1894,6 +1999,12 @@ export default class Router implements BaseRouter {
               }
               throw err
             })
+
+      // when rendering error routes we don't apply middleware
+      // effects
+      if (data && (pathname === '/_error' || pathname === '/404')) {
+        data.effect = undefined
+      }
 
       if (isQueryUpdating) {
         if (!data) {
@@ -2321,7 +2432,9 @@ export default class Router implements BaseRouter {
                 options.unstable_skipClientCache ||
                 (options.priority &&
                   !!process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE),
-            }).then(() => false)
+            })
+              .then(() => false)
+              .catch(() => false)
           : false
       }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),

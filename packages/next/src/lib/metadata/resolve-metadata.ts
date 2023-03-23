@@ -3,13 +3,12 @@ import type {
   ResolvedMetadata,
   ResolvingMetadata,
 } from './types/metadata-interface'
-import type { AbsoluteTemplateString } from './types/metadata-types'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
-import { mergeTitle } from './resolvers/resolve-title'
+import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
-import { isClientReference } from '../../build/is-client-reference'
+import { isClientReference } from '../client-reference'
 import {
   getLayoutOrPageModule,
   LoaderTree,
@@ -21,10 +20,13 @@ import {
   resolveAppleWebApp,
   resolveAppLinks,
   resolveRobots,
+  resolveThemeColor,
   resolveVerification,
   resolveViewport,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
+import { getTracer } from '../../server/lib/trace/tracer'
+import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
@@ -43,9 +45,13 @@ function mergeStaticMetadata(
   if (!staticFilesMetadata) return
   const { icon, apple, opengraph, twitter } = staticFilesMetadata
   if (icon || apple) {
-    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
-    if (icon) metadata.icons.icon.push(...icon)
-    if (apple) metadata.icons.apple.push(...apple)
+    // if (!metadata.icons)
+    metadata.icons = {
+      icon: icon || [],
+      apple: apple || [],
+    }
+    // if (icon) metadata.icons.icon.push(...icon)
+    // if (apple) metadata.icons.apple.push(...apple)
   }
   if (twitter) {
     const resolvedTwitter = resolveTwitter(
@@ -53,7 +59,7 @@ function mergeStaticMetadata(
         card: 'summary_large_image',
         images: twitter,
       },
-      null
+      metadata.metadataBase
     )
     metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
   }
@@ -63,7 +69,7 @@ function mergeStaticMetadata(
       {
         images: opengraph,
       },
-      null
+      metadata.metadataBase
     )
     metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
   }
@@ -76,22 +82,19 @@ function merge(
   target: ResolvedMetadata,
   source: Metadata | null,
   staticFilesMetadata: StaticMetadata,
-  templateStrings: {
+  titleTemplates: {
     title: string | null
-    openGraph: string | null
     twitter: string | null
+    openGraph: string | null
   }
 ) {
-  const metadataBase = source?.metadataBase || null
+  const metadataBase = source?.metadataBase || target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
     switch (key) {
       case 'title': {
-        if (source.title) {
-          target.title = source.title as AbsoluteTemplateString
-          mergeTitle(target, templateStrings.title)
-        }
+        target.title = resolveTitle(source.title, titleTemplates.title)
         break
       }
       case 'alternates': {
@@ -101,14 +104,20 @@ function merge(
       case 'openGraph': {
         target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
         if (target.openGraph) {
-          mergeTitle(target.openGraph, templateStrings.openGraph)
+          target.openGraph.title = resolveTitle(
+            target.openGraph.title,
+            titleTemplates.openGraph
+          )
         }
         break
       }
       case 'twitter': {
         target.twitter = resolveTwitter(source.twitter, metadataBase)
         if (target.twitter) {
-          mergeTitle(target.twitter, templateStrings.twitter)
+          target.twitter.title = resolveTitle(
+            target.twitter.title,
+            titleTemplates.twitter
+          )
         }
         break
       }
@@ -133,6 +142,10 @@ function merge(
         target.robots = resolveRobots(source.robots)
         break
       }
+      case 'themeColor': {
+        target.themeColor = resolveThemeColor(source.themeColor)
+        break
+      }
       case 'archives':
       case 'assets':
       case 'bookmarks':
@@ -147,7 +160,6 @@ function merge(
       case 'applicationName':
       case 'description':
       case 'generator':
-      case 'themeColor':
       case 'creator':
       case 'publisher':
       case 'category':
@@ -175,24 +187,27 @@ function merge(
 
 async function getDefinedMetadata(
   mod: any,
-  props: any
+  props: any,
+  route: string
 ): Promise<Metadata | MetadataResolver | null> {
-  // Layer is a client component, we just skip it. It can't have metadata
-  // exported. Note that during our SWC transpilation, it should check if
-  // the exports are valid and give specific error messages.
+  // Layer is a client component, we just skip it. It can't have metadata exported.
+  // Return early to avoid accessing properties error for client references.
   if (isClientReference(mod)) {
     return null
   }
-
-  if (mod.metadata && mod.generateMetadata) {
-    throw new Error(
-      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
-    )
-  }
-
   return (
     (mod.generateMetadata
-      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      ? (parent: ResolvingMetadata) =>
+          getTracer().trace(
+            ResolveMetadataSpan.generateMetadata,
+            {
+              spanName: `generateMetadata ${route}`,
+              attributes: {
+                'next.route': route,
+              },
+            },
+            () => mod.generateMetadata(props, parent)
+          )
       : mod.metadata) || null
   )
 }
@@ -204,9 +219,8 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver: any) =>
-      interopDefault(await iconResolver()) as MetadataImageModule
+    async (iconResolver: () => Promise<MetadataImageModule>) =>
+      interopDefault(await iconResolver())
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
@@ -233,14 +247,27 @@ async function resolveStaticMetadata(components: ComponentsType) {
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
-export async function collectMetadata(
-  loaderTree: LoaderTree,
-  props: any,
+export async function collectMetadata({
+  loaderTree,
+  props,
+  array,
+  route,
+}: {
+  loaderTree: LoaderTree
+  props: any
   array: MetadataItems
-) {
-  const mod = await getLayoutOrPageModule(loaderTree)
+  route: string
+}) {
+  const [mod, modType] = await getLayoutOrPageModule(loaderTree)
+
+  if (modType) {
+    route += `/${modType}`
+  }
+
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
-  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+  const metadataExport = mod
+    ? await getDefinedMetadata(mod, props, route)
+    : null
 
   array.push([metadataExport, staticFilesMetadata])
 }
@@ -248,40 +275,84 @@ export async function collectMetadata(
 export async function accumulateMetadata(
   metadataItems: MetadataItems
 ): Promise<ResolvedMetadata> {
-  const deepClone: <T>(v: T) => T =
-    process.env.NODE_ENV === 'development'
-      ? require('next/dist/compiled/@edge-runtime/primitives/structured-clone')
-          .structuredClone
-      : (v) => v
   const resolvedMetadata = createDefaultMetadata()
 
-  let parentPromise = Promise.resolve(resolvedMetadata)
+  const resolvers: ((value: ResolvedMetadata) => void)[] = []
+  const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-  for (const item of metadataItems) {
-    const [metadataExport, staticFilesMetadata] = item
-    const currentMetadata =
-      typeof metadataExport === 'function'
-        ? metadataExport(parentPromise)
-        : metadataExport
-    const layerMetadataPromise =
-      currentMetadata instanceof Promise
-        ? currentMetadata
-        : Promise.resolve(currentMetadata)
-
-    parentPromise = parentPromise.then((resolved) => {
-      return layerMetadataPromise.then((metadata) => {
-        resolved = deepClone(resolved)
-        merge(resolved, metadata, staticFilesMetadata, {
-          title: resolved.title?.template || null,
-          openGraph: resolved.openGraph?.title?.template || null,
-          twitter: resolved.twitter?.title?.template || null,
-        })
-        return process.env.NODE_ENV === 'development'
-          ? Object.freeze(resolved)
-          : resolved
-      })
-    })
+  let titleTemplates: {
+    title: string | null
+    twitter: string | null
+    openGraph: string | null
+  } = {
+    title: null,
+    twitter: null,
+    openGraph: null,
   }
 
-  return await parentPromise
+  // Loop over all metadata items again, merging synchronously any static object exports,
+  // awaiting any static promise exports, and resolving parent metadata and awaiting any generated metadata
+
+  let resolvingIndex = 0
+  for (let i = 0; i < metadataItems.length; i++) {
+    const [metadataExport, staticFilesMetadata] = metadataItems[i]
+    let metadata: Metadata | null = null
+    if (typeof metadataExport === 'function') {
+      if (!resolvers.length) {
+        for (let j = i; j < metadataItems.length; j++) {
+          const [preloadMetadataExport] = metadataItems[j]
+          // call each `generateMetadata function concurrently and stash their resolver
+          if (typeof preloadMetadataExport === 'function') {
+            generateMetadataResults.push(
+              preloadMetadataExport(
+                new Promise((resolve) => {
+                  resolvers.push(resolve)
+                })
+              )
+            )
+          }
+        }
+      }
+
+      const resolveParent = resolvers[resolvingIndex]
+      const generatedMetadata = generateMetadataResults[resolvingIndex++]
+
+      // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
+      // In prod we just pass resolvedMetadata through without any copying.
+      const currentResolvedMetadata: ResolvedMetadata =
+        process.env.NODE_ENV === 'development'
+          ? Object.freeze(
+              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
+                resolvedMetadata
+              )
+            )
+          : resolvedMetadata
+
+      // This resolve should unblock the generateMetadata function if it awaited the parent
+      // argument. If it didn't await the parent argument it might already have a value since it was
+      // called concurrently. Regardless we await the return value before continuing on to the next layer
+      resolveParent(currentResolvedMetadata)
+      metadata =
+        generatedMetadata instanceof Promise
+          ? await generatedMetadata
+          : generatedMetadata
+    } else if (metadataExport !== null && typeof metadataExport === 'object') {
+      // This metadataExport is the object form
+      metadata = metadataExport
+    }
+
+    merge(resolvedMetadata, metadata, staticFilesMetadata, titleTemplates)
+
+    // If the layout is the same layer with page, skip the leaf layout and leaf page
+    // The leaf layout and page are the last two items
+    if (i < metadataItems.length - 2) {
+      titleTemplates = {
+        title: resolvedMetadata.title?.template || null,
+        openGraph: resolvedMetadata.openGraph?.title?.template || null,
+        twitter: resolvedMetadata.twitter?.title?.template || null,
+      }
+    }
+  }
+
+  return resolvedMetadata
 }

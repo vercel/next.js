@@ -4,6 +4,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
+import { RouteMatch } from './future/route-matches/route-match'
 
 export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
@@ -16,7 +17,17 @@ export interface RequestMeta {
   __NEXT_INIT_URL?: string
   __NEXT_CLONABLE_BODY?: CloneableBody
   __nextHadTrailingSlash?: boolean
+
+  /**
+   * True when the request matched a locale domain that was configured in the
+   * next.config.js file.
+   */
   __nextIsLocaleDomain?: boolean
+
+  /**
+   * True when the request had locale information stripped from the pathname
+   * part of the URL.
+   */
   __nextStrippedLocale?: boolean
   _nextDidRewrite?: boolean
   _nextHadBasePath?: boolean
@@ -24,6 +35,8 @@ export interface RequestMeta {
   _nextMiddlewareCookie?: string[]
   _protocol?: string
   _nextDataNormalizing?: boolean
+  _nextMatch?: RouteMatch
+  _nextIncrementalCache?: any
 }
 
 export function getRequestMeta(
