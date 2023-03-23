@@ -2,7 +2,7 @@ use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
+    primitives::{OptionStringVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -11,12 +11,13 @@ use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::AssetVc,
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    chunk::ChunkingContextVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
@@ -123,7 +124,6 @@ pub async fn create_page_source(
         client_module_options_context,
         client_resolve_options_context,
         client_compile_time_info,
-        server_root,
         runtime_entries: client_runtime_entries,
     }
     .cell()
@@ -721,7 +721,11 @@ impl SsrEntryVc {
                     EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: false,
                     },
-                    EcmascriptInputTransform::React { refresh: false },
+                    EcmascriptInputTransform::React {
+                        refresh: false,
+                        import_source: OptionStringVc::cell(None),
+                        runtime: OptionStringVc::cell(None),
+                    },
                 ]),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(inner_assets),

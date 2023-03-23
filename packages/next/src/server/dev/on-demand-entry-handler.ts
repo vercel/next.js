@@ -54,7 +54,7 @@ function treePathToEntrypoint(
   const path =
     (parentPath ? parentPath + '/' : '') +
     (parallelRouteKey !== 'children' && !segment.startsWith('@')
-      ? parallelRouteKey + '/'
+      ? `@${parallelRouteKey}/`
       : '') +
     (segment === '' ? 'page' : segment)
 

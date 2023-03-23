@@ -4,7 +4,6 @@ import {
   createValidFileMatcher,
 } from 'next/dist/server/lib/find-page-file'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
-
 import { join } from 'path'
 
 const resolveDataDir = join(__dirname, 'isolated', '_resolvedata')
@@ -71,9 +70,9 @@ describe('createPageFileMatcher', () => {
   })
 
   describe('isMetadataRouteFile', () => {
-    const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
-    const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
     it('should determine top level metadata routes', () => {
+      const pageExtensions = ['tsx', 'ts', 'jsx', 'js']
+      const fileMatcher = createValidFileMatcher(pageExtensions, 'app')
       expect(fileMatcher.isMetadataFile('app/route.js')).toBe(false)
       expect(fileMatcher.isMetadataFile('app/page.js')).toBe(false)
       expect(fileMatcher.isMetadataFile('pages/index.js')).toBe(false)

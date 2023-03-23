@@ -75,7 +75,9 @@ async function createAppRouteCode({
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
-  if (isMetadataRoute(name)) {
+
+  const filename = path.parse(resolvedPagePath).name
+  if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
@@ -109,6 +111,7 @@ async function createTreeCodeFromPath(
     resolvePath,
     resolveParallelSegments,
     loaderContext,
+    pageExtensions,
   }: {
     resolver: (
       pathname: string,
@@ -119,6 +122,7 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
+    pageExtensions: string[]
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -159,6 +163,7 @@ async function createTreeCodeFromPath(
           resolvePath,
           isRootLayer,
           loaderContext,
+          pageExtensions,
         })
       }
     } catch (err: any) {
@@ -186,7 +191,6 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
         [
           ...segments,
@@ -194,6 +198,12 @@ async function createTreeCodeFromPath(
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
         ]
       )
+
+      const parallelSegmentPath =
+        segmentPath +
+        '/' +
+        (parallelKey === 'children' ? '' : `@${parallelKey}/`) +
+        (Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment)
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -212,9 +222,13 @@ async function createTreeCodeFromPath(
         })
       )
 
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
+
       if (!rootLayout) {
-        const layoutPath = filePaths.find(
-          ([type, filePath]) => type === 'layout' && !!filePath
+        const layoutPath = definedFilePaths.find(
+          ([type]) => type === 'layout'
         )?.[1]
         rootLayout = layoutPath
 
@@ -225,9 +239,6 @@ async function createTreeCodeFromPath(
         }
       }
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      )
       props[parallelKey] = `[
         '${
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment
@@ -372,6 +383,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     loaderContext: this,
+    pageExtensions,
   })
 
   if (!rootLayout) {

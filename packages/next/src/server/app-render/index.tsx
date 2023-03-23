@@ -72,6 +72,8 @@ import {
   addSearchParamsIfPageSegment,
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -279,12 +281,20 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    async function resolveHead(
-      tree: LoaderTree,
-      parentParams: { [key: string]: any },
+    async function resolveHead({
+      tree,
+      parentParams,
+      metadataItems,
+      treePrefix = [],
+    }: {
+      tree: LoaderTree
+      parentParams: { [key: string]: any }
       metadataItems: MetadataItems
-    ): Promise<[React.ReactNode, MetadataItems]> {
+      /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+      treePrefix?: string[]
+    }): Promise<[React.ReactNode, MetadataItems]> {
       const [segment, parallelRoutes, { head, page }] = tree
+      const currentTreePrefix = [...treePrefix, segment]
       const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -306,15 +316,24 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      await collectMetadata(tree, layerProps, metadataItems)
+      await collectMetadata({
+        loaderTree: tree,
+        props: layerProps,
+        array: metadataItems,
+        route: currentTreePrefix
+          // __PAGE__ shouldn't be shown in a route
+          .filter((s) => s !== PAGE_SEGMENT_KEY)
+          .join('/'),
+      })
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const [returnedHead] = await resolveHead(
-          childTree,
-          currentParams,
-          metadataItems
-        )
+        const [returnedHead] = await resolveHead({
+          tree: childTree,
+          parentParams: currentParams,
+          metadataItems,
+          treePrefix: currentTreePrefix,
+        })
         if (returnedHead) {
           return [returnedHead, metadataItems]
         }
@@ -473,7 +492,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = await getLayoutOrPageModule(tree)
+      const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -660,6 +679,7 @@ export async function renderToHTMLOrFlight(
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              asNotFound,
             })
 
             const childProp: ChildProp = {
@@ -720,8 +740,24 @@ export async function renderToHTMLOrFlight(
 
       const isClientComponent = isClientReference(layoutOrPageMod)
 
+      // If it's a not found route, and we don't have any matched parallel
+      // routes, we try to render the not found component if it exists.
+      let notFoundComponent = {}
+      if (asNotFound && !parallelRouteMap.length && NotFound) {
+        notFoundComponent = {
+          children: (
+            <>
+              <meta name="robots" content="noindex" />
+              {notFoundStyles}
+              <NotFound />
+            </>
+          ),
+        }
+      }
+
       const props = {
         ...parallelRouteComponents,
+        ...notFoundComponent,
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
         // Params are always the current params that apply to the layout
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
@@ -828,6 +864,7 @@ export async function renderToHTMLOrFlight(
         injectedCSS,
         injectedFontPreloadTags,
         rootLayoutIncluded,
+        asNotFound,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -839,6 +876,7 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
+        asNotFound?: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
@@ -912,6 +950,7 @@ export async function renderToHTMLOrFlight(
                       injectedFontPreloadTags,
                       // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                       rootLayoutIncluded: rootLayoutIncluded,
+                      asNotFound,
                     }
                   )
 
@@ -969,6 +1008,7 @@ export async function renderToHTMLOrFlight(
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            asNotFound,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -979,11 +1019,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const [resolvedHead, metadataItems] = await resolveHead(
-        loaderTree,
-        {},
-        []
-      )
+      const [resolvedHead, metadataItems] = await resolveHead({
+        tree: loaderTree,
+        parentParams: {},
+        metadataItems: [],
+      })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1006,6 +1046,7 @@ export async function renderToHTMLOrFlight(
             injectedCSS: new Set(),
             injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
+            asNotFound: pathname === '/404',
           })
         ).slice(1),
       ]
@@ -1074,7 +1115,11 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
+    const [initialHead, metadataItems] = await resolveHead({
+      tree: loaderTree,
+      parentParams: {},
+      metadataItems: [],
+    })
 
     /**
      * A new React Component that renders the provided React Component
@@ -1156,6 +1201,9 @@ export async function renderToHTMLOrFlight(
 
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
+      {
+        spanName: `render route (app) ${pathname}`,
+      },
       async ({
         asNotFound,
       }: {
@@ -1187,7 +1235,7 @@ export async function renderToHTMLOrFlight(
         const getServerInsertedHTML = () => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
-          const errorMetaTags = []
+          const errorMetaTags = [...DEFAULT_METADATA_TAGS]
           for (
             ;
             flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
@@ -1269,7 +1317,6 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
-          const shouldNotIndex = isNotFoundError(err)
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
@@ -1281,11 +1328,7 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer,
             element: (
               <html id="__next_error__">
-                <head>
-                  {shouldNotIndex ? (
-                    <meta name="robots" content="noindex" />
-                  ) : null}
-                </head>
+                <head></head>
                 <body></body>
               </html>
             ),
@@ -1314,7 +1357,7 @@ export async function renderToHTMLOrFlight(
       }
     )
 
-    // For action requests, we handle them differently with a sepcial render result.
+    // For action requests, we handle them differently with a special render result.
     let actionId = req.headers[ACTION.toLowerCase()] as string
     const isFormAction =
       req.method === 'POST' &&
@@ -1373,6 +1416,14 @@ export async function renderToHTMLOrFlight(
             res.statusCode = 404
             return new RenderResult(await bodyResult({ asNotFound: true }))
           }
+
+          if (isFetchAction) {
+            res.statusCode = 500
+            return new RenderResult(
+              (err as Error)?.message ?? 'Internal Server Error'
+            )
+          }
+
           throw err
         }
       } else {
@@ -1381,7 +1432,11 @@ export async function renderToHTMLOrFlight(
     }
     // End of action request handling.
 
-    const renderResult = new RenderResult(await bodyResult({}))
+    const renderResult = new RenderResult(
+      await bodyResult({
+        asNotFound: pathname === '/404',
+      })
+    )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)
