@@ -782,7 +782,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
           check-latest: true
 
       - uses: actions/cache@v3
