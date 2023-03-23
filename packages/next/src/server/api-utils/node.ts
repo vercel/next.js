@@ -530,7 +530,7 @@ export async function apiResolver(
     }
 
     // Call API route method
-    await getTracer().trace(
+    const apiRouteResult = await getTracer().trace(
       NodeSpan.runHandler,
       {
         spanName: `executing api route (pages) ${page}`,
@@ -538,15 +538,23 @@ export async function apiResolver(
       () => resolver(req, res)
     )
 
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !externalResolver &&
-      !isResSent(res) &&
-      !wasPiped
-    ) {
-      console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
-      )
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof apiRouteResult !== 'undefined') {
+        if (apiRouteResult instanceof Response) {
+          throw new Error(
+            'API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: "edge"` instead: https://nextjs.org/docs/api-routes/edge-api-routes'
+          )
+        }
+        console.warn(
+          `API handler should not return a value, received ${typeof apiRouteResult}.`
+        )
+      }
+
+      if (!externalResolver && !isResSent(res) && !wasPiped) {
+        console.warn(
+          `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
+        )
+      }
     }
   } catch (err) {
     if (err instanceof ApiError) {

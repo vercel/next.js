@@ -114,41 +114,17 @@ export async function createStaticMetadataFromRoute(
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
       .forEach((filepath) => {
-        const [filename, ext] = path.basename(filepath).split('.')
-        const isDynamicResource = pageExtensions.includes(ext)
+        const imageModuleImportSource = `next-metadata-image-loader?${stringify(
+          {
+            type,
+            route,
+            pageExtensions,
+          }
+        )}!${filepath}${METADATA_RESOURCE_QUERY}`
 
-        // imageModule type: () => Promise<ImageMetaInfo>
-        const imageModule = isDynamicResource
-          ? `(async () => {
-            let { alt, size, contentType } = await import(/* webpackMode: "lazy" */ ${JSON.stringify(
-              filepath
-            )})
-
-            const props = {
-              alt,
-              type: contentType,
-              url: ${JSON.stringify(route + '/' + filename)},
-            }
-            if (size) {
-              ${
-                type === 'twitter' || type === 'openGraph'
-                  ? 'props.width = size.width; props.height = size.height;'
-                  : 'props.sizes = size.width + "x" + size.height;'
-              }
-            }
-            return props
-          })`
-          : `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              `next-metadata-image-loader?${stringify({
-                route,
-                numericSizes:
-                  type === 'twitter' || type === 'openGraph' ? '1' : undefined,
-                type,
-              })}!` +
-                filepath +
-                METADATA_RESOURCE_QUERY
-            )})`
-
+        const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+          imageModuleImportSource
+        )})`
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)
