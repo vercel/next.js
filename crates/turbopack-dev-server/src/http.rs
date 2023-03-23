@@ -11,13 +11,14 @@ use mime::Mime;
 use mime_guess::mime;
 use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::TransientInstance;
+use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
 
 use crate::source::{
     request::SourceRequest,
     resolve::{resolve_source_request, ResolveSourceRequestResult},
-    Body, Bytes, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
+    Body, BodyError, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -193,8 +194,17 @@ pub async fn process_request_with_content_source(
 async fn http_request_to_source_request(request: Request<hyper::Body>) -> Result<SourceRequest> {
     let (parts, body) = request.into_parts();
 
+    // For simplicity, we fully consume the body now and early return if there were
+    // any errors.
     let bytes: Vec<_> = body
-        .map(|bytes| bytes.map(Bytes::from))
+        .map(|bytes| {
+            bytes.map_or_else(
+                |e| Err(BodyError::new(e.to_string())),
+                // The outer Ok is consumed by try_collect, but the Body type requires a Result, so
+                // we need to double wrap.
+                |b| Ok(Ok(Bytes::from(b))),
+            )
+        })
         .try_collect::<Vec<_>>()
         .await?;
 

@@ -5,9 +5,9 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     CompletionVc, CompletionsVc, TryJoinIterExt, Value,
 };
+use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
-    json::parse_json_rope_with_source_context, File, FileContent, FileSystemEntryType,
-    FileSystemPathVc,
+    json::parse_json_with_source_context, File, FileContent, FileSystemEntryType, FileSystemPathVc,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
@@ -29,7 +29,7 @@ use turbopack_ecmascript::{
 use super::util::{emitted_assets_to_virtual_assets, EmittedAsset};
 use crate::{
     embed_js::embed_file,
-    evaluate::{evaluate, JavaScriptValue},
+    evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
 };
 
@@ -249,15 +249,17 @@ impl PostCssTransformedAssetVc {
             /* debug */ false,
         )
         .await?;
-        let JavaScriptValue::Value(val) = &*config_value else {
+
+        let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),
                 assets: Vec::new()
             }.cell());
         };
-        let processed_css: PostCssProcessingResult = parse_json_rope_with_source_context(val)
+        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val.to_str()?)
             .context("Unable to deserializate response from PostCSS transform operation")?;
+
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
         let assets = emitted_assets_to_virtual_assets(processed_css.assets);

@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use futures::StreamExt;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
@@ -75,13 +76,11 @@ async fn run_proxy_operation(
         .send(RenderProxyOutgoingMessage::Headers { data: &data })
         .await?;
 
-    let body = body.await?;
+    let mut body = body.await?.read();
     // Then, send the binary body in chunks.
-    for chunk in body.chunks() {
+    while let Some(data) = body.next().await {
         operation
-            .send(RenderProxyOutgoingMessage::BodyChunk {
-                data: chunk.as_bytes(),
-            })
+            .send(RenderProxyOutgoingMessage::BodyChunk { data: &data? })
             .await?;
     }
 

@@ -8,8 +8,12 @@ type IpcIncomingMessage = {
 
 type IpcOutgoingMessage =
   | {
-      type: "jsonValue";
+      type: "value";
       data: string;
+    }
+  | {
+      type: "end";
+      data: string | undefined;
     }
   | {
       type: "fileDependency";
@@ -44,8 +48,8 @@ export const run = async (
         try {
           const value = await getValue(ipc, ...msg.args);
           await ipc.send({
-            type: "jsonValue",
-            data: JSON.stringify(value),
+            type: "end",
+            data: value === undefined ? undefined : JSON.stringify(value),
           });
         } catch (e) {
           await ipc.sendError(e as Error);

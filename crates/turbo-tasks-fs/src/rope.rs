@@ -888,7 +888,7 @@ mod test {
         let shared = Rope::from("def");
         let rope = Rope::new(vec!["abc".into(), shared.into(), "ghi".into()]);
 
-        let chunks = rope.read().into_iter().collect::<Vec<_>>();
+        let chunks = rope.read().collect::<Vec<_>>();
 
         assert_eq!(chunks, vec!["abc", "def", "ghi"]);
     }

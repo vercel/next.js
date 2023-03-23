@@ -48,9 +48,6 @@ impl StringsVc {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Bytes(Vec<u8>);
-
-#[turbo_tasks::value(transparent)]
 pub struct Bool(bool);
 
 #[turbo_tasks::value(transparent)]
