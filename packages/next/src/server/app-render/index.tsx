@@ -74,9 +74,6 @@ import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
-const arrayEquals = (a: any[], b: any[]) =>
-  a.length === b.length && a.every((v, i) => v === b[i])
-
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 export type GetDynamicParamFromSegment = (
