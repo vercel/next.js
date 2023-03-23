@@ -52,6 +52,7 @@ swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", branch = "sokr
 turbo-malloc = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have", default-features = false }
 turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
 turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
+turbo-tasks-bytes = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
 turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }
 turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have", default-features = false }
 turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "sokra/web-547-errors-from-nodejs-do-not-have" }

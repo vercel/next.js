@@ -5,5 +5,6 @@ export default function Page() {
 }
 
 export const metadata = {
+  metadataBase: new URL('https://deploy-preview-abc.vercel.app'),
   title: 'index page',
 }
