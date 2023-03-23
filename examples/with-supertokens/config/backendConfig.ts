@@ -3,7 +3,11 @@ import EmailVerificationNode from 'supertokens-node/recipe/emailverification'
 import SessionNode from 'supertokens-node/recipe/session'
 import { appInfo } from './appInfo'
 import { AuthConfig } from '../interfaces'
+<<<<<<< HEAD
 import DashboardNode from 'supertokens-node/recipe/dashboard'
+=======
+import DashboardNode from "supertokens-node/recipe/dashboard";
+>>>>>>> a61dace7de (Update example app)
 
 export let backendConfig = (): AuthConfig => {
   return {
