@@ -9,6 +9,23 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
+import { isNextRouterError } from './components/is-next-router-error'
+
+// Since React doesn't call onerror for errors caught in error boundaries.
+const origConsoleError = window.console.error
+window.console.error = (...args) => {
+  if (isNextRouterError(args[0])) {
+    return
+  }
+  origConsoleError.apply(window.console, args)
+}
+
+window.addEventListener('error', (ev: WindowEventMap['error']): void => {
+  if (isNextRouterError(ev.error)) {
+    ev.preventDefault()
+    return
+  }
+})
 
 /// <reference types="react-dom/experimental" />
 

@@ -65,6 +65,25 @@ createNextDescribe(
       }, 'my-not-found')
     })
 
+    it('should support hoc auth wrappers', async () => {
+      const browser = await next.browser('/header')
+      await await browser.eval(`document.cookie = 'auth=0'`)
+
+      await browser.elementByCss('#authed').click()
+
+      await check(() => {
+        return browser.elementByCss('h1').text()
+      }, 'Error: Unauthorized request')
+
+      await await browser.eval(`document.cookie = 'auth=1'`)
+
+      await browser.elementByCss('#authed').click()
+
+      await check(() => {
+        return browser.elementByCss('h1').text()
+      }, 'HELLO, WORLD')
+    })
+
     it('should support importing actions in client components', async () => {
       const browser = await next.browser('/client')
 

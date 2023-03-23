@@ -135,6 +135,7 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
+import type { ExportOptions } from '../export'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -467,6 +468,7 @@ export default async function build(
           // prevent showing jest-worker internal error as it
           // isn't helpful for users and clutters output
           if (isError(err) && err.message === 'Call retries were exceeded') {
+            await telemetry.flush()
             process.exit(1)
           }
           throw err
@@ -477,6 +479,14 @@ export default async function build(
       // we dynamically generate types for each layout and page in the app
       // directory.
       if (!appDir) await startTypeChecking()
+
+      if (appDir && 'exportPathMap' in config) {
+        Log.error(
+          'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
+        )
+        await telemetry.flush()
+        process.exit(1)
+      }
 
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
@@ -513,7 +523,17 @@ export default async function build(
         appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(appDir, validFileMatcher.isAppRouterPage)
+            recursiveReadDir(appDir, (absolutePath) => {
+              if (validFileMatcher.isAppRouterPage(absolutePath)) {
+                return true
+              }
+              // For now we only collect the root /not-found page in the app
+              // directory as the 404 fallback.
+              if (validFileMatcher.isRootNotFound(absolutePath)) {
+                return true
+              }
+              return false
+            })
           )
       }
 
@@ -637,11 +657,13 @@ export default async function build(
         for (const [pagePath, appPath] of conflictingAppPagePaths) {
           Log.error(`  "${pagePath}" - "${appPath}"`)
         }
+        await telemetry.flush()
         process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
+      const hasApp404 = !!mappedAppPages?.['/not-found']
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -2148,7 +2170,8 @@ export default async function build(
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
       const useStatic404 =
-        !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
+        !customAppGetInitialProps &&
+        (!hasNonStaticErrorPage || hasPages404 || hasApp404)
 
       if (invalidPages.size > 0) {
         const err = new Error(
@@ -2291,7 +2314,7 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-          const exportOptions = {
+          const exportOptions: ExportOptions = {
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2309,7 +2332,7 @@ export default async function build(
               : undefined,
             appPaths,
           }
-          const exportConfig: any = {
+          const exportConfig: NextConfigComplete = {
             ...config,
             initialPageRevalidationMap: {},
             initialPageMetaMap: {},
@@ -2452,6 +2475,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
+              if (route === '/not-found') return
 
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
@@ -2653,9 +2677,36 @@ export default async function build(
               })
           }
 
-          // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-          if (!hasPages404 && useStatic404) {
-            await moveExportedPage('/_error', '/404', '/404', false, 'html')
+          async function moveExportedAppNotFoundTo404() {
+            return staticGenerationSpan
+              .traceChild('move-exported-app-not-found-')
+              .traceAsyncFn(async () => {
+                const orig = path.join(
+                  distDir,
+                  'server',
+                  'app',
+                  'not-found.html'
+                )
+                const updatedRelativeDest = path
+                  .join('pages', '404.html')
+                  .replace(/\\/g, '/')
+                await promises.copyFile(
+                  orig,
+                  path.join(distDir, 'server', updatedRelativeDest)
+                )
+                pagesManifest['/404'] = updatedRelativeDest
+              })
+          }
+
+          // If there's /not-found inside app, we prefer it over the pages 404
+          if (hasApp404 && useStatic404) {
+            // await moveExportedPage('/_error', '/404', '/404', false, 'html')
+            await moveExportedAppNotFoundTo404()
+          } else {
+            // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+            if (!hasPages404 && useStatic404) {
+              await moveExportedPage('/_error', '/404', '/404', false, 'html')
+            }
           }
 
           if (useDefaultStatic500) {
