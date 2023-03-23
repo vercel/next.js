@@ -36,9 +36,7 @@ fn run_test(input: &Path, output: &Path, mode: ExportFilter) {
                     pragma_frag: Some("__jsxFrag".into()),
                     throw_if_namespace: false.into(),
                     development: false.into(),
-                    use_builtins: true.into(),
-                    use_spread: true.into(),
-                    refresh: Default::default(),
+                    ..Default::default()
                 },
                 top_level_mark,
             );

@@ -1,5 +1,7 @@
+// see vercel/turbo crates/turbopack-ecmascript/src/magic_identifier.rs for the rust version
+
 function decodeHex(hexStr: string): string {
-  if (hexStr.trim() == "") {
+  if (hexStr.trim() === "") {
     throw new Error("can't decode empty hex");
   }
 
@@ -36,38 +38,39 @@ function decodeMagicIdentifier(identifier: string): string {
     const char = inner[i];
 
     if (mode === Mode.Text) {
-      if (char == "_") {
+      if (char === "_") {
         mode = Mode.Underscore;
-      } else if (char == "$") {
+      } else if (char === "$") {
         mode = Mode.Hex;
       } else {
         output += char;
       }
     } else if (mode === Mode.Underscore) {
-      if (char == "_") {
+      if (char === "_") {
         output += " ";
         mode = Mode.Text;
-      } else if (char == "$") {
+      } else if (char === "$") {
         output += "_";
         mode = Mode.Hex;
       } else {
+        output += "_";
         output += char;
         mode = Mode.Text;
       }
     } else if (mode === Mode.Hex) {
-      if (buffer.length == 2) {
+      if (buffer.length === 2) {
         output += decodeHex(buffer);
         buffer = "";
       }
 
-      if (char == "_") {
-        if (buffer != "") {
+      if (char === "_") {
+        if (buffer !== "") {
           throw new Error(`invalid hex: \`${buffer}\``);
         }
 
         mode = Mode.LongHex;
-      } else if (char == "$") {
-        if (buffer != "") {
+      } else if (char === "$") {
+        if (buffer !== "") {
           throw new Error(`invalid hex: \`${buffer}\``);
         }
 
@@ -76,9 +79,9 @@ function decodeMagicIdentifier(identifier: string): string {
         buffer += char;
       }
     } else if (mode === Mode.LongHex) {
-      if (char == "_") {
+      if (char === "_") {
         throw new Error(`invalid hex: \`${buffer + char}\``);
-      } else if (char == "$") {
+      } else if (char === "$") {
         output += decodeHex(buffer);
         buffer = "";
 
