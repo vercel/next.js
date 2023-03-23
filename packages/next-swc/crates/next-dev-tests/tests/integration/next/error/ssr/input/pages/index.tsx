@@ -57,7 +57,9 @@ function runTests(
       expect(issues.innerHTML).toContain('Error during SSR Rendering')
       expect(issues.innerHTML).toContain('Error: Broken page (expected error)')
       expect(issues.innerHTML).toContain('input/pages/broken.tsx:2')
-      expect(issues.innerHTML).toContain("throw new Error('Broken page')")
+      expect(issues.innerHTML).toContain(
+        "throw new Error('Broken page (expected error)')"
+      )
     },
     TIMEOUT
   )
@@ -84,7 +86,7 @@ function runTests(
       expect(issues.innerHTML).toContain('Error: Broken app (expected error)')
       // TODO: Fix this
       // expect(issues.innerHTML).toContain('input/app/broken-app/page.tsx:2')
-      // expect(issues.innerHTML).toContain("throw new Error('Broken app')")
+      // expect(issues.innerHTML).toContain("throw new Error('Broken app ')")
     },
     TIMEOUT
   )
