@@ -96,6 +96,7 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 
 export * from './base-server'
 
@@ -1610,10 +1611,25 @@ export default class NextNodeServer extends BaseServer {
             // Analyze the destination url to update the locale in the query if
             // it is enabled.
             if (this.i18nProvider) {
-              const defaultLocale = parsedUrl.query.__nextDefaultLocale
-              const { detectedLocale, inferredFromDefault } =
-                this.i18nProvider.analyze(newUrl, { defaultLocale })
+              // Base path should be stripped before we analyze the destination
+              // url for locales if it is enabled.
+              let pathname = newUrl
+              if (this.nextConfig.basePath) {
+                pathname = removePathPrefix(pathname, this.nextConfig.basePath)
+              }
 
+              // Assume the default locale from the query. We do this to ensure
+              // that if the rewrite is specified without a locale we can
+              // fallback to the correct locale. The domain didn't change, so
+              // we can use the same default as before.
+              const defaultLocale = parsedUrl.query.__nextDefaultLocale
+
+              // Analyze the pathname to see if it detects a locale.
+              const { detectedLocale, inferredFromDefault } =
+                this.i18nProvider.analyze(pathname, { defaultLocale })
+
+              // We update the locale in the query if it is detected. If it
+              // wasn't detected it will fallback to the default locale.
               parsedUrl.query.__nextLocale = detectedLocale
 
               // Mark if the locale was inferred from the default locale.
