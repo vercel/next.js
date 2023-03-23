@@ -28,7 +28,7 @@ describe('useReportWebVitals hook', () => {
     let eventsCount = 0
     const browser = await next.browser('/report-web-vitals', {
       beforePageLoad: (page) => {
-        page.route('https://vitals.vercel-insights.com/v1/vitals', (route) => {
+        page.route('https://example.vercel.sh/vitals', (route) => {
           if (countEvents) {
             eventsCount += 1
           }

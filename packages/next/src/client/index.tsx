@@ -911,5 +911,3 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
   render(renderCtx)
 }
-
-export { useReportWebVitals } from './web-vitals'
