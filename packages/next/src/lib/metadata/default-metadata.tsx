@@ -1,3 +1,4 @@
+import React from 'react'
 import type { ResolvedMetadata } from './types/metadata-interface'
 
 export const createDefaultMetadata = (): ResolvedMetadata => {
@@ -42,3 +43,12 @@ export const createDefaultMetadata = (): ResolvedMetadata => {
     other: {},
   }
 }
+
+export const DEFAULT_METADATA_TAGS = [
+  <meta charSet="utf-8" key="charset" />,
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+    key="viewport"
+  />,
+]

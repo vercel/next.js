@@ -22,6 +22,12 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    // TODO: remove after v16 is officially deprecated
+    if (process.version.startsWith('v16.')) {
+      it('should skip for v16 node.js', () => {})
+      return
+    }
+
     let prerenderManifest
 
     beforeAll(async () => {
