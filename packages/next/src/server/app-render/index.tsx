@@ -437,7 +437,8 @@ export async function renderToHTMLOrFlight(
         template,
         error,
         loading,
-        page,
+        defaultPage,
+        page = defaultPage,
         'not-found': notFound,
       } = components
       const layoutOrPagePath = layout?.[1] || page?.[1]

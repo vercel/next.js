@@ -17,6 +17,7 @@ import {
 } from './metadata/discover'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { promises as fs } from 'fs'
 
 export type AppLoaderOptions = {
   name: string
@@ -56,6 +57,8 @@ export type ComponentsType = {
   readonly page?: ModuleReference
 } & {
   readonly metadata?: CollectedMetadata
+} & {
+  readonly defaultPage?: ModuleReference
 }
 
 async function createAppRouteCode({
@@ -131,6 +134,37 @@ async function createTreeCodeFromPath(
 
   let rootLayout: string | undefined
   let globalError: string | undefined
+
+  async function resolveAdjacentParallelSegments(
+    segmentPath: string
+  ): Promise<string[]> {
+    const absoluteSegmentPath = await resolver(
+      `${appDirPrefix}${segmentPath}`,
+      true
+    )
+
+    if (!absoluteSegmentPath) {
+      return []
+    }
+
+    // We need to resolve all parallel routes in this level.
+    const files = await fs.readdir(absoluteSegmentPath)
+
+    const parallelSegments: string[] = ['children']
+
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(absoluteSegmentPath, file)
+        const stat = await fs.stat(filePath)
+
+        if (stat.isDirectory() && file.startsWith('@')) {
+          parallelSegments.push(file.slice(1))
+        }
+      })
+    )
+
+    return parallelSegments
+  }
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -257,6 +291,34 @@ async function createTreeCodeFromPath(
       ]`
     }
 
+    const adjacentParallelSegments = await resolveAdjacentParallelSegments(
+      segmentPath
+    )
+
+    for (const adjacentParallelSegment of adjacentParallelSegments) {
+      if (!props[adjacentParallelSegment]) {
+        const actualSegment =
+          adjacentParallelSegment === 'children'
+            ? ''
+            : `@${adjacentParallelSegment}`
+        const defaultPath =
+          (await resolver(
+            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+          )) ??
+          (await resolver(`next/dist/client/components/parallel-route-default`))
+
+        props[adjacentParallelSegment] = `[
+          '__DEFAULT__',
+          {},
+          {
+            defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              defaultPath
+            )}), ${JSON.stringify(defaultPath)}],
+          }
+        ]`
+      }
+    }
+
     return {
       treeCode: `{
         ${Object.entries(props)
@@ -316,6 +378,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
+
   const resolveParallelSegments = (
     pathname: string
   ): [string, string | string[]][] => {
