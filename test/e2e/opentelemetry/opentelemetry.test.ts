@@ -19,21 +19,6 @@ createNextDescribe(
         .map((line) => JSON.parse(line))
     }
 
-    /** There were issues where OTEL might not be initialized for first few requests (this is a bug).
-     * It made our tests, flaky. This should make tests deterministic.
-     */
-    const waitForOtelToInitialize = async () => {
-      return
-      await check(
-        async () =>
-          await next
-            .readFile(traceFile)
-            .then(() => 'ok')
-            .catch(() => 'err'),
-        'ok'
-      )
-    }
-
     const waitForRootSpan = async (numberOfRootTraces: number) => {
       await check(async () => {
         const spans = await getTraces()
@@ -72,10 +57,6 @@ createNextDescribe(
     const cleanTraces = async () => {
       await next.patchFile(traceFile, '')
     }
-
-    beforeAll(async () => {
-      await waitForOtelToInitialize()
-    })
 
     afterEach(async () => {
       await cleanTraces()
