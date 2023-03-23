@@ -1,3 +1,4 @@
+'use client'
 import { useState } from 'react'
 import Image from 'next/image'
 
@@ -27,7 +28,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="2"
-        src={clicked ? require('../public/test.png') : red}
+        src={clicked ? require('../../public/test.png') : red}
         placeholder={clicked ? 'blur' : 'empty'}
         width="256"
         height="256"

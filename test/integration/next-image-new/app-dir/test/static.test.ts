@@ -152,35 +152,23 @@ const runTests = (isDev) => {
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
-
-  it('should load staticprops imported image', async () => {
-    const src = await browser
-      .elementById('basic-staticprop')
-      .getAttribute('src')
-    expect(src).toMatch(
-      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fexif-rotation(.+)\.jpg&w=256&q=75/
-    )
-    const fullSrc = new URL(src, `http://localhost:${appPort}`)
-    const res = await fetch(fullSrc)
-    expect(res.status).toBe(200)
-  })
 }
 
 describe('Build Error Tests', () => {
   it('should throw build error when import statement is used with missing file', async () => {
     await indexPage.replace(
-      '../public/foo/test-rect.jpg',
-      '../public/foo/test-rect-broken.jpg'
+      '../../public/foo/test-rect.jpg',
+      '../../public/foo/test-rect-broken.jpg'
     )
 
     const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
     await indexPage.restore()
 
     expect(stderr).toContain(
-      "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
+      "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
     )
     // should contain the importing module
-    expect(stderr).toContain('./pages/static-img.js')
+    expect(stderr).toContain('./app/static-img/page.js')
     // should contain a import trace
     expect(stderr).not.toContain('Import trace for requested module')
   })

@@ -1,3 +1,4 @@
+'use client'
 import { useState } from 'react'
 import Image from 'next/image'
 
@@ -83,7 +84,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="9"
-        src={require('../public/test.png')}
+        src={require('../../public/test.png')}
         placeholder="blur"
         idToCount={idToCount}
         setIdToCount={setIdToCount}
