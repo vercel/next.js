@@ -12,3 +12,17 @@ export function Item({ id1, id2 }) {
     }
     return <Button action={deleteItem}>Delete</Button>;
 }
+
+const f = (x) => {
+    async function g(y, ...z) {
+        'use server'
+        return x + y + z[0]
+    }
+}
+
+const g = (x) => {
+    f = async (y, ...z) => {
+        'use server'
+        return x + y + z[0]
+    }
+}

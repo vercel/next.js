@@ -3,6 +3,12 @@ import path from 'path'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
+const cacheHeader = {
+  none: 'no-cache, no-store',
+  longCache: 'public, immutable, no-transform, max-age=31536000',
+  revalidate: 'public, max-age=0, must-revalidate',
+}
+
 type MetadataRouteLoaderOptions = {
   pageExtensions: string[]
 }
@@ -29,7 +35,13 @@ function getContentType(resourcePath: string) {
 }
 
 // Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
-function getStaticRouteCode(resourcePath: string) {
+function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
+  const cache =
+    fileBaseName === 'favicon'
+      ? 'public, max-age=0, must-revalidate'
+      : process.env.NODE_ENV !== 'production'
+      ? cacheHeader.none
+      : cacheHeader.longCache
   return `\
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -46,7 +58,7 @@ export function GET() {
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'Cache-Control': ${JSON.stringify(cache)},
     },
   })
 }
@@ -71,7 +83,7 @@ export async function GET() {
   return new NextResponse(content, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
     },
   })
 }
@@ -83,10 +95,8 @@ function getDynamicImageRouteCode(resourcePath: string) {
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
 
-export async function GET(req, ctx) {
-  const res = await handler({ params: ctx.params })
-  res.headers.set('Cache-Control', 'public, max-age=0, must-revalidate')
-  return res
+export function GET(req, ctx) {
+  return handler({ params: ctx.params })
 }
 `
 }
@@ -114,7 +124,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
         code = getDynamicImageRouteCode(resourcePath)
       }
     } else {
-      code = getStaticRouteCode(resourcePath)
+      code = getStaticRouteCode(resourcePath, fileBaseName)
     }
 
     return code
