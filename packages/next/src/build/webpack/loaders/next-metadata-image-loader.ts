@@ -1,21 +1,33 @@
+/*
+ * This loader is responsible for extracting the metadata image info for rendering in html
+ */
+
 import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
 } from './metadata/types'
+import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
 interface Options {
   route: string
-  numericSizes: boolean
   type: PossibleImageFileNameConvention
+  pageExtensions: string[]
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { type, route, numericSizes } = options
-  const context = this.rootContext
+  const { type, route, pageExtensions } = options
+  const numericSizes = type === 'twitter' || type === 'openGraph'
+  const { resourcePath, rootContext: context } = this
+  const { name: filename, ext } = path.parse(resourcePath)
+
+  let extension = ext.slice(1)
+  if (extension === 'jpg') {
+    extension = 'jpeg'
+  }
 
   const opts = { context, content }
 
@@ -30,15 +42,37 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     type === 'favicon'
       ? ''
       : loaderUtils.interpolateName(this, '[contenthash]', opts)
+
   const outputPath =
     route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
 
-  let extension = loaderUtils.interpolateName(this, '[ext]', opts)
-  if (extension === 'jpg') {
-    extension = 'jpeg'
+  const isDynamicResource = pageExtensions.includes(extension)
+  if (isDynamicResource) {
+    // re-export and spread as `exportedImageData` to avoid non-exported error
+    return `\
+    import * as exported from ${JSON.stringify(resourcePath)}
+
+    const exportedImageData = { ...exported }
+    const imageData = {
+      alt: exportedImageData.alt,
+      type: exportedImageData.contentType,
+      url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
+    }
+    const { size } = exportedImageData
+    if (size) {
+      ${
+        type === 'twitter' || type === 'openGraph'
+          ? 'imageData.width = size.width; imageData.height = size.height;'
+          : 'imageData.sizes = size.width + "x" + size.height;'
+      }
+    }
+    export default imageData`
   }
 
-  const imageSize = await getImageSize(content, extension).catch((err) => err)
+  const imageSize = await getImageSize(
+    content,
+    extension as 'avif' | 'webp' | 'png' | 'jpeg'
+  ).catch((err) => err)
 
   if (imageSize instanceof Error) {
     const err = imageSize
