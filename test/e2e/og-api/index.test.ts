@@ -58,7 +58,7 @@ describe('og-api', () => {
       const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
       expect(res.status).toBe(500)
       expect(await res.text()).toContain(
-        `API handler returned a Response object in the Node.js runtime, this is not supported.`
+        `API route returned a Response object in the Node.js runtime, this is not supported.`
       )
     })
   }
