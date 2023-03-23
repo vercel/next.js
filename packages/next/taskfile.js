@@ -97,8 +97,8 @@ export async function capsize_metrics() {
     'dist/server/capsize-font-metrics.json'
   )
 
-  fs.outputJson(outputPathSrc, entireMetricsCollection, { spaces: 2 })
-  fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
+  await fs.outputJson(outputPathSrc, entireMetricsCollection, { spaces: 2 })
+  await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 
 export async function ncc_next_server(task, opts) {

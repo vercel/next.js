@@ -700,7 +700,6 @@ importers:
       ws: 8.2.3
       zod: 3.21.4
     dependencies:
-      '@capsizecss/metrics': 1.1.0
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
@@ -733,6 +732,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
+      '@capsizecss/metrics': 1.1.0
       '@edge-runtime/cookies': 3.0.4
       '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
@@ -4311,7 +4311,7 @@ packages:
 
   /@capsizecss/metrics/1.1.0:
     resolution: {integrity: sha512-HnnFHi/WXkvwueKEaQbBVsBSFcBG8xoumbHlI4+tIMUv7oqmtqDsrm48cHREFl1MfFuowNP96AJVHj17JH+VyA==}
-    dev: false
+    dev: true
 
   /@cspotcode/source-map-support/0.8.1:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
