@@ -39,9 +39,13 @@ async function endpoint(id, ...args) {
 }
 
 // Using CJS to avoid this to be tree-shaken away due to unused exports.
-${individualActions.map(([id]) => {
-  return `module.exports['${id}'] = endpoint.bind(null, '${id}')`
-})}
+module.exports = {
+${individualActions
+  .map(([id]) => {
+    return `  '${id}': endpoint.bind(null, '${id}'),`
+  })
+  .join('\n')}
+}
 `
 }
 
