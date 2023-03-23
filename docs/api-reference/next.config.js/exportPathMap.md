@@ -4,7 +4,7 @@ description: Customize the pages that will be exported as HTML files when using 
 
 # exportPathMap
 
-> This feature is exclusive to `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
+> This feature is exclusive to `next export` and currently **deprecated** in favor of `getStaticPaths` with `pages` or `generateStaticParams` with `app`.
 
 <details>
   <summary><b>Examples</b></summary>
@@ -79,7 +79,7 @@ module.exports = {
 next export -o outdir
 ```
 
-> **Warning**: Using `exportPathMap` for defining routes with any `getStaticPaths` powered page is now ignored and gets overridden. We recommend not to use them together.
+> **Warning**: Using `exportPathMap` is deprecated and is overridden by `getStaticPaths` inside `pages`. We recommend not to use them together.
 
 ## Related
 
