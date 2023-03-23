@@ -927,10 +927,7 @@ export async function renderToHTMLOrFlight(
           // Last item in the tree
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
-          flightRouterState[3] === 'refetch' ||
-          // The layout needs to be re-rendered because the parallel slots differ,
-          // so that the layout can render the correct components in the new slots.
-          !arrayEquals(parallelRoutesKeys, Object.keys(flightRouterState[1]))
+          flightRouterState[3] === 'refetch'
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           return [
