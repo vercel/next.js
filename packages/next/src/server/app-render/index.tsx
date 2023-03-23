@@ -679,6 +679,7 @@ export async function renderToHTMLOrFlight(
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              asNotFound,
             })
 
             const childProp: ChildProp = {
@@ -739,8 +740,24 @@ export async function renderToHTMLOrFlight(
 
       const isClientComponent = isClientReference(layoutOrPageMod)
 
+      // If it's a not found route, and we don't have any matched parallel
+      // routes, we try to render the not found component if it exists.
+      let notFoundComponent = {}
+      if (asNotFound && !parallelRouteMap.length && NotFound) {
+        notFoundComponent = {
+          children: (
+            <>
+              <meta name="robots" content="noindex" />
+              {notFoundStyles}
+              <NotFound />
+            </>
+          ),
+        }
+      }
+
       const props = {
         ...parallelRouteComponents,
+        ...notFoundComponent,
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
         // Params are always the current params that apply to the layout
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
@@ -847,6 +864,7 @@ export async function renderToHTMLOrFlight(
         injectedCSS,
         injectedFontPreloadTags,
         rootLayoutIncluded,
+        asNotFound,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -858,6 +876,7 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
+        asNotFound?: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
@@ -931,6 +950,7 @@ export async function renderToHTMLOrFlight(
                       injectedFontPreloadTags,
                       // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                       rootLayoutIncluded: rootLayoutIncluded,
+                      asNotFound,
                     }
                   )
 
@@ -988,6 +1008,7 @@ export async function renderToHTMLOrFlight(
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            asNotFound,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1025,6 +1046,7 @@ export async function renderToHTMLOrFlight(
             injectedCSS: new Set(),
             injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
+            asNotFound: pathname === '/404',
           })
         ).slice(1),
       ]
@@ -1410,7 +1432,11 @@ export async function renderToHTMLOrFlight(
     }
     // End of action request handling.
 
-    const renderResult = new RenderResult(await bodyResult({}))
+    const renderResult = new RenderResult(
+      await bodyResult({
+        asNotFound: pathname === '/404',
+      })
+    )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)

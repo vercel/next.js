@@ -121,31 +121,27 @@ export const resolveTwitter: FieldResolverWithMetadataBase<'twitter'> = (
 ) => {
   if (!twitter) return null
   const resolved = {
-    title: twitter.title,
+    ...twitter,
+    card: 'card' in twitter ? twitter.card : 'summary',
   } as ResolvedTwitterMetadata
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
   resolved.images = resolveImages(twitter.images, metadataBase)
 
-  if ('card' in twitter) {
-    resolved.card = twitter.card
-    switch (twitter.card) {
+  if ('card' in resolved) {
+    switch (resolved.card) {
       case 'player': {
-        // @ts-ignore
-        resolved.players = resolveAsArrayOrUndefined(twitter.players) || []
+        resolved.players = resolveAsArrayOrUndefined(resolved.players) || []
         break
       }
       case 'app': {
-        // @ts-ignore
-        resolved.app = twitter.app || {}
+        resolved.app = resolved.app || {}
         break
       }
       default:
         break
     }
-  } else {
-    resolved.card = 'summary'
   }
 
   return resolved
