@@ -401,14 +401,21 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                             writeln!(message, "    at {} ({}:{}:{})", frame.function_name, frame.url, frame.line_number, frame.column_number)?;
                         }
                     }
+                    let expected_error = !message.contains("(expected error)");
                     let message = message.trim_end();
                     if !is_debugging {
-                        return Err(anyhow!(
-                            "Exception throw in page: {}",
-                            message
-                        ))
+                        if !expected_error {
+                            return Err(anyhow!(
+                                "Exception throw in page: {}",
+                                message
+                            ))
+                        }
                     } else {
-                        println!("Exception throw in page (this would fail the test case without TURBOPACK_DEBUG_BROWSER):\n{}", message);
+                        if expected_error {
+                            println!("Exception throw in page:\n{}", message);
+                        } else {
+                            println!("Exception throw in page (this would fail the test case without TURBOPACK_DEBUG_BROWSER):\n{}", message);
+                        }
                     }
                 } else {
                     return Err(anyhow!("Error events channel ended unexpectedly"));
