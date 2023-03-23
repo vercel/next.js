@@ -127,7 +127,6 @@ impl<C: Comments> ServerActions<C> {
         ident: &Ident,
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
-        call_expr_and_ident: Option<(&mut CallExpr, CallExpr, Ident)>,
         return_paren: bool,
     ) -> (Option<Box<ParenExpr>>, Option<Box<Function>>) {
         let action_name: JsWord = gen_ident(&mut self.ident_cnt);
@@ -148,7 +147,7 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions.push(export_name.to_string());
 
         // If it's already a top level function, we don't need to hoist it.
-        if self.top_level && arrow.is_none() && call_expr_and_ident.is_none() {
+        if self.top_level && arrow.is_none() {
             annotate_ident_as_action(
                 &mut self.annotations,
                 ident.clone(),
@@ -402,60 +401,6 @@ impl<C: Comments> ServerActions<C> {
                 }
 
                 return (None, Some(Box::new(new_fn)));
-            } else if let Some((c, original_call, inner_action_ident)) = call_expr_and_ident {
-                let mut arrow_annotations = Vec::new();
-                annotate_ident_as_action(
-                    &mut arrow_annotations,
-                    ident.clone(),
-                    vec![],
-                    self.file_name.to_string(),
-                    export_name.to_string(),
-                    true,
-                    Some(inner_action_ident),
-                );
-
-                self.extra_items
-                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                        span: DUMMY_SP,
-                        decl: Decl::Var(Box::new(VarDecl {
-                            span: DUMMY_SP,
-                            kind: VarDeclKind::Const,
-                            declare: Default::default(),
-                            decls: vec![VarDeclarator {
-                                span: DUMMY_SP,
-                                name: action_ident.into(),
-                                init: Some(Box::new(Expr::Call(c.clone()))),
-                                definite: Default::default(),
-                            }],
-                        })),
-                    })));
-
-                // Create a paren expr to wrap all annotations:
-                // ($ACTION = hoc(...), $ACTION.$$id = "..", .., $ACTION)
-                let mut exprs = vec![Box::new(Expr::Assign(AssignExpr {
-                    span: DUMMY_SP,
-                    left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.clone().into()))),
-                    op: op!("="),
-                    right: Box::new(Expr::Call(original_call)),
-                }))];
-                exprs.extend(arrow_annotations.into_iter().map(|a| {
-                    if let Stmt::Expr(ExprStmt { expr, .. }) = a {
-                        expr
-                    } else {
-                        unreachable!()
-                    }
-                }));
-                exprs.push(Box::new(Expr::Ident(ident.clone())));
-
-                let new_paren = ParenExpr {
-                    span: DUMMY_SP,
-                    expr: Box::new(Expr::Seq(SeqExpr {
-                        span: DUMMY_SP,
-                        exprs,
-                    })),
-                };
-
-                return (Some(Box::new(new_paren)), None);
             }
         }
 
@@ -564,7 +509,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let (_, maybe_new_fn) = self.add_action_annotations_and_maybe_hoist(
                 &f.ident,
                 Some(&mut f.function),
-                None,
                 None,
                 false,
             );
@@ -702,7 +646,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let ident = private_ident!(action_name);
 
                 let (maybe_new_paren, _) =
-                    self.add_action_annotations_and_maybe_hoist(&ident, None, Some(a), None, true);
+                    self.add_action_annotations_and_maybe_hoist(&ident, None, Some(a), true);
 
                 *n = attach_name_to_expr(
                     ident,
@@ -732,7 +676,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let (maybe_new_paren, _) = self.add_action_annotations_and_maybe_hoist(
                     ident,
                     Some(&mut f.function),
-                    None,
                     None,
                     true,
                 );
