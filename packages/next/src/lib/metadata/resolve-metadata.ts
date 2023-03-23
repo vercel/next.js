@@ -27,6 +27,8 @@ import {
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
+import { Twitter } from './types/twitter-types'
+import { OpenGraph } from './types/opengraph-types'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
@@ -43,35 +45,27 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata
 ) {
   if (!staticFilesMetadata) return
-  const { icon, apple, opengraph, twitter } = staticFilesMetadata
+  const { icon, apple, openGraph, twitter } = staticFilesMetadata
   if (icon || apple) {
-    // if (!metadata.icons)
     metadata.icons = {
       icon: icon || [],
       apple: apple || [],
     }
-    // if (icon) metadata.icons.icon.push(...icon)
-    // if (apple) metadata.icons.apple.push(...apple)
   }
   if (twitter) {
     const resolvedTwitter = resolveTwitter(
-      {
-        card: 'summary_large_image',
-        images: twitter,
-      },
+      { ...metadata.twitter, images: twitter } as Twitter,
       metadata.metadataBase
     )
-    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
+    metadata.twitter = resolvedTwitter
   }
 
-  if (opengraph) {
-    const resolvedOg = resolveOpenGraph(
-      {
-        images: opengraph,
-      },
+  if (openGraph) {
+    const resolvedOpenGraph = resolveOpenGraph(
+      { ...metadata.openGraph, images: openGraph } as OpenGraph,
       metadata.metadataBase
     )
-    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
+    metadata.openGraph = resolvedOpenGraph
   }
 
   return metadata
@@ -229,17 +223,17 @@ async function resolveStaticMetadata(components: ComponentsType) {
   const { metadata } = components
   if (!metadata) return null
 
-  const [icon, apple, opengraph, twitter] = await Promise.all([
+  const [icon, apple, openGraph, twitter] = await Promise.all([
     collectStaticImagesFiles(metadata, 'icon'),
     collectStaticImagesFiles(metadata, 'apple'),
-    collectStaticImagesFiles(metadata, 'opengraph'),
+    collectStaticImagesFiles(metadata, 'openGraph'),
     collectStaticImagesFiles(metadata, 'twitter'),
   ])
 
   const staticMetadata = {
     icon,
     apple,
-    opengraph,
+    openGraph,
     twitter,
   }
 

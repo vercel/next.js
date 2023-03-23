@@ -23,7 +23,7 @@ export const STATIC_METADATA_IMAGES = {
     filename: 'favicon',
     extensions: ['ico'],
   },
-  opengraph: {
+  openGraph: {
     filename: 'opengraph-image',
     extensions: ['jpg', 'jpeg', 'png', 'gif'],
   },
@@ -94,7 +94,7 @@ export async function createStaticMetadataFromRoute(
     icon: [],
     apple: [],
     twitter: [],
-    opengraph: [],
+    openGraph: [],
   }
 
   const opts = {
@@ -131,7 +131,7 @@ export async function createStaticMetadataFromRoute(
             }
             if (size) {
               ${
-                type === 'twitter' || type === 'opengraph'
+                type === 'twitter' || type === 'openGraph'
                   ? 'props.width = size.width; props.height = size.height;'
                   : 'props.sizes = size.width + "x" + size.height;'
               }
@@ -142,7 +142,7 @@ export async function createStaticMetadataFromRoute(
               `next-metadata-image-loader?${stringify({
                 route,
                 numericSizes:
-                  type === 'twitter' || type === 'opengraph' ? '1' : undefined,
+                  type === 'twitter' || type === 'openGraph' ? '1' : undefined,
                 type,
               })}!` +
                 filepath +
@@ -161,7 +161,7 @@ export async function createStaticMetadataFromRoute(
   await Promise.all([
     collectIconModuleIfExists('icon'),
     collectIconModuleIfExists('apple'),
-    collectIconModuleIfExists('opengraph'),
+    collectIconModuleIfExists('openGraph'),
     collectIconModuleIfExists('twitter'),
     isRootLayer && collectIconModuleIfExists('favicon'),
   ])
@@ -176,7 +176,7 @@ export function createMetadataExportsCode(
     ? `${METADATA_TYPE}: {
     icon: [${metadata.icon.join(',')}],
     apple: [${metadata.apple.join(',')}],
-    opengraph: [${metadata.opengraph.join(',')}],
+    openGraph: [${metadata.openGraph.join(',')}],
     twitter: [${metadata.twitter.join(',')}],
   }`
     : ''

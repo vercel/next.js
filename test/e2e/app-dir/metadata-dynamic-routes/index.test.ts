@@ -151,6 +151,10 @@ createNextDescribe(
       const $appleIcon = $('link[rel="apple-touch-icon"]')
       const ogImageUrl = $('meta[property="og:image"]').attr('content')
       const twitterImageUrl = $('meta[name="twitter:image"]').attr('content')
+      const twitterTitle = $('meta[name="twitter:title"]').attr('content')
+      const twitterDescription = $('meta[name="twitter:description"]').attr(
+        'content'
+      )
 
       // non absolute urls
       expect($icon.attr('href')).toBe('/icon')
@@ -159,6 +163,10 @@ createNextDescribe(
       expect($appleIcon.attr('href')).toBe('/apple-icon')
       expect($appleIcon.attr('sizes')).toBe(undefined)
       expect($appleIcon.attr('type')).toBe('image/png')
+
+      // Twitter
+      expect(twitterTitle).toBe('Twitter - Next.js App')
+      expect(twitterDescription).toBe('Twitter - This is a Next.js App')
 
       // absolute urls
       expect(ogImageUrl).toBe(
