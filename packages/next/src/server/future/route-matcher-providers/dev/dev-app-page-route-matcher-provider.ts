@@ -62,7 +62,9 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
       const page = this.normalizers.page.normalize(filename)
-      const pathname = this.normalizers.pathname.normalize(filename)
+      const pathname = this.normalizers.pathname
+        .normalize(filename)
+        .replaceAll('%5F', '_')
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       // Save the normalization results.

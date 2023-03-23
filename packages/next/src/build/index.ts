@@ -523,7 +523,13 @@ export default async function build(
         appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(appDir, validFileMatcher.isAppRouterPage)
+            recursiveReadDir(
+              appDir,
+              validFileMatcher.isAppRouterPage,
+              undefined,
+              // Ignore files/directories starting with `_` in the app directory
+              (part) => part.startsWith('_')
+            )
           )
       }
 

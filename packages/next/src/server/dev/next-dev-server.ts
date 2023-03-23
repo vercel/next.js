@@ -17,7 +17,13 @@ import crypto from 'crypto'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import findUp from 'next/dist/compiled/find-up'
-import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
+import {
+  join as pathJoin,
+  normalize,
+  relative,
+  resolve as pathResolve,
+  sep,
+} from 'path'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
@@ -553,9 +559,13 @@ export default class DevServer extends Server {
             if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
+            // Ignore files/directories starting with `_` in the app directory
+            if (normalizePathSep(fileName).includes('/_')) {
+              continue
+            }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName).replaceAll('%5F', '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }

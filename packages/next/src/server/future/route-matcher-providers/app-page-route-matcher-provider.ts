@@ -31,8 +31,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
     // routes.
     const appPaths: Record<string, string[]> = {}
     for (const page of pages) {
-      const pathname = normalizeAppPath(page)
-
+      const pathname = normalizeAppPath(page).replaceAll('%5F', '_')
       if (pathname in appPaths) appPaths[pathname].push(page)
       else appPaths[pathname] = [page]
     }

@@ -78,6 +78,7 @@ export function createPagesMapping({
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
 }): { [page: string]: string } {
+  const isAppRoute = pagesType === 'app'
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
@@ -86,7 +87,10 @@ export function createPagesMapping({
         return result
       }
 
-      const pageKey = getPageFromPath(pagePath, pageExtensions)
+      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      if (isAppRoute) {
+        pageKey = pageKey.replaceAll('%5F', '_')
+      }
 
       if (pageKey in result) {
         warn(
@@ -350,10 +354,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   if (appDir && appPaths) {
     for (const pathname in appPaths) {
       const normalizedPath = normalizeAppPath(pathname)
+      const actualPath = appPaths[pathname]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
-      appPathsPerRoute[normalizedPath].push(pathname)
+      appPathsPerRoute[normalizedPath].push(
+        // TODO-APP: refactor to pass the page path from createPagesMapping instead.
+        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      )
     }
 
     // Make sure to sort parallel routes to make the result deterministic.
