@@ -17,6 +17,11 @@ createNextDescribe(
     it('should show error exporting AMP config in app dir', async () => {
       const { session, cleanup } = await sandbox(next)
 
+      // Make sure the page is rendering correctly first before patching to a bad file
+      expect(
+        await session.evaluate(() => document.querySelector('body').textContent)
+      ).toContain('new sandbox')
+
       // Add AMP export
       await session.patch(
         'app/page.js',
