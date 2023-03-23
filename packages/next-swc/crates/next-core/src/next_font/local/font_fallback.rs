@@ -18,7 +18,7 @@ pub(super) async fn get_font_fallbacks(
     let mut font_fallbacks = vec![];
     let scoped_font_family = get_scoped_font_family(
         FontFamilyType::Fallback.cell(),
-        StringVc::cell(options.variable_name.clone()),
+        options_vc.font_family(),
         request_hash,
     );
 

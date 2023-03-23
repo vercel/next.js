@@ -54,7 +54,7 @@ pub(super) enum AdjustFontFallback {
 }
 
 fn default_adjust_font_fallback() -> AdjustFontFallback {
-    AdjustFontFallback::TimesNewRoman
+    AdjustFontFallback::Arial
 }
 
 fn deserialize_adjust_font_fallback<'de, D>(

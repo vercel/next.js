@@ -382,7 +382,7 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<String>> {
     use std::{collections::HashMap, path::Path};
 
-    use turbo_tasks::{CompletionVc, Value};
+    use turbo_tasks::CompletionVc;
     use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
     use turbo_tasks_fs::{
         json::parse_json_rope_with_source_context, DiskFileSystemVc, File, FileSystem,
@@ -418,7 +418,7 @@ async fn get_mock_stylesheet(
     let ExecutionContext {
         env,
         project_path,
-        intermediate_output_path,
+        chunking_context,
     } = *execution_context.await?;
     let context = node_evaluate_asset_context(project_path, None, None);
     let loader_path = mock_fs.root().join("loader.js");
@@ -449,7 +449,7 @@ async fn get_mock_stylesheet(
         env,
         AssetIdentVc::from_path(loader_path),
         context,
-        intermediate_output_path,
+        chunking_context,
         None,
         vec![],
         CompletionVc::immutable(),
