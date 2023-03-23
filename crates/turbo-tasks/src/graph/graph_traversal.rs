@@ -64,13 +64,17 @@ where
     state: GraphTraversalState<Node, Store, VisitImpl, Abort, Impl>,
 }
 
+#[derive(Default)]
 enum GraphTraversalState<Node, Store, VisitImpl, Abort, Impl>
 where
     Store: GraphStore<Node>,
     VisitImpl: Visit<Node, Abort, Impl>,
 {
+    #[default]
     Completed,
-    Aborted { abort: Abort },
+    Aborted {
+        abort: Abort,
+    },
     Running(GraphTraversalRunningState<Node, Store, VisitImpl, Abort, Impl>),
 }
 
@@ -82,17 +86,6 @@ where
     store: Store,
     futures: FuturesUnordered<With<VisitImpl::EdgesFuture, Store::Handle>>,
     visit: VisitImpl,
-}
-
-impl<Node, Store, VisitImpl, Abort, Impl> Default
-    for GraphTraversalState<Node, Store, VisitImpl, Abort, Impl>
-where
-    Store: GraphStore<Node>,
-    VisitImpl: Visit<Node, Abort, Impl>,
-{
-    fn default() -> Self {
-        GraphTraversalState::Completed
-    }
 }
 
 pub enum GraphTraversalResult<Completed, Aborted> {

@@ -29,6 +29,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
+    PROJECT_FILESYSTEM_NAME,
 };
 
 #[tokio::main]
@@ -41,7 +42,7 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().to_string();
-            let disk_fs = DiskFileSystemVc::new("project".to_string(), root);
+            let disk_fs = DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), root);
             disk_fs.await?.start_watching()?;
 
             // Smart Pointer cast

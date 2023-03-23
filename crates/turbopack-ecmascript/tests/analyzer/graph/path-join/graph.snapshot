@@ -42,7 +42,7 @@
             Variable(
                 (
                     Atom('path' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -77,7 +77,7 @@
             Variable(
                 (
                     Atom('path' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -112,7 +112,7 @@
             Variable(
                 (
                     Atom('path' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -147,7 +147,7 @@
             Variable(
                 (
                     Atom('path' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -182,7 +182,7 @@
             Variable(
                 (
                     Atom('path' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(

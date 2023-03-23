@@ -9,7 +9,7 @@
                 Variable(
                     (
                         Atom('__webpack_require__' type=dynamic),
-                        #1,
+                        #3,
                     ),
                 ),
                 [
@@ -39,7 +39,7 @@
             Variable(
                 (
                     Atom('handler' type=inline),
-                    #2,
+                    #4,
                 ),
             ),
         ),
@@ -51,7 +51,7 @@
                 Variable(
                     (
                         Atom('__unused_webpack_module' type=dynamic),
-                        #2,
+                        #4,
                     ),
                 ),
             ),
@@ -68,13 +68,13 @@
         ),
     ),
     (
-        "__webpack_exports__#1",
+        "__webpack_exports__#3",
         Call(
             3,
             Variable(
                 (
                     Atom('__webpack_exec__' type=dynamic),
-                    #1,
+                    #3,
                 ),
             ),
             [
@@ -89,13 +89,13 @@
         ),
     ),
     (
-        "__webpack_exports__#2",
+        "__webpack_exports__#4",
         Unknown(
             Some(
                 Variable(
                     (
                         Atom('__webpack_exports__' type=dynamic),
-                        #2,
+                        #4,
                     ),
                 ),
             ),
@@ -103,7 +103,7 @@
         ),
     ),
     (
-        "__webpack_require__#1",
+        "__webpack_require__#3",
         Call(
             3,
             FreeVar(
@@ -121,13 +121,13 @@
         ),
     ),
     (
-        "__webpack_require__#2",
+        "__webpack_require__#4",
         Unknown(
             Some(
                 Variable(
                     (
                         Atom('__webpack_require__' type=dynamic),
-                        #2,
+                        #4,
                     ),
                 ),
             ),
@@ -166,7 +166,7 @@
             Variable(
                 (
                     Atom('promises_namespaceObject' type=dynamic),
-                    #2,
+                    #4,
                 ),
             ),
             Constant(
@@ -201,7 +201,7 @@
                 Variable(
                     (
                         Atom('moduleId' type=dynamic),
-                        #5,
+                        #6,
                     ),
                 ),
             ),

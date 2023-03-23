@@ -3,7 +3,7 @@
         obj: Variable(
             (
                 Atom('array' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -54,7 +54,7 @@
         obj: Variable(
             (
                 Atom('array' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -114,7 +114,7 @@
         obj: Variable(
             (
                 Atom('array' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -195,7 +195,7 @@
                         Variable(
                             (
                                 Atom('item' type=inline),
-                                #1,
+                                #2,
                             ),
                         ),
                     ],
@@ -871,7 +871,7 @@
         obj: Variable(
             (
                 Atom('arrays' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -922,7 +922,7 @@
         obj: Variable(
             (
                 Atom('array' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -982,7 +982,7 @@
         obj: Variable(
             (
                 Atom('array' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(

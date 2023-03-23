@@ -11,6 +11,7 @@ pub struct NodeRenderingEntry {
     pub chunking_context: ChunkingContextVc,
     pub intermediate_output_path: FileSystemPathVc,
     pub output_root: FileSystemPathVc,
+    pub project_dir: FileSystemPathVc,
 }
 
 #[turbo_tasks::value(transparent)]

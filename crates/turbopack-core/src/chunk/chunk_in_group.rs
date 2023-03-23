@@ -11,6 +11,7 @@ use crate::{
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
     reference::AssetReferencesVc,
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
     version::VersionedContentVc,
 };
 
@@ -74,6 +75,17 @@ impl Asset for ChunkInGroup {
     #[turbo_tasks::function]
     fn versioned_content(&self) -> VersionedContentVc {
         self.inner.versioned_content()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for ChunkInGroup {
+    #[turbo_tasks::function]
+    async fn generate_source_map(&self) -> Result<OptionSourceMapVc> {
+        let Some(inner) = GenerateSourceMapVc::resolve_from(self.inner).await? else {
+            return Ok(OptionSourceMapVc::cell(None))
+        };
+        Ok(inner.generate_source_map())
     }
 }
 

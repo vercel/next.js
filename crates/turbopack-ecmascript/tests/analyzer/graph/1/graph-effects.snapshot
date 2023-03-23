@@ -8,7 +8,7 @@
                 Variable(
                     (
                         Atom('x' type=static),
-                        #1,
+                        #2,
                     ),
                 ),
             ),

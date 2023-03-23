@@ -70,7 +70,7 @@
                             Variable(
                                 (
                                     Atom('platform' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -87,7 +87,7 @@
                             Variable(
                                 (
                                     Atom('endianness' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -120,7 +120,7 @@
                             Variable(
                                 (
                                     Atom('arch' type=inline),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -137,7 +137,7 @@
                             Variable(
                                 (
                                     Atom('platform' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -154,7 +154,7 @@
                             Variable(
                                 (
                                     Atom('endianness' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -187,7 +187,7 @@
                             Variable(
                                 (
                                     Atom('arch' type=inline),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -224,7 +224,7 @@
                             Variable(
                                 (
                                     Atom('endianness' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -297,7 +297,7 @@
                             Variable(
                                 (
                                     Atom('endianness' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -330,7 +330,7 @@
                             Variable(
                                 (
                                     Atom('p' type=static),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             Constant(
@@ -353,7 +353,7 @@
                             Variable(
                                 (
                                     Atom('p' type=static),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             Constant(
@@ -376,7 +376,7 @@
                             Variable(
                                 (
                                     Atom('endianness' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],
@@ -409,7 +409,7 @@
                             Variable(
                                 (
                                     Atom('p' type=static),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             Constant(
@@ -430,7 +430,7 @@
                         Variable(
                             (
                                 Atom('processPlatform' type=dynamic),
-                                #1,
+                                #2,
                             ),
                         ),
                         Constant(
@@ -445,7 +445,7 @@
                             Variable(
                                 (
                                     Atom('endianness' type=dynamic),
-                                    #1,
+                                    #2,
                                 ),
                             ),
                             [],

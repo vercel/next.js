@@ -18,18 +18,13 @@ pub struct Output {
     pub(crate) dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum OutputContent {
+    #[default]
     Empty,
     Link(RawVc),
     Error(SharedError),
     Panic(Option<Cow<'static, str>>),
-}
-
-impl Default for OutputContent {
-    fn default() -> Self {
-        OutputContent::Empty
-    }
 }
 
 impl Display for OutputContent {

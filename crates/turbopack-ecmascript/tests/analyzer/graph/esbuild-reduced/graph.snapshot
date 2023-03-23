@@ -64,7 +64,7 @@
                 Variable(
                     (
                         Atom('e' type=static),
-                        #5,
+                        #6,
                     ),
                 ),
             ),
@@ -206,7 +206,7 @@
                     Variable(
                         (
                             Atom('knownWindowsPackages' type=dynamic),
-                            #1,
+                            #2,
                         ),
                     ),
                     FreeVar(
@@ -227,7 +227,7 @@
                 Variable(
                     (
                         Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
-                        #1,
+                        #2,
                     ),
                 ),
                 [],
@@ -327,7 +327,7 @@
                 Variable(
                     (
                         Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
-                        #1,
+                        #2,
                     ),
                 ),
                 [],
@@ -348,7 +348,7 @@
             Variable(
                 (
                     Atom('generateBinPath' type=dynamic),
-                    #1,
+                    #2,
                 ),
             ),
             [],

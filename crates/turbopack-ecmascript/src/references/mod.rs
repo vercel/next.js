@@ -1974,7 +1974,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
     ) {
         self.esm_exports.insert(
             "default".to_string(),
-            EsmExport::LocalBinding(magic_identifier::encode("default export")),
+            EsmExport::LocalBinding(magic_identifier::mangle("default export")),
         );
         self.analysis
             .add_code_gen(EsmModuleItemVc::new(AstPathVc::cell(as_parent_path(
@@ -1996,7 +1996,7 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
                         ident
                             .as_ref()
                             .map(|i| i.sym.to_string())
-                            .unwrap_or_else(|| magic_identifier::encode("default export")),
+                            .unwrap_or_else(|| magic_identifier::mangle("default export")),
                     ),
                 );
             }

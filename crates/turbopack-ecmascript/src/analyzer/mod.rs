@@ -150,8 +150,9 @@ impl From<String> for ConstantString {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub enum ConstantValue {
+    #[default]
     Undefined,
     Str(ConstantString),
     Num(ConstantNumber),
@@ -201,12 +202,6 @@ impl ConstantValue {
 
     pub fn is_value_type(&self) -> bool {
         !matches!(self, Self::Regex(..))
-    }
-}
-
-impl Default for ConstantValue {
-    fn default() -> Self {
-        ConstantValue::Undefined
     }
 }
 

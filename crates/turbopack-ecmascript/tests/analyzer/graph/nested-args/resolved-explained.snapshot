@@ -1,8 +1,4 @@
-a#2 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-
-a#5 = ???*0*
+a#3 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -10,11 +6,15 @@ a#6 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#4 = ???*0*
+a#9 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#7 = ???*0*
+b#10 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+b#5 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 

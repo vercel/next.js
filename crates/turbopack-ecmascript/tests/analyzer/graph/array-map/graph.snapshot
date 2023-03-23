@@ -16,7 +16,7 @@
                             Variable(
                                 (
                                     Atom('file' type=static),
-                                    #3,
+                                    #4,
                                 ),
                             ),
                         ],
@@ -53,7 +53,7 @@
                             Variable(
                                 (
                                     Atom('file' type=static),
-                                    #4,
+                                    #5,
                                 ),
                             ),
                         ],
@@ -76,7 +76,7 @@
                     Variable(
                         (
                             Atom('file' type=static),
-                            #2,
+                            #3,
                         ),
                     ),
                 ],
@@ -230,21 +230,21 @@
         ),
     ),
     (
-        "file#2",
+        "file#3",
         Argument(
             88,
             0,
         ),
     ),
     (
-        "file#3",
+        "file#4",
         Argument(
             170,
             0,
         ),
     ),
     (
-        "file#4",
+        "file#5",
         Argument(
             254,
             0,

@@ -1,12 +1,14 @@
-a#10 = arguments[0]
+a#14 = arguments[1]
 
-a#11 = arguments[0]
+a#15 = arguments[0]
 
-a#12 = arguments[0]
+a#16 = arguments[0]
 
-a#13 = arguments[0]
+a#17 = arguments[0]
 
-a#5 = (
+a#18 = arguments[0]
+
+a#7 = (
   | 1732584193
   | md5ff(a, b, c, d, x[i], 7, ???*0*)
   | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*)
@@ -37,17 +39,17 @@ a#5 = (
 - *8* unsupported expression
 - *9* unsupported expression
 
-a#9 = arguments[1]
+b#14 = arguments[2]
 
-b#10 = arguments[1]
+b#15 = arguments[1]
 
-b#11 = arguments[1]
+b#16 = arguments[1]
 
-b#12 = arguments[1]
+b#17 = arguments[1]
 
-b#13 = arguments[1]
+b#18 = arguments[1]
 
-b#5 = (
+b#7 = (
   | ???*0*
   | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*)
   | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*)
@@ -81,8 +83,6 @@ b#5 = (
 - *11* unsupported expression
 - *12* unsupported expression
 
-b#9 = arguments[2]
-
 bitRotateLeft = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
@@ -91,15 +91,15 @@ bytes = (arguments[0] | ???*0*)
 
 bytesToWords = (...) => (undefined | output)
 
-c#10 = arguments[2]
+c#15 = arguments[2]
 
-c#11 = arguments[2]
+c#16 = arguments[2]
 
-c#12 = arguments[2]
+c#17 = arguments[2]
 
-c#13 = arguments[2]
+c#18 = arguments[2]
 
-c#5 = (
+c#7 = (
   | ???*0*
   | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819)
   | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*)
@@ -133,15 +133,15 @@ c#5 = (
 
 cnt = arguments[1]
 
-d#10 = arguments[3]
+d#15 = arguments[3]
 
-d#11 = arguments[3]
+d#16 = arguments[3]
 
-d#12 = arguments[3]
+d#17 = arguments[3]
 
-d#13 = arguments[3]
+d#18 = arguments[3]
 
-d#5 = (
+d#7 = (
   | 271733878
   | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*)
   | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426)
@@ -188,23 +188,23 @@ hex = (
 
 hexTab = "0123456789abcdef"
 
-i#2 = 0
-
-i#4 = (???*0* | 0)
-- *0* i
-  ⚠️  pattern without value
+i#3 = 0
 
 i#5 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-i#6 = (???*0* | 0)
+i#7 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-input#4 = arguments[0]
+i#9 = (???*0* | 0)
+- *0* i
+  ⚠️  pattern without value
 
-input#6 = arguments[0]
+input#5 = arguments[0]
+
+input#9 = arguments[0]
 
 len = arguments[1]
 
@@ -271,54 +271,54 @@ oldd = (???*0* | d)
 - *0* oldd
   ⚠️  pattern without value
 
-output#4 = []
+output#5 = []
 
-output#6 = []
+output#9 = []
 
 q = arguments[0]
 
-s#10 = arguments[5]
+s#14 = arguments[4]
 
-s#11 = arguments[5]
+s#15 = arguments[5]
 
-s#12 = arguments[5]
+s#16 = arguments[5]
 
-s#13 = arguments[5]
+s#17 = arguments[5]
 
-s#9 = arguments[4]
+s#18 = arguments[5]
 
 safeAdd = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
-t#10 = arguments[6]
+t#14 = arguments[5]
 
-t#11 = arguments[6]
+t#15 = arguments[6]
 
-t#12 = arguments[6]
+t#16 = arguments[6]
 
-t#13 = arguments[6]
+t#17 = arguments[6]
 
-t#9 = arguments[5]
+t#18 = arguments[6]
 
 wordsToMd5 = (...) => (undefined | [a, b, c, d])
 
-x#10 = arguments[4]
+x#12 = arguments[0]
 
-x#11 = arguments[4]
+x#14 = arguments[3]
 
-x#12 = arguments[4]
+x#15 = arguments[4]
 
-x#13 = arguments[4]
+x#16 = arguments[4]
 
-x#4 = (???*0* | ???*1*)
+x#17 = arguments[4]
+
+x#18 = arguments[4]
+
+x#5 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
 
-x#5 = arguments[0]
-
 x#7 = arguments[0]
-
-x#9 = arguments[3]
 
 y = arguments[1]

@@ -232,7 +232,7 @@
         obj: Variable(
             (
                 Atom('os' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -317,7 +317,7 @@
         obj: Variable(
             (
                 Atom('os' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -394,7 +394,7 @@
         obj: Variable(
             (
                 Atom('os' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -479,7 +479,7 @@
         obj: Variable(
             (
                 Atom('os' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -556,7 +556,7 @@
         obj: Variable(
             (
                 Atom('knownWindowsPackages' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Variable(
@@ -635,7 +635,7 @@
         obj: Variable(
             (
                 Atom('knownUnixlikePackages' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         prop: Variable(
@@ -720,7 +720,7 @@
         func: Variable(
             (
                 Atom('pkgAndSubpathForCurrentPlatform' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         args: [],
@@ -880,7 +880,7 @@
                         Variable(
                             (
                                 Atom('pkg' type=inline),
-                                #4,
+                                #7,
                             ),
                         ),
                         Constant(
@@ -893,7 +893,7 @@
                         Variable(
                             (
                                 Atom('subpath' type=inline),
-                                #4,
+                                #7,
                             ),
                         ),
                     ],
@@ -974,7 +974,7 @@
                 Variable(
                     (
                         Atom('pkg' type=inline),
-                        #4,
+                        #7,
                     ),
                 ),
             ),
@@ -982,7 +982,7 @@
                 Variable(
                     (
                         Atom('subpath' type=inline),
-                        #4,
+                        #7,
                     ),
                 ),
             ),
@@ -1159,7 +1159,7 @@
                 Variable(
                     (
                         Atom('binPath' type=inline),
-                        #4,
+                        #7,
                     ),
                 ),
             ),
@@ -1251,7 +1251,7 @@
                     Variable(
                         (
                             Atom('binPath' type=inline),
-                            #4,
+                            #7,
                         ),
                     ),
                 ],
@@ -1381,7 +1381,7 @@
                                 Variable(
                                     (
                                         Atom('pkg' type=inline),
-                                        #4,
+                                        #7,
                                     ),
                                 ),
                             ),
@@ -1654,7 +1654,7 @@
         condition: Variable(
             (
                 Atom('isYarnPnP' type=dynamic),
-                #4,
+                #7,
             ),
         ),
         kind: If {
@@ -1664,7 +1664,7 @@
                         obj: Variable(
                             (
                                 Atom('path' type=static),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -1955,7 +1955,7 @@
                         obj: Variable(
                             (
                                 Atom('path' type=static),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -2063,7 +2063,7 @@
                         obj: Variable(
                             (
                                 Atom('path' type=static),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -2154,7 +2154,7 @@
                         obj: Variable(
                             (
                                 Atom('path' type=static),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -2264,7 +2264,7 @@
                         obj: Variable(
                             (
                                 Atom('path' type=static),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -2279,7 +2279,7 @@
                                 Variable(
                                     (
                                         Atom('subpath' type=inline),
-                                        #4,
+                                        #7,
                                     ),
                                 ),
                             ),
@@ -2375,7 +2375,7 @@
                         obj: Variable(
                             (
                                 Atom('path' type=static),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -2390,7 +2390,7 @@
                                 Variable(
                                     (
                                         Atom('esbuildLibDir' type=dynamic),
-                                        #7,
+                                        #16,
                                     ),
                                 ),
                             ),
@@ -2408,7 +2408,7 @@
                                         Variable(
                                             (
                                                 Atom('pkg' type=inline),
-                                                #4,
+                                                #7,
                                             ),
                                         ),
                                         Constant(
@@ -2423,7 +2423,7 @@
                                             Variable(
                                                 (
                                                     Atom('path' type=static),
-                                                    #1,
+                                                    #2,
                                                 ),
                                             ),
                                             Constant(
@@ -2437,7 +2437,7 @@
                                                 Variable(
                                                     (
                                                         Atom('subpath' type=inline),
-                                                        #4,
+                                                        #7,
                                                     ),
                                                 ),
                                             ],
@@ -2620,7 +2620,7 @@
                                 Variable(
                                     (
                                         Atom('binTargetPath' type=dynamic),
-                                        #7,
+                                        #16,
                                     ),
                                 ),
                             ),
@@ -2712,7 +2712,7 @@
                                     Variable(
                                         (
                                             Atom('binTargetPath' type=dynamic),
-                                            #7,
+                                            #16,
                                         ),
                                     ),
                                 ],
@@ -2835,7 +2835,7 @@
                                                 Variable(
                                                     (
                                                         Atom('binPath' type=inline),
-                                                        #4,
+                                                        #7,
                                                     ),
                                                 ),
                                             ),
@@ -2843,7 +2843,7 @@
                                                 Variable(
                                                     (
                                                         Atom('binTargetPath' type=dynamic),
-                                                        #7,
+                                                        #16,
                                                     ),
                                                 ),
                                             ),
@@ -3036,7 +3036,7 @@
                                                 Variable(
                                                     (
                                                         Atom('binTargetPath' type=dynamic),
-                                                        #7,
+                                                        #16,
                                                     ),
                                                 ),
                                             ),
@@ -3314,7 +3314,7 @@
         obj: Variable(
             (
                 Atom('path2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -3418,7 +3418,7 @@
         obj: Variable(
             (
                 Atom('path2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -3520,7 +3520,7 @@
         obj: Variable(
             (
                 Atom('path2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -3624,7 +3624,7 @@
         obj: Variable(
             (
                 Atom('path2' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -3733,7 +3733,7 @@
                         obj: Variable(
                             (
                                 Atom('path2' type=inline),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -3849,7 +3849,7 @@
                         obj: Variable(
                             (
                                 Atom('path2' type=inline),
-                                #1,
+                                #2,
                             ),
                         ),
                         prop: Constant(
@@ -4091,7 +4091,7 @@
         func: Variable(
             (
                 Atom('generateBinPath' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         args: [],
@@ -4167,7 +4167,7 @@
         func: Variable(
             (
                 Atom('esbuildCommandAndArgs' type=dynamic),
-                #1,
+                #2,
             ),
         ),
         args: [],
@@ -4212,7 +4212,7 @@
         obj: Variable(
             (
                 Atom('args' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -4272,7 +4272,7 @@
         obj: Variable(
             (
                 Atom('args' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(

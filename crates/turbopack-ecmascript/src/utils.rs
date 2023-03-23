@@ -100,7 +100,7 @@ where
             false => serde_json::to_writer,
         };
 
-        Ok(to_writer(DisplayWriter { f }, self.0).map_err(|_err| std::fmt::Error)?)
+        to_writer(DisplayWriter { f }, self.0).map_err(|_err| std::fmt::Error)
     }
 }
 

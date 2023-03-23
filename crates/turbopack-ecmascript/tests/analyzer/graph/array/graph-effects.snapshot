@@ -138,7 +138,7 @@
         obj: Variable(
             (
                 Atom('d1' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Member(
@@ -259,7 +259,7 @@
         obj: Variable(
             (
                 Atom('d1' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -310,7 +310,7 @@
         obj: Variable(
             (
                 Atom('d1' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(

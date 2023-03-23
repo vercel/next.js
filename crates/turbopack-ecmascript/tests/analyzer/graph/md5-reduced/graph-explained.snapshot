@@ -1,4 +1,4 @@
-a#2 = (
+a#3 = (
   | 1732584193
   | md5ff(a, b, c, d, x[i], 7, ???*0*)
   | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*)
@@ -8,11 +8,11 @@ a#2 = (
 - *0* unsupported expression
 - *1* unsupported expression
 
-a#3 = arguments[1]
+a#5 = arguments[1]
 
-a#5 = arguments[0]
+a#6 = arguments[0]
 
-b#2 = (
+b#3 = (
   | ???*0*
   | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*)
   | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*)
@@ -24,11 +24,11 @@ b#2 = (
 - *2* unsupported expression
 - *3* unsupported expression
 
-b#3 = arguments[2]
+b#5 = arguments[2]
 
-b#5 = arguments[1]
+b#6 = arguments[1]
 
-c#2 = (
+c#3 = (
   | ???*0*
   | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819)
   | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*)
@@ -40,9 +40,9 @@ c#2 = (
 - *2* unsupported expression
 - *3* unsupported expression
 
-c#5 = arguments[2]
+c#6 = arguments[2]
 
-d#2 = (
+d#3 = (
   | 271733878
   | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*)
   | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426)
@@ -53,7 +53,7 @@ d#2 = (
 - *1* unsupported expression
 - *2* unsupported expression
 
-d#5 = arguments[3]
+d#6 = arguments[3]
 
 i = (???*0* | 0)
 - *0* i
@@ -93,18 +93,18 @@ oldd = (???*0* | d)
 
 q = arguments[0]
 
-s#3 = arguments[4]
+s#5 = arguments[4]
 
-s#5 = arguments[5]
+s#6 = arguments[5]
 
-t#3 = arguments[5]
+t#5 = arguments[5]
 
-t#5 = arguments[6]
+t#6 = arguments[6]
 
 wordsToMd5 = (...) => (undefined | [a, b, c, d])
 
-x#2 = arguments[0]
+x#3 = arguments[0]
 
-x#3 = arguments[3]
+x#5 = arguments[3]
 
-x#5 = arguments[4]
+x#6 = arguments[4]

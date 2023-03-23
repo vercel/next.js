@@ -92,6 +92,8 @@ function createIpc<TIncoming, TOutgoing>(
 
     return new Promise((resolve, reject) => {
       socket.write(packet, (err) => {
+        process.stderr.write(`TURBOPACK_OUTPUT_D\n`);
+        process.stdout.write(`TURBOPACK_OUTPUT_D\n`);
         if (err != null) {
           reject(err);
         } else {

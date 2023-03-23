@@ -235,25 +235,24 @@ impl EcmascriptModuleAssetVc {
                     references: result_value.references.await?,
                     exports: result_value.exports.await?,
                 }));
-        } else {
-            if let Some(MemoizedSuccessfulAnalysis {
-                operation,
-                references,
-                exports,
-            }) = &*this.last_successful_analysis.get()
-            {
-                // It's important to connect to the last operation here to keep it active, so
-                // it's potentially recomputed when garbage collected
-                operation.connect();
-                return Ok(AnalyzeEcmascriptModuleResult {
-                    references: ReadRef::cell(references.clone()),
-                    exports: ReadRef::cell(exports.clone()),
-                    code_generation: result_value.code_generation,
-                    successful: false,
-                }
-                .cell());
+        } else if let Some(MemoizedSuccessfulAnalysis {
+            operation,
+            references,
+            exports,
+        }) = &*this.last_successful_analysis.get()
+        {
+            // It's important to connect to the last operation here to keep it active, so
+            // it's potentially recomputed when garbage collected
+            operation.connect();
+            return Ok(AnalyzeEcmascriptModuleResult {
+                references: ReadRef::cell(references.clone()),
+                exports: ReadRef::cell(exports.clone()),
+                code_generation: result_value.code_generation,
+                successful: false,
             }
+            .cell());
         }
+
         Ok(ReadRef::cell(result_value))
     }
 

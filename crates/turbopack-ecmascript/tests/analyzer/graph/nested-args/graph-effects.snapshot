@@ -3,7 +3,7 @@
         func: Variable(
             (
                 Atom('x' type=static),
-                #1,
+                #2,
             ),
         ),
         args: [
@@ -69,7 +69,7 @@
             Variable(
                 (
                     Atom('x' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             [
@@ -189,7 +189,7 @@
                         func: Variable(
                             (
                                 Atom('r' type=inline),
-                                #1,
+                                #2,
                             ),
                         ),
                         args: [
@@ -200,7 +200,7 @@
                                         Variable(
                                             (
                                                 Atom('a' type=static),
-                                                #5,
+                                                #6,
                                             ),
                                         ),
                                         Constant(
@@ -363,7 +363,7 @@
         func: Variable(
             (
                 Atom('r' type=inline),
-                #1,
+                #2,
             ),
         ),
         args: [
@@ -418,7 +418,7 @@
         func: Variable(
             (
                 Atom('inner' type=inline),
-                #6,
+                #9,
             ),
         ),
         args: [
@@ -482,7 +482,7 @@
         func: Variable(
             (
                 Atom('outer' type=inline),
-                #1,
+                #2,
             ),
         ),
         args: [

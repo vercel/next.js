@@ -79,17 +79,7 @@
         Variable(
             (
                 Atom('e' type=static),
-                #7,
-            ),
-        ),
-    ),
-    (
-        "x#2",
-        Constant(
-            Num(
-                ConstantNumber(
-                    1.0,
-                ),
+                #8,
             ),
         ),
     ),
@@ -134,7 +124,7 @@
         ),
     ),
     (
-        "x#8",
+        "x#7",
         Constant(
             Num(
                 ConstantNumber(
@@ -144,11 +134,12 @@
         ),
     ),
     (
-        "y#2",
-        Variable(
-            (
-                Atom('x' type=static),
-                #2,
+        "x#9",
+        Constant(
+            Num(
+                ConstantNumber(
+                    1.0,
+                ),
             ),
         ),
     ),
@@ -189,29 +180,29 @@
         ),
     ),
     (
-        "y#8",
+        "y#7",
         Variable(
             (
                 Atom('x' type=static),
-                #8,
+                #7,
             ),
         ),
     ),
     (
-        "z#2",
+        "y#9",
+        Variable(
+            (
+                Atom('x' type=static),
+                #9,
+            ),
+        ),
+    ),
+    (
+        "z#3",
         Variable(
             (
                 Atom('a' type=static),
-                #1,
-            ),
-        ),
-    ),
-    (
-        "z#5",
-        Variable(
-            (
-                Atom('d' type=static),
-                #1,
+                #2,
             ),
         ),
     ),
@@ -220,16 +211,25 @@
         Variable(
             (
                 Atom('d' type=static),
-                #1,
+                #2,
             ),
         ),
     ),
     (
-        "z#8",
+        "z#7",
+        Variable(
+            (
+                Atom('d' type=static),
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z#9",
         Variable(
             (
                 Atom('e' type=static),
-                #7,
+                #8,
             ),
         ),
     ),
@@ -238,7 +238,7 @@
         Variable(
             (
                 Atom('f' type=inline),
-                #1,
+                #2,
             ),
         ),
     ),

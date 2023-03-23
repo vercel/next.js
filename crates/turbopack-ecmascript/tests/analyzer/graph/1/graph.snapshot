@@ -47,7 +47,7 @@
                         Variable(
                             (
                                 Atom('y' type=inline),
-                                #1,
+                                #2,
                             ),
                         ),
                         Constant(

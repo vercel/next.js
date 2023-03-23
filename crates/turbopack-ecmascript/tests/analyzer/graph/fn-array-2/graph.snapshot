@@ -33,13 +33,13 @@
                                     Variable(
                                         (
                                             Atom('a' type=static),
-                                            #2,
+                                            #3,
                                         ),
                                     ),
                                     Variable(
                                         (
                                             Atom('x' type=static),
-                                            #2,
+                                            #3,
                                         ),
                                     ),
                                 ],
@@ -47,7 +47,7 @@
                             Variable(
                                 (
                                     Atom('a' type=static),
-                                    #2,
+                                    #3,
                                 ),
                             ),
                         ],
@@ -64,7 +64,7 @@
             Variable(
                 (
                     Atom('c' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             [
@@ -92,7 +92,7 @@
             Variable(
                 (
                     Atom('d' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -111,7 +111,7 @@
             Variable(
                 (
                     Atom('d' type=static),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -128,7 +128,7 @@
         Variable(
             (
                 Atom('b' type=static),
-                #2,
+                #3,
             ),
         ),
     ),

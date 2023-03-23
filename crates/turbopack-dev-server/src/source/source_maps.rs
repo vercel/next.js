@@ -147,13 +147,13 @@ impl ContentSourceProcessor for SourceMapContentProcessor {
         };
 
         let sm = if let Some(id) = &self.id {
-            let section = gen.by_section(id).await?;
-            match &*section {
-                Some(sm) => *sm,
-                None => return Ok(ContentSourceContentVc::not_found()),
-            }
+            gen.by_section(id).await?
         } else {
-            gen.generate_source_map()
+            gen.generate_source_map().await?
+        };
+        let sm = match &*sm {
+            Some(sm) => *sm,
+            None => return Ok(ContentSourceContentVc::not_found()),
         };
 
         let content = sm.to_rope().await?;

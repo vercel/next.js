@@ -72,7 +72,7 @@
                 Variable(
                     (
                         Atom('O' type=inline),
-                        #1,
+                        #2,
                     ),
                 ),
             ),
@@ -118,7 +118,7 @@
         obj: Variable(
             (
                 Atom('O' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(
@@ -178,7 +178,7 @@
         obj: Variable(
             (
                 Atom('O' type=inline),
-                #1,
+                #2,
             ),
         ),
         prop: Constant(

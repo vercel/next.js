@@ -39,7 +39,7 @@ impl<'a> Display for PrettyPrintError<'a> {
         if has_details {
             write!(f, "\n\nDebug info:")?;
             for description in descriptions {
-                f.write_str("\n");
+                f.write_str("\n")?;
                 WithDash(&description).fmt(f)?;
             }
         }

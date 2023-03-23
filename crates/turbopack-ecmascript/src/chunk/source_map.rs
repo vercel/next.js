@@ -7,7 +7,7 @@ use turbopack_core::{
     ident::AssetIdentVc,
     reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapVc},
 };
 
 use super::EcmascriptChunkVc;
@@ -37,12 +37,12 @@ impl Asset for EcmascriptChunkSourceMapAsset {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<AssetContentVc> {
-        let sm = self
-            .chunk
-            .runtime_content()
-            .generate_source_map()
-            .to_rope()
-            .await?;
+        let sm = if let Some(sm) = *self.chunk.runtime_content().generate_source_map().await? {
+            sm
+        } else {
+            SourceMapVc::empty()
+        };
+        let sm = sm.to_rope().await?;
         Ok(File::from(sm).into())
     }
 }

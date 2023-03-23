@@ -19,7 +19,8 @@ use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
+    SOURCE_MAP_ROOT_NAME,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -85,13 +86,15 @@ impl ParseResultSourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for ParseResultSourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> SourceMapVc {
+    fn generate_source_map(&self) -> OptionSourceMapVc {
         let map = self.source_map.build_source_map_with_config(
             &self.mappings,
             None,
             InlineSourcesContentConfig {},
         );
-        SourceMapVc::new_regular(map)
+        OptionSourceMapVc::cell(Some(
+            turbopack_core::source_map::SourceMap::new_regular(map).cell(),
+        ))
     }
 }
 
@@ -103,8 +106,7 @@ struct InlineSourcesContentConfig {}
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
-            // The Custom filename surrounds the name with <>.
-            FileName::Custom(s) => format!("/{}", s),
+            FileName::Custom(s) => format!("/{SOURCE_MAP_ROOT_NAME}/{s}"),
             _ => f.to_string(),
         }
     }
@@ -166,7 +168,7 @@ async fn parse_content(
         },
     );
 
-    let fm = source_map.new_source_file(FileName::Custom(fs_path.path.clone()), string);
+    let fm = source_map.new_source_file(FileName::Custom(ident_str.to_string()), string);
 
     let config = ParserConfig {
         css_modules: matches!(ty, CssModuleAssetType::Module),

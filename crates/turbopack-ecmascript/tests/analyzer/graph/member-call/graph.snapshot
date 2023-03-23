@@ -98,7 +98,7 @@
             Variable(
                 (
                     Atom('array' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -170,7 +170,7 @@
                         Variable(
                             (
                                 Atom('item' type=inline),
-                                #1,
+                                #2,
                             ),
                         ),
                     ],
@@ -185,7 +185,7 @@
             Variable(
                 (
                     Atom('array' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -233,7 +233,7 @@
             Variable(
                 (
                     Atom('array' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
@@ -252,7 +252,7 @@
             Variable(
                 (
                     Atom('arrays' type=inline),
-                    #1,
+                    #2,
                 ),
             ),
             Constant(
