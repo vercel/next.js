@@ -14,6 +14,7 @@ import {
   HttpEndpointBuilderForAPI,
   MutationBuilder,
   QueryBuilderForDataModel,
+  CronJobsForAPI,
   ActionCtx as GenericActionCtx,
   HttpEndpointCtx as GenericHttpEndpointCtx,
   MutationCtx as GenericMutationCtx,
@@ -23,6 +24,30 @@ import {
 } from "convex/server";
 import type { DataModel } from "./dataModel.js";
 import type { API } from "./api.js";
+
+/**
+ * Returns a cron job scheduler, used to schedule Convex functions to run on a recurring basis.
+ *
+ * ```js
+ * // convex/crons.js
+ * import { cronJobs } from './_generated/server';
+ *
+ * const crons = cronJobs();
+ * crons.weekly(
+ *   "weekly re-engagement email",
+ *   {
+ *     hourUTC: 17, // (9:30am Pacific/10:30am Daylight Savings Pacific)
+ *     minuteUTC: 30,
+ *   },
+ *   "sendEmails"
+ * )
+ * export default crons;
+ * ```
+ *
+ * @returns The cron job scheduler object. Create this object in `convex/crons.js` and export it
+ * as the default export.
+ */
+export declare const cronJobs: CronJobsForAPI<API>;
 
 /**
  * Define a query in this Convex app's public API.
