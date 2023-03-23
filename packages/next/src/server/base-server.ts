@@ -2207,16 +2207,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       // use static 404 page if available and is 404 response
-      if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents({
-          pathname: '/404',
-          query,
-          params: {},
-          isAppPath: false,
-          // Ensuring can't be done here because you never "match" a 404 route.
-          shouldEnsure: true,
-        })
-        using404Page = result !== null
+      if (is404) {
+        if (this.hasAppDir) {
+          // Use the not-found entry in app directory
+          result = await this.findPageComponents({
+            pathname: '/not-found',
+            query,
+            params: {},
+            isAppPath: true,
+            shouldEnsure: true,
+          })
+          using404Page = result !== null
+        }
+
+        if (!result && (await this.hasPage('/404'))) {
+          result = await this.findPageComponents({
+            pathname: '/404',
+            query,
+            params: {},
+            isAppPath: false,
+            // Ensuring can't be done here because you never "match" a 404 route.
+            shouldEnsure: true,
+          })
+          using404Page = result !== null
+        }
       }
       let statusPage = `/${res.statusCode}`
 
