@@ -90,6 +90,7 @@ export async function ncc_node_html_parser(task, opts) {
 export async function capsize_metrics() {
   const {
     entireMetricsCollection,
+    // eslint-disable-next-line import/no-extraneous-dependencies
   } = require('@capsizecss/metrics/entireMetricsCollection')
   const outputPathSrc = join(__dirname, 'dist/server/capsize-font-metrics.json')
   const outputPathDist = join(
