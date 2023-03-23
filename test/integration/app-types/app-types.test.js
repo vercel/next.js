@@ -38,7 +38,7 @@ describe('app type checking', () => {
       ].map(([, line]) => +line)
 
       const ST = 17
-      const ED = 33
+      const ED = 34
       expect(errorLines).toEqual(
         Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
       )
