@@ -1,5 +1,5 @@
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       releaseType:
         description: stable or canary (case sensitive)?
