@@ -66,7 +66,7 @@ describe('config telemetry', () => {
     expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
-    expect(event1).toMatch(/"output": null/)
+    expect(event1).toMatch(/"nextConfigOutput": null/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
     expect(event1).toMatch(/"turboFlag": false/)
@@ -106,7 +106,7 @@ describe('config telemetry', () => {
     expect(event2).toMatch(/"imageDomainsCount": 2/)
     expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
     expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
-    expect(event2).toMatch(/"output": null/)
+    expect(event2).toMatch(/"nextConfigOutput": null/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
   })
@@ -126,7 +126,7 @@ describe('config telemetry', () => {
         .exec(stderr)
         .pop()
 
-      expect(event1).toContain('"output": "export"')
+      expect(event1).toContain('"nextConfigOutput": "export"')
     } finally {
       await fs.remove('./next.config.js')
     }

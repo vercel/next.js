@@ -26,7 +26,7 @@ type EventCliSessionStarted = {
   imageSizes: string | null
   imageLoader: string | null
   imageFormats: string | null
-  output: string | null
+  nextConfigOutput: string | null
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
   webpackVersion: number | null
@@ -76,7 +76,7 @@ export function eventCliSession(
     | 'imageSizes'
     | 'imageLoader'
     | 'imageFormats'
-    | 'output'
+    | 'nextConfigOutput'
     | 'trailingSlashEnabled'
     | 'reactStrictMode'
   >
@@ -113,7 +113,7 @@ export function eventCliSession(
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
     imageLoader: images?.loader,
     imageFormats: images?.formats ? images.formats.join(',') : null,
-    output: nextConfig?.output || null,
+    nextConfigOutput: nextConfig?.output || null,
     trailingSlashEnabled: !!nextConfig?.trailingSlash,
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
