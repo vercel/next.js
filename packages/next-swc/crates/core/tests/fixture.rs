@@ -15,13 +15,13 @@ use next_swc::{
     page_config::page_config_test,
     react_remove_properties::remove_properties,
     react_server_components::server_components,
-    relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
     server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
 use std::path::PathBuf;
+use swc_relay::{relay, RelayLanguageConfig};
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -141,7 +141,7 @@ fn page_config_fixture(input: PathBuf) {
 #[fixture("tests/fixture/relay/**/input.ts*")]
 fn relay_no_artifact_dir_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    let config = RelayConfig {
+    let config = swc_relay::Config {
         language: RelayLanguageConfig::TypeScript,
         artifact_directory: Some(PathBuf::from("__generated__")),
         ..Default::default()
@@ -152,7 +152,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
             relay(
                 &config,
                 FileName::Real(PathBuf::from("input.tsx")),
-                Some(PathBuf::from("src/pages")),
+                PathBuf::from("src/pages"),
             )
         },
         &input,
