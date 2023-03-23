@@ -58,7 +58,8 @@
     "headers.js",
     "headers.d.ts",
     "navigation-types",
-    "web-vitals"
+    "web-vitals.js",
+    "web-vitals.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
