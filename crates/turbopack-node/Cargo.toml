@@ -15,6 +15,8 @@ dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
 
 [dependencies]
 anyhow = { workspace = true }
+async-stream = "0.3.4"
+bytes = { workspace = true }
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
@@ -24,6 +26,7 @@ serde_json = { workspace = true }
 serde_qs = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks = { workspace = true }
+turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }

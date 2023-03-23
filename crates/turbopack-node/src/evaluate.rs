@@ -1,15 +1,19 @@
-use std::{borrow::Cow, thread::available_parallelism, time::Duration};
+use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
 use anyhow::{Context, Result};
+use async_stream::stream as generator;
 use futures_retry::{FutureRetry, RetryPolicy};
 use indexmap::indexmap;
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringVc},
     CompletionVc, TryJoinIterExt, Value, ValueToString,
 };
+use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
 use turbo_tasks_fs::{
-    glob::GlobVc, rope::Rope, to_sys_path, DirectoryEntry, File, FileSystemPathVc, ReadGlobResultVc,
+    glob::GlobVc, to_sys_path, DirectoryEntry, File, FileSystemPathVc, ReadGlobResultVc,
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -29,18 +33,53 @@ use crate::{
     bootstrap::NodeJsBootstrapAsset,
     embed_js::embed_file_path,
     emit, emit_package_json,
-    pool::{NodeJsPool, NodeJsPoolVc},
-    EvalJavaScriptIncomingMessage, EvalJavaScriptOutgoingMessage, StructuredError,
+    pool::{NodeJsOperation, NodeJsPool, NodeJsPoolVc},
+    StructuredError,
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
-pub enum JavaScriptValue {
-    Error,
-    Value(Rope),
-    // TODO, support stream in the future
-    Stream(#[turbo_tasks(trace_ignore)] Vec<u8>),
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum EvalJavaScriptOutgoingMessage<'a> {
+    #[serde(rename_all = "camelCase")]
+    Evaluate { args: Vec<&'a JsonValue> },
 }
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum EvalJavaScriptIncomingMessage {
+    FileDependency {
+        path: String,
+    },
+    BuildDependency {
+        path: String,
+    },
+    DirDependency {
+        path: String,
+        glob: String,
+    },
+    EmittedError {
+        severity: IssueSeverity,
+        error: StructuredError,
+    },
+    Value {
+        // TODO(WEB-735): There is like 3 levels of JSON string encoding that goes into returning a
+        // value, making it really inefficient.
+        data: String,
+    },
+    End {
+        data: Option<String>,
+    },
+    Error(StructuredError),
+}
+
+type LoopResult = ControlFlow<Result<Option<String>, StructuredError>, String>;
+
+type EvaluationItem = Result<Bytes, String>;
+type JavaScriptStream = Stream<EvaluationItem>;
+
+#[turbo_tasks::value(transparent)]
+#[derive(Clone, Debug)]
+pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 
 #[turbo_tasks::function]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
@@ -182,7 +221,7 @@ pub async fn evaluate(
     args: Vec<JsonValueVc>,
     additional_invalidation: CompletionVc,
     debug: bool,
-) -> Result<JavaScriptValueVc> {
+) -> Result<JavaScriptEvaluationVc> {
     let pool = get_evaluate_pool(
         module_asset,
         cwd,
@@ -196,6 +235,9 @@ pub async fn evaluate(
     .await?;
 
     let args = args.into_iter().try_join().await?;
+    // Assume this is a one-off operation, so we can kill the process
+    // TODO use a better way to decide that.
+    let kill = args.is_empty();
 
     // Workers in the pool could be in a bad state that we didn't detect yet.
     // The bad state might even be unnoticable until we actually send the job to the
@@ -217,13 +259,69 @@ pub async fn evaluate(
     .await
     .map_err(|(e, _)| e)?;
 
+    // The evaluation sent an initial intermediate value without completing. We'll
+    // need to spawn a new thread to continually pull data out of the process,
+    // and ferry that along.
+    let stream = JavaScriptStream::new_open(
+        vec![],
+        Box::pin(generator! {
+            macro_rules! tri {
+                ($exp:expr) => {
+                    match $exp {
+                        Ok(v) => v,
+                        Err(e) => {
+                            yield Err(e.to_string());
+                            return;
+                        }
+                    }
+                }
+            }
+
+            loop {
+                let output = tri!(pull_operation(&mut operation, cwd, context_ident_for_issue).await);
+
+                match output {
+                    LoopResult::Continue(data) => {
+                        yield Ok(data.into());
+                    }
+                    LoopResult::Break(Ok(Some(data))) => {
+                        yield Ok(data.into());
+                        break;
+                    }
+                    LoopResult::Break(Err(e)) => {
+                        yield Err(e.message);
+                        break;
+                    }
+                    LoopResult::Break(Ok(None)) => {
+                        break;
+                    }
+                }
+            }
+
+            if kill {
+                tri!(operation.wait_or_kill().await);
+            }
+        }),
+    );
+
+    Ok(JavaScriptEvaluation(stream).cell())
+}
+
+/// Repeatedly pulls from the NodeJsOperation until we receive a
+/// value/error/end.
+async fn pull_operation(
+    operation: &mut NodeJsOperation,
+    cwd: FileSystemPathVc,
+    context_ident_for_issue: AssetIdentVc,
+) -> Result<LoopResult> {
     let mut file_dependencies = Vec::new();
     let mut dir_dependencies = Vec::new();
+
     let output = loop {
         match operation.recv().await? {
             EvalJavaScriptIncomingMessage::Error(error) => {
                 EvaluationIssue {
-                    error,
+                    error: error.clone(),
                     context_ident: context_ident_for_issue,
                     cwd,
                 }
@@ -232,16 +330,10 @@ pub async fn evaluate(
                 .emit();
                 // Do not reuse the process in case of error
                 operation.disallow_reuse();
-                break JavaScriptValue::Error;
+                break ControlFlow::Break(Err(error));
             }
-            EvalJavaScriptIncomingMessage::JsonValue { data } => {
-                if args.is_empty() {
-                    // Assume this is a one-off operation, so we can kill the process
-                    // TODO use a better way to decide that.
-                    operation.wait_or_kill().await?;
-                }
-                break JavaScriptValue::Value(data.into());
-            }
+            EvalJavaScriptIncomingMessage::Value { data } => break ControlFlow::Continue(data),
+            EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
             EvalJavaScriptIncomingMessage::FileDependency { path } => {
                 // TODO We might miss some changes that happened during execution
                 file_dependencies.push(cwd.join(&path).read());
@@ -275,6 +367,7 @@ pub async fn evaluate(
             }
         }
     };
+
     // Read dependencies to make them a dependencies of this task. This task will
     // execute again when they change.
     for dep in file_dependencies {
@@ -283,7 +376,8 @@ pub async fn evaluate(
     for dep in dir_dependencies {
         dep.await?;
     }
-    Ok(output.cell())
+
+    Ok(output)
 }
 
 /// An issue that occurred while evaluating node code.

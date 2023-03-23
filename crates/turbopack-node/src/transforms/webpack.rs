@@ -2,7 +2,8 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use turbo_tasks::{primitives::JsonValueVc, trace::TraceRawVcs, CompletionVc, Value};
-use turbo_tasks_fs::{json::parse_json_rope_with_source_context, File, FileContent};
+use turbo_tasks_bytes::stream::SingleValue;
+use turbo_tasks_fs::{json::parse_json_with_source_context, File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
@@ -19,7 +20,7 @@ use turbopack_ecmascript::{
 use super::util::{emitted_assets_to_virtual_assets, EmittedAsset};
 use crate::{
     embed_js::embed_file_path,
-    evaluate::{evaluate, JavaScriptValue},
+    evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
 };
 
@@ -173,15 +174,19 @@ impl WebpackLoadersProcessedAssetVc {
             /* debug */ false,
         )
         .await?;
-        let JavaScriptValue::Value(val) = &*config_value else {
+
+        let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),
                 assets: Vec::new()
             }.cell());
         };
-        let processed: WebpackLoadersProcessingResult = parse_json_rope_with_source_context(val)
-            .context("Unable to deserializate response from webpack loaders transform operation")?;
+        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(
+            val.to_str()?,
+        )
+        .context("Unable to deserializate response from webpack loaders transform operation")?;
+
         // TODO handle SourceMap
         let file = File::from(processed.source);
         let assets = emitted_assets_to_virtual_assets(processed.assets);

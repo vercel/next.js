@@ -95,7 +95,7 @@ fn bench_rope_iteration(c: &mut Criterion) {
                 }
 
                 let rope = root.build();
-                let _v = rope.read().into_iter().collect::<Vec<_>>();
+                let _v = rope.read().collect::<Vec<_>>();
             })
         },
     );

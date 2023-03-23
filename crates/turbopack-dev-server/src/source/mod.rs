@@ -13,12 +13,15 @@ pub mod specificity;
 pub mod static_assets;
 pub mod wrapping_source;
 
-use std::{collections::BTreeSet, sync::Arc};
+use std::collections::BTreeSet;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize, Serializer};
+use futures::stream::Stream as StreamTrait;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use turbo_tasks::{trace::TraceRawVcs, Value};
-use turbo_tasks_fs::{rope::Rope, FileSystemPathVc};
+use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::version::VersionedContentVc;
 
 use self::{
@@ -34,7 +37,19 @@ pub struct ProxyResult {
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<(String, String)>,
     /// The body to return.
-    pub body: Rope,
+    pub body: Body,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Error)]
+#[error("{err}")]
+pub struct BodyError {
+    err: String,
+}
+
+impl BodyError {
+    pub fn new(err: String) -> Self {
+        BodyError { err }
+    }
 }
 
 /// The return value of a content source when getting a path. A specificity is
@@ -231,56 +246,40 @@ pub struct ContentSourceData {
     pub cache_buster: u64,
 }
 
+type Chunk = Result<Bytes, BodyError>;
 /// A request body.
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct Body {
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    chunks: Arc<Vec<Bytes>>,
+    #[turbo_tasks(trace_ignore)]
+    chunks: Stream<Chunk>,
 }
 
 impl Body {
     /// Creates a new body from a list of chunks.
-    pub fn new(chunks: Vec<Bytes>) -> Self {
+    pub fn new(chunks: Vec<Chunk>) -> Self {
         Self {
-            chunks: Arc::new(chunks),
+            chunks: Stream::new_closed(chunks),
         }
     }
 
     /// Returns an iterator over the body's chunks.
-    pub fn chunks(&self) -> impl Iterator<Item = &Bytes> {
-        self.chunks.iter()
+    pub fn read(&self) -> StreamRead<Chunk> {
+        self.chunks.read()
+    }
+
+    pub fn from_stream<T: StreamTrait<Item = Chunk> + Send + Sync + Unpin + 'static>(
+        source: T,
+    ) -> Self {
+        Self {
+            chunks: Stream::from(source),
+        }
     }
 }
 
-/// A wrapper around [hyper::body::Bytes] that implements [Serialize] and
-/// [Deserialize].
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Bytes(hyper::body::Bytes);
-
-impl Bytes {
-    /// Returns the bytes as a slice.
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_ref()
-    }
-}
-
-impl From<hyper::body::Bytes> for Bytes {
-    fn from(bytes: hyper::body::Bytes) -> Self {
-        Self(bytes)
-    }
-}
-
-impl Serialize for Bytes {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_bytes(self.0.as_ref())
-    }
-}
-
-impl<'de> Deserialize<'de> for Bytes {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let bytes = Vec::<u8>::deserialize(deserializer)?;
-        Ok(Bytes(hyper::body::Bytes::from(bytes)))
+impl<T: Into<Bytes>> From<T> for Body {
+    fn from(value: T) -> Self {
+        Body::new(vec![Ok(value.into())])
     }
 }
 

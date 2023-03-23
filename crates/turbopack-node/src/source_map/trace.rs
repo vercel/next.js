@@ -13,7 +13,7 @@ use turbopack_core::{
 ///
 /// Line and column can be None if the frame is anonymous.
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StackFrame {
     pub file: String,
     #[serde(rename = "lineNumber")]
