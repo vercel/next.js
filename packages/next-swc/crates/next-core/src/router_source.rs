@@ -153,10 +153,7 @@ impl ContentSource for NextRouterContentSource {
                         headers: data.headers.clone(),
                         body: Body::from_stream(data.body.read().map(|chunk| {
                             chunk.map_err(|e| {
-                                BodyError::new(format!(
-                                    "error streaming proxied contents: {}",
-                                    e.as_str()
-                                ))
+                                BodyError::new(format!("error streaming proxied contents: {}", e))
                             })
                         })),
                     }
