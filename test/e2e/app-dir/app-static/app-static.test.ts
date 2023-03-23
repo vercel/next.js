@@ -162,6 +162,7 @@ createNextDescribe(
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
