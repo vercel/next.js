@@ -7,12 +7,21 @@ async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
   const semverType = args[args.indexOf('--semver-type') + 1]
+  const isCanary = releaseType === 'canary'
 
   if (releaseType !== 'stable' && releaseType !== 'canary') {
-    console.log(`Invalid type ${releaseType}, must be stable or canary`)
+    console.log(`Invalid release type ${releaseType}, must be stable or canary`)
     return
   }
-  const isCanary = releaseType === 'canary'
+  if (!isCanary && !['patch', 'minor', 'stable'].includes(semverType)) {
+    console.log(
+      `Invalid semver type ${semverType}, must be one of ${semverType.join(
+        ', '
+      )}`
+    )
+    return
+  }
+
   const githubToken = process.env.START_RELEASE_TOKEN
 
   if (!githubToken) {

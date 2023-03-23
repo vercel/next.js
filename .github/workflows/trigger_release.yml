@@ -14,7 +14,8 @@ on:
       START_RELEASE_TOKEN:
         required: true
 
-name: trigger-release
+name: Trigger Release
+
 jobs:
   start:
     runs-on: ubuntu-latest
