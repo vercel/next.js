@@ -11,6 +11,7 @@ bench = false
 [dependencies]
 anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
+futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 indoc = { workspace = true }
 mime = { workspace = true }
@@ -20,6 +21,7 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fetch = { workspace = true }
 turbo-tasks-fs = { workspace = true }

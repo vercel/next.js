@@ -838,7 +838,7 @@ function defineRefPropWarningGetter(props, displayName) {
  */
 
 
-var ReactElement = function (type, key, ref, self, source, owner, props) {
+function ReactElement(type, key, ref, self, source, owner, props) {
   var element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -890,7 +890,7 @@ var ReactElement = function (type, key, ref, self, source, owner, props) {
   }
 
   return element;
-};
+}
 /**
  * https://github.com/reactjs/rfcs/pull/107
  * @param {*} type
