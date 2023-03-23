@@ -264,6 +264,8 @@ class NextTracerImpl implements NextTracer {
           } catch (err: any) {
             closeSpanWithError(span, err)
             throw err
+          } finally {
+            rootSpanAttributesStore.delete(spanId)
           }
         }
       )
