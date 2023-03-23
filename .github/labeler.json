@@ -3,13 +3,6 @@
     "area: create-next-app": ["packages/create-next-app/**"],
     "area: documentation": ["docs/**", "errors/**"],
     "area: examples": ["examples/**"],
-    "area: next/image": [
-      "**/*image*",
-      "**/*image*/**",
-      "packages/next/src/client/use-intersection.tsx",
-      "packages/next/src/server/lib/squoosh/",
-      "packages/next/src/server/serve-static.ts"
-    ],
     "area: Font Optimization": ["**/*font*"],
     "area: tests": ["test/**", "bench/**"],
     "created-by: Chrome Aurora": [
