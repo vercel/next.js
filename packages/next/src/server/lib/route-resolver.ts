@@ -168,7 +168,8 @@ export async function makeResolver(
       route.type === 'header' ||
       route.name === 'catchall route' ||
       route.name === 'middleware catchall' ||
-      route.name?.includes('check')
+      (route.name?.includes('check') &&
+        route.name !== 'dynamic route/page check')
     return matches
   })
 
