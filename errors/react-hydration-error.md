@@ -1,4 +1,4 @@
-# React Hydration Error
+# Text content does not match server-rendered HTML
 
 #### Why This Error Occurred
 
