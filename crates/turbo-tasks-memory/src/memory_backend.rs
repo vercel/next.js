@@ -691,6 +691,14 @@ impl Backend for MemoryBackend {
         self.connect_task_child(parent_task, task, turbo_tasks);
     }
 
+    fn mark_own_task_as_finished(
+        &self,
+        task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
+        self.with_task(task, |task| task.mark_as_finished(self))
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,

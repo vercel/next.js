@@ -482,7 +482,10 @@ enum TaskStateType {
     /// on finish this will move to Done
     ///
     /// on invalidation this will move to InProgressDirty
-    InProgress { event: Event },
+    InProgress {
+        event: Event,
+        count_as_finished: bool,
+    },
 
     /// Invalid execution is happening
     ///
@@ -796,6 +799,7 @@ impl Task {
             Scheduled { ref mut event } => {
                 state.state_type = InProgress {
                     event: event.take(),
+                    count_as_finished: false,
                 };
                 state.stats.increment_executions();
                 // TODO we need to reconsider the approach of doing scope changes in background
@@ -912,6 +916,24 @@ impl Task {
         }
     }
 
+    pub(crate) fn mark_as_finished(&self, backend: &MemoryBackend) {
+        let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() else {
+            return;
+        };
+        let TaskStateType::InProgress { ref mut count_as_finished, .. } = state.state_type else {
+            return;
+        };
+        if *count_as_finished {
+            return;
+        }
+        *count_as_finished = true;
+        for scope in state.scopes.iter() {
+            backend.with_scope(scope, |scope| {
+                scope.decrement_unfinished_tasks(backend);
+            })
+        }
+    }
+
     pub(crate) fn execution_result(
         &self,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
@@ -979,7 +1001,10 @@ impl Task {
                 .stats
                 .register_execution(duration, turbo_tasks.program_duration_until(instant));
             match state.state_type {
-                InProgress { ref mut event } => {
+                InProgress {
+                    ref mut event,
+                    count_as_finished,
+                } => {
                     let event = event.take();
                     let mut dependencies = take(&mut dependencies);
                     // This will stay here for longer, so make sure to not consume too much memory
@@ -990,10 +1015,12 @@ impl Task {
                     state.cells.shrink_to_fit();
                     state.stateful = stateful;
                     state.state_type = Done { dependencies };
-                    for scope in state.scopes.iter() {
-                        backend.with_scope(scope, |scope| {
-                            scope.decrement_unfinished_tasks(backend);
-                        })
+                    if !count_as_finished {
+                        for scope in state.scopes.iter() {
+                            backend.with_scope(scope, |scope| {
+                                scope.decrement_unfinished_tasks(backend);
+                            })
+                        }
                     }
                     event.notify(usize::MAX);
                 }
@@ -1153,10 +1180,19 @@ impl Task {
                         drop(state);
                     }
                 }
-                InProgress { ref mut event } => {
-                    state.state_type = InProgressDirty {
-                        event: event.take(),
-                    };
+                InProgress {
+                    ref mut event,
+                    count_as_finished,
+                } => {
+                    let event = event.take();
+                    if count_as_finished {
+                        for scope in state.scopes.iter() {
+                            backend.with_scope(scope, |scope| {
+                                scope.increment_unfinished_tasks(backend);
+                            })
+                        }
+                    }
+                    state.state_type = InProgressDirty { event };
                     drop(state);
                 }
             }
@@ -1291,7 +1327,15 @@ impl Task {
         backend.with_scope(id, |scope| {
             scope.increment_tasks();
             if !matches!(state.state_type, TaskStateType::Done { .. }) {
-                scope.increment_unfinished_tasks(backend);
+                if !matches!(
+                    state.state_type,
+                    TaskStateType::InProgress {
+                        count_as_finished: true,
+                        ..
+                    }
+                ) {
+                    scope.increment_unfinished_tasks(backend);
+                }
                 log_scope_update!("add unfinished task (added): {} -> {}", *scope.id, *self.id);
                 if let TaskStateType::Dirty { ref mut event } = state.state_type {
                     let mut scope = scope.state.lock();
@@ -1368,6 +1412,12 @@ impl Task {
                     scope.decrement_unfinished_tasks(backend);
                     let mut scope = scope.state.lock();
                     scope.remove_dirty_task(self.id);
+                }
+                InProgress {
+                    count_as_finished: true,
+                    ..
+                } => {
+                    // no need to decrement unfinished tasks
                 }
                 _ => {
                     scope.decrement_unfinished_tasks(backend);
@@ -2125,7 +2175,9 @@ impl Task {
                 drop(state);
                 Ok(Err(listener))
             }
-            Scheduled { ref event } | InProgress { ref event } | InProgressDirty { ref event } => {
+            Scheduled { ref event }
+            | InProgress { ref event, .. }
+            | InProgressDirty { ref event } => {
                 let listener = event.listen_with_note(note);
                 drop(state);
                 Ok(Err(listener))

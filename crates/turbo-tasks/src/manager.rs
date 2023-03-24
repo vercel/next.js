@@ -115,6 +115,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<CellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
+    fn mark_own_task_as_finished(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 }
@@ -974,6 +975,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend
             .connect_task(task, current_task("connecting task"), self);
     }
+
+    fn mark_own_task_as_finished(&self, task: TaskId) {
+        self.backend.mark_own_task_as_finished(task, self);
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
@@ -1308,6 +1313,14 @@ pub fn get_invalidator() -> Invalidator {
         turbo_tasks: weak_turbo_tasks(),
         handle,
     }
+}
+
+/// Marks the current task as finished. This excludes it from waiting for
+/// strongly consistency.
+pub fn mark_finished() {
+    with_turbo_tasks(|tt| {
+        tt.mark_own_task_as_finished(current_task("turbo_tasks::mark_finished()"))
+    });
 }
 
 /// Marks the current task as stateful. This prevents the tasks from being

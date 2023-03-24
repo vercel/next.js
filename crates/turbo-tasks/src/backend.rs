@@ -338,6 +338,14 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
+    fn mark_own_task_as_finished(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Do nothing by default
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
