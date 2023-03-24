@@ -520,22 +520,48 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: [req.method, req.url].join(' '),
+        spanName: `${method} ${req.url}`,
         kind: SpanKind.SERVER,
         attributes: {
-          'http.method': req.method,
+          'http.method': method,
           'http.target': req.url,
         },
       },
       async (span) =>
-        this.handleRequestImpl(req, res, parsedUrl).finally(() =>
-          span?.setAttributes({
+        this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          if (!span) return
+          span.setAttributes({
             'http.status_code': res.statusCode,
           })
-        )
+          const rootSpanAttributes = getTracer().getRootSpanAttributes()
+          // We were unable to get attributes, probably OTEL is not enabled
+          if (!rootSpanAttributes) return
+
+          if (
+            rootSpanAttributes.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
+            console.warn(
+              `Unexpected root span type '${rootSpanAttributes.get(
+                'next.span_type'
+              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+            )
+            return
+          }
+
+          const route = rootSpanAttributes.get('next.route')
+          if (route) {
+            span.setAttributes({
+              'next.route': route,
+              'http.route': route,
+            })
+            span.updateName(`${method} ${route}`)
+          }
+        })
     )
   }
 
@@ -1998,7 +2024,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       {
         spanName: `rendering page`,
         attributes: {
-          'next.pathname': ctx.pathname,
+          'next.route': ctx.pathname,
         },
       },
       async () => {
