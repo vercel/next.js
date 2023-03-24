@@ -56,7 +56,7 @@ const program = new Commander.Command(packageJson.name)
     '--tailwind',
     `
 
-  Initialize with Tailwind CSS config. (default)
+  Initialize with Tailwind CSS and prettier plugin for tailwindcss config. (default)
 `
   )
   .option(
@@ -302,7 +302,7 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.tailwind = false
       } else {
-        const tw = chalk.hex('#007acc')('Tailwind CSS')
+        const tw = chalk.hex('#007acc')('Tailwind CSS with prettier plugin')
         const { tailwind } = await prompts({
           onState: onPromptState,
           type: 'toggle',
