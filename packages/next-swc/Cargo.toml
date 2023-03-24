@@ -93,6 +93,7 @@ chromiumoxide = { version = "0.4.0", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.17.3"
 
+allsorts = "0.14.0"
 anyhow = "1.0.69"
 assert_cmd = "2.0.8"
 async-compression = { version = "0.3.13", default-features = false, features = [
