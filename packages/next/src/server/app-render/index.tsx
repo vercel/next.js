@@ -33,7 +33,6 @@ import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html
 import { stripInternalQueries } from '../internal-utils'
 import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import {
-  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
@@ -56,7 +55,6 @@ import { getTracer } from '../lib/trace/tracer'
 import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
-import { ActionRenderResult } from './action-render-result'
 import { createErrorHandler } from './create-error-handler'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
@@ -72,6 +70,7 @@ import {
   addSearchParamsIfPageSegment,
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
+import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
@@ -435,9 +434,14 @@ export async function renderToHTMLOrFlight(
         template,
         error,
         loading,
-        page,
         'not-found': notFound,
       } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -528,6 +532,10 @@ export async function renderToHTMLOrFlight(
             staticGenerationStore.forceStatic = false
           }
         }
+      }
+
+      if (typeof layoutOrPageMod?.fetchCache === 'string') {
+        staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
       }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
@@ -1358,79 +1366,18 @@ export async function renderToHTMLOrFlight(
     )
 
     // For action requests, we handle them differently with a special render result.
-    let actionId = req.headers[ACTION.toLowerCase()] as string
-    const isFormAction =
-      req.method === 'POST' &&
-      req.headers['content-type'] === 'application/x-www-form-urlencoded'
-    const isFetchAction =
-      actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-
-    if (isFetchAction || isFormAction) {
-      if (process.env.NEXT_RUNTIME !== 'edge') {
-        const { parseBody } =
-          require('../api-utils/node') as typeof import('../api-utils/node')
-        const actionData = (await parseBody(req, '1mb')) || {}
-        let bound = []
-
-        if (isFormAction) {
-          actionId = actionData.$$id as string
-          if (!actionId) {
-            throw new Error('Invariant: missing action ID.')
-          }
-          const formData = new URLSearchParams(actionData)
-          formData.delete('$$id')
-          bound = [formData]
-        } else {
-          bound = actionData.bound || []
-        }
-
-        const workerName = 'app' + renderOpts.pathname
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
-
-        const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId)
-
-        try {
-          const result = new ActionRenderResult(
-            JSON.stringify([await actionHandler(actionId, bound)])
-          )
-          // For form actions, we need to continue rendering the page.
-          if (isFetchAction) {
-            return result
-          }
-        } catch (err) {
-          if (isRedirectError(err)) {
-            if (isFetchAction) {
-              throw new Error('Invariant: not implemented.')
-            }
-            const redirectUrl = getURLFromRedirectError(err)
-            res.statusCode = 303
-            res.setHeader('Location', redirectUrl)
-            return new ActionRenderResult(JSON.stringify({}))
-          } else if (isNotFoundError(err)) {
-            if (isFetchAction) {
-              throw new Error('Invariant: not implemented.')
-            }
-            res.statusCode = 404
-            return new RenderResult(await bodyResult({ asNotFound: true }))
-          }
-
-          if (isFetchAction) {
-            res.statusCode = 500
-            return new RenderResult(
-              (err as Error)?.message ?? 'Internal Server Error'
-            )
-          }
-
-          throw err
-        }
-      } else {
-        throw new Error('Not implemented in Edge Runtime.')
-      }
+    const actionRequestResult = await handleAction({
+      req,
+      res,
+      ComponentMod,
+      pathname: renderOpts.pathname,
+      serverActionsManifest,
+    })
+    if (actionRequestResult === 'not-found') {
+      return new RenderResult(await bodyResult({ asNotFound: true }))
+    } else if (actionRequestResult) {
+      return actionRequestResult
     }
-    // End of action request handling.
 
     const renderResult = new RenderResult(
       await bodyResult({

@@ -149,7 +149,7 @@ function getSelectedParams(
   const segment = node[0]
   const isDynamicParameter = Array.isArray(segment)
   const segmentValue = isDynamicParameter ? segment[1] : segment
-  if (!segmentValue || segmentValue === '__PAGE__') return params
+  if (!segmentValue || segmentValue.startsWith('__PAGE__')) return params
 
   if (isDynamicParameter) {
     params[segment[0]] = segment[1]
