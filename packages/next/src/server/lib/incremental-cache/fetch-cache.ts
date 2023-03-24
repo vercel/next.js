@@ -66,7 +66,12 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
-  public async get(key: string, fetchCache?: boolean) {
+  public async get(
+    key: string,
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
+  ) {
     if (!fetchCache) return null
 
     let data = memoryCache?.get(key)
@@ -86,8 +91,12 @@ export default class FetchCache implements CacheHandler {
           {
             method: 'GET',
             headers: this.headers,
-            // @ts-expect-error
-            next: { internal: true },
+            next: {
+              internal: true,
+              fetchType: 'fetch-get',
+              originUrl,
+              fetchIdx,
+            },
           }
         )
 
@@ -150,7 +159,9 @@ export default class FetchCache implements CacheHandler {
   public async set(
     key: string,
     data: CacheHandlerValue['value'],
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
   ) {
     if (!fetchCache) return
 
@@ -180,8 +191,12 @@ export default class FetchCache implements CacheHandler {
             method: 'POST',
             headers: this.headers,
             body: body,
-            // @ts-expect-error
-            next: { internal: true },
+            next: {
+              internal: true,
+              fetchType: 'fetch-set',
+              originUrl,
+              fetchIdx,
+            },
           }
         )
 

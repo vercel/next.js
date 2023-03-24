@@ -40,6 +40,10 @@ interface Window {
 
 interface NextFetchRequestConfig {
   revalidate?: number | false
+  internal?: boolean
+  fetchType?: string
+  fetchIdx?: number
+  originUrl?: string
 }
 
 interface RequestInit {

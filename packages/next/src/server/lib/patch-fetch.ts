@@ -6,6 +6,7 @@ import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+let nextFetchIdx = 0
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
@@ -25,6 +26,7 @@ export function patchFetch({
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) => {
+    const fetchIdx = nextFetchIdx++
     let url
     try {
       url = new URL(input instanceof Request ? input.url : input)
@@ -36,6 +38,7 @@ export function patchFetch({
     }
 
     const method = init?.method?.toUpperCase() || 'GET'
+    const originUrl = url?.toString() ?? ''
 
     return await getTracer().trace(
       AppRenderSpan.fetch,
@@ -66,7 +69,7 @@ export function patchFetch({
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || (init?.next as any)?.internal) {
+        if (!staticGenerationStore || init?.next?.internal) {
           return originFetch(input, init)
         }
 
@@ -162,7 +165,7 @@ export function patchFetch({
           // revalidate although if it occurs during build we do
           !autoNoCache &&
           (typeof staticGenerationStore.revalidate === 'undefined' ||
-            (typeof revalidate === 'number' &&
+            (typeof revalidate === 'number' && typeof staticGenerationStore.revalidate === 'number' &&
               revalidate < staticGenerationStore.revalidate))
         ) {
           staticGenerationStore.revalidate = revalidate
@@ -223,7 +226,13 @@ export function patchFetch({
         }
 
         const doOriginalFetch = async () => {
-          return originFetch(input, init).then(async (res) => {
+          // add metadata to init without editing the original
+          const clonedInit = {
+            ...init,
+            next: { ...init?.next, fetchType: 'origin', fetchIdx, originUrl },
+          }
+
+          return originFetch(input, clonedInit).then(async (res) => {
             if (
               staticGenerationStore.incrementalCache &&
               cacheKey &&
@@ -255,7 +264,9 @@ export function patchFetch({
                     revalidate,
                   },
                   revalidate,
-                  true
+                  true,
+                  originUrl,
+                  fetchIdx
                 )
               } catch (err) {
                 console.warn(`Failed to set fetch cache`, input, err)
@@ -276,7 +287,9 @@ export function patchFetch({
             : await staticGenerationStore.incrementalCache.get(
                 cacheKey,
                 true,
-                revalidate
+                revalidate,
+                originUrl,
+                fetchIdx
               )
 
           if (entry?.value && entry.value.kind === 'FETCH') {
@@ -335,10 +348,10 @@ export function patchFetch({
             }
 
             const hasNextConfig = 'next' in init
-            const next = init.next || {}
+            const next = init.next || ({} as NextFetchRequestConfig)
             if (
               typeof next.revalidate === 'number' &&
-              (typeof staticGenerationStore.revalidate === 'undefined' ||
+              (typeof staticGenerationStore.revalidate === 'undefined' || typeof staticGenerationStore.revalidate === 'boolean' ||
                 next.revalidate < staticGenerationStore.revalidate)
             ) {
               const forceDynamic = staticGenerationStore.forceDynamic
