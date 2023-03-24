@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use futures::{Stream as StreamTrait, StreamExt};
+use futures::{Stream as StreamTrait, StreamExt, TryStreamExt};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Streams allow for streaming values from source to sink.
@@ -21,7 +21,7 @@ pub struct Stream<T: Clone> {
 
 /// The StreamState actually holds the data of a Stream.
 struct StreamState<T> {
-    source: Option<Box<dyn StreamTrait<Item = T> + Send + Unpin>>,
+    source: Option<Pin<Box<dyn StreamTrait<Item = T> + Send>>>,
     pulled: Vec<T>,
 }
 
@@ -37,14 +37,14 @@ impl<T: Clone> Stream<T> {
         }
     }
 
-    /// Crates a new Stream, which will lazily pull from the source stream.
-    pub fn new_open<S: StreamTrait<Item = T> + Send + Unpin + 'static>(
+    /// Creates a new Stream, which will lazily pull from the source stream.
+    pub fn new_open(
         pulled: Vec<T>,
-        source: S,
+        source: Box<dyn StreamTrait<Item = T> + Send + 'static>,
     ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(StreamState {
-                source: Some(Box::new(source)),
+                source: Some(Box::into_pin(source)),
                 pulled,
             })),
         }
@@ -72,6 +72,22 @@ impl<T: Clone> Stream<T> {
     }
 }
 
+impl<T: Clone, E: Clone> Stream<Result<T, E>> {
+    /// Converts a TryStream into a single value when possible.
+    pub async fn try_into_single(&self) -> Result<SingleValue<T>, E> {
+        let mut stream = self.read();
+        let Some(first) = stream.try_next().await? else {
+            return Ok(SingleValue::None);
+        };
+
+        if stream.try_next().await?.is_some() {
+            return Ok(SingleValue::Multiple);
+        }
+
+        Ok(SingleValue::Single(first))
+    }
+}
+
 pub enum SingleValue<T> {
     /// The Stream did not hold a value.
     None,
@@ -85,7 +101,7 @@ pub enum SingleValue<T> {
 
 impl<T: Clone, S: StreamTrait<Item = T> + Send + Unpin + 'static> From<S> for Stream<T> {
     fn from(source: S) -> Self {
-        Self::new_open(vec![], source)
+        Self::new_open(vec![], Box::new(source))
     }
 }
 

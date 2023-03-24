@@ -175,7 +175,7 @@ impl WebpackLoadersProcessedAssetVc {
         )
         .await?;
 
-        let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
+        let SingleValue::Single(val) = config_value.try_into_single().await? else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.cell()).cell(),

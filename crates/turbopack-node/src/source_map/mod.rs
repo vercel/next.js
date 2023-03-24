@@ -18,7 +18,6 @@ use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
     asset::AssetVc, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_ROOT_NAME,
 };
-use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForSourceMappingVc};
 
@@ -255,13 +254,6 @@ impl StructuredError {
         let mut message = String::new();
 
         let magic = |content| formatting_mode.magic_identifier(content);
-
-        write!(
-            message,
-            "{}: {}",
-            self.name,
-            unmangle_identifiers(&self.message, magic)
-        )?;
 
         let mut first_error = true;
         let mut visible_code_frames = 0;

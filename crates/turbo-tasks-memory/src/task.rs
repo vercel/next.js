@@ -1105,9 +1105,24 @@ impl Task {
             let mut clear_dependencies = AutoSet::default();
 
             match state.state_type {
-                Dirty { .. } | Scheduled { .. } | InProgressDirty { .. } => {
+                Scheduled { .. } | InProgressDirty { .. } => {
                     // already dirty
                     drop(state);
+                }
+                Dirty { .. } => {
+                    if force_schedule {
+                        let description = self.get_event_description();
+                        state.state_type = Scheduled {
+                            event: Event::new(move || {
+                                format!("TaskState({})::event", description())
+                            }),
+                        };
+                        drop(state);
+                        turbo_tasks.schedule(self.id);
+                    } else {
+                        // already dirty
+                        drop(state);
+                    }
                 }
                 Done {
                     ref mut dependencies,

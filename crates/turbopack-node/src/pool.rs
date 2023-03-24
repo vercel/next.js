@@ -223,7 +223,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             let start = buffer.len();
             match stream.read_until(b'\n', &mut buffer).await {
                 Ok(0) => {
-                    break;
+                    bail!("stream closed unexpectedly")
                 }
                 Err(err) => {
                     eprintln!("error reading from stream: {}", err);
@@ -493,16 +493,17 @@ impl RunningNodeJsPoolProcess {
                 .read_exact(&mut packet_data)
                 .await
                 .context("reading packet data")?;
-            Ok(packet_data)
+            Ok::<_, anyhow::Error>(packet_data)
         };
         let (result, stdout, stderr) = join!(
             recv_future,
             self.stdout_handler.handle_operation(),
             self.stderr_handler.handle_operation(),
         );
-        stdout?;
-        stderr?;
-        result
+        let result = result?;
+        stdout.context("unable to handle stdout from the Node.js process in a structured way")?;
+        stderr.context("unable to handle stderr from the Node.js process in a structured way")?;
+        Ok(result)
     }
 
     async fn send(&mut self, packet_data: Vec<u8>) -> Result<()> {
