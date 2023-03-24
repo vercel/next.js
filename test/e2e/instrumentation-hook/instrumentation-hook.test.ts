@@ -1,29 +1,58 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import path from 'path'
 
-createNextDescribe(
-  'instrumentation-hook',
-  {
-    files: __dirname,
-    nextConfig: {
-      experimental: {
-        instrumentationHook: true,
+const describeCase = (
+  caseName: string,
+  callback: Parameters<typeof createNextDescribe>[2]
+) => {
+  createNextDescribe(
+    caseName,
+    {
+      files: path.join(__dirname, caseName),
+      nextConfig: {
+        experimental: {
+          instrumentationHook: true,
+        },
       },
+      skipDeployment: true,
     },
-    skipDeployment: true,
-  },
-  ({ next, isNextDev }) => {
-    it('should run the instrumentation hook', async () => {
-      await next.render('/')
-      await check(() => next.cliOutput, /instrumentation hook/)
+    callback
+  )
+}
+describe('Instrumentation Hook', () => {
+  describeCase('with-edge-api', ({ next }) => {
+    it('with-edge-api should run the instrumentation hook', async () => {
+      await next.render('/api')
+      await check(() => next.cliOutput, /instrumentation hook on the edge/)
     })
+  })
+
+  describeCase('with-edge-page', ({ next }) => {
+    it('with-edge-page should run the instrumentation hook', async () => {
+      await next.render('/')
+      await check(() => next.cliOutput, /instrumentation hook on the edge/)
+    })
+  })
+
+  describeCase('with-node-api', ({ next }) => {
+    it('with-node-api should run the instrumentation hook', async () => {
+      await next.render('/api')
+      await check(() => next.cliOutput, /instrumentation hook on nodejs/)
+    })
+  })
+
+  describeCase('with-node-page', ({ next }) => {
+    it('with-node-page should run the instrumentation hook', async () => {
+      await next.render('/')
+      await check(() => next.cliOutput, /instrumentation hook on nodejs/)
+    })
+  })
+
+  describeCase('general', ({ next, isNextDev }) => {
     it('should not overlap with a instrumentation page', async () => {
       const page = await next.render('/instrumentation')
       expect(page).toContain('Hello')
-    })
-    it('should run the edge instrumentation compiled version with the edge runtime', async () => {
-      await next.render('/edge')
-      await check(() => next.cliOutput, /instrumentation hook on the edge/)
     })
     if (isNextDev) {
       it('should reload the server when the instrumentation hook changes', async () => {
@@ -53,5 +82,5 @@ createNextDescribe(
         await check(() => next.cliOutput, /bread/)
       })
     }
-  }
-)
+  })
+})
