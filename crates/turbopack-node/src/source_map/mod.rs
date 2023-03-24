@@ -25,6 +25,8 @@ use crate::{internal_assets_for_source_mapping, pool::FormattingMode, AssetsForS
 pub mod content_source;
 pub mod trace;
 
+const MAX_CODE_FRAMES: usize = 3;
+
 pub async fn apply_source_mapping(
     text: &'_ str,
     assets_for_source_mapping: AssetsForSourceMappingVc,
@@ -40,6 +42,7 @@ pub async fn apply_source_mapping(
         return Ok(Cow::Borrowed(text));
     }
     let mut first_error = true;
+    let mut visible_code_frames = 0;
     let mut new = String::with_capacity(text.len() * 2);
     let mut last_match = 0;
     for cap in it {
@@ -66,6 +69,7 @@ pub async fn apply_source_mapping(
             resolved,
             &frame,
             &mut first_error,
+            &mut visible_code_frames,
             formatting_mode,
         )?;
         last_match = m.end();
@@ -79,6 +83,7 @@ fn write_resolved(
     resolved: Result<ResolvedSourceMapping>,
     original_frame: &StackFrame<'_>,
     first_error: &mut bool,
+    visible_code_frames: &mut usize,
     formatting_mode: FormattingMode,
 ) -> Result<()> {
     const PADDING: &str = "\n    ";
@@ -139,16 +144,19 @@ fn write_resolved(
             let line = line.saturating_sub(1);
             let column = column.saturating_sub(1);
             if let FileLinesContent::Lines(lines) = &*lines {
-                let lines = lines.iter().map(|l| l.content.as_str());
-                let ctx = get_source_context(lines, line, column, line, column);
-                match formatting_mode {
-                    FormattingMode::Plain => {
-                        write!(writable, "\n{}", ctx)?;
+                if *visible_code_frames < MAX_CODE_FRAMES {
+                    let lines = lines.iter().map(|l| l.content.as_str());
+                    let ctx = get_source_context(lines, line, column, line, column);
+                    match formatting_mode {
+                        FormattingMode::Plain => {
+                            write!(writable, "\n{}", ctx)?;
+                        }
+                        FormattingMode::AnsiColors => {
+                            writable.write_char('\n')?;
+                            format_source_context_lines(&ctx, writable);
+                        }
                     }
-                    FormattingMode::AnsiColors => {
-                        writable.write_char('\n')?;
-                        format_source_context_lines(&ctx, writable);
-                    }
+                    *visible_code_frames += 1;
                 }
             }
         }
@@ -256,6 +264,7 @@ impl StructuredError {
         )?;
 
         let mut first_error = true;
+        let mut visible_code_frames = 0;
 
         for frame in &self.stack {
             let frame = frame.unmangle_identifiers(magic);
@@ -267,6 +276,7 @@ impl StructuredError {
                 resolved,
                 &frame,
                 &mut first_error,
+                &mut visible_code_frames,
                 formatting_mode,
             )?;
         }
