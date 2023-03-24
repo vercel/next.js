@@ -31,7 +31,10 @@ import type { ModuleLoader } from '../helpers/module-loader/module-loader'
 import { RouteHandler } from './route-handler'
 import * as Log from '../../../build/output/log'
 import { patchFetch } from '../../lib/patch-fetch'
-import { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../../client/components/static-generation-async-storage'
 import { StaticGenerationAsyncStorageWrapper } from '../../async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../../lib/incremental-cache'
 import { AppConfig } from '../../../build/utils'
@@ -100,6 +103,7 @@ export type StaticGenerationContext = {
   incrementalCache?: IncrementalCache
   supportsDynamicHTML: boolean
   nextExport?: boolean
+  fetchCache?: StaticGenerationStore['fetchCache']
 }
 
 /**
@@ -474,6 +478,10 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
             res: (res as NodeNextResponse).originalResponse,
           }
 
+    if (context) {
+      context.fetchCache = module.handlers.fetchCache
+    }
+
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
     const response = await this.requestAsyncLocalStorageWrapper.wrap(
@@ -484,11 +492,9 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
           staticGenerationAsyncStorage,
           {
             pathname: definition.pathname,
-            renderOpts: {
+            renderOpts: context ?? {
+              supportsDynamicHTML: false,
               fetchCache: module.handlers.fetchCache,
-              ...(context ?? {
-                supportsDynamicHTML: false,
-              }),
             },
           },
           (staticGenerationStore) => {
@@ -539,9 +545,8 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               default:
                 break
             }
-            ;(context as any).store = staticGenerationStore
 
-            if (typeof staticGenerationStore?.revalidate === 'undefined') {
+            if (typeof staticGenerationStore.revalidate === 'undefined') {
               staticGenerationStore.revalidate =
                 module.handlers.revalidate ?? false
             }
