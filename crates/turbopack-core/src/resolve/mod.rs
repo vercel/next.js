@@ -689,7 +689,7 @@ async fn resolve_internal(
 
     // Apply import mappings if provided
     if let Some(import_map) = &options_value.import_map {
-        let result_ref = import_map.lookup(request).await?;
+        let result_ref = import_map.lookup(context, request).await?;
         let result = &*result_ref;
         if !matches!(result, ImportMapResult::NoEntry) {
             let resolved_result =
@@ -840,7 +840,7 @@ async fn resolve_internal(
     // Apply fallback import mappings if provided
     if let Some(import_map) = &options_value.fallback_import_map {
         if *result.is_unresolveable().await? {
-            let result_ref = import_map.lookup(request).await?;
+            let result_ref = import_map.lookup(context, request).await?;
             let result = &*result_ref;
             let resolved_result =
                 resolve_import_map_result(result, context, context, request, options).await?;
@@ -1147,7 +1147,9 @@ async fn resolved(
     }
 
     if let Some(resolved_map) = resolved_map {
-        let result = resolved_map.lookup(*path, original_request).await?;
+        let result = resolved_map
+            .lookup(*path, original_context, original_request)
+            .await?;
         let resolved_result = resolve_import_map_result(
             &result,
             path.parent(),

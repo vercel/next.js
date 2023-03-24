@@ -256,6 +256,7 @@ pub enum ImportMapResult {
 
 async fn import_mapping_to_result(
     mapping: ImportMappingVc,
+    context: FileSystemPathVc,
     request: RequestVc,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
@@ -283,11 +284,13 @@ async fn import_mapping_to_result(
         }
         ImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| import_mapping_to_result_boxed(*mapping, request))
+                .map(|mapping| import_mapping_to_result_boxed(*mapping, context, request))
                 .try_join()
                 .await?,
         ),
-        ImportMapping::Dynamic(replacement) => (*replacement.result(request).await?).clone(),
+        ImportMapping::Dynamic(replacement) => {
+            (*replacement.result(context, request).await?).clone()
+        }
     })
 }
 
@@ -332,21 +335,27 @@ impl ValueToString for ImportMapResult {
 //     `resolve::options::import_mapping_to_result::{opaque#0}`
 fn import_mapping_to_result_boxed(
     mapping: ImportMappingVc,
+    context: FileSystemPathVc,
     request: RequestVc,
 ) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
-    Box::pin(async move { import_mapping_to_result(mapping, request).await })
+    Box::pin(async move { import_mapping_to_result(mapping, context, request).await })
 }
 
 #[turbo_tasks::value_impl]
 impl ImportMapVc {
     #[turbo_tasks::function]
-    pub async fn lookup(self, request: RequestVc) -> Result<ImportMapResultVc> {
+    pub async fn lookup(
+        self,
+        context: FileSystemPathVc,
+        request: RequestVc,
+    ) -> Result<ImportMapResultVc> {
         let this = self.await?;
         // TODO lookup pattern
         if let Some(request_string) = request.await?.request() {
             if let Some(result) = this.map.lookup(&request_string).next() {
                 return Ok(import_mapping_to_result(
                     result.try_join_into_self().await?.into_owned(),
+                    context,
                     request,
                 )
                 .await?
@@ -362,6 +371,7 @@ impl ResolvedMapVc {
     #[turbo_tasks::function]
     pub async fn lookup(
         self,
+        context: FileSystemPathVc,
         resolved: FileSystemPathVc,
         request: RequestVc,
     ) -> Result<ImportMapResultVc> {
@@ -371,7 +381,9 @@ impl ResolvedMapVc {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
-                    return Ok(import_mapping_to_result(*mapping, request).await?.into());
+                    return Ok(import_mapping_to_result(*mapping, context, request)
+                        .await?
+                        .into());
                 }
             }
         }
@@ -454,5 +466,5 @@ pub async fn resolve_modules_options(options: ResolveOptionsVc) -> Result<Resolv
 #[turbo_tasks::value_trait]
 pub trait ImportMappingReplacement {
     fn replace(&self, capture: &str) -> ImportMappingVc;
-    fn result(&self, request: RequestVc) -> ImportMapResultVc;
+    fn result(&self, context: FileSystemPathVc, request: RequestVc) -> ImportMapResultVc;
 }

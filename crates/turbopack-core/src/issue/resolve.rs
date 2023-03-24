@@ -70,7 +70,7 @@ impl Issue for ResolvingIssue {
             request_type = self.request_type,
         )?;
         if let Some(import_map) = &self.resolve_options.await?.import_map {
-            let result = import_map.lookup(self.request);
+            let result = import_map.lookup(self.context, self.request);
 
             writeln!(detail, "Import map: {}", result.to_string().await?)?;
         }
