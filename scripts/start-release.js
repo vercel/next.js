@@ -39,7 +39,7 @@ async function main() {
   config.set('token', githubToken)
 
   await execa(
-    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js`,
+    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js.git`,
     { stdio: 'inherit', shell: true }
   )
   await execa(`git config user.name "JJ Kasper"`, {
