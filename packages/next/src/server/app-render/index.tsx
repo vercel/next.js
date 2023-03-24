@@ -530,6 +530,10 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      if (typeof layoutOrPageMod?.fetchCache === 'string') {
+        staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+      }
+
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate as number
 
