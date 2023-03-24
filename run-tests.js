@@ -516,9 +516,9 @@ async function main() {
         if (!timingsRes.ok) {
           throw new Error(`request status: ${timingsRes.status}`)
         }
+        const result = await timingsRes.json()
         console.log(
-          'Sent updated timings successfully',
-          await timingsRes.json()
+          `Sent updated timings successfully. API URL: "${result?.url}" HTML URL: "${result?.html_url}"`
         )
       } catch (err) {
         console.log('Failed to update timings data', err)
