@@ -539,8 +539,9 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               default:
                 break
             }
+            ;(context as any).store = staticGenerationStore
 
-            if (typeof staticGenerationStore.revalidate === 'undefined') {
+            if (typeof staticGenerationStore?.revalidate === 'undefined') {
               staticGenerationStore.revalidate =
                 module.handlers.revalidate ?? false
             }
