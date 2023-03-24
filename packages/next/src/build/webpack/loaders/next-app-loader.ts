@@ -110,9 +110,9 @@ async function createAppRouteCode({
 const normalizeParallelKey = (key: string) =>
   key.startsWith('@') ? key.slice(1) : key
 
-const isDirectory = async (path: string) => {
+const isDirectory = async (pathname: string) => {
   try {
-    const stat = await fs.stat(path)
+    const stat = await fs.stat(pathname)
     return stat.isDirectory()
   } catch (err) {
     return false
