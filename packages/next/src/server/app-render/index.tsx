@@ -43,7 +43,6 @@ import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-gen
 import { collectMetadata } from '../../lib/metadata/resolve-metadata'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -1108,7 +1107,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const [initialHead, metadataItems] = await resolveMetadata({
+    const metadataItems = await resolveMetadata({
       tree: loaderTree,
       parentParams: {},
       metadataItems: [],
@@ -1151,7 +1150,6 @@ export async function renderToHTMLOrFlight(
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree key={requestId} metadata={metadataItems} />
-                  {initialHead}
                 </>
               }
               globalErrorComponent={GlobalError}
