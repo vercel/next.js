@@ -455,9 +455,9 @@ dependencies = [
 
 [[package]]
 name = "binding_macros"
-version = "0.44.21"
+version = "0.44.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecc1f7ebb45c51627084dd823c48a396c67f28c42ad3543f4ecc066979e5e996"
+checksum = "df018ae4a80a06cef289384bf89614451c4f30c6238976ce5c00c1f4379b8eca"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -2944,9 +2944,9 @@ checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
 name = "napi"
-version = "2.12.0"
+version = "2.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "564ad12389dd08b0f5e95b9e8b5e88e5e42a234d326639cfa7b0fe643562e0d7"
+checksum = "8de689526aff547ad70ad7feef42f1a5ccaa6f768910fd93984dae25a3fc9699"
 dependencies = [
  "anyhow",
  "bitflags 2.0.2",
@@ -5023,9 +5023,9 @@ dependencies = [
 
 [[package]]
 name = "swc_bundler"
-version = "0.208.17"
+version = "0.208.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06d3a1a590a46a8ffbbdf8c9a14ba7c62304b7f09edb318536ac90fd8cdccac8"
+checksum = "30d90393e5ac143a687f422f288bc706e3139a862d4c790cf301086aabd0cdf9"
 dependencies = [
  "ahash",
  "anyhow",
@@ -5727,9 +5727,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_testing"
-version = "0.125.12"
+version = "0.125.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5263a184443e798c90db91a2d49e93c062627931e692ee4d691ce32ebad720d9"
+checksum = "f07bfbd7b8739ad54b564b2c19476978cd4d48ada980307a20469021c3343938"
 dependencies = [
  "ansi_term",
  "anyhow",
