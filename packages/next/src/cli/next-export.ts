@@ -62,6 +62,7 @@ const nextExport: CliCommand = (argv) => {
     silent: args['--silent'] || false,
     threads: args['--threads'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
+    isInvokedFromCli: true,
   }
 
   exportApp(dir, options, nextExportCliSpan)

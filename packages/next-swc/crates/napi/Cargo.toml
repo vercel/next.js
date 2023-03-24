@@ -32,7 +32,7 @@ napi = { version = "2", default-features = false, features = [
 ] }
 napi-derive = "2"
 next-swc = { version = "0.0.0", path = "../core" }
-once_cell = "1.13.0"
+once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
