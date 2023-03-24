@@ -7,7 +7,7 @@ export default function ClearCart() {
   useEffect(() => {
     clearCart()
     return () => {}
-  }, [])
+  }, [clearCart])
 
   return <p>Cart cleared.</p>
 }
