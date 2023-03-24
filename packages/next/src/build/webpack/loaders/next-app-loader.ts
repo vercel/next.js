@@ -110,6 +110,15 @@ async function createAppRouteCode({
 const normalizeParallelKey = (key: string) =>
   key.startsWith('@') ? key.slice(1) : key
 
+const isDirectory = async (path: string) => {
+  try {
+    const stat = await fs.stat(path)
+    return stat.isDirectory()
+  } catch (err) {
+    return false
+  }
+}
+
 async function createTreeCodeFromPath(
   pagePath: string,
   {
@@ -147,6 +156,12 @@ async function createTreeCodeFromPath(
     )
 
     if (!absoluteSegmentPath) {
+      return []
+    }
+
+    const segmentIsDirectory = await isDirectory(absoluteSegmentPath)
+
+    if (!segmentIsDirectory) {
       return []
     }
 
