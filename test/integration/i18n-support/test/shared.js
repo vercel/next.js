@@ -3171,4 +3171,23 @@ export function runTests(ctx) {
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
     expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
   })
+
+  it('should not affect app dynamic routes', async () => {
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/app-dynamic/foo`
+    )
+    expect(await res.text()).toContain('slug = foo')
+  })
+
+  it('should resolve app dynamic route correctly', async () => {
+    for (const locale of nonDomainLocales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath}/${locale}/app-dynamic-locale/bar`
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain(`slug = bar, locale = ${locale}`)
+    }
+  })
 }
