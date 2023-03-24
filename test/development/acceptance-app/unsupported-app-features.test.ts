@@ -1,24 +1,19 @@
 /* eslint-env jest */
-import { sandbox } from './helpers'
-import { createNextDescribe, FileRef } from 'e2e-utils'
 import path from 'path'
+import { createNextDescribe, FileRef } from 'e2e-utils'
+import { getRedboxDescription, hasRedbox } from 'next-test-utils'
 
 createNextDescribe(
   'Error Overlay unsupported app features',
   {
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
-    skipStart: true,
   },
   ({ next }) => {
     it('should show error exporting AMP config in app dir', async () => {
-      const { session, cleanup } = await sandbox(next)
+      const browser = await next.browser('/')
 
       // Add AMP export
-      await session.patch(
+      await next.patchFile(
         'app/page.js',
         `
         export const config = { amp: true }
@@ -30,12 +25,10 @@ createNextDescribe(
       `
       )
 
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxDescription(browser)).toInclude(
         'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
       )
-
-      await cleanup()
     })
   }
 )
