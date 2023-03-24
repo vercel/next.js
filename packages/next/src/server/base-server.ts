@@ -328,7 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     forceReload?: boolean
   }): void
 
-  // TODO-APP(@wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
+  // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
   protected readonly i18nProvider?: I18NProvider
@@ -695,29 +695,45 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
           // Perform locale detection and normalization.
-          const options: MatchOptions = {
-            i18n: this.i18nProvider?.analyze(matchedPath, {
-              defaultLocale: undefined,
-            }),
-          }
-          if (options.i18n?.detectedLocale) {
-            parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+          const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
+            defaultLocale,
+          })
+
+          // The locale result will be defined even if the locale was not
+          // detected for the request because it will be inferred from the
+          // default locale.
+          if (localeAnalysisResult) {
+            parsedUrl.query.__nextLocale = localeAnalysisResult.detectedLocale
+
+            // If the detected locale was inferred from the default locale, we
+            // need to modify the metadata on the request to indicate that.
+            if (localeAnalysisResult.inferredFromDefault) {
+              parsedUrl.query.__nextInferredLocaleFromDefault = '1'
+            } else {
+              delete parsedUrl.query.__nextInferredLocaleFromDefault
+            }
           }
 
           // TODO: check if this is needed any more?
           matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
-          const match = await this.matchers.match(matchedPath, options)
-          if (match) {
-            srcPathname = match.definition.pathname
-          }
+          const match = await this.matchers.match(matchedPath, {
+            i18n: localeAnalysisResult,
+          })
+
+          // Update the source pathname to the matched page's pathname.
+          if (match) srcPathname = match.definition.pathname
+
+          // The page is dynamic if the params are defined.
           const pageIsDynamic = typeof match?.params !== 'undefined'
 
           // The rest of this function can't handle i18n properly, so ensure we
           // restore the pathname with the locale information stripped from it
-          // now that we're done matching.
-          matchedPath = options.i18n?.pathname ?? matchedPath
+          // now that we're done matching if we're using i18n.
+          if (localeAnalysisResult) {
+            matchedPath = localeAnalysisResult.pathname
+          }
 
           const utils = getUtils({
             pageIsDynamic,
@@ -785,8 +801,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 parsedUrl.query.__nextLocale || ''
               )
 
+              // If this returns a locale, it means that the locale was detected
+              // from the pathname.
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
+
+                // As the locale was parsed from the pathname, we should mark
+                // that the locale was not inferred as the default.
+                delete parsedUrl.query.__nextInferredLocaleFromDefault
               }
               paramsResult = utils.normalizeDynamicRouteParams(
                 routeParams,
@@ -844,9 +866,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         addRequestMeta(req, '__nextStrippedLocale', true)
       }
 
+      // If we aren't in minimal mode or there is no locale in the query
+      // string, add the locale to the query string.
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        if (pathnameInfo.locale || defaultLocale) {
-          parsedUrl.query.__nextLocale = pathnameInfo.locale || defaultLocale
+        // If the locale is in the pathname, add it to the query string.
+        if (pathnameInfo.locale) {
+          parsedUrl.query.__nextLocale = pathnameInfo.locale
+        }
+        // If the default locale is available, add it to the query string and
+        // mark it as inferred rather than implicit.
+        else if (defaultLocale) {
+          parsedUrl.query.__nextLocale = defaultLocale
+          parsedUrl.query.__nextInferredLocaleFromDefault = '1'
         }
       }
 
@@ -2011,9 +2042,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
-      i18n: this.i18nProvider?.analyze(pathname, {
-        defaultLocale: undefined,
-      }),
+      i18n: this.i18nProvider?.fromQuery(pathname, query),
     }
 
     try {
@@ -2103,7 +2132,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      this.router.catchAllMiddleware[0] &&
+      this.router.hasMiddleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {
