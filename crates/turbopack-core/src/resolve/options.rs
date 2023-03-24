@@ -371,8 +371,8 @@ impl ResolvedMapVc {
     #[turbo_tasks::function]
     pub async fn lookup(
         self,
-        context: FileSystemPathVc,
         resolved: FileSystemPathVc,
+        context: FileSystemPathVc,
         request: RequestVc,
     ) -> Result<ImportMapResultVc> {
         let this = self.await?;

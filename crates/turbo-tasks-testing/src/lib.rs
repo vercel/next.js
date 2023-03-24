@@ -219,6 +219,10 @@ impl TurboTasksApi for VcStorage {
     fn connect_task(&self, _task: TaskId) {
         // no-op
     }
+
+    fn mark_own_task_as_finished(&self, _task: TaskId) {
+        // no-op
+    }
 }
 
 impl VcStorage {
