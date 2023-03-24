@@ -1,10 +1,11 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
     CompletionVc, CompletionsVc, Value,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
@@ -110,17 +111,17 @@ enum RouterIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
 #[derive(Debug, Clone, Default)]
 pub struct MiddlewareResponse {
     pub status_code: u16,
     pub headers: Vec<(String, String)>,
     #[turbo_tasks(trace_ignore)]
-    pub body: Stream<Result<Bytes, String>>,
+    pub body: Stream<Result<Bytes, SharedError>>,
 }
 
 #[derive(Debug)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),
@@ -391,17 +392,16 @@ async fn route_internal(
             // a buffer directly into the IPC message without having to wrap it in an
             // object.
             let body = read.map(|data| {
-                let chunk: RouterIncomingMessage = match data?
+                let chunk: RouterIncomingMessage = data?
                     .to_str()
                     .context("error decoding string")
-                    .and_then(parse_json_with_source_context)
-                {
-                    Ok(c) => c,
-                    Err(e) => return Err(e.to_string()),
-                };
+                    .and_then(parse_json_with_source_context)?;
                 match chunk {
                     RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
-                    m => Err(format!("unexpected message type: {:#?}", m)),
+                    m => Err(SharedError::new(anyhow!(
+                        "unexpected message type: {:#?}",
+                        m
+                    ))),
                 }
             });
             let middleware = MiddlewareResponse {
