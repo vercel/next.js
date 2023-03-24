@@ -11,6 +11,7 @@ export type RequestContext = {
     isRevalidate?: boolean
     isBot?: boolean
     nextExport?: boolean
+    fetchCache?: StaticGenerationStore['fetchCache']
   }
 }
 
@@ -55,6 +56,7 @@ export class StaticGenerationAsyncStorageWrapper
       incrementalCache: renderOpts.incrementalCache,
       isRevalidate: renderOpts.isRevalidate,
       isPrerendering: renderOpts.nextExport,
+      fetchCache: renderOpts.fetchCache,
     }
     ;(renderOpts as any).store = store
 

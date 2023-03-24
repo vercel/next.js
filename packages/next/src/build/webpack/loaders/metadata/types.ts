@@ -10,7 +10,7 @@ export type CollectingMetadata = {
   icon: string[]
   apple: string[]
   twitter: string[]
-  opengraph: string[]
+  openGraph: string[]
 }
 
 // Contain the collecting evaluated image module
@@ -18,7 +18,7 @@ export type CollectedMetadata = {
   icon: ComponentModule[]
   apple: ComponentModule[]
   twitter: ComponentModule[] | null
-  opengraph: ComponentModule[] | null
+  openGraph: ComponentModule[] | null
 }
 
 export type MetadataImageModule = {
@@ -37,4 +37,4 @@ export type PossibleImageFileNameConvention =
   | 'apple'
   | 'favicon'
   | 'twitter'
-  | 'opengraph'
+  | 'openGraph'
