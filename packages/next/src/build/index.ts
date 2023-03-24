@@ -282,6 +282,16 @@ export default async function build(
         .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
       NextBuildContext.config = config
 
+      let configOutDir = 'out'
+      if (config.output === 'export' && config.distDir !== '.next') {
+        // In the past, a user had to run "next build" to generate
+        // ".next" (or whatever the distDir) followed by "next export"
+        // to generate "out" (or whatever the outDir). However, when
+        // "output: export" is configured, "next build" does both steps.
+        // So the user-configured dirDir is actually the outDir.
+        configOutDir = config.distDir
+        config.distDir = '.next'
+      }
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -523,7 +533,22 @@ export default async function build(
         appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(appDir, validFileMatcher.isAppRouterPage)
+            recursiveReadDir(
+              appDir,
+              (absolutePath) => {
+                if (validFileMatcher.isAppRouterPage(absolutePath)) {
+                  return true
+                }
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback.
+                if (validFileMatcher.isRootNotFound(absolutePath)) {
+                  return true
+                }
+                return false
+              },
+              undefined,
+              (part) => part.startsWith('_')
+            )
           )
       }
 
@@ -653,6 +678,7 @@ export default async function build(
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
+      const hasApp404 = !!mappedAppPages?.['/not-found']
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -2159,7 +2185,8 @@ export default async function build(
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
       const useStatic404 =
-        !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
+        !customAppGetInitialProps &&
+        (!hasNonStaticErrorPage || hasPages404 || hasApp404)
 
       if (invalidPages.size > 0) {
         const err = new Error(
@@ -2302,24 +2329,7 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-          const exportOptions: ExportOptions = {
-            silent: false,
-            buildExport: true,
-            debugOutput,
-            threads: config.experimental.cpus,
-            pages: combinedPages,
-            outdir: path.join(distDir, 'export'),
-            statusMessage: 'Generating static pages',
-            exportPageWorker: sharedPool
-              ? staticWorkers.exportPage.bind(staticWorkers)
-              : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await staticWorkers.end()
-                }
-              : undefined,
-            appPaths,
-          }
+
           const exportConfig: NextConfigComplete = {
             ...config,
             initialPageRevalidationMap: {},
@@ -2439,7 +2449,28 @@ export default async function build(
             },
           }
 
-          await exportApp(dir, exportOptions, nextBuildSpan, exportConfig)
+          const exportOptions: ExportOptions = {
+            isInvokedFromCli: false,
+            nextConfig: exportConfig,
+            silent: false,
+            buildExport: true,
+            debugOutput,
+            threads: config.experimental.cpus,
+            pages: combinedPages,
+            outdir: path.join(distDir, 'export'),
+            statusMessage: 'Generating static pages',
+            exportPageWorker: sharedPool
+              ? staticWorkers.exportPage.bind(staticWorkers)
+              : undefined,
+            endWorker: sharedPool
+              ? async () => {
+                  await staticWorkers.end()
+                }
+              : undefined,
+            appPaths,
+          }
+
+          await exportApp(dir, exportOptions, nextBuildSpan)
 
           const postBuildSpinner = createSpinner({
             prefixText: `${Log.prefixes.info} Finalizing page optimization`,
@@ -2463,6 +2494,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
+              if (route === '/not-found') return
 
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
@@ -2664,9 +2696,36 @@ export default async function build(
               })
           }
 
-          // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-          if (!hasPages404 && useStatic404) {
-            await moveExportedPage('/_error', '/404', '/404', false, 'html')
+          async function moveExportedAppNotFoundTo404() {
+            return staticGenerationSpan
+              .traceChild('move-exported-app-not-found-')
+              .traceAsyncFn(async () => {
+                const orig = path.join(
+                  distDir,
+                  'server',
+                  'app',
+                  'not-found.html'
+                )
+                const updatedRelativeDest = path
+                  .join('pages', '404.html')
+                  .replace(/\\/g, '/')
+                await promises.copyFile(
+                  orig,
+                  path.join(distDir, 'server', updatedRelativeDest)
+                )
+                pagesManifest['/404'] = updatedRelativeDest
+              })
+          }
+
+          // If there's /not-found inside app, we prefer it over the pages 404
+          if (hasApp404 && useStatic404) {
+            // await moveExportedPage('/_error', '/404', '/404', false, 'html')
+            await moveExportedAppNotFoundTo404()
+          } else {
+            // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+            if (!hasPages404 && useStatic404) {
+              await moveExportedPage('/_error', '/404', '/404', false, 'html')
+            }
           }
 
           if (useDefaultStatic500) {
@@ -3057,6 +3116,19 @@ export default async function build(
               path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
+      }
+
+      if (config.output === 'export') {
+        const exportApp: typeof import('../export').default =
+          require('../export').default
+        const options: ExportOptions = {
+          isInvokedFromCli: false,
+          nextConfig: config,
+          silent: true,
+          threads: config.experimental.cpus,
+          outdir: path.join(dir, configOutDir),
+        }
+        await exportApp(dir, options, nextBuildSpan)
       }
 
       await nextBuildSpan

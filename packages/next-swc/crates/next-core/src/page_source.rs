@@ -323,6 +323,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
 
     let data_intermediate_output_path = intermediate_output_path.join("data");
@@ -337,6 +338,7 @@ async fn create_page_source_for_file(
         ),
         server_context.compile_time_info().environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -364,6 +366,7 @@ async fn create_page_source_for_file(
                 chunking_context: server_chunking_context,
                 intermediate_output_path,
                 output_root,
+                project_path,
             }
             .cell()
             .into(),
@@ -381,6 +384,7 @@ async fn create_page_source_for_file(
             chunking_context: server_chunking_context,
             intermediate_output_path,
             output_root,
+            project_path,
         }
         .cell()
         .into();
@@ -392,6 +396,7 @@ async fn create_page_source_for_file(
             chunking_context: server_data_chunking_context,
             intermediate_output_path: data_intermediate_output_path,
             output_root,
+            project_path,
         }
         .cell()
         .into();
@@ -471,6 +476,7 @@ async fn create_not_found_page_source(
         ),
         server_context.compile_time_info().environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
 
     let client_chunking_context = get_client_chunking_context(
@@ -506,6 +512,7 @@ async fn create_not_found_page_source(
         chunking_context: server_chunking_context,
         intermediate_output_path,
         output_root: intermediate_output_path,
+        project_path,
     }
     .cell()
     .into();
@@ -648,6 +655,7 @@ struct SsrEntry {
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
+    project_path: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -733,6 +741,7 @@ impl SsrEntryVc {
             chunking_context: this.chunking_context,
             intermediate_output_path: this.intermediate_output_path,
             output_root: this.output_root,
+            project_dir: this.project_path,
         }
         .cell())
     }

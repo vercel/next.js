@@ -63,10 +63,10 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.opengraph.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.opengraph.extensions)
+              pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
             )}`
           : ''
       }`

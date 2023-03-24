@@ -36,12 +36,7 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
     for (const page of pathnames) {
       if (this.i18nProvider) {
         // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.i18nProvider.analyze(page, {
-          // We don't need to assume a default locale here, since we're
-          // generating the routes which either should support a specific locale
-          // or any locale.
-          defaultLocale: undefined,
-        })
+        const { detectedLocale, pathname } = this.i18nProvider.analyze(page)
 
         matchers.push(
           new PagesAPILocaleRouteMatcher({

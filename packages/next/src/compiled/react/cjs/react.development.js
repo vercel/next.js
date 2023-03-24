@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-3706edb81-20230308';
+          var ReactVersion = '18.3.0-next-12a1d140e-20230321';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -752,7 +752,7 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  */
 
 
-var ReactElement = function (type, key, ref, self, source, owner, props) {
+function ReactElement(type, key, ref, self, source, owner, props) {
   var element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -804,7 +804,7 @@ var ReactElement = function (type, key, ref, self, source, owner, props) {
   }
 
   return element;
-};
+}
 /**
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement

@@ -7,8 +7,9 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     CompletionVc, Value,
 };
+use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::EnvMapVc;
-use turbo_tasks_fs::{json::parse_json_rope_with_source_context, FileSystemPathVc};
+use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::Asset,
@@ -29,7 +30,7 @@ use turbopack_ecmascript::{
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
 };
 use turbopack_node::{
-    evaluate::{evaluate, JavaScriptValue},
+    evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
     transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
 };
@@ -602,18 +603,13 @@ pub async fn load_next_config_internal(
         /* debug */ false,
     )
     .await?;
-    match &*config_value {
-        JavaScriptValue::Value(val) => {
-            let next_config: NextConfig = parse_json_rope_with_source_context(val)?;
-            let next_config = next_config.cell();
 
-            Ok(next_config)
-        }
-        JavaScriptValue::Error => Ok(NextConfig::default().cell()),
-        JavaScriptValue::Stream(_) => {
-            unimplemented!("Stream not supported now");
-        }
-    }
+    let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
+        return Ok(NextConfig::default().cell());
+    };
+    let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
+
+    Ok(next_config.cell())
 }
 
 #[turbo_tasks::function]
