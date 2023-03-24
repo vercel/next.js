@@ -153,7 +153,8 @@ function getSelectedParams(
 }
 
 /**
- * Get the current parameters. For example useParams() on /dashboard/[team] where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+ * Get the current parameters. For example useParams() on /dashboard/[team]
+ * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
  */
 export function useParams(): Params {
   clientHookInServerComponentError('useParams')
