@@ -99,3 +99,69 @@ fn default_preload() -> bool {
 fn default_display() -> String {
     "swap".to_owned()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{default_adjust_font_fallback, deserialize_adjust_font_fallback};
+    use anyhow::Result;
+    use serde::Deserialize;
+
+    use super::AdjustFontFallback;
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    #[serde(rename_all = "camelCase")]
+    struct TestFallback {
+        #[serde(
+            default = "default_adjust_font_fallback",
+            deserialize_with = "deserialize_adjust_font_fallback"
+        )]
+        pub adjust_font_fallback: AdjustFontFallback,
+    }
+
+    #[test]
+    fn test_deserialize_adjust_font_fallback_fails_on_true() {
+        match serde_json::from_str::<TestFallback>(r#"{"adjustFontFallback": true}"#) {
+            Ok(_) => panic!("Should fail"),
+            Err(error) => assert!(error.to_string().contains(
+                "invalid value: adjust_font_fallback, expected Expected string or `false`. \
+                 Received `true`"
+            )),
+        };
+    }
+
+    #[test]
+    fn test_deserialize_adjust_font_fallback_fails_on_unknown_string() {
+        match serde_json::from_str::<TestFallback>(r#"{"adjustFontFallback": "Roboto"}"#) {
+            Ok(_) => panic!("Should fail"),
+            Err(error) => assert!(
+                error.to_string().contains(
+                    r#"invalid value: adjust_font_fallback, expected Expected either "Arial" or "Times New Roman""#
+                )
+            ),
+        };
+    }
+
+    #[test]
+    fn test_deserializes_false_as_none() -> Result<()> {
+        assert_eq!(
+            serde_json::from_str::<TestFallback>(r#"{"adjustFontFallback": false}"#)?,
+            TestFallback {
+                adjust_font_fallback: AdjustFontFallback::None
+            }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_deserializes_arial() -> Result<()> {
+        assert_eq!(
+            serde_json::from_str::<TestFallback>(r#"{"adjustFontFallback": "Arial"}"#)?,
+            TestFallback {
+                adjust_font_fallback: AdjustFontFallback::Arial
+            }
+        );
+
+        Ok(())
+    }
+}

@@ -41,6 +41,7 @@ use turbopack_core::{
     issue::{IssueReporterVc, IssueSeverity},
     resolve::{parse::RequestVc, pattern::QueryMapVc},
     server_fs::ServerFileSystemVc,
+    PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
@@ -241,7 +242,8 @@ impl NextDevServerBuilder {
 
 #[turbo_tasks::function]
 async fn project_fs(project_dir: &str) -> Result<FileSystemVc> {
-    let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
+    let disk_fs =
+        DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
     disk_fs.await?.start_watching_with_invalidation_reason()?;
     Ok(disk_fs.into())
 }
