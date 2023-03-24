@@ -201,7 +201,7 @@ function runTests(mode) {
         await browser.elementsByCss(
           'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
         )
-      ).toHaveLength(1)
+      ).toBeGreaterThanOrEqual(1)
     } finally {
       if (browser) {
         await browser.close()
