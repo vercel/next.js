@@ -13,12 +13,11 @@
 /*.md                                         @vercel/next-js @leerob
 /packages/create-next-app/                    @vercel/next-js
 
-# SWC Build & Telemetry (@padmaia)
+# Tooling & Telemetry
 
-/packages/next/build/                         @timneutkens @ijjk @shuding @padmaia @huozhi
-/packages/next/telemetry/                     @timneutkens @ijjk @shuding @padmaia
+/packages/next/src/build/                     @timneutkens @ijjk @shuding @vercel/web-tooling @huozhi
+/packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
 /packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
-/packages/next/build/swc/                     @timneutkens @ijjk @shuding @vercel/web-tooling
 
 # Image Component (@styfle)
 
