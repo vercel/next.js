@@ -24,6 +24,7 @@ indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
 once_cell = { workspace = true }
 owo-colors = { workspace = true }
+parking_lot = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

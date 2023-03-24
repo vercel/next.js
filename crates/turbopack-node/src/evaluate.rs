@@ -1,14 +1,20 @@
 use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
-use anyhow::Result;
-use async_stream::stream as generator;
+use anyhow::{anyhow, Result};
+use async_stream::try_stream as generator;
+use futures::{
+    channel::mpsc::{unbounded, UnboundedSender},
+    pin_mut, SinkExt, StreamExt,
+};
 use futures_retry::{FutureRetry, RetryPolicy};
 use indexmap::indexmap;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringVc},
-    CompletionVc, TryJoinIterExt, Value, ValueToString,
+    util::SharedError,
+    CompletionVc, RawVc, TryJoinIterExt, Value, ValueToString,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
@@ -75,10 +81,16 @@ enum EvalJavaScriptIncomingMessage {
 
 type LoopResult = ControlFlow<Result<Option<String>, StructuredError>, String>;
 
-type EvaluationItem = Result<Bytes, String>;
+type EvaluationItem = Result<Bytes, SharedError>;
 type JavaScriptStream = Stream<EvaluationItem>;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+struct JavaScriptStreamSender {
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    get: Box<dyn Fn() -> UnboundedSender<Result<Bytes, SharedError>> + Send + Sync>,
+}
+
+#[turbo_tasks::value(transparent, eq = "manual", cell = "new", serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct JavaScriptEvaluation(#[turbo_tasks(trace_ignore)] JavaScriptStream);
 
@@ -221,7 +233,7 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
-pub async fn evaluate(
+pub fn evaluate(
     module_asset: AssetVc,
     cwd: FileSystemPathVc,
     env: ProcessEnvVc,
@@ -232,7 +244,7 @@ pub async fn evaluate(
     args: Vec<JsonValueVc>,
     additional_invalidation: CompletionVc,
     debug: bool,
-) -> Result<JavaScriptEvaluationVc> {
+) -> JavaScriptEvaluationVc {
     let pool = get_evaluate_pool(
         module_asset,
         cwd,
@@ -242,80 +254,133 @@ pub async fn evaluate(
         runtime_entries,
         additional_invalidation,
         debug,
-    )
-    .await?;
-
-    let args = args.into_iter().try_join().await?;
-    // Assume this is a one-off operation, so we can kill the process
-    // TODO use a better way to decide that.
-    let kill = args.is_empty();
-
-    // Workers in the pool could be in a bad state that we didn't detect yet.
-    // The bad state might even be unnoticable until we actually send the job to the
-    // worker. So we retry picking workers from the pools until we succeed
-    // sending the job.
-
-    let (mut operation, _) = FutureRetry::new(
-        || async {
-            let mut operation = pool.operation().await?;
-            operation
-                .send(EvalJavaScriptOutgoingMessage::Evaluate {
-                    args: args.iter().map(|v| &**v).collect(),
-                })
-                .await?;
-            Ok(operation)
-        },
-        PoolErrorHandler,
-    )
-    .await
-    .map_err(|(e, _)| e)?;
-
-    // The evaluation sent an initial intermediate value without completing. We'll
-    // need to spawn a new thread to continually pull data out of the process,
-    // and ferry that along.
-    let stream = JavaScriptStream::new_open(
-        vec![],
-        Box::pin(generator! {
-            macro_rules! tri {
-                ($exp:expr) => {
-                    match $exp {
-                        Ok(v) => v,
-                        Err(e) => {
-                            yield Err(e.to_string());
-                            return;
-                        }
-                    }
-                }
-            }
-
-            loop {
-                let output = tri!(pull_operation(&mut operation, cwd, &pool, context_ident_for_issue, chunking_context).await);
-
-                match output {
-                    LoopResult::Continue(data) => {
-                        yield Ok(data.into());
-                    }
-                    LoopResult::Break(Ok(Some(data))) => {
-                        yield Ok(data.into());
-                        break;
-                    }
-                    LoopResult::Break(Err(e)) => {
-                        yield Err(e.message);
-                        break;
-                    }
-                    LoopResult::Break(Ok(None)) => {
-                        break;
-                    }
-                }
-            }
-
-            if kill {
-                tri!(operation.wait_or_kill().await);
-            }
-        }),
     );
 
-    Ok(JavaScriptEvaluation(stream).cell())
+    // Note the following code uses some hacks to create a child task that produces
+    // a stream that is returned by this task.
+
+    // We create a new cell in this task, which will be updated from the
+    // [compute_evaluate_stream] task.
+    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*JAVASCRIPTEVALUATION_VALUE_TYPE_ID);
+
+    // We initialize the cell with a stream that is open, but has no values.
+    // The first [compute_evaluate_stream] pipe call will pick up that stream.
+    let (sender, receiver) = unbounded();
+    cell.update_shared(JavaScriptEvaluation(JavaScriptStream::new_open(
+        vec![],
+        Box::new(receiver),
+    )));
+    let initial = Mutex::new(Some(sender));
+
+    // run the evaluation as side effect
+    compute_evaluate_stream(
+        pool,
+        cwd,
+        context_ident_for_issue,
+        chunking_context,
+        args,
+        JavaScriptStreamSender {
+            get: Box::new(move || {
+                if let Some(sender) = initial.lock().take() {
+                    sender
+                } else {
+                    // In cases when only [compute_evaluate_stream] is (re)executed, we need to
+                    // update the old stream with a new value.
+                    let (sender, receiver) = unbounded();
+                    cell.update_shared(JavaScriptEvaluation(JavaScriptStream::new_open(
+                        vec![],
+                        Box::new(receiver),
+                    )));
+                    sender
+                }
+            }),
+        }
+        .cell(),
+    );
+
+    let raw: RawVc = cell.into();
+    raw.into()
+}
+
+#[turbo_tasks::function]
+async fn compute_evaluate_stream(
+    pool: NodeJsPoolVc,
+    cwd: FileSystemPathVc,
+    context_ident_for_issue: AssetIdentVc,
+    chunking_context: ChunkingContextVc,
+    args: Vec<JsonValueVc>,
+    sender: JavaScriptStreamSenderVc,
+) {
+    let Ok(sender) = sender.await else {
+        // Impossible to handle the error in a good way.
+        return;
+    };
+
+    let stream = generator! {
+        let pool = pool.await?;
+
+        let args = args.into_iter().try_join().await?;
+        // Assume this is a one-off operation, so we can kill the process
+        // TODO use a better way to decide that.
+        let kill = args.is_empty();
+
+        // Workers in the pool could be in a bad state that we didn't detect yet.
+        // The bad state might even be unnoticeable until we actually send the job to the
+        // worker. So we retry picking workers from the pools until we succeed
+        // sending the job.
+
+        let (mut operation, _) = FutureRetry::new(
+            || async {
+                let mut operation = pool.operation().await?;
+                operation
+                    .send(EvalJavaScriptOutgoingMessage::Evaluate {
+                        args: args.iter().map(|v| &**v).collect(),
+                    })
+                    .await?;
+                Ok(operation)
+            },
+            PoolErrorHandler,
+        )
+        .await
+        .map_err(|(e, _)| e)?;
+
+        // The evaluation sent an initial intermediate value without completing. We'll
+        // need to spawn a new thread to continually pull data out of the process,
+        // and ferry that along.
+        loop {
+            let output = pull_operation(&mut operation, cwd, &pool, context_ident_for_issue, chunking_context).await?;
+
+            match output {
+                LoopResult::Continue(data) => {
+                    yield data.into();
+                }
+                LoopResult::Break(Ok(Some(data))) => {
+                    yield data.into();
+                    break;
+                }
+                LoopResult::Break(Err(e)) => {
+                    let error = e.print(pool.assets_for_source_mapping, pool.assets_root, chunking_context.context_path().root(), FormattingMode::Plain).await?;
+                    Err(anyhow!("Node.js evaluation failed: {}", error))?;
+                    break;
+                }
+                LoopResult::Break(Ok(None)) => {
+                    break;
+                }
+            }
+        }
+
+        if kill {
+            operation.wait_or_kill().await?;
+        }
+    };
+
+    let mut sender = (sender.get)();
+    pin_mut!(stream);
+    while let Some(value) = stream.next().await {
+        if sender.send(value).await.is_err() {
+            return;
+        }
+    }
 }
 
 /// Repeatedly pulls from the NodeJsOperation until we receive a
@@ -345,7 +410,8 @@ async fn pull_operation(
                 .emit();
                 // Do not reuse the process in case of error
                 operation.disallow_reuse();
-                break ControlFlow::Break(Err(error));
+                // Issue emitted, we want to break but don't want to return an error
+                break ControlFlow::Break(Ok(None));
             }
             EvalJavaScriptIncomingMessage::Value { data } => break ControlFlow::Continue(data),
             EvalJavaScriptIncomingMessage::End { data } => break ControlFlow::Break(Ok(data)),
