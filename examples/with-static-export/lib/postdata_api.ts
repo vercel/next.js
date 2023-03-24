@@ -1,17 +1,17 @@
-import { PostData } from '../types/postdata'
+import { type IPost } from '../@types/global'
 
-export async function GetPost(id: string): Promise<PostData> {
+export async function GetPost(id: string): Promise<IPost> {
   const response = await fetch(
     `https://jsonplaceholder.typicode.com/posts/${id}`
   )
-  const postData: PostData = (await response.json()) as PostData
-  return postData
+  const post = (await response.json()) as IPost
+  return post
 }
 
-export async function GetPosts(): Promise<PostData[]> {
+export async function GetPosts(): Promise<IPost[]> {
   const response = await fetch(
     'https://jsonplaceholder.typicode.com/posts?_page=1'
   )
-  const postList: PostData[] = (await response.json()) as PostData[]
+  const postList = (await response.json()) as IPost[]
   return postList
 }
