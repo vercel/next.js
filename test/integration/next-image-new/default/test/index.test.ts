@@ -198,9 +198,11 @@ function runTests(mode) {
 
       // should preload with crossorigin
       expect(
-        await browser.elementsByCss(
-          'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
-        )
+        (
+          await browser.elementsByCss(
+            'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
+          )
+        ).length
       ).toBeGreaterThanOrEqual(1)
     } finally {
       if (browser) {
