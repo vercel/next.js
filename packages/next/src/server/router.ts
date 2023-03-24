@@ -260,7 +260,7 @@ export default class Router {
             RouterSpan.executeRoute,
             {
               attributes: {
-                route: route.name,
+                'next.route': route.name,
               },
             },
             route.fn
