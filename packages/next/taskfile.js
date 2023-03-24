@@ -92,13 +92,11 @@ export async function capsize_metrics() {
     entireMetricsCollection,
     // eslint-disable-next-line import/no-extraneous-dependencies
   } = require('@capsizecss/metrics/entireMetricsCollection')
-  const outputPathSrc = join(__dirname, 'dist/server/capsize-font-metrics.json')
   const outputPathDist = join(
     __dirname,
     'dist/server/capsize-font-metrics.json'
   )
 
-  await fs.outputJson(outputPathSrc, entireMetricsCollection, { spaces: 2 })
   await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 

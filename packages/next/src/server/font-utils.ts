@@ -5,7 +5,7 @@ import {
   DEFAULT_SANS_SERIF_FONT,
 } from '../shared/lib/constants'
 const googleFontsMetrics = require('./google-font-metrics.json')
-const capsizeFontsMetrics = require('./capsize-font-metrics.json')
+const capsizeFontsMetrics = require('next/dist/server/capsize-font-metrics.json')
 const https = require('https')
 
 const CHROME_UA =
