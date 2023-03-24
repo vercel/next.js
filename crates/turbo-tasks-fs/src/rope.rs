@@ -109,6 +109,11 @@ impl Rope {
     pub fn to_str(&self) -> Result<Cow<'_, str>> {
         self.data.to_str()
     }
+
+    /// Returns a slice of all bytes
+    pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
+        self.data.to_bytes()
+    }
 }
 
 impl<T: Into<Bytes>> From<T> for Rope {
@@ -451,6 +456,21 @@ impl InnerRope {
             }
         }
     }
+
+    /// Returns a slice of all bytes.
+    pub fn to_bytes(&self) -> Result<Cow<'_, [u8]>> {
+        match &self[..] {
+            [] => Ok(Cow::Borrowed(EMPTY_BUF)),
+            [Shared(inner)] => inner.to_bytes(),
+            [Local(bytes)] => Ok(Cow::Borrowed(bytes)),
+            _ => {
+                let mut read = RopeReader::new(self, 0);
+                let mut buf = Vec::with_capacity(self.len());
+                read.read_to_end(&mut buf)?;
+                Ok(Cow::Owned(buf))
+            }
+        }
+    }
 }
 
 impl Default for InnerRope {
@@ -695,9 +715,12 @@ impl From<RopeElem> for StackElem {
 #[cfg(test)]
 mod test {
     use std::{
+        borrow::Cow,
         cmp::min,
         io::{BufRead, Read},
     };
+
+    use anyhow::Result;
 
     use super::{InnerRope, Rope, RopeBuilder, RopeElem};
 
@@ -951,5 +974,12 @@ mod test {
                 Vec::from(*b"i")
             ]
         );
+    }
+
+    #[test]
+    fn test_to_bytes() -> Result<()> {
+        let rope = Rope::from("abc");
+        assert_eq!(rope.to_bytes()?, Cow::Borrowed::<[u8]>(&[0x61, 0x62, 0x63]));
+        Ok(())
     }
 }
