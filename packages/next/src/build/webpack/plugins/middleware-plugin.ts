@@ -127,10 +127,10 @@ function getEntryFiles(
     )
 
     files.push(`server/${NEXT_FONT_MANIFEST}.js`)
+  }
 
-    if (NextBuildContext!.hasInstrumentationHook) {
-      files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
-    }
+  if (NextBuildContext!.hasInstrumentationHook) {
+    files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
   }
 
   files.push(
