@@ -22,7 +22,6 @@ import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
-import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 
@@ -232,7 +231,6 @@ function InnerLayoutRouter({
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
   path,
-  headRenderedAboveThisLevel,
 }: {
   parallelRouterKey: string
   url: string
@@ -242,7 +240,6 @@ function InnerLayoutRouter({
   tree: FlightRouterState
   isActive: boolean
   path: string
-  headRenderedAboveThisLevel: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -250,13 +247,6 @@ function InnerLayoutRouter({
   }
 
   const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
-
-  const head = useMemo(() => {
-    if (headRenderedAboveThisLevel) {
-      return null
-    }
-    return findHeadInCache(childNodes, tree[1])
-  }, [childNodes, tree, headRenderedAboveThisLevel])
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(path)
@@ -370,10 +360,8 @@ function InnerLayoutRouter({
         childNodes: childNode.parallelRoutes,
         // TODO-APP: overriding of url for parallel routes
         url: url,
-        headRenderedAboveThisLevel: true,
       }}
     >
-      {head}
       {childNode.subTreeData}
     </LayoutRouterContext.Provider>
   )
@@ -457,7 +445,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url, headRenderedAboveThisLevel } = context
+  const { childNodes, tree, url } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -528,7 +516,6 @@ export default function OuterLayoutRouter({
                         segmentPath={segmentPath}
                         path={preservedSegment}
                         isActive={currentChildSegment === preservedSegment}
-                        headRenderedAboveThisLevel={headRenderedAboveThisLevel}
                       />
                     </RedirectBoundary>
                   </NotFoundBoundary>

@@ -42,8 +42,40 @@ import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
 
 const isServer = typeof window === 'undefined'
+
+function findHeadInCache(
+  cache: CacheNode,
+  parallelRoutes: FlightRouterState[1]
+): React.ReactNode {
+  const isLastItem = Object.keys(parallelRoutes).length === 0
+  if (isLastItem) {
+    return cache.head
+  }
+  for (const key in parallelRoutes) {
+    const [segment, childParallelRoutes] = parallelRoutes[key]
+    const childSegmentMap = cache.parallelRoutes.get(key)
+    if (!childSegmentMap) {
+      continue
+    }
+
+    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+
+    const cacheNode = childSegmentMap.get(cacheKey)
+    if (!cacheNode) {
+      continue
+    }
+
+    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    if (item) {
+      return item
+    }
+  }
+
+  return undefined
+}
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
@@ -70,6 +102,10 @@ type AppRouterProps = Omit<
 > & {
   initialHead: ReactNode
   assetPrefix: string
+  // Top level boundaries props
+  notFound: React.ReactNode | undefined
+  notFoundStyles: React.ReactNode | undefined
+  asNotFound?: boolean
 }
 
 function isExternalURL(url: URL) {
@@ -85,6 +121,9 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
+  notFound,
+  notFoundStyles,
+  asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -311,13 +350,22 @@ function Router({
     }
   }, [onPopState])
 
+  const head = useMemo(() => {
+    return findHeadInCache(cache, tree[1])
+  }, [cache, tree])
+
   const content = (
-    <>
+    <NotFoundBoundary
+      notFound={notFound}
+      notFoundStyles={notFoundStyles}
+      asNotFound={asNotFound}
+    >
       <RedirectBoundary>
+        {head}
         {cache.subTreeData}
         <AppRouterAnnouncer tree={tree} />
       </RedirectBoundary>
-    </>
+    </NotFoundBoundary>
   )
 
   return (
@@ -338,7 +386,6 @@ function Router({
                 // Root node always has `url`
                 // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
-                headRenderedAboveThisLevel: false,
               }}
             >
               {HotReloader ? (
