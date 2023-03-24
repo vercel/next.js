@@ -1516,6 +1516,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
+              let revalidate: number | false | undefined = (
+                (context as any).store as any as
+                  | { revalidate?: number }
+                  | undefined
+              )?.revalidate
+
+              if (typeof revalidate == 'undefined') {
+                revalidate = false
+              }
 
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
@@ -1525,9 +1534,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
                 },
-                revalidate:
-                  ((context as any).store as any as { revalidate?: number })
-                    .revalidate || false,
+                revalidate,
               }
 
               return cacheEntry
