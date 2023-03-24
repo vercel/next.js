@@ -25,5 +25,5 @@ declare module 'next/navigation' {
    *
    * If used from `pages/`, the hook will return `null`.
    */
-  export function useSearchParams(): ReadonlyURLSearchParams | null
+  export function useParams(): Record<string, string | string[]> | null
 }
