@@ -46,38 +46,38 @@ swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-bytes = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3", default-features = false }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbo-updater = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-dev = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
-turbopack-tests = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230324.3" }
+auto-hash-map = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error", default-features = false }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-bytes = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error", default-features = false }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbo-updater = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-core = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-css = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-dev = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-json = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-mdx = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-node = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-static = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
+turbopack-tests = { git = "https://github.com/vercel/turbo.git", branch = "sokra/node-fatal-error" }
 
 # General Deps
 
