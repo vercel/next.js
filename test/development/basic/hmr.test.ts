@@ -821,6 +821,10 @@ describe.each([[''], ['/docs']])(
           let redboxSource = await getRedboxSource(browser)
 
           redboxSource = redboxSource.replace(`${next.testDir}`, '.')
+          redboxSource = redboxSource.substring(
+            0,
+            redboxSource.indexOf('`----')
+          )
 
           expect(redboxSource).toMatchSnapshot()
 
