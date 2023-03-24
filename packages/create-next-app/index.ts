@@ -56,7 +56,7 @@ const program = new Commander.Command(packageJson.name)
     '--tailwind',
     `
 
-  Initialize with Tailwind CSS config. (default)
+  Initialize with Tailwind CSS and prettier plugin for Tailwind config. (default)
 `
   )
   .option(
@@ -307,7 +307,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'tailwind',
-          message: `Would you like to use ${tw} with this project?`,
+          message: `Would you like to use ${tw} and prettier plugin for tailwind with this project?`,
           initial: getPrefOrDefault('tailwind'),
           active: 'Yes',
           inactive: 'No',

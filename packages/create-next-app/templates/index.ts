@@ -184,7 +184,7 @@ export const installTemplate = async ({
    * These flags will be passed to `install()`, which calls the package manager
    * install process.
    */
-  const installFlags = { packageManager, isOnline }
+  const installFlags = { packageManager, isOnline, devDependencies }
 
   /**
    * Default dependencies.
@@ -200,22 +200,27 @@ export const installTemplate = async ({
   ]
 
   /**
+   * devDependencies.
+   */
+  const devDependencies = []
+  /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    dependencies.push(
+    devDependencies.push(
       'typescript',
       '@types/react',
       '@types/node',
       '@types/react-dom'
-    )
-  }
+      )
+    }
 
   /**
    * Add Tailwind CSS dependencies.
    */
   if (tailwind) {
     dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
+    devDependencies.push('prettier', 'prettier-plugin-tailwindcss')
   }
 
   /**
