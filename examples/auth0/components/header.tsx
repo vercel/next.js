@@ -11,7 +11,7 @@ const Header = ({ user, loading }: HeaderProps) => {
       <nav>
         <ul>
           <li>
-            {/* You need to add a link tag `<a></a>` in <Link /> for next.js-12.1 and below */}
+            {/* You need to add a link tag `<a></a>` in `<Link></Link>` for next.js-12.1 and below */}
             <Link href="/" legacyBehavior>
               Home
             </Link>
