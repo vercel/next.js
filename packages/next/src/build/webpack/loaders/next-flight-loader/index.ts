@@ -25,44 +25,63 @@ export default async function transformSource(
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.rsc = getRSCModuleInformation(source)
 
-  const isESM = this._module?.parser?.sourceType === 'module'
-
   // A client boundary.
-  if (isESM && buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
+  if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
+    const sourceType = this._module?.parser?.sourceType
+    const detectedClientEntryType = buildInfo.rsc.clientEntryType
     const clientRefs = buildInfo.rsc.clientRefs!
-    if (clientRefs.includes('*')) {
-      return callback(
-        new Error(
-          `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
-        )
-      )
-    }
 
-    // For ESM, we can't simply export it as a proxy via `module.exports`.
-    // Use multiple named exports instead.
-    const proxyFilepath = source.match(/createProxy\((.+)\)/)?.[1]
-    if (!proxyFilepath) {
-      return callback(
-        new Error(
-          `Failed to find the proxy file path in the client boundary. This is a bug in Next.js.`
-        )
-      )
-    }
-
-    let esmSource = `
-    import { createProxy } from "${moduleProxy}"
-    const proxy = createProxy(${proxyFilepath})
-    `
-    let cnt = 0
-    for (const ref of clientRefs) {
-      if (ref === 'default') {
-        esmSource += `\nexport default proxy.default`
+    // It's tricky to detect the type of a client boundary, but we should always
+    // use the `module` type when we can, to support `export *` and `export from`
+    // syntax in other modules that import this client boundary.
+    let assumedSourceType = sourceType
+    if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
+      if (clientRefs.length === 0) {
+        // If there's zero export detected in the client boundary, and it's the
+        // `auto` type, we can safely assume it's a CJS module because it doesn't
+        // have ESM exports.
+        assumedSourceType = 'commonjs'
       } else {
-        esmSource += `\nconst e${cnt} = proxy["${ref}"]\nexport { e${cnt++} as ${ref} }`
+        // Otherwise, we assume it's an ESM module.
+        assumedSourceType = 'module'
       }
     }
 
-    return callback(null, esmSource, sourceMap)
+    if (assumedSourceType === 'module') {
+      if (clientRefs.includes('*')) {
+        return callback(
+          new Error(
+            `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+          )
+        )
+      }
+
+      // For ESM, we can't simply export it as a proxy via `module.exports`.
+      // Use multiple named exports instead.
+      const proxyFilepath = source.match(/createProxy\((.+)\)/)?.[1]
+      if (!proxyFilepath) {
+        return callback(
+          new Error(
+            `Failed to find the proxy file path in the client boundary. This is a bug in Next.js.`
+          )
+        )
+      }
+
+      let esmSource = `
+    import { createProxy } from "${moduleProxy}"
+    const proxy = createProxy(${proxyFilepath})
+    `
+      let cnt = 0
+      for (const ref of clientRefs) {
+        if (ref === 'default') {
+          esmSource += `\nexport default proxy.default`
+        } else {
+          esmSource += `\nconst e${cnt} = proxy["${ref}"]\nexport { e${cnt++} as ${ref} }`
+        }
+      }
+
+      return callback(null, esmSource, sourceMap)
+    }
   }
 
   if (buildInfo.rsc?.type !== RSC_MODULE_TYPES.client) {

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use regex::Regex;
 use serde::Deserialize;
 
+use crate::auto_cjs::contains_cjs;
 use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -65,7 +66,8 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
             if !is_client_entry {
                 self.assert_server_graph(&imports, module);
             } else {
-                self.to_module_ref(module);
+                let is_cjs = contains_cjs(module);
+                self.to_module_ref(module, is_cjs);
                 return;
             }
         } else {
@@ -229,7 +231,7 @@ impl<C: Comments> ReactServerComponents<C> {
 
     // Convert the client module to the module reference code and add a special
     // comment to the top of the file.
-    fn to_module_ref(&self, module: &mut Module) {
+    fn to_module_ref(&self, module: &mut Module, is_cjs: bool) {
         // Clear all the statements and module declarations.
         module.body.clear();
 
@@ -286,15 +288,17 @@ impl<C: Comments> ReactServerComponents<C> {
             .into_iter(),
         );
 
-        // Prepend a special comment to the top of the file.
+        // Prepend a special comment to the top of the file that contains
+        // module export names and the detected module type.
         self.comments.add_leading(
             module.span.lo,
             Comment {
                 span: DUMMY_SP,
                 kind: CommentKind::Block,
                 text: format!(
-                    " __next_internal_client_entry_do_not_use__ {} ",
-                    self.export_names.join(",")
+                    " __next_internal_client_entry_do_not_use__ {} {} ",
+                    self.export_names.join(","),
+                    if is_cjs { "cjs" } else { "auto" }
                 )
                 .into(),
             },
