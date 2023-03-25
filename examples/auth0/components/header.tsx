@@ -11,7 +11,6 @@ const Header = ({ user, loading }: HeaderProps) => {
       <nav>
         <ul>
           <li>
-            {/* You need to add a link tag `<a></a>` in `<Link></Link>` for next.js-12.1 and below */}
             <Link href="/">Home</Link>
           </li>
           <li>
