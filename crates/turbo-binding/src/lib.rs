@@ -29,6 +29,8 @@ pub mod turbo {
     pub use turbo_tasks as tasks;
     #[cfg(feature = "__turbo_tasks_build")]
     pub use turbo_tasks_build as tasks_build;
+    #[cfg(feature = "__turbo_tasks_bytes")]
+    pub use turbo_tasks_bytes as tasks_bytes;
     #[cfg(feature = "__turbo_tasks_env")]
     pub use turbo_tasks_env as tasks_env;
     #[cfg(feature = "__turbo_tasks_fetch")]
