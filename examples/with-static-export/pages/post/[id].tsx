@@ -4,7 +4,7 @@ import React from 'react'
 import { GetStaticProps, GetStaticPaths, NextPage } from 'next'
 import { type ParsedUrlQuery } from 'querystring'
 import { GetPosts, GetPost } from '../../lib/postdata_api'
-import { type IPost } from '../../@types/global'
+import { type PostData } from '../../@types/global'
 
 interface Params extends ParsedUrlQuery {
   id: string
@@ -22,7 +22,7 @@ export const getStaticPaths: GetStaticPaths<Params> = async () => {
   }
 }
 
-export const getStaticProps: GetStaticProps<{ post: IPost }, Params> = async (
+export const getStaticProps: GetStaticProps<{ post: PostData }, Params> = async (
   context
 ) => {
   const { id } = context.params! as Params
@@ -34,7 +34,7 @@ export const getStaticProps: GetStaticProps<{ post: IPost }, Params> = async (
   }
 }
 
-const Post: NextPage<{post: IPost}> = ({ post }) => {
+const Post: NextPage<{post: PostData}> = ({ post }) => {
   return (
     <main>
       <Head>

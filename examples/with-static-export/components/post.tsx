@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { IPost } from '../@types/global'
+import { PostData } from '../@types/global'
 
-export default function Post({ title, body, id }: IPost) {
+export default function Post({ title, body, id }: PostData) {
   return (
     <article>
       <h2>{title}</h2>

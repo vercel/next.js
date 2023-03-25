@@ -2,9 +2,9 @@ import Head from 'next/head'
 import { GetStaticProps, NextPage } from 'next'
 import Post from '../components/post'
 import { GetPosts } from '../lib/postdata_api'
-import { type IPost } from '../@types/global'
+import { type PostData } from '../@types/global'
 
-export const getStaticProps: GetStaticProps = async (_context) => {
+export const getStaticProps: GetStaticProps = async () => {
   // fetch list of posts
   const posts = await GetPosts()
   return {
@@ -14,7 +14,7 @@ export const getStaticProps: GetStaticProps = async (_context) => {
   }
 }
 
-const IndexPage: NextPage<{ posts: IPost[] }> = ({
+const IndexPage: NextPage<{ posts: PostData[] }> = ({
   posts,
 }) => {
   return (
