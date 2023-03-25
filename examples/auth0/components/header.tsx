@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link"
 
 type HeaderProps = {
   user?: any
@@ -12,14 +12,10 @@ const Header = ({ user, loading }: HeaderProps) => {
         <ul>
           <li>
             {/* You need to add a link tag `<a></a>` in `<Link></Link>` for next.js-12.1 and below */}
-            <Link href="/">
-              Home
-            </Link>
+            <Link href="/">Home</Link>
           </li>
           <li>
-            <Link href="/about">
-              About
-            </Link>
+            <Link href="/about">About</Link>
           </li>
           <li>
             <Link href="/advanced/api-profile">
@@ -30,9 +26,7 @@ const Header = ({ user, loading }: HeaderProps) => {
             (user ? (
               <>
                 <li>
-                  <Link href="/profile">
-                    Client rendered profile
-                  </Link>
+                  <Link href="/profile">Client rendered profile</Link>
                 </li>
                 <li>
                   <Link href="/advanced/ssr-profile">
