@@ -304,10 +304,13 @@ async function run(): Promise<void> {
 
     if (
       !process.argv.includes('--tailwind') &&
-      !process.argv.includes('--no-tailwind')
+      !process.argv.includes('--no-tailwind') &&
+      !process.argv.includes('--tailwind-prettier') && 
+      !process.argv.includes('--no-tailwind-prettier') 
     ) {
       if (ciInfo.isCI) {
         program.tailwind = false
+        program.tailwind_prettier = false
       } else {
         const tw = chalk.hex('#007acc')('Tailwind CSS')
         const { tailwind } = await prompts({
@@ -321,29 +324,21 @@ async function run(): Promise<void> {
         })
         program.tailwind = Boolean(tailwind)
         preferences.tailwind = Boolean(tailwind)
+        if (tailwind) {
+          const pt = chalk.hex('#007acc')('Prettier Plugin for Tailwind CSS')
+          const { tailwind_prettier } = await prompts({
+            onState: onPromptState,
+            type: 'toggle',
+            name: 'Prettier-Plugin',
+            message: `Would you like to use ${pt} with this project?`,
+            initial: getPrefOrDefault('Prettier-Plugin'),
+            active: 'Yes',
+            inactive: 'No',
+          })
+          program.tailwind_prettier = Boolean(tailwind_prettier)
+          preferences.tailwind_prettier = Boolean(tailwind_prettier)
+        }
       }
-    }
-
-    if (
-      (process.argv.includes("--tailwind") &&
-      !process.argv.includes("--tailwind-prettier")) ||
-      program.tailwind
-    ) {if (ciInfo.isCI) {
-      program.tailwind_prettier = false;
-    } else {
-      const tw = chalk.hex("#007acc")("Prettier Plugin for Tailwind CSS");
-      const { tailwind_prettier } = await prompts({
-        onState: onPromptState,
-        type: "toggle",
-        name: "tailwind",
-        message: `Would you like to use ${tw} with this project?`,
-        initial: getPrefOrDefault("tailwind"),
-        active: "Yes",
-        inactive: "No",
-      });
-      program.tailwind_prettier = Boolean(tailwind_prettier);
-      preferences.tailwind_prettier = Boolean(tailwind_prettier);
-    }
     }
 
     if (
