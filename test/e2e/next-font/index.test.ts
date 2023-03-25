@@ -449,7 +449,7 @@ describe('next/font', () => {
           const ascentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).ascentOverride'
           )
-          expect(ascentOverride).toBe('103.26%')
+          expect(ascentOverride).toBe('101.1%')
 
           const descentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).descentOverride'
@@ -473,7 +473,7 @@ describe('next/font', () => {
           const ascentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).ascentOverride'
           )
-          expect(ascentOverride).toBe('84.71%')
+          expect(ascentOverride).toBe('84.29%')
 
           const descentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).descentOverride'
@@ -571,7 +571,7 @@ describe('next/font', () => {
           const ascentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).ascentOverride'
           )
-          expect(ascentOverride).toBe('103.26%')
+          expect(ascentOverride).toBe('101.1%')
 
           const descentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
@@ -595,7 +595,7 @@ describe('next/font', () => {
           const ascentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).ascentOverride'
           )
-          expect(ascentOverride).toBe('84.71%')
+          expect(ascentOverride).toBe('84.29%')
 
           const descentOverride = await browser.eval(
             'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
