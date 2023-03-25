@@ -228,6 +228,13 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       return matcher.match(pathname, options)
     }
 
+    // If the locale was inferred from the default locale, then it will have
+    // already added a locale to the pathname. We need to remove it before
+    // matching because this matcher is not locale aware.
+    if (options.i18n?.inferredFromDefault) {
+      return matcher.match(options.i18n.pathname)
+    }
+
     return matcher.match(pathname)
   }
 
