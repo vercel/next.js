@@ -67,7 +67,10 @@ export class NextResponse<Body = unknown> extends Response {
     return this[INTERNALS].cookies
   }
 
-  static json<JsonBody>(body: JsonBody, init?: ResponseInit): NextResponse<JsonBody> {
+  static json<JsonBody>(
+    body: JsonBody,
+    init?: ResponseInit,
+  ): NextResponse<JsonBody> {
     // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
     const response: Response = Response.json(body, init)
     return new NextResponse(response.body, response)
