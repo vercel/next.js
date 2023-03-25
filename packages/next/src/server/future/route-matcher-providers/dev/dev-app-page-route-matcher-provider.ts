@@ -8,6 +8,11 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
+import {
+  getInterceptingRouteMeta,
+  isIntersectionRouteAppPath,
+} from '../../helpers/interception-routes'
+import { AppPageInterceptingRouteMatcher } from '../../route-matchers/app-intercepting-route-matcher'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -57,8 +62,16 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     // routes.
     const cache = new Map<
       string,
-      { page: string; pathname: string; bundlePath: string }
+      {
+        page: string
+        pathname: string
+        bundlePath: string
+      }
     >()
+
+    // page = /feed/(..)photos/[id]
+    // pathname = /photos/[id]
+
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
       const page = this.normalizers.page.normalize(filename)
@@ -68,7 +81,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       // Save the normalization results.
-      cache.set(filename, { page, pathname, bundlePath })
+      cache.set(filename, {
+        page,
+        pathname,
+        bundlePath,
+      })
 
       if (pathname in appPaths) appPaths[pathname].push(page)
       else appPaths[pathname] = [page]
@@ -86,18 +103,34 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       }
       const { pathname, page, bundlePath } = cached
 
-      matchers.push(
-        new AppPageRouteMatcher({
-          kind: RouteKind.APP_PAGE,
-          pathname,
-          page,
-          bundlePath,
-          filename,
-          appPaths: appPaths[pathname],
-        })
-      )
+      if (isIntersectionRouteAppPath(pathname)) {
+        const [interceptingRoute, interceptedRoute] =
+          getInterceptingRouteMeta(pathname)
+        matchers.push(
+          new AppPageInterceptingRouteMatcher({
+            kind: RouteKind.APP_PAGE,
+            pathname: interceptedRoute,
+            page,
+            bundlePath,
+            filename,
+            appPaths: appPaths[pathname],
+            interceptingRoute: interceptingRoute,
+            interceptingRoutePathname: pathname,
+          })
+        )
+      } else {
+        matchers.push(
+          new AppPageRouteMatcher({
+            kind: RouteKind.APP_PAGE,
+            pathname,
+            page,
+            bundlePath,
+            filename,
+            appPaths: appPaths[pathname],
+          })
+        )
+      }
     }
-
     return matchers
   }
 }

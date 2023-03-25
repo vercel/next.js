@@ -199,6 +199,7 @@ export default class Router {
                   // not include dynamic matches.
                   skipDynamic: true,
                   i18n: this.i18nProvider?.analyze(pathname),
+                  referringRoute: req.headers.referer,
                 }
 
                 // If the locale was inferred from the default, we should mark

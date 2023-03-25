@@ -7,7 +7,7 @@ export default function Page({ params }) {
       <ul>
         {Array.from({ length: 10 }).map((_, i) => (
           <li>
-            <Link href={`/intercepting-parallel-modal/photos/${i}`}>
+            <Link href={`/intercepting-parallel-modal/photo/${i}`}>
               Link {i}
             </Link>
           </li>

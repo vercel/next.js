@@ -5,7 +5,12 @@ import {
 } from '../../../shared/lib/constants'
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import {
+  getInterceptingRouteMeta,
+  isIntersectionRouteAppPath,
+} from '../helpers/interception-routes'
 import { RouteKind } from '../route-kind'
+import { AppPageInterceptingRouteMatcher } from '../route-matchers/app-intercepting-route-matcher'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
 import {
   Manifest,
@@ -45,16 +50,33 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
       const filename = path.join(this.distDir, SERVER_DIRECTORY, manifest[page])
       const bundlePath = path.join('app', page)
 
-      matchers.push(
-        new AppPageRouteMatcher({
-          kind: RouteKind.APP_PAGE,
-          pathname,
-          page,
-          bundlePath,
-          filename,
-          appPaths: paths,
-        })
-      )
+      if (isIntersectionRouteAppPath(pathname)) {
+        const [interceptingRoute, interceptedRoute] =
+          getInterceptingRouteMeta(pathname)
+        matchers.push(
+          new AppPageInterceptingRouteMatcher({
+            kind: RouteKind.APP_PAGE,
+            pathname: interceptedRoute,
+            page,
+            bundlePath,
+            filename,
+            appPaths: appPaths[pathname],
+            interceptingRoute: interceptingRoute,
+            interceptingRoutePathname: pathname,
+          })
+        )
+      } else {
+        matchers.push(
+          new AppPageRouteMatcher({
+            kind: RouteKind.APP_PAGE,
+            pathname,
+            page,
+            bundlePath,
+            filename,
+            appPaths: paths,
+          })
+        )
+      }
     }
 
     return matchers

@@ -694,6 +694,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath, {
             i18n: localeAnalysisResult,
+            referringRoute: req.headers.referer,
           })
 
           // Update the source pathname to the matched page's pathname.
@@ -2010,21 +2011,25 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponseImpl(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    const { res, query, pathname } = ctx
+    const { res, query, pathname, req } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromQuery(pathname, query),
+      referringRoute: req.headers.referer,
     }
 
     try {
       for await (const match of this.matchers.matchAll(pathname, options)) {
+        console.trace('match', match)
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.definition.pathname,
+            pathname: match.definition.interceptingRoute
+              ? match.definition.interceptingRoutePathname
+              : match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,
