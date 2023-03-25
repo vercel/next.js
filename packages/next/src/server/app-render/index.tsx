@@ -43,7 +43,6 @@ import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-gen
 import { collectMetadata } from '../../lib/metadata/resolve-metadata'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -280,7 +279,7 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    async function resolveHead({
+    async function resolveMetadata({
       tree,
       parentParams,
       metadataItems,
@@ -291,8 +290,8 @@ export async function renderToHTMLOrFlight(
       metadataItems: MetadataItems
       /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
       treePrefix?: string[]
-    }): Promise<[React.ReactNode, MetadataItems]> {
-      const [segment, parallelRoutes, { head, page }] = tree
+    }): Promise<MetadataItems> {
+      const [segment, parallelRoutes, { page }] = tree
       const currentTreePrefix = [...treePrefix, segment]
       const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
@@ -327,29 +326,15 @@ export async function renderToHTMLOrFlight(
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const [returnedHead] = await resolveHead({
+        await resolveMetadata({
           tree: childTree,
           parentParams: currentParams,
           metadataItems,
           treePrefix: currentTreePrefix,
         })
-        if (returnedHead) {
-          return [returnedHead, metadataItems]
-        }
       }
 
-      if (head) {
-        if (process.env.NODE_ENV !== 'production') {
-          warnOnce(
-            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
-          )
-        }
-
-        const Head = await interopDefault(await head[0]())
-        return [<Head params={currentParams} />, metadataItems]
-      }
-
-      return [null, metadataItems]
+      return metadataItems
     }
 
     let defaultRevalidate: false | undefined | number = false
@@ -434,9 +419,14 @@ export async function renderToHTMLOrFlight(
         template,
         error,
         loading,
-        page,
         'not-found': notFound,
       } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -1022,7 +1012,7 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const [resolvedHead, metadataItems] = await resolveHead({
+      const metadataItems = await resolveMetadata({
         tree: loaderTree,
         parentParams: {},
         metadataItems: [],
@@ -1043,7 +1033,6 @@ export async function renderToHTMLOrFlight(
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
                 <MetadataTree key={requestId} metadata={metadataItems} />
-                {resolvedHead}
               </>
             ),
             injectedCSS: new Set(),
@@ -1118,7 +1107,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const [initialHead, metadataItems] = await resolveHead({
+    const metadataItems = await resolveMetadata({
       tree: loaderTree,
       parentParams: {},
       metadataItems: [],
@@ -1161,7 +1150,6 @@ export async function renderToHTMLOrFlight(
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree key={requestId} metadata={metadataItems} />
-                  {initialHead}
                 </>
               }
               globalErrorComponent={GlobalError}

@@ -103,36 +103,33 @@ createNextDescribe(
       })
     })
 
-    // TODO: re-enable after fixed when deployed
-    if (!isNextDeploy) {
-      describe('useSelectedLayoutSegments', () => {
-        it.each`
-          path                                                           | outerLayout                                             | innerLayout
-          ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
-          ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
-          ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
-          ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
-          ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
-          ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
-        `(
-          'should have the correct layout segments at $path',
-          async ({ path, outerLayout, innerLayout }) => {
-            const $ = await next.render$(path)
+    describe('useSelectedLayoutSegments', () => {
+      it.each`
+        path                                                           | outerLayout                                             | innerLayout
+        ${'/hooks/use-selected-layout-segment/first'}                  | ${['first']}                                            | ${[]}
+        ${'/hooks/use-selected-layout-segment/first/slug1'}            | ${['first', 'slug1']}                                   | ${['slug1']}
+        ${'/hooks/use-selected-layout-segment/first/slug2/second'}     | ${['first', 'slug2', '(group)', 'second']}              | ${['slug2', '(group)', 'second']}
+        ${'/hooks/use-selected-layout-segment/first/slug2/second/a/b'} | ${['first', 'slug2', '(group)', 'second', 'a/b']}       | ${['slug2', '(group)', 'second', 'a/b']}
+        ${'/hooks/use-selected-layout-segment/rewritten'}              | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+        ${'/hooks/use-selected-layout-segment/rewritten-middleware'}   | ${['first', 'slug3', '(group)', 'second', 'catch/all']} | ${['slug3', '(group)', 'second', 'catch/all']}
+      `(
+        'should have the correct layout segments at $path',
+        async ({ path, outerLayout, innerLayout }) => {
+          const $ = await next.render$(path)
 
-            expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
-            expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
-          }
+          expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
+          expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
+        }
+      )
+
+      it('should return an empty array in pages', async () => {
+        const $ = await next.render$(
+          '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
         )
 
-        it('should return an empty array in pages', async () => {
-          const $ = await next.render$(
-            '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
-          )
-
-          expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
-        })
+        expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
       })
-    }
+    })
 
     describe('useSelectedLayoutSegment', () => {
       it.each`
