@@ -15,7 +15,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDeploy, isNextDev, isNextStart }) => {
     beforeAll(async () => {
       if (isNextDev) {
         await fs.move(
@@ -205,7 +205,7 @@ createNextDescribe(
 
     describe('body', () => {
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can handle handle a streaming request and streaming response', async () => {
           const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
           let index = 0
@@ -274,7 +274,7 @@ createNextDescribe(
       })
 
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can read a streamed JSON encoded body', async () => {
           const body = { ping: 'pong' }
           const encoded = JSON.stringify(body)
@@ -461,7 +461,7 @@ createNextDescribe(
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
 
-        if (!(global as any).isNextDeploy) {
+        if (!isNextDeploy) {
           await check(() => {
             expect(next.cliOutput).toContain(error)
             return 'yes'
@@ -551,28 +551,33 @@ createNextDescribe(
 
     if (isNextDev) {
       describe('lowercase exports', () => {
-        it('should print an error when using lowercase exports in dev', async () => {
-          await Promise.all(
-            ['get', 'head', 'options', 'post', 'put', 'delete', 'patch'].map(
-              async (method) => {
-                await next.fetch('/lowercase/' + method)
+        it.each([
+          ['get'],
+          ['head'],
+          ['options'],
+          ['post'],
+          ['put'],
+          ['delete'],
+          ['patch'],
+        ])(
+          'should print an error when using lowercase %p in dev',
+          async (method: string) => {
+            await next.fetch('/lowercase/' + method)
 
-                await check(() => {
-                  expect(next.cliOutput).toContain(
-                    `Detected lowercase method '${method}' in`
-                  )
-                  expect(next.cliOutput).toContain(
-                    `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
-                  )
-                  expect(next.cliOutput).toMatch(
-                    /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
-                  )
-                  return 'yes'
-                }, 'yes')
-              }
-            )
-          )
-        })
+            await check(() => {
+              expect(next.cliOutput).toContain(
+                `Detected lowercase method '${method}' in`
+              )
+              expect(next.cliOutput).toContain(
+                `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
+              )
+              expect(next.cliOutput).toMatch(
+                /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
+              )
+              return 'yes'
+            }, 'yes')
+          }
+        )
       })
 
       describe('invalid exports', () => {
