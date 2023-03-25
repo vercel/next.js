@@ -19,6 +19,7 @@ export interface InstallTemplateArgs {
   mode: TemplateMode
   eslint: boolean
   tailwind: boolean
+  tailwind_prettier: boolean
   srcDir: boolean
   importAlias: string
 }

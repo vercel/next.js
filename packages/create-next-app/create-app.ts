@@ -35,6 +35,7 @@ export async function createApp({
   examplePath,
   typescript,
   tailwind,
+  tailwind_prettier,
   eslint,
   experimentalApp,
   srcDir,
@@ -46,6 +47,7 @@ export async function createApp({
   examplePath?: string
   typescript: boolean
   tailwind: boolean
+  tailwind_prettier: boolean
   eslint: boolean
   experimentalApp: boolean
   srcDir: boolean

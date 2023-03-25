@@ -37,6 +37,7 @@ export const installTemplate = async ({
   template,
   mode,
   tailwind,
+  tailwind_prettier,
   eslint,
   srcDir,
   importAlias,
@@ -184,7 +185,7 @@ export const installTemplate = async ({
    * These flags will be passed to `install()`, which calls the package manager
    * install process.
    */
-  const installFlags = { packageManager, isOnline, devDependencies }
+  const installFlags = { packageManager, isOnline }
 
   /**
    * Default dependencies.
@@ -200,14 +201,10 @@ export const installTemplate = async ({
   ]
 
   /**
-   * devDependencies.
-   */
-  const devDependencies = []
-  /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
   if (mode === 'ts') {
-    devDependencies.push(
+    dependencies.push(
       'typescript',
       '@types/react',
       '@types/node',
@@ -220,7 +217,13 @@ export const installTemplate = async ({
    */
   if (tailwind) {
     dependencies.push('tailwindcss', 'postcss', 'autoprefixer')
-    devDependencies.push('prettier', 'prettier-plugin-tailwindcss')
+  }
+
+  /**
+   * Add Prettier Plugin for Tailwind CSS dependencies.
+   */
+  if (tailwind && tailwind_prettier) {
+    dependencies.push('prettier', 'prettier-plugin-tailwindcss')
   }
 
   /**

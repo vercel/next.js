@@ -56,6 +56,13 @@ const program = new Commander.Command(packageJson.name)
     '--tailwind',
     `
 
+  Initialize with Tailwind CSS config. (default)
+`
+  )
+  .option(
+    '--tailwind-prettier',
+    `
+
   Initialize with Tailwind CSS and prettier plugin for Tailwind config. (default)
 `
   )
@@ -307,7 +314,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'tailwind',
-          message: `Would you like to use ${tw} and prettier plugin for tailwind with this project?`,
+          message: `Would you like to use ${tw} with this project?`,
           initial: getPrefOrDefault('tailwind'),
           active: 'Yes',
           inactive: 'No',
@@ -315,6 +322,28 @@ async function run(): Promise<void> {
         program.tailwind = Boolean(tailwind)
         preferences.tailwind = Boolean(tailwind)
       }
+    }
+
+    if (
+      (process.argv.includes("--tailwind") &&
+      !process.argv.includes("--tailwind-prettier")) ||
+      program.tailwind
+    ) {if (ciInfo.isCI) {
+      program.tailwind_prettier = false;
+    } else {
+      const tw = chalk.hex("#007acc")("Prettier Plugin for Tailwind CSS");
+      const { tailwind_prettier } = await prompts({
+        onState: onPromptState,
+        type: "toggle",
+        name: "tailwind",
+        message: `Would you like to use ${tw} with this project?`,
+        initial: getPrefOrDefault("tailwind"),
+        active: "Yes",
+        inactive: "No",
+      });
+      program.tailwind_prettier = Boolean(tailwind_prettier);
+      preferences.tailwind_prettier = Boolean(tailwind_prettier);
+    }
     }
 
     if (
@@ -395,6 +424,7 @@ async function run(): Promise<void> {
       examplePath: program.examplePath,
       typescript: program.typescript,
       tailwind: program.tailwind,
+      tailwind_prettier: program.tailwind_prettier,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
@@ -424,6 +454,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       tailwind: program.tailwind,
+      tailwind_prettier: program.tailwind_prettier,
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
