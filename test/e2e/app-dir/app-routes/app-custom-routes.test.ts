@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import fs from 'fs/promises'
+import fs from 'fs-extra'
 import { check } from 'next-test-utils'
 import path from 'path'
 import { Readable } from 'stream'
@@ -10,8 +10,6 @@ import {
   cookieWithRequestMeta,
 } from './helpers'
 
-const appDir = path.join(__dirname, 'app')
-
 createNextDescribe(
   'app-custom-routes',
   {
@@ -20,13 +18,15 @@ createNextDescribe(
   ({ next, isNextDev, isNextStart }) => {
     beforeAll(async () => {
       if (isNextDev) {
-        await fs.rename(
-          path.join(appDir, '_lowercase'),
-          path.join(appDir, 'lowercase')
+        await fs.move(
+          path.join(next.testDir, 'app/_lowercase'),
+          path.join(next.testDir, 'app/lowercase'),
+          { overwrite: true }
         )
-        await fs.rename(
-          path.join(appDir, '_default'),
-          path.join(appDir, 'default')
+        await fs.move(
+          path.join(next.testDir, 'app/_default'),
+          path.join(next.testDir, 'app/default'),
+          { overwrite: true }
         )
       }
     })
@@ -595,18 +595,5 @@ createNextDescribe(
         })
       })
     }
-
-    afterAll(async () => {
-      if (isNextDev) {
-        await fs.rename(
-          path.join(appDir, 'lowercase'),
-          path.join(appDir, '_lowercase')
-        )
-        await fs.rename(
-          path.join(appDir, 'default'),
-          path.join(appDir, '_default')
-        )
-      }
-    })
   }
 )
