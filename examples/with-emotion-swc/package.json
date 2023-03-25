@@ -6,8 +6,6 @@
     "start": "next start"
   },
   "dependencies": {
-    "@emotion/react": "11.10.6",
-    "@emotion/styled": "11.8.1",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"
