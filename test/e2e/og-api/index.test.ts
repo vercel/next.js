@@ -53,7 +53,9 @@ describe('og-api', () => {
         )
       ).toBe(true)
     })
-  } else {
+  }
+
+  if ((global as any).isNextDev) {
     it('should throw error when returning a response object in pages/api in node runtime', async () => {
       const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
       expect(res.status).toBe(500)

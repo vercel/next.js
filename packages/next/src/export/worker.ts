@@ -542,7 +542,6 @@ export default async function exportPage({
         return { ...results, duration: Date.now() - start }
       }
 
-      // TODO: de-dupe the logic here between serverless and server mode
       if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
         // make sure it ends with .html if the name contains a dot
         htmlFilepath += '.html'
@@ -555,7 +554,7 @@ export default async function exportPage({
       } else {
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
-         * Using this from process.env allows targeting both serverless and SSR by calling
+         * Using this from process.env allows targeting SSR by calling
          * `process.env.__NEXT_OPTIMIZE_FONTS`.
          * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
          */
