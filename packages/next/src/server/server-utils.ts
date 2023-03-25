@@ -1,73 +1,28 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { Rewrite } from '../../../../lib/load-custom-routes'
-import type { BuildManifest } from '../../../../server/get-page-files'
-import type { RouteMatchFn } from '../../../../shared/lib/router/utils/route-matcher'
-import type { NextConfig } from '../../../../server/config'
-import type {
-  GetServerSideProps,
-  GetStaticPaths,
-  GetStaticProps,
-} from '../../../../../types'
-import type { BaseNextRequest } from '../../../../server/base-http'
-import type { __ApiPreviewProps } from '../../../../server/api-utils'
+import type { Rewrite } from '../lib/load-custom-routes'
+import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
+import type { NextConfig } from './config'
+import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
-import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
-import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
-import { getNamedRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
-import { getRouteMatcher } from '../../../../shared/lib/router/utils/route-matcher'
+import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
+import { getPathMatch } from '../shared/lib/router/utils/path-match'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import {
   matchHas,
   prepareDestination,
-} from '../../../../shared/lib/router/utils/prepare-destination'
-import { acceptLanguage } from '../../../../server/accept-header'
-import { detectLocaleCookie } from '../../../../shared/lib/i18n/detect-locale-cookie'
-import { detectDomainLocale } from '../../../../shared/lib/i18n/detect-domain-locale'
-import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
+} from '../shared/lib/router/utils/prepare-destination'
+import { acceptLanguage } from './accept-header'
+import { detectLocaleCookie } from '../shared/lib/i18n/detect-locale-cookie'
+import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
+import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
-import { TEMPORARY_REDIRECT_STATUS } from '../../../../shared/lib/constants'
-import { addRequestMeta } from '../../../../server/request-meta'
-import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
-import { normalizeRscPath } from '../../../../shared/lib/router/utils/app-paths'
-
-export const vercelHeader = 'x-vercel-id'
-
-export type ServerlessHandlerCtx = {
-  page: string
-
-  pageModule: any
-  pageComponent?: any
-  pageConfig?: any
-  pageGetStaticProps?: GetStaticProps
-  pageGetStaticPaths?: GetStaticPaths
-  pageGetServerSideProps?: GetServerSideProps
-
-  appModule?: any
-  errorModule?: any
-  documentModule?: any
-  notFoundModule?: any
-
-  runtimeConfig: any
-  buildManifest?: BuildManifest
-  reactLoadableManifest?: any
-  basePath: string
-  rewrites: {
-    fallback?: Rewrite[]
-    afterFiles?: Rewrite[]
-    beforeFiles?: Rewrite[]
-  }
-  pageIsDynamic: boolean
-  generateEtags: boolean
-  distDir: string
-  buildId: string
-  escapedBuildId: string
-  assetPrefix: string
-  poweredByHeader: boolean
-  canonicalBase: string
-  encodedPreviewProps: __ApiPreviewProps
-  i18n?: NextConfig['i18n']
-}
+import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
+import { addRequestMeta } from './request-meta'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest | IncomingMessage,
@@ -136,11 +91,15 @@ export function getUtils({
   pageIsDynamic,
   trailingSlash,
 }: {
-  page: ServerlessHandlerCtx['page']
-  i18n?: ServerlessHandlerCtx['i18n']
-  basePath: ServerlessHandlerCtx['basePath']
-  rewrites: ServerlessHandlerCtx['rewrites']
-  pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
+  page: string
+  i18n?: NextConfig['i18n']
+  basePath: string
+  rewrites: {
+    fallback?: Rewrite[]
+    afterFiles?: Rewrite[]
+    beforeFiles?: Rewrite[]
+  }
+  pageIsDynamic: boolean
   trailingSlash?: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
@@ -532,7 +491,7 @@ export function getUtils({
 
     if (
       !shouldNotRedirect &&
-      !req.headers[vercelHeader] &&
+      !req.headers['x-vercel-id'] &&
       i18n.localeDetection !== false &&
       (localeDomainRedirect ||
         shouldAddLocalePrefix ||

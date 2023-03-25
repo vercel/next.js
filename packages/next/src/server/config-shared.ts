@@ -16,7 +16,6 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
-  target?: string
 }
 
 export interface I18NConfig {
@@ -615,7 +614,6 @@ export const defaultConfig: NextConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
