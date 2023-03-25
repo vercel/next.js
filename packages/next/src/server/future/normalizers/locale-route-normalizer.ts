@@ -14,12 +14,7 @@ export class LocaleRouteNormalizer implements Normalizer {
    * @returns The pathname without the locale prefix (if any).
    */
   public normalize(pathname: string): string {
-    const match = this.provider.analyze(pathname, {
-      // We aren't using the detected locale, so we can pass `undefined` because
-      // we don't need to infer the default locale.
-      defaultLocale: undefined,
-    })
-
+    const match = this.provider.analyze(pathname)
     return match.pathname
   }
 }
