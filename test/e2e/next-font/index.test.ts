@@ -139,7 +139,6 @@ describe('next/font', () => {
         )
         const $ = cheerio.load(html)
 
-        console.log('***** ', JSON.parse($('#nabla').text()))
         expect(JSON.parse($('#nabla').text())).toEqual({
           className: expect.stringMatching(getClassNameRegex('className')),
           style: {
