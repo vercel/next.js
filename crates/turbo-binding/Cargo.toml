@@ -79,6 +79,7 @@ __turbo_malloc_custom_allocator = ["turbo-malloc/custom_allocator"]
 __turbo_tasks = ["__turbo", "turbo-tasks"]
 __turbo_tasks_tokio_tracing = ["turbo-tasks/tokio_tracing"]
 __turbo_tasks_build = ["__turbo", "turbo-tasks-build"]
+__turbo_tasks_bytes = ["__turbo", "turbo-tasks-bytes"]
 __turbo_tasks_env = ["__turbo", "turbo-tasks-env"]
 __turbo_tasks_fetch = ["__turbo", "turbo-tasks-fetch"]
 __turbo_tasks_fetch_native-tls = ["__turbo", "turbo-tasks-fetch/native-tls"]
@@ -97,6 +98,7 @@ __turbopack_core = ["__turbopack", "turbopack-core"]
 __turbopack_core_issue_path = ["turbopack-core/issue_path"]
 __turbopack_create_test_app = ["__turbopack", "turbopack-create-test-app"]
 __turbopack_css = ["__turbopack", "turbopack-css"]
+__turbopack_dev = ["__turbopack", "turbopack-dev"]
 __turbopack_dev_server = ["__turbopack", "turbopack-dev-server"]
 __turbopack_ecmascript = ["__turbopack", "turbopack-ecmascript"]
 __turbopack_env = ["__turbopack", "turbopack-env"]
@@ -147,6 +149,7 @@ node-file-trace = { optional = true, workspace = true }
 turbo-malloc = { optional = true, workspace = true }
 turbo-tasks = { optional = true, workspace = true }
 turbo-tasks-build = { optional = true, workspace = true }
+turbo-tasks-bytes = { optional = true, workspace = true }
 turbo-tasks-env = { optional = true, workspace = true }
 turbo-tasks-fetch = { optional = true, workspace = true }
 turbo-tasks-fs = { optional = true, workspace = true }
@@ -161,6 +164,7 @@ turbopack-cli-utils = { optional = true, workspace = true }
 turbopack-core = { optional = true, workspace = true }
 turbopack-create-test-app = { optional = true, workspace = true }
 turbopack-css = { optional = true, workspace = true }
+turbopack-dev = { optional = true, workspace = true }
 turbopack-dev-server = { optional = true, workspace = true }
 turbopack-ecmascript = { optional = true, workspace = true }
 turbopack-env = { optional = true, workspace = true }
