@@ -18,6 +18,18 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev, isNextStart }) => {
+    beforeAll(async () => {
+      if (isNextDev) {
+        await fs.rename(
+          path.join(appDir, '_lowercase'),
+          path.join(appDir, 'lowercase')
+        )
+        await fs.rename(
+          path.join(appDir, '_default'),
+          path.join(appDir, 'default')
+        )
+      }
+    })
     describe('works with api prefix correctly', () => {
       it('statically generates correctly with no dynamic usage', async () => {
         if (isNextStart) {
@@ -540,70 +552,61 @@ createNextDescribe(
     if (isNextDev) {
       describe('lowercase exports', () => {
         it('should print an error when using lowercase exports in dev', async () => {
-          await fs.rename(
-            path.join(appDir, '_lowercase'),
-            path.join(appDir, 'lowercase')
-          )
-          try {
-            await Promise.all(
-              ['get', 'head', 'options', 'post', 'put', 'delete', 'patch'].map(
-                async (method) => {
-                  await next.fetch('/lowercase/' + method)
+          await Promise.all(
+            ['get', 'head', 'options', 'post', 'put', 'delete', 'patch'].map(
+              async (method) => {
+                await next.fetch('/lowercase/' + method)
 
-                  await check(() => {
-                    expect(next.cliOutput).toContain(
-                      `Detected lowercase method '${method}' in`
-                    )
-                    expect(next.cliOutput).toContain(
-                      `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
-                    )
-                    expect(next.cliOutput).toMatch(
-                      /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
-                    )
-                    return 'yes'
-                  }, 'yes')
-                }
-              )
+                await check(() => {
+                  expect(next.cliOutput).toContain(
+                    `Detected lowercase method '${method}' in`
+                  )
+                  expect(next.cliOutput).toContain(
+                    `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
+                  )
+                  expect(next.cliOutput).toMatch(
+                    /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
+                  )
+                  return 'yes'
+                }, 'yes')
+              }
             )
-          } finally {
-            await fs.rename(
-              path.join(appDir, 'lowercase'),
-              path.join(appDir, '_lowercase')
-            )
-          }
+          )
         })
       })
 
       describe('invalid exports', () => {
         it('should print an error when exporting a default handler in dev', async () => {
-          await fs.rename(
-            path.join(appDir, '_default'),
-            path.join(appDir, 'default')
-          )
-          try {
-            const res = await next.fetch('/default')
+          const res = await next.fetch('/default')
 
-            // Ensure we get a 405 (Method Not Allowed) response when there is no
-            // exported handler for the GET method.
-            expect(res.status).toEqual(405)
+          // Ensure we get a 405 (Method Not Allowed) response when there is no
+          // exported handler for the GET method.
+          expect(res.status).toEqual(405)
 
-            await check(() => {
-              expect(next.cliOutput).toMatch(
-                /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
-              )
-              expect(next.cliOutput).toMatch(
-                /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
-              )
-              return 'yes'
-            }, 'yes')
-          } finally {
-            await fs.rename(
-              path.join(appDir, 'default'),
-              path.join(appDir, '_default')
+          await check(() => {
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
             )
-          }
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            return 'yes'
+          }, 'yes')
         })
       })
     }
+
+    afterAll(async () => {
+      if (isNextDev) {
+        await fs.rename(
+          path.join(appDir, 'lowercase'),
+          path.join(appDir, '_lowercase')
+        )
+        await fs.rename(
+          path.join(appDir, 'default'),
+          path.join(appDir, '_default')
+        )
+      }
+    })
   }
 )
