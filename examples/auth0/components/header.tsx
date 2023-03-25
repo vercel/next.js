@@ -12,17 +12,17 @@ const Header = ({ user, loading }: HeaderProps) => {
         <ul>
           <li>
             {/* You need to add a link tag `<a></a>` in `<Link></Link>` for next.js-12.1 and below */}
-            <Link href="/" legacyBehavior>
+            <Link href="/">
               Home
             </Link>
           </li>
           <li>
-            <Link href="/about" legacyBehavior>
+            <Link href="/about">
               About
             </Link>
           </li>
           <li>
-            <Link href="/advanced/api-profile" legacyBehavior>
+            <Link href="/advanced/api-profile">
               API rendered profile (advanced)
             </Link>
           </li>
@@ -30,12 +30,12 @@ const Header = ({ user, loading }: HeaderProps) => {
             (user ? (
               <>
                 <li>
-                  <Link href="/profile" legacyBehavior>
+                  <Link href="/profile">
                     Client rendered profile
                   </Link>
                 </li>
                 <li>
-                  <Link href="/advanced/ssr-profile" legacyBehavior>
+                  <Link href="/advanced/ssr-profile">
                     Server rendered profile (advanced)
                   </Link>
                 </li>
