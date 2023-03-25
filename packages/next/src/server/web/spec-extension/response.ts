@@ -69,7 +69,7 @@ export class NextResponse<Body = unknown> extends Response {
 
   static json<JsonBody>(
     body: JsonBody,
-    init?: ResponseInit,
+    init?: ResponseInit
   ): NextResponse<JsonBody> {
     // @ts-expect-error This is not in lib/dom right now, and we can't augment it.
     const response: Response = Response.json(body, init)
