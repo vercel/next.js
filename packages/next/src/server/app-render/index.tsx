@@ -33,7 +33,6 @@ import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html
 import { stripInternalQueries } from '../internal-utils'
 import { HeadManagerContext } from '../../shared/lib/head-manager-context'
 import {
-  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
@@ -44,7 +43,6 @@ import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-gen
 import { collectMetadata } from '../../lib/metadata/resolve-metadata'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -56,7 +54,6 @@ import { getTracer } from '../lib/trace/tracer'
 import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
-import { ActionRenderResult } from './action-render-result'
 import { createErrorHandler } from './create-error-handler'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
@@ -72,6 +69,9 @@ import {
   addSearchParamsIfPageSegment,
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
+import { handleAction } from './action-handler'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -279,12 +279,20 @@ export async function renderToHTMLOrFlight(
       }
     }
 
-    async function resolveHead(
-      tree: LoaderTree,
-      parentParams: { [key: string]: any },
+    async function resolveMetadata({
+      tree,
+      parentParams,
+      metadataItems,
+      treePrefix = [],
+    }: {
+      tree: LoaderTree
+      parentParams: { [key: string]: any }
       metadataItems: MetadataItems
-    ): Promise<[React.ReactNode, MetadataItems]> {
-      const [segment, parallelRoutes, { head, page }] = tree
+      /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+      treePrefix?: string[]
+    }): Promise<MetadataItems> {
+      const [segment, parallelRoutes, { page }] = tree
+      const currentTreePrefix = [...treePrefix, segment]
       const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -306,32 +314,27 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      await collectMetadata(tree, layerProps, metadataItems)
+      await collectMetadata({
+        loaderTree: tree,
+        props: layerProps,
+        array: metadataItems,
+        route: currentTreePrefix
+          // __PAGE__ shouldn't be shown in a route
+          .filter((s) => s !== PAGE_SEGMENT_KEY)
+          .join('/'),
+      })
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const [returnedHead] = await resolveHead(
-          childTree,
-          currentParams,
-          metadataItems
-        )
-        if (returnedHead) {
-          return [returnedHead, metadataItems]
-        }
+        await resolveMetadata({
+          tree: childTree,
+          parentParams: currentParams,
+          metadataItems,
+          treePrefix: currentTreePrefix,
+        })
       }
 
-      if (head) {
-        if (process.env.NODE_ENV !== 'production') {
-          warnOnce(
-            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
-          )
-        }
-
-        const Head = await interopDefault(await head[0]())
-        return [<Head params={currentParams} />, metadataItems]
-      }
-
-      return [null, metadataItems]
+      return metadataItems
     }
 
     let defaultRevalidate: false | undefined | number = false
@@ -416,9 +419,14 @@ export async function renderToHTMLOrFlight(
         template,
         error,
         loading,
-        page,
         'not-found': notFound,
       } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -473,7 +481,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = await getLayoutOrPageModule(tree)
+      const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -509,6 +517,10 @@ export async function renderToHTMLOrFlight(
             staticGenerationStore.forceStatic = false
           }
         }
+      }
+
+      if (typeof layoutOrPageMod?.fetchCache === 'string') {
+        staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
       }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
@@ -660,6 +672,7 @@ export async function renderToHTMLOrFlight(
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              asNotFound,
             })
 
             const childProp: ChildProp = {
@@ -720,8 +733,24 @@ export async function renderToHTMLOrFlight(
 
       const isClientComponent = isClientReference(layoutOrPageMod)
 
+      // If it's a not found route, and we don't have any matched parallel
+      // routes, we try to render the not found component if it exists.
+      let notFoundComponent = {}
+      if (asNotFound && !parallelRouteMap.length && NotFound) {
+        notFoundComponent = {
+          children: (
+            <>
+              <meta name="robots" content="noindex" />
+              {notFoundStyles}
+              <NotFound />
+            </>
+          ),
+        }
+      }
+
       const props = {
         ...parallelRouteComponents,
+        ...notFoundComponent,
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
         // Params are always the current params that apply to the layout
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
@@ -828,6 +857,7 @@ export async function renderToHTMLOrFlight(
         injectedCSS,
         injectedFontPreloadTags,
         rootLayoutIncluded,
+        asNotFound,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -839,6 +869,7 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
+        asNotFound?: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
@@ -912,6 +943,7 @@ export async function renderToHTMLOrFlight(
                       injectedFontPreloadTags,
                       // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
                       rootLayoutIncluded: rootLayoutIncluded,
+                      asNotFound,
                     }
                   )
 
@@ -969,6 +1001,7 @@ export async function renderToHTMLOrFlight(
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+            asNotFound,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -979,11 +1012,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const [resolvedHead, metadataItems] = await resolveHead(
-        loaderTree,
-        {},
-        []
-      )
+      const metadataItems = await resolveMetadata({
+        tree: loaderTree,
+        parentParams: {},
+        metadataItems: [],
+      })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1000,12 +1033,12 @@ export async function renderToHTMLOrFlight(
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
                 <MetadataTree key={requestId} metadata={metadataItems} />
-                {resolvedHead}
               </>
             ),
             injectedCSS: new Set(),
             injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
+            asNotFound: pathname === '/404',
           })
         ).slice(1),
       ]
@@ -1074,7 +1107,11 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
+    const metadataItems = await resolveMetadata({
+      tree: loaderTree,
+      parentParams: {},
+      metadataItems: [],
+    })
 
     /**
      * A new React Component that renders the provided React Component
@@ -1113,7 +1150,6 @@ export async function renderToHTMLOrFlight(
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree key={requestId} metadata={metadataItems} />
-                  {initialHead}
                 </>
               }
               globalErrorComponent={GlobalError}
@@ -1156,6 +1192,9 @@ export async function renderToHTMLOrFlight(
 
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
+      {
+        spanName: `render route (app) ${pathname}`,
+      },
       async ({
         asNotFound,
       }: {
@@ -1187,7 +1226,7 @@ export async function renderToHTMLOrFlight(
         const getServerInsertedHTML = () => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
-          const errorMetaTags = []
+          const errorMetaTags = [...DEFAULT_METADATA_TAGS]
           for (
             ;
             flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
@@ -1269,7 +1308,6 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
-          const shouldNotIndex = isNotFoundError(err)
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }
@@ -1281,11 +1319,7 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer,
             element: (
               <html id="__next_error__">
-                <head>
-                  {shouldNotIndex ? (
-                    <meta name="robots" content="noindex" />
-                  ) : null}
-                </head>
+                <head></head>
                 <body></body>
               </html>
             ),
@@ -1314,74 +1348,25 @@ export async function renderToHTMLOrFlight(
       }
     )
 
-    // For action requests, we handle them differently with a sepcial render result.
-    let actionId = req.headers[ACTION.toLowerCase()] as string
-    const isFormAction =
-      req.method === 'POST' &&
-      req.headers['content-type'] === 'application/x-www-form-urlencoded'
-    const isFetchAction =
-      actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-
-    if (isFetchAction || isFormAction) {
-      if (process.env.NEXT_RUNTIME !== 'edge') {
-        const { parseBody } =
-          require('../api-utils/node') as typeof import('../api-utils/node')
-        const actionData = (await parseBody(req, '1mb')) || {}
-        let bound = []
-
-        if (isFormAction) {
-          actionId = actionData.$$id as string
-          if (!actionId) {
-            throw new Error('Invariant: missing action ID.')
-          }
-          const formData = new URLSearchParams(actionData)
-          formData.delete('$$id')
-          bound = [formData]
-        } else {
-          bound = actionData.bound || []
-        }
-
-        const workerName = 'app' + renderOpts.pathname
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
-
-        const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId)
-
-        try {
-          const result = new ActionRenderResult(
-            JSON.stringify([await actionHandler(actionId, bound)])
-          )
-          // For form actions, we need to continue rendering the page.
-          if (isFetchAction) {
-            return result
-          }
-        } catch (err) {
-          if (isRedirectError(err)) {
-            if (isFetchAction) {
-              throw new Error('Invariant: not implemented.')
-            }
-            const redirectUrl = getURLFromRedirectError(err)
-            res.statusCode = 303
-            res.setHeader('Location', redirectUrl)
-            return new ActionRenderResult(JSON.stringify({}))
-          } else if (isNotFoundError(err)) {
-            if (isFetchAction) {
-              throw new Error('Invariant: not implemented.')
-            }
-            res.statusCode = 404
-            return new RenderResult(await bodyResult({ asNotFound: true }))
-          }
-          throw err
-        }
-      } else {
-        throw new Error('Not implemented in Edge Runtime.')
-      }
+    // For action requests, we handle them differently with a special render result.
+    const actionRequestResult = await handleAction({
+      req,
+      res,
+      ComponentMod,
+      pathname: renderOpts.pathname,
+      serverActionsManifest,
+    })
+    if (actionRequestResult === 'not-found') {
+      return new RenderResult(await bodyResult({ asNotFound: true }))
+    } else if (actionRequestResult) {
+      return actionRequestResult
     }
-    // End of action request handling.
 
-    const renderResult = new RenderResult(await bodyResult({}))
+    const renderResult = new RenderResult(
+      await bodyResult({
+        asNotFound: pathname === '/404',
+      })
+    )
 
     if (staticGenerationStore.pendingRevalidates) {
       await Promise.all(staticGenerationStore.pendingRevalidates)

@@ -31,13 +31,18 @@ import type { ModuleLoader } from '../helpers/module-loader/module-loader'
 import { RouteHandler } from './route-handler'
 import * as Log from '../../../build/output/log'
 import { patchFetch } from '../../lib/patch-fetch'
-import { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../../client/components/static-generation-async-storage'
 import { StaticGenerationAsyncStorageWrapper } from '../../async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../../lib/incremental-cache'
 import { AppConfig } from '../../../build/utils'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { NextURL } from '../../web/next-url'
 import { NextConfig } from '../../config-shared'
+import { getTracer } from '../../lib/trace/tracer'
+import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
 import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
 import { WebNextRequest } from '../../base-http/web'
 
@@ -72,7 +77,8 @@ export type AppRouteModule = {
    */
   handlers: Record<HTTP_METHOD, AppRouteHandlerFn> &
     Record<'dynamic', AppConfig['dynamic']> &
-    Record<'revalidate', AppConfig['revalidate']>
+    Record<'revalidate', AppConfig['revalidate']> &
+    Record<'fetchCache', AppConfig['fetchCache']>
 
   /**
    * The exported async storage object for this worker/module.
@@ -97,6 +103,7 @@ export type StaticGenerationContext = {
   incrementalCache?: IncrementalCache
   supportsDynamicHTML: boolean
   nextExport?: boolean
+  fetchCache?: StaticGenerationStore['fetchCache']
 }
 
 /**
@@ -296,6 +303,20 @@ function proxyRequest(
   })
 }
 
+function getPathnameFromAbsolutePath(absolutePath: string) {
+  // Remove prefix including app dir
+  let appDir = '/app/'
+  if (!absolutePath.includes(appDir)) {
+    appDir = '\\app\\'
+  }
+  const [, ...parts] = absolutePath.split(appDir)
+  const relativePath = appDir[0] + parts.join(appDir)
+
+  // remove extension
+  const pathname = relativePath.split('.').slice(0, -1).join('.')
+  return pathname
+}
+
 /**
  * Validate that the module is exporting methods supported by the handler.
  *
@@ -457,6 +478,10 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
             res: (res as NodeNextResponse).originalResponse,
           }
 
+    if (context) {
+      context.fetchCache = module.handlers.fetchCache
+    }
+
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
     const response = await this.requestAsyncLocalStorageWrapper.wrap(
@@ -469,6 +494,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
             pathname: definition.pathname,
             renderOpts: context ?? {
               supportsDynamicHTML: false,
+              fetchCache: module.handlers.fetchCache,
             },
           },
           (staticGenerationStore) => {
@@ -532,7 +558,16 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               module
             )
 
-            return handle(wrappedRequest, { params })
+            return getTracer().trace(
+              AppRouteRouteHandlersSpan.runHandler,
+              {
+                // TODO: propagate this pathname from route matcher
+                spanName: `executing api route (app) ${getPathnameFromAbsolutePath(
+                  module.resolvedPagePath
+                )}`,
+              },
+              () => handle(wrappedRequest, { params })
+            )
           }
         )
     )

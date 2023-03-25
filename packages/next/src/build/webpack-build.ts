@@ -303,6 +303,7 @@ async function webpackBuildImpl(
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
+      NextBuildContext.buildSpinner?.stopAndPersist()
       Log.info('Compiled successfully')
     }
 

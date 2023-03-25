@@ -13,7 +13,7 @@ easy-error = "1.0.0"
 either = "1"
 fxhash = "0.2.1"
 hex = "0.4.3"
-once_cell = "1.13.0"
+once_cell = { workspace = true }
 next-transform-font = {"workspace" = true}
 pathdiff = "0.2.0"
 regex = "1.5"

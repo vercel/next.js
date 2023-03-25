@@ -22,6 +22,12 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    // TODO: remove after v16 is officially deprecated
+    if (process.version.startsWith('v16.')) {
+      it('should skip for v16 node.js', () => {})
+      return
+    }
+
     let prerenderManifest
 
     beforeAll(async () => {
@@ -162,6 +168,7 @@ createNextDescribe(
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
@@ -1187,6 +1194,14 @@ createNextDescribe(
             .text()
         ).not.toBe(data)
       }
+    })
+
+    it('should not error with force-dynamic and catch-all routes', async () => {
+      // Regression test for https://github.com/vercel/next.js/issues/45603
+      const res = await next.fetch('/force-dynamic-catch-all/slug/a')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('Dynamic catch-all route')
     })
 
     it('should not error with generateStaticParams and authed data on revalidate', async () => {

@@ -566,7 +566,7 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  let isPreview
+  let isPreview: boolean | undefined = undefined
   let previewData: PreviewData
 
   if (
@@ -761,15 +761,24 @@ export async function renderToHTML(
     let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
     try {
-      data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
+      data = await getTracer().trace(
+        RenderSpan.getStaticProps,
+        {
+          spanName: `getStaticProps ${pathname}`,
+        },
+        () =>
+          getStaticProps!({
+            ...(pageIsDynamic
+              ? { params: query as ParsedUrlQuery }
+              : undefined),
+            ...(isPreview
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
+      )
     } catch (staticPropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1324,6 +1333,9 @@ export async function renderToHTML(
 
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
+    {
+      spanName: `render route (pages) ${renderOpts.pathname}`,
+    },
     async () => renderDocument()
   )
   if (!documentResult) {
