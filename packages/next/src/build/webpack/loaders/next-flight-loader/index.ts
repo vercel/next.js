@@ -5,8 +5,6 @@ import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
-const moduleProxy =
-  'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
 export default async function transformSource(
   this: any,
@@ -17,6 +15,11 @@ export default async function transformSource(
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
+
+  const moduleProxy =
+    this._compiler.name === 'edge-server'
+      ? 'next/dist/esm/build/webpack/loaders/next-flight-loader/module-proxy'
+      : 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
   const callback = this.async()
 
@@ -56,27 +59,20 @@ export default async function transformSource(
         )
       }
 
-      // For ESM, we can't simply export it as a proxy via `module.exports`.
-      // Use multiple named exports instead.
-      const proxyFilepath = source.match(/createProxy\((.+)\)/)?.[1]
-      if (!proxyFilepath) {
-        return callback(
-          new Error(
-            `Failed to find the proxy file path in the client boundary. This is a bug in Next.js.`
-          )
-        )
-      }
-
-      let esmSource = `
-    import { createProxy } from "${moduleProxy}"
-    const proxy = createProxy(${proxyFilepath})
-    `
+      let esmSource = `\
+import { createProxy } from "${moduleProxy}"
+const proxy = createProxy("${this.resourcePath}")
+`
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === 'default') {
-          esmSource += `\nexport default proxy.default`
+          esmSource += `
+export const { __esModule } = proxy;
+export default proxy.default`
         } else {
-          esmSource += `\nconst e${cnt} = proxy["${ref}"]\nexport { e${cnt++} as ${ref} }`
+          esmSource += `
+const e${cnt} = proxy["${ref}"];
+export { e${cnt++} as ${ref} };`
         }
       }
 
