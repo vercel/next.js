@@ -100,7 +100,6 @@ async function webpackBuildImpl(
     isServer: false,
     buildId: NextBuildContext.buildId!,
     config: config,
-    target: config.target!,
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,

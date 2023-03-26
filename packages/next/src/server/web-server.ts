@@ -20,10 +20,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  interpolateDynamicPath,
-  normalizeVercelUrl,
-} from '../build/webpack/loaders/next-serverless-loader/utils'
+import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
 interface WebServerOptions extends Options {
