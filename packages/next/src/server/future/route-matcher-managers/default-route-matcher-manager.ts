@@ -166,6 +166,8 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           throw new Error('Invariant: expected to find identity in indexes map')
         }
 
+        // Sort the dynamic matches by the type of matcher. This ensures that
+        // intercepting matchers are always first.
         const dynamicMatches = indexes
           .map((index) => dynamic[index])
           .sort((a, b) => {

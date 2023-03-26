@@ -6,7 +6,7 @@ export type AppPageInterceptingRouteMatcherMatchOptions = {
   /**
    * If provided, this is used for intercepting routes to resolve.
    */
-  referringRoute?: string
+  referrer?: string
 }
 
 export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDefinition> {
@@ -60,23 +60,14 @@ export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDe
     pathname: string,
     options?: AppPageInterceptingRouteMatcherMatchOptions
   ) {
-    if (!this.definition.interceptingRoute || !options?.referringRoute) {
+    if (!this.definition.interceptingRoute || !options?.referrer) {
       return null
     }
 
-    const referrerPathname = new URL(options.referringRoute).pathname
+    const referrerPathname = new URL(options.referrer).pathname
 
-    const matches =
-      this.interceptingRouteMatcher.test(referrerPathname) !== null
-    console.log({
-      matches,
-      referrerPathname,
-      pathname: this.definition.pathname,
-    })
-    if (!matches) {
-      return null
-    }
-
-    return super.test(pathname)
+    return this.interceptingRouteMatcher.test(referrerPathname) !== null
+      ? super.test(pathname)
+      : null
   }
 }

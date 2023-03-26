@@ -1239,7 +1239,7 @@ export default class NextNodeServer extends BaseServer {
 
         const options: MatchOptions = {
           i18n: this.i18nProvider?.fromQuery(pathname, query),
-          referringRoute: req.headers.referer,
+          referrer: req.headers.referer,
         }
 
         const match = await this.matchers.match(pathname, options)
@@ -1808,7 +1808,7 @@ export default class NextNodeServer extends BaseServer {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(normalizedPathname),
-      referringRoute: params.request.headers.referer,
+      referrer: params.request.headers.referer,
     }
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {

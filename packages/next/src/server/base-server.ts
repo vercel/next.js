@@ -96,6 +96,7 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
+import { AppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -694,7 +695,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath, {
             i18n: localeAnalysisResult,
-            referringRoute: req.headers.referer,
+            referrer: req.headers.referer,
           })
 
           // Update the source pathname to the matched page's pathname.
@@ -2018,18 +2019,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromQuery(pathname, query),
-      referringRoute: req.headers.referer,
+      referrer: req.headers.referer,
     }
 
     try {
       for await (const match of this.matchers.matchAll(pathname, options)) {
-        console.trace('match', match)
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.definition.interceptingRoute
-              ? match.definition.interceptingRoutePathname
-              : match.definition.pathname,
+            pathname:
+              match.definition.kind === RouteKind.APP_PAGE &&
+              (match.definition as AppPageRouteDefinition).interceptingRoute
+                ? (match.definition as AppPageRouteDefinition)
+                    .interceptingRoutePathname!
+                : match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,

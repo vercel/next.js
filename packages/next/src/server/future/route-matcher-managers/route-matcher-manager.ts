@@ -6,9 +6,9 @@ export type MatchOptions = {
   skipDynamic?: boolean
 
   /**
-   * If provided, this is used for intercepting routes to resolve.
+   * If defined, this will be used as the referrer for the matching potential intercepting routes.
    */
-  referringRoute: string | undefined
+  referrer: string | undefined
 
   /**
    * If defined, this indicates to the matcher that the request should be
