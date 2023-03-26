@@ -198,7 +198,7 @@ mod tests {
                 display: "swap".to_owned(),
                 preload: true,
                 fallback: None,
-                adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
+                adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
                 variable_name: "myFont".to_owned()
             },
@@ -253,7 +253,7 @@ mod tests {
                 display: "swap".to_owned(),
                 preload: true,
                 fallback: None,
-                adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
+                adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
                 variable_name: "myFont".to_owned()
             },
@@ -304,7 +304,7 @@ mod tests {
                     "weight": "500",
                     "style": "italic",
                     "fallback": ["Fallback"],
-                    "adjustFontFallback": "Arial",
+                    "adjustFontFallback": "Times New Roman",
                     "display": "optional",
                     "variable": "myvar"
                 }]
@@ -326,7 +326,7 @@ mod tests {
                 display: "optional".to_owned(),
                 preload: false,
                 fallback: Some(vec!["Fallback".to_owned()]),
-                adjust_font_fallback: AdjustFontFallback::Arial,
+                adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
                 variable: Some("myvar".to_owned()),
                 variable_name: "myFont".to_owned()
             },
