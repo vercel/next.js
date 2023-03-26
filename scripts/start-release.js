@@ -51,7 +51,7 @@ async function main() {
     shell: true,
   })
 
-  const child = execa(`pnpm publish-${isCanary ? 'canary' : 'stable'}`, {
+  const child = execa(`pnpm release-${isCanary ? 'canary' : 'stable'}`, {
     stdio: 'pipe',
     shell: true,
   })

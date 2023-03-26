@@ -109,12 +109,6 @@ export function usePathname(): string {
   return useContext(PathnameContext) as string
 }
 
-// TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
-// export function useParams() {
-//   clientHookInServerComponentError('useParams')
-//   return useContext(ParamsContext)
-// }
-
 export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
@@ -158,9 +152,17 @@ function getSelectedParams(
   return getSelectedParams(node, params)
 }
 
-export function useParams() {
+/**
+ * Get the current parameters. For example useParams() on /dashboard/[team]
+ * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+ */
+export function useParams(): Params {
   clientHookInServerComponentError('useParams')
   const { tree } = useContext(GlobalLayoutRouterContext)
+  if (!tree) {
+    // This only happens in `pages`. Type is overwritten in navigation.d.ts
+    return null!
+  }
   return getSelectedParams(tree)
 }
 
