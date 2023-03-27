@@ -1530,7 +1530,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         try {
           // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, res, context)
+          const response = await this.handlers.handle(match, req, context)
           if (response) {
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -1700,7 +1700,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
-      async (hasResolved, hadCache) => {
+      async (hasResolved, hadCache): Promise<ResponseCacheEntry | null> => {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
@@ -1820,6 +1820,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (!result) {
           return null
         }
+
         return {
           ...result,
           revalidate:

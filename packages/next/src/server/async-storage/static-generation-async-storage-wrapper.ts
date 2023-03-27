@@ -3,7 +3,7 @@ import type { StaticGenerationStore } from '../../client/components/static-gener
 import type { AsyncLocalStorage } from 'async_hooks'
 import { IncrementalCache } from '../lib/incremental-cache'
 
-export type RequestContext = {
+export type StaticGenerationContext = {
   pathname: string
   renderOpts: {
     incrementalCache?: IncrementalCache
@@ -16,11 +16,12 @@ export type RequestContext = {
 }
 
 export class StaticGenerationAsyncStorageWrapper
-  implements AsyncStorageWrapper<StaticGenerationStore, RequestContext>
+  implements
+    AsyncStorageWrapper<StaticGenerationStore, StaticGenerationContext>
 {
   public wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    context: RequestContext,
+    context: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     return StaticGenerationAsyncStorageWrapper.wrap(storage, context, callback)
@@ -31,7 +32,7 @@ export class StaticGenerationAsyncStorageWrapper
    */
   public static wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { pathname, renderOpts }: RequestContext,
+    { pathname, renderOpts }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
