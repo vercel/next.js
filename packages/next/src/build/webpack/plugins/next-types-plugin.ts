@@ -44,9 +44,9 @@ function createTypeGuardFile(
   }
 ) {
   return `// File: ${fullPath}
-import * as entry from '${relativePath}'
-import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface'
-import type { NextRequest } from 'next/server'
+import * as entry from '${relativePath}.js'
+import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'
+import type { NextRequest } from 'next/server.js'
 
 type TEntry = typeof entry
 
