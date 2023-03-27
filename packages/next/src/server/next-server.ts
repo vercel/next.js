@@ -1424,6 +1424,8 @@ export default class NextNodeServer extends BaseServer {
                   clientOnly: false,
                 })
                 .catch(() => {})
+
+              await this.getFallbackErrorComponents().catch(() => {})
             }
             const invokeHeaders: typeof req.headers = {
               ...req.headers,
@@ -1470,6 +1472,7 @@ export default class NextNodeServer extends BaseServer {
               }
             }
             res.statusCode = invokeRes.status
+            res.statusMessage = invokeRes.statusText
             for await (const chunk of invokeRes.body || ([] as any)) {
               this.streamResponseChunk(res as NodeNextResponse, chunk)
             }
