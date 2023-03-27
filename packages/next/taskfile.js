@@ -87,6 +87,19 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+export async function capsize_metrics() {
+  const {
+    entireMetricsCollection,
+    // eslint-disable-next-line import/no-extraneous-dependencies
+  } = require('@capsizecss/metrics/entireMetricsCollection')
+  const outputPathDist = join(
+    __dirname,
+    'dist/server/capsize-font-metrics.json'
+  )
+
+  await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
+}
+
 export async function ncc_next_server(task, opts) {
   await task
     .source(
@@ -2247,6 +2260,7 @@ export async function compile(task, opts) {
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'ncc_next_server',
+    'capsize_metrics',
   ])
 }
 

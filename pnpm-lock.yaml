@@ -518,6 +518,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
+      '@capsizecss/metrics': 1.1.0
       '@edge-runtime/cookies': 3.0.4
       '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
@@ -737,6 +738,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
+      '@capsizecss/metrics': 1.1.0
       '@edge-runtime/cookies': 3.0.4
       '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
@@ -4311,6 +4313,10 @@ packages:
 
   /@bcoe/v8-coverage/0.2.3:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
+    dev: true
+
+  /@capsizecss/metrics/1.1.0:
+    resolution: {integrity: sha512-HnnFHi/WXkvwueKEaQbBVsBSFcBG8xoumbHlI4+tIMUv7oqmtqDsrm48cHREFl1MfFuowNP96AJVHj17JH+VyA==}
     dev: true
 
   /@cspotcode/source-map-support/0.8.1:
