@@ -119,11 +119,11 @@ export default class FetchCache implements CacheHandler {
 
         data = {
           value: cached,
-          // if it's already stale set it to a year in the future
+          // if it's already stale set it to a time in the past
           // if not derive last modified from age
           lastModified:
             cacheState === 'stale'
-              ? Date.now() + CACHE_ONE_YEAR
+              ? Date.now() - CACHE_ONE_YEAR
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
         if (this.debug) {
