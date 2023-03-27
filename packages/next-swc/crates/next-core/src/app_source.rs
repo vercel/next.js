@@ -667,6 +667,7 @@ import BOOTSTRAP from {};
                         use_define_for_class_fields: false,
                     },
                 ]),
+                Default::default(),
                 context.compile_time_info(),
             ),
             chunking_context,
@@ -738,6 +739,7 @@ impl AppRouteVc {
                 EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
                     use_define_for_class_fields: false,
                 }]),
+                Default::default(),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(indexmap! {
                     "ROUTE_CHUNK_GROUP".to_string() => entry
