@@ -9,6 +9,7 @@ import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
+import { UnderscoreNormalizer } from '../../normalizers/underscore-normalizer'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -37,6 +38,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         // The pathname to match should have the trailing `/route` and other route
         // group information stripped from it.
         wrapNormalizerFn(normalizeAppPath),
+        new UnderscoreNormalizer(),
       ]),
       bundlePath: new Normalizers([
         pageNormalizer,
@@ -55,6 +57,9 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
 
       // If the file isn't a match for this matcher, then skip it.
       if (!isAppRouteRoute(page)) continue
+
+      // Validate that this is not an ignored page.
+      if (page.includes('/_')) continue
 
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)

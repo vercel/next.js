@@ -8,6 +8,7 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
+import { UnderscoreNormalizer } from '../../normalizers/underscore-normalizer'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -41,6 +42,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
         // The pathname to match should have the trailing `/page` and other route
         // group information stripped from it.
         wrapNormalizerFn(normalizeAppPath),
+        new UnderscoreNormalizer(),
       ]),
       bundlePath: new Normalizers([
         pageNormalizer,
@@ -59,12 +61,21 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       string,
       { page: string; pathname: string; bundlePath: string }
     >()
+    const routeFilenames = new Array<string>()
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
+      // If the file isn't a match for this matcher, then skip it.
+      if (!this.expression.test(filename)) continue
+
       const page = this.normalizers.page.normalize(filename)
-      const pathname = this.normalizers.pathname
-        .normalize(filename)
-        .replace(/%5F/g, '_')
+
+      // Validate that this is not an ignored page.
+      if (page.includes('/_')) continue
+
+      // This is a valid file that we want to create a matcher for.
+      routeFilenames.push(filename)
+
+      const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       // Save the normalization results.
@@ -75,10 +86,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     }
 
     const matchers: Array<AppPageRouteMatcher> = []
-    for (const filename of files) {
-      // If the file isn't a match for this matcher, then skip it.
-      if (!this.expression.test(filename)) continue
-
+    for (const filename of routeFilenames) {
       // Grab the cached values (and the appPaths).
       const cached = cache.get(filename)
       if (!cached) {
