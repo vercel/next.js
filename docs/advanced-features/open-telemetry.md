@@ -27,51 +27,18 @@ When you enable OpenTelemetry you we will automatically wrap all your functions 
 To get started, you must install the required packages:
 
 ```bash
-npm install @opentelemetry/api @opentelemetry/exporter-trace-otlp-http @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/semantic-conventions
+npm install @vercel/otel
 ```
 
-Next, create a custom [`instrumentation.ts`](./instrumentation.md) file in the root of the project.
-Since you can't import OpenTelemetry in `register` functions executed on the Edge Runtime, we recommend creating second file that will only be imported if the runtime is `nodejs`.
-
-The following example demonstrates an `instrumentation.ts` file that checks the runtime, then imports the code it needs to run:
+Next, create a custom [`instrumentation.ts`](./instrumentation.md) file in the root of the project:
 
 ```ts
 // instrumentation.ts
+import { registerOTel } from '@vercel/otel'
 
 export function register() {
-  // We need to make sure that we import these files only in Node.js environment.
-  // OpenTelemetry is **not** supported on Edge or Client side at the moment.
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    require('./instrumentation-node')
-  }
+  registerOTel('next-app')
 }
-```
-
-```ts
-// instrumentation-node.ts
-
-import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
-import {
-  NodeTracerProvider,
-  SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-node'
-
-// You can use gRPC exporter instead
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-
-// Next.js expects you to use to register TraceProvider. It won't work if you use NodeSDK.
-// We use registered provider to create traces inside of Next.js internals.
-const provider = new NodeTracerProvider({
-  resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
-  }),
-})
-
-provider.addSpanProcessor(new SimpleSpanProcessor(new OTLPTraceExporter({})))
-
-// Make sure to register you provider
-provider.register()
 ```
 
 > **Note**: We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
@@ -89,10 +56,13 @@ To see more spans, you must set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
 
-OpenTelemetry enables you to add your own custom spans to trace using `@opentelemetry/api`. The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:
+OpenTelemetry enables you to add your own custom spans to trace using official OpenTelemetry APIs.
+Our package `@vercel/otel` exports everything from `@opentelemetry/api` so you don't need to install anything.
+
+The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:
 
 ```ts
-import { trace } from '@opentelemetry/api'
+import { trace } from '@vercel/otel'
 
 export async function fetchGithubStars() {
   return await trace
@@ -111,3 +81,11 @@ More documentation can be found in [OpenTelemetry docs](https://opentelemetry.io
 
 The `register` function will execute before your code runs in a new environment.
 You can start creating new spans, and they should be correctly added to the exported trace.
+
+## Custom register function
+
+We have created `@vercel/otel` to make it easier to get started with OpenTelemetry. But this package won't be able to satisfy some advanced setups. You can always use OpenTelemetry APIs directly.
+
+In order to be able to leverage instrumentation provided by next.js you will need to setup and register custom [TraceProvider](https://opentelemetry.io/docs/reference/specification/trace/api/#tracerprovider).
+
+> **Note**: `instrumentation.ts` get's called in both `edge` and `nodejs` runtime. You need to make sure that you are initializing OpenTelemetry only in `nodejs` runtime. OpenTelemetry APIs are not available on `edge`.
