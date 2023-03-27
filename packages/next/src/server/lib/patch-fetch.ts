@@ -250,7 +250,8 @@ export function patchFetch({
         if (cacheKey && staticGenerationStore?.incrementalCache) {
           const entry = await staticGenerationStore.incrementalCache.get(
             cacheKey,
-            true
+            true,
+            revalidate
           )
 
           if (entry?.value && entry.value.kind === 'FETCH') {
