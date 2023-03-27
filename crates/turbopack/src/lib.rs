@@ -16,6 +16,7 @@ use std::{
 use anyhow::Result;
 use css::{CssModuleAssetVc, ModuleCssModuleAssetVc};
 use ecmascript::{
+    tree_shake::asset::EcmascriptModulePartAssetVc,
     typescript::resolve::TypescriptTypesAssetReferenceVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc,
 };
@@ -37,13 +38,13 @@ use turbopack_core::{
     ident::AssetIdentVc,
     issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
     reference::all_referenced_assets,
-    reference_type::ReferenceType,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         options::ResolveOptionsVc,
         origin::PlainResolveOriginVc,
         parse::{Request, RequestVc},
         pattern::Pattern,
-        resolve, ResolveResultVc,
+        resolve, ModulePartVc, ResolveResultVc,
     },
 };
 
@@ -110,21 +111,38 @@ async fn apply_module_type(
     source: AssetVc,
     context: ModuleAssetContextVc,
     module_type: ModuleTypeVc,
+    part: Option<ModulePartVc>,
 ) -> Result<AssetVc> {
     Ok(match &*module_type.await? {
-        ModuleType::Ecmascript(transforms) => EcmascriptModuleAssetVc::new(
-            source,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            *transforms,
-            context.compile_time_info(),
-        )
-        .into(),
+        ModuleType::Ecmascript {
+            transforms,
+            options,
+        } => {
+            let base = EcmascriptModuleAssetVc::new(
+                source,
+                context.into(),
+                Value::new(EcmascriptModuleAssetType::Ecmascript),
+                *transforms,
+                Value::new(*options),
+                context.compile_time_info(),
+            );
+
+            if options.split_into_parts {
+                if let Some(part) = part {
+                    if let Ok(v) = EcmascriptModulePartAssetVc::new(base, part) {
+                        return Ok(v.into());
+                    }
+                }
+            }
+
+            base.into()
+        }
         ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
             source,
             context.into(),
             Value::new(EcmascriptModuleAssetType::Typescript),
             *transforms,
+            Value::new(Default::default()),
             context.compile_time_info(),
         )
         .into(),
@@ -133,6 +151,7 @@ async fn apply_module_type(
             context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptWithTypes),
             *transforms,
+            Value::new(Default::default()),
             context.compile_time_info(),
         )
         .into(),
@@ -141,6 +160,7 @@ async fn apply_module_type(
             context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
             *transforms,
+            Value::new(Default::default()),
             context.compile_time_info(),
         )
         .into(),
@@ -247,6 +267,12 @@ impl ModuleAssetContextVc {
         let options = ModuleOptionsVc::new(ident.path().parent(), self_vc.module_options_context());
 
         let reference_type = reference_type.into_value();
+        let part = match &reference_type {
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
+                part,
+            )) => Some(*part),
+            _ => None,
+        };
         let mut current_source = source;
         let mut current_module_type = None;
         for rule in options.await?.rules.iter() {
@@ -269,11 +295,13 @@ impl ModuleAssetContextVc {
                         }
                         ModuleRuleEffect::AddEcmascriptTransforms(additional_transforms) => {
                             current_module_type = match current_module_type {
-                                Some(ModuleType::Ecmascript(transforms)) => {
-                                    Some(ModuleType::Ecmascript(
-                                        transforms.extend(*additional_transforms),
-                                    ))
-                                }
+                                Some(ModuleType::Ecmascript {
+                                    transforms,
+                                    options,
+                                }) => Some(ModuleType::Ecmascript {
+                                    transforms: transforms.extend(*additional_transforms),
+                                    options,
+                                }),
                                 Some(ModuleType::Typescript(transforms)) => {
                                     Some(ModuleType::Typescript(
                                         transforms.extend(*additional_transforms),
@@ -326,7 +354,12 @@ impl ModuleAssetContextVc {
 
         let module_type = current_module_type.unwrap_or(ModuleType::Raw).cell();
 
-        Ok(apply_module_type(current_source, self_vc, module_type))
+        Ok(apply_module_type(
+            current_source,
+            self_vc,
+            module_type,
+            part,
+        ))
     }
 }
 

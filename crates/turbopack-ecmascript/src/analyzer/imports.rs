@@ -94,11 +94,25 @@ pub(crate) struct ImportMap {
     /// List of (index in references, imported symbol, exported symbol)
     reexports: Vec<(usize, Reexport)>,
 
-    /// Ordered list of (module path, annotations)
-    references: IndexSet<(JsWord, ImportAnnotations)>,
+    /// Ordered list of imported symbols
+    references: IndexSet<ImportMapReference>,
 
     /// True, when the module has exports
     has_exports: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) enum ImportedSymbol {
+    ModuleEvaluation,
+    Symbol(JsWord),
+    Namespace,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) struct ImportMapReference {
+    pub module_path: JsWord,
+    pub imported_symbol: ImportedSymbol,
+    pub annotations: ImportAnnotations,
 }
 
 impl ImportMap {
@@ -108,20 +122,20 @@ impl ImportMap {
 
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {
         if let Some((i, i_sym)) = self.imports.get(id) {
-            let (i_src, annotations) = &self.references[*i];
+            let r = &self.references[*i];
             return Some(JsValue::member(
                 box JsValue::Module(ModuleValue {
-                    module: i_src.clone(),
-                    annotations: annotations.clone(),
+                    module: r.module_path.clone(),
+                    annotations: r.annotations.clone(),
                 }),
                 box i_sym.clone().into(),
             ));
         }
         if let Some(i) = self.namespace_imports.get(id) {
-            let (i_src, annotations) = &self.references[*i];
+            let r = &self.references[*i];
             return Some(JsValue::Module(ModuleValue {
-                module: i_src.clone(),
-                annotations: annotations.clone(),
+                module: r.module_path.clone(),
+                annotations: r.annotations.clone(),
             }));
         }
         None
@@ -138,8 +152,8 @@ impl ImportMap {
         None
     }
 
-    pub fn references(&self) -> impl Iterator<Item = (&JsWord, &ImportAnnotations)> {
-        self.references.iter().map(|(m, a)| (m, a))
+    pub fn references(&self) -> impl Iterator<Item = &ImportMapReference> {
+        self.references.iter()
     }
 
     pub fn reexports(&self) -> impl Iterator<Item = (usize, &Reexport)> {
@@ -165,13 +179,22 @@ struct Analyzer<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-    fn ensure_reference(&mut self, module_path: JsWord) -> usize {
-        let tuple = (module_path, take(&mut self.current_annotations));
-        if let Some(i) = self.data.references.get_index_of(&tuple) {
+    fn ensure_reference(
+        &mut self,
+        module_path: JsWord,
+        imported_symbol: ImportedSymbol,
+        annotations: ImportAnnotations,
+    ) -> usize {
+        let r = ImportMapReference {
+            module_path,
+            imported_symbol,
+            annotations,
+        };
+        if let Some(i) = self.data.references.get_index_of(&r) {
             i
         } else {
             let i = self.data.references.len();
-            self.data.references.insert(tuple);
+            self.data.references.insert(r);
             i
         }
     }
@@ -220,8 +243,18 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_import_decl(&mut self, import: &ImportDecl) {
-        let i = self.ensure_reference(import.src.value.clone());
+        let annotations = take(&mut self.current_annotations);
+
+        self.ensure_reference(
+            import.src.value.clone(),
+            ImportedSymbol::ModuleEvaluation,
+            annotations.clone(),
+        );
+
         for s in &import.specifiers {
+            let symbol = get_import_symbol_from_import(s);
+            let i = self.ensure_reference(import.src.value.clone(), symbol, annotations.clone());
+
             let (local, orig_sym) = match s {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
@@ -242,15 +275,37 @@ impl Visit for Analyzer<'_> {
 
     fn visit_export_all(&mut self, export: &ExportAll) {
         self.data.has_exports = true;
-        let i = self.ensure_reference(export.src.value.clone());
+
+        let annotations = take(&mut self.current_annotations);
+        self.ensure_reference(
+            export.src.value.clone(),
+            ImportedSymbol::ModuleEvaluation,
+            annotations.clone(),
+        );
+        let i = self.ensure_reference(
+            export.src.value.clone(),
+            ImportedSymbol::Namespace,
+            annotations,
+        );
         self.data.reexports.push((i, Reexport::Star));
     }
 
     fn visit_named_export(&mut self, export: &NamedExport) {
         self.data.has_exports = true;
         if let Some(ref src) = export.src {
-            let i = self.ensure_reference(src.value.clone());
+            let annotations = take(&mut self.current_annotations);
+
+            self.ensure_reference(
+                src.value.clone(),
+                ImportedSymbol::ModuleEvaluation,
+                annotations.clone(),
+            );
+
             for spec in export.specifiers.iter() {
+                let symbol = get_import_symbol_from_export(spec);
+
+                let i = self.ensure_reference(src.value.clone(), symbol, annotations.clone());
+
                 match spec {
                     ExportSpecifier::Namespace(n) => {
                         self.data.reexports.push((
@@ -297,9 +352,35 @@ impl Visit for Analyzer<'_> {
     }
 }
 
-fn orig_name(n: &ModuleExportName) -> JsWord {
+pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
     match n {
         ModuleExportName::Ident(v) => v.sym.clone(),
         ModuleExportName::Str(v) => v.value.clone(),
+    }
+}
+
+fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol {
+    match specifier {
+        ImportSpecifier::Named(ImportNamedSpecifier {
+            local, imported, ..
+        }) => ImportedSymbol::Symbol(match imported {
+            Some(imported) => orig_name(imported),
+            _ => local.sym.clone(),
+        }),
+        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ImportSpecifier::Namespace(..) => ImportedSymbol::Namespace,
+    }
+}
+
+fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
+    match specifier {
+        ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
+            ImportedSymbol::Symbol(match exported {
+                Some(exported) => orig_name(exported),
+                _ => orig_name(orig),
+            })
+        }
+        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ExportSpecifier::Namespace(..) => ImportedSymbol::Namespace,
     }
 }

@@ -51,7 +51,7 @@ pub enum ParseResult {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         eval_context: EvalContext,
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        globals: Globals,
+        globals: Arc<Globals>,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
     },
@@ -199,7 +199,7 @@ async fn parse_content(
             title: Some("Parsing ecmascript source code failed".to_string()),
         },
     );
-    let globals = Globals::new();
+    let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
     let helpers = GLOBALS.set(globals_ref, || Helpers::new(true));
     let mut result = WrapFuture::new(
@@ -314,7 +314,7 @@ async fn parse_content(
                 eval_context,
                 // Temporary globals as the current one can't be moved yet, since they are
                 // borrowed
-                globals: Globals::new(),
+                globals: Arc::new(Globals::new()),
                 source_map,
             })
         },

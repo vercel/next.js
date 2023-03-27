@@ -6,7 +6,7 @@ use turbopack_core::{
     asset::AssetVc, reference_type::ReferenceType, source_transform::SourceTransformsVc,
 };
 use turbopack_css::CssInputTransformsVc;
-use turbopack_ecmascript::EcmascriptInputTransformsVc;
+use turbopack_ecmascript::{EcmascriptInputTransformsVc, EcmascriptOptions};
 
 use super::ModuleRuleCondition;
 
@@ -47,7 +47,11 @@ pub enum ModuleRuleEffect {
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
-    Ecmascript(EcmascriptInputTransformsVc),
+    Ecmascript {
+        transforms: EcmascriptInputTransformsVc,
+        #[turbo_tasks(trace_ignore)]
+        options: EcmascriptOptions,
+    },
     Typescript(EcmascriptInputTransformsVc),
     TypescriptWithTypes(EcmascriptInputTransformsVc),
     TypescriptDeclaration(EcmascriptInputTransformsVc),

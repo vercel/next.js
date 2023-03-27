@@ -1,6 +1,6 @@
 [
     ImportedBinding {
-        esm_reference_index: 0,
+        esm_reference_index: 1,
         export: Some(
             "named",
         ),
@@ -42,7 +42,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 0,
+        esm_reference_index: 1,
         export: Some(
             "named",
         ),
@@ -104,7 +104,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 0,
+        esm_reference_index: 1,
         export: Some(
             "named",
         ),

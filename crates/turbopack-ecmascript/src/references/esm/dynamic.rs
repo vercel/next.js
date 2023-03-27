@@ -9,6 +9,7 @@ use turbopack_core::{
         ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
     },
     reference::{AssetReference, AssetReferenceVc},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
 
@@ -45,7 +46,7 @@ impl EsmAsyncAssetReferenceVc {
 impl AssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.origin, self.request)
+        esm_resolve(self.origin, self.request, Default::default())
     }
 }
 
@@ -79,7 +80,11 @@ impl CodeGenerateable for EsmAsyncAssetReference {
             self.request,
             self.origin,
             context.into(),
-            esm_resolve(self.origin, self.request),
+            esm_resolve(
+                self.origin,
+                self.request,
+                Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            ),
             Value::new(EsmAsync),
         )
         .await?;

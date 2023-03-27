@@ -354,6 +354,7 @@ impl Asset for EcmascriptChunk {
                 fragment: None,
                 assets,
                 modifiers,
+                part: None,
             }))
         };
 
