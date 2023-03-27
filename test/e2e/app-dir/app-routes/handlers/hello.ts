@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { withRequestMeta } from '../helpers'
 
-export const helloHandler = async (
+const helloHandler = async (
   request: NextRequest,
   { params }: { params?: Record<string, string | string[]> }
 ): Promise<Response> => {

@@ -3205,6 +3205,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1 0.10.5",
+ "swc_relay",
  "tracing",
  "walkdir",
 ]
@@ -5972,6 +5973,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_relay"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1023f06fac2cfb3531b96edfa9e17cb66b1bbd7e91b13c981e72e3486ab310d"
+dependencies = [
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "swc_common",
+ "swc_core",
+ "tracing",
+]
+
+[[package]]
 name = "swc_timer"
 version = "0.17.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7112,7 +7128,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "rand",
  "static_assertions",
 ]
