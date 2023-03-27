@@ -22,7 +22,7 @@ use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
     next_client::context::ClientContextType,
     next_config::NextConfigVc,
-    next_font_google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
+    next_font::google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
     next_server::context::ServerContextType,
 };
 
@@ -254,7 +254,7 @@ pub fn get_next_client_resolved_map(
     let glob_mappings = vec![
         // Temporary hack to replace the hot reloader until this is passable by props in next.js
         (
-            context,
+            context.root(),
             GlobVc::new("**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"),
             ImportMapping::PrimaryAlternative(
                 "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),

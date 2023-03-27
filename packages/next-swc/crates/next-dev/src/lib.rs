@@ -34,13 +34,16 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
+use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUiVc, LogOptions};
 use turbopack_core::{
     environment::ServerAddr,
     issue::{IssueReporterVc, IssueSeverity},
     resolve::{parse::RequestVc, pattern::QueryMapVc},
     server_fs::ServerFileSystemVc,
+    PROJECT_FILESYSTEM_NAME,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     introspect::IntrospectionSource,
     source::{
@@ -239,7 +242,8 @@ impl NextDevServerBuilder {
 
 #[turbo_tasks::function]
 async fn project_fs(project_dir: &str) -> Result<FileSystemVc> {
-    let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
+    let disk_fs =
+        DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
     disk_fs.await?.start_watching_with_invalidation_reason()?;
     Ok(disk_fs.into())
 }
@@ -274,9 +278,18 @@ async fn source(
     let env = load_env(project_path);
     let build_output_root = output_fs.root().join(".next/build");
 
-    let execution_context = ExecutionContextVc::new(project_path, build_output_root, env);
+    let build_chunking_context = DevChunkingContextVc::builder(
+        project_path,
+        build_output_root,
+        build_output_root.join("chunks"),
+        build_output_root.join("assets"),
+        node_build_environment(),
+    )
+    .build();
 
-    let next_config = load_next_config(execution_context.join("next_config"));
+    let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
+
+    let next_config = load_next_config(execution_context.with_layer("next_config"));
 
     let output_root = output_fs.root().join(".next/server");
     let server_addr = ServerAddr::new(*server_addr).cell();

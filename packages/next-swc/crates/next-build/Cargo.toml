@@ -1,0 +1,27 @@
+[package]
+name = "next-build"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[features]
+next-font-local = ["next-core/next-font-local"]
+native-tls = ["next-core/native-tls"]
+rustls-tls = ["next-core/rustls-tls"]
+custom_allocator = ["turbo-malloc/custom_allocator"]
+
+[dependencies]
+anyhow = "1.0.47"
+next-core = { workspace = true }
+turbo-malloc = { workspace = true, default-features = false }
+turbo-tasks = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+vergen = { version = "7.3.2", default-features = false, features = [
+  "cargo",
+  "build",
+] }

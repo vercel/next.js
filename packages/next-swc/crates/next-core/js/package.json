@@ -9,7 +9,7 @@
     "build:compiled": "node build.mjs"
   },
   "dependencies": {
-    "@vercel/turbopack-runtime": "https://gitpkg.now.sh/vercel/turbo/crates/turbopack-ecmascript/js?8a8038f94",
+    "@vercel/turbopack-dev-runtime": "https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3",
     "anser": "^2.1.1",
     "css.escape": "^1.5.1",
     "next": "*",

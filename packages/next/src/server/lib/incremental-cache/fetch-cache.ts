@@ -11,28 +11,6 @@ export default class FetchCache implements CacheHandler {
   private debug: boolean
 
   constructor(ctx: CacheHandlerContext) {
-    if (ctx.maxMemoryCacheSize && !memoryCache) {
-      memoryCache = new LRUCache({
-        max: ctx.maxMemoryCacheSize,
-        length({ value }) {
-          if (!value) {
-            return 25
-          } else if (value.kind === 'REDIRECT') {
-            return JSON.stringify(value.props).length
-          } else if (value.kind === 'IMAGE') {
-            throw new Error('invariant image should not be incremental-cache')
-          } else if (value.kind === 'FETCH') {
-            return JSON.stringify(value.data || '').length
-          } else if (value.kind === 'ROUTE') {
-            return value.body.length
-          }
-          // rough estimate of size of cache value
-          return (
-            value.html.length + (JSON.stringify(value.pageData)?.length || 0)
-          )
-        },
-      })
-    }
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
     this.headers['Content-Type'] = 'application/json'
@@ -56,12 +34,48 @@ export default class FetchCache implements CacheHandler {
     } else if (this.debug) {
       console.log('no cache endpoint available')
     }
+
+    if (ctx.maxMemoryCacheSize && !memoryCache) {
+      if (this.debug) {
+        console.log('using memory store for fetch cache')
+      }
+      memoryCache = new LRUCache({
+        max: ctx.maxMemoryCacheSize,
+        length({ value }) {
+          if (!value) {
+            return 25
+          } else if (value.kind === 'REDIRECT') {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === 'IMAGE') {
+            throw new Error('invariant image should not be incremental-cache')
+          } else if (value.kind === 'FETCH') {
+            return JSON.stringify(value.data || '').length
+          } else if (value.kind === 'ROUTE') {
+            return value.body.length
+          }
+          // rough estimate of size of cache value
+          return (
+            value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+          )
+        },
+      })
+    } else {
+      if (this.debug) {
+        console.log('not using memory store for fetch cache')
+      }
+    }
   }
 
   public async get(key: string, fetchCache?: boolean) {
     if (!fetchCache) return null
 
     let data = memoryCache?.get(key)
+
+    // memory cache data is only leveraged for up to 1 seconds
+    // so that revalidation events can be pulled from source
+    if (Date.now() - (data?.lastModified || 0) > 2000) {
+      data = undefined
+    }
 
     // get data from fetch cache
     if (!data && this.cacheEndpoint) {

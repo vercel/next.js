@@ -14,26 +14,27 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
  * - `/Users/rick/my-project/app/sitemap.js` -> `/sitemap/route`
  *
  * @param filepath Absolute path to the page.
- * @param opts.pagesDir Absolute path to the pages folder.
+ * @param opts.dir Absolute path to the pages/app folder.
  * @param opts.extensions Extensions allowed for the page.
  * @param opts.keepIndex When true the trailing `index` kept in the path.
+ * @param opts.pagesType Whether the page is in the pages or app directory.
  */
 export function absolutePathToPage(
   pagePath: string,
   options: {
     extensions: string[] | readonly string[]
     keepIndex: boolean
-    pagesDir: string
+    dir: string
+    pagesType: 'pages' | 'app' | 'root'
   }
 ) {
+  const isAppDir = options.pagesType === 'app'
   const page = removePagePathTail(
-    normalizePathSep(
-      ensureLeadingSlash(path.relative(options.pagesDir, pagePath))
-    ),
+    normalizePathSep(ensureLeadingSlash(path.relative(options.dir, pagePath))),
     {
       extensions: options.extensions,
       keepIndex: options.keepIndex,
     }
   )
-  return normalizeMetadataRoute(page)
+  return isAppDir ? normalizeMetadataRoute(page) : page
 }

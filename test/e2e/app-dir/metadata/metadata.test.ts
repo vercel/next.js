@@ -210,7 +210,7 @@ createNextDescribe(
         })
 
         await matchMultiDom('link', 'rel', 'href', {
-          manifest: 'https://github.com/manifest.json',
+          manifest: 'https://www.google.com/manifest',
           author: 'https://tree.com',
           preconnect: '/preconnect-url',
           preload: '/preload-url',
@@ -658,12 +658,16 @@ createNextDescribe(
         expect(resAppleIcon.status).toBe(200)
         expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
         expect(resAppleIcon.headers.get('cache-control')).toBe(
-          'public, max-age=0, must-revalidate'
+          isNextDev
+            ? 'no-cache, no-store'
+            : 'public, immutable, no-transform, max-age=31536000'
         )
         expect(resIcon.status).toBe(200)
         expect(resIcon.headers.get('content-type')).toBe('image/png')
         expect(resIcon.headers.get('cache-control')).toBe(
-          'public, max-age=0, must-revalidate'
+          isNextDev
+            ? 'no-cache, no-store'
+            : 'public, immutable, no-transform, max-age=31536000'
         )
       })
 
@@ -685,6 +689,23 @@ createNextDescribe(
         )
         const invalidSitemapResponse = await next.fetch('/title/sitemap.xml')
         expect(invalidSitemapResponse.status).toBe(404)
+      })
+
+      it('should support static manifest.webmanifest', async () => {
+        const res = await next.fetch('/manifest.webmanifest')
+        expect(res.headers.get('content-type')).toBe(
+          'application/manifest+json'
+        )
+        const manifest = await res.json()
+        expect(manifest).toMatchObject({
+          name: 'Next.js Static Manifest',
+          short_name: 'Next.js App',
+          description: 'Next.js App',
+          start_url: '/',
+          display: 'standalone',
+          background_color: '#fff',
+          theme_color: '#fff',
+        })
       })
 
       if (isNextStart) {
@@ -738,6 +759,13 @@ createNextDescribe(
           expect(obj.val2.toString()).toBe(value2)
         }
       })
+    })
+
+    it('should not effect metadata images convention like files under pages directory', async () => {
+      const iconHtml = await next.render('/blog/icon')
+      const ogHtml = await next.render('/blog/opengraph-image')
+      expect(iconHtml).toContain('pages-icon-page')
+      expect(ogHtml).toContain('pages-opengraph-image-page')
     })
   }
 )

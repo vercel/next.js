@@ -23,7 +23,7 @@ export const STATIC_METADATA_IMAGES = {
     filename: 'favicon',
     extensions: ['ico'],
   },
-  opengraph: {
+  openGraph: {
     filename: 'opengraph-image',
     extensions: ['jpg', 'jpeg', 'png', 'gif'],
   },
@@ -31,13 +31,13 @@ export const STATIC_METADATA_IMAGES = {
     filename: 'twitter-image',
     extensions: ['jpg', 'jpeg', 'png', 'gif'],
   },
-}
+} as const
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
   dir: string,
   filename: string,
-  extensions: string[],
+  extensions: readonly string[],
   {
     resolvePath,
     loaderContext,
@@ -80,11 +80,13 @@ export async function createStaticMetadataFromRoute(
     resolvePath,
     isRootLayer,
     loaderContext,
+    pageExtensions,
   }: {
     route: string
     resolvePath: (pathname: string) => Promise<string>
     isRootLayer: boolean
     loaderContext: webpack.LoaderContext<any>
+    pageExtensions: string[]
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -92,7 +94,7 @@ export async function createStaticMetadataFromRoute(
     icon: [],
     apple: [],
     twitter: [],
-    opengraph: [],
+    openGraph: [],
   }
 
   const opts = {
@@ -106,23 +108,23 @@ export async function createStaticMetadataFromRoute(
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
-      STATIC_METADATA_IMAGES[type].extensions,
+      pageExtensions.concat(STATIC_METADATA_IMAGES[type].extensions),
       opts
     )
     resolvedMetadataFiles
       .sort((a, b) => a.localeCompare(b))
       .forEach((filepath) => {
-        const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-          `next-metadata-image-loader?${stringify({
-            route,
-            numericSizes:
-              type === 'twitter' || type === 'opengraph' ? '1' : undefined,
+        const imageModuleImportSource = `next-metadata-image-loader?${stringify(
+          {
             type,
-          })}!` +
-            filepath +
-            METADATA_RESOURCE_QUERY
-        )})`
+            route,
+            pageExtensions,
+          }
+        )}!${filepath}${METADATA_RESOURCE_QUERY}`
 
+        const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+          imageModuleImportSource
+        )})`
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)
@@ -135,7 +137,7 @@ export async function createStaticMetadataFromRoute(
   await Promise.all([
     collectIconModuleIfExists('icon'),
     collectIconModuleIfExists('apple'),
-    collectIconModuleIfExists('opengraph'),
+    collectIconModuleIfExists('openGraph'),
     collectIconModuleIfExists('twitter'),
     isRootLayer && collectIconModuleIfExists('favicon'),
   ])
@@ -150,7 +152,7 @@ export function createMetadataExportsCode(
     ? `${METADATA_TYPE}: {
     icon: [${metadata.icon.join(',')}],
     apple: [${metadata.apple.join(',')}],
-    opengraph: [${metadata.opengraph.join(',')}],
+    openGraph: [${metadata.openGraph.join(',')}],
     twitter: [${metadata.twitter.join(',')}],
   }`
     : ''

@@ -4,15 +4,15 @@ import { STATIC_METADATA_IMAGES } from '../../build/webpack/loaders/metadata/dis
 // TODO-METADATA: support more metadata routes with more extensions
 const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
 
-const getExtensionRegexString = (extensions: string[]) =>
+const getExtensionRegexString = (extensions: readonly string[]) =>
   `(?:${extensions.join('|')})`
 
 // When you only pass the file extension as `[]`, it will only match the static convention files
-// e.g. /robots.txt, /sitemap.xml, /favicon.ico
+// e.g. /robots.txt, /sitemap.xml, /favicon.ico, /manifest.json
 // When you pass the file extension as `['js', 'jsx', 'ts', 'tsx']`, it will also match the dynamic convention files
-// e.g. /robots.js, /sitemap.tsx, /favicon.jsx
+// e.g. /robots.js, /sitemap.tsx, /favicon.jsx, /manifest.ts
 // When `withExtension` is false, it will match the static convention files without the extension, by default it's true
-// e.g. /robots, /sitemap, /favicon, use to match dynamic API routes like app/robots.ts
+// e.g. /robots, /sitemap, /favicon, /manifest, use to match dynamic API routes like app/robots.ts
 export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: string[],
@@ -33,13 +33,22 @@ export function isMetadataRouteFile(
           : ''
       }`
     ),
+    new RegExp(
+      `^[\\\\/]manifest${
+        withExtension
+          ? `\\.${getExtensionRegexString(
+              pageExtensions.concat('webmanifest', 'json')
+            )}`
+          : ''
+      }`
+    ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     // TODO-METADATA: add dynamic routes for metadata images
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.icon.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
             )}`
           : ''
       }`
@@ -48,16 +57,16 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.apple.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
             )}`
           : ''
       }`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.opengraph.filename}${
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.opengraph.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
             )}`
           : ''
       }`
@@ -66,7 +75,7 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${
         withExtension
           ? `\\.${getExtensionRegexString(
-              STATIC_METADATA_IMAGES.twitter.extensions
+              pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
             )}`
           : ''
       }`
@@ -76,9 +85,16 @@ export function isMetadataRouteFile(
   return metadataRouteFilesRegex.some((r) => r.test(appDirRelativePath))
 }
 
+/*
+ * Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
+ * e.g.
+ * /app/robots -> /robots
+ * app/robots -> /robots
+ * /robots -> /robots
+ */
 export function isMetadataRoute(route: string): boolean {
-  // Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
-  const page = route.replace(/^\/?app/, '').replace(/\/route$/, '')
+  let page = route.replace(/^\/?app\//, '').replace(/\/route$/, '')
+  if (page[0] !== '/') page = '/' + page
 
   return (
     !page.endsWith('/page') &&

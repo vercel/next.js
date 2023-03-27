@@ -1,6 +1,4 @@
-import type { SitemapFile } from 'next'
-
-export default function sitemap(): SitemapFile {
+export default function sitemap() {
   return [
     {
       url: 'https://example.com',

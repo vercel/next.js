@@ -1,9 +1,6 @@
 'use client'
 
-import type {
-  AppRouterInstance,
-  ChildSegmentMap,
-} from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -12,7 +9,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, useEffect, useMemo, use } from 'react'
+import React, { useContext, useMemo, use } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -24,10 +21,10 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
-import { useRouter } from './navigation'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
-import { getURLFromRedirectError, isRedirectError } from './redirect'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
+import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -420,113 +417,6 @@ function LoadingBoundary({
   }
 
   return <>{children}</>
-}
-
-interface RedirectBoundaryProps {
-  router: AppRouterInstance
-  children: React.ReactNode
-}
-
-function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace(redirect, {})
-  }, [redirect, router])
-  return null
-}
-
-class RedirectErrorBoundary extends React.Component<
-  RedirectBoundaryProps,
-  { redirect: string | null }
-> {
-  constructor(props: RedirectBoundaryProps) {
-    super(props)
-    this.state = { redirect: null }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (isRedirectError(error)) {
-      const url = getURLFromRedirectError(error)
-      return { redirect: url }
-    }
-    // Re-throw if error is not for redirect
-    throw error
-  }
-
-  render() {
-    const redirect = this.state.redirect
-    if (redirect !== null) {
-      return <HandleRedirect redirect={redirect} />
-    }
-
-    return this.props.children
-  }
-}
-
-function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
-}
-
-interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  asNotFound?: boolean
-  children: React.ReactNode
-}
-
-class NotFoundErrorBoundary extends React.Component<
-  NotFoundBoundaryProps,
-  { notFoundTriggered: boolean }
-> {
-  constructor(props: NotFoundBoundaryProps) {
-    super(props)
-    this.state = { notFoundTriggered: !!props.asNotFound }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (error?.digest === 'NEXT_NOT_FOUND') {
-      return { notFoundTriggered: true }
-    }
-    // Re-throw if error is not for 404
-    throw error
-  }
-
-  render() {
-    if (this.state.notFoundTriggered) {
-      return (
-        <>
-          <meta name="robots" content="noindex" />
-          {this.props.notFoundStyles}
-          {this.props.notFound}
-        </>
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-function NotFoundBoundary({
-  notFound,
-  notFoundStyles,
-  asNotFound,
-  children,
-}: NotFoundBoundaryProps) {
-  return notFound ? (
-    <NotFoundErrorBoundary
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-    >
-      {children}
-    </NotFoundErrorBoundary>
-  ) : (
-    <>{children}</>
-  )
 }
 
 /**

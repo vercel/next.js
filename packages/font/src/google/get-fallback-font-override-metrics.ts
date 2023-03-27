@@ -13,9 +13,7 @@ import * as Log from 'next/dist/build/output/log'
 export function getFallbackFontOverrideMetrics(fontFamily: string) {
   try {
     const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
-      calculateSizeAdjustValues(
-        require('next/dist/server/google-font-metrics.json')[fontFamily]
-      )
+      calculateSizeAdjustValues(fontFamily)
     return {
       fallbackFont,
       ascentOverride: `${ascent}%`,

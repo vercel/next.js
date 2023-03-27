@@ -322,7 +322,9 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           buildId: this.buildId,
         }
-      ) // In development we can't give a default path mapping
+      )
+
+      // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
 
@@ -490,9 +492,10 @@ export default class DevServer extends Server {
           devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
-            pagesDir: this.dir,
+            dir: this.dir,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: false,
+            pagesType: 'root',
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -529,9 +532,10 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isAppPath ? this.appDir! : this.pagesDir!,
+            dir: isAppPath ? this.appDir! : this.pagesDir!,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
+            pagesType: isAppPath ? 'app' : 'pages',
           })
 
           if (
@@ -549,9 +553,13 @@ export default class DevServer extends Server {
             if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
+            // Ignore files/directories starting with `_` in the app directory
+            if (normalizePathSep(fileName).includes('/_')) {
+              continue
+            }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
@@ -1159,6 +1167,7 @@ export default class DevServer extends Server {
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
 
+    // TODO: see if we can remove this in the future
     if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
@@ -1174,15 +1183,14 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished = false } =
-      (await this.hotReloader?.run(
+    if (this.hotReloader) {
+      const { finished = false } = await this.hotReloader.run(
         req.originalRequest,
         res.originalResponse,
         parsedUrl
-      )) || {}
+      )
 
-    if (finished) {
-      return
+      if (finished) return
     }
 
     if (originalPathname) {

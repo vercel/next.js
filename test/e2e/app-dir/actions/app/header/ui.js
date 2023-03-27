@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function UI({ getCookie, getHeader }) {
+export default function UI({ getCookie, getHeader, getAuthedUppercase }) {
   const [result, setResult] = useState('')
 
   return (
@@ -28,6 +28,19 @@ export default function UI({ getCookie, getHeader }) {
         }}
       >
         getHeader
+      </button>
+      <button
+        id="authed"
+        onClick={async () => {
+          try {
+            const res = await getAuthedUppercase('hello, world')
+            setResult(res)
+          } catch (err) {
+            setResult('Error: ' + err.message)
+          }
+        }}
+      >
+        getAuthedUppercase
       </button>
     </div>
   )

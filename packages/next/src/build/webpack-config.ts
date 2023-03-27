@@ -11,7 +11,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
-  RSC_MOD_REF_PROXY_ALIAS,
+  RSC_ACTION_PROXY_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
@@ -633,7 +633,6 @@ export default async function getBaseWebpackConfig(
     originalRewrites,
     originalRedirects,
     runWebpackSpan,
-    target = COMPILER_NAMES.server,
     appDir,
     middlewareMatchers,
     noMangling = false,
@@ -654,7 +653,6 @@ export default async function getBaseWebpackConfig(
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
-    target?: string
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
@@ -688,7 +686,7 @@ export default async function getBaseWebpackConfig(
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
-        'You ase using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
+        'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
     }
   }
@@ -1050,8 +1048,8 @@ export default async function getBaseWebpackConfig(
       ...(isClient || isEdgeServer ? getOptimizedAliases() : {}),
       ...getReactProfilingInProduction(),
 
-      [RSC_MOD_REF_PROXY_ALIAS]:
-        'next/dist/build/webpack/loaders/next-flight-loader/module-proxy',
+      [RSC_ACTION_PROXY_ALIAS]:
+        'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
 
       ...(isClient || isEdgeServer
         ? {
@@ -1237,7 +1235,7 @@ export default async function getBaseWebpackConfig(
       }
 
       const notExternalModules =
-        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-mod-ref-proxy$)/
+        /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|legacy\/image|constants|dynamic|script|navigation|headers)$)|string-hash|private-next-rsc-action-proxy$)/
       if (notExternalModules.test(request)) {
         return
       }
@@ -1705,7 +1703,6 @@ export default async function getBaseWebpackConfig(
         'next-client-pages-loader',
         'next-image-loader',
         'next-metadata-image-loader',
-        'next-serverless-loader',
         'next-style-loader',
         'next-flight-loader',
         'next-flight-client-entry-loader',
@@ -1917,18 +1914,20 @@ export default async function getBaseWebpackConfig(
                     use: swcLoaderForServerLayer,
                   },
                   {
-                    test: codeCondition.test,
+                    ...codeCondition,
                     issuerLayer: {
                       or: [WEBPACK_LAYERS.client, WEBPACK_LAYERS.appClient],
                     },
-                    exclude: [staticGenerationAsyncStorageRegex],
+                    exclude: [
+                      staticGenerationAsyncStorageRegex,
+                      codeCondition.exclude,
+                    ],
                     use: [
                       ...(dev && isClient
                         ? [
                             require.resolve(
                               'next/dist/compiled/@next/react-refresh-utils/dist/loader'
                             ),
-                            defaultLoaders.babel,
                           ]
                         : []),
                       {
@@ -2420,7 +2419,6 @@ export default async function getBaseWebpackConfig(
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,
-    target,
     isEdgeRuntime: isEdgeServer,
     reactProductionProfiling,
     webpack: !!config.webpack,

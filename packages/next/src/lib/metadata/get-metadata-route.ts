@@ -20,7 +20,14 @@ export function normalizeMetadataRoute(page: string) {
     if (route === '/robots') {
       route += '.txt'
     }
-    route = `${route}/route`
+    if (route === '/manifest') {
+      route += '.webmanifest'
+    }
+    // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
+    // If it's a metadata file route, we need to append /route to the page.
+    if (!route.endsWith('/route')) {
+      route = `${route}/route`
+    }
   }
   return route
 }
