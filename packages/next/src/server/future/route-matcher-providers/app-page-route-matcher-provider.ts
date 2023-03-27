@@ -6,7 +6,7 @@ import {
 import path from '../../../shared/lib/isomorphic/path'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import {
-  getInterceptingRouteMeta,
+  extractInterceptionRouteInformation,
   isIntersectionRouteAppPath,
 } from '../helpers/interception-routes'
 import { RouteKind } from '../route-kind'
@@ -52,7 +52,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
 
       if (isIntersectionRouteAppPath(pathname)) {
         const [interceptingRoute, interceptedRoute] =
-          getInterceptingRouteMeta(pathname)
+          extractInterceptionRouteInformation(pathname)
         matchers.push(
           new AppPageInterceptingRouteMatcher({
             kind: RouteKind.APP_PAGE,

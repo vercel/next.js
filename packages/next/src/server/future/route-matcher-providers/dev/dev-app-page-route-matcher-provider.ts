@@ -9,7 +9,7 @@ import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import {
-  getInterceptingRouteMeta,
+  extractInterceptionRouteInformation,
   isIntersectionRouteAppPath,
 } from '../../helpers/interception-routes'
 import { AppPageInterceptingRouteMatcher } from '../../route-matchers/app-intercepting-route-matcher'
@@ -105,7 +105,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
 
       if (isIntersectionRouteAppPath(pathname)) {
         const [interceptingRoute, interceptedRoute] =
-          getInterceptingRouteMeta(pathname)
+          extractInterceptionRouteInformation(pathname)
         matchers.push(
           new AppPageInterceptingRouteMatcher({
             kind: RouteKind.APP_PAGE,
