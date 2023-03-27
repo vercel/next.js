@@ -182,6 +182,7 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy --all -- -D warnings -A deprecated
+          cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,__internal_nextjs_integration_test
         working-directory: packages/next-swc
 
   checkPrecompiled:

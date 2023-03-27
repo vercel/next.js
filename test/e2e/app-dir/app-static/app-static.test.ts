@@ -82,36 +82,41 @@ createNextDescribe(
           '/variable-config-revalidate/revalidate-3'
         )
         const initialDate = initial$('#date').text()
-        const initialData = initial$('#data').text()
+        const initialRandomData = initial$('#random-data').text()
 
         expect(initialDate).toBeTruthy()
-        expect(initialData).toBeTruthy()
+        expect(initialRandomData).toBeTruthy()
 
-        let revalidatedDate
-        let revalidatedData
+        let prevInitialDate
+        let prevInitialRandomData
 
         // wait for a fresh revalidation
         await check(async () => {
           const $ = await next.render$(
             '/variable-config-revalidate/revalidate-3'
           )
+          prevInitialDate = $('#date').text()
+          prevInitialRandomData = $('#random-data').text()
 
-          revalidatedDate = $('#date').text()
-          revalidatedData = $('#data').text()
-
-          expect(revalidatedData).not.toBe(initialDate)
-          expect(revalidatedDate).not.toBe(initialData)
+          expect(prevInitialDate).not.toBe(initialDate)
+          expect(prevInitialRandomData).not.toBe(initialRandomData)
           return 'success'
         }, 'success')
 
         // the date should revalidate first after 3 seconds
-        // while the fetch data stays in place for 15 seconds
+        // while the fetch data stays in place for 9 seconds
         await check(async () => {
           const $ = await next.render$(
             '/variable-config-revalidate/revalidate-3'
           )
-          expect($('#date').text()).not.toBe(revalidatedDate)
-          expect($('#data').text()).toBe(revalidatedData)
+          const curDate = $('#date').text()
+          const curRandomData = $('#random-data').text()
+
+          expect(curDate).not.toBe(prevInitialDate)
+          expect(curRandomData).toBe(prevInitialRandomData)
+
+          prevInitialDate = $('#date').text()
+          prevInitialRandomData = $('#random-data').text()
           return 'success'
         }, 'success')
       })

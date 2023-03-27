@@ -297,8 +297,7 @@ export class IncrementalCache {
           data,
           revalidate: revalidate,
         },
-        revalidateAfter:
-          (cacheData.lastModified || Date.now()) + revalidate * 1000,
+        revalidateAfter: Date.now() + revalidate * 1000,
       }
     }
 
