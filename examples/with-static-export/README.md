@@ -1,8 +1,10 @@
-# Static export example
+# Next.js Static Export
 
-This example show how to export to static HTML files your Next.js application fetching data from an API to generate a dynamic list of pages.
+Next.js enables starting as a static site or Single-Page Application (SPA), then later optionally upgrading to use features that require a server.
 
-When trying to run `npm start` it will build and export your pages into the `out` folder and serve them on `localhost:3000`.
+When running `next build`, Next.js generates an HTML file per route. By breaking a strict SPA into individual HTML files, Next.js can avoid loading unnecessary JavaScript code on the client-side, reducing the bundle size and enabling faster page loads.
+
+Learn more: https://beta.nextjs.org/docs/configuring/static-export
 
 ## Deploy your own
 
