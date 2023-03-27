@@ -16,7 +16,6 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
-  target?: string
 }
 
 export interface I18NConfig {
@@ -194,8 +193,6 @@ export interface ExperimentalConfig {
    */
   serverComponentsExternalPackages?: string[]
 
-  fontLoaders?: Array<{ loader: string; options?: any }>
-
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
   turbo?: ExperimentalTurboOptions
@@ -242,7 +239,11 @@ export interface ExperimentalConfig {
 }
 
 export type ExportPathMap = {
-  [path: string]: { page: string; query?: Record<string, string | string[]> }
+  [path: string]: {
+    page: string
+    query?: Record<string, string | string[]>
+    _isAppDir?: boolean
+  }
 }
 
 /**
@@ -613,7 +614,6 @@ export const defaultConfig: NextConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',

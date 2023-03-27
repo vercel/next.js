@@ -49,7 +49,8 @@ export class Worker {
         _child: ChildProcess
       }[]) {
         worker._child.on('exit', (code, signal) => {
-          if (code || signal) {
+          // log unexpected exit if .end() wasn't called
+          if ((code || signal) && this._worker) {
             console.error(
               `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
             )

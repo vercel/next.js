@@ -265,7 +265,8 @@ export class IncrementalCache {
   // get data from cache if available
   async get(
     pathname: string,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    revalidate?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
@@ -281,7 +282,7 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
-      const revalidate = cacheData.value.revalidate
+      revalidate = revalidate || cacheData.value.revalidate
       const age = Math.round(
         (Date.now() - (cacheData.lastModified || 0)) / 1000
       )
@@ -350,10 +351,10 @@ export class IncrementalCache {
     fetchCache?: boolean
   ) {
     if (this.dev && !fetchCache) return
-    // fetchCache has upper limit of 1MB per-entry currently
-    if (fetchCache && JSON.stringify(data).length > 1024 * 1024) {
+    // fetchCache has upper limit of 2MB per-entry currently
+    if (fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
       if (this.dev) {
-        throw new Error(`fetch for over 1MB of data can not be cached`)
+        throw new Error(`fetch for over 2MB of data can not be cached`)
       }
       return
     }

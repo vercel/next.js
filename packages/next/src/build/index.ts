@@ -63,7 +63,7 @@ import {
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
@@ -134,6 +134,8 @@ import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
+import { createValidFileMatcher } from '../server/lib/find-page-file'
+import type { ExportOptions } from '../export'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -254,7 +256,8 @@ export default async function build(
   debugOutput = false,
   runLint = true,
   noMangling = false,
-  appDirOnly = false
+  appDirOnly = false,
+  turboNextBuild = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -279,6 +282,16 @@ export default async function build(
         .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
       NextBuildContext.config = config
 
+      let configOutDir = 'out'
+      if (config.output === 'export' && config.distDir !== '.next') {
+        // In the past, a user had to run "next build" to generate
+        // ".next" (or whatever the distDir) followed by "next export"
+        // to generate "out" (or whatever the outDir). However, when
+        // "output: export" is configured, "next build" does both steps.
+        // So the user-configured dirDir is actually the outDir.
+        configOutDir = config.distDir
+        config.distDir = '.next'
+      }
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -465,6 +478,7 @@ export default async function build(
           // prevent showing jest-worker internal error as it
           // isn't helpful for users and clutters output
           if (isError(err) && err.message === 'Call retries were exceeded') {
+            await telemetry.flush()
             process.exit(1)
           }
           throw err
@@ -475,6 +489,14 @@ export default async function build(
       // we dynamically generate types for each layout and page in the app
       // directory.
       if (!appDir) await startTypeChecking()
+
+      if (appDir && 'exportPathMap' in config) {
+        Log.error(
+          'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
+        )
+        await telemetry.flush()
+        process.exit(1)
+      }
 
       const buildLintEvent: EventBuildFeatureUsage = {
         featureName: 'build-lint',
@@ -491,15 +513,17 @@ export default async function build(
 
       NextBuildContext.buildSpinner = buildSpinner
 
+      const validFileMatcher = createValidFileMatcher(
+        config.pageExtensions,
+        appDir
+      )
+
       const pagesPaths =
         !appDirOnly && pagesDir
           ? await nextBuildSpan
               .traceChild('collect-pages')
               .traceAsyncFn(() =>
-                recursiveReadDir(
-                  pagesDir,
-                  new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-                )
+                recursiveReadDir(pagesDir, validFileMatcher.isPageFile)
               )
           : []
 
@@ -511,9 +535,19 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(
-                `^(page|route)\\.(?:${config.pageExtensions.join('|')})$`
-              )
+              (absolutePath) => {
+                if (validFileMatcher.isAppRouterPage(absolutePath)) {
+                  return true
+                }
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback.
+                if (validFileMatcher.isRootNotFound(absolutePath)) {
+                  return true
+                }
+                return false
+              },
+              undefined,
+              (part) => part.startsWith('_')
             )
           )
       }
@@ -638,11 +672,13 @@ export default async function build(
         for (const [pagePath, appPath] of conflictingAppPagePaths) {
           Log.error(`  "${pagePath}" - "${appPath}"`)
         }
+        await telemetry.flush()
         process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
+      const hasApp404 = !!mappedAppPages?.['/not-found']
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -891,7 +927,6 @@ export default async function build(
       )
 
       // We need to write the manifest with rewrites before build
-      // so serverless can import the manifest
       await nextBuildSpan
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() =>
@@ -992,8 +1027,8 @@ export default async function build(
               : null,
             BUILD_ID_FILE,
             appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
-            path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
-            path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+            path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
+            path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
             ...(hasInstrumentationHook
               ? [
                   path.join(
@@ -1012,8 +1047,17 @@ export default async function build(
           ignore: [] as string[],
         }))
 
+      let binding = (await loadBindings()) as any
+
+      async function turbopackBuild() {
+        const turboNextBuildStart = process.hrtime()
+        await binding.turbo.nextBuild(NextBuildContext)
+        const [duration] = process.hrtime(turboNextBuildStart)
+        return { duration, turbotraceContext: null }
+      }
+
       const { duration: webpackBuildDuration, turbotraceContext } =
-        await webpackBuild()
+        turboNextBuild ? await turbopackBuild() : await webpackBuild()
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {
@@ -1028,7 +1072,6 @@ export default async function build(
         if (!turbotraceContext) {
           return
         }
-        let binding = (await loadBindings()) as any
         if (
           !binding?.isWasm &&
           typeof binding.turbo.startTrace === 'function'
@@ -1071,11 +1114,9 @@ export default async function build(
             if (filesTracedFromEntries.length) {
               // The turbo trace doesn't provide the traced file type and reason at present
               // let's write the traced files into the first [entry].nft.json
-              // @ts-expect-error types
-              const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
-                // @ts-expect-error types
-                ([k]) => k.startsWith(turbotraceContextAppDir)
-              )
+              const [[, entryName]] = Array.from<[string, string]>(
+                entryNameMap.entries()
+              ).filter(([k]) => k.startsWith(turbotraceContextAppDir))
               const traceOutputPath = path.join(
                 outputPath,
                 `../${entryName}.js.nft.json`
@@ -1284,6 +1325,7 @@ export default async function build(
               enableUndici: config.experimental.enableUndici,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
+              nextConfigOutput: config.output,
             })
         )
 
@@ -1463,6 +1505,12 @@ export default async function build(
                           edgeInfo,
                           pageType,
                           hasServerComponents: !!appDir,
+                          incrementalCacheHandlerPath:
+                            config.experimental.incrementalCacheHandlerPath,
+                          isrFlushToDisk: config.experimental.isrFlushToDisk,
+                          maxMemoryCacheSize:
+                            config.experimental.isrMemoryCacheSize,
+                          nextConfigOutput: config.output,
                         })
                       }
                     )
@@ -1792,7 +1840,6 @@ export default async function build(
       } else if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
-          let binding = (await loadBindings()) as any
           if (!binding?.isWasm) {
             nodeFileTrace = binding.turbo.startTrace
           }
@@ -2137,7 +2184,8 @@ export default async function build(
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
       const useStatic404 =
-        !customAppGetInitialProps && (!hasNonStaticErrorPage || hasPages404)
+        !customAppGetInitialProps &&
+        (!hasNonStaticErrorPage || hasPages404 || hasApp404)
 
       if (invalidPages.size > 0) {
         const err = new Error(
@@ -2280,25 +2328,8 @@ export default async function build(
           )
           const exportApp: typeof import('../export').default =
             require('../export').default
-          const exportOptions = {
-            silent: false,
-            buildExport: true,
-            debugOutput,
-            threads: config.experimental.cpus,
-            pages: combinedPages,
-            outdir: path.join(distDir, 'export'),
-            statusMessage: 'Generating static pages',
-            exportPageWorker: sharedPool
-              ? staticWorkers.exportPage.bind(staticWorkers)
-              : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await staticWorkers.end()
-                }
-              : undefined,
-            appPaths,
-          }
-          const exportConfig: any = {
+
+          const exportConfig: NextConfigComplete = {
             ...config,
             initialPageRevalidationMap: {},
             initialPageMetaMap: {},
@@ -2417,7 +2448,28 @@ export default async function build(
             },
           }
 
-          await exportApp(dir, exportOptions, nextBuildSpan, exportConfig)
+          const exportOptions: ExportOptions = {
+            isInvokedFromCli: false,
+            nextConfig: exportConfig,
+            silent: false,
+            buildExport: true,
+            debugOutput,
+            threads: config.experimental.cpus,
+            pages: combinedPages,
+            outdir: path.join(distDir, 'export'),
+            statusMessage: 'Generating static pages',
+            exportPageWorker: sharedPool
+              ? staticWorkers.exportPage.bind(staticWorkers)
+              : undefined,
+            endWorker: sharedPool
+              ? async () => {
+                  await staticWorkers.end()
+                }
+              : undefined,
+            appPaths,
+          }
+
+          await exportApp(dir, exportOptions, nextBuildSpan)
 
           const postBuildSpinner = createSpinner({
             prefixText: `${Log.prefixes.info} Finalizing page optimization`,
@@ -2441,6 +2493,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
+              if (route === '/not-found') return
 
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
@@ -2642,9 +2695,36 @@ export default async function build(
               })
           }
 
-          // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-          if (!hasPages404 && useStatic404) {
-            await moveExportedPage('/_error', '/404', '/404', false, 'html')
+          async function moveExportedAppNotFoundTo404() {
+            return staticGenerationSpan
+              .traceChild('move-exported-app-not-found-')
+              .traceAsyncFn(async () => {
+                const orig = path.join(
+                  distDir,
+                  'server',
+                  'app',
+                  'not-found.html'
+                )
+                const updatedRelativeDest = path
+                  .join('pages', '404.html')
+                  .replace(/\\/g, '/')
+                await promises.copyFile(
+                  orig,
+                  path.join(distDir, 'server', updatedRelativeDest)
+                )
+                pagesManifest['/404'] = updatedRelativeDest
+              })
+          }
+
+          // If there's /not-found inside app, we prefer it over the pages 404
+          if (hasApp404 && useStatic404) {
+            // await moveExportedPage('/_error', '/404', '/404', false, 'html')
+            await moveExportedAppNotFoundTo404()
+          } else {
+            // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+            if (!hasPages404 && useStatic404) {
+              await moveExportedPage('/_error', '/404', '/404', false, 'html')
+            }
           }
 
           if (useDefaultStatic500) {
@@ -3035,6 +3115,19 @@ export default async function build(
               path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
+      }
+
+      if (config.output === 'export') {
+        const exportApp: typeof import('../export').default =
+          require('../export').default
+        const options: ExportOptions = {
+          isInvokedFromCli: false,
+          nextConfig: config,
+          silent: true,
+          threads: config.experimental.cpus,
+          outdir: path.join(dir, configOutDir),
+        }
+        await exportApp(dir, options, nextBuildSpan)
       }
 
       await nextBuildSpan

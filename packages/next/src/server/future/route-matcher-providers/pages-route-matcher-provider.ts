@@ -6,7 +6,6 @@ import {
   SERVER_DIRECTORY,
 } from '../../../shared/lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
-import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
 import { RouteKind } from '../route-kind'
 import {
   PagesLocaleRouteMatcher,
@@ -17,12 +16,13 @@ import {
   ManifestLoader,
 } from './helpers/manifest-loaders/manifest-loader'
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
+import { I18NProvider } from '../helpers/i18n-provider'
 
 export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {
   constructor(
     private readonly distDir: string,
     manifestLoader: ManifestLoader,
-    private readonly localeNormalizer?: LocaleRouteNormalizer
+    private readonly i18nProvider?: I18NProvider
   ) {
     super(PAGES_MANIFEST, manifestLoader)
   }
@@ -38,7 +38,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
       // internal pages).
       .filter((pathname) => {
         const normalized =
-          this.localeNormalizer?.normalize(pathname) ?? pathname
+          this.i18nProvider?.analyze(pathname).pathname ?? pathname
 
         // Skip any blocked pages.
         if (BLOCKED_PAGES.includes(normalized)) return false
@@ -48,9 +48,9 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
 
     const matchers: Array<PagesRouteMatcher> = []
     for (const page of pathnames) {
-      if (this.localeNormalizer) {
+      if (this.i18nProvider) {
         // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.localeNormalizer.match(page)
+        const { detectedLocale, pathname } = this.i18nProvider.analyze(page)
 
         matchers.push(
           new PagesLocaleRouteMatcher({

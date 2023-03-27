@@ -87,6 +87,19 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+export async function capsize_metrics() {
+  const {
+    entireMetricsCollection,
+    // eslint-disable-next-line import/no-extraneous-dependencies
+  } = require('@capsizecss/metrics/entireMetricsCollection')
+  const outputPathDist = join(
+    __dirname,
+    'dist/server/capsize-font-metrics.json'
+  )
+
+  await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
+}
+
 export async function ncc_next_server(task, opts) {
   await task
     .source(
@@ -259,7 +272,7 @@ export async function ncc_node_platform(task, opts) {
   const clientFile = join(__dirname, 'src/compiled/platform/platform.js')
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless/client mode
+  // be treated as commonjs
   fs.writeFileSync(
     clientFile,
     content.replace(
@@ -330,6 +343,15 @@ export async function compile_config_schema(task, opts) {
     join(__dirname, 'dist/next-config-validate.js')
   )
   await fs.rmdir(join(__dirname, 'dist/next-config-validate'))
+}
+
+// eslint-disable-next-line camelcase
+externals['zod'] = 'next/dist/compiled/zod'
+export async function ncc_zod(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('zod')))
+    .ncc({ packageName: 'zod', externals })
+    .target('src/compiled/zod')
 }
 
 // eslint-disable-next-line camelcase
@@ -500,7 +522,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless/client mode
+  // be treated as commonjs
   fs.writeFileSync(
     clientFile,
     content.replace(
@@ -2023,6 +2045,24 @@ export async function ncc_opentelemetry_api(task, opts) {
     .target('src/compiled/@opentelemetry/api')
 }
 
+// eslint-disable-next-line camelcase
+externals['http-proxy-agent'] = 'next/dist/compiled/http-proxy-agent'
+export async function ncc_http_proxy_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('http-proxy-agent')))
+    .ncc({ packageName: 'http-proxy-agent', externals })
+    .target('src/compiled/http-proxy-agent')
+}
+
+// eslint-disable-next-line camelcase
+externals['https-proxy-agent'] = 'next/dist/compiled/https-proxy-agent'
+export async function ncc_https_proxy_agent(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('https-proxy-agent')))
+    .ncc({ packageName: 'https-proxy-agent', externals })
+    .target('src/compiled/https-proxy-agent')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2065,6 +2105,7 @@ export async function ncc(task, opts) {
         'ncc_node_shell_quote',
         'ncc_undici',
         'ncc_acorn',
+        'ncc_zod',
         'ncc_amphtml_validator',
         'ncc_arg',
         'ncc_async_retry',
@@ -2156,6 +2197,8 @@ export async function ncc(task, opts) {
         'ncc_ua_parser_js',
         'ncc_minimatch',
         'ncc_opentelemetry_api',
+        'ncc_http_proxy_agent',
+        'ncc_https_proxy_agent',
         'ncc_mini_css_extract_plugin',
       ],
       opts
@@ -2217,6 +2260,7 @@ export async function compile(task, opts) {
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'ncc_next_server',
+    'capsize_metrics',
   ])
 }
 

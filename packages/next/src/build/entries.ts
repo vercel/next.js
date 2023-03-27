@@ -48,6 +48,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 
@@ -77,6 +78,7 @@ export function createPagesMapping({
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
 }): { [page: string]: string } {
+  const isAppRoute = pagesType === 'app'
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
@@ -85,7 +87,10 @@ export function createPagesMapping({
         return result
       }
 
-      const pageKey = getPageFromPath(pagePath, pageExtensions)
+      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      if (isAppRoute) {
+        pageKey = pageKey.replace(/%5F/g, '_')
+      }
 
       if (pageKey in result) {
         warn(
@@ -99,7 +104,7 @@ export function createPagesMapping({
         previousPages[pageKey] = pagePath
       }
 
-      result[pageKey] = normalizePathSep(
+      const normalizedPath = normalizePathSep(
         join(
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
@@ -109,6 +114,10 @@ export function createPagesMapping({
           pagePath
         )
       )
+
+      const route =
+        pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
+      result[route] = normalizedPath
       return result
     },
     {}
@@ -177,6 +186,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
+      nextConfigOutput: opts.config.output,
     }
 
     return `next-edge-app-route-loader?${stringify(loaderParams)}!`
@@ -344,10 +354,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   if (appDir && appPaths) {
     for (const pathname in appPaths) {
       const normalizedPath = normalizeAppPath(pathname)
+      const actualPath = appPaths[pathname]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
-      appPathsPerRoute[normalizedPath].push(pathname)
+      appPathsPerRoute[normalizedPath].push(
+        // TODO-APP: refactor to pass the page path from createPagesMapping instead.
+        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      )
     }
 
     // Make sure to sort parallel routes to make the result deterministic.

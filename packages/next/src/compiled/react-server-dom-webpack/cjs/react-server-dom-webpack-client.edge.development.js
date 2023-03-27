@@ -51,7 +51,7 @@ function resolveClientReference(bundlerConfig, metadata) {
   }
 
   return metadata;
-} // The chunk cache contains all the chunks we've preloaded so far.
+}
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
 // replicate it in user space. null means that it has already loaded.
@@ -149,6 +149,8 @@ function requireModule(metadata) {
 
   return moduleExports[metadata.name];
 }
+
+var knownServerReferences = new WeakMap();
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -547,18 +549,23 @@ function createServerReferenceProxy(response, metaData) {
     var args = Array.prototype.slice.call(arguments);
     var p = metaData.bound;
 
+    if (!p) {
+      return callServer(metaData.id, args);
+    }
+
     if (p.status === INITIALIZED) {
       var bound = p.value;
-      return callServer(metaData, bound.concat(args));
+      return callServer(metaData.id, bound.concat(args));
     } // Since this is a fake Promise whose .then doesn't chain, we have to wrap it.
     // TODO: Remove the wrapper once that's fixed.
 
 
     return Promise.resolve(p).then(function (bound) {
-      return callServer(metaData, bound.concat(args));
+      return callServer(metaData.id, bound.concat(args));
     });
   };
 
+  knownServerReferences.set(proxy, metaData);
   return proxy;
 }
 
@@ -633,6 +640,13 @@ function parseModelString(response, parentObject, key, value) {
             default:
               throw _chunk2.reason;
           }
+        }
+
+      case 'u':
+        {
+          // matches "$undefined"
+          // Special encoding for `undefined` which can't be serialized as JSON otherwise.
+          return undefined;
         }
 
       default:

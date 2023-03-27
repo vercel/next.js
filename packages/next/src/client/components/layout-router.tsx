@@ -1,18 +1,15 @@
 'use client'
 
-import type {
-  AppRouterInstance,
-  ChildSegmentMap,
-} from '../../shared/lib/app-router-context'
+import type { ChildSegmentMap } from '../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
   ChildProp,
-} from '../../server/app-render'
+} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, useEffect, useMemo, use } from 'react'
+import React, { useContext, useMemo, use } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -24,10 +21,10 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
-import { useRouter } from './navigation'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
-import { getURLFromRedirectError, isRedirectError } from './redirect'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
+import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -114,31 +111,72 @@ function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   return rect.top >= 0 && rect.top <= viewportHeight
 }
 
-class ScrollAndFocusHandler extends React.Component<{
+/**
+ * Find the DOM node for a hash fragment.
+ * If `top` the page has to scroll to the top of the page. This mirrors the browser's behavior.
+ * If the hash fragment is an id, the page has to scroll to the element with that id.
+ * If the hash fragment is a name, the page has to scroll to the first element with that name.
+ */
+function getHashFragmentDomNode(hashFragment: string) {
+  // If the hash fragment is `top` the page has to scroll to the top of the page.
+  if (hashFragment === 'top') {
+    return document.body
+  }
+
+  // If the hash fragment is an id, the page has to scroll to the element with that id.
+  return (
+    document.getElementById(hashFragment) ??
+    // If the hash fragment is a name, the page has to scroll to the first element with that name.
+    document.getElementsByName(hashFragment)[0]
+  )
+}
+interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
-}> {
-  componentDidMount() {
+}
+class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+  handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
 
-    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-    // This already caused a bug where the first child was a <link/> in head.
-    const domNode = findDOMNode(this)
+    if (focusAndScrollRef.apply) {
+      let domNode:
+        | ReturnType<typeof getHashFragmentDomNode>
+        | ReturnType<typeof findDOMNode> = null
+      const hashFragment = focusAndScrollRef.hashFragment
 
-    if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
+      if (hashFragment) {
+        domNode = getHashFragmentDomNode(hashFragment)
+      }
+
+      // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+      // This already caused a bug where the first child was a <link/> in head.
+      if (!domNode) {
+        domNode = findDOMNode(this)
+      }
+
+      // If there is no DOMNode this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (!(domNode instanceof HTMLElement)) {
+        return
+      }
+
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
 
       handleSmoothScroll(
         () => {
+          // In case of hash scroll we need to scroll to the top of the element
+          if (hashFragment) {
+            window.scrollTo(0, (domNode as HTMLElement).offsetTop)
+            return
+          }
           // Store the current viewport height because reading `clientHeight` causes a reflow,
           // and it won't change during this function.
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode, viewportHeight)) {
+          if (topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             return
           }
 
@@ -149,9 +187,9 @@ class ScrollAndFocusHandler extends React.Component<{
           htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode, viewportHeight)) {
+          if (!topOfElementInViewport(domNode as HTMLElement, viewportHeight)) {
             // Scroll into view doesn't scroll horizontally by default when not needed
-            domNode.scrollIntoView()
+            ;(domNode as HTMLElement).scrollIntoView()
           }
         },
         {
@@ -165,6 +203,17 @@ class ScrollAndFocusHandler extends React.Component<{
     }
   }
 
+  componentDidMount() {
+    this.handlePotentialScroll()
+  }
+
+  componentDidUpdate() {
+    // Because this property is overwritten in handlePotentialScroll it's fine to always run it when true as it'll be set to false for subsequent renders.
+    if (this.props.focusAndScrollRef.apply) {
+      this.handlePotentialScroll()
+    }
+  }
+
   render() {
     return this.props.children
   }
@@ -173,7 +222,7 @@ class ScrollAndFocusHandler extends React.Component<{
 /**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
-export function InnerLayoutRouter({
+function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,
@@ -370,107 +419,6 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
-interface RedirectBoundaryProps {
-  router: AppRouterInstance
-  children: React.ReactNode
-}
-
-function HandleRedirect({ redirect }: { redirect: string }) {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace(redirect, {})
-  }, [redirect, router])
-  return null
-}
-
-class RedirectErrorBoundary extends React.Component<
-  RedirectBoundaryProps,
-  { redirect: string | null }
-> {
-  constructor(props: RedirectBoundaryProps) {
-    super(props)
-    this.state = { redirect: null }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (isRedirectError(error)) {
-      const url = getURLFromRedirectError(error)
-      return { redirect: url }
-    }
-    // Re-throw if error is not for redirect
-    throw error
-  }
-
-  render() {
-    const redirect = this.state.redirect
-    if (redirect !== null) {
-      return <HandleRedirect redirect={redirect} />
-    }
-
-    return this.props.children
-  }
-}
-
-function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
-}
-
-interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  children: React.ReactNode
-}
-
-class NotFoundErrorBoundary extends React.Component<
-  NotFoundBoundaryProps,
-  { notFoundTriggered: boolean }
-> {
-  constructor(props: NotFoundBoundaryProps) {
-    super(props)
-    this.state = { notFoundTriggered: false }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (error?.digest === 'NEXT_NOT_FOUND') {
-      return { notFoundTriggered: true }
-    }
-    // Re-throw if error is not for 404
-    throw error
-  }
-
-  render() {
-    if (this.state.notFoundTriggered) {
-      return (
-        <>
-          <meta name="robots" content="noindex" />
-          {this.props.notFoundStyles}
-          {this.props.notFound}
-        </>
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-function NotFoundBoundary({
-  notFound,
-  notFoundStyles,
-  children,
-}: NotFoundBoundaryProps) {
-  return notFound ? (
-    <NotFoundErrorBoundary notFound={notFound} notFoundStyles={notFoundStyles}>
-      {children}
-    </NotFoundErrorBoundary>
-  ) : (
-    <>{children}</>
-  )
-}
-
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
@@ -488,6 +436,7 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
+  asNotFound,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -501,6 +450,7 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
+  asNotFound?: boolean
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -562,6 +512,7 @@ export default function OuterLayoutRouter({
                   <NotFoundBoundary
                     notFound={notFound}
                     notFoundStyles={notFoundStyles}
+                    asNotFound={asNotFound}
                   >
                     <RedirectBoundary>
                       <InnerLayoutRouter

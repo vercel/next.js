@@ -1,8 +1,10 @@
+import { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
 import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
 import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
+import { RouteMatcher } from '../route-matchers/route-matcher'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
 import { MatchOptions } from './route-matcher-manager'
 
@@ -39,6 +41,7 @@ describe('DefaultRouteMatcherManager', () => {
         i18n: {
           detectedLocale: 'nl-NL',
           pathname: '/some/path',
+          inferredFromDefault: false,
         },
       },
       definition: {
@@ -58,6 +61,7 @@ describe('DefaultRouteMatcherManager', () => {
         i18n: {
           detectedLocale: 'en-US',
           pathname: '/some/path',
+          inferredFromDefault: false,
         },
       },
       definition: {
@@ -76,6 +80,7 @@ describe('DefaultRouteMatcherManager', () => {
       options: {
         i18n: {
           pathname: '/some/path',
+          inferredFromDefault: false,
         },
       },
       definition: {
@@ -125,8 +130,40 @@ describe('DefaultRouteMatcherManager', () => {
     manager.push(provider)
     await manager.reload()
 
-    const options = {
-      i18n: { detectedLocale: undefined, pathname: '/some/path' },
+    const options: MatchOptions = {
+      i18n: {
+        detectedLocale: undefined,
+        pathname: '/some/path',
+        inferredFromDefault: false,
+      },
+    }
+    const match = await manager.match('/en-US/some/path', options)
+    expect(match?.definition).toBe(definition)
+  })
+
+  it('will match a route that is not locale aware when it was inferred from the default locale', async () => {
+    const manager = new DefaultRouteMatcherManager()
+    const definition: AppPageRouteDefinition = {
+      kind: RouteKind.APP_PAGE,
+      filename: '',
+      bundlePath: '',
+      page: '',
+      pathname: '/some/path',
+      appPaths: [],
+    }
+    const matcher = new RouteMatcher(definition)
+    const provider: RouteMatcherProvider = {
+      matchers: jest.fn(async () => [matcher]),
+    }
+    manager.push(provider)
+    await manager.reload()
+
+    const options: MatchOptions = {
+      i18n: {
+        detectedLocale: 'en-US',
+        pathname: '/some/path',
+        inferredFromDefault: true,
+      },
     }
     const match = await manager.match('/en-US/some/path', options)
     expect(match?.definition).toBe(definition)

@@ -92,6 +92,8 @@ function requireModule(metadata) {
   return moduleExports[metadata.name];
 }
 
+var knownServerReferences = new WeakMap();
+
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
@@ -489,18 +491,23 @@ function createServerReferenceProxy(response, metaData) {
     var args = Array.prototype.slice.call(arguments);
     var p = metaData.bound;
 
+    if (!p) {
+      return callServer(metaData.id, args);
+    }
+
     if (p.status === INITIALIZED) {
       var bound = p.value;
-      return callServer(metaData, bound.concat(args));
+      return callServer(metaData.id, bound.concat(args));
     } // Since this is a fake Promise whose .then doesn't chain, we have to wrap it.
     // TODO: Remove the wrapper once that's fixed.
 
 
     return Promise.resolve(p).then(function (bound) {
-      return callServer(metaData, bound.concat(args));
+      return callServer(metaData.id, bound.concat(args));
     });
   };
 
+  knownServerReferences.set(proxy, metaData);
   return proxy;
 }
 
@@ -575,6 +582,13 @@ function parseModelString(response, parentObject, key, value) {
             default:
               throw _chunk2.reason;
           }
+        }
+
+      case 'u':
+        {
+          // matches "$undefined"
+          // Special encoding for `undefined` which can't be serialized as JSON otherwise.
+          return undefined;
         }
 
       default:

@@ -39,7 +39,7 @@ import {
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
@@ -47,9 +47,6 @@ import { format as formatUrl, UrlWithParsedQuery } from 'url'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-
-import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
-
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
@@ -76,7 +73,6 @@ import { FontManifest } from './font-utils'
 import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute, stringifyQuery } from './server-route-utils'
@@ -99,6 +95,8 @@ import { MatchOptions } from './future/route-matcher-managers/route-matcher-mana
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
+import { nodeFs } from './lib/node-fs-methods'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 
 export * from './base-server'
 
@@ -185,7 +183,7 @@ export default class NextNodeServer extends BaseServer {
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
-     * Using this from process.env allows targeting both serverless and SSR by calling
+     * Using this from process.env allows targeting SSR by calling
      * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
     if (this.renderOpts.optimizeFonts) {
@@ -253,9 +251,13 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutes() {
     const routes = super.getRoutes()
+    const nextConfigOutput = this.nextConfig.output
 
     if (this.hasAppDir) {
-      routes.handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
+      routes.handlers.set(
+        RouteKind.APP_ROUTE,
+        new AppRouteRouteHandler(nextConfigOutput)
+      )
     }
 
     return routes
@@ -805,6 +807,7 @@ export default class NextNodeServer extends BaseServer {
 
     delete query.__nextLocale
     delete query.__nextDefaultLocale
+    delete query.__nextInferredLocaleFromDefault
 
     await apiResolver(
       (req as NodeNextRequest).originalRequest,
@@ -837,7 +840,7 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null> {
+  ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
     )
@@ -849,13 +852,13 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
-  ): Promise<RenderResult | null> {
+  ): Promise<RenderResult> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `serverComponentManifest` field.
+    // object here but only updating its `clientReferenceManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.serverComponentManifest = this.serverComponentManifest
+    renderOpts.clientReferenceManifest = this.clientReferenceManifest
     renderOpts.serverCSSManifest = this.serverCSSManifest
-    renderOpts.fontLoaderManifest = this.fontLoaderManifest
+    renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
       return appRenderToHTMLOrFlight(
@@ -957,8 +960,16 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    return getTracer().trace(NextNodeServerSpan.findPageComponents, () =>
-      this.findPageComponentsImpl({ pathname, query, params, isAppPath })
+    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    return getTracer().trace(
+      NextNodeServerSpan.findPageComponents,
+      {
+        spanName: `resolving page into components`,
+        attributes: {
+          'next.route': pathname,
+        },
+      },
+      () => this.findPageComponentsImpl({ pathname, query, params, isAppPath })
     )
   }
 
@@ -1057,8 +1068,8 @@ export default class NextNodeServer extends BaseServer {
     ))
   }
 
-  protected getFontLoaderManifest() {
-    return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
+  protected getNextFontManifest() {
+    return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
   }
 
   protected getFallback(page: string): Promise<string> {
@@ -1114,7 +1125,7 @@ export default class NextNodeServer extends BaseServer {
           pathname = getRouteFromAssetPath(pathname, '.json')
 
           // ensure trailing slash is normalized per config
-          if (this.router.catchAllMiddleware[0]) {
+          if (this.router.hasMiddleware) {
             if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
               pathname += '/'
             }
@@ -1127,31 +1138,41 @@ export default class NextNodeServer extends BaseServer {
             }
           }
 
-          if (this.nextConfig.i18n) {
-            const { host } = req?.headers || {}
-            // remove port from host and remove port if present
-            const hostname = host?.split(':')[0].toLowerCase()
-            const localePathResult = normalizeLocalePath(
-              pathname,
-              this.nextConfig.i18n.locales
-            )
-            const { defaultLocale } =
-              detectDomainLocale(this.nextConfig.i18n.domains, hostname) || {}
+          if (this.i18nProvider) {
+            // Remove the port from the hostname if present.
+            const hostname = req?.headers.host?.split(':')[0].toLowerCase()
 
-            let detectedLocale = ''
+            const domainLocale = this.i18nProvider.detectDomainLocale(hostname)
+            const defaultLocale =
+              domainLocale?.defaultLocale ??
+              this.i18nProvider.config.defaultLocale
 
+            const localePathResult = this.i18nProvider.analyze(pathname)
+
+            // If the locale is detected from the path, we need to remove it
+            // from the pathname.
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
-              detectedLocale = localePathResult.detectedLocale
             }
 
-            _parsedUrl.query.__nextLocale = detectedLocale
-            _parsedUrl.query.__nextDefaultLocale =
-              defaultLocale || this.nextConfig.i18n.defaultLocale
+            // Update the query with the detected locale and default locale.
+            _parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+            _parsedUrl.query.__nextDefaultLocale = defaultLocale
 
-            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
-              _parsedUrl.query.__nextLocale =
-                _parsedUrl.query.__nextDefaultLocale
+            // If the locale is not detected from the path, we need to mark that
+            // it was not inferred from default.
+            if (!_parsedUrl.query.__nextLocale) {
+              delete _parsedUrl.query.__nextInferredLocaleFromDefault
+            }
+
+            // If no locale was detected and we don't have middleware, we need
+            // to render a 404 page.
+            // NOTE: (wyattjoh) we may need to change this for app/
+            if (
+              !localePathResult.detectedLocale &&
+              !this.router.hasMiddleware
+            ) {
+              _parsedUrl.query.__nextLocale = defaultLocale
               await this.render404(req, res, _parsedUrl)
               return { finished: true }
             }
@@ -1212,25 +1233,23 @@ export default class NextNodeServer extends BaseServer {
           throw new Error('pathname is undefined')
         }
 
+        const bubbleNoFallback = Boolean(query._nextBubbleNoFallback)
+
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
         const options: MatchOptions = {
-          i18n: this.localeNormalizer?.match(pathname),
-        }
-        if (options.i18n?.detectedLocale) {
-          parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+          i18n: this.i18nProvider?.fromQuery(pathname, query),
         }
 
-        const bubbleNoFallback = !!query._nextBubbleNoFallback
         const match = await this.matchers.match(pathname, options)
-
-        if (match) {
-          addRequestMeta(req, '_nextMatch', match)
-        }
 
         // Try to handle the given route with the configured handlers.
         if (match) {
+          // Add the match to the request so we don't have to re-run the matcher
+          // for the same request.
+          addRequestMeta(req, '_nextMatch', match)
+
           // TODO-APP: move this to a route handler
           const edgeFunctionsPages = this.getEdgeFunctionsPages()
           for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -1276,6 +1295,10 @@ export default class NextNodeServer extends BaseServer {
             )
             if (handled) return { finished: true }
           }
+          // else if (match.definition.kind === RouteKind.METADATA_ROUTE) {
+          //   handled = await this.handlers.handle(match, req, res)
+          //   if (handled) return { finished: true }
+          // }
         }
 
         try {
@@ -1311,7 +1334,7 @@ export default class NextNodeServer extends BaseServer {
       useFileSystemPublicRoutes,
       matchers: this.matchers,
       nextConfig: this.nextConfig,
-      localeNormalizer: this.localeNormalizer,
+      i18nProvider: this.i18nProvider,
     }
   }
 
@@ -1336,13 +1359,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getCacheFilesystem(): CacheFs {
-    return {
-      readFile: (f) => fs.promises.readFile(f, 'utf8'),
-      readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-      writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
-      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
-      stat: (f) => fs.promises.stat(f),
-    }
+    return nodeFs
   }
 
   private normalizeReq(
@@ -1592,6 +1609,38 @@ export default class NextNodeServer extends BaseServer {
             addRequestMeta(req, '_nextRewroteUrl', newUrl)
             addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
+            // Analyze the destination url to update the locale in the query if
+            // it is enabled.
+            if (this.i18nProvider) {
+              // Base path should be stripped before we analyze the destination
+              // url for locales if it is enabled.
+              let pathname = newUrl
+              if (this.nextConfig.basePath) {
+                pathname = removePathPrefix(pathname, this.nextConfig.basePath)
+              }
+
+              // Assume the default locale from the query. We do this to ensure
+              // that if the rewrite is specified without a locale we can
+              // fallback to the correct locale. The domain didn't change, so
+              // we can use the same default as before.
+              const defaultLocale = parsedUrl.query.__nextDefaultLocale
+
+              // Analyze the pathname to see if it detects a locale.
+              const { detectedLocale, inferredFromDefault } =
+                this.i18nProvider.analyze(pathname, { defaultLocale })
+
+              // We update the locale in the query if it is detected. If it
+              // wasn't detected it will fallback to the default locale.
+              parsedUrl.query.__nextLocale = detectedLocale
+
+              // Mark if the locale was inferred from the default locale.
+              if (inferredFromDefault) {
+                parsedUrl.query.__nextInferredLocaleFromDefault = '1'
+              } else {
+                delete parsedUrl.query.__nextInferredLocaleFromDefault
+              }
+            }
+
             return {
               finished: false,
               pathname: newUrl,
@@ -1758,7 +1807,7 @@ export default class NextNodeServer extends BaseServer {
     let url: string
 
     const options: MatchOptions = {
-      i18n: this.localeNormalizer?.match(normalizedPathname),
+      i18n: this.i18nProvider?.analyze(normalizedPathname),
     }
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -1887,6 +1936,7 @@ export default class NextNodeServer extends BaseServer {
             const parsedUrl = parseUrl(initUrl)
             const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
               nextConfig: this.nextConfig,
+              i18nProvider: this.i18nProvider,
             })
 
             parsedUrl.pathname = pathnameInfo.pathname
@@ -2017,6 +2067,8 @@ export default class NextNodeServer extends BaseServer {
               }
             }
 
+            // If the middleware has set a `x-middleware-rewrite` header, we
+            // need to rewrite the URL to the new path and re-run the request.
             if (result.response.headers.has('x-middleware-rewrite')) {
               const rewritePath = result.response.headers.get(
                 'x-middleware-rewrite'
@@ -2024,6 +2076,9 @@ export default class NextNodeServer extends BaseServer {
               const parsedDestination = parseUrl(rewritePath)
               const newUrl = parsedDestination.pathname
 
+              // If the destination has a protocol and host that doesn't match
+              // the current request, we need to proxy the request to the
+              // correct host.
               if (
                 parsedDestination.protocol &&
                 (parsedDestination.port
@@ -2037,14 +2092,13 @@ export default class NextNodeServer extends BaseServer {
                 )
               }
 
-              if (this.nextConfig.i18n) {
-                const localePathResult = normalizeLocalePath(
-                  newUrl,
-                  this.nextConfig.i18n.locales
-                )
-                if (localePathResult.detectedLocale) {
-                  parsedDestination.query.__nextLocale =
-                    localePathResult.detectedLocale
+              // If this server has i18n enabled, we need to make sure to parse
+              // the locale from the destination URL and add it to the query
+              // string so that the next request is properly localized.
+              if (this.i18nProvider) {
+                const { detectedLocale } = this.i18nProvider.analyze(newUrl)
+                if (detectedLocale) {
+                  parsedDestination.query.__nextLocale = detectedLocale
                 }
               }
 

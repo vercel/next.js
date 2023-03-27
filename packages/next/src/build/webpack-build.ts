@@ -100,7 +100,6 @@ async function webpackBuildImpl(
     isServer: false,
     buildId: NextBuildContext.buildId!,
     config: config,
-    target: config.target!,
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
@@ -304,6 +303,7 @@ async function webpackBuildImpl(
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
+      NextBuildContext.buildSpinner?.stopAndPersist()
       Log.info('Compiled successfully')
     }
 
@@ -409,7 +409,7 @@ async function webpackBuildWithWorker() {
 
   const combinedResult = {
     duration: 0,
-    turbotraceContext: {} as any,
+    turbotraceContext: {} as TurbotraceContext,
   }
   // order matters here
   const ORDERED_COMPILER_NAMES = [
@@ -447,9 +447,9 @@ async function webpackBuildWithWorker() {
     if (curResult.turbotraceContext?.entriesTrace) {
       combinedResult.turbotraceContext = curResult.turbotraceContext
 
-      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace
+      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace!
       if (entryNameMap) {
-        combinedResult.turbotraceContext.entriesTrace.entryNameMap = new Map(
+        combinedResult.turbotraceContext.entriesTrace!.entryNameMap = new Map(
           entryNameMap
         )
       }

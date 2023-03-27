@@ -1,42 +1,78 @@
-import type { MetadataImageModule } from './metadata/types'
+/*
+ * This loader is responsible for extracting the metadata image info for rendering in html
+ */
+
+import type {
+  MetadataImageModule,
+  PossibleImageFileNameConvention,
+} from './metadata/types'
+import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
+import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
 interface Options {
-  isDev: boolean
-  assetPrefix: string
-  numericSizes: boolean
-}
-
-const mimeTypeMap = {
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  ico: 'image/x-icon',
-  svg: 'image/svg+xml',
-  avif: 'image/avif',
-  webp: 'image/webp',
+  route: string
+  type: PossibleImageFileNameConvention
+  pageExtensions: string[]
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { assetPrefix, isDev, numericSizes } = options
-  const context = this.rootContext
+  const { type, route, pageExtensions } = options
+  const numericSizes = type === 'twitter' || type === 'openGraph'
+  const { resourcePath, rootContext: context } = this
+  const { name: filename, ext } = path.parse(resourcePath)
 
-  const opts = { context, content }
-
-  // e.g. icon.png -> server/static/media/metadata/icon.399de3b9.png
-  const interpolatedName = loaderUtils.interpolateName(
-    this,
-    '/static/media/metadata/[name].[hash:8].[ext]',
-    opts
-  )
-  const outputPath = assetPrefix + '/_next' + interpolatedName
-  let extension = loaderUtils.interpolateName(this, '[ext]', opts)
+  let extension = ext.slice(1)
   if (extension === 'jpg') {
     extension = 'jpeg'
   }
 
-  const imageSize = await getImageSize(content, extension).catch((err) => err)
+  const opts = { context, content }
+
+  const interpolatedName = loaderUtils.interpolateName(
+    this,
+    '[name].[ext]',
+    opts
+  )
+
+  // No hash query for favicon.ico
+  const contentHash =
+    type === 'favicon'
+      ? ''
+      : loaderUtils.interpolateName(this, '[contenthash]', opts)
+
+  const outputPath =
+    route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
+
+  const isDynamicResource = pageExtensions.includes(extension)
+  if (isDynamicResource) {
+    // re-export and spread as `exportedImageData` to avoid non-exported error
+    return `\
+    import * as exported from ${JSON.stringify(resourcePath)}
+
+    const exportedImageData = { ...exported }
+    const imageData = {
+      alt: exportedImageData.alt,
+      type: exportedImageData.contentType,
+      url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
+    }
+    const { size } = exportedImageData
+    if (size) {
+      ${
+        type === 'twitter' || type === 'openGraph'
+          ? 'imageData.width = size.width; imageData.height = size.height;'
+          : 'imageData.sizes = size.width + "x" + size.height;'
+      }
+    }
+    export default imageData`
+  }
+
+  const imageSize = await getImageSize(
+    content,
+    extension as 'avif' | 'webp' | 'png' | 'jpeg'
+  ).catch((err) => err)
 
   if (imageSize instanceof Error) {
     const err = imageSize
@@ -46,8 +82,8 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const imageData: MetadataImageModule = {
     url: outputPath,
-    ...(extension in mimeTypeMap && {
-      type: mimeTypeMap[extension as keyof typeof mimeTypeMap],
+    ...(extension in imageExtMimeTypeMap && {
+      type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
     ...(numericSizes
       ? { width: imageSize.width as number, height: imageSize.height as number }
@@ -60,8 +96,6 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   }
 
   const stringifiedData = JSON.stringify(imageData)
-
-  this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
 
   return `export default ${stringifiedData};`
 }
