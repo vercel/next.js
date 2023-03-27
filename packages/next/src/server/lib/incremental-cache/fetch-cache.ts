@@ -5,6 +5,13 @@ import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
+interface NextFetchCacheParams {
+  internal?: boolean
+  fetchType?: string
+  fetchIdx?: number
+  originUrl?: string
+}
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
@@ -86,17 +93,18 @@ export default class FetchCache implements CacheHandler {
     if (!data && this.cacheEndpoint) {
       try {
         const start = Date.now()
+        const fetchParams: NextFetchCacheParams = {
+          internal: true,
+          fetchType: 'fetch-get',
+          originUrl,
+          fetchIdx,
+        }
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'GET',
             headers: this.headers,
-            next: {
-              internal: true,
-              fetchType: 'fetch-get',
-              originUrl,
-              fetchIdx,
-            },
+            next: fetchParams as NextFetchRequestConfig,
           }
         )
 
@@ -185,18 +193,19 @@ export default class FetchCache implements CacheHandler {
             data.data.headers['cache-control']
         }
         const body = JSON.stringify(data)
+        const fetchParams: NextFetchCacheParams = {
+          internal: true,
+          fetchType: 'fetch-set',
+          originUrl,
+          fetchIdx,
+        }
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
             headers: this.headers,
             body: body,
-            next: {
-              internal: true,
-              fetchType: 'fetch-set',
-              originUrl,
-              fetchIdx,
-            },
+            next: fetchParams as NextFetchRequestConfig,
           }
         )
 
