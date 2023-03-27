@@ -39,12 +39,15 @@ export default async function transformSource(
     // syntax in other modules that import this client boundary.
     let assumedSourceType = sourceType
     if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
-      if (clientRefs.length === 0) {
+      if (
+        clientRefs.length === 0 ||
+        (clientRefs.length === 1 && clientRefs[0] === '')
+      ) {
         // If there's zero export detected in the client boundary, and it's the
         // `auto` type, we can safely assume it's a CJS module because it doesn't
         // have ESM exports.
         assumedSourceType = 'commonjs'
-      } else {
+      } else if (!clientRefs.includes('*')) {
         // Otherwise, we assume it's an ESM module.
         assumedSourceType = 'module'
       }
@@ -62,21 +65,22 @@ export default async function transformSource(
       let esmSource = `\
 import { createProxy } from "${moduleProxy}"
 const proxy = createProxy("${this.resourcePath}")
-`
-      let cnt = 0
-      for (const ref of clientRefs) {
-        if (ref === 'default') {
-          esmSource += `
+
 // Accessing the __esModule property and exporting $$typeof are required here.
 // The __esModule getter forces the proxy target to create the default export
 // and the $$typeof value is for rendering logic to determine if the module
 // is a client boundary.
 export const { __esModule, $$typeof } = proxy;
-export default proxy.default`
-        } else {
+export default proxy.default;
+`
+      let cnt = 0
+      for (const ref of clientRefs) {
+        if (ref !== '' && ref !== 'default') {
           esmSource += `
 const e${cnt} = proxy["${ref}"];
 export { e${cnt++} as ${ref} };`
+        } else if (ref === '') {
+          esmSource += `\nexports[''] = proxy[''];`
         }
       }
 
