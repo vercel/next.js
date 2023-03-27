@@ -581,6 +581,7 @@ pub async fn load_next_config_internal(
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
+            Default::default(),
             context.compile_time_info(),
         );
         any_content_changed(config_asset.into())

@@ -735,6 +735,7 @@ impl SsrEntryVc {
                         runtime: OptionStringVc::cell(None),
                     },
                 ]),
+                Default::default(),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(inner_assets),
             ),
