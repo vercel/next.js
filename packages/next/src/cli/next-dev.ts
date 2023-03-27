@@ -265,7 +265,7 @@ const nextDev: CliCommand = async (argv) => {
     return server
   } else {
     await startServer(devServerOptions)
-
+    await preflight()
     // if we're using workers we can auto restart on config changes
     if (devServerOptions.useWorkers) {
       // TODO: watch config and such and restart
