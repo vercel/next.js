@@ -263,22 +263,22 @@ function assignDefaults(
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
-        'Specified "i18n" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "i18n" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
       )
     }
     if (result.rewrites) {
       throw new Error(
-        'Specified "rewrites" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "rewrites" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
       )
     }
     if (result.redirects) {
       throw new Error(
-        'Specified "redirects" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "redirects" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
       )
     }
     if (result.headers) {
       throw new Error(
-        'Specified "headers" cannot but used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
+        'Specified "headers" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
       )
     }
   }

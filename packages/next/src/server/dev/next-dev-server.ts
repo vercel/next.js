@@ -492,9 +492,10 @@ export default class DevServer extends Server {
           devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
-            pagesDir: this.dir,
+            dir: this.dir,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: false,
+            pagesType: 'root',
           })
 
           const staticInfo = await getPageStaticInfo({
@@ -531,9 +532,10 @@ export default class DevServer extends Server {
           }
 
           let pageName = absolutePathToPage(fileName, {
-            pagesDir: isAppPath ? this.appDir! : this.pagesDir!,
+            dir: isAppPath ? this.appDir! : this.pagesDir!,
             extensions: this.nextConfig.pageExtensions,
             keepIndex: isAppPath,
+            pagesType: isAppPath ? 'app' : 'pages',
           })
 
           if (
@@ -551,9 +553,13 @@ export default class DevServer extends Server {
             if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
+            // Ignore files/directories starting with `_` in the app directory
+            if (normalizePathSep(fileName).includes('/_')) {
+              continue
+            }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }

@@ -16,7 +16,7 @@ use turbopack_core::{
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_ecmascript::{
-    chunk_group_files_asset::ChunkGroupFilesAsset, utils::stringify_js, EcmascriptInputTransform,
+    chunk_group_files_asset::ChunkGroupFilesAsset, utils::StringifyJs, EcmascriptInputTransform,
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
@@ -85,8 +85,8 @@ impl Transition for NextEdgeTransition {
         let mut new_content = RopeBuilder::from(
             format!(
                 "const NAME={};\nconst PAGE = {};\n",
-                stringify_js(&self.entry_name),
-                stringify_js(path)
+                StringifyJs(&self.entry_name),
+                StringifyJs(path)
             )
             .into_bytes(),
         );
@@ -112,9 +112,8 @@ impl Transition for NextEdgeTransition {
 
         let asset = ChunkGroupFilesAsset {
             asset: new_asset.into(),
+            client_root: self.output_path,
             chunking_context: self.edge_chunking_context,
-            base_path: self.output_path,
-            server_root: self.output_path,
             runtime_entries: None,
         };
 

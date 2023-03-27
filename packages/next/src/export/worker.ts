@@ -41,6 +41,7 @@ import { RouteKind } from '../server/future/route-kind'
 import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
 import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { AppRouteRouteMatch } from '../server/future/route-matches/app-route-route-match'
 
 loadRequireHook()
 
@@ -393,24 +394,26 @@ export default async function exportPage({
             incrementalCache: curRenderOpts.incrementalCache,
           }
 
+          const match: AppRouteRouteMatch = {
+            params: query,
+            definition: {
+              filename: posix.join(distDir, 'server', 'app', page),
+              bundlePath: posix.join('app', page),
+              kind: RouteKind.APP_ROUTE,
+              page,
+              pathname: path,
+            },
+          }
+
           try {
-            const routeHandler = new AppRouteRouteHandler(nextConfigOuput)
-            const response: Response = await routeHandler.handle(
-              {
-                params: query,
-                definition: {
-                  filename: posix.join(distDir, 'server', 'app', page),
-                  bundlePath: posix.join('app', page),
-                  kind: RouteKind.APP_ROUTE,
-                  page,
-                  pathname: path,
-                },
-              },
+            const handler = new AppRouteRouteHandler(nextConfigOuput)
+            const response = await handler.handle(
+              match,
               nodeReq,
               nodeRes,
-              staticContext,
-              true
+              staticContext
             )
+
             // we don't consider error status for static generation
             // except for 404
             // TODO: do we want to cache other status codes?
@@ -462,10 +465,11 @@ export default async function exportPage({
           try {
             curRenderOpts.params ||= {}
 
+            const isNotFoundPage = page === '/not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              page,
+              isNotFoundPage ? '/404' : page,
               query,
               curRenderOpts as any
             )
@@ -538,7 +542,6 @@ export default async function exportPage({
         return { ...results, duration: Date.now() - start }
       }
 
-      // TODO: de-dupe the logic here between serverless and server mode
       if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
         // make sure it ends with .html if the name contains a dot
         htmlFilepath += '.html'
@@ -551,7 +554,7 @@ export default async function exportPage({
       } else {
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
-         * Using this from process.env allows targeting both serverless and SSR by calling
+         * Using this from process.env allows targeting SSR by calling
          * `process.env.__NEXT_OPTIMIZE_FONTS`.
          * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
          */

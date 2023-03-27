@@ -658,12 +658,16 @@ createNextDescribe(
         expect(resAppleIcon.status).toBe(200)
         expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
         expect(resAppleIcon.headers.get('cache-control')).toBe(
-          'public, max-age=0, must-revalidate'
+          isNextDev
+            ? 'no-cache, no-store'
+            : 'public, immutable, no-transform, max-age=31536000'
         )
         expect(resIcon.status).toBe(200)
         expect(resIcon.headers.get('content-type')).toBe('image/png')
         expect(resIcon.headers.get('cache-control')).toBe(
-          'public, max-age=0, must-revalidate'
+          isNextDev
+            ? 'no-cache, no-store'
+            : 'public, immutable, no-transform, max-age=31536000'
         )
       })
 
@@ -755,6 +759,13 @@ createNextDescribe(
           expect(obj.val2.toString()).toBe(value2)
         }
       })
+    })
+
+    it('should not effect metadata images convention like files under pages directory', async () => {
+      const iconHtml = await next.render('/blog/icon')
+      const ogHtml = await next.render('/blog/opengraph-image')
+      expect(iconHtml).toContain('pages-icon-page')
+      expect(ogHtml).toContain('pages-opengraph-image-page')
     })
   }
 )

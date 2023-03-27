@@ -20,10 +20,7 @@ import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-ass
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import {
-  interpolateDynamicPath,
-  normalizeVercelUrl,
-} from '../build/webpack/loaders/next-serverless-loader/utils'
+import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
 interface WebServerOptions extends Options {
@@ -213,7 +210,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           pathname = getRouteFromAssetPath(pathname, '.json')
 
           // ensure trailing slash is normalized per config
-          if (this.router.catchAllMiddleware[0]) {
+          if (this.router.hasMiddleware) {
             if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
               pathname += '/'
             }
@@ -247,7 +244,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
             _parsedUrl.query.__nextDefaultLocale =
               domainLocale?.defaultLocale || this.nextConfig.i18n.defaultLocale
 
-            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
+            if (!detectedLocale && !this.router.hasMiddleware) {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
@@ -309,9 +306,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         pathname = removeTrailingSlash(pathname)
 
         if (this.i18nProvider) {
-          const { detectedLocale } = await this.i18nProvider.analyze(pathname, {
-            defaultLocale: undefined,
-          })
+          const { detectedLocale } = await this.i18nProvider.analyze(pathname)
           if (detectedLocale) {
             parsedUrl.query.__nextLocale = detectedLocale
           }

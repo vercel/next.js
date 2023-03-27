@@ -4,8 +4,8 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     module_options::{
-        ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions,
-        WebpackLoadersOptions,
+        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext, ModuleOptionsContextVc,
+        PostCssTransformOptions, WebpackLoadersOptions,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
@@ -238,7 +238,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                enable_jsx: Some(get_jsx_transform_options()),
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -257,7 +257,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                enable_jsx: Some(get_jsx_transform_options()),
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -279,7 +279,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                enable_jsx: Some(get_jsx_transform_options()),
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -314,7 +314,7 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
             ModuleOptionsContext {
-                enable_jsx: true,
+                enable_jsx: Some(get_jsx_transform_options()),
                 enable_styled_jsx: true,
                 enable_postcss_transform,
                 enable_webpack_loaders,
@@ -331,6 +331,15 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
+}
+
+#[turbo_tasks::function]
+pub fn get_jsx_transform_options() -> JsxTransformOptionsVc {
+    JsxTransformOptions {
+        import_source: None,
+        runtime: None,
+    }
+    .cell()
 }
 
 #[turbo_tasks::function]

@@ -20,12 +20,41 @@ import {
 
 const glob = promisify(globOrig)
 const appDir = join(__dirname, '..')
-const distDir = join(__dirname, '.next')
+const distDir = join(appDir, '.next')
 const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
 const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
+const expectedFiles = [
+  '404.html',
+  '404/index.html',
+  '_next/static/media/test.3f1a293b.png',
+  '_next/static/test-build-id/_buildManifest.js',
+  '_next/static/test-build-id/_ssgManifest.js',
+  'another/first/index.html',
+  'another/first/index.txt',
+  'another/index.html',
+  'another/index.txt',
+  'another/second/index.html',
+  'another/second/index.txt',
+  'api/json',
+  'api/txt',
+  'favicon.ico',
+  'image-import/index.html',
+  'image-import/index.txt',
+  'index.html',
+  'index.txt',
+  'robots.txt',
+]
+
+async function getFiles(cwd = exportDir) {
+  const opts = { cwd, nodir: true }
+  const files = ((await glob('**/*', opts)) as string[])
+    .filter((f) => !f.startsWith('_next/static/chunks/'))
+    .sort()
+  return files
+}
 async function runTests({
   isDev,
   trailingSlash,
@@ -65,7 +94,6 @@ async function runTests({
     stopOrKill = async () => await killApp(app)
   } else {
     await nextBuild(appDir)
-    await nextExport(appDir, { outdir: exportDir })
     const app = await startStaticServer(exportDir, null, appPort)
     stopOrKill = async () => await stopApp(app)
   }
@@ -159,31 +187,7 @@ describe('app dir with output export', () => {
     { dynamic: "'force-static'" },
   ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
     await runTests({ dynamicPage: dynamic })
-    const opts = { cwd: exportDir, nodir: true }
-    const files = ((await glob('**/*', opts)) as string[])
-      .filter((f) => !f.startsWith('_next/static/chunks/'))
-      .sort()
-    expect(files).toEqual([
-      '404.html',
-      '404/index.html',
-      '_next/static/media/test.3f1a293b.png',
-      '_next/static/test-build-id/_buildManifest.js',
-      '_next/static/test-build-id/_ssgManifest.js',
-      'another/first/index.html',
-      'another/first/index.txt',
-      'another/index.html',
-      'another/index.txt',
-      'another/second/index.html',
-      'another/second/index.txt',
-      'api/json',
-      'api/txt',
-      'favicon.ico',
-      'image-import/index.html',
-      'image-import/index.txt',
-      'index.html',
-      'index.txt',
-      'robots.txt',
-    ])
+    expect(await getFiles()).toEqual(expectedFiles)
   })
   it("should throw when dynamic 'force-dynamic' on page", async () => {
     slugPage.replace(
@@ -234,5 +238,101 @@ describe('app dir with output export', () => {
     expect(result.stderr).toContain(
       'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".'
     )
+  })
+  it('should throw when exportPathMap configured', async () => {
+    nextConfig.replace(
+      'trailingSlash: true,',
+      `trailingSlash: true,
+       exportPathMap: async function (map) {
+        return map
+      },`
+    )
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    let result = { code: 0, stderr: '' }
+    try {
+      result = await nextBuild(appDir, [], { stderr: true })
+    } finally {
+      nextConfig.restore()
+    }
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(
+      'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
+    )
+  })
+  it('should warn about "next export" is no longer needed with config', async () => {
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    await nextBuild(appDir)
+    expect(await getFiles()).toEqual(expectedFiles)
+    let stdout = ''
+    let stderr = ''
+    await nextExport(
+      appDir,
+      { outdir: exportDir },
+      {
+        onStdout(msg) {
+          stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
+        },
+      }
+    )
+    expect(stderr).toContain(
+      'warn  - "next export" is no longer needed when "output: export" is configured in next.config.js'
+    )
+    expect(stdout).toContain('Export successful. Files written to')
+    expect(await getFiles()).toEqual(expectedFiles)
+  })
+  it('should warn with deprecation message when no config.output detected for next export', async () => {
+    await fs.remove(distDir)
+    await fs.remove(exportDir)
+    nextConfig.replace(`output: 'export',`, '')
+    try {
+      await nextBuild(appDir)
+      expect(await getFiles()).toEqual([])
+      let stdout = ''
+      let stderr = ''
+      await nextExport(
+        appDir,
+        { outdir: exportDir },
+        {
+          onStdout(msg) {
+            stdout += msg
+          },
+          onStderr(msg) {
+            stderr += msg
+          },
+        }
+      )
+      expect(stderr).toContain(
+        'warn  - "next export" is deprecated in favor of "output: export" in next.config.js'
+      )
+      expect(stdout).toContain('Export successful. Files written to')
+      expect(await getFiles()).toEqual(expectedFiles)
+    } finally {
+      nextConfig.restore()
+      await fs.remove(distDir)
+      await fs.remove(exportDir)
+    }
+  })
+  it('should correctly emit exported assets to config.distDir', async () => {
+    const outputDir = join(appDir, 'output')
+    await fs.remove(distDir)
+    await fs.remove(outputDir)
+    nextConfig.replace(
+      'trailingSlash: true,',
+      `trailingSlash: true,
+       distDir: 'output',`
+    )
+    try {
+      await nextBuild(appDir)
+      expect(await getFiles(outputDir)).toEqual(expectedFiles)
+    } finally {
+      nextConfig.restore()
+      await fs.remove(distDir)
+      await fs.remove(outputDir)
+    }
   })
 })

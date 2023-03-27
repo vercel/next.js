@@ -17,6 +17,7 @@ import {
 } from './metadata/discover'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { promises as fs } from 'fs'
 
 export type AppLoaderOptions = {
   name: string
@@ -39,7 +40,6 @@ const FILE_TYPES = {
   template: 'template',
   error: 'error',
   loading: 'loading',
-  head: 'head',
   'not-found': 'not-found',
 } as const
 
@@ -56,6 +56,8 @@ export type ComponentsType = {
   readonly page?: ModuleReference
 } & {
   readonly metadata?: CollectedMetadata
+} & {
+  readonly defaultPage?: ModuleReference
 }
 
 async function createAppRouteCode({
@@ -75,7 +77,9 @@ async function createAppRouteCode({
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
   let resolvedPagePath = (await resolver(routePath))!
-  if (isMetadataRoute(name)) {
+
+  const filename = path.parse(resolvedPagePath).name
+  if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       pageExtensions,
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
@@ -102,6 +106,18 @@ async function createAppRouteCode({
   `
 }
 
+const normalizeParallelKey = (key: string) =>
+  key.startsWith('@') ? key.slice(1) : key
+
+const isDirectory = async (pathname: string) => {
+  try {
+    const stat = await fs.stat(pathname)
+    return stat.isDirectory()
+  } catch (err) {
+    return false
+  }
+}
+
 async function createTreeCodeFromPath(
   pagePath: string,
   {
@@ -109,6 +125,7 @@ async function createTreeCodeFromPath(
     resolvePath,
     resolveParallelSegments,
     loaderContext,
+    pageExtensions,
   }: {
     resolver: (
       pathname: string,
@@ -119,6 +136,7 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
+    pageExtensions: string[]
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -127,6 +145,43 @@ async function createTreeCodeFromPath(
 
   let rootLayout: string | undefined
   let globalError: string | undefined
+
+  async function resolveAdjacentParallelSegments(
+    segmentPath: string
+  ): Promise<string[]> {
+    const absoluteSegmentPath = await resolver(
+      `${appDirPrefix}${segmentPath}`,
+      true
+    )
+
+    if (!absoluteSegmentPath) {
+      return []
+    }
+
+    const segmentIsDirectory = await isDirectory(absoluteSegmentPath)
+
+    if (!segmentIsDirectory) {
+      return []
+    }
+
+    // We need to resolve all parallel routes in this level.
+    const files = await fs.readdir(absoluteSegmentPath)
+
+    const parallelSegments: string[] = ['children']
+
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(absoluteSegmentPath, file)
+        const stat = await fs.stat(filePath)
+
+        if (stat.isDirectory() && file.startsWith('@')) {
+          parallelSegments.push(file)
+        }
+      })
+    )
+
+    return parallelSegments
+  }
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -159,6 +214,7 @@ async function createTreeCodeFromPath(
           resolvePath,
           isRootLayer,
           loaderContext,
+          pageExtensions,
         })
       }
     } catch (err: any) {
@@ -170,14 +226,14 @@ async function createTreeCodeFromPath(
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}${
-          parallelKey === 'children' ? '' : `/@${parallelKey}`
+          parallelKey === 'children' ? '' : `/${parallelKey}`
         }/page`
 
         const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[parallelKey] = `['', {}, {
+        props[normalizeParallelKey(parallelKey)] = `['__PAGE__', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
@@ -186,14 +242,19 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
         [
           ...segments,
-          ...(parallelKey === 'children' ? [] : [`@${parallelKey}`]),
+          ...(parallelKey === 'children' ? [] : [parallelKey]),
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
         ]
       )
+
+      const parallelSegmentPath =
+        segmentPath +
+        '/' +
+        (parallelKey === 'children' ? '' : `${parallelKey}/`) +
+        (Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment)
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -212,9 +273,13 @@ async function createTreeCodeFromPath(
         })
       )
 
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
+
       if (!rootLayout) {
-        const layoutPath = filePaths.find(
-          ([type, filePath]) => type === 'layout' && !!filePath
+        const layoutPath = definedFilePaths.find(
+          ([type]) => type === 'layout'
         )?.[1]
         rootLayout = layoutPath
 
@@ -225,10 +290,7 @@ async function createTreeCodeFromPath(
         }
       }
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      )
-      props[parallelKey] = `[
+      props[normalizeParallelKey(parallelKey)] = `[
         '${
           Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment
         }',
@@ -244,6 +306,32 @@ async function createTreeCodeFromPath(
           ${definedFilePaths.length ? createMetadataExportsCode(metadata) : ''}
         }
       ]`
+    }
+
+    const adjacentParallelSegments = await resolveAdjacentParallelSegments(
+      segmentPath
+    )
+
+    for (const adjacentParallelSegment of adjacentParallelSegments) {
+      if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
+        const actualSegment =
+          adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
+        const defaultPath =
+          (await resolver(
+            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+          )) ??
+          (await resolver(`next/dist/client/components/parallel-route-default`))
+
+        props[normalizeParallelKey(adjacentParallelSegment)] = `[
+          '__DEFAULT__',
+          {},
+          {
+            defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              defaultPath
+            )}), ${JSON.stringify(defaultPath)}],
+          }
+        ]`
+      }
     }
 
     return {
@@ -305,6 +393,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
+
   const resolveParallelSegments = (
     pathname: string
   ): [string, string | string[]][] => {
@@ -321,12 +410,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         const isParallelRoute = rest[0].startsWith('@')
         if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
-          matched[rest[0].slice(1)] = PAGE_SEGMENT
+          matched[rest[0]] = PAGE_SEGMENT
           continue
         }
 
         if (isParallelRoute) {
-          matched[rest[0].slice(1)] = rest.slice(1)
+          matched[rest[0]] = rest.slice(1)
           continue
         }
 
@@ -372,6 +461,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     loaderContext: this,
+    pageExtensions,
   })
 
   if (!rootLayout) {
@@ -432,7 +522,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
+    export { renderToReadableStream, decodeReply } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
     export const __next_app_webpack_require__ = __webpack_require__
   `
 
