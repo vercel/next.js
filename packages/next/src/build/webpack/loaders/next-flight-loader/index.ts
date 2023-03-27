@@ -67,7 +67,7 @@ const proxy = createProxy("${this.resourcePath}")
       for (const ref of clientRefs) {
         if (ref === 'default') {
           esmSource += `
-export const { __esModule } = proxy;
+export const { __esModule, $$typeof, $$id, $$async, name, defaultProps, toJSON, then } = proxy;
 export default proxy.default`
         } else {
           esmSource += `
