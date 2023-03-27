@@ -4,6 +4,8 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 
+use crate::resolve::ModulePartVc;
+
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub struct AssetIdent {
@@ -17,6 +19,8 @@ pub struct AssetIdent {
     pub assets: Vec<(StringVc, AssetIdentVc)>,
     /// The modifiers of this asset (e.g. `client chunks`)
     pub modifiers: Vec<StringVc>,
+    /// The part of the asset that is a (ECMAScript) module
+    pub part: Option<ModulePartVc>,
 }
 
 impl AssetIdent {
@@ -73,6 +77,7 @@ impl AssetIdentVc {
             fragment: None,
             assets: Vec::new(),
             modifiers: Vec::new(),
+            part: None,
         }))
     }
 
@@ -80,6 +85,13 @@ impl AssetIdentVc {
     pub async fn with_modifier(self, modifier: StringVc) -> Result<Self> {
         let mut this = self.await?.clone_value();
         this.add_modifier(modifier);
+        Ok(Self::new(Value::new(this)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn with_part(self, part: ModulePartVc) -> Result<Self> {
+        let mut this = self.await?.clone_value();
+        this.part = Some(part);
         Ok(Self::new(Value::new(this)))
     }
 

@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::resolve::ModulePartVc;
+
 // These enums list well-known types, which we use internally. Plugins might add
 // custom types too.
 
@@ -14,9 +16,11 @@ pub enum CommonJsReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
+    ImportPart(ModulePartVc),
     Custom(u8),
+    #[default]
     Undefined,
 }
 
@@ -76,7 +80,10 @@ impl Display for ReferenceType {
         // TODO print sub types
         let str = match self {
             ReferenceType::CommonJs(_) => "commonjs",
-            ReferenceType::EcmaScriptModules(_) => "EcmaScript Modules",
+            ReferenceType::EcmaScriptModules(sub) => match sub {
+                EcmaScriptModulesReferenceSubType::ImportPart(_) => "EcmaScript Modules (part)",
+                _ => "EcmaScript Modules",
+            },
             ReferenceType::Css(_) => "css",
             ReferenceType::Url(_) => "url",
             ReferenceType::TypeScript(_) => "typescript",

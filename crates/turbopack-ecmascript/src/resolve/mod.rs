@@ -48,11 +48,12 @@ pub async fn apply_cjs_specific_options(options: ResolveOptionsVc) -> Result<Res
 }
 
 #[turbo_tasks::function]
-pub async fn esm_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
-    // TODO pass EcmaScriptModulesReferenceSubType
-    let ty = Value::new(ReferenceType::EcmaScriptModules(
-        EcmaScriptModulesReferenceSubType::Undefined,
-    ));
+pub async fn esm_resolve(
+    origin: ResolveOriginVc,
+    request: RequestVc,
+    ty: Value<EcmaScriptModulesReferenceSubType>,
+) -> Result<ResolveResultVc> {
+    let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()));
     specific_resolve(origin, request, options, ty).await
 }

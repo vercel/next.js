@@ -14,7 +14,9 @@ use turbopack_core::{
     source_transform::SourceTransformsVc,
 };
 use turbopack_css::{CssInputTransform, CssInputTransformsVc};
-use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
+use turbopack_ecmascript::{
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptOptions,
+};
 use turbopack_node::transforms::{postcss::PostCssTransformVc, webpack::WebpackLoadersVc};
 
 use crate::evaluate_context::node_evaluate_asset_context;
@@ -64,6 +66,7 @@ impl ModuleOptionsVc {
             enable_styled_jsx,
             enable_styled_components,
             enable_types,
+            enable_tree_shaking,
             ref enable_typescript_transform,
             ref decorators,
             enable_mdx,
@@ -107,6 +110,11 @@ impl ModuleOptionsVc {
                 runtime: OptionStringVc::cell(jsx.runtime.clone()),
             });
         }
+
+        let ecmascript_options = EcmascriptOptions {
+            split_into_parts: enable_tree_shaking,
+            import_parts: enable_tree_shaking,
+        };
 
         if let Some(env) = preset_env_versions {
             transforms.push(EcmascriptInputTransform::PresetEnv(env));
@@ -244,21 +252,24 @@ impl ModuleOptionsVc {
                     ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
                     ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                    app_transforms,
-                ))],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    transforms: app_transforms,
+                    options: ecmascript_options.clone(),
+                })],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                    app_transforms,
-                ))],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    transforms: app_transforms,
+                    options: ecmascript_options.clone(),
+                })],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                    app_transforms,
-                ))],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    transforms: app_transforms,
+                    options: ecmascript_options.clone(),
+                })],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::any(vec![
@@ -294,9 +305,10 @@ impl ModuleOptionsVc {
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathHasNoExtension,
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
-                    vendor_transforms,
-                ))],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                    transforms: vendor_transforms,
+                    options: ecmascript_options.clone(),
+                })],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ReferenceType(ReferenceType::Url(
@@ -333,7 +345,10 @@ impl ModuleOptionsVc {
                         ModuleRuleCondition::not(ModuleRuleCondition::ResourceIsVirtualAsset),
                     ]),
                     vec![
-                        ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)),
+                        ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
+                            transforms: app_transforms,
+                            options: ecmascript_options.clone(),
+                        }),
                         ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![
                             WebpackLoadersVc::new(
                                 node_evaluate_asset_context(

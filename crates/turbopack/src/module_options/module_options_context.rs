@@ -153,6 +153,8 @@ pub struct ModuleOptionsContext {
     pub rules: Vec<(ContextCondition, ModuleOptionsContextVc)>,
     #[serde(default)]
     pub placeholder_for_future_extensions: (),
+    #[serde(default)]
+    pub enable_tree_shaking: bool,
 }
 
 #[turbo_tasks::value_impl]

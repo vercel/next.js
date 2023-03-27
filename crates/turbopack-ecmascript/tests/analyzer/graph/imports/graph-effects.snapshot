@@ -1,6 +1,6 @@
 [
     ImportedBinding {
-        esm_reference_index: 0,
+        esm_reference_index: 1,
         export: Some(
             "default",
         ),
@@ -42,7 +42,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 1,
+        esm_reference_index: 3,
         export: Some(
             "a",
         ),
@@ -84,7 +84,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 1,
+        esm_reference_index: 4,
         export: Some(
             "b",
         ),
@@ -126,7 +126,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 2,
+        esm_reference_index: 6,
         export: None,
         ast_path: [
             Program(
@@ -166,7 +166,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 0,
+        esm_reference_index: 1,
         export: Some(
             "default",
         ),
@@ -211,7 +211,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 1,
+        esm_reference_index: 3,
         export: Some(
             "a",
         ),
@@ -256,7 +256,7 @@
         },
     },
     ImportedBinding {
-        esm_reference_index: 2,
+        esm_reference_index: 6,
         export: None,
         ast_path: [
             Program(

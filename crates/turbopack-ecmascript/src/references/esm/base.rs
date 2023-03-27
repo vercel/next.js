@@ -13,7 +13,11 @@ use turbopack_core::{
         ModuleId,
     },
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, PrimaryResolveResult, ResolveResultVc},
+    reference_type::EcmaScriptModulesReferenceSubType,
+    resolve::{
+        origin::ResolveOriginVc, parse::RequestVc, ModulePartVc, PrimaryResolveResult,
+        ResolveResultVc,
+    },
 };
 
 use crate::{
@@ -95,6 +99,8 @@ pub struct EsmAssetReference {
     pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub annotations: ImportAnnotations,
+
+    pub export_name: Option<ModulePartVc>,
 }
 
 impl EsmAssetReference {
@@ -112,8 +118,13 @@ impl EsmAssetReferenceVc {
     #[turbo_tasks::function]
     pub(super) async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
         let this = self.await?;
+
+        let ty = Value::new(match &this.export_name {
+            Some(part) => EcmaScriptModulesReferenceSubType::ImportPart(*part),
+            None => EcmaScriptModulesReferenceSubType::Undefined,
+        });
         Ok(ReferencedAssetVc::from_resolve_result(
-            esm_resolve(this.get_origin(), this.request),
+            esm_resolve(this.get_origin(), this.request, ty),
             this.request,
         ))
     }
@@ -123,11 +134,13 @@ impl EsmAssetReferenceVc {
         origin: ResolveOriginVc,
         request: RequestVc,
         annotations: Value<ImportAnnotations>,
+        export_name: Option<ModulePartVc>,
     ) -> Self {
         Self::cell(EsmAssetReference {
             origin,
             request,
             annotations: annotations.into_value(),
+            export_name,
         })
     }
 }
@@ -136,7 +149,12 @@ impl EsmAssetReferenceVc {
 impl AssetReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.get_origin(), self.request)
+        let ty = Value::new(match &self.export_name {
+            Some(part) => EcmaScriptModulesReferenceSubType::ImportPart(*part),
+            None => EcmaScriptModulesReferenceSubType::Undefined,
+        });
+
+        esm_resolve(self.get_origin(), self.request, ty)
     }
 }
 
