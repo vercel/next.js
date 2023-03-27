@@ -133,6 +133,7 @@
     "@babel/runtime": "7.15.4",
     "@babel/traverse": "7.18.0",
     "@babel/types": "7.18.0",
+    "@capsizecss/metrics": "1.1.0",
     "@edge-runtime/cookies": "3.0.4",
     "@edge-runtime/primitives": "2.0.5",
     "@hapi/accept": "5.0.2",

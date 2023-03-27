@@ -87,6 +87,19 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+export async function capsize_metrics() {
+  const {
+    entireMetricsCollection,
+    // eslint-disable-next-line import/no-extraneous-dependencies
+  } = require('@capsizecss/metrics/entireMetricsCollection')
+  const outputPathDist = join(
+    __dirname,
+    'dist/server/capsize-font-metrics.json'
+  )
+
+  await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
+}
+
 // eslint-disable-next-line camelcase
 externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
 export async function copy_babel_runtime(task, opts) {
@@ -2173,6 +2186,7 @@ export async function compile(task, opts) {
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
+    'capsize_metrics',
   ])
 }
 

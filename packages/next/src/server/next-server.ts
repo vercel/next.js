@@ -88,7 +88,7 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
+import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/app-render'
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
