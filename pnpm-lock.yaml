@@ -6004,7 +6004,7 @@ packages:
       react: '>=16'
     dependencies:
       '@types/mdx': 2.0.3
-      '@types/react': 18.0.28
+      '@types/react': 16.9.17
       react: 18.2.0
 
   /@mrmlnc/readdir-enhanced/2.2.1:
@@ -7016,7 +7016,7 @@ packages:
     resolution: {integrity: sha512-PB3ldyrcnAicT35TWPs5IcwKD8S333HMaa2VVv4+wdvebJkjWuW/xESoB8IwRcog8HYVYamb1g/R31Qv5Bx03g==}
     dependencies:
       '@types/eslint': 7.28.0
-      '@types/estree': 1.0.0
+      '@types/estree': 0.0.51
 
   /@types/eslint/7.28.0:
     resolution: {integrity: sha512-07XlgzX0YJUn4iG1ocY4IX9DzKSmMGUs6ESKlxWhZRaa0fatIWaHWUVapcuGa8r5HFnTqzj+4OCjd5f7EZ/i/A==}
@@ -7323,7 +7323,7 @@ packages:
   /@types/react-dom/17.0.14:
     resolution: {integrity: sha512-H03xwEP1oXmSfl3iobtmQ/2dHF5aBHr8aUMwyGZya6OW45G+xtdzmq6HkncefiBt5JU8DVyaWl/nWZbjZCnzAQ==}
     dependencies:
-      '@types/react': 18.0.28
+      '@types/react': 16.9.17
     dev: true
 
   /@types/react-dom/18.0.11:
@@ -7343,7 +7343,6 @@ packages:
     dependencies:
       '@types/prop-types': 15.7.3
       csstype: 2.6.8
-    dev: true
 
   /@types/react/18.0.28:
     resolution: {integrity: sha512-RD0ivG1kEztNBdoAK7lekI9M+azSnitIn85h4iOiaLjaTrMjzslhaqCGaI4IyCJ1RljWiLCEu4jyrLLgqxBTew==}
@@ -7351,6 +7350,7 @@ packages:
       '@types/prop-types': 15.7.3
       '@types/scheduler': 0.16.2
       csstype: 3.0.10
+    dev: true
 
   /@types/relay-runtime/13.0.0:
     resolution: {integrity: sha512-yzv6F8EZPWA2rtfFP2qMluS8tsz1q4lfdYxLegCshdAjX5uqxTR2pAliATj9wrzD6OMZF4fl9aU+Y+zmSfm2EA==}
@@ -7381,6 +7381,7 @@ packages:
 
   /@types/scheduler/0.16.2:
     resolution: {integrity: sha512-hppQEBDmlwhFAXKJX2KnWLYu5yMfi91yazPb2l+lbJiwW+wdo1gNeRA+3RgNSO39WYX2euey41KEwnqesU2Jew==}
+    dev: true
 
   /@types/selenium-webdriver/4.0.15:
     resolution: {integrity: sha512-5760PIZkzhPejy3hsKAdCKe5LJygGdxLKOLxmZL9GEUcFlO5OgzM6G2EbdbvOnaw4xvUSa9Uip6Ipwkih12BPA==}
@@ -10797,10 +10798,10 @@ packages:
 
   /csstype/2.6.8:
     resolution: {integrity: sha512-msVS9qTuMT5zwAGCVm4mxfrZ18BNc6Csd0oJAtiFMZ1FAx1CCvy2+5MDmYoix63LM/6NDbNtodCiGYGmFgO0dA==}
-    dev: true
 
   /csstype/3.0.10:
     resolution: {integrity: sha512-2u44ZG2OcNUO9HDp/Jl8C07x6pU/eTR3ncV91SiK3dhG9TWvRVsCoJw14Ckx5DgWkzGA3waZWO3d7pgqpUI/XA==}
+    dev: true
 
   /currently-unhandled/0.4.1:
     resolution: {integrity: sha512-/fITjgjGU50vjQ4FH6eUoYu+iUoUKIXws2hL15JJpIR+BbTxaXQsMuuyjtNh2WqsSBS5nsaZHFsFecyw5CCAng==}
@@ -17029,7 +17030,7 @@ packages:
       minipass-pipeline: 1.2.4
       negotiator: 0.6.2
       promise-retry: 2.0.1
-      socks-proxy-agent: 6.2.1
+      socks-proxy-agent: 6.1.1
       ssri: 8.0.1
     transitivePeerDependencies:
       - bluebird
@@ -22799,8 +22800,8 @@ packages:
       - supports-color
     dev: true
 
-  /socks-proxy-agent/6.2.1:
-    resolution: {integrity: sha512-a6KW9G+6B3nWZ1yB8G7pJwL3ggLy1uTzKAgCb7ttblwqdz9fMGJUuTy3uFzEP48FAs9FLILlmzDlE2JJhVQaXQ==}
+  /socks-proxy-agent/6.1.1:
+    resolution: {integrity: sha512-t8J0kG3csjA4g6FTbsMOWws+7R7vuRC8aQ/wy3/1OWmsgwA68zs/+cExQ0koSitUDXqhufF/YJr9wtNMZHw5Ew==}
     engines: {node: '>= 10'}
     dependencies:
       agent-base: 6.0.2
