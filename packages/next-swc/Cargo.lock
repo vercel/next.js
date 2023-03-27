@@ -5974,9 +5974,9 @@ dependencies = [
 
 [[package]]
 name = "swc_relay"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21d7489319dc3cbf645a0c01f7f79b3f7600ff4a806305f47e7fc7847cf90f11"
+checksum = "d1023f06fac2cfb3531b96edfa9e17cb66b1bbd7e91b13c981e72e3486ab310d"
 dependencies = [
  "once_cell",
  "regex",
