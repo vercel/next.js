@@ -75,6 +75,7 @@ impl Transition for NextLayoutEntryTransition {
                     runtime: OptionStringVc::cell(None),
                 },
             ]),
+            Default::default(),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "PAGE".to_string() => asset

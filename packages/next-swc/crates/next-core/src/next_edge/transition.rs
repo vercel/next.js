@@ -104,6 +104,7 @@ impl Transition for NextEdgeTransition {
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
                 use_define_for_class_fields: false,
             }]),
+            Default::default(),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "ENTRY".to_string() => asset
