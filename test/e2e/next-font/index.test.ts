@@ -142,7 +142,9 @@ describe('next/font', () => {
         expect(JSON.parse($('#nabla').text())).toEqual({
           className: expect.stringMatching(getClassNameRegex('className')),
           style: {
-            fontFamily: expect.stringMatching(/^'__Nabla_.{6}'$/),
+            fontFamily: expect.stringMatching(
+              /^'__Nabla_.{6}', '__Nabla_Fallback_.{6}'$/
+            ),
             fontStyle: 'normal',
           },
         })
