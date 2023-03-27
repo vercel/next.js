@@ -15,4 +15,11 @@ export interface RouteDefinition<K extends RouteKind = RouteKind> {
    * The pathname (including dynamic placeholders) for a route to resolve.
    */
   readonly pathname: string
+
+  /**
+   * The pathname (including dynamic placeholders) for a route to resolve that
+   * is used for the browser to display in the address bar. This is used in
+   * place of `pathname` when the route is rendering.
+   */
+  readonly pathnameOverride?: string
 }

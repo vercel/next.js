@@ -96,7 +96,6 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
-import { AppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
 import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 
 export type FindComponentsResult = {
@@ -2054,12 +2053,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.renderPageComponent(
           {
             ...ctx,
+            // Use the overridden pathname if available, otherwise use the
+            // original pathname.
             pathname:
-              match.definition.kind === RouteKind.APP_PAGE &&
-              (match.definition as AppPageRouteDefinition).interceptingRoute
-                ? (match.definition as AppPageRouteDefinition)
-                    .interceptingRoutePathname!
-                : match.definition.pathname,
+              match.definition.pathnameOverride || match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,

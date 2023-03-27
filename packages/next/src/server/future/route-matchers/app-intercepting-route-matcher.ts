@@ -1,5 +1,5 @@
-import type { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import { AppPageRouteMatch } from '../route-matches/app-page-route-match'
+import type { AppPageInterceptingRouteDefinition } from '../route-definitions/app-page-route-definition'
+import type { AppPageInterceptingRouteMatch } from '../route-matches/app-page-route-match'
 import { RouteMatcher } from './route-matcher'
 
 export type AppPageInterceptingRouteMatcherMatchOptions = {
@@ -9,15 +9,16 @@ export type AppPageInterceptingRouteMatcherMatchOptions = {
   referrer?: string
 }
 
-export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDefinition> {
-  private readonly interceptingRouteMatcher: RouteMatcher<AppPageRouteDefinition>
+export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageInterceptingRouteDefinition> {
+  private readonly interceptingRouteMatcher: RouteMatcher<AppPageInterceptingRouteDefinition>
 
-  constructor(definition: AppPageRouteDefinition) {
+  constructor(definition: AppPageInterceptingRouteDefinition) {
     super(definition)
-    this.interceptingRouteMatcher = new RouteMatcher<AppPageRouteDefinition>({
-      ...definition,
-      pathname: definition.interceptingRoute!,
-    })
+    this.interceptingRouteMatcher =
+      new RouteMatcher<AppPageInterceptingRouteDefinition>({
+        ...definition,
+        pathname: definition.interceptingRoute,
+      })
   }
 
   public get identity(): string {
@@ -36,7 +37,7 @@ export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDe
   public match(
     pathname: string,
     options?: AppPageInterceptingRouteMatcherMatchOptions
-  ): AppPageRouteMatch | null {
+  ): AppPageInterceptingRouteMatch | null {
     // This is like the parent `match` method but instead this injects the
     // additional `options` into the
     const result = this.test(pathname, options)
@@ -60,12 +61,18 @@ export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDe
     pathname: string,
     options?: AppPageInterceptingRouteMatcherMatchOptions
   ) {
-    if (!this.definition.interceptingRoute || !options?.referrer) {
+    // If this route does not have referrer information, then we can't match.
+    if (!options?.referrer) {
       return null
     }
 
-    return this.interceptingRouteMatcher.test(options.referrer) !== null
-      ? super.test(pathname)
-      : null
+    // If the intercepting route match does not match, then this route does not
+    // match.
+    if (!this.interceptingRouteMatcher.test(options.referrer)) {
+      return null
+    }
+
+    // Perform the underlying test with the intercepted route definition.
+    return super.test(pathname)
   }
 }

@@ -62,7 +62,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
             filename,
             appPaths: appPaths[pathname],
             interceptingRoute: interceptingRoute,
-            interceptingRoutePathname: pathname,
+            pathnameOverride: pathname,
           })
         )
       } else {

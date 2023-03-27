@@ -112,7 +112,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
             filename,
             appPaths: appPaths[pathname],
             interceptingRoute: interceptingRoute,
-            interceptingRoutePathname: pathname,
+            pathnameOverride: pathname,
           })
         )
       } else {
