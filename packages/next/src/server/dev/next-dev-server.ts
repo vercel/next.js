@@ -100,6 +100,7 @@ import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
+import { errorToJSON } from '../render'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -891,7 +892,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
 
     // router worker does not start webpack compilers
-    if (this.isRouterWorker) {
+    if (!this.isRenderWorker) {
       this.hotReloader = new HotReloader(this.dir, {
         pagesDir: this.pagesDir,
         distDir: this.distDir,
@@ -1255,6 +1256,18 @@ export default class DevServer extends Server {
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
+    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    if (ipcPort) {
+      await fetch(
+        `http://${
+          this.hostname
+        }:${ipcPort}?method=logErrorWithOriginalStack&args=${encodeURIComponent(
+          JSON.stringify([errorToJSON(err as Error), type])
+        )}`
+      )
+      return
+    }
+
     let usedOriginalStack = false
 
     if (isError(err) && err.stack) {
@@ -1266,9 +1279,9 @@ export default class DevServer extends Server {
             !file?.includes('web/adapter') &&
             !file?.includes('sandbox/context') &&
             !file?.includes('<anonymous>')
-        )!
+        )
 
-        if (frame.lineNumber && frame?.file) {
+        if (frame?.lineNumber && frame?.file) {
           const moduleId = frame.file!.replace(
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
@@ -1293,7 +1306,7 @@ export default class DevServer extends Server {
           )
 
           const originalFrame = await createOriginalStackFrame({
-            line: frame.lineNumber!,
+            line: frame.lineNumber,
             column: frame.column,
             source,
             frame,
@@ -1307,7 +1320,7 @@ export default class DevServer extends Server {
             edgeCompilation: isEdgeCompiler
               ? this.hotReloader?.edgeServerStats?.compilation
               : undefined,
-          })
+          }).catch(() => {})
 
           if (originalFrame) {
             const { originalCodeFrame, originalStackFrame } = originalFrame

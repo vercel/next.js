@@ -146,6 +146,7 @@ export async function startServer({
         numWorkers: 1,
         forkOptions: {
           env: {
+            FORCE_COLOR: '1',
             ...process.env,
             // we don't pass down NODE_OPTIONS as it can
             // extra memory usage
@@ -213,8 +214,8 @@ export async function startServer({
       // handle in process
       requestHandler = app.getRequestHandler()
       upgradeHandler = app.getUpgradeHandler()
-      handlersReady()
       await app.prepare()
+      handlersReady()
     }
   } catch (err) {
     // fatal error if we can't setup

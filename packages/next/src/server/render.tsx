@@ -330,7 +330,7 @@ function checkRedirectValues(
   }
 }
 
-function errorToJSON(err: Error) {
+export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
 
