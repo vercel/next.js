@@ -154,6 +154,7 @@ fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModu
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
         }]),
+        Default::default(),
         context.compile_time_info(),
     )
 }
@@ -239,6 +240,7 @@ fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
         }]),
+        Default::default(),
         context.compile_time_info(),
         configs,
     )
