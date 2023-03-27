@@ -503,31 +503,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           localArg.startsWith('--inspect-brk')
         ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
 
-      const debugPort = (() => {
-        const debugPortStr =
-          process.execArgv
-            .find(
-              (localArg) =>
-                localArg.startsWith('--inspect') ||
-                localArg.startsWith('--inspect-brk')
-            )
-            ?.split('=')[1] ??
-          process.env.NODE_OPTIONS?.match?.(
-            /--inspect(-brk)?(=(\S+))?( |$)/
-          )?.[3]
-        return debugPortStr ? parseInt(debugPortStr, 10) : 9229
-      })()
-
-      if (isDebugging || isDebuggingWithBrk) {
-        warn(
-          `the --inspect${
-            isDebuggingWithBrk ? '-brk' : ''
-          } option was detected, the Next.js server should be inspected at port ${
-            debugPort + 1
-          }.`
-        )
-      }
-
       const genExecArgv = () => {
         const execArgv = process.execArgv.filter((localArg) => {
           return (
@@ -536,10 +511,51 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           )
         })
 
-        if (isDebugging || isDebuggingWithBrk) {
-          execArgv.push(
-            `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
-          )
+        const inspectFlagVar = process.execArgv.find((localArg) => {
+          return localArg.startsWith('--inspect')
+        })
+
+        if (inspectFlagVar !== undefined) {
+          const defaultIp = '127.0.0.1'
+          const defaultPort = 9229
+
+          const transformInspectFlagForNextAvailablePort = (
+            inspectFlagStr: string
+          ) => {
+            const [flag, value] = inspectFlagStr.split('=')
+
+            if (value === undefined)
+              return `${flag}=${defaultIp}:${defaultPort + 1}`
+
+            if (value.includes(':')) {
+              // value is an IP and port (ip:port)
+              const [ip, portNum] = value.split(':')
+              return `${flag}=${ip}:${Number(portNum) + 1}`
+            }
+
+            if (value.includes('.')) {
+              // value is an IP (x.x.x.x)
+              const ip = value
+              return `${flag}=${ip}:${defaultPort + 1}`
+            }
+
+            // value is a port (1234)
+            const portNumber = value
+            return `${flag}=${defaultIp}:${Number(portNumber) + 1}`
+          }
+
+          if (isDebugging || isDebuggingWithBrk) {
+            console.log(
+              `the --inspect option was detected, the Next.js server should be inspected at port ${
+                transformInspectFlagForNextAvailablePort(inspectFlagVar).split(
+                  ':'
+                )[1]
+              }`
+            )
+            execArgv.push(
+              transformInspectFlagForNextAvailablePort(inspectFlagVar)
+            )
+          }
         }
 
         return execArgv
