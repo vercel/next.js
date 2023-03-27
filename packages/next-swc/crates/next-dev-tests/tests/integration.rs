@@ -410,12 +410,10 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
                                 message
                             ))
                         }
+                    } else if expected_error {
+                        println!("Exception throw in page:\n{}", message);
                     } else {
-                        if expected_error {
-                            println!("Exception throw in page:\n{}", message);
-                        } else {
-                            println!("Exception throw in page (this would fail the test case without TURBOPACK_DEBUG_BROWSER):\n{}", message);
-                        }
+                        println!("Exception throw in page (this would fail the test case without TURBOPACK_DEBUG_BROWSER):\n{}", message);
                     }
                 } else {
                     return Err(anyhow!("Error events channel ended unexpectedly"));
