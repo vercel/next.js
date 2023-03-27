@@ -59,7 +59,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
@@ -132,7 +132,7 @@ export interface Options {
    */
   dir?: string
   /**
-   * Tells if Next.js is running in a Serverless platform
+   * Tells if Next.js is at the platform-level
    */
   minimalMode?: boolean
   /**
