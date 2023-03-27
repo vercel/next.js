@@ -1,4 +1,5 @@
 import path from '../../../shared/lib/isomorphic/path'
+import { warnOnce } from '../../../shared/lib/utils/warn-once'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -17,10 +18,18 @@ function resolveUrl(
     return parsedUrl
   } catch (_) {}
 
-  if (!metadataBase)
+  if (!metadataBase) {
     throw new Error(
-      `metadata.metadataBase needs to be provided for resolving absolute URLs: ${url}`
+      `metadata.metadataBase needs to be provided for resolving absolute URL: ${url}`
     )
+  }
+  if (metadataBase.origin === 'http://n') {
+    metadataBase = new URL('http://localhost:3000')
+    // Development mode warning
+    warnOnce(
+      `"metadataBase" is not set and fallbacks to "http://localhost:3000", Please specify it in root layout to resolve urls as absolute`
+    )
+  }
 
   // Handle relative or absolute paths
   const basePath = metadataBase.pathname || '/'

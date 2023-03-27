@@ -257,7 +257,7 @@ createNextDescribe(
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
+        await checkLink(browser, 'canonical', 'https://example.com/')
         await checkMeta(
           browser,
           'en-US',
@@ -277,7 +277,7 @@ createNextDescribe(
         await checkMeta(
           browser,
           'only screen and (max-width: 600px)',
-          '/mobile',
+          'http://localhost:3000/mobile',
           'media',
           'link',
           'href'
@@ -286,11 +286,11 @@ createNextDescribe(
 
         await matchDom('link', 'title="js title"', {
           type: 'application/rss+xml',
-          href: 'blog/js.rss',
+          href: 'http://localhost:3000/blog/js.rss',
         })
         await matchDom('link', 'title="rss"', {
           type: 'application/rss+xml',
-          href: 'blog.rss',
+          href: 'http://localhost:3000/blog.rss',
         })
       })
 
