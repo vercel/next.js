@@ -91,8 +91,8 @@ chromiumoxide = { version = "0.4.0", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.17.3"
 
-# Disable all features as they aren't used, and flate2 requires zlib
-allsorts = { version = "0.14.0", default_features = false, features = [] }
+# flate2_zlib requires zlib, use flate2_rust
+allsorts = { version = "0.14.0", default_features = false, features = ["outline", "flate2_rust"] }
 anyhow = "1.0.69"
 assert_cmd = "2.0.8"
 async-compression = { version = "0.3.13", default-features = false, features = [
