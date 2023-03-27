@@ -98,13 +98,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
+                "http.route": "/app/[param]/rsc-fetch/page",
                 "http.status_code": 200,
                 "http.target": "/app/param/rsc-fetch",
+                "next.route": "/app/[param]/rsc-fetch/page",
                 "next.span_name": "GET /app/param/rsc-fetch",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /app/param/rsc-fetch",
+              "name": "GET /app/[param]/rsc-fetch/page",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -160,13 +162,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
+                "http.route": "/api/app/[param]/data/route",
                 "http.status_code": 200,
                 "http.target": "/api/app/param/data",
+                "next.route": "/api/app/[param]/data/route",
                 "next.span_name": "GET /api/app/param/data",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /api/app/param/data",
+              "name": "GET /api/app/[param]/data/route",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -186,13 +190,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
+                "http.route": "/pages/[param]/getServerSideProps",
                 "http.status_code": 200,
                 "http.target": "/pages/param/getServerSideProps",
+                "next.route": "/pages/[param]/getServerSideProps",
                 "next.span_name": "GET /pages/param/getServerSideProps",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /pages/param/getServerSideProps",
+              "name": "GET /pages/[param]/getServerSideProps",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -234,13 +240,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
+                "http.route": "/pages/[param]/getStaticProps",
                 "http.status_code": 200,
                 "http.target": "/pages/param/getStaticProps",
+                "next.route": "/pages/[param]/getStaticProps",
                 "next.span_name": "GET /pages/param/getStaticProps",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /pages/param/getStaticProps",
+              "name": "GET /pages/[param]/getStaticProps",
               "parentId": undefined,
               "status": Object {
                 "code": 0,

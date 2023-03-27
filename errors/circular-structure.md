@@ -9,3 +9,5 @@ However, the result returned from `getInitialProps` can't be serialized when it 
 #### Possible Ways to Fix It
 
 Circular structures are not supported, so the way to fix this error is removing the circular structure from the object that is returned from `getInitialProps`.
+
+For example, the `req` instance exposed is a circular object and can not be serialized, instead the specific fields such as relevant headers on the instance should be passed specifically.

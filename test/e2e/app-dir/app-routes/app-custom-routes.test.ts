@@ -1,18 +1,35 @@
 import { createNextDescribe } from 'e2e-utils'
+import fs from 'fs-extra'
+import { check } from 'next-test-utils'
+import path from 'path'
+import { Readable } from 'stream'
+
 import {
   withRequestMeta,
   getRequestMeta,
   cookieWithRequestMeta,
 } from './helpers'
-import { Readable } from 'stream'
-import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDeploy, isNextDev, isNextStart }) => {
+    beforeAll(async () => {
+      if (isNextDev) {
+        await fs.move(
+          path.join(next.testDir, 'app/_lowercase'),
+          path.join(next.testDir, 'app/lowercase'),
+          { overwrite: true }
+        )
+        await fs.move(
+          path.join(next.testDir, 'app/_default'),
+          path.join(next.testDir, 'app/default'),
+          { overwrite: true }
+        )
+      }
+    })
     describe('works with api prefix correctly', () => {
       it('statically generates correctly with no dynamic usage', async () => {
         if (isNextStart) {
@@ -188,7 +205,7 @@ createNextDescribe(
 
     describe('body', () => {
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can handle handle a streaming request and streaming response', async () => {
           const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
           let index = 0
@@ -257,7 +274,7 @@ createNextDescribe(
       })
 
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can read a streamed JSON encoded body', async () => {
           const body = { ping: 'pong' }
           const encoded = JSON.stringify(body)
@@ -444,7 +461,7 @@ createNextDescribe(
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
 
-        if (!(global as any).isNextDeploy) {
+        if (!isNextDeploy) {
           await check(() => {
             expect(next.cliOutput).toContain(error)
             return 'yes'

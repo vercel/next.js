@@ -3,6 +3,7 @@ import type { NextParsedUrlQuery } from './request-meta'
 const INTERNAL_QUERY_NAMES = [
   '__nextFallback',
   '__nextLocale',
+  '__nextInferredLocaleFromDefault',
   '__nextDefaultLocale',
   '__nextIsNotFound',
 ] as const
