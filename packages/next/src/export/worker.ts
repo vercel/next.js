@@ -460,7 +460,7 @@ export default async function exportPage({
           }
         } else {
           const { renderToHTMLOrFlight } =
-            require('../server/app-render') as typeof import('../server/app-render/app-render')
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
 
           try {
             curRenderOpts.params ||= {}
