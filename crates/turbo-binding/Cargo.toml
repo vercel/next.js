@@ -155,7 +155,7 @@ auto-hash-map = { optional = true, workspace = true }
 swc-ast-explorer = { optional = true, workspace = true }
 
 node-file-trace = { optional = true, workspace = true }
-turbo-malloc = { optional = true, workspace = true }
+turbo-malloc = { optional = true, workspace = true, default-features = false }
 turbo-tasks = { optional = true, workspace = true }
 turbo-tasks-build = { optional = true, workspace = true }
 turbo-tasks-bytes = { optional = true, workspace = true }
