@@ -85,6 +85,9 @@ __turbo_tasks_fetch = ["__turbo", "turbo-tasks-fetch"]
 __turbo_tasks_fetch_native-tls = ["__turbo", "turbo-tasks-fetch/native-tls"]
 __turbo_tasks_fetch_rustls-tls = ["__turbo", "turbo-tasks-fetch/rustls-tls"]
 __turbo_tasks_fs = ["__turbo", "turbo-tasks-fs"]
+__turbo_tasks_fs_dynamic_embed_contents = [
+  "turbo-tasks-fs/dynamic_embed_contents",
+]
 __turbo_tasks_hash = ["__turbo", "turbo-tasks-hash"]
 __turbo_tasks_macros = ["__turbo", "turbo-tasks-macros"]
 __turbo_tasks_macros_shared = ["__turbo", "turbo-tasks-macros-shared"]
@@ -99,12 +102,18 @@ __turbopack_core_issue_path = ["turbopack-core/issue_path"]
 __turbopack_create_test_app = ["__turbopack", "turbopack-create-test-app"]
 __turbopack_css = ["__turbopack", "turbopack-css"]
 __turbopack_dev = ["__turbopack", "turbopack-dev"]
+__turbopack_dev_dynamic_embed_contents = [
+  "turbopack-dev/dynamic_embed_contents",
+]
 __turbopack_dev_server = ["__turbopack", "turbopack-dev-server"]
 __turbopack_ecmascript = ["__turbopack", "turbopack-ecmascript"]
 __turbopack_env = ["__turbopack", "turbopack-env"]
 __turbopack_json = ["__turbopack", "turbopack-json"]
 __turbopack_mdx = ["__turbopack", "turbopack-mdx"]
 __turbopack_node = ["__turbopack", "turbopack-node"]
+__turbopack_node_dynamic_embed_contents = [
+  "turbopack-node/dynamic_embed_contents",
+]
 __turbopack_static = ["__turbopack", "turbopack-static"]
 __turbopack_swc_utils = ["__turbopack", "turbopack-swc-utils"]
 __turbopack_test_utils = ["__turbopack", "turbopack-test-utils"]
