@@ -413,6 +413,7 @@ pub struct ChunkContentResult<I> {
     pub chunks: Vec<ChunkVc>,
     pub async_chunk_groups: Vec<ChunkGroupVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
+    pub availability_info: AvailabilityInfo,
 }
 
 #[async_trait::async_trait]
@@ -777,6 +778,7 @@ where
         chunks,
         async_chunk_groups,
         external_asset_references,
+        availability_info: availability_info.into_value(),
     }))
 }
 

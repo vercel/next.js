@@ -40,6 +40,15 @@ pub(crate) enum PatternMapping {
     /// require("./module")
     /// ```
     Single(ModuleId),
+    /// Constant request that always maps to the same module.
+    /// This is used for dynamic imports.
+    /// Module id points to a loader module.
+    ///
+    /// ### Example
+    /// ```js
+    /// import("./module")
+    /// ```
+    SingleLoader(ModuleId),
     /// Variable request that can map to different modules at runtime.
     ///
     /// ### Example
@@ -56,7 +65,7 @@ pub(crate) enum PatternMapping {
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 pub(crate) enum ResolveType {
-    EsmAsync,
+    EsmAsync(AvailabilityInfo),
     Cjs,
 }
 
@@ -67,6 +76,7 @@ impl PatternMapping {
             | PatternMapping::Unresolveable(_)
             | PatternMapping::Ignored
             | PatternMapping::Single(_)
+            | PatternMapping::SingleLoader(_)
             | PatternMapping::Map(_) => true,
             PatternMapping::OriginalReferenceExternal
             | PatternMapping::OriginalReferenceTypeExternal(_) => false,
@@ -83,7 +93,9 @@ impl PatternMapping {
             PatternMapping::Ignored => {
                 quote!("undefined" as Expr)
             }
-            PatternMapping::Single(module_id) => module_id_to_lit(module_id),
+            PatternMapping::Single(module_id) | PatternMapping::SingleLoader(module_id) => {
+                module_id_to_lit(module_id)
+            }
             PatternMapping::Map(_) => {
                 todo!("emit an error for this case: Complex expression can't be transformed");
             }
@@ -156,24 +168,28 @@ impl PatternMappingVc {
         };
 
         if let Some(chunkable) = ChunkableAssetVc::resolve_from(asset).await? {
-            if *resolve_type == ResolveType::EsmAsync {
-                // Passing [AvailabilityInfo::Untracked] works here because the manifest loader
-                // has an id that is independent of them. So luckily we don't need chunk
-                // dependent code generation.
-                if let Some(loader) = EcmascriptChunkItemVc::from_async_asset(
-                    context,
-                    chunkable,
-                    Value::new(AvailabilityInfo::Untracked),
-                )
-                .await?
+            if let ResolveType::EsmAsync(availability_info) = *resolve_type {
+                let available = if let Some(available_assets) = availability_info.available_assets()
                 {
-                    return Ok(PatternMappingVc::cell(PatternMapping::Single(
-                        loader.id().await?.clone_value(),
-                    )));
+                    *available_assets.includes(chunkable.into()).await?
+                } else {
+                    false
+                };
+                if !available {
+                    if let Some(loader) = EcmascriptChunkItemVc::from_async_asset(
+                        context,
+                        chunkable,
+                        Value::new(availability_info),
+                    )
+                    .await?
+                    {
+                        return Ok(PatternMappingVc::cell(PatternMapping::SingleLoader(
+                            loader.id().await?.clone_value(),
+                        )));
+                    }
                 }
-            } else if let Some(chunk_item) =
-                EcmascriptChunkItemVc::from_asset(context, asset).await?
-            {
+            }
+            if let Some(chunk_item) = EcmascriptChunkItemVc::from_asset(context, asset).await? {
                 return Ok(PatternMappingVc::cell(PatternMapping::Single(
                     chunk_item.id().await?.clone_value(),
                 )));
