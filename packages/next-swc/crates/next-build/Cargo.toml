@@ -7,7 +7,6 @@ edition = "2021"
 autobenches = false
 
 [features]
-next-font-local = ["next-core/next-font-local"]
 native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 custom_allocator = ["turbo-malloc/custom_allocator"]
