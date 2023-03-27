@@ -37,6 +37,7 @@ use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use std::cell::RefCell;
+use std::env::current_dir;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 
@@ -148,7 +149,8 @@ where
             Either::Left(swc_relay::relay(
                 config,
                 file.name.clone(),
-                opts.pages_dir.clone().unwrap_or_default(),
+                current_dir().unwrap(),
+                opts.pages_dir.clone(),
             ))
         } else {
             Either::Right(noop())

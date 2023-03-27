@@ -20,7 +20,7 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use std::path::PathBuf;
+use std::{env::current_dir, path::PathBuf};
 use swc_relay::{relay, RelayLanguageConfig};
 
 fn syntax() -> Syntax {
@@ -112,9 +112,8 @@ fn next_ssg_fixture(input: PathBuf) {
                     pragma_frag: Some("__jsxFrag".into()),
                     throw_if_namespace: false.into(),
                     development: false.into(),
-                    use_builtins: true.into(),
-                    use_spread: true.into(),
                     refresh: Default::default(),
+                    ..Default::default()
                 },
                 top_level_mark,
             );
@@ -152,7 +151,8 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
             relay(
                 &config,
                 FileName::Real(PathBuf::from("input.tsx")),
-                PathBuf::from("src/pages"),
+                current_dir().unwrap(),
+                Some(PathBuf::from("src/pages")),
             )
         },
         &input,
