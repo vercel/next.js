@@ -292,6 +292,10 @@ class Invalidator {
     }
     this.invalidate(rebuild)
   }
+
+  public isBuilding(compilerKey: keyof typeof COMPILER_INDEXES) {
+    return this.building.has(compilerKey)
+  }
 }
 
 function disposeInactiveEntries(
@@ -818,7 +822,14 @@ export function onDemandEntryHandler({
           },
         })
 
-        const addedValues = [...added.values()]
+        // Only invalidate the compilers that are not currently building, or
+        // it it's building but we added a new entry.
+        const compilersToBeInvalidated = [...added.keys()].filter(
+          (key) => !curInvalidator.isBuilding(key) || added.get(key)!.newEntry
+        )
+        const addedValues = compilersToBeInvalidated.flatMap(
+          (key) => added.get(key)!
+        )
         const entriesThatShouldBeInvalidated = addedValues.filter(
           (entry) => entry.shouldInvalidate
         )
