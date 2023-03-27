@@ -38,6 +38,12 @@ pub struct EcmascriptChunkItemOptions {
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem {
     fn content(&self) -> EcmascriptChunkItemContentVc;
+    fn content_with_availability_info(
+        &self,
+        _availability_info: Value<AvailabilityInfo>,
+    ) -> EcmascriptChunkItemContentVc {
+        self.content()
+    }
     fn chunking_context(&self) -> EcmascriptChunkingContextVc;
 }
 

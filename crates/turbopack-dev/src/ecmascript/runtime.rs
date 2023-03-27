@@ -117,16 +117,18 @@ impl EcmascriptChunkRuntime for EcmascriptDevChunkRuntime {
         let Self {
             chunk_group,
             chunking_context,
-            evaluated_entries: _,
+            evaluated_entries,
         } = self;
 
-        let chunk_group =
-            chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(origin_chunk.into()));
-        AssetReferencesVc::cell(vec![ChunkListReferenceVc::new(
-            chunking_context.output_root(),
-            chunk_group,
-        )
-        .into()])
+        let mut references = Vec::new();
+        if evaluated_entries.is_some() {
+            let chunk_group =
+                chunk_group.unwrap_or_else(|| ChunkGroupVc::from_chunk(origin_chunk.into()));
+            references.push(
+                ChunkListReferenceVc::new(chunking_context.output_root(), chunk_group).into(),
+            );
+        }
+        AssetReferencesVc::cell(references)
     }
 
     #[turbo_tasks::function]

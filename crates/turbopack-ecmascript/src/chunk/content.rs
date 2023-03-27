@@ -21,6 +21,7 @@ pub struct EcmascriptChunkContent {
     pub chunks: Vec<ChunkVc>,
     pub async_chunk_groups: Vec<ChunkGroupVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
+    pub availability_info: AvailabilityInfo,
 }
 
 impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContent {
@@ -30,6 +31,7 @@ impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContent 
             chunks: from.chunks,
             async_chunk_groups: from.async_chunk_groups,
             external_asset_references: from.external_asset_references,
+            availability_info: from.availability_info,
         }
     }
 }
@@ -87,6 +89,7 @@ async fn ecmascript_chunk_content_internal(
             chunks,
             async_chunk_groups,
             external_asset_references,
+            availability_info: _,
         } = &*content.await?;
         all_chunk_items.extend(chunk_items.iter().copied());
         all_chunks.extend(chunks.iter().copied());
@@ -99,6 +102,7 @@ async fn ecmascript_chunk_content_internal(
         chunks: all_chunks.into_iter().collect(),
         async_chunk_groups: all_async_chunk_groups.into_iter().collect(),
         external_asset_references: all_external_asset_references.into_iter().collect(),
+        availability_info: availability_info.into_value(),
     }
     .cell())
 }
