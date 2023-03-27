@@ -10,7 +10,7 @@ export type LoadedEnvFiles = Array<{
   contents: string
 }>
 
-let initialEnv: Env | undefined = undefined
+export const initialEnv: Env = Object.assign({}, process.env)
 let combinedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
@@ -38,9 +38,6 @@ export function processEnv(
   log: Log = console,
   forceReload = false
 ) {
-  if (!initialEnv) {
-    initialEnv = Object.assign({}, process.env)
-  }
   // only reload env when forceReload is specified
   if (
     !forceReload &&
@@ -98,9 +95,6 @@ export function loadEnvConfig(
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
 } {
-  if (!initialEnv) {
-    initialEnv = Object.assign({}, process.env)
-  }
   // only reload env when forceReload is specified
   if (combinedEnv && !forceReload) {
     return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }

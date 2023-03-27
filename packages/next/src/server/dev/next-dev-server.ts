@@ -654,7 +654,11 @@ export default class DevServer extends Server {
 
         if (envChange || tsconfigChange) {
           if (envChange) {
-            this.loadEnvConfig({ dev: true, forceReload: true })
+            this.loadEnvConfig({
+              dev: true,
+              forceReload: true,
+              silent: !!process.env.__NEXT_PRIVATE_RENDER_WORKER,
+            })
           }
           let tsconfigResult:
             | UnwrapPromise<ReturnType<typeof loadJsConfig>>

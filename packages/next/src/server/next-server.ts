@@ -276,6 +276,8 @@ export default class NextNodeServer extends BaseServer {
       }
 
       const createWorker = (type: string) => {
+        const { initialEnv } =
+          require('@next/env') as typeof import('@next/env')
         const { Worker } = require('next/dist/compiled/jest-worker')
         const worker = new Worker(require.resolve('./lib/render-server'), {
           numWorkers: 1,
@@ -283,7 +285,7 @@ export default class NextNodeServer extends BaseServer {
           maxRetries: 10,
           forkOptions: {
             env: {
-              ...process.env,
+              ...initialEnv,
               // we don't pass down NODE_OPTIONS as it can
               // extra memory usage
               NODE_OPTIONS: getNodeOptionsWithoutInspect()
@@ -351,11 +353,18 @@ export default class NextNodeServer extends BaseServer {
   protected loadEnvConfig({
     dev,
     forceReload,
+    silent,
   }: {
     dev: boolean
     forceReload?: boolean
+    silent?: boolean
   }) {
-    loadEnvConfig(this.dir, dev, Log, forceReload)
+    loadEnvConfig(
+      this.dir,
+      dev,
+      silent ? { info: () => {}, error: () => {} } : Log,
+      forceReload
+    )
   }
 
   protected getIncrementalCache({
@@ -1407,12 +1416,14 @@ export default class NextNodeServer extends BaseServer {
             }`
 
             // ensure /404 is built before invoking render
-            if (this.renderOpts.dev && !(await this.hasPage(page))) {
+            if (this.renderOpts.dev && (await this.hasPage(page))) {
               // @ts-expect-error dev specific
-              await this.hotReloader?.ensurePage({
-                page: '/404',
-                clientOnly: false,
-              })
+              await this.hotReloader
+                ?.ensurePage({
+                  page: '/404',
+                  clientOnly: false,
+                })
+                .catch(() => {})
             }
             const invokeHeaders: typeof req.headers = {
               ...req.headers,
