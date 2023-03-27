@@ -861,13 +861,11 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = parsedData.appDirRoute
-              ? handleAppDirPing(parsedData.tree)
-              : handlePing(parsedData.page)
+            const result = handlePing(parsedData.page)
             client.send(
               JSON.stringify({
                 ...result,
-                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
+                event: 'pong',
               })
             )
           }

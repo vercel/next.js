@@ -28,11 +28,7 @@ import {
   RuntimeErrorHandler,
   useErrorHandler,
 } from './internal/helpers/use-error-handler'
-import {
-  useSendMessage,
-  useWebsocket,
-  useWebsocketPing,
-} from './internal/helpers/use-websocket'
+import { useSendMessage, useWebsocket } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 
@@ -43,9 +39,6 @@ interface Dispatcher {
   onBeforeRefresh(): void
   onRefresh(): void
 }
-
-// TODO-APP: add actual type
-type PongEvent = any
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -386,15 +379,6 @@ function processMessage(
       router.refresh()
       return
     }
-    case 'pong': {
-      const { invalid } = obj
-      if (invalid) {
-        // Payload can be invalid even if the page does exist.
-        // So, we check if it can be created.
-        router.refresh()
-      }
-      return
-    }
     default: {
       throw new Error('Unexpected action ' + obj.action)
     }
@@ -459,17 +443,12 @@ export default function HotReload({
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
-  useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
 
   const router = useRouter()
   useEffect(() => {
-    const handler = (event: MessageEvent<PongEvent>) => {
-      if (
-        event.data.indexOf('action') === -1 &&
-        // TODO-APP: clean this up for consistency
-        event.data.indexOf('pong') === -1
-      ) {
+    const handler = (event: MessageEvent<any>) => {
+      if (event.data.indexOf('action') === -1) {
         return
       }
 
