@@ -51,7 +51,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
       const bundlePath = path.join('app', page)
 
       if (isIntersectionRouteAppPath(pathname)) {
-        const [interceptingRoute, interceptedRoute] =
+        const { interceptingRoute, interceptedRoute } =
           extractInterceptionRouteInformation(pathname)
         matchers.push(
           new AppPageInterceptingRouteMatcher({

@@ -62,11 +62,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     // routes.
     const cache = new Map<
       string,
-      {
-        page: string
-        pathname: string
-        bundlePath: string
-      }
+      { page: string; pathname: string; bundlePath: string }
     >()
 
     const appPaths: Record<string, string[]> = {}
@@ -78,11 +74,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       // Save the normalization results.
-      cache.set(filename, {
-        page,
-        pathname,
-        bundlePath,
-      })
+      cache.set(filename, { page, pathname, bundlePath })
 
       if (pathname in appPaths) appPaths[pathname].push(page)
       else appPaths[pathname] = [page]
@@ -101,7 +93,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       const { pathname, page, bundlePath } = cached
 
       if (isIntersectionRouteAppPath(pathname)) {
-        const [interceptingRoute, interceptedRoute] =
+        const { interceptingRoute, interceptedRoute } =
           extractInterceptionRouteInformation(pathname)
         matchers.push(
           new AppPageInterceptingRouteMatcher({

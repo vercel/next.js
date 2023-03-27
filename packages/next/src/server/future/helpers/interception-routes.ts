@@ -56,5 +56,5 @@ export function extractInterceptionRouteInformation(path: string) {
       '/' +
       interceptedRoute
   }
-  return [interceptingRoute, interceptedRoute]
+  return { interceptingRoute, interceptedRoute }
 }

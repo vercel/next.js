@@ -18,27 +18,27 @@ describe('Interception Route helper', () => {
   })
   describe('extractInterceptionRouteInformation', () => {
     it('should extract correct information', () => {
-      expect(extractInterceptionRouteInformation('/foo/(..)bar')).toEqual([
-        '/foo',
-        '/bar',
-      ])
+      expect(extractInterceptionRouteInformation('/foo/(..)bar')).toEqual({
+        interceptingRoute: '/foo',
+        interceptedRoute: '/bar',
+      })
 
-      expect(extractInterceptionRouteInformation('/foo/(...)bar')).toEqual([
-        '/foo',
-        '/bar',
-      ])
+      expect(extractInterceptionRouteInformation('/foo/(...)bar')).toEqual({
+        interceptingRoute: '/foo',
+        interceptedRoute: '/bar',
+      })
 
       expect(
         extractInterceptionRouteInformation('/foo/bar/(..)(..)baz')
-      ).toEqual(['/foo/bar', '/baz'])
+      ).toEqual({ interceptingRoute: '/foo/bar', interceptedRoute: '/baz' })
 
       expect(
         extractInterceptionRouteInformation('/foo/(group)/bar/(..)(..)baz')
-      ).toEqual(['/foo/bar', '/baz'])
+      ).toEqual({ interceptingRoute: '/foo/bar', interceptedRoute: '/baz' })
 
       expect(
         extractInterceptionRouteInformation('/foo/bar/@modal/(..)(..)baz')
-      ).toEqual(['/foo/bar', '/baz'])
+      ).toEqual({ interceptingRoute: '/foo/bar', interceptedRoute: '/baz' })
     })
     it('should not extract incorrect information', () => {
       expect(() =>
