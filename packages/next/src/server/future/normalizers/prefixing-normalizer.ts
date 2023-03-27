@@ -1,4 +1,4 @@
-import path from 'path'
+import path from '../../../shared/lib/isomorphic/path'
 import { Normalizer } from './normalizer'
 
 export class PrefixingNormalizer implements Normalizer {
