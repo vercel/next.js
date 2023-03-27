@@ -4,15 +4,11 @@ createNextDescribe(
   'parallel-routes-and-interception',
   {
     files: __dirname,
-    skipDeployment: true,
   },
-  ({ next, isNextDeploy, isNextDev }) => {
+  ({ next }) => {
     describe('parallel routes', () => {
       it('should support parallel route tab bars', async () => {
-        const browser = await next.browser('/parallel-tab-bar', {
-          waitHydration: true,
-          retryWaitHydration: true,
-        })
+        const browser = await next.browser('/parallel-tab-bar')
 
         const hasHome = async () => {
           const text = await browser.waitForElementByCss('#home').text()
