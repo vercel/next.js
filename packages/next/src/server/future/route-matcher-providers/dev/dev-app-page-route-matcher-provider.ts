@@ -28,7 +28,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     // directory.
     this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
 
-    const pageNormalizer = new AbsoluteFilenameNormalizer(appDir, extensions)
+    const pageNormalizer = new AbsoluteFilenameNormalizer(
+      appDir,
+      extensions,
+      'app'
+    )
 
     this.normalizers = {
       page: pageNormalizer,
@@ -58,7 +62,9 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
       const page = this.normalizers.page.normalize(filename)
-      const pathname = this.normalizers.pathname.normalize(filename)
+      const pathname = this.normalizers.pathname
+        .normalize(filename)
+        .replace(/%5F/g, '_')
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
       // Save the normalization results.

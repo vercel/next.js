@@ -3,6 +3,12 @@ import path from 'path'
 import { METADATA_RESOURCE_QUERY } from './metadata/discover'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
+const cacheHeader = {
+  none: 'no-cache, no-store',
+  longCache: 'public, immutable, no-transform, max-age=31536000',
+  revalidate: 'public, max-age=0, must-revalidate',
+}
+
 type MetadataRouteLoaderOptions = {
   pageExtensions: string[]
 }
@@ -29,7 +35,13 @@ function getContentType(resourcePath: string) {
 }
 
 // Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
-function getStaticRouteCode(resourcePath: string) {
+function getStaticRouteCode(resourcePath: string, fileBaseName: string) {
+  const cache =
+    fileBaseName === 'favicon'
+      ? 'public, max-age=0, must-revalidate'
+      : process.env.NODE_ENV !== 'production'
+      ? cacheHeader.none
+      : cacheHeader.longCache
   return `\
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -42,12 +54,11 @@ const filePath = fileURLToPath(resourceUrl).replace(${JSON.stringify(
   )}, '')
 const buffer = fs.readFileSync(filePath)
 
-
 export function GET() {
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'Cache-Control': ${JSON.stringify(cache)},
     },
   })
 }
@@ -56,7 +67,7 @@ export const dynamic = 'force-static'
 `
 }
 
-function getDynamicRouteCode(resourcePath: string) {
+function getDynamicTextRouteCode(resourcePath: string) {
   return `\
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
@@ -72,9 +83,20 @@ export async function GET() {
   return new NextResponse(content, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=0, must-revalidate',
+      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
     },
   })
+}
+`
+}
+
+function getDynamicImageRouteCode(resourcePath: string) {
+  return `\
+import { NextResponse } from 'next/server'
+import handler from ${JSON.stringify(resourcePath)}
+
+export function GET(req, ctx) {
+  return handler({ params: ctx.params })
 }
 `
 }
@@ -87,12 +109,23 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
     const { resourcePath } = this
     const { pageExtensions } = this.getOptions()
 
-    const ext = path.extname(resourcePath).slice(1)
-    const isStatic = !pageExtensions.includes(ext)
+    const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
+    const isDynamic = pageExtensions.includes(ext)
 
-    const code = isStatic
-      ? getStaticRouteCode(resourcePath)
-      : getDynamicRouteCode(resourcePath)
+    let code = ''
+    if (isDynamic) {
+      if (
+        fileBaseName === 'sitemap' ||
+        fileBaseName === 'robots' ||
+        fileBaseName === 'manifest'
+      ) {
+        code = getDynamicTextRouteCode(resourcePath)
+      } else {
+        code = getDynamicImageRouteCode(resourcePath)
+      }
+    } else {
+      code = getStaticRouteCode(resourcePath, fileBaseName)
+    }
 
     return code
   }

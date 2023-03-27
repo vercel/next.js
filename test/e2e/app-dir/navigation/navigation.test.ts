@@ -261,14 +261,24 @@ createNextDescribe(
 
     describe('SEO', () => {
       it('should emit noindex meta tag for not found page when streaming', async () => {
+        const noIndexTag = '<meta name="robots" content="noindex"/>'
         const html = await next.render('/not-found/suspense')
-        expect(html).toContain('<meta name="robots" content="noindex"/>')
+        expect(html).toContain(noIndexTag)
+        expect(html.split(noIndexTag).length).toBe(2) // only contain once
       })
 
       it('should emit refresh meta tag for redirect page when streaming', async () => {
         const html = await next.render('/redirect/suspense')
         expect(html).toContain(
           '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
+        )
+      })
+
+      it('should contain default meta tags in error page', async () => {
+        const html = await next.render('/not-found/servercomponent')
+        expect(html).toContain('<meta name="robots" content="noindex"/>')
+        expect(html).toContain(
+          '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
         )
       })
     })

@@ -132,6 +132,13 @@ export default class Router {
     return this.nextConfig.basePath || ''
   }
 
+  /**
+   * True when the router has catch-all middleware routes configured.
+   */
+  get hasMiddleware(): boolean {
+    return this.catchAllMiddleware.length > 0
+  }
+
   public setCatchallMiddleware(catchAllMiddleware: ReadonlyArray<Route>) {
     this.catchAllMiddleware = catchAllMiddleware
     this.needsRecompilation = true
@@ -191,9 +198,16 @@ export default class Router {
                   // step we're processing the afterFiles rewrites which must
                   // not include dynamic matches.
                   skipDynamic: true,
-                  i18n: this.i18nProvider?.analyze(pathname, {
-                    defaultLocale: undefined,
-                  }),
+                  i18n: this.i18nProvider?.analyze(pathname),
+                }
+
+                // If the locale was inferred from the default, we should mark
+                // it in the match options.
+                if (
+                  options.i18n &&
+                  parsedUrl.query.__nextInferredLocaleFromDefault
+                ) {
+                  options.i18n.inferredFromDefault = true
                 }
 
                 const match = await this.matchers.match(pathname, options)
@@ -246,7 +260,7 @@ export default class Router {
             RouterSpan.executeRoute,
             {
               attributes: {
-                route: route.name,
+                'next.route': route.name,
               },
             },
             route.fn
@@ -280,9 +294,7 @@ export default class Router {
 
     // Normalize and detect the locale on the pathname.
     const options: MatchOptions = {
-      i18n: this.i18nProvider?.analyze(fsPathname, {
-        defaultLocale: undefined,
-      }),
+      i18n: this.i18nProvider?.analyze(fsPathname),
     }
 
     const match = await this.matchers.test(fsPathname, options)
@@ -368,6 +380,8 @@ export default class Router {
         parseData: false,
       })
 
+      // If the request has a locale and the route is an api route that doesn't
+      // support matching locales, skip the route.
       if (
         pathnameInfo.locale &&
         !route.matchesLocaleAPIRoutes &&
@@ -376,7 +390,7 @@ export default class Router {
         continue
       }
 
-      // Update the `basePath` if the request had a `basePath`.
+      // Restore the `basePath` if the request had a `basePath`.
       if (getRequestMeta(req, '_nextHadBasePath')) {
         pathnameInfo.basePath = this.basePath
       }
@@ -385,7 +399,7 @@ export default class Router {
       // request if the route doesn't match with the `basePath`.
       const basePath = pathnameInfo.basePath
       if (!route.matchesBasePath) {
-        pathnameInfo.basePath = ''
+        pathnameInfo.basePath = undefined
       }
 
       // Add the locale to the information if the route supports matching

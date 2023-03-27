@@ -186,7 +186,7 @@ export async function ncc_node_platform(task, opts) {
   const clientFile = join(__dirname, 'src/compiled/platform/platform.js')
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless/client mode
+  // be treated as commonjs
   fs.writeFileSync(
     clientFile,
     content.replace(
@@ -436,7 +436,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless/client mode
+  // be treated as commonjs
   fs.writeFileSync(
     clientFile,
     content.replace(

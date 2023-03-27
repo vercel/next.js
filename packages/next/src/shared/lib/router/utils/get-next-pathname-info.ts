@@ -50,7 +50,10 @@ interface Options {
   i18nProvider?: I18NProvider
 }
 
-export function getNextPathnameInfo(pathname: string, options: Options) {
+export function getNextPathnameInfo(
+  pathname: string,
+  options: Options
+): NextPathnameInfo {
   const { basePath, i18n, trailingSlash } = options.nextConfig ?? {}
   const info: NextPathnameInfo = {
     pathname: pathname,
@@ -80,11 +83,7 @@ export function getNextPathnameInfo(pathname: string, options: Options) {
   // If provided, use the locale route normalizer to detect the locale instead
   // of the function below.
   if (options.i18nProvider) {
-    const result = options.i18nProvider.analyze(info.pathname, {
-      // We set this to undefined because the default locale detection is
-      // completed out of this function.
-      defaultLocale: undefined,
-    })
+    const result = options.i18nProvider.analyze(info.pathname)
     info.locale = result.detectedLocale
     info.pathname = result.pathname ?? info.pathname
   } else if (i18n) {

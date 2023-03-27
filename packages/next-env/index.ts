@@ -48,8 +48,7 @@ export function processEnv(
   ) {
     return process.env as Env
   }
-  // flag that we processed the environment values in case a serverless
-  // function is re-used or we are running in `next start` mode
+  // flag that we processed the environment values already.
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
   const origEnv = Object.assign({}, initialEnv)

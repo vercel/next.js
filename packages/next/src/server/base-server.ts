@@ -59,7 +59,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils } from '../build/webpack/loaders/next-serverless-loader/utils'
+import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 
@@ -92,8 +92,10 @@ import { PagesRouteMatcherProvider } from './future/route-matcher-providers/page
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { sendResponse } from './future/route-handlers/app-route-route-handler'
 import { I18NProvider } from './future/helpers/i18n-provider'
+import { sendResponse } from './send-response'
+import { RouteKind } from './future/route-kind'
+import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -130,7 +132,7 @@ export interface Options {
    */
   dir?: string
   /**
-   * Tells if Next.js is running in a Serverless platform
+   * Tells if Next.js is at the platform-level
    */
   minimalMode?: boolean
   /**
@@ -331,7 +333,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     forceReload?: boolean
   }): void
 
-  // TODO-APP(@wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
+  // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
   protected readonly i18nProvider?: I18NProvider
@@ -527,22 +529,48 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: [req.method, req.url].join(' '),
+        spanName: `${method} ${req.url}`,
         kind: SpanKind.SERVER,
         attributes: {
-          'http.method': req.method,
+          'http.method': method,
           'http.target': req.url,
         },
       },
       async (span) =>
-        this.handleRequestImpl(req, res, parsedUrl).finally(() =>
-          span?.setAttributes({
+        this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          if (!span) return
+          span.setAttributes({
             'http.status_code': res.statusCode,
           })
-        )
+          const rootSpanAttributes = getTracer().getRootSpanAttributes()
+          // We were unable to get attributes, probably OTEL is not enabled
+          if (!rootSpanAttributes) return
+
+          if (
+            rootSpanAttributes.get('next.span_type') !==
+            BaseServerSpan.handleRequest
+          ) {
+            console.warn(
+              `Unexpected root span type '${rootSpanAttributes.get(
+                'next.span_type'
+              )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+            )
+            return
+          }
+
+          const route = rootSpanAttributes.get('next.route')
+          if (route) {
+            span.setAttributes({
+              'next.route': route,
+              'http.route': route,
+            })
+            span.updateName(`${method} ${route}`)
+          }
+        })
     )
   }
 
@@ -676,29 +704,45 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
           // Perform locale detection and normalization.
-          const options: MatchOptions = {
-            i18n: this.i18nProvider?.analyze(matchedPath, {
-              defaultLocale: undefined,
-            }),
-          }
-          if (options.i18n?.detectedLocale) {
-            parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+          const localeAnalysisResult = this.i18nProvider?.analyze(matchedPath, {
+            defaultLocale,
+          })
+
+          // The locale result will be defined even if the locale was not
+          // detected for the request because it will be inferred from the
+          // default locale.
+          if (localeAnalysisResult) {
+            parsedUrl.query.__nextLocale = localeAnalysisResult.detectedLocale
+
+            // If the detected locale was inferred from the default locale, we
+            // need to modify the metadata on the request to indicate that.
+            if (localeAnalysisResult.inferredFromDefault) {
+              parsedUrl.query.__nextInferredLocaleFromDefault = '1'
+            } else {
+              delete parsedUrl.query.__nextInferredLocaleFromDefault
+            }
           }
 
           // TODO: check if this is needed any more?
           matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
-          const match = await this.matchers.match(matchedPath, options)
-          if (match) {
-            srcPathname = match.definition.pathname
-          }
+          const match = await this.matchers.match(matchedPath, {
+            i18n: localeAnalysisResult,
+          })
+
+          // Update the source pathname to the matched page's pathname.
+          if (match) srcPathname = match.definition.pathname
+
+          // The page is dynamic if the params are defined.
           const pageIsDynamic = typeof match?.params !== 'undefined'
 
           // The rest of this function can't handle i18n properly, so ensure we
           // restore the pathname with the locale information stripped from it
-          // now that we're done matching.
-          matchedPath = options.i18n?.pathname ?? matchedPath
+          // now that we're done matching if we're using i18n.
+          if (localeAnalysisResult) {
+            matchedPath = localeAnalysisResult.pathname
+          }
 
           const utils = getUtils({
             pageIsDynamic,
@@ -766,8 +810,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 parsedUrl.query.__nextLocale || ''
               )
 
+              // If this returns a locale, it means that the locale was detected
+              // from the pathname.
               if (opts.locale) {
                 parsedUrl.query.__nextLocale = opts.locale
+
+                // As the locale was parsed from the pathname, we should mark
+                // that the locale was not inferred as the default.
+                delete parsedUrl.query.__nextInferredLocaleFromDefault
               }
               paramsResult = utils.normalizeDynamicRouteParams(
                 routeParams,
@@ -825,9 +875,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         addRequestMeta(req, '__nextStrippedLocale', true)
       }
 
+      // If we aren't in minimal mode or there is no locale in the query
+      // string, add the locale to the query string.
       if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
-        if (pathnameInfo.locale || defaultLocale) {
-          parsedUrl.query.__nextLocale = pathnameInfo.locale || defaultLocale
+        // If the locale is in the pathname, add it to the query string.
+        if (pathnameInfo.locale) {
+          parsedUrl.query.__nextLocale = pathnameInfo.locale
+        }
+        // If the default locale is available, add it to the query string and
+        // mark it as inferred rather than implicit.
+        else if (defaultLocale) {
+          parsedUrl.query.__nextLocale = defaultLocale
+          parsedUrl.query.__nextInferredLocaleFromDefault = '1'
         }
       }
 
@@ -1329,6 +1388,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       opts.isBot = isBotRequest
     }
 
+    // In development, we always want to generate dynamic HTML.
+    if (
+      !isDataReq &&
+      isAppPath &&
+      opts.dev &&
+      opts.supportsDynamicHTML === false
+    ) {
+      opts.supportsDynamicHTML = true
+    }
+
     const defaultLocale = isSSG
       ? this.nextConfig.i18n?.defaultLocale
       : query.__nextDefaultLocale
@@ -1453,7 +1522,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
-      const supportsDynamicHTML = !(isSSG || hasStaticPaths)
+      // In development, we always want to generate dynamic HTML.
+      const supportsDynamicHTML =
+        (!isDataReq && opts.dev) || !(isSSG || hasStaticPaths)
 
       const match =
         pathname !== '/_error' && !is404Page && !is500Page
@@ -1465,37 +1536,63 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           supportsDynamicHTML,
           incrementalCache,
         }
-        let response: Response | undefined = (await this.handlers.handle(
-          match,
-          req,
-          res,
-          context,
-          isSSG
-        )) as any
 
-        if (response) {
-          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
-            const blob = await response.blob()
-            const headers = Object.fromEntries(response.headers)
-            if (!headers['content-type'] && blob.type) {
-              headers['content-type'] = blob.type
+        try {
+          // Handle the match and collect the response if it's a static response.
+          const response = await this.handlers.handle(match, req, res, context)
+          if (response) {
+            // If the request is for a static response, we can cache it so long
+            // as it's not edge.
+            if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+              const blob = await response.blob()
+
+              // Copy the headers from the response.
+              const headers = Object.fromEntries(response.headers)
+              if (!headers['content-type'] && blob.type) {
+                headers['content-type'] = blob.type
+              }
+              let revalidate: number | false | undefined = (
+                (context as any).store as any as
+                  | { revalidate?: number }
+                  | undefined
+              )?.revalidate
+
+              if (typeof revalidate == 'undefined') {
+                revalidate = false
+              }
+
+              // Create the cache entry for the response.
+              const cacheEntry: ResponseCacheEntry = {
+                value: {
+                  kind: 'ROUTE',
+                  status: response.status,
+                  body: Buffer.from(await blob.arrayBuffer()),
+                  headers,
+                },
+                revalidate,
+              }
+
+              return cacheEntry
             }
-            const cacheEntry: ResponseCacheEntry = {
-              value: {
-                kind: 'ROUTE',
-                status: response.status,
-                body: Buffer.from(await blob.arrayBuffer()),
-                headers,
-              },
-              revalidate:
-                ((context as any).store as any as { revalidate?: number })
-                  .revalidate || false,
-            }
-            return cacheEntry
+
+            // Send the response now that we have copied it into the cache.
+            await sendResponse(req, res, response)
+
+            return null
           }
-          // dynamic response so send here
-          await sendResponse(req, res, response)
-          return null
+        } catch (err) {
+          // If an error was thrown while handling an app route request, we
+          // should return a 500 response.
+          if (match.definition.kind === RouteKind.APP_ROUTE) {
+            // If this is during static generation, throw the error again.
+            if (isSSG) throw err
+
+            // Otherwise, send a 500 response.
+            Log.error(err)
+            await sendResponse(req, res, handleInternalServerErrorResponse())
+
+            return null
+          }
         }
       }
 
@@ -1655,43 +1752,45 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           fallbackMode = 'blocking'
         }
 
+        // We use `ssgCacheKey` here as it is normalized to match the encoding
+        // from getStaticPaths along with including the locale.
+        //
+        // We use the `resolvedUrlPathname` for the development case when this
+        // is an app path since it doesn't include locale information.
+        let staticPathKey =
+          ssgCacheKey ?? (opts.dev && isAppPath ? resolvedUrlPathname : null)
+        if (staticPathKey && query.amp) {
+          staticPathKey = staticPathKey.replace(/\.amp$/, '')
+        }
+
+        const isPageIncludedInStaticPaths =
+          staticPathKey && staticPaths?.includes(staticPathKey)
+
         // When we did not respond from cache, we need to choose to block on
         // rendering or return a skeleton.
         //
-        // * Data requests always block.
-        //
-        // * Blocking mode fallback always blocks.
-        //
-        // * Preview mode toggles all pages to be resolved in a blocking manner.
-        //
-        // * Non-dynamic pages should block (though this is an impossible
+        // - Data requests always block.
+        // - Blocking mode fallback always blocks.
+        // - Preview mode toggles all pages to be resolved in a blocking manner.
+        // - Non-dynamic pages should block (though this is an impossible
         //   case in production).
-        //
-        // * Dynamic pages should return their skeleton if not defined in
+        // - Dynamic pages should return their skeleton if not defined in
         //   getStaticPaths, then finish the data request on the client-side.
         //
         if (
           process.env.NEXT_RUNTIME !== 'edge' &&
-          this.minimalMode !== true &&
+          !this.minimalMode &&
           fallbackMode !== 'blocking' &&
-          ssgCacheKey &&
+          staticPathKey &&
           !didRespond &&
           !isPreviewMode &&
           isDynamicPathname &&
-          // Development should trigger fallback when the path is not in
-          // `getStaticPaths`
-          (isProduction ||
-            !staticPaths ||
-            !staticPaths.includes(
-              // we use ssgCacheKey here as it is normalized to match the
-              // encoding from getStaticPaths along with including the locale
-              query.amp ? ssgCacheKey.replace(/\.amp$/, '') : ssgCacheKey
-            ))
+          (isProduction || !staticPaths || !isPageIncludedInStaticPaths)
         ) {
           if (
             // In development, fall through to render to handle missing
             // getStaticPaths.
-            (isProduction || staticPaths) &&
+            (isProduction || (staticPaths && staticPaths?.length > 0)) &&
             // When fallback isn't present, abort this render so we 404
             fallbackMode !== 'static'
           ) {
@@ -1934,7 +2033,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       {
         spanName: `rendering page`,
         attributes: {
-          'next.pathname': ctx.pathname,
+          'next.route': ctx.pathname,
         },
       },
       async () => {
@@ -1952,9 +2051,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
-      i18n: this.i18nProvider?.analyze(pathname, {
-        defaultLocale: undefined,
-      }),
+      i18n: this.i18nProvider?.fromQuery(pathname, query),
     }
 
     try {
@@ -2044,7 +2141,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      this.router.catchAllMiddleware[0] &&
+      this.router.hasMiddleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {
@@ -2155,16 +2252,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       // use static 404 page if available and is 404 response
-      if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents({
-          pathname: '/404',
-          query,
-          params: {},
-          isAppPath: false,
-          // Ensuring can't be done here because you never "match" a 404 route.
-          shouldEnsure: true,
-        })
-        using404Page = result !== null
+      if (is404) {
+        if (this.hasAppDir) {
+          // Use the not-found entry in app directory
+          result = await this.findPageComponents({
+            pathname: '/not-found',
+            query,
+            params: {},
+            isAppPath: true,
+            shouldEnsure: true,
+          })
+          using404Page = result !== null
+        }
+
+        if (!result && (await this.hasPage('/404'))) {
+          result = await this.findPageComponents({
+            pathname: '/404',
+            query,
+            params: {},
+            isAppPath: false,
+            // Ensuring can't be done here because you never "match" a 404 route.
+            shouldEnsure: true,
+          })
+          using404Page = result !== null
+        }
       }
       let statusPage = `/${res.statusCode}`
 

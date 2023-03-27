@@ -22,6 +22,12 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    // TODO: remove after v16 is officially deprecated
+    if (process.version.startsWith('v16.')) {
+      it('should skip for v16 node.js', () => {})
+      return
+    }
+
     let prerenderManifest
 
     beforeAll(async () => {
@@ -49,6 +55,26 @@ createNextDescribe(
         )
       })
     }
+
+    it('should correctly skip caching POST fetch for POST handler', async () => {
+      const res = await next.fetch('/route-handler/post', {
+        method: 'POST',
+      })
+      expect(res.status).toBe(200)
+
+      const data = await res.json()
+      expect(data).toBeTruthy()
+
+      for (let i = 0; i < 5; i++) {
+        const res2 = await next.fetch('/route-handler/post', {
+          method: 'POST',
+        })
+        expect(res2.status).toBe(200)
+        const newData = await res2.json()
+        expect(newData).toBeTruthy()
+        expect(newData).not.toEqual(data)
+      }
+    })
 
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate correctly with config and fetch revalidate', async () => {
@@ -142,7 +168,9 @@ createNextDescribe(
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
+          'force-dynamic-prerender/[slug]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -192,6 +220,7 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler/post/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -1127,6 +1156,26 @@ createNextDescribe(
       }
     })
 
+    it('should allow dynamic routes to access cookies', async () => {
+      for (const slug of ['books', 'frameworks']) {
+        for (let i = 0; i < 2; i++) {
+          let $ = await next.render$(
+            `/force-dynamic-prerender/${slug}`,
+            {},
+            { headers: { cookie: 'session=value' } }
+          )
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('has cookie')
+
+          $ = await next.render$(`/force-dynamic-prerender/${slug}`)
+
+          expect($('#slug').text()).toBe(slug)
+          expect($('#cookie-result').text()).toBe('no cookie')
+        }
+      }
+    })
+
     it('should not error with generateStaticParams and dynamic data', async () => {
       const res = await next.fetch('/gen-params-dynamic/one')
       const html = await res.text()
@@ -1145,6 +1194,14 @@ createNextDescribe(
             .text()
         ).not.toBe(data)
       }
+    })
+
+    it('should not error with force-dynamic and catch-all routes', async () => {
+      // Regression test for https://github.com/vercel/next.js/issues/45603
+      const res = await next.fetch('/force-dynamic-catch-all/slug/a')
+      const html = await res.text()
+      expect(res.status).toBe(200)
+      expect(html).toContain('Dynamic catch-all route')
     })
 
     it('should not error with generateStaticParams and authed data on revalidate', async () => {

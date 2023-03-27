@@ -31,7 +31,7 @@ export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<A
     // Format the routes.
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const page of pages) {
-      const pathname = normalizeAppPath(page)
+      const pathname = normalizeAppPath(page).replace(/%5F/g, '_')
       const filename = path.join(this.distDir, SERVER_DIRECTORY, manifest[page])
       const bundlePath = path.join('app', page)
 

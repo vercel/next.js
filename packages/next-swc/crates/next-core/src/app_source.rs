@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{primitives::OptionStringVc, TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbopack::{
@@ -15,7 +15,6 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    chunk::dev::DevChunkingContextVc,
     compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
@@ -23,6 +22,7 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
+use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
@@ -30,7 +30,7 @@ use turbopack_dev_server::{
     },
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::stringify_js,
+    chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::StringifyJs,
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 use turbopack_env::ProcessEnvAssetVc;
@@ -107,7 +107,6 @@ async fn next_client_transition(
 
     Ok(NextClientTransition {
         is_app: true,
-        server_root,
         client_chunking_context,
         client_module_options_context,
         client_resolve_options_context,
@@ -552,11 +551,11 @@ impl AppRendererVc {
                             let mut imports = BTreeMap::new();
                             for (key, file) in segment.files.iter() {
                                 let file_str = file.to_string().await?;
-                                let identifier = magic_identifier::encode(&format!(
+                                let identifier = magic_identifier::mangle(&format!(
                                     "imported namespace {}",
                                     file_str
                                 ));
-                                let chunks_identifier = magic_identifier::encode(&format!(
+                                let chunks_identifier = magic_identifier::mangle(&format!(
                                     "client chunks for {}",
                                     file_str
                                 ));
@@ -575,7 +574,7 @@ impl AppRendererVc {
                                     ));
                                 }
                             }
-                            Ok((stringify_js(segment_path), imports))
+                            Ok((StringifyJs(segment_path).to_string(), imports))
                         });
                         futures
                     })
@@ -600,7 +599,7 @@ impl AppRendererVc {
                     "import {}, {{ chunks as {} }} from {};\n",
                     identifier,
                     chunks_identifier,
-                    stringify_js(p)
+                    StringifyJs(p)
                 )?
             }
         }
@@ -610,7 +609,7 @@ impl AppRendererVc {
                 r#"("TURBOPACK {{ transition: next-client }}");
 import BOOTSTRAP from {};
 "#,
-                stringify_js(&page)
+                StringifyJs(&page)
             )?;
         }
 
@@ -621,7 +620,7 @@ import BOOTSTRAP from {};
                 writeln!(
                     result,
                     "    {key}: {{ module: {identifier}, chunks: {chunks_identifier} }},",
-                    key = stringify_js(key),
+                    key = StringifyJs(key),
                 )?;
             }
             result += "  },";
@@ -650,6 +649,7 @@ import BOOTSTRAP from {};
         )
         .layer("ssr")
         .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
+        .reference_chunk_source_maps(false)
         .build();
 
         Ok(NodeRenderingEntry {
@@ -658,7 +658,11 @@ import BOOTSTRAP from {};
                 context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
-                    EcmascriptInputTransform::React { refresh: false },
+                    EcmascriptInputTransform::React {
+                        refresh: false,
+                        import_source: OptionStringVc::cell(None),
+                        runtime: OptionStringVc::cell(None),
+                    },
                     EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: false,
                     },
@@ -668,6 +672,7 @@ import BOOTSTRAP from {};
             chunking_context,
             intermediate_output_path,
             output_root: intermediate_output_path.root(),
+            project_dir: this.project_path,
         }
         .cell())
     }
@@ -718,6 +723,7 @@ impl AppRouteVc {
         )
         .layer("ssr")
         .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
+        .reference_chunk_source_maps(false)
         .build();
 
         let entry = this.context.with_transition("next-route").process(
@@ -740,6 +746,7 @@ impl AppRouteVc {
             chunking_context,
             intermediate_output_path: this.intermediate_output_path,
             output_root: this.output_root,
+            project_dir: this.project_path,
         }
         .cell())
     }
