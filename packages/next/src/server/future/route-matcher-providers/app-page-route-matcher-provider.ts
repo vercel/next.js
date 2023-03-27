@@ -1,14 +1,6 @@
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
-import {
-  APP_PATHS_MANIFEST,
-  SERVER_DIRECTORY,
-} from '../../../shared/lib/constants'
-import path from '../../../shared/lib/isomorphic/path'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import { Normalizers } from '../normalizers/normalizers'
-import { PrefixingNormalizer } from '../normalizers/prefixing-normalizer'
-import { UnderscoreNormalizer } from '../normalizers/underscore-normalizer'
-import { wrapNormalizerFn } from '../normalizers/wrap-normalizer-fn'
+import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
+import { AppNormalizers } from '../normalizers/built/app'
 import { RouteKind } from '../route-kind'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
 import {
@@ -18,19 +10,12 @@ import {
 import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 
 export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<AppPageRouteMatcher> {
-  private readonly normalizers = {
-    pathname: new Normalizers([
-      wrapNormalizerFn(normalizeAppPath),
-      new UnderscoreNormalizer(),
-    ]),
-    bundlePath: new PrefixingNormalizer('app'),
-  }
+  private readonly normalizers: AppNormalizers
 
-  constructor(
-    private readonly distDir: string,
-    manifestLoader: ManifestLoader
-  ) {
+  constructor(distDir: string, manifestLoader: ManifestLoader) {
     super(APP_PATHS_MANIFEST, manifestLoader)
+
+    this.normalizers = new AppNormalizers(distDir)
   }
 
   protected async transform(
@@ -41,20 +26,20 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
 
     // Collect all the app paths for each page. This could include any parallel
     // routes.
-    const appPaths: Record<string, string[]> = {}
+    const allAppPaths: Record<string, string[]> = {}
     for (const page of pages) {
       const pathname = this.normalizers.pathname.normalize(page)
-      if (pathname in appPaths) appPaths[pathname].push(page)
-      else appPaths[pathname] = [page]
+      if (pathname in allAppPaths) allAppPaths[pathname].push(page)
+      else allAppPaths[pathname] = [page]
     }
 
     // Format the routes.
     const matchers: Array<AppPageRouteMatcher> = []
-    for (const [pathname, paths] of Object.entries(appPaths)) {
+    for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
       // TODO-APP: (wyattjoh) this is a hack right now, should be more deterministic
-      const page = paths[0]
+      const page = appPaths[0]
 
-      const filename = path.join(this.distDir, SERVER_DIRECTORY, manifest[page])
+      const filename = this.normalizers.filename.normalize(manifest[page])
       const bundlePath = this.normalizers.bundlePath.normalize(page)
 
       matchers.push(
@@ -64,7 +49,7 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
           page,
           bundlePath,
           filename,
-          appPaths: paths,
+          appPaths,
         })
       )
     }

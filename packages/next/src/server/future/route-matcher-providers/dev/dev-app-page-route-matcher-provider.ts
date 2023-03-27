@@ -1,22 +1,12 @@
 import { FileReader } from './helpers/file-reader/file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
-import { Normalizer } from '../../normalizers/normalizer'
-import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
-import { Normalizers } from '../../normalizers/normalizers'
-import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
-import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
-import { UnderscoreNormalizer } from '../../normalizers/underscore-normalizer'
+import { DevAppNormalizers } from '../../normalizers/built/app'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
-  private readonly normalizers: {
-    page: Normalizer
-    pathname: Normalizer
-    bundlePath: Normalizer
-  }
+  private readonly normalizers: DevAppNormalizers
 
   constructor(
     appDir: string,
@@ -25,31 +15,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
   ) {
     super(appDir, reader)
 
+    this.normalizers = new DevAppNormalizers(appDir, extensions)
+
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
     this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
-
-    const pageNormalizer = new AbsoluteFilenameNormalizer(
-      appDir,
-      extensions,
-      'app'
-    )
-
-    this.normalizers = {
-      page: pageNormalizer,
-      pathname: new Normalizers([
-        pageNormalizer,
-        // The pathname to match should have the trailing `/page` and other route
-        // group information stripped from it.
-        wrapNormalizerFn(normalizeAppPath),
-        new UnderscoreNormalizer(),
-      ]),
-      bundlePath: new Normalizers([
-        pageNormalizer,
-        // Prefix the bundle path with `app/`.
-        new PrefixingNormalizer('app'),
-      ]),
-    }
   }
 
   protected async transform(
