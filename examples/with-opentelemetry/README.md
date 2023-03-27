@@ -9,7 +9,7 @@ You can easily deploy this example on Vercel. It manages OpenTelemetry collector
 
 But you need to run your own collector if you want to test OpenTelemetry locally. We recommend cloning pre-made [dev setup](https://github.com/vercel/opentelemetry-collector-dev-setup). It contains pre-configured docker images for Collector, ZipKin, Jaeger and Prometheus.
 
-More information about OpenTelemetry can be found in [Next.js docs](https://nextjs.org/docs/advanced-features/opentelemetry).
+More information about OpenTelemetry can be found in [Next.js docs](https://nextjs.org/docs/advanced-features/open-telemetry).
 
 ## Deploy your own
 
