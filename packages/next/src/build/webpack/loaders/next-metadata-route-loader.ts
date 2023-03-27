@@ -91,7 +91,7 @@ export async function GET() {
 }
 
 function getDynamicImageRouteCode(resourcePath: string, hasSSGImage: boolean) {
-  console.log('getDynamicImageRouteCode:hasSSGImage', hasSSGImage)
+  console.log('hasSSGImage', hasSSGImage)
   return `\
 import { NextResponse } from 'next/server'
 import * as dynamicImageModule from ${JSON.stringify(resourcePath)}
@@ -99,10 +99,11 @@ import * as dynamicImageModule from ${JSON.stringify(resourcePath)}
 ${
   hasSSGImage
     ? `\
-export async function generateStaticParams() {
-  const results = await dynamicImageModule.generateImageData()
-  results.map(({ id }) => {
-    return { params: { __NEXT_IMAGE_ID: id } }
+export async function generateStaticParams({ params }) {
+  const results = await dynamicImageModule.generateImageData({ params })
+  console.log('generateStaticParams', { params }, 'results', results)
+  return results.map(({ id }) => {
+    return { ...params, __NEXT_IMAGE_ID: id }
   })
 }
 `
@@ -111,6 +112,7 @@ export async function generateStaticParams() {
 
 export function GET(req, ctx) {
   const { __NEXT_IMAGE_ID: id, ...params } = ctx.params || {}
+  console.log('GET', { params, id }, 'ctx', ctx)
   return dynamicImageModule.default({ params, id })
 }
 `
@@ -121,10 +123,8 @@ export function GET(req, ctx) {
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   function (content: string) {
-    console.log('nextMetadataRouterLoader')
     const { resourcePath } = this
     const { pageExtensions } = this.getOptions()
-    console.log('content', content)
     const hasSSGImage = content.includes('generateImageData')
 
     const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)

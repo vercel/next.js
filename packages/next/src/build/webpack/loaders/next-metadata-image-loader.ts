@@ -52,13 +52,15 @@ async function nextMetadataImageLoader(this: any, content: string) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
     const code = `\
     import * as exported from ${JSON.stringify(resourcePath)}
+    import { interpolateDynamicPath } from 'next/dist/server/server-utils'
+    import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
-    function getImageData(exportData) {
+    function getImageData(exportData, pathname) {
       const data = { ...exportData }
       const imageData = {
         alt: data.alt,
         type: data.contentType,
-        url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
+        url: pathname + ${JSON.stringify('?' + contentHash)},
       }
       const { size } = data
       if (size) {
@@ -75,13 +77,21 @@ async function nextMetadataImageLoader(this: any, content: string) {
       hasSSGImage
         ? `\
       export default async (props) => {
+        const pathname = ${JSON.stringify(route)}
+        const routeRegex = getNamedRouteRegex(pathname)
+        const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+
         const generated = await exported.generateImageData(props)
-        return generated.map((imageData) => getImageData(imageData))
+        return generated.map((imageData) => getImageData(imageData, route + '/' + ${JSON.stringify(
+          filename
+        )}))
       }
       `
         : `\
 
-      export default () => [getImageData(exported)]
+      export default () => [getImageData(exported, ${JSON.stringify(
+        route + '/' + filename
+      )})]
       `
     }`
 

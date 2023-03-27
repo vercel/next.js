@@ -15,7 +15,8 @@ export function generateImageData({ params }) {
   })
 }
 
-export default function og({ params }) {
+export default function og({ params }, id) {
+  console.log('id', id)
   const big = params.size === 'big'
   const background = big ? 'orange' : '#000'
   return new ImageResponse(
@@ -35,8 +36,10 @@ export default function og({ params }) {
             width: 200,
             height: 200,
             background,
+            color: '#fff',
           }}
         />
+        {id}
       </div>
     ),
     {
