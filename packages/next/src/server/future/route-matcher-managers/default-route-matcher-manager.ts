@@ -11,8 +11,6 @@ import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { AppPageInterceptingRouteMatcher } from '../route-matchers/app-intercepting-route-matcher'
-import { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>

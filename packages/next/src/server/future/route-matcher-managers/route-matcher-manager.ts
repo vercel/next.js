@@ -8,14 +8,14 @@ export type MatchOptions = {
   /**
    * If defined, this will be used as the referrer for the matching potential intercepting routes.
    */
-  referrer: string | undefined
+  referrer?: string | undefined
 
   /**
    * If defined, this indicates to the matcher that the request should be
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
-  i18n: LocaleAnalysisResult | undefined
+  i18n?: LocaleAnalysisResult | undefined
 }
 
 export interface RouteMatcherManager {

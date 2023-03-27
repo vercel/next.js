@@ -27,6 +27,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import type { I18NProvider } from './future/helpers/i18n-provider'
 import { getTracer } from './lib/trace/tracer'
 import { RouterSpan } from './lib/trace/constants'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 
 type RouteResult = {
   finished: boolean
@@ -199,7 +200,7 @@ export default class Router {
                   // not include dynamic matches.
                   skipDynamic: true,
                   i18n: this.i18nProvider?.analyze(pathname),
-                  referringRoute: req.headers.referer,
+                  referrer: parseNextReferrerFromHeaders(req.headers),
                 }
 
                 // If the locale was inferred from the default, we should mark
