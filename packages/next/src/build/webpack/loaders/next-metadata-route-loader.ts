@@ -90,13 +90,28 @@ export async function GET() {
 `
 }
 
-function getDynamicImageRouteCode(resourcePath: string) {
+function getDynamicImageRouteCode(resourcePath: string, hasSSGImage: boolean) {
+  console.log('getDynamicImageRouteCode:hasSSGImage', hasSSGImage)
   return `\
 import { NextResponse } from 'next/server'
-import handler from ${JSON.stringify(resourcePath)}
+import * as dynamicImageModule from ${JSON.stringify(resourcePath)}
+
+${
+  hasSSGImage
+    ? `\
+export async function generateStaticParams() {
+  const results = await dynamicImageModule.generateImageData()
+  results.map(({ id }) => {
+    return { params: { __NEXT_IMAGE_ID: id } }
+  })
+}
+`
+    : ''
+}
 
 export function GET(req, ctx) {
-  return handler({ params: ctx.params })
+  const { __NEXT_IMAGE_ID: id, ...params } = ctx.params || {}
+  return dynamicImageModule.default({ params, id })
 }
 `
 }
@@ -105,9 +120,12 @@ export function GET(req, ctx) {
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
-  function () {
+  function (content: string) {
+    console.log('nextMetadataRouterLoader')
     const { resourcePath } = this
     const { pageExtensions } = this.getOptions()
+    console.log('content', content)
+    const hasSSGImage = content.includes('generateImageData')
 
     const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
     const isDynamic = pageExtensions.includes(ext)
@@ -121,7 +139,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
       ) {
         code = getDynamicTextRouteCode(resourcePath)
       } else {
-        code = getDynamicImageRouteCode(resourcePath)
+        code = getDynamicImageRouteCode(resourcePath, hasSSGImage)
       }
     } else {
       code = getStaticRouteCode(resourcePath, fileBaseName)

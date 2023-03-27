@@ -17,7 +17,7 @@ interface Options {
   pageExtensions: string[]
 }
 
-async function nextMetadataImageLoader(this: any, content: Buffer) {
+async function nextMetadataImageLoader(this: any, content: string) {
   const options: Options = this.getOptions()
   const { type, route, pageExtensions } = options
   const numericSizes = type === 'twitter' || type === 'openGraph'
@@ -29,7 +29,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     extension = 'jpeg'
   }
 
-  const opts = { context, content }
+  const opts = { context, content: Buffer.from(content) }
 
   const interpolatedName = loaderUtils.interpolateName(
     this,
@@ -47,30 +47,49 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
 
   const isDynamicResource = pageExtensions.includes(extension)
+  const hasSSGImage = content.includes('generateImageData')
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
-    return `\
+    const code = `\
     import * as exported from ${JSON.stringify(resourcePath)}
 
-    const exportedImageData = { ...exported }
-    const imageData = {
-      alt: exportedImageData.alt,
-      type: exportedImageData.contentType,
-      url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
-    }
-    const { size } = exportedImageData
-    if (size) {
-      ${
-        type === 'twitter' || type === 'openGraph'
-          ? 'imageData.width = size.width; imageData.height = size.height;'
-          : 'imageData.sizes = size.width + "x" + size.height;'
+    function getImageData(exportData) {
+      const data = { ...exportData }
+      const imageData = {
+        alt: data.alt,
+        type: data.contentType,
+        url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
       }
+      const { size } = data
+      if (size) {
+        ${
+          type === 'twitter' || type === 'openGraph'
+            ? 'imageData.width = size.width; imageData.height = size.height;'
+            : 'imageData.sizes = size.width + "x" + size.height;'
+        }
+      }
+      return imageData
     }
-    export default imageData`
+
+    ${
+      hasSSGImage
+        ? `\
+      export default async (props) => {
+        const generated = await exported.generateImageData(props)
+        return generated.map((imageData) => getImageData(imageData))
+      }
+      `
+        : `\
+
+      export default () => [getImageData(exported)]
+      `
+    }`
+
+    return code
   }
 
   const imageSize = await getImageSize(
-    content,
+    opts.content,
     extension as 'avif' | 'webp' | 'png' | 'jpeg'
   ).catch((err) => err)
 
@@ -97,8 +116,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const stringifiedData = JSON.stringify(imageData)
 
-  return `export default ${stringifiedData};`
+  return `export default () => [${stringifiedData}];`
 }
 
-export const raw = true
 export default nextMetadataImageLoader

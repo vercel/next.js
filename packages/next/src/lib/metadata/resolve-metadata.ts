@@ -221,26 +221,33 @@ async function getDefinedMetadata(
 
 async function collectStaticImagesFiles(
   metadata: ComponentsType['metadata'],
-  type: keyof NonNullable<ComponentsType['metadata']>
+  type: keyof NonNullable<ComponentsType['metadata']>,
+  props: any
 ) {
   if (!metadata?.[type]) return undefined
+  const imageDataModules: any[] = []
 
-  const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (iconResolver: () => Promise<MetadataImageModule>) =>
-      interopDefault(await iconResolver())
+  const promises = metadata[type]?.map(
+    async (getImageDataMod: (p: any) => Promise<MetadataImageModule[]>) => {
+      const mod = interopDefault(await getImageDataMod(props)).filter(Boolean)
+      imageDataModules.push(...mod)
+    }
   )
-  return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
+
+  if (promises) await Promise.all(promises)
+
+  return imageDataModules.length ? imageDataModules : undefined
 }
 
-async function resolveStaticMetadata(components: ComponentsType) {
+async function resolveStaticMetadata(components: ComponentsType, props: any) {
   const { metadata } = components
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([
-    collectStaticImagesFiles(metadata, 'icon'),
-    collectStaticImagesFiles(metadata, 'apple'),
-    collectStaticImagesFiles(metadata, 'openGraph'),
-    collectStaticImagesFiles(metadata, 'twitter'),
+    collectStaticImagesFiles(metadata, 'icon', props),
+    collectStaticImagesFiles(metadata, 'apple', props),
+    collectStaticImagesFiles(metadata, 'openGraph', props),
+    collectStaticImagesFiles(metadata, 'twitter', props),
   ])
 
   const staticMetadata = {
@@ -271,7 +278,7 @@ export async function collectMetadata({
     route += `/${modType}`
   }
 
-  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2], props)
   const metadataExport = mod
     ? await getDefinedMetadata(mod, props, route)
     : null
