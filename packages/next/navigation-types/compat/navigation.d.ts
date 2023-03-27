@@ -18,4 +18,12 @@ declare module 'next/navigation' {
    * router is not ready.
    */
   export function usePathname(): string | null
+
+  /**
+   * Get the current parameters. For example useParams() on /dashboard/[team]
+   * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+   *
+   * If used from `pages/`, the hook will return `null`.
+   */
+  export function useParams(): Record<string, string | string[]> | null
 }

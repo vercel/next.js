@@ -30,6 +30,7 @@ next-binding = { path = "../next-binding", features = [
   "__swc_transform_styled_components",
   "__swc_transform_modularize_imports",
 ] }
+swc_relay = "0.1.0"
 
 [dev-dependencies]
 next-binding = { path = "../next-binding", features = [

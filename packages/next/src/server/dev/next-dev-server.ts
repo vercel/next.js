@@ -99,6 +99,7 @@ import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import { NextUrlWithParsedQuery } from '../request-meta'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -1154,6 +1155,15 @@ export default class DevServer extends Server {
       this.renderError(err, req, res, page)
       return null
     }
+  }
+
+  public async handleRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    await this.devReady
+    return await super.handleRequest(req, res, parsedUrl)
   }
 
   async run(
