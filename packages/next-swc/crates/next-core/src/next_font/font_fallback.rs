@@ -34,6 +34,7 @@ pub(crate) struct AutomaticFontFallback {
     pub adjustment: Option<FontAdjustment>,
 }
 
+#[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub(crate) enum FontFallback {
     Automatic(AutomaticFontFallbackVc),
@@ -45,7 +46,7 @@ pub(crate) enum FontFallback {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FontFallbacks(Vec<FontFallback>);
+pub(crate) struct FontFallbacks(Vec<FontFallbackVc>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 pub(crate) struct FontAdjustment {
