@@ -553,9 +553,13 @@ export default class DevServer extends Server {
             if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
+            // Ignore files/directories starting with `_` in the app directory
+            if (normalizePathSep(fileName).includes('/_')) {
+              continue
+            }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }

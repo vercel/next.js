@@ -1,14 +1,15 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
     CompletionVc, CompletionsVc, Value,
 };
-use turbo_tasks_fs::{
-    json::parse_json_rope_with_source_context, to_sys_path, File, FileSystemPathVc,
-};
+use turbo_tasks_bytes::{Bytes, Stream};
+use turbo_tasks_fs::{json::parse_json_with_source_context, to_sys_path, File, FileSystemPathVc};
 use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -29,9 +30,9 @@ use turbopack_ecmascript::{
     EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
 };
 use turbopack_node::{
-    evaluate::{evaluate, JavaScriptValue},
+    evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
-    StructuredError,
+    source_map::StructuredError,
 };
 
 use crate::{
@@ -98,56 +99,34 @@ pub struct MiddlewareHeadersResponse {
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
-pub struct MiddlewareBodyResponse(pub Vec<u8>);
+pub struct MiddlewareBodyResponse(Bytes);
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Default)]
-pub struct FullMiddlewareResponse {
-    pub headers: MiddlewareHeadersResponse,
-    pub body: Vec<u8>,
-}
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 enum RouterIncomingMessage {
-    Rewrite {
-        data: RewriteResponse,
-    },
-    // TODO: Implement
-    #[allow(dead_code)]
-    MiddlewareHeaders {
-        data: MiddlewareHeadersResponse,
-    },
-    // TODO: Implement
-    #[allow(dead_code)]
-    MiddlewareBody {
-        data: MiddlewareBodyResponse,
-    },
-    FullMiddleware {
-        data: FullMiddlewareResponse,
-    },
+    Rewrite { data: RewriteResponse },
+    MiddlewareHeaders { data: MiddlewareHeadersResponse },
+    MiddlewareBody { data: Vec<u8> },
     None,
     Error(StructuredError),
 }
 
-#[derive(Debug)]
-#[turbo_tasks::value]
-pub enum RouterResult {
-    Rewrite(RewriteResponse),
-    FullMiddleware(FullMiddlewareResponse),
-    None,
-    Error,
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+#[derive(Debug, Clone, Default)]
+pub struct MiddlewareResponse {
+    pub status_code: u16,
+    pub headers: Vec<(String, String)>,
+    #[turbo_tasks(trace_ignore)]
+    pub body: Stream<Result<Bytes, SharedError>>,
 }
 
-impl From<RouterIncomingMessage> for RouterResult {
-    fn from(value: RouterIncomingMessage) -> Self {
-        match value {
-            RouterIncomingMessage::Rewrite { data } => Self::Rewrite(data),
-            RouterIncomingMessage::FullMiddleware { data } => Self::FullMiddleware(data),
-            RouterIncomingMessage::None => Self::None,
-            _ => Self::Error,
-        }
-    }
+#[derive(Debug)]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+pub enum RouterResult {
+    Rewrite(RewriteResponse),
+    Middleware(MiddlewareResponse),
+    None,
+    Error,
 }
 
 #[turbo_tasks::function]
@@ -398,14 +377,54 @@ async fn route_internal(
     )
     .await?;
 
-    match &*result {
-        JavaScriptValue::Value(val) => {
-            let result: RouterIncomingMessage = parse_json_rope_with_source_context(val)?;
-            Ok(RouterResult::from(result).cell())
+    let mut read = result.read();
+
+    let Some(Ok(first)) = read.next().await else {
+        return Ok(RouterResult::Error.cell());
+    };
+    let first: RouterIncomingMessage = parse_json_with_source_context(first.to_str()?)?;
+
+    let (res, read) = match first {
+        RouterIncomingMessage::Rewrite { data } => (RouterResult::Rewrite(data), Some(read)),
+
+        RouterIncomingMessage::MiddlewareHeaders { data } => {
+            // The double encoding here is annoying. It'd be a lot nicer if we could embed
+            // a buffer directly into the IPC message without having to wrap it in an
+            // object.
+            let body = read.map(|data| {
+                let chunk: RouterIncomingMessage = data?
+                    .to_str()
+                    .context("error decoding string")
+                    .and_then(parse_json_with_source_context)?;
+                match chunk {
+                    RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
+                    m => Err(SharedError::new(anyhow!(
+                        "unexpected message type: {:#?}",
+                        m
+                    ))),
+                }
+            });
+            let middleware = MiddlewareResponse {
+                status_code: data.status_code,
+                headers: data.headers,
+                body: Stream::from(body),
+            };
+
+            (RouterResult::Middleware(middleware), None)
         }
-        JavaScriptValue::Error => Ok(RouterResult::Error.cell()),
-        JavaScriptValue::Stream(_) => {
-            unimplemented!("Stream not supported now");
+
+        RouterIncomingMessage::None => (RouterResult::None, Some(read)),
+        _ => (RouterResult::Error, Some(read)),
+    };
+
+    // Middleware will naturally drain the full stream, but the rest only take a
+    // single item. In order to free the NodeJsOperation, we must pull another
+    // value out of the stream.
+    if let Some(mut read) = read {
+        if let Some(v) = read.next().await {
+            bail!("unexpected message type: {:#?}", v);
         }
     }
+
+    Ok(res.cell())
 }

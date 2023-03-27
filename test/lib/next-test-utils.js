@@ -216,13 +216,16 @@ export function runNextCommand(argv, options = {}) {
     let mergedStdio = ''
 
     let stderrOutput = ''
-    if (options.stderr) {
+    if (options.stderr || options.onStderr) {
       instance.stderr.on('data', function (chunk) {
         mergedStdio += chunk
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
           console.log(chunk.toString())
+        }
+        if (typeof options.onStderr === 'function') {
+          options.onStderr(chunk.toString())
         }
       })
     } else {
@@ -232,13 +235,16 @@ export function runNextCommand(argv, options = {}) {
     }
 
     let stdoutOutput = ''
-    if (options.stdout) {
+    if (options.stdout || options.onStdout) {
       instance.stdout.on('data', function (chunk) {
         mergedStdio += chunk
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
           console.log(chunk.toString())
+        }
+        if (typeof options.onStdout === 'function') {
+          options.onStdout(chunk.toString())
         }
       })
     } else {
@@ -676,13 +682,15 @@ export async function getRedboxHeader(browser) {
   return retry(
     () => {
       if (shouldRunTurboDevTest()) {
-        const portal = [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
-          )
-        const root = portal.shadowRoot
-        return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        return evaluate(browser, () => {
+          const portal = [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
+            )
+          const root = portal.shadowRoot
+          return root.querySelector('[data-nextjs-turbo-dialog-body]').innerText
+        })
       } else {
         return evaluate(browser, () => {
           const portal = [].slice

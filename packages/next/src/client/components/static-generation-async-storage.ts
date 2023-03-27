@@ -9,6 +9,12 @@ export interface StaticGenerationStore {
   readonly isPrerendering?: boolean
 
   forceDynamic?: boolean
+  fetchCache?:
+    | 'only-cache'
+    | 'force-cache'
+    | 'force-no-store'
+    | 'default-no-store'
+    | 'only-no-store'
   revalidate?: false | number
   forceStatic?: boolean
   dynamicShouldError?: boolean

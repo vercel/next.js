@@ -801,6 +801,10 @@
         {
           "title": "version-staleness",
           "path": "/errors/version-staleness.md"
+        },
+        {
+          "title": "deopted-into-client-rendering",
+          "path": "/errors/deopted-into-client-rendering.md"
         }
       ]
     }

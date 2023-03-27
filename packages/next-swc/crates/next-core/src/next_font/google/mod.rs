@@ -67,7 +67,11 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn result(&self, request: RequestVc) -> Result<ImportMapResultVc> {
+    async fn result(
+        &self,
+        _context: FileSystemPathVc,
+        request: RequestVc,
+    ) -> Result<ImportMapResultVc> {
         let request = &*request.await?;
         let Request::Module {
             module: _,
@@ -154,7 +158,11 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn result(&self, request: RequestVc) -> Result<ImportMapResultVc> {
+    async fn result(
+        &self,
+        _context: FileSystemPathVc,
+        request: RequestVc,
+    ) -> Result<ImportMapResultVc> {
         let request = &*request.await?;
         let Request::Module {
             module: _,
@@ -377,7 +385,7 @@ async fn get_mock_stylesheet(
     use turbo_tasks::{CompletionVc, Value};
     use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
     use turbo_tasks_fs::{
-        json::parse_json_rope_with_source_context, DiskFileSystemVc, File, FileSystem,
+        json::parse_json_with_source_context, DiskFileSystemVc, File, FileSystem,
     };
     use turbopack::evaluate_context::node_evaluate_asset_context;
     use turbopack_core::{context::AssetContext, ident::AssetIdentVc};
@@ -452,7 +460,7 @@ async fn get_mock_stylesheet(
     match &*val {
         JavaScriptValue::Value(val) => {
             let mock_map: HashMap<String, Option<String>> =
-                parse_json_rope_with_source_context(val)?;
+                parse_json_with_source_context(&val.to_str()?)?;
             Ok((mock_map.get(url).context("url not found")?).clone())
         }
         JavaScriptValue::Error => panic!("Unexpected error evaluating JS"),
