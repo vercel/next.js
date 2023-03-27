@@ -24,6 +24,8 @@ describe('useReportWebVitals hook', () => {
 
   // Analytics events are only sent in production
   it('should send web-vitals to vercel-insights', async () => {
+    await next.fetch('/report-web-vitals')
+
     let eventsCount = 0
     const browser = await next.browser('/report-web-vitals', {
       beforePageLoad: (page) => {
