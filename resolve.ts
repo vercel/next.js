@@ -139,44 +139,84 @@ type LoaderTree = [
     }
   }
 ]
+
+// directoryTree: [dirname: '', subdirs: string[], component: {}]
+// loaderTree: [segment: '', parallelRoutes: {}, components: {}]
+
+/** 
+app/dashboard/page.tsx
+app/about/page.tsx
+
+const directoryTree = [
+    '',
+    [
+        ['about', [], { page: 'app/about/page.tsx' }],
+        ['dashboard', [], { page: 'app/dashboard/page.tsx' }]
+    ]
+]
+
+walkDirectoryTree('')
+    walkDirectoryTree('about')
+    walkDirectoryTree('dashboard') // finds `page` adds it to entrypoints with the full tree
+
+const entrypoints = new Map()
+
+map.set('/dashboard', ['', { children: ['dashboard', {
+    children: ['__PAGE__', {}, { page: 'app/dashboard/page.tsx' }]
+}, {}] }, {}])
+
+map.set('/about', ['', { children: ['about', {
+    children: ['__PAGE__', {}, { page: 'app/about/page.tsx' }]
+}, {}] }, {}])
+
+ */
+
 function matchParallelRoute(name: string) {
   return name.startsWith('@') ? name.slice(1) : null
 }
 function directoryTreeToLoaderTree(
   [directoryName, subdirectories, components]: DirectoryTree,
   pathPrefix: string,
-  entrypoints: Map<string, LoaderTree>,
-  createLoaderTree: (route: string, patch: LoaderTree) => void
-): LoaderTree {
+  addLoaderTree: (fullPath: string, loaderTree: LoaderTree) => void
+) {
   const item = [directoryName, {}, components] as LoaderTree
 
   for (const subdirectory of subdirectories) {
     const parallelRouteKey = matchParallelRoute(subdirectory[0])
-    if (!parallelRouteKey) {
-      const parallelRouteLoaderTree = directoryTreeToLoaderTree(
-        subdirectory,
-        join(pathPrefix, subdirectory[0]),
-        entrypoints,
-        (route, patch) => {
-          entrypoints.set(route, patch)
-        }
-      )
-      item[1][subdirectory[0]] = parallelRouteLoaderTree
-
+    if (parallelRouteKey) {
       continue
     }
+    directoryTreeToLoaderTree(
+      subdirectory,
+      join(pathPrefix, subdirectory[0]),
+      (fullPath: string, loaderTree: LoaderTree) => {
+        const childLoaderTree = [
+          item[0],
+          { ...item[1], children: loaderTree },
+          item[2],
+        ] as LoaderTree
+        addLoaderTree(fullPath, childLoaderTree)
+      }
+    )
   }
 
-  createLoaderTree(pathPrefix, item)
-  return item
+  if (components.page) {
+    item[1].children = ['__PAGE__', {}, { page: components.page }]
+    delete item[2].page
+    addLoaderTree(pathPrefix, item)
+  }
 }
 async function run() {
   const result = await resolveAppTree(
-    join(__dirname, 'test/e2e/app-dir/parallel-routes-and-interception/app'),
+    join(__dirname, 'test/e2e/app-dir/metadata/app'),
     ['js', 'jsx', 'ts', 'tsx']
   )
   const entrypoints = new Map()
-  await directoryTreeToLoaderTree(result, '/', entrypoints, () => {})
+  await directoryTreeToLoaderTree(
+    result,
+    '/',
+    entrypoints.set.bind(entrypoints)
+  )
   console.dir(entrypoints, { depth: null })
 }
 run()
