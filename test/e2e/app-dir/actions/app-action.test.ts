@@ -81,7 +81,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.elementByCss('h1').text()
-      }, 'HELLO, WORLD')
+      }, 'Prefix: HELLO, WORLD')
     })
 
     it('should support importing actions in client components', async () => {

@@ -7,7 +7,7 @@ async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
   const semverType = args[args.indexOf('--semver-type') + 1]
-  const isCanary = releaseType === 'canary'
+  const isCanary = releaseType !== 'stable'
 
   if (releaseType !== 'stable' && releaseType !== 'canary') {
     console.log(`Invalid release type ${releaseType}, must be stable or canary`)
@@ -39,7 +39,7 @@ async function main() {
   config.set('token', githubToken)
 
   await execa(
-    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js`,
+    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js.git`,
     { stdio: 'inherit', shell: true }
   )
   await execa(`git config user.name "JJ Kasper"`, {
@@ -51,7 +51,7 @@ async function main() {
     shell: true,
   })
 
-  const child = execa(`pnpm publish-${isCanary ? 'canary' : 'stable'}`, {
+  const child = execa(`pnpm release-${isCanary ? 'canary' : 'stable'}`, {
     stdio: 'pipe',
     shell: true,
   })
