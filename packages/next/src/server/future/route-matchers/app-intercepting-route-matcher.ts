@@ -27,7 +27,7 @@ export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDe
 
   /**
    * Match will attempt to match the given pathname against this route while
-   * also taking into account the locale information.
+   * also taking into account the referrer information.
    *
    * @param pathname The pathname to match against.
    * @param options The options to use when matching.
@@ -50,7 +50,7 @@ export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDe
 
   /**
    * Test will attempt to match the given pathname against this route while
-   * also taking into account the locale information.
+   * also taking into account the referrer information.
    *
    * @param pathname The pathname to match against.
    * @param options The options to use when matching.
