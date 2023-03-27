@@ -1,39 +1,58 @@
-import { BaseNextRequest, BaseNextResponse } from '../../base-http'
-import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
-import { RouteHandler } from '../route-handlers/route-handler'
+import type { BaseNextRequest } from '../../base-http'
+import type { ModuleLoader } from '../helpers/module-loader/module-loader'
+import type {
+  RouteHandler,
+  RouteHandlerContext,
+} from '../route-handlers/route-handler'
+import type { RouteMatch } from '../route-matches/route-match'
+
+import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
+
+export interface HandlerModule<
+  H extends RouteHandler = RouteHandler,
+  U = unknown
+> {
+  /**
+   * The userland module. This is the module that is exported from the user's
+   * code.
+   */
+  userland: U
+
+  route: {
+    /**
+     * The handler for the module. This is the handler that is used to handle
+     * requests.
+     */
+    handler: H
+  }
+}
 
 export class RouteHandlerManager {
-  private readonly handlers: Partial<{
-    [K in RouteKind]: RouteHandler
-  }> = {}
-
-  public set<
-    K extends RouteKind,
-    D extends RouteDefinition<K>,
-    M extends RouteMatch<D>,
-    H extends RouteHandler<M>
-  >(kind: K, handler: H) {
-    if (kind in this.handlers) {
-      throw new Error('Invariant: duplicate route handler added for kind')
-    }
-
-    this.handlers[kind] = handler
-  }
+  constructor(
+    private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
+  ) {}
 
   public async handle(
     match: RouteMatch,
     req: BaseNextRequest,
-    res: BaseNextResponse,
-    context?: any
+    context: any = {}
   ): Promise<Response | undefined> {
-    const handler = this.handlers[match.definition.kind]
-    if (!handler) return
+    // The module supports minimal mode, load the minimal module.
+    const module: HandlerModule = await this.moduleLoader.load(
+      match.definition.filename
+    )
+
+    // Patch the handler if it supports it.
+    module.route.handler.patch?.()
+
+    // Create the context for the handler. This contains the params from the
+    // match (if any) and the context from the request from above.
+    const ctx: RouteHandlerContext = { ...context, params: match.params }
 
     // Get the response from the handler.
-    const response = await handler.handle(match, req, res, context)
+    const response = await module.route.handler.handle(req, ctx)
 
+    // Send the response back.
     return response
   }
 }

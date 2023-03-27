@@ -20,7 +20,7 @@ function headersWithoutFlight(headers: IncomingHttpHeaders) {
 
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest
-  res: ServerResponse | BaseNextResponse
+  res?: ServerResponse | BaseNextResponse
   renderOpts?: RenderOpts
 }
 
@@ -65,7 +65,7 @@ export class RequestAsyncStorageWrapper
     // instantly. There's no need to pass this data down from a previous
     // invoke.
     const previewData: PreviewData =
-      renderOpts && RequestAsyncStorageWrapper.tryGetPreviewData
+      renderOpts && RequestAsyncStorageWrapper.tryGetPreviewData && res
         ? // TODO: investigate why previewProps isn't on RenderOpts
           RequestAsyncStorageWrapper.tryGetPreviewData(
             req,
@@ -101,7 +101,15 @@ export class RequestAsyncStorageWrapper
         }
         return cachedCookiesInstance
       },
-      previewData,
+      get previewData() {
+        if (!res) {
+          throw new Error(
+            'Invariant: previewData cannot be accessed without a response object'
+          )
+        }
+
+        return previewData
+      },
     }
 
     return storage.run(store, callback, store)
