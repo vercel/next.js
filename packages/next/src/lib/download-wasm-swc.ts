@@ -45,7 +45,7 @@ export async function downloadWasmSwc(
           path.join(os.homedir(), 'AppData', 'Local')
       } else {
         /// Attempt to use generic tmp location for these platforms
-        if (process.platform === 'freebsd' || process.platform === 'android') {
+        if (process.platform === 'freebsd' || process.platform === 'android' || process.platform === 'openbsd' || process.platform === 'netbsd') {
           for (const dir of [
             path.join(os.homedir(), '.cache'),
             path.join(os.tmpdir()),
