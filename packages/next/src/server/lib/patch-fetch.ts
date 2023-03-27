@@ -22,12 +22,11 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
   const originFetch = globalThis.fetch
 
-  globalThis.fetch = async (
-    input: RequestInfo | URL,
-    init: RequestInit | undefined
-  ) => {
-    const fetchIdx = nextFetchIdx++
-    let url
+  // @ts-expect-error - we're patching fetch
+  // eslint-disable-next-line no-native-reassign
+  fetch = async (input: RequestInfo | URL, init: RequestInit | undefined) => {
+  const fetchIdx = nextFetchIdx++
+  let url
     try {
       url = new URL(input instanceof Request ? input.url : input)
       url.username = ''
@@ -37,8 +36,8 @@ export function patchFetch({
       url = undefined
     }
 
-    const method = init?.method?.toUpperCase() || 'GET'
     const originUrl = url?.toString() ?? ''
+    const method = (init?.method || 'GET').toUpperCase()
 
     return await getTracer().trace(
       AppRenderSpan.fetch,
@@ -69,7 +68,7 @@ export function patchFetch({
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || init?.next?.internal) {
+        if (!staticGenerationStore || (init?.next as any)?.internal) {
           return originFetch(input, init)
         }
 
