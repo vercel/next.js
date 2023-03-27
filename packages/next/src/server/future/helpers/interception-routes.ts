@@ -1,7 +1,7 @@
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 // order matters here, the first match will be used
-const specialMarkers = ['(..)(..)', '(..)', '(...)'] as const
+export const INTERCEPTION_ROUTE_MARKERS = ['(..)(..)', '(..)', '(...)'] as const
 
 export function isIntersectionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
@@ -19,12 +19,12 @@ export function isIntersectionRouteAppPath(path: string): boolean {
 
 export function extractInterceptionRouteInformation(path: string) {
   let interceptingRoute: string | undefined,
-    marker: typeof specialMarkers[number] | undefined,
+    marker: typeof INTERCEPTION_ROUTE_MARKERS[number] | undefined,
     interceptedRoute: string | undefined
 
   for (const segment of path.split('/')) {
-    if (specialMarkers.some((m) => segment.startsWith(m))) {
-      marker = specialMarkers.find((m) => segment.startsWith(m))
+    if (INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))) {
+      marker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
       ;[interceptingRoute, interceptedRoute] = path.split(marker!, 2)
       break
     }
