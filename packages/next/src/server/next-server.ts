@@ -97,6 +97,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 
 export * from './base-server'
 
@@ -1239,7 +1240,7 @@ export default class NextNodeServer extends BaseServer {
 
         const options: MatchOptions = {
           i18n: this.i18nProvider?.fromQuery(pathname, query),
-          referrer: req.headers.referer,
+          referrer: parseNextReferrerFromHeaders(req.headers),
         }
 
         const match = await this.matchers.match(pathname, options)
@@ -1808,7 +1809,7 @@ export default class NextNodeServer extends BaseServer {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(normalizedPathname),
-      referrer: params.request.headers.referer,
+      referrer: parseNextReferrerFromHeaders(params.request.headers),
     }
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {

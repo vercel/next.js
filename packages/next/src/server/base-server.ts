@@ -97,6 +97,7 @@ import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
 import { AppPageRouteDefinition } from './future/route-definitions/app-page-route-definition'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -695,7 +696,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath, {
             i18n: localeAnalysisResult,
-            referrer: req.headers.referer,
+            referrer: parseNextReferrerFromHeaders(req.headers),
           })
 
           // Update the source pathname to the matched page's pathname.
@@ -2019,7 +2020,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromQuery(pathname, query),
-      referrer: req.headers.referer,
+      referrer: parseNextReferrerFromHeaders(req.headers),
     }
 
     try {

@@ -64,9 +64,7 @@ export class AppPageInterceptingRouteMatcher extends RouteMatcher<AppPageRouteDe
       return null
     }
 
-    const referrerPathname = new URL(options.referrer).pathname
-
-    return this.interceptingRouteMatcher.test(referrerPathname) !== null
+    return this.interceptingRouteMatcher.test(options.referrer) !== null
       ? super.test(pathname)
       : null
   }
