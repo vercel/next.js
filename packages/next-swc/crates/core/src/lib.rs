@@ -37,6 +37,7 @@ use fxhash::FxHashSet;
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use std::cell::RefCell;
+use std::env::current_dir;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 
@@ -56,8 +57,6 @@ pub mod next_ssg;
 pub mod page_config;
 pub mod react_remove_properties;
 pub mod react_server_components;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod relay;
 pub mod remove_console;
 pub mod server_actions;
 pub mod shake_exports;
@@ -107,7 +106,7 @@ pub struct TransformOptions {
 
     #[serde(default)]
     #[cfg(not(target_arch = "wasm32"))]
-    pub relay: Option<relay::Config>,
+    pub relay: Option<swc_relay::Config>,
 
     #[allow(unused)]
     #[serde(default)]
@@ -147,9 +146,10 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
         if let Some(config) = &opts.relay {
-            Either::Left(relay::relay(
+            Either::Left(swc_relay::relay(
                 config,
                 file.name.clone(),
+                current_dir().unwrap(),
                 opts.pages_dir.clone(),
             ))
         } else {
