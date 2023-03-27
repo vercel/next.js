@@ -28,7 +28,10 @@ import {
   continueFromInitialStream,
   streamToBufferedResult,
 } from '../node-web-streams-helper'
-import { matchSegment } from '../../client/components/match-segments'
+import {
+  canSegmentBeOverridden,
+  matchSegment,
+} from '../../client/components/match-segments'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
 import { HeadManagerContext } from '../../shared/lib/head-manager-context'
@@ -229,18 +232,48 @@ export async function renderToHTMLOrFlight(
     const pathParams = (renderOpts as any).params as ParsedUrlQuery
 
     /**
+     * In certain cases, we want to be able to override the dynamic parameters during rendering.
+     * This is useful when we want to render an intercepted route with that does not contain the dynamic parameters needed for the current layout file.
+     * Example:
+     *  - for /profile/[profileId], we want to intercept all routes going to /photos/[id] and render them from the profile layout
+     *  - when we render /photos/1, we will render the profile layout but the pathParams will not contain profileId, so we need to override it
+     */
+    const segmentOverrides = {} as Record<
+      string,
+      ReturnType<GetDynamicParamFromSegment>
+    >
+    const injectTreeSegmentOverride = (
+      segment: Segment,
+      treeSegment: Segment
+    ) => {
+      if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
+        return
+      }
+      segmentOverrides[segment] = {
+        param: treeSegment[0],
+        value: treeSegment[1],
+        treeSegment: treeSegment,
+        type: treeSegment[2],
+      }
+    }
+
+    /**
      * Parse the dynamic segment and return the associated value.
      */
     const getDynamicParamFromSegment: GetDynamicParamFromSegment = (
       // [slug] / [[slug]] / [...slug]
       segment: string
     ) => {
+      if (segmentOverrides[segment]) {
+        return segmentOverrides[segment]
+      }
       const segmentParam = getSegmentParam(segment)
       if (!segmentParam) {
         return null
       }
 
       const key = segmentParam.param
+
       let value = pathParams[key]
 
       if (Array.isArray(value)) {
@@ -931,13 +964,24 @@ export async function renderToHTMLOrFlight(
           flightRouterState[3] === 'refetch'
 
         if (!parentRendered && renderComponentsOnThisLevel) {
+          const overriddenSegment =
+            flightRouterState &&
+            canSegmentBeOverridden(actualSegment, flightRouterState[0])
+              ? flightRouterState[0]
+              : null
+
+          if (overriddenSegment) {
+            injectTreeSegmentOverride(actualSegment, overriddenSegment)
+          }
+
           return [
-            actualSegment,
-            // Create router state using the slice of the loaderTree
+            overriddenSegment ?? actualSegment,
             createFlightRouterStateFromLoaderTree(
+              // Create router state using the slice of the loaderTree
               loaderTreeToFilter,
               getDynamicParamFromSegment,
-              query
+              query,
+              false
             ),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
             isPrefetch && !Boolean(components.loading)
