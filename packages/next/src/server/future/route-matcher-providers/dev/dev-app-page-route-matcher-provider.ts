@@ -69,9 +69,6 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       }
     >()
 
-    // page = /feed/(..)photos/[id]
-    // pathname = /photos/[id]
-
     const appPaths: Record<string, string[]> = {}
     for (const filename of files) {
       const page = this.normalizers.page.normalize(filename)
