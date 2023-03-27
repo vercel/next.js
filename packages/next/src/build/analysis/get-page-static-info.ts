@@ -42,7 +42,7 @@ export interface PageStaticInfo {
 }
 
 const CLIENT_MODULE_LABEL =
-  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) \*\//
+  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
 
@@ -60,10 +60,12 @@ export function getRSCModuleInformation(
     }
   }
 
-  const clientRefs = source.match(CLIENT_MODULE_LABEL)?.[1]?.split(',')
+  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
+  const clientRefs = clientInfoMatch?.[1]?.split(',')
+  const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs }
+  return { type, actions, clientRefs, clientEntryType }
 }
 
 /**

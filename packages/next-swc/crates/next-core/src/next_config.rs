@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -581,6 +581,7 @@ pub async fn load_next_config_internal(
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
+            Default::default(),
             context.compile_time_info(),
         );
         any_content_changed(config_asset.into())
@@ -604,7 +605,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
+    let SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
