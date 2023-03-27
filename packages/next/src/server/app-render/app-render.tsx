@@ -72,6 +72,8 @@ import {
 import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { warn } from '../../build/output/log'
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -1308,6 +1310,12 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
+            warn(
+              `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+              pathname
+            )
+          }
           if (isNotFoundError(err)) {
             res.statusCode = 404
           }

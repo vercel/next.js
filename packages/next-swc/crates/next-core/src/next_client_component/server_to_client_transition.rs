@@ -63,6 +63,7 @@ impl Transition for NextServerToClientTransition {
                     runtime: OptionStringVc::cell(None),
                 },
             ]),
+            Default::default(),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "CLIENT_MODULE".to_string() => client_module,
