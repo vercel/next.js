@@ -14,7 +14,7 @@ const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName][ArchName] || []
+const triples = platformArchTriples[PlatformName]?.[ArchName] || []
 
 const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
