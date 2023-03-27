@@ -3205,6 +3205,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1 0.10.5",
+ "swc_relay",
  "tracing",
  "walkdir",
 ]
@@ -5969,6 +5970,21 @@ dependencies = [
  "wasmer-compiler-cranelift",
  "wasmer-engine-universal",
  "wasmer-wasi",
+]
+
+[[package]]
+name = "swc_relay"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1023f06fac2cfb3531b96edfa9e17cb66b1bbd7e91b13c981e72e3486ab310d"
+dependencies = [
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "swc_common",
+ "swc_core",
+ "tracing",
 ]
 
 [[package]]
