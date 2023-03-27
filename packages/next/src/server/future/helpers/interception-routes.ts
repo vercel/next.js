@@ -39,7 +39,6 @@ export function extractInterceptionRouteInformation(path: string) {
   interceptingRoute = interceptingRoute.slice(0, -1) // remove the trailing slash
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
-  console.log(interceptingRoute, marker, interceptedRoute)
   if (marker === '(..)') {
     interceptedRoute =
       interceptingRoute.split('/').slice(0, -1).join('/') +
