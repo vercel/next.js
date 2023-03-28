@@ -1,19 +1,28 @@
+import type { Params } from '../../../shared/lib/router/utils/route-matcher'
+import type { HandlerModule } from '../route-handler-managers/route-handler-manager'
+import type { NextConfig } from '../../config-shared'
+import type { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
+import type { AppConfig } from '../../../build/utils'
+import type { RequestAsyncStorage } from '../../../client/components/request-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import type * as ServerHooks from '../../../client/components/hooks-server-context'
+import type * as HeaderHooks from '../../../client/components/headers'
+import type { staticGenerationBailout as StaticGenerationBailout } from '../../../client/components/static-generation-bailout'
+import type { WebNextRequest } from '../../base-http/web'
+
+import {
+  RequestAsyncStorageWrapper,
+  type RequestContext,
+} from '../../async-storage/request-async-storage-wrapper'
+import {
+  StaticGenerationAsyncStorageWrapper,
+  type StaticGenerationContext,
+} from '../../async-storage/static-generation-async-storage-wrapper'
 import { isNotFoundError } from '../../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../../client/components/redirect'
-import {
-  requestAsyncStorage,
-  type RequestAsyncStorage,
-  type RequestStore,
-} from '../../../client/components/request-async-storage'
-import type { Params } from '../../../shared/lib/router/utils/route-matcher'
-import type { AsyncStorageWrapper } from '../../async-storage/async-storage-wrapper'
-import {
-  RequestAsyncStorageWrapper,
-  type RequestContext,
-} from '../../async-storage/request-async-storage-wrapper'
 import { BaseNextRequest } from '../../base-http'
 import { NodeNextRequest } from '../../base-http/node'
 import { getRequestMeta } from '../../request-meta'
@@ -29,34 +38,14 @@ import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
 import { RouteHandler, RouteHandlerContext } from './route-handler'
 import * as Log from '../../../build/output/log'
-import { patchOurFetch } from '../../lib/patch-our-fetch'
-import {
-  staticGenerationAsyncStorage,
-  type StaticGenerationAsyncStorage,
-} from '../../../client/components/static-generation-async-storage'
-import {
-  StaticGenerationAsyncStorageWrapper,
-  type StaticGenerationContext,
-} from '../../async-storage/static-generation-async-storage-wrapper'
-import { IncrementalCache } from '../../lib/incremental-cache'
-import { AppConfig } from '../../../build/utils'
+import { patchFetch } from '../../lib/patch-fetch'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { NextURL } from '../../web/next-url'
-import { NextConfig } from '../../config-shared'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import { WebNextRequest } from '../../base-http/web'
-import { staticGenerationBailout } from '../../../client/components/static-generation-bailout'
-import { headers } from '../../../client/components/headers'
-import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
-import { HandlerModule } from '../route-handler-managers/route-handler-manager'
 
 export interface AppRouteRouteHandlerContext extends RouteHandlerContext {
-  staticGenerationContext?: {
-    incrementalCache?: IncrementalCache
-    supportsDynamicHTML: boolean
-    nextExport?: boolean
-  }
+  staticGenerationContext: StaticGenerationContext['renderOpts']
 }
 
 interface AppRouteHandlerFnContext {
@@ -86,8 +75,11 @@ export type AppRouteUserlandModule = Record<HTTP_METHOD, AppRouteHandlerFn> &
 
 export interface AppRouteModule
   extends HandlerModule<AppRouteRouteHandler, AppRouteUserlandModule> {
-  requestAsyncStorage: RequestAsyncStorage
-  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  readonly requestAsyncStorage: RequestAsyncStorage
+  readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  readonly serverHooks: typeof ServerHooks
+  readonly headerHooks: typeof HeaderHooks
+  readonly staticGenerationBailout: typeof StaticGenerationBailout
 }
 
 /**
@@ -146,7 +138,12 @@ function cleanURL(urlString: string): string {
 
 function proxyRequest(
   req: NextRequest | Request,
-  userland: AppRouteUserlandModule
+  userland: AppRouteUserlandModule,
+  hooks: {
+    readonly serverHooks: typeof ServerHooks
+    readonly headerHooks: typeof HeaderHooks
+    readonly staticGenerationBailout: typeof StaticGenerationBailout
+  }
 ): Request {
   function handleNextUrlBailout(prop: string | symbol) {
     switch (prop) {
@@ -155,7 +152,7 @@ function proxyRequest(
       case 'toString':
       case 'href':
       case 'origin':
-        staticGenerationBailout(`nextUrl.${prop as string}`)
+        hooks.staticGenerationBailout(`nextUrl.${prop as string}`)
         return
       default:
         return
@@ -238,7 +235,7 @@ function proxyRequest(
   const handleReqBailout = (prop: string | symbol) => {
     switch (prop) {
       case 'headers':
-        headers()
+        hooks.headerHooks.headers()
         return
       // if request.url is accessed directly instead of
       // request.nextUrl we bail since it includes query
@@ -250,7 +247,7 @@ function proxyRequest(
       case 'text':
       case 'arrayBuffer':
       case 'formData':
-        staticGenerationBailout(`request.${prop}`)
+        hooks.staticGenerationBailout(`request.${prop}`)
         return
       default:
         return
@@ -335,24 +332,62 @@ function validateModule(
   }
 }
 
+export interface AppRouteRouteHandlerOptions {
+  readonly definition: AppRouteRouteDefinition
+  readonly userland: AppRouteUserlandModule
+  readonly resolvedPagePath: string
+  readonly nextConfigOutput: NextConfig['output']
+
+  // The following are included so that the external packages can call the
+  // correct instance of the storage/hooks objects.
+
+  readonly requestAsyncStorage: RequestAsyncStorage
+  readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  readonly serverHooks: typeof ServerHooks
+  readonly headerHooks: typeof HeaderHooks
+  readonly staticGenerationBailout: typeof StaticGenerationBailout
+}
+
 export class AppRouteRouteHandler
   implements RouteHandler<AppRouteRouteDefinition>
 {
-  constructor(
-    public readonly definition: AppRouteRouteDefinition,
-    /**
-     * The module for this handler. When set, this will be used instead of loading
-     * the module from the loader.
-     */
-    private readonly userland: AppRouteUserlandModule,
-    private readonly resolvedPagePath: string,
-    private readonly nextConfigOutput: NextConfig['output'] = undefined,
-    private readonly requestAsyncLocalStorageWrapper: AsyncStorageWrapper<
-      RequestStore,
-      RequestContext
-    > = new RequestAsyncStorageWrapper(),
-    private readonly staticAsyncLocalStorageWrapper = new StaticGenerationAsyncStorageWrapper()
-  ) {}
+  public readonly definition: AppRouteRouteDefinition
+
+  private readonly userland: AppRouteUserlandModule
+  private readonly resolvedPagePath: string
+  private readonly nextConfigOutput: NextConfig['output']
+
+  // The following are included so that the external packages can call the
+  // correct instance of the storage/hooks objects.
+
+  private readonly requestAsyncStorage: RequestAsyncStorage
+  private readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  private readonly serverHooks: typeof ServerHooks
+  private readonly headerHooks: typeof HeaderHooks
+  private readonly staticGenerationBailout: typeof StaticGenerationBailout
+
+  constructor({
+    definition,
+    userland,
+    resolvedPagePath,
+    nextConfigOutput,
+    requestAsyncStorage,
+    staticGenerationAsyncStorage,
+    serverHooks,
+    headerHooks,
+    staticGenerationBailout,
+  }: AppRouteRouteHandlerOptions) {
+    this.definition = definition
+    this.userland = userland
+    this.resolvedPagePath = resolvedPagePath
+    this.nextConfigOutput = nextConfigOutput
+
+    this.requestAsyncStorage = requestAsyncStorage
+    this.staticGenerationAsyncStorage = staticGenerationAsyncStorage
+    this.serverHooks = serverHooks
+    this.headerHooks = headerHooks
+    this.staticGenerationBailout = staticGenerationBailout
+  }
 
   private resolve(method: string): AppRouteHandlerFn {
     // Ensure that the requested method is a valid method (to prevent RCE's).
@@ -422,7 +457,7 @@ export class AppRouteRouteHandler
 
     const requestContext: RequestContext = {
       req:
-        req instanceof WebNextRequest
+        'request' in (req as WebNextRequest)
           ? req
           : (req as NodeNextRequest).originalRequest,
     }
@@ -442,12 +477,12 @@ export class AppRouteRouteHandler
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
-    const response = await this.requestAsyncLocalStorageWrapper.wrap(
-      requestAsyncStorage,
+    const response = await RequestAsyncStorageWrapper.wrap(
+      this.requestAsyncStorage,
       requestContext,
       () =>
-        this.staticAsyncLocalStorageWrapper.wrap(
-          staticGenerationAsyncStorage,
+        StaticGenerationAsyncStorageWrapper.wrap(
+          this.staticGenerationAsyncStorage,
           staticGenerationContext,
           (staticGenerationStore) => {
             // We can currently only statically optimize if only GET/HEAD
@@ -465,7 +500,7 @@ export class AppRouteRouteHandler
             )
 
             if (usedNonStaticHandlers.length > 0) {
-              staticGenerationBailout(
+              this.staticGenerationBailout(
                 `non-static methods used ${usedNonStaticHandlers.join(', ')}`
               )
             }
@@ -483,7 +518,7 @@ export class AppRouteRouteHandler
             switch (this.userland.dynamic) {
               case 'force-dynamic':
                 staticGenerationStore.forceDynamic = true
-                staticGenerationBailout(`dynamic = 'force-dynamic'`)
+                this.staticGenerationBailout(`dynamic = 'force-dynamic'`)
                 break
               case 'force-static':
                 staticGenerationStore.forceStatic = true
@@ -504,8 +539,15 @@ export class AppRouteRouteHandler
             // that might change it's output or affect the rendering.
             const wrappedRequest = proxyRequest(
               // TODO: (wyattjoh) replace with unified request type
-              req instanceof WebNextRequest ? req.request : wrapRequest(req),
-              this.userland
+              'request' in (req as WebNextRequest)
+                ? ((req as WebNextRequest).request as Request)
+                : wrapRequest(req),
+              this.userland,
+              {
+                headerHooks: this.headerHooks,
+                serverHooks: this.serverHooks,
+                staticGenerationBailout: this.staticGenerationBailout,
+              }
             )
 
             return getTracer().trace(
@@ -582,7 +624,11 @@ export class AppRouteRouteHandler
     if (this.patched) return
 
     // Patch the global fetch.
-    patchOurFetch()
+    patchFetch({
+      serverHooks: this.serverHooks,
+      staticGenerationAsyncStorage: this.staticGenerationAsyncStorage,
+    })
+
     this.patched = true
   }
 

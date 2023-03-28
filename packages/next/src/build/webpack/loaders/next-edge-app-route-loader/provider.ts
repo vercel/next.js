@@ -1,5 +1,6 @@
 import type { RouteHandler } from '../../../../server/future/route-handlers/route-handler'
 import type { ExecutableRoute } from '../next-app-loader/routes/helpers/executable-route'
+import type { RouteHandlerManagerContext } from '../../../../server/future/route-handler-managers/route-handler-manager'
 
 import { WebNextRequest } from '../../../../server/base-http/web'
 import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
@@ -46,7 +47,7 @@ export class HandlerProvider {
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
-    const context = {
+    const context: RouteHandlerManagerContext = {
       params: match.params,
       staticGenerationContext: {
         supportsDynamicHTML: true,

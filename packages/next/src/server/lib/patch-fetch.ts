@@ -1,4 +1,6 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type * as ServerHooks from '../../client/components/hooks-server-context'
+
 import { AppRenderSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
@@ -11,7 +13,7 @@ export function patchFetch({
   serverHooks,
   staticGenerationAsyncStorage,
 }: {
-  serverHooks: typeof import('../../client/components/hooks-server-context')
+  serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
   if ((globalThis.fetch as any).__nextPatched) return
