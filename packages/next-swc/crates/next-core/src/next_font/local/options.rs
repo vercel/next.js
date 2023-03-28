@@ -9,15 +9,21 @@ use super::request::{
     SrcRequest,
 };
 
+/// A normalized, Vc-friendly struct derived from validating and transforming
+/// [[NextFontLocalRequest]]
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,
     pub default_style: Option<String>,
+    /// The desired css `font-display` property
     pub display: String,
     pub preload: bool,
+    /// A list of manually-provided fallback fonts to be included in the
+    /// font-family string as-is.
     pub fallback: Option<Vec<String>>,
+    /// The user's desired fallback font
     pub adjust_font_fallback: AdjustFontFallback,
     /// An optional name for a css custom property (css variable) that applies
     /// the font family when used.
@@ -40,6 +46,8 @@ impl NextFontLocalOptionsVc {
     }
 }
 
+/// Describes an individual font file's path, weight, style, etc. Derived from
+/// the `src` field or top-level object provided by the user
 #[derive(
     Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TraceRawVcs,
 )]
@@ -75,6 +83,10 @@ impl FontDescriptor {
     Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TraceRawVcs,
 )]
 pub(super) enum FontDescriptors {
+    /// `One` is a special case when the user did not provide a `src` field and
+    /// instead included font path, weight etc in the top-level object: in
+    /// this case, the weight and style should be included in the rules for the
+    /// className selector and returned JS object.
     One(FontDescriptor),
     Many(Vec<FontDescriptor>),
 }
