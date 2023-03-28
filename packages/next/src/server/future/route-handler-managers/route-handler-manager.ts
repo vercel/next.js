@@ -6,10 +6,39 @@ import type {
 } from '../route-handlers/route-handler'
 import type { RouteMatch } from '../route-matches/route-match'
 import type { AppRouteRouteHandlerContext } from '../route-handlers/app-route-route-handler'
+import type { RequestAsyncStorage } from '../../../client/components/request-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import type * as ServerHooks from '../../../client/components/hooks-server-context'
+import type * as HeaderHooks from '../../../client/components/headers'
+import type { staticGenerationBailout as StaticGenerationBailout } from '../../../client/components/static-generation-bailout'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 
+/**
+ * A route handler is a function that takes a request and returns a response.
+ */
+export interface HandlerRoute<
+  D extends RouteDefinition,
+  H extends RouteHandler
+> {
+  /**
+   * The definition of the route.
+   */
+  readonly definition: D
+
+  /**
+   * The handler for the route.
+   */
+  readonly handler: H
+}
+
+/**
+ * A module is a userland module that exports a route handler and some other
+ * hooks.
+ */
 export interface HandlerModule<
+  D extends RouteDefinition = RouteDefinition,
   H extends RouteHandler = RouteHandler,
   U = unknown
 > {
@@ -17,15 +46,40 @@ export interface HandlerModule<
    * The userland module. This is the module that is exported from the user's
    * code.
    */
-  readonly userland: U
+  readonly userland: Readonly<U>
 
-  readonly route: {
-    /**
-     * The handler for the module. This is the handler that is used to handle
-     * requests.
-     */
-    readonly handler: H
-  }
+  /**
+   * The route that provides the handler for the module.
+   */
+  readonly route: HandlerRoute<D, H>
+
+  /**
+   * A reference to the request async storage.
+   */
+  readonly requestAsyncStorage: RequestAsyncStorage
+
+  /**
+   * A reference to the static generation async storage.
+   */
+  readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+
+  /**
+   * An interface to call server hooks which interact with the underlying
+   * storage.
+   */
+  readonly serverHooks: typeof ServerHooks
+
+  /**
+   * An interface to call header hooks which interact with the underlying
+   * request storage.
+   */
+  readonly headerHooks: typeof HeaderHooks
+
+  /**
+   * An interface to call static generation bailout hooks which interact with
+   * the underlying static generation storage.
+   */
+  readonly staticGenerationBailout: typeof StaticGenerationBailout
 }
 
 /**

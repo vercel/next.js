@@ -44,10 +44,18 @@ import { NextURL } from '../../web/next-url'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
 
+/**
+ * AppRouteRouteHandlerContext is the context that is passed to the route
+ * handler for app routes.
+ */
 export interface AppRouteRouteHandlerContext extends RouteHandlerContext {
   staticGenerationContext: StaticGenerationContext['renderOpts']
 }
 
+/**
+ * AppRouteHandlerFnContext is the context that is passed to the handler as the
+ * second argument.
+ */
 interface AppRouteHandlerFnContext {
   params?: Params
 }
@@ -73,14 +81,15 @@ export type AppRouteUserlandModule = Record<HTTP_METHOD, AppRouteHandlerFn> &
     generateStaticParams?: any
   }
 
-export interface AppRouteModule
-  extends HandlerModule<AppRouteRouteHandler, AppRouteUserlandModule> {
-  readonly requestAsyncStorage: RequestAsyncStorage
-  readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
-  readonly serverHooks: typeof ServerHooks
-  readonly headerHooks: typeof HeaderHooks
-  readonly staticGenerationBailout: typeof StaticGenerationBailout
-}
+/**
+ * AppRouteModule is the module definition for the available exports from the
+ * compiled app route module.
+ */
+export type AppRouteModule = HandlerModule<
+  AppRouteRouteDefinition,
+  AppRouteRouteHandler,
+  AppRouteUserlandModule
+>
 
 /**
  * Wraps the base next request to a request compatible with the app route
@@ -138,7 +147,7 @@ function cleanURL(urlString: string): string {
 
 function proxyRequest(
   req: NextRequest | Request,
-  userland: AppRouteUserlandModule,
+  { dynamic }: Pick<AppRouteUserlandModule, 'dynamic'>,
   hooks: {
     readonly serverHooks: typeof ServerHooks
     readonly headerHooks: typeof HeaderHooks
@@ -210,10 +219,7 @@ function proxyRequest(
           get(target, prop) {
             handleNextUrlBailout(prop)
 
-            if (
-              userland.dynamic === 'force-static' &&
-              typeof prop === 'string'
-            ) {
+            if (dynamic === 'force-static' && typeof prop === 'string') {
               const result = handleForceStatic(target.href, prop)
               if (result !== undefined) return result
             }
@@ -262,7 +268,7 @@ function proxyRequest(
         return wrappedNextUrl
       }
 
-      if (userland.dynamic === 'force-static' && typeof prop === 'string') {
+      if (dynamic === 'force-static' && typeof prop === 'string') {
         const result = handleForceStatic(target.url, prop)
         if (result !== undefined) return result
       }
@@ -301,7 +307,7 @@ function getPathnameFromAbsolutePath(absolutePath: string) {
  * @param mod the module to validate
  */
 function validateModule(
-  userland: AppRouteUserlandModule,
+  userland: Readonly<AppRouteUserlandModule>,
   resolvedPagePath: string
 ) {
   // Print error in development if the exported handlers are in lowercase, only
@@ -348,11 +354,8 @@ export interface AppRouteRouteHandlerOptions {
   readonly staticGenerationBailout: typeof StaticGenerationBailout
 }
 
-export class AppRouteRouteHandler
-  implements RouteHandler<AppRouteRouteDefinition>
-{
-  public readonly definition: AppRouteRouteDefinition
-
+export class AppRouteRouteHandler implements RouteHandler {
+  private readonly definition: AppRouteRouteDefinition
   private readonly userland: AppRouteUserlandModule
   private readonly resolvedPagePath: string
   private readonly nextConfigOutput: NextConfig['output']
@@ -505,17 +508,18 @@ export class AppRouteRouteHandler
               )
             }
 
+            let dynamic = this.userland.dynamic
             if (this.nextConfigOutput === 'export') {
-              if (!this.userland.dynamic || this.userland.dynamic === 'auto') {
-                this.userland.dynamic = 'error'
-              } else if (this.userland.dynamic === 'force-dynamic') {
+              if (!dynamic || dynamic === 'auto') {
+                dynamic = 'error'
+              } else if (dynamic === 'force-dynamic') {
                 throw new Error(
                   `export const dynamic = "force-dynamic" on route handler "${handle.name}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
                 )
               }
             }
 
-            switch (this.userland.dynamic) {
+            switch (dynamic) {
               case 'force-dynamic':
                 staticGenerationStore.forceDynamic = true
                 this.staticGenerationBailout(`dynamic = 'force-dynamic'`)
@@ -542,7 +546,7 @@ export class AppRouteRouteHandler
               'request' in (req as WebNextRequest)
                 ? ((req as WebNextRequest).request as Request)
                 : wrapRequest(req),
-              this.userland,
+              { dynamic },
               {
                 headerHooks: this.headerHooks,
                 serverHooks: this.serverHooks,

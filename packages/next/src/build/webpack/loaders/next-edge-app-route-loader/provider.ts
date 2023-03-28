@@ -1,6 +1,7 @@
 import type { RouteHandler } from '../../../../server/future/route-handlers/route-handler'
 import type { ExecutableRoute } from '../next-app-loader/routes/helpers/executable-route'
 import type { RouteHandlerManagerContext } from '../../../../server/future/route-handler-managers/route-handler-manager'
+import type { RouteDefinition } from '../../../../server/future/route-definitions/route-definition'
 
 import { WebNextRequest } from '../../../../server/base-http/web'
 import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
@@ -16,8 +17,10 @@ export class HandlerProvider {
   private readonly matcher: RouteMatcher
   private patched: boolean = false
 
-  constructor(private readonly route: ExecutableRoute<RouteHandler>) {
-    this.matcher = new RouteMatcher(route.handler.definition)
+  constructor(
+    private readonly route: ExecutableRoute<RouteDefinition, RouteHandler>
+  ) {
+    this.matcher = new RouteMatcher(route.definition)
 
     // If the handler doesn't need patching, mark it as already patched.
     if (!route.handler.patch) this.patched = true

@@ -1,11 +1,6 @@
-import { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import { RouteHandler } from './route-handler'
+import type { RouteHandler } from './route-handler'
 
-export class AppPageRouteHandler
-  implements RouteHandler<AppPageRouteDefinition>
-{
-  constructor(public readonly definition: AppPageRouteDefinition) {}
-
+export class AppPageRouteHandler implements RouteHandler {
   public async handle(): Promise<Response> {
     throw new Error('Method not implemented.')
   }
