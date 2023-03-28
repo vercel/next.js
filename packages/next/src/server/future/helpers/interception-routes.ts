@@ -8,11 +8,8 @@ export function isIntersectionRouteAppPath(path: string): boolean {
   return (
     path
       .split('/')
-      .find(
-        (p) =>
-          p.startsWith('(..)') ||
-          p.startsWith('(...)') ||
-          p.startsWith('(..)(..)')
+      .find((segment) =>
+        INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
       ) !== undefined
   )
 }
@@ -23,9 +20,9 @@ export function extractInterceptionRouteInformation(path: string) {
     interceptedRoute: string | undefined
 
   for (const segment of path.split('/')) {
-    if (INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))) {
-      marker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
-      ;[interceptingRoute, interceptedRoute] = path.split(marker!, 2)
+    marker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
+    if (marker) {
+      ;[interceptingRoute, interceptedRoute] = path.split(marker, 2)
       break
     }
   }
@@ -40,6 +37,8 @@ export function extractInterceptionRouteInformation(path: string) {
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
   if (marker === '(..)') {
+    // (..) indicates that we should remove the last segment of the intercepting
+    // route to prepend the intercepted route.
     interceptedRoute =
       interceptingRoute.split('/').slice(0, -1).join('/') +
       '/' +
@@ -47,10 +46,14 @@ export function extractInterceptionRouteInformation(path: string) {
   }
 
   if (marker === '(...)') {
+    // (...) will match the route segment in the root directory, so we need to
+    // use the root directory to prepend the intercepted route.
     interceptedRoute = '/' + interceptedRoute
   }
 
   if (marker === '(..)(..)') {
+    // (..)(..) indicates that we should remove the last two segments of the
+    // intercepting route to prepend the intercepted route.
     interceptedRoute =
       interceptingRoute.split('/').slice(0, -2).join('/') +
       '/' +
