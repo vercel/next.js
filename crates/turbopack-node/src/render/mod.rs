@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{route_matcher::Param, ResponseHeaders, StructuredError};
 
+pub(crate) mod error_page;
 pub mod issue;
 pub mod node_api_source;
 pub mod render_proxy;
