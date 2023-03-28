@@ -113,21 +113,39 @@ async function createAppRouteCode({
     resolvedPagePath: ${JSON.stringify(resolvedPagePath)},
     nextConfigOutput: ${
       nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
-    }
+    },
+    requestAsyncStorage,
+    staticGenerationAsyncStorage,
+    staticGenerationBailout,
+    headerHooks,
+    serverHooks,
   }`
 
   return `
     import 'next/dist/server/node-polyfill-headers'
 
-    import { Route } from 'next/dist/esm/build/webpack/loaders/next-app-loader/routes/${kind}'
+    import { Route } from 'next/dist/build/webpack/loaders/next-app-loader/routes/${kind}'
+
     import { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
     import { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+
+    import * as headerHooks from 'next/dist/client/components/headers'
+    import * as serverHooks from 'next/dist/client/components/hooks-server-context'
+    import { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
 
     import * as userland from ${JSON.stringify(resolvedPagePath)}
 
     const route = new Route(${options})
     
-    export { userland, route, requestAsyncStorage, staticGenerationAsyncStorage }`
+    export {
+      userland,
+      route,
+      requestAsyncStorage,
+      staticGenerationAsyncStorage,
+      serverHooks,
+      headerHooks,
+      staticGenerationBailout,
+    }`
 }
 
 const normalizeParallelKey = (key: string) =>

@@ -30,6 +30,7 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { AppRouteRouteHandlerContext } from './future/route-handlers/app-route-route-handler'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -1523,9 +1524,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : undefined
 
       if (match) {
-        const context = {
-          supportsDynamicHTML,
-          incrementalCache,
+        const context: AppRouteRouteHandlerContext = {
+          staticGenerationContext: {
+            supportsDynamicHTML,
+            incrementalCache,
+          },
         }
 
         try {
@@ -1542,11 +1545,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
-              let revalidate: number | false | undefined = (
-                (context as any).store as any as
-                  | { revalidate?: number }
-                  | undefined
-              )?.revalidate
+              let revalidate: number | false | undefined =
+                context.staticGenerationContext.store?.revalidate
 
               if (typeof revalidate == 'undefined') {
                 revalidate = false

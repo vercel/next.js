@@ -5,6 +5,7 @@ import type {
   RouteHandlerContext,
 } from '../route-handlers/route-handler'
 import type { RouteMatch } from '../route-matches/route-match'
+import type { AppRouteRouteHandlerContext } from '../route-handlers/app-route-route-handler'
 
 import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
 
@@ -16,16 +17,22 @@ export interface HandlerModule<
    * The userland module. This is the module that is exported from the user's
    * code.
    */
-  userland: U
+  readonly userland: U
 
-  route: {
+  readonly route: {
     /**
      * The handler for the module. This is the handler that is used to handle
      * requests.
      */
-    handler: H
+    readonly handler: H
   }
 }
+
+/**
+ * RouteHandlerManager is a manager for route handlers. As new route handlers
+ * are added, their types should be '&'-ed with this type.
+ */
+export type RouteHandlerManagerContext = AppRouteRouteHandlerContext
 
 export class RouteHandlerManager {
   constructor(
@@ -35,7 +42,7 @@ export class RouteHandlerManager {
   public async handle(
     match: RouteMatch,
     req: BaseNextRequest,
-    context: any = {}
+    context: RouteHandlerManagerContext
   ): Promise<Response | undefined> {
     // The module supports minimal mode, load the minimal module.
     const module: HandlerModule = await this.moduleLoader.load(

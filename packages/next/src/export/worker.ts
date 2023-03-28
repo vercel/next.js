@@ -420,13 +420,8 @@ export default async function exportPage({
 
             if (isValidStatus) {
               const body = await response.blob()
-              // TODO: (wyattjoh) fix this type
               const revalidate =
-                (
-                  (context.staticGenerationContext as any).store as any as {
-                    revalidate?: number
-                  }
-                ).revalidate || false
+                context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
               const headers = Object.fromEntries(response.headers)

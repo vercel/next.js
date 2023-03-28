@@ -1185,13 +1185,12 @@ export async function buildAppStaticPaths({
   staticGenerationAsyncStorage: Parameters<
     typeof patchFetch
   >[0]['staticGenerationAsyncStorage']
-  serverHooks?: Parameters<typeof patchFetch>[0]['serverHooks']
+  serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
 }) {
-  // Patch the fetch implementation to use the cache if the module provides the
-  // storage. Otherwise it's assumed that the module has patched fetch itself.
-  if (staticGenerationAsyncStorage && serverHooks) {
-    patchFetch({ staticGenerationAsyncStorage, serverHooks })
-  }
+  patchFetch({
+    staticGenerationAsyncStorage,
+    serverHooks,
+  })
 
   let CacheHandler: any
 
@@ -1219,9 +1218,7 @@ export async function buildAppStaticPaths({
     requestHeaders,
   })
 
-  const wrapper = new StaticGenerationAsyncStorageWrapper()
-
-  return wrapper.wrap(
+  return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
       pathname: page,
