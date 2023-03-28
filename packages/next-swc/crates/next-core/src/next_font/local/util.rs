@@ -7,6 +7,7 @@ use crate::next_font::{
     util::{get_scoped_font_family, FontFamilyType},
 };
 
+/// Returns a string to be used as the `font-family` property in css.
 #[turbo_tasks::function]
 pub(super) async fn build_font_family_string(
     options: NextFontLocalOptionsVc,
