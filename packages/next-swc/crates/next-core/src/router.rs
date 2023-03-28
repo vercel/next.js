@@ -255,7 +255,7 @@ fn edge_transition_map(
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
-    let edge_compile_time_info = get_edge_compile_time_info(server_addr, Value::new(Middleware));
+    let edge_compile_time_info = get_edge_compile_time_info(project_path, server_addr, Value::new(Middleware));
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
