@@ -7,7 +7,8 @@
   "scripts": {
     "build": "pnpm build:compiled && pnpm check",
     "build:compiled": "node build.mjs",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "dev": "pnpm build"
   },
   "dependencies": {
     "@vercel/turbopack-dev-runtime": "https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3",
