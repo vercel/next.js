@@ -44,6 +44,7 @@ pub(super) struct SrcDescriptor {
     pub style: Option<String>,
 }
 
+/// The user's desired fallback font
 #[derive(
     Clone, Debug, Deserialize, Hash, Ord, PartialOrd, PartialEq, Eq, Serialize, TraceRawVcs,
 )]
@@ -57,6 +58,8 @@ fn default_adjust_font_fallback() -> AdjustFontFallback {
     AdjustFontFallback::Arial
 }
 
+/// Deserializes and validates JS (bool | string) into [[AdjustFontFallback]]'s
+/// None, Arial, TimesNewRoman
 fn deserialize_adjust_font_fallback<'de, D>(
     de: D,
 ) -> std::result::Result<AdjustFontFallback, D::Error>
