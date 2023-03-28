@@ -533,17 +533,22 @@ export default async function build(
         appPaths = await nextBuildSpan
           .traceChild('collect-app-paths')
           .traceAsyncFn(() =>
-            recursiveReadDir(appDir, (absolutePath) => {
-              if (validFileMatcher.isAppRouterPage(absolutePath)) {
-                return true
-              }
-              // For now we only collect the root /not-found page in the app
-              // directory as the 404 fallback.
-              if (validFileMatcher.isRootNotFound(absolutePath)) {
-                return true
-              }
-              return false
-            })
+            recursiveReadDir(
+              appDir,
+              (absolutePath) => {
+                if (validFileMatcher.isAppRouterPage(absolutePath)) {
+                  return true
+                }
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback.
+                if (validFileMatcher.isRootNotFound(absolutePath)) {
+                  return true
+                }
+                return false
+              },
+              undefined,
+              (part) => part.startsWith('_')
+            )
           )
       }
 
@@ -922,7 +927,6 @@ export default async function build(
       )
 
       // We need to write the manifest with rewrites before build
-      // so serverless can import the manifest
       await nextBuildSpan
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() =>

@@ -71,6 +71,12 @@ export default class FetchCache implements CacheHandler {
 
     let data = memoryCache?.get(key)
 
+    // memory cache data is only leveraged for up to 1 seconds
+    // so that revalidation events can be pulled from source
+    if (Date.now() - (data?.lastModified || 0) > 2000) {
+      data = undefined
+    }
+
     // get data from fetch cache
     if (!data && this.cacheEndpoint) {
       try {
@@ -113,11 +119,11 @@ export default class FetchCache implements CacheHandler {
 
         data = {
           value: cached,
-          // if it's already stale set it to a year in the future
+          // if it's already stale set it to a time in the past
           // if not derive last modified from age
           lastModified:
             cacheState === 'stale'
-              ? Date.now() + CACHE_ONE_YEAR
+              ? Date.now() - CACHE_ONE_YEAR
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
         if (this.debug) {

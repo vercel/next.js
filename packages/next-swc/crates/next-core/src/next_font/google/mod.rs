@@ -5,6 +5,7 @@ use turbo_tasks::{
     primitives::{OptionStringVc, StringVc, U32Vc},
     Value,
 };
+
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc};
 use turbopack_core::{
     resolve::{
@@ -67,7 +68,11 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn result(&self, request: RequestVc) -> Result<ImportMapResultVc> {
+    async fn result(
+        &self,
+        _context: FileSystemPathVc,
+        request: RequestVc,
+    ) -> Result<ImportMapResultVc> {
         let request = &*request.await?;
         let Request::Module {
             module: _,
@@ -154,7 +159,11 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn result(&self, request: RequestVc) -> Result<ImportMapResultVc> {
+    async fn result(
+        &self,
+        _context: FileSystemPathVc,
+        request: RequestVc,
+    ) -> Result<ImportMapResultVc> {
         let request = &*request.await?;
         let Request::Module {
             module: _,
@@ -374,20 +383,16 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<String>> {
     use std::{collections::HashMap, path::Path};
 
-    use turbo_tasks::{CompletionVc, Value};
+    use turbo_tasks::CompletionVc;
+    use turbo_tasks_bytes::stream::SingleValue;
     use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
-    use turbo_tasks_fs::{
-        json::parse_json_with_source_context, DiskFileSystemVc, File, FileSystem,
-    };
+    use turbo_tasks_fs::{DiskFileSystemVc, File, FileSystem};
     use turbopack::evaluate_context::node_evaluate_asset_context;
     use turbopack_core::{context::AssetContext, ident::AssetIdentVc};
     use turbopack_ecmascript::{
         EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
     };
-    use turbopack_node::{
-        evaluate::{evaluate, JavaScriptValue},
-        execution_context::ExecutionContext,
-    };
+    use turbopack_node::{evaluate::evaluate, execution_context::ExecutionContext};
 
     let env = CommandLineProcessEnvVc::new().as_process_env();
     let mocked_response_js = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES").await?;
@@ -410,7 +415,7 @@ async fn get_mock_stylesheet(
     let ExecutionContext {
         env,
         project_path,
-        intermediate_output_path,
+        chunking_context,
     } = *execution_context.await?;
     let context = node_evaluate_asset_context(project_path, None, None);
     let loader_path = mock_fs.root().join("loader.js");
@@ -430,6 +435,7 @@ async fn get_mock_stylesheet(
         context,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
         EcmascriptInputTransformsVc::cell(vec![]),
+        Default::default(),
         context.compile_time_info(),
     )
     .into();
@@ -441,7 +447,7 @@ async fn get_mock_stylesheet(
         env,
         AssetIdentVc::from_path(loader_path),
         context,
-        intermediate_output_path,
+        chunking_context,
         None,
         vec![],
         CompletionVc::immutable(),
@@ -449,15 +455,14 @@ async fn get_mock_stylesheet(
     )
     .await?;
 
-    match &*val {
-        JavaScriptValue::Value(val) => {
-            let mock_map: HashMap<String, Option<String>> =
-                parse_json_with_source_context(&val.to_str()?)?;
-            Ok((mock_map.get(url).context("url not found")?).clone())
+    match &val.try_into_single().await? {
+        SingleValue::Single(val) => {
+            let val: HashMap<String, Option<String>> =
+                parse_json_with_source_context(val.to_str()?)?;
+            Ok(val.get(url).context("url not found")?.clone())
         }
-        JavaScriptValue::Error => panic!("Unexpected error evaluating JS"),
-        JavaScriptValue::Stream(_) => {
-            unimplemented!("Stream not supported now");
+        _ => {
+            panic!("Unexpected error evaluating JS")
         }
     }
 }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -7,7 +7,6 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     CompletionVc, Value,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::EnvMapVc;
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
 use turbopack::evaluate_context::node_evaluate_asset_context;
@@ -581,6 +580,7 @@ pub async fn load_next_config_internal(
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
+            Default::default(),
             context.compile_time_info(),
         );
         any_content_changed(config_asset.into())
@@ -604,7 +604,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
+    let turbo_tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;

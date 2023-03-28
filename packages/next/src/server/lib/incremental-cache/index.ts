@@ -297,8 +297,7 @@ export class IncrementalCache {
           data,
           revalidate: revalidate,
         },
-        revalidateAfter:
-          (cacheData.lastModified || Date.now()) + revalidate * 1000,
+        revalidateAfter: Date.now() + revalidate * 1000,
       }
     }
 
@@ -351,10 +350,10 @@ export class IncrementalCache {
     fetchCache?: boolean
   ) {
     if (this.dev && !fetchCache) return
-    // fetchCache has upper limit of 1MB per-entry currently
-    if (fetchCache && JSON.stringify(data).length > 1024 * 1024) {
+    // fetchCache has upper limit of 2MB per-entry currently
+    if (fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
       if (this.dev) {
-        throw new Error(`fetch for over 1MB of data can not be cached`)
+        throw new Error(`fetch for over 2MB of data can not be cached`)
       }
       return
     }

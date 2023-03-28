@@ -121,13 +121,12 @@ impl CustomTransformer for NextJsDynamic {
 
 /// Returns a rule which applies the Next.js font transform.
 pub fn get_next_font_transform_rule() -> ModuleRule {
-    #[allow(unused_mut)] // This is mutated when next-font-local is enabled
-    let mut font_loaders = vec!["next/font/google".into(), "@next/font/google".into()];
-    #[cfg(feature = "next-font-local")]
-    {
-        font_loaders.push("next/font/local".into());
-        font_loaders.push("@next/font/local".into());
-    }
+    let font_loaders = vec![
+        "next/font/google".into(),
+        "@next/font/google".into(),
+        "next/font/local".into(),
+        "@next/font/local".into(),
+    ];
 
     let transformer =
         EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont { font_loaders }));

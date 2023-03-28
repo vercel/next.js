@@ -31,7 +31,7 @@ import type { RenderOpts } from "next/dist/server/app-render/types";
 import "next/dist/server/node-polyfill-fetch";
 import "next/dist/server/node-polyfill-web-streams";
 import "@vercel/turbopack-next/polyfill/async-local-storage";
-import { renderToHTMLOrFlight } from "next/dist/server/app-render";
+import { renderToHTMLOrFlight } from "next/dist/server/app-render/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
