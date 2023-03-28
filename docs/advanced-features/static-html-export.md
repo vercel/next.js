@@ -68,7 +68,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-This will change links so that `href="/about"` will instead be `herf="/about/"`. It will also change the output so that `out/about.html` will instead emit `out/about/index.html`.
+This will change links so that `href="/about"` will instead be `href="/about/"`. It will also change the output so that `out/about.html` will instead emit `out/about/index.html`.
 
 Learn more about [Trailing Slash](/docs/api-reference/next.config.js/trailing-slash.md).
 

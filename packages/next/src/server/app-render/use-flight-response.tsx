@@ -5,7 +5,7 @@ import {
   decodeText,
 } from '../node-web-streams-helper'
 import { htmlEscapeJsonString } from '../htmlescape'
-import { isEdgeRuntime } from './index'
+import { isEdgeRuntime } from './app-render'
 import { FlightResponseRef } from './flight-response-ref'
 
 /**
