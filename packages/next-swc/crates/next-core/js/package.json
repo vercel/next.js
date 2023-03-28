@@ -5,8 +5,9 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
-    "check": "tsc --noEmit",
-    "build:compiled": "node build.mjs"
+    "build": "pnpm build:compiled && pnpm check",
+    "build:compiled": "node build.mjs",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "@vercel/turbopack-dev-runtime": "https://gitpkg.now.sh/vercel/turbo/crates/turbopack-dev/js?turbopack-230321.3",
