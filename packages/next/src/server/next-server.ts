@@ -102,6 +102,7 @@ import { nodeFs } from './lib/node-fs-methods'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './lib/utils'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
+import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 
 export * from './base-server'
 
@@ -1456,6 +1457,11 @@ export default class NextNodeServer extends BaseServer {
             if (query.__nextDataReq) {
               invokePathname = `/_next/data/${this.buildId}${invokePathname}.json`
             }
+            invokePathname = addPathPrefix(
+              invokePathname,
+              this.nextConfig.basePath
+            )
+
             const keptQuery = new URLSearchParams()
 
             for (const key of Object.keys(query)) {
