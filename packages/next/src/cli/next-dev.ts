@@ -494,15 +494,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       let config: NextConfig
       let childProcess: ChildProcess | null = null
 
-      const isDebugging =
-        process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
-        process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
-
-      const isDebuggingWithBrk =
-        process.execArgv.some((localArg) =>
-          localArg.startsWith('--inspect-brk')
-        ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
-
       const genExecArgv = () => {
         const execArgv = process.execArgv.filter((localArg) => {
           return (
@@ -511,11 +502,28 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           )
         })
 
-        const inspectFlagVar = process.execArgv.find((localArg) => {
+        const inspectFlagVarInArg = process.execArgv.find((localArg) => {
           return localArg.startsWith('--inspect')
         })
+        const inspectFlagVarInNodeOptions = process.execArgv.find(
+          (localArg) => {
+            return localArg.includes('--inspect')
+          }
+        )
 
-        if (inspectFlagVar !== undefined) {
+        const inspectFlagPresent =
+          inspectFlagVarInArg ?? inspectFlagVarInNodeOptions
+
+        if (inspectFlagPresent !== undefined) {
+          let unifiedInspectFlagStructure: string
+
+          if (inspectFlagPresent.includes('NODE_OPTIONS')) {
+            unifiedInspectFlagStructure = inspectFlagPresent
+              .split('=')
+              .slice(1)
+              .join('=')
+          } else unifiedInspectFlagStructure = inspectFlagPresent
+
           const defaultIp = '127.0.0.1'
           const defaultPort = 9229
 
@@ -543,19 +551,18 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             const portNumber = value
             return `${flag}=${defaultIp}:${Number(portNumber) + 1}`
           }
-
-          if (isDebugging || isDebuggingWithBrk) {
-            console.log(
-              `the --inspect option was detected, the Next.js server should be inspected at port ${
-                transformInspectFlagForNextAvailablePort(inspectFlagVar).split(
-                  ':'
-                )[1]
-              }`
+          console.log(
+            `the --inspect option was detected, the Next.js server should be inspected at port ${
+              transformInspectFlagForNextAvailablePort(
+                unifiedInspectFlagStructure
+              ).split(':')[1]
+            }`
+          )
+          execArgv.push(
+            transformInspectFlagForNextAvailablePort(
+              unifiedInspectFlagStructure
             )
-            execArgv.push(
-              transformInspectFlagForNextAvailablePort(inspectFlagVar)
-            )
-          }
+          )
         }
 
         return execArgv
