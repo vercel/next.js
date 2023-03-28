@@ -8,7 +8,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -288,13 +288,8 @@ const nextDev: CliCommand = async (argv) => {
     try {
       let shouldFilter = false
       let devServerTeardown: (() => Promise<void>) | undefined
-      const config = await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      )
+      let config: NextConfig | undefined
+
       watchConfigFiles(devServerOptions.dir)
 
       const setupFork = async (newDir?: string) => {
@@ -344,7 +339,7 @@ const nextDev: CliCommand = async (argv) => {
                 // check if start directory is still valid
                 const result = findPagesDir(
                   startDir,
-                  !!config.experimental?.appDir
+                  !!config?.experimental?.appDir
                 )
                 shouldFilter = !Boolean(result.pagesDir || result.appDir)
               } catch (_) {
@@ -367,6 +362,16 @@ const nextDev: CliCommand = async (argv) => {
         }
         shouldFilter = false
         devServerTeardown = await startServer(devServerOptions)
+
+        if (!config) {
+          config = await loadConfig(
+            PHASE_DEVELOPMENT_SERVER,
+            dir,
+            undefined,
+            undefined,
+            true
+          )
+        }
       }
 
       await setupFork()
@@ -375,7 +380,7 @@ const nextDev: CliCommand = async (argv) => {
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1
       const previousItems = new Set<string>()
-      const instrumentationFilePaths = !!config.experimental
+      const instrumentationFilePaths = !!config?.experimental
         ?.instrumentationHook
         ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
         : []
@@ -455,7 +460,7 @@ const nextDev: CliCommand = async (argv) => {
 
         // if the dir still exists nothing to check
         try {
-          const result = findPagesDir(dir, !!config.experimental?.appDir)
+          const result = findPagesDir(dir, !!config?.experimental?.appDir)
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
         } catch (err) {
           // if findPagesDir throws validation error let this be
@@ -489,7 +494,7 @@ const nextDev: CliCommand = async (argv) => {
         try {
           const result = findPagesDir(
             newFiles[0],
-            !!config.experimental?.appDir
+            !!config?.experimental?.appDir
           )
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
         } catch (_) {}

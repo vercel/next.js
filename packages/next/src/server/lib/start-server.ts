@@ -3,6 +3,7 @@ import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { ChildProcess } from 'child_process'
 
 export interface StartServerOptions {
   dir: string
@@ -158,6 +159,8 @@ export async function startServer({
 
       const routerWorker = new Worker(renderServerPath, {
         numWorkers: 1,
+        // TODO: do we want to allow more than 10 OOM restarts?
+        maxRetries: 10,
         forkOptions: {
           cwd: dir,
           env: {
@@ -174,6 +177,22 @@ export async function startServer({
       }) as any as InstanceType<typeof Worker> & {
         initialize: typeof import('./render-server').initialize
       }
+      let didInitialize = false
+
+      for (const worker of ((routerWorker as any)._workerPool?._workers ||
+        []) as {
+        _child: ChildProcess
+      }[]) {
+        // eslint-disable-next-line no-loop-func
+        worker._child.on('exit', (code, signal) => {
+          // catch failed initializing without retry
+          if ((code || signal) && !didInitialize) {
+            routerWorker?.end()
+            process.exit(1)
+          }
+        })
+      }
+
       const workerStdout = routerWorker.getStdout()
       const workerStderr = routerWorker.getStderr()
 
@@ -200,6 +219,7 @@ export async function startServer({
         workerType: 'router',
         keepAliveTimeout,
       })
+      didInitialize = true
 
       const getProxyServer = (pathname: string) => {
         const targetUrl = `http://${normalizedHost}:${routerPort}${pathname}`
