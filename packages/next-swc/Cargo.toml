@@ -36,20 +36,20 @@ next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-e
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.12.2" }
-mdxjs = { version = "0.1.8" }
-modularize_imports = { version = "0.26.10" }
-styled_components = { version = "0.53.10" }
-styled_jsx = { version = "0.30.10" }
-swc_core = { version = "0.69.6" }
-swc_emotion = { version = "0.29.10" }
-testing = { version = "0.31.31" }
+mdxjs = { version = "0.1.9" }
+modularize_imports = { version = "0.26.14" }
+styled_components = { version = "0.53.14" }
+styled_jsx = { version = "0.30.14" }
+swc_core = { version = "0.72.0" }
+swc_emotion = { version = "0.29.14" }
+testing = { version = "0.32.0" }
 
 # Turbo crates
-turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230329.2" }
+turbo-binding = { git = "https://github.com/vercel/turbo.git", branch = "kdy1/swc-update" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230329.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "kdy1/swc-update" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230329.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "kdy1/swc-update" }
 
 # General Deps
 
