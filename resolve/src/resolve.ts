@@ -245,14 +245,9 @@ function directoryTreeToLoaderTree(
 }
 
 async function collectLoaderTreeByEntrypoint(dir) {
-  const result = await resolveAppTree(join(__dirname, dir), [
-    'js',
-    'jsx',
-    'ts',
-    'tsx',
-  ])
+  console.time('Time spent (ts)')
+  const result = await resolveAppTree(dir, ['js', 'jsx', 'ts', 'tsx'])
   const entrypoints = new Map<string, LoaderTree>()
-  console.time(dir + ' TIMING')
   await directoryTreeToLoaderTree(result, '/', (fullPath, loaderTree) => {
     const existingLoaderTree = entrypoints.get(fullPath)
 
@@ -265,13 +260,17 @@ async function collectLoaderTreeByEntrypoint(dir) {
     }
     entrypoints.set(fullPath, loaderTree)
   })
-  console.timeEnd(dir + ' TIMING')
+
+  console.timeEnd('Time spent (ts)')
   return entrypoints
 }
-collectLoaderTreeByEntrypoint('test/e2e/app-dir/app/app')
-collectLoaderTreeByEntrypoint('test/e2e/app-dir/actions/app')
-collectLoaderTreeByEntrypoint('test/e2e/app-dir/navigation/app')
+
 collectLoaderTreeByEntrypoint(
-  'test/e2e/app-dir/parallel-routes-and-interception/app'
+  '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception/app'
 )
-collectLoaderTreeByEntrypoint('../front/apps/vercel-site/app')
+// collectLoaderTreeByEntrypoint('test/e2e/app-dir/actions/app')
+// collectLoaderTreeByEntrypoint('test/e2e/app-dir/navigation/app')
+// collectLoaderTreeByEntrypoint(
+//   'test/e2e/app-dir/parallel-routes-and-interception/app'
+// )
+// collectLoaderTreeByEntrypoint('../front/apps/vercel-site/app')
