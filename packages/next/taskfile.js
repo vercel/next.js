@@ -213,6 +213,40 @@ export async function copy_babel_runtime(task, opts) {
   }
 }
 
+externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
+export async function copy_vercel_og(task, opts) {
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        '{LICENSE,./dist/*.+(js|ttf|wasm)}'
+      )
+    )
+    .target('src/compiled/@vercel/og')
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/@vercel/og/package.json'),
+    JSON.stringify(
+      {
+        name: '@vercel/og',
+        LICENSE: 'MLP-2.0',
+        type: 'module',
+        main: './index.node.js',
+        exports: {
+          '.': {
+            'edge-light': './index.edge.js',
+            import: './index.node.js',
+            node: './index.node.js',
+            default: './index.node.js',
+          },
+        },
+      },
+      null,
+      2
+    )
+  )
+}
+
 // eslint-disable-next-line camelcase
 externals['node-fetch'] = 'next/dist/compiled/node-fetch'
 export async function ncc_node_fetch(task, opts) {
@@ -2211,6 +2245,7 @@ export async function ncc(task, opts) {
       'ncc_cssnano_simple_bundle',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
+      'copy_vercel_og',
       'copy_constants_browserify',
       'ncc_react',
       'ncc_react_server_dom_webpack',

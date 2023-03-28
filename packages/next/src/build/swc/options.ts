@@ -50,6 +50,14 @@ function getBaseSWCOptions({
     .filter(Array.isArray)
     .map(([name, options]: any) => [require.resolve(name), options])
 
+  // Use modularized imports for next/server to get fully-treeshaking.
+  // This can prevent ImageResponse related assets been bundled into middleware.
+  // TODO: move it into next-swc
+  const modularizeImports = nextConfig?.modularizeImports || {}
+  modularizeImports['next/server'] = {
+    transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
+  }
+
   return {
     jsc: {
       ...(resolvedBaseUrl && paths
@@ -115,7 +123,7 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : nextConfig?.compiler?.reactRemoveProperties,
-    modularizeImports: nextConfig?.modularizeImports,
+    modularizeImports,
     relay: nextConfig?.compiler?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,
