@@ -556,7 +556,7 @@ export default class DevServer extends Server {
               continue
             }
             // Ignore files/directories starting with `_` in the app directory
-            if (normalizePathSep(fileName).includes('/_')) {
+            if (normalizePathSep(pageName).includes('/_')) {
               continue
             }
 

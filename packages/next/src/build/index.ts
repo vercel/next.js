@@ -678,7 +678,7 @@ export default async function build(
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
-      const hasApp404 = !!mappedAppPages?.['/not-found']
+      const hasApp404 = !!mappedAppPages?.['/_not-found']
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -2421,7 +2421,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
-              if (route === '/not-found') return
+              if (route === '/_not-found') return
 
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
@@ -2631,7 +2631,7 @@ export default async function build(
                   distDir,
                   'server',
                   'app',
-                  'not-found.html'
+                  '_not-found.html'
                 )
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
