@@ -236,7 +236,7 @@ export const getInvalidator = (dir: string) => {
   return invalidators.get(dir)
 }
 
-const doneCallbacks: EventEmitter | null = new EventEmitter()
+const doneCallbacks: EventEmitter = new EventEmitter()
 const lastClientAccessPages = ['']
 const lastServerAccessPagesForAppDir = ['']
 
@@ -293,8 +293,8 @@ class Invalidator {
     this.invalidate(rebuild)
   }
 
-  public isBuilding(compilerKey: keyof typeof COMPILER_INDEXES) {
-    return this.building.has(compilerKey)
+  public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
+    return this.rebuildAgain.has(compilerKey)
   }
 }
 
@@ -574,7 +574,7 @@ export function onDemandEntryHandler({
       }
 
       entry.status = BUILT
-      doneCallbacks!.emit(name)
+      doneCallbacks.emit(name)
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
@@ -822,16 +822,9 @@ export function onDemandEntryHandler({
           },
         })
 
-        // Only invalidate the compilers that are not currently building, or
-        // it it's building but we added a new entry.
-        const compilersToBeInvalidated = [...added.keys()].filter(
-          (key) => !curInvalidator.isBuilding(key) || added.get(key)!.newEntry
-        )
-        const addedValues = compilersToBeInvalidated.flatMap(
-          (key) => added.get(key)!
-        )
-        const entriesThatShouldBeInvalidated = addedValues.filter(
-          (entry) => entry.shouldInvalidate
+        const addedValues = [...added.values()]
+        const entriesThatShouldBeInvalidated = [...added.entries()].filter(
+          ([, entry]) => entry.shouldInvalidate
         )
         const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
@@ -844,20 +837,36 @@ export function onDemandEntryHandler({
         }
 
         if (entriesThatShouldBeInvalidated.length > 0) {
-          const invalidatePromises = entriesThatShouldBeInvalidated.map(
-            ({ entryKey }) => {
-              return new Promise<void>((resolve, reject) => {
-                doneCallbacks!.once(entryKey, (err: Error) => {
-                  if (err) {
-                    return reject(err)
-                  }
-                  resolve()
+          const invalidatePromise = Promise.all(
+            entriesThatShouldBeInvalidated.map(
+              ([compilerKey, { entryKey }]) => {
+                return new Promise<void>((resolve, reject) => {
+                  doneCallbacks.once(entryKey, (err: Error) => {
+                    if (err) {
+                      return reject(err)
+                    }
+
+                    // If the invalidation also triggers a rebuild, we need to
+                    // wait for that additional build to prevent race conditions.
+                    const needsRebuild = curInvalidator.willRebuild(compilerKey)
+                    if (needsRebuild) {
+                      doneCallbacks.once(entryKey, (err: Error) => {
+                        if (err) {
+                          return reject(err)
+                        }
+                        resolve()
+                      })
+                    } else {
+                      resolve()
+                    }
+                  })
                 })
-              })
-            }
+              }
+            )
           )
+
           curInvalidator.invalidate([...added.keys()])
-          await Promise.all(invalidatePromises)
+          await invalidatePromise
         }
       } finally {
         clearTimeout(stalledEnsureTimeout)
