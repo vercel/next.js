@@ -3,22 +3,28 @@ import type {
   Sitemap,
 } from '../../../../lib/metadata/types/metadata-interface'
 import type { Manifest } from '../../../../lib/metadata/types/manifest-types'
-import { resolveAsArrayOrUndefined } from '../../../../lib/metadata/generate/utils'
+import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
 export function resolveRobots(data: Robots): string {
   let content = ''
   const rules = Array.isArray(data.rules) ? data.rules : [data.rules]
   for (const rule of rules) {
-    const userAgent = resolveAsArrayOrUndefined(rule.userAgent) || ['*']
+    const userAgent = resolveArray(rule.userAgent || ['*'])
     for (const agent of userAgent) {
       content += `User-Agent: ${agent}\n`
     }
     if (rule.allow) {
-      content += `Allow: ${rule.allow}\n`
+      const allow = resolveArray(rule.allow)
+      allow.forEach((item) => {
+        content += `Allow: ${item}\n`
+      })
     }
     if (rule.disallow) {
-      content += `Disallow: ${rule.disallow}\n`
+      const disallow = resolveArray(rule.disallow)!
+      disallow.forEach((item) => {
+        content += `Disallow: ${item}\n`
+      })
     }
     if (rule.crawlDelay) {
       content += `Crawl-delay: ${rule.crawlDelay}\n`
@@ -28,8 +34,8 @@ export function resolveRobots(data: Robots): string {
   if (data.host) {
     content += `Host: ${data.host}\n`
   }
-  const sitemap = resolveAsArrayOrUndefined(data.sitemap)
-  if (sitemap) {
+  if (data.sitemap) {
+    const sitemap = resolveArray(data.sitemap)
     // TODO-METADATA: support injecting sitemap url into robots.txt
     sitemap.forEach((item) => {
       content += `Sitemap: ${item}\n`
