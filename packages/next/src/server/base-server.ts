@@ -2248,7 +2248,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            pathname: '/not-found',
+            pathname: '/_not-found',
             query,
             params: {},
             isAppPath: true,
