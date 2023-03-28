@@ -354,7 +354,7 @@ export default class Router {
     const curRoutes = matchedPath
       ? this.compiledRoutes.filter((r) => {
           return (
-            r.name === 'Catchall render' || r.name === '_next/data normalizing'
+            r.name === 'Catchall render' || r.name === '_next/data catchall'
           )
         })
       : this.compiledRoutes
