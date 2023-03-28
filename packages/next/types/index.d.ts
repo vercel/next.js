@@ -32,9 +32,8 @@ export type {
   Metadata,
   MetadataRoute,
   ResolvedMetadata,
-  ResolvingMetadata,
-} from // @ts-ignore This path is generated at build time and conflicts otherwise
-'../dist/lib/metadata/types/metadata-interface'
+  ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/lib/metadata/types/metadata-interface'
 
 // Extend the React types with missing properties
 declare module 'react' {
