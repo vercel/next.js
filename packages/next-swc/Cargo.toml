@@ -46,35 +46,35 @@ swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-bytes = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1", default-features = false }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-dev = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230328.1" }
+auto-hash-map = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill", default-features = false }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-bytes = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill", default-features = false }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-core = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-css = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-dev = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-env = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-json = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-mdx = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-node = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-static = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
+turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", branch = "sokra/free-vars-polyfill" }
 
 # General Deps
 
