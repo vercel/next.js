@@ -1479,12 +1479,24 @@ export default class NextNodeServer extends BaseServer {
               ...req.headers,
               'x-invoke-path': invokePath,
             }
-            for (const key of [
-              'content-length',
-              'keepalive',
-              'content-encoding',
-              'transfer-encoding',
-            ]) {
+
+            const forbiddenHeaders = (global as any).__NEXT_USE_UNDICI
+              ? [
+                  'content-length',
+                  'keepalive',
+                  'content-encoding',
+                  'transfer-encoding',
+                  // https://github.com/nodejs/undici/issues/1470
+                  'connection',
+                ]
+              : [
+                  'content-length',
+                  'keepalive',
+                  'content-encoding',
+                  'transfer-encoding',
+                ]
+
+            for (const key of forbiddenHeaders) {
               delete invokeHeaders[key]
             }
 
