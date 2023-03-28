@@ -2,17 +2,17 @@ use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 use mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{get_invalidator, TurboTasks, TurboTasksBackendApi, Value};
-use turbo_tasks_fs::File;
-use turbo_tasks_memory::{
+use turbo_binding::turbo::tasks_fs::File;
+use turbo_binding::turbo::tasks_memory::{
     stats::{ReferenceType, Stats},
     viz, MemoryBackend,
 };
-use turbopack_core::asset::AssetContentVc;
-use turbopack_dev_server::source::{
+use turbo_binding::turbopack::core::asset::AssetContentVc;
+use turbo_binding::turbopack::dev_server::source::{
     ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceDataFilter,
     ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, NeededData,
 };
+use turbo_tasks::{get_invalidator, TurboTasks, TurboTasksBackendApi, Value};
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
 pub struct TurboTasksSource {

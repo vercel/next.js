@@ -1,17 +1,17 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::{
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
+    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc},
+};
+use turbo_binding::turbopack::turbopack::{
     ecmascript::{
         chunk::EcmascriptChunkPlaceableVc,
         resolve::{apply_cjs_specific_options, cjs_resolve},
     },
     resolve_options_context::ResolveOptionsContextVc,
 };
-use turbopack_core::{
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc},
-};
+use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 
 #[turbo_tasks::function]
 fn react_refresh_request() -> RequestVc {
@@ -54,10 +54,13 @@ pub async fn assert_can_resolve_react_refresh(
     path: FileSystemPathVc,
     resolve_options_context: ResolveOptionsContextVc,
 ) -> Result<AssertReactRefreshResultVc> {
-    let resolve_options =
-        apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
+    let resolve_options = apply_cjs_specific_options(
+        turbo_binding::turbopack::turbopack::resolve_options(path, resolve_options_context),
+    );
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
-        let result = turbopack_core::resolve::resolve(path, request, resolve_options).first_asset();
+        let result =
+            turbo_binding::turbopack::core::resolve::resolve(path, request, resolve_options)
+                .first_asset();
 
         if result.await?.is_some() {
             return Ok(AssertReactRefreshResult::Found(request).cell());

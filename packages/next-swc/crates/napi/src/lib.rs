@@ -37,7 +37,7 @@ use std::{env, panic::set_hook, sync::Arc};
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
@@ -54,7 +54,7 @@ pub mod util;
 // compile error
 #[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
 #[global_allocator]
-static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
+static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use next_transform_strip_page_exports::ExportFilter;
-use turbopack::module_options::ModuleRule;
+use turbo_binding::turbopack::turbopack::module_options::ModuleRule;
 
 use crate::{
     next_server::context::ServerContextType,

@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde::Deserialize;
 
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     ecma::ast::*,
     ecma::visit::{noop_fold_type, Fold, FoldWith},
 };

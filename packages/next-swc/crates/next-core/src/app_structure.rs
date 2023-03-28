@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
+use turbo_binding::turbo::tasks_fs::{
+    DirectoryContent, DirectoryEntry, File, FileContentVc, FileSystemEntryType, FileSystemPathVc,
+};
+use turbo_binding::turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc};
+use turbo_binding::turbopack::dev_server::source::specificity::SpecificityVc;
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     CompletionVc, ValueToString,
 };
-use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, File, FileContentVc, FileSystemEntryType, FileSystemPathVc,
-};
-use turbopack_core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc};
-use turbopack_dev_server::source::specificity::SpecificityVc;
 
 use crate::{
     app_render::{LayoutSegment, LayoutSegmentVc, LayoutSegmentsVc},
