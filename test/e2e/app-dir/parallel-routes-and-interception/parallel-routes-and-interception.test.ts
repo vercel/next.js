@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'parallel-routes-and-interception',
@@ -11,39 +12,50 @@ createNextDescribe(
         const browser = await next.browser('/parallel-tab-bar')
 
         const hasHome = async () => {
-          const text = await browser.waitForElementByCss('#home').text()
-          expect(text).toBe('Tab bar page (@children)')
+          await check(
+            () => browser.waitForElementByCss('#home').text(),
+            'Tab bar page (@children)'
+          )
         }
         const hasViewsHome = async () => {
-          const text = await browser.waitForElementByCss('#views-home').text()
-          expect(text).toBe('Views home')
+          await check(
+            () => browser.waitForElementByCss('#views-home').text(),
+            'Views home'
+          )
         }
         const hasViewDuration = async () => {
-          const text = await browser
-            .waitForElementByCss('#view-duration')
-            .text()
-          expect(text).toBe('View duration')
+          await check(
+            () => browser.waitForElementByCss('#view-duration').text(),
+            'View duration'
+          )
         }
         const hasImpressions = async () => {
-          const text = await browser.waitForElementByCss('#impressions').text()
-          expect(text).toBe('Impressions')
+          await check(
+            () => browser.waitForElementByCss('#impressions').text(),
+            'Impressions'
+          )
         }
         const hasAudienceHome = async () => {
-          const text = await browser
-            .waitForElementByCss('#audience-home')
-            .text()
-          expect(text).toBe('Audience home')
+          await check(
+            () => browser.waitForElementByCss('#audience-home').text(),
+            'Audience home'
+          )
         }
         const hasDemographics = async () => {
-          const text = await browser.waitForElementByCss('#demographics').text()
-          expect(text).toBe('Demographics')
+          await check(
+            () => browser.waitForElementByCss('#demographics').text(),
+            'Demographics'
+          )
         }
         const hasSubscribers = async () => {
-          const text = await browser.waitForElementByCss('#subscribers').text()
-          expect(text).toBe('Subscribers')
+          await check(
+            () => browser.waitForElementByCss('#subscribers').text(),
+            'Subscribers'
+          )
         }
         const checkUrlPath = async (path: string) => {
-          expect(await browser.url()).toBe(
+          await check(
+            () => browser.url(),
             `${next.url}/parallel-tab-bar${path}`
           )
         }
@@ -119,36 +131,36 @@ createNextDescribe(
 
         // TODO: fix back/forward navigation test
         // Test that back navigation works as intended
-        // await browser.back()
-        // await step5()
-        // console.log('step5 back')
-        // await browser.back()
-        // await step4()
-        // console.log('step4 back')
-        // await browser.back()
-        // await step3()
-        // console.log('step3 back')
+        await browser.back()
+        await step5()
+        console.log('step5 back')
+        await browser.back()
+        await step4()
+        console.log('step4 back')
+        await browser.back()
+        await step3()
+        console.log('step3 back')
 
-        // await browser.back()
-        // await step2()
-        // console.log('step2 back')
-        // await browser.back()
-        // await step1()
-        // console.log('step1 back')
-        // console.log('step6')
+        await browser.back()
+        await step2()
+        console.log('step2 back')
+        await browser.back()
+        await step1()
+        console.log('step1 back')
+        console.log('step6')
 
-        // // Test that forward navigation works as intended
-        // await browser.forward()
-        // await step2()
-        // console.log('step2 forward')
-        // await browser.forward()
-        // await step3()
-        // console.log('step3 forward')
-        // await browser.forward()
-        // await step4()
-        // console.log('step4 forward')
-        // await browser.forward()
-        // await step5()
+        // Test that forward navigation works as intended
+        await browser.forward()
+        await step2()
+        console.log('step2 forward')
+        await browser.forward()
+        await step3()
+        console.log('step3 forward')
+        await browser.forward()
+        await step4()
+        console.log('step4 forward')
+        await browser.forward()
+        await step5()
       })
 
       it('should match parallel routes', async () => {
@@ -176,30 +188,35 @@ createNextDescribe(
         const browser = await next.browser('/intercepting-routes/feed')
 
         // Check if navigation to modal route works.
-        expect(
-          await browser
-            .elementByCss('[href="/intercepting-routes/photos/1"]')
-            .click()
-            .waitForElementByCss('#photo-intercepted-1')
-            .text()
-        ).toBe('Photo INTERCEPTED 1')
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-routes/photos/1"]')
+              .click()
+              .waitForElementByCss('#photo-intercepted-1')
+              .text(),
+          'Photo INTERCEPTED 1'
+        )
 
         // Check if intercepted route was rendered while existing page content was removed.
         // Content would only be preserved when combined with parallel routes.
-        // expect(await browser.elementByCss('#feed-page').text()).not.toBe('Feed')
+        // await check(() => browser.elementByCss('#feed-page').text()).not.toBe('Feed')
 
         // Check if url matches even though it was intercepted.
-        expect(await browser.url()).toBe(
+        await check(
+          () => browser.url(),
           next.url + '/intercepting-routes/photos/1'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        expect(
-          await browser.refresh().waitForElementByCss('#photo-page-1').text()
-        ).toBe('Photo PAGE 1')
+        await check(
+          () => browser.refresh().waitForElementByCss('#photo-page-1').text(),
+          'Photo PAGE 1'
+        )
 
         // Check if the url matches still.
-        expect(await browser.url()).toBe(
+        await check(
+          () => browser.url(),
           next.url + '/intercepting-routes/photos/1'
         )
       })
@@ -209,31 +226,37 @@ createNextDescribe(
           '/intercepting-parallel-modal/vercel'
         )
         // Check if navigation to modal route works.
-        expect(
-          await browser
-            .elementByCss('[href="/intercepting-parallel-modal/photo/1"]')
-            .click()
-            .waitForElementByCss('#photo-modal-1')
-            .text()
-        ).toBe('Photo MODAL 1')
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-parallel-modal/photo/1"]')
+              .click()
+              .waitForElementByCss('#photo-modal-1')
+              .text(),
+          'Photo MODAL 1'
+        )
 
         // Check if modal was rendered while existing page content is preserved.
-        expect(await browser.elementByCss('#user-page').text()).toBe(
+        await check(
+          () => browser.elementByCss('#user-page').text(),
           'Feed for vercel'
         )
 
         // Check if url matches even though it was intercepted.
-        expect(await browser.url()).toBe(
+        await check(
+          () => browser.url(),
           next.url + '/intercepting-parallel-modal/photo/1'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
-        expect(
-          await browser.refresh().waitForElementByCss('#photo-page-1').text()
-        ).toBe('Photo PAGE 1')
+        await check(
+          () => browser.refresh().waitForElementByCss('#photo-page-1').text(),
+          'Photo PAGE 1'
+        )
 
         // Check if the url matches still.
-        expect(await browser.url()).toBe(
+        await check(
+          () => browser.url(),
           next.url + '/intercepting-parallel-modal/photo/1'
         )
       })
