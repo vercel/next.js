@@ -1170,13 +1170,14 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
-        id: swc-change
+      - name: Check non-docs only change
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: docs-change
 
-      - run: echo "${{ steps.swc-change.outputs.SWC_CHANGE }}"
+      - run: echo "${{ steps.docs-chang.outputs.DOCS_CHANGE }}"
 
       - name: Install
-        if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
+        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
@@ -1188,12 +1189,12 @@ jobs:
       - name: Build tests
         timeout-minutes: 60
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-run
-        if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
+        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE == 'nope' }}
 
       - name: Run tests
         timeout-minutes: 20
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-fail-fast
-        if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
+        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE == 'nope' }}
 
   test-wasm:
     name: Test the wasm build
