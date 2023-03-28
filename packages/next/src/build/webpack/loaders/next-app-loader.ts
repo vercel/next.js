@@ -1,38 +1,35 @@
 import type webpack from 'webpack'
-import type { ValueOf } from '../../../../shared/lib/constants'
-import type { ModuleReference, CollectedMetadata } from '../metadata/types'
+import type { ValueOf } from '../../../shared/lib/constants'
+import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
-import { NODE_RESOLVE_OPTIONS } from '../../../webpack-config'
-import { getModuleBuildInfo } from '../get-module-build-info'
-import { verifyRootLayout } from '../../../../lib/verifyRootLayout'
-import * as Log from '../../../output/log'
-import { APP_DIR_ALIAS } from '../../../../lib/constants'
+import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
+import { getModuleBuildInfo } from './get-module-build-info'
+import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import * as Log from '../../../build/output/log'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
 import {
   createMetadataExportsCode,
   createStaticMetadataFromRoute,
   METADATA_RESOURCE_QUERY,
-} from '../metadata/discover'
+} from './metadata/discover'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { promises as fs } from 'fs'
-import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
-import { NextConfig } from '../../../../server/config-shared'
-import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 export type AppLoaderOptions = {
   name: string
-  page: string
   pagePath: string
   appDir: string
-  appPaths: readonly string[] | null
+  appPaths: string[] | null
   pageExtensions: string[]
+  basePath: string
   assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
-  nextConfigOutput?: NextConfig['output']
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
@@ -53,7 +50,6 @@ type PathResolver = (
   pathname: string,
   resolveDir?: boolean
 ) => Promise<string | undefined>
-
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
@@ -66,31 +62,21 @@ export type ComponentsType = {
 
 async function createAppRouteCode({
   name,
-  page,
   pagePath,
   resolver,
   pageExtensions,
-  nextConfigOutput,
 }: {
   name: string
-  page: string
   pagePath: string
   resolver: PathResolver
   pageExtensions: string[]
-  nextConfigOutput: NextConfig['output']
 }): Promise<string> {
   // routePath is the path to the route handler file,
   // but could be aliased e.g. private-next-app-dir/favicon.ico
   const routePath = pagePath.replace(/[\\/]/, '/')
-
   // This, when used with the resolver will give us the pathname to the built
   // route handler file.
-  let resolvedPagePath = await resolver(routePath)
-  if (!resolvedPagePath) {
-    throw new Error(
-      `Invariant: could not resolve page path for ${name} at ${routePath}`
-    )
-  }
+  let resolvedPagePath = (await resolver(routePath))!
 
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
@@ -99,53 +85,25 @@ async function createAppRouteCode({
     })}!${resolvedPagePath + METADATA_RESOURCE_QUERY}`
   }
 
-  // References the route handler file to load found in `./routes/${kind}.ts`.
-  // TODO: allow switching to the different kinds of routes
-  const kind = 'app-route'
-
-  // This is providing the options defined by the route options type found at
-  // ./routes/${kind}.ts. This is stringified here so that the literal for
-  // `userland` can reference the variable for `userland` that's in scope for
-  // the loader code.
-  const options = `{
-    userland,
-    pathname: ${JSON.stringify(normalizeAppPath(page))},
-    resolvedPagePath: ${JSON.stringify(resolvedPagePath)},
-    nextConfigOutput: ${
-      nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
-    },
-    requestAsyncStorage,
-    staticGenerationAsyncStorage,
-    staticGenerationBailout,
-    headerHooks,
-    serverHooks,
-  }`
+  // TODO: verify if other methods need to be injected
+  // TODO: validate that the handler exports at least one of the supported methods
 
   return `
     import 'next/dist/server/node-polyfill-headers'
 
-    import { Route } from 'next/dist/build/webpack/loaders/next-app-loader/routes/${kind}'
+    export * as handlers from ${JSON.stringify(resolvedPagePath)}
+    export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
 
-    import { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
-    import { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
+    export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
 
-    import * as headerHooks from 'next/dist/client/components/headers'
-    import * as serverHooks from 'next/dist/client/components/hooks-server-context'
-    import { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+    export * as serverHooks from 'next/dist/client/components/hooks-server-context'
 
-    import * as userland from ${JSON.stringify(resolvedPagePath)}
+    export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
 
-    const route = new Route(${options})
-    
-    export {
-      userland,
-      route,
-      requestAsyncStorage,
-      staticGenerationAsyncStorage,
-      serverHooks,
-      headerHooks,
-      staticGenerationBailout,
-    }`
+    export * as headerHooks from 'next/dist/client/components/headers'
+
+    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+  `
 }
 
 const normalizeParallelKey = (key: string) =>
@@ -405,7 +363,7 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
 }
 
 const nextAppLoader: AppLoader = async function nextAppLoader() {
-  const loaderOptions = this.getOptions()
+  const loaderOptions = this.getOptions() || {}
   const {
     name,
     appDir,
@@ -415,7 +373,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     rootDir,
     tsconfigPath,
     isDev,
-    nextConfigOutput,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -491,15 +448,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   if (isAppRouteRoute(name)) {
-    return createAppRouteCode({
-      // TODO: investigate if the local `page` is the same as the loaderOptions.page
-      page: loaderOptions.page,
-      name,
-      pagePath,
-      resolver,
-      pageExtensions,
-      nextConfigOutput,
-    })
+    return createAppRouteCode({ name, pagePath, resolver, pageExtensions })
   }
 
   const {
