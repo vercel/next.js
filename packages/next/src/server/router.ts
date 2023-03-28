@@ -361,7 +361,12 @@ export default class Router {
 
     if (process.env.__NEXT_PRIVATE_RENDER_WORKER && matchedPath) {
       const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
-      parsedUrlUpdated.pathname = parsedMatchedPath.pathname
+
+      if (parsedUrlUpdated.pathname !== parsedMatchedPath.pathname) {
+        parsedUrlUpdated.pathname = parsedMatchedPath.pathname
+        addRequestMeta(req, '_nextRewroteUrl', parsedUrlUpdated.pathname)
+        addRequestMeta(req, '_nextDidRewrite', true)
+      }
       Object.assign(
         parsedUrlUpdated.query,
         Object.fromEntries(parsedMatchedPath.searchParams)

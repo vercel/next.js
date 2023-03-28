@@ -341,6 +341,7 @@ export const deserializeErr = (serializedErr: any) => {
   const err = new Error(serializedErr.message)
   err.stack = serializedErr.stack
   err.name = serializedErr.name
+  ;(err as any).digest = serializedErr.digest
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
     const { decorateServerError } =
@@ -366,6 +367,7 @@ export function errorToJSON(err: Error) {
     source,
     message: stripAnsi(err.message),
     stack: err.stack,
+    digest: (err as any).digest,
   }
 }
 

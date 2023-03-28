@@ -206,7 +206,7 @@ export async function startServer({
 
         const proxyServer = httpProxy.createProxy({
           target: targetUrl,
-          changeOrigin: true,
+          changeOrigin: false,
           ignorePath: true,
           xfwd: true,
           ws: true,
