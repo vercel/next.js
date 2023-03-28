@@ -55,7 +55,7 @@ import { sendRenderResult } from './send-payload'
 import { getExtension, serveStatic } from './serve-static'
 import { ParsedUrlQuery } from 'querystring'
 import { apiResolver } from './api-utils/node'
-import { RenderOpts, renderToHTML } from './render'
+import { deserializeErr, errorToJSON, RenderOpts, renderToHTML } from './render'
 import { ParsedUrl, parseUrl } from '../shared/lib/router/utils/parse-url'
 import { parse as nodeParseUrl } from 'url'
 import * as Log from '../build/output/log'
@@ -287,22 +287,28 @@ export default class NextNodeServer extends BaseServer {
             const method = url.searchParams.get('method')
             const args: any[] = JSON.parse(url.searchParams.get('args') || '[]')
 
-            if (!method || !Array.isArray(args) || !args.length) {
+            if (!method || !Array.isArray(args)) {
               return res.end()
             }
 
             if (typeof (this as any)[method] === 'function') {
               if (method === 'logErrorWithOriginalStack' && args[0]?.stack) {
-                const err = new Error(args[0].message)
-                err.stack = args[0].stack
-                err.name = args[0].name
-                decorateServerError(err, args[0].source || 'server')
-                args[0] = err
+                args[0] = deserializeErr(args[0])
               }
-              await (this as any)[method](...args)
+              let result = await (this as any)[method](...args)
+
+              if (result && typeof result === 'object' && result.stack) {
+                result = errorToJSON(result)
+              }
+              res.end(JSON.stringify(result || ''))
             }
-          } catch (err) {
+          } catch (err: any) {
             console.error(err)
+            res.end(
+              JSON.stringify({
+                err: { name: err.name, message: err.message, stack: err.stack },
+              })
+            )
           }
         })
 
@@ -1470,18 +1476,6 @@ export default class NextNodeServer extends BaseServer {
               invokeQueryStr ? `?${invokeQueryStr}` : ''
             }`
 
-            // ensure /404 is built before invoking render
-            if (this.renderOpts.dev && (await this.hasPage(page))) {
-              // @ts-expect-error dev specific
-              await this.hotReloader
-                ?.ensurePage({
-                  page: '/404',
-                  clientOnly: false,
-                })
-                .catch(() => {})
-
-              await this.getFallbackErrorComponents().catch(() => {})
-            }
             const invokeHeaders: typeof req.headers = {
               ...req.headers,
               'x-invoke-path': invokePath,
@@ -2318,13 +2312,22 @@ export default class NextNodeServer extends BaseServer {
                   }),
                   waitUntil: Promise.resolve(),
                 }
-                for (const key of [
-                  'content-encoding',
-                  'transfer-encoding',
-                  'keep-alive',
-                  'connection',
-                ]) {
-                  result.response.headers.delete(key)
+                for (const key of [...result.response.headers.keys()]) {
+                  if (
+                    [
+                      'content-encoding',
+                      'transfer-encoding',
+                      'keep-alive',
+                      'connection',
+                    ].includes(key)
+                  ) {
+                    result.response.headers.delete(key)
+                  } else {
+                    // propagate this to req headers so it's
+                    // passed to the render worker for the page
+                    req.headers[key] =
+                      result.response.headers.get(key) || undefined
+                  }
                 }
               } else {
                 result = await this.runMiddleware({

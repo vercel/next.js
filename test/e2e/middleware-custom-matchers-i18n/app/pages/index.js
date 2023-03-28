@@ -5,10 +5,10 @@ export default (props) => (
   </>
 )
 
-export async function getServerSideProps({ res }) {
+export async function getServerSideProps({ req }) {
   return {
     props: {
-      fromMiddleware: res.getHeader('x-from-middleware') || null,
+      fromMiddleware: req.headers['x-from-middleware'] || null,
     },
   }
 }

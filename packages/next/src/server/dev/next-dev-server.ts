@@ -100,7 +100,7 @@ import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
-import { errorToJSON } from '../render'
+import { deserializeErr, errorToJSON } from '../render'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -254,7 +254,7 @@ export default class DevServer extends Server {
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
-        await this.hotReloader?.ensurePage({
+        await this.ensurePage({
           match,
           page: match.definition.page,
           clientOnly: false,
@@ -1430,7 +1430,7 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader?.ensurePage({
+    return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
     })
@@ -1439,7 +1439,7 @@ export default class DevServer extends Server {
   private async runInstrumentationHookIfAvailable() {
     if (this.actualInstrumentationHookFile) {
       NextBuildContext!.hasInstrumentationHook = true
-      await this.hotReloader!.ensurePage({
+      await this.ensurePage({
         page: this.actualInstrumentationHookFile!,
         clientOnly: false,
       })
@@ -1459,7 +1459,7 @@ export default class DevServer extends Server {
     page: string
     appPaths: string[] | null
   }) {
-    return this.hotReloader?.ensurePage({ page, appPaths, clientOnly: false })
+    return this.ensurePage({ page, appPaths, clientOnly: false })
   }
 
   generateRoutes(dev?: boolean) {
@@ -1682,6 +1682,23 @@ export default class DevServer extends Server {
     global.fetch = this.originalFetch!
   }
 
+  protected async ensurePage(
+    opts: Parameters<InstanceType<typeof HotReloader>['ensurePage']>[0]
+  ) {
+    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    if (ipcPort) {
+      await fetch(
+        `http://${
+          this.hostname
+        }:${ipcPort}?method=ensurePage&args=${encodeURIComponent(
+          JSON.stringify([opts])
+        )}`
+      )
+      return
+    }
+    return this.hotReloader?.ensurePage(opts)
+  }
+
   protected async findPageComponents({
     pathname,
     query,
@@ -1705,7 +1722,7 @@ export default class DevServer extends Server {
     }
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
-        await this.hotReloader?.ensurePage({
+        await this.ensurePage({
           page: pathname,
           appPaths,
           clientOnly: false,
@@ -1740,10 +1757,25 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    if (ipcPort) {
+      await fetch(
+        `http://${
+          this.hostname
+        }:${ipcPort}?method=getFallbackErrorComponents&args=${encodeURIComponent(
+          JSON.stringify([])
+        )}`
+      )
+      return await loadDefaultErrorComponents(this.distDir)
+    }
     await this.hotReloader?.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader?.ensurePage({ page: '/_error', clientOnly: false })
+    await this.ensurePage({ page: '/_error', clientOnly: false })
+
+    if (this.isRouterWorker) {
+      return null
+    }
     return await loadDefaultErrorComponents(this.distDir)
   }
 
@@ -1770,6 +1802,23 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
+    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    if (ipcPort) {
+      const res = await fetch(
+        `http://${
+          this.hostname
+        }:${ipcPort}?method=getCompilationError&args=${encodeURIComponent(
+          JSON.stringify([page])
+        )}`
+      )
+      const body = await res.text()
+
+      if (body.startsWith('{') && body.endsWith('}')) {
+        const err = deserializeErr(JSON.parse(body))
+        return err
+      }
+      return
+    }
     const errors = await this.hotReloader?.getCompilationErrors(page)
     if (!errors) return
 
