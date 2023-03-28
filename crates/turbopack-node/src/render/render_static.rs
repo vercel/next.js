@@ -17,7 +17,8 @@ use super::{
     issue::RenderingIssue, RenderDataVc, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, source_map::trace_stack,
+    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation,
+    render::error_page::error_html_body, source_map::trace_stack,
 };
 
 #[turbo_tasks::value]
@@ -162,30 +163,30 @@ async fn static_error(
     operation: Option<NodeJsOperation>,
     fallback_page: DevHtmlAssetVc,
 ) -> Result<AssetContentVc> {
-    let error = format!("{}", PrettyPrintError(&error));
-    let message = error
-        // TODO this is pretty inefficient
-        .replace('&', "&amp;")
-        .replace('>', "&gt;")
-        .replace('<', "&lt;");
     let status = match operation {
         Some(operation) => Some(operation.wait_or_kill().await?),
         None => None,
     };
 
-    let html_status = match status {
-        Some(status) => format!("<h2>Exit status</h2><pre>{status}</pre>"),
-        None => "<h3>No exit status</pre>".to_owned(),
-    };
+    let error = format!("{}", PrettyPrintError(&error));
+    let mut message = error
+        // TODO this is pretty inefficient
+        .replace('&', "&amp;")
+        .replace('>', "&gt;")
+        .replace('<', "&lt;");
 
-    let body = format!(
-        "<script id=\"__NEXT_DATA__\" type=\"application/json\">{{ \"props\": {{}} }}</script>
-    <div id=\"__next\">
-        <h1>Error rendering page</h1>
-        <h2>Message</h2>
-        <pre>{message}</pre>
-        {html_status}
-    </div>",
+    if let Some(status) = status {
+        message.push_str(&format!("\n\nStatus: {}", status));
+    }
+
+    let mut body = "<script id=\"__NEXT_DATA__\" type=\"application/json\">{ \"props\": {} \
+                    }</script>"
+        .to_string();
+
+    body.push_str(
+        error_html_body(500, "Error rendering page".to_string(), message)
+            .await?
+            .as_str(),
     );
 
     let issue = RenderingIssue {

@@ -12,7 +12,8 @@ use super::{
     ResponseHeaders,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, source_map::trace_stack,
+    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation,
+    render::error_page::error_html, source_map::trace_stack,
 };
 
 /// Renders a module as static HTML in a node.js process.
@@ -154,10 +155,13 @@ async fn proxy_error(
         details.push(format!("status: {status}"));
     }
 
-    let body = format!(
-        "An error occurred while proxying a request to Node.js:\n{message}\n{}",
-        details.join("\n")
-    );
+    let status_code = 500;
+    let body = &*error_html(
+        status_code,
+        "An error occurred while proxying the request to Node.js".to_string(),
+        format!("{message}\n\n{}", details.join("\n")),
+    )
+    .await?;
 
     RenderingIssue {
         context: path,
@@ -169,12 +173,12 @@ async fn proxy_error(
     .emit();
 
     Ok(ProxyResult {
-        status: 500,
+        status: status_code,
         headers: vec![(
             "content-type".to_string(),
             "text/html; charset=utf-8".to_string(),
         )],
-        body: body.into(),
+        body: body.clone().into(),
     }
     .cell())
 }
