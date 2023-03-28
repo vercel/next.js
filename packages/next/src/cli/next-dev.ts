@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { startServer } from '../server/lib/start-server'
+import { startServer, StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
@@ -15,6 +15,9 @@ import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import Watchpack from 'next/dist/compiled/watchpack'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 
 let dir: string
 let isTurboSession = false
@@ -82,6 +85,25 @@ const handleSessionStop = async () => {
 
 process.on('SIGINT', handleSessionStop)
 process.on('SIGTERM', handleSessionStop)
+
+let unwatchConfigFiles: () => void
+
+function watchConfigFiles(dirToWatch: string) {
+  if (unwatchConfigFiles) {
+    unwatchConfigFiles()
+  }
+
+  const wp = new Watchpack()
+  wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
+  wp.on('change', (filename) => {
+    console.log(
+      `\n> Found a change in ${path.basename(
+        filename
+      )}. Restart the server to see the changes in effect.`
+    )
+  })
+  unwatchConfigFiles = () => wp.close()
+}
 
 const nextDev: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -181,10 +203,9 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const devServerOptions = {
+  const devServerOptions: StartServerOptions = {
     dir,
     port,
-    dev: true,
     allowRetry,
     isDev: true,
     hostname: host,
@@ -264,12 +285,223 @@ const nextDev: CliCommand = async (argv) => {
     }
     return server
   } else {
-    await startServer(devServerOptions)
-    await preflight()
-    // if we're using workers we can auto restart on config changes
-    if (devServerOptions.useWorkers) {
-      // TODO: watch config and such and restart
+    let shouldFilter = false
+    let devServerTeardown: (() => Promise<void>) | undefined
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
+    watchConfigFiles(devServerOptions.dir)
+
+    const setupFork = async (newDir?: string) => {
+      // if we're using workers we can auto restart on config changes
+      if (!devServerOptions.useWorkers && devServerTeardown) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+
+      const startDir = dir
+      if (newDir) {
+        dir = newDir
+      }
+
+      if (devServerTeardown) {
+        await devServerTeardown()
+        devServerTeardown = undefined
+      }
+
+      if (newDir) {
+        dir = newDir
+        process.env = Object.keys(process.env).reduce((newEnv, key) => {
+          newEnv[key] = process.env[key]?.replace(startDir, newDir)
+          return newEnv
+        }, {} as typeof process.env)
+
+        process.chdir(newDir)
+
+        devServerOptions.dir = newDir
+        devServerOptions.prevDir = startDir
+      }
+
+      // since errors can start being logged from the fork
+      // before we detect the project directory rename
+      // attempt suppressing them long enough to check
+      const filterForkErrors = (chunk: Buffer, fd: 'stdout' | 'stderr') => {
+        const cleanChunk = stripAnsi(chunk + '')
+        if (
+          cleanChunk.match(
+            /(ENOENT|Module build failed|Module not found|Cannot find module|Can't resolve)/
+          )
+        ) {
+          if (startDir === dir) {
+            try {
+              // check if start directory is still valid
+              const result = findPagesDir(
+                startDir,
+                !!config.experimental?.appDir
+              )
+              shouldFilter = !Boolean(result.pagesDir || result.appDir)
+            } catch (_) {
+              shouldFilter = true
+            }
+          }
+          if (shouldFilter || startDir !== dir) {
+            shouldFilter = true
+            return
+          }
+        }
+        process[fd].write(chunk)
+      }
+
+      devServerOptions.onStdout = (chunk) => {
+        filterForkErrors(chunk, 'stdout')
+      }
+      devServerOptions.onStderr = (chunk) => {
+        filterForkErrors(chunk, 'stderr')
+      }
+      shouldFilter = false
+      devServerTeardown = await startServer(devServerOptions)
     }
+
+    await setupFork()
+    await preflight()
+
+    const parentDir = path.join('/', dir, '..')
+    const watchedEntryLength = parentDir.split('/').length + 1
+    const previousItems = new Set<string>()
+    const instrumentationFilePaths = !!config.experimental?.instrumentationHook
+      ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
+      : []
+
+    const instrumentationFileWatcher = new Watchpack({})
+
+    instrumentationFileWatcher.watch({
+      files: instrumentationFilePaths,
+      startTime: 0,
+    })
+
+    let instrumentationFileLastHash: string | undefined = undefined
+    const previousInstrumentationFiles = new Set<string>()
+    instrumentationFileWatcher.on('aggregated', async () => {
+      const knownFiles = instrumentationFileWatcher.getTimeInfoEntries()
+      const instrumentationFile = [...knownFiles.entries()].find(
+        ([key, value]) => instrumentationFilePaths.includes(key) && value
+      )?.[0]
+
+      if (instrumentationFile) {
+        const fs = require('fs') as typeof import('fs')
+        const instrumentationFileHash = (
+          require('crypto') as typeof import('crypto')
+        )
+          .createHash('sha256')
+          .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
+          .digest('hex')
+
+        if (
+          instrumentationFileLastHash &&
+          instrumentationFileHash !== instrumentationFileLastHash
+        ) {
+          Log.warn(
+            `The instrumentation file has changed, restarting the server to apply changes.`
+          )
+          return setupFork()
+        } else {
+          if (
+            !instrumentationFileLastHash &&
+            previousInstrumentationFiles.size !== 0
+          ) {
+            Log.warn(
+              'The instrumentation file was added, restarting the server to apply changes.'
+            )
+            return setupFork()
+          }
+          instrumentationFileLastHash = instrumentationFileHash
+        }
+      } else if (
+        [...previousInstrumentationFiles.keys()].find((key) =>
+          instrumentationFilePaths.includes(key)
+        )
+      ) {
+        Log.warn(
+          `The instrumentation file has been removed, restarting the server to apply changes.`
+        )
+        instrumentationFileLastHash = undefined
+        return setupFork()
+      }
+
+      previousInstrumentationFiles.clear()
+      knownFiles.forEach((_, key) => previousInstrumentationFiles.add(key))
+    })
+
+    const projectFolderWatcher = new Watchpack({
+      ignored: (entry: string) => {
+        return !(entry.split('/').length <= watchedEntryLength)
+      },
+    })
+
+    projectFolderWatcher.watch({ directories: [parentDir], startTime: 0 })
+
+    projectFolderWatcher.on('aggregated', async () => {
+      const knownFiles = projectFolderWatcher.getTimeInfoEntries()
+      const newFiles: string[] = []
+      let hasPagesApp = false
+
+      // if the dir still exists nothing to check
+      try {
+        const result = findPagesDir(dir, !!config.experimental?.appDir)
+        hasPagesApp = Boolean(result.pagesDir || result.appDir)
+      } catch (err) {
+        // if findPagesDir throws validation error let this be
+        // handled in the dev-server itself in the fork
+        if ((err as any).message?.includes('experimental')) {
+          return
+        }
+      }
+
+      // try to find new dir introduced
+      if (previousItems.size) {
+        for (const key of knownFiles.keys()) {
+          if (!previousItems.has(key)) {
+            newFiles.push(key)
+          }
+        }
+        previousItems.clear()
+      }
+
+      for (const key of knownFiles.keys()) {
+        previousItems.add(key)
+      }
+
+      if (hasPagesApp) {
+        return
+      }
+
+      // if we failed to find the new dir it may have been moved
+      // to a new parent directory which we can't track as easily
+      // so exit gracefully
+      try {
+        const result = findPagesDir(newFiles[0], !!config.experimental?.appDir)
+        hasPagesApp = Boolean(result.pagesDir || result.appDir)
+      } catch (_) {}
+
+      if (hasPagesApp && newFiles.length === 1) {
+        Log.info(
+          `Detected project directory rename, restarting in new location`
+        )
+        setupFork(newFiles[0])
+        watchConfigFiles(newFiles[0])
+      } else {
+        Log.error(
+          `Project directory could not be found, restart Next.js in your new directory`
+        )
+        process.exit(0)
+      }
+    })
   }
 }
 

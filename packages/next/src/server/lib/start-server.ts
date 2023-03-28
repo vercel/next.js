@@ -4,8 +4,9 @@ import * as Log from '../../build/output/log'
 import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 
-interface StartServerOptions {
+export interface StartServerOptions {
   dir: string
+  prevDir?: string
   port: number
   isDev: boolean
   hostname: string
@@ -13,18 +14,23 @@ interface StartServerOptions {
   allowRetry?: boolean
   isTurbopack?: boolean
   keepAliveTimeout?: number
+  onStdout?: (data: any) => void
+  onStderr?: (data: any) => void
 }
 
 type TeardownServer = () => Promise<void>
 
 export async function startServer({
   dir,
+  prevDir,
   port,
   isDev,
   hostname,
   useWorkers,
   allowRetry,
   keepAliveTimeout,
+  onStdout,
+  onStderr,
 }: StartServerOptions): Promise<TeardownServer> {
   const sockets = new Set<ServerResponse>()
   let worker: import('next/dist/compiled/jest-worker').Worker | undefined
@@ -136,15 +142,24 @@ export async function startServer({
 
   try {
     if (useWorkers) {
-      const { Worker } =
-        require('next/dist/compiled/jest-worker') as typeof import('next/dist/compiled/jest-worker')
-
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
-      const routerWorker = new Worker(require.resolve('./render-server'), {
+      let renderServerPath = require.resolve('./render-server')
+      let jestWorkerPath = require.resolve('next/dist/compiled/jest-worker')
+
+      if (prevDir) {
+        jestWorkerPath = jestWorkerPath.replace(prevDir, dir)
+        renderServerPath = renderServerPath.replace(prevDir, dir)
+      }
+
+      const { Worker } =
+        require(jestWorkerPath) as typeof import('next/dist/compiled/jest-worker')
+
+      const routerWorker = new Worker(renderServerPath, {
         numWorkers: 1,
         forkOptions: {
+          cwd: dir,
           env: {
             FORCE_COLOR: '1',
             ...process.env,
@@ -159,8 +174,23 @@ export async function startServer({
       }) as any as InstanceType<typeof Worker> & {
         initialize: typeof import('./render-server').initialize
       }
-      routerWorker.getStdout().pipe(process.stdout)
-      routerWorker.getStderr().pipe(process.stderr)
+      const workerStdout = routerWorker.getStdout()
+      const workerStderr = routerWorker.getStderr()
+
+      workerStdout.on('data', (data) => {
+        if (typeof onStdout === 'function') {
+          onStdout(data)
+        } else {
+          process.stdout.write(data)
+        }
+      })
+      workerStderr.on('data', (data) => {
+        if (typeof onStderr === 'function') {
+          onStderr(data)
+        } else {
+          process.stderr.write(data)
+        }
+      })
 
       const { port: routerPort } = await routerWorker.initialize({
         dir,
