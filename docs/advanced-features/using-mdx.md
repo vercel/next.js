@@ -53,10 +53,17 @@ The following steps outline how to setup `@next/mdx` in your Next.js project:
        // providerImportSource: "@mdx-js/react",
      },
    })
-   module.exports = withMDX({
-     // Append the default value with md extensions
+
+   /** @type {import('next').NextConfig} */
+   const nextConfig = {
+     // Configure pageExtensions to include md and mdx
      pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
-   })
+     // Optionally, add any other Next.js config below
+     reactStrictMode: true,
+   }
+
+   // Merge MDX config with Next.js config
+   module.exports = withMDX(nextConfig)
    ```
 
 3. Create a new MDX page within the `/pages` directory:
@@ -206,6 +213,19 @@ export default function Post(props) {
 ```
 
 If you use it across the site you may want to add the provider to `_app.js` so all MDX pages pick up the custom element config.
+
+## Using rust based MDX compiler (experimental)
+
+Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
+
+```js
+// next.config.js
+module.exports = withMDX({
+  experimental: {
+    mdxRs: true,
+  },
+})
+```
 
 ## Helpful Links
 

@@ -1,6 +1,7 @@
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
+
 export default function () {
   return new Response(
     new ReadableStream({

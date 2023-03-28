@@ -13,7 +13,7 @@ fn main() {
     let out_dir = env::var("OUT_DIR").expect("Outdir should exist");
     let dest_path = Path::new(&out_dir).join("triple.txt");
     let mut f =
-        BufWriter::new(File::create(&dest_path).expect("Failed to create target triple text"));
+        BufWriter::new(File::create(dest_path).expect("Failed to create target triple text"));
     write!(
         f,
         "{}",
@@ -29,7 +29,7 @@ fn main() {
     let json: serde_json::Value = serde_json::from_reader(pkg_file).unwrap();
     let pkg_version_dest_path = Path::new(&out_dir).join("package.txt");
     let mut package_version_writer = BufWriter::new(
-        File::create(&pkg_version_dest_path).expect("Failed to create package version text"),
+        File::create(pkg_version_dest_path).expect("Failed to create package version text"),
     );
     write!(
         package_version_writer,

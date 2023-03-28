@@ -8,7 +8,7 @@ import {
 import NextLink, { LinkProps } from 'next/link'
 
 type NativeButtonProps = Omit<
-  HTMLProps<HTMLButtonElement>,
+  HTMLProps<HTMLAnchorElement>,
   'type' | 'prefix' | 'size' | 'width' | 'shape' | 'onClick'
 >
 

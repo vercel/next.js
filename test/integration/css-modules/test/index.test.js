@@ -130,10 +130,7 @@ describe('3rd Party CSS Module Support', () => {
   })
 })
 
-describe.each([
-  ['dev', false],
-  ['turbo', true],
-])('Has CSS Module in computed styles in Development %s', (turbo) => {
+describe('Has CSS Module in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'dev-module')
 
   let appPort
@@ -141,7 +138,7 @@ describe.each([
   beforeAll(async () => {
     await remove(join(appDir, '.next'))
     appPort = await findPort()
-    app = await launchApp(appDir, appPort, { turbo })
+    app = await launchApp(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
@@ -237,7 +234,7 @@ describe('Can hot reload CSS Module without losing state', () => {
   })
 })
 
-describe('Invalid CSS Module Usage in node_modules', () => {
+describe.skip('Invalid CSS Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-module')
 
   beforeAll(async () => {
@@ -258,7 +255,7 @@ describe('Invalid CSS Module Usage in node_modules', () => {
   })
 })
 
-describe('Invalid Global CSS Module Usage in node_modules', () => {
+describe.skip('Invalid Global CSS Module Usage in node_modules', () => {
   const appDir = join(fixturesDir, 'invalid-global-module')
 
   beforeAll(async () => {

@@ -11,7 +11,7 @@ To update to Next.js version 13, run the following command using your preferred 
 ```bash
 npm i next@latest react@latest react-dom@latest eslint-config-next@latest
 # or
-yarn upgrade next react react-dom eslint-config-next --latest
+yarn add next@latest react@latest react-dom@latest eslint-config-next@latest
 # or
 pnpm up next react react-dom eslint-config-next --latest
 ```
@@ -19,7 +19,7 @@ pnpm up next react react-dom eslint-config-next --latest
 ### v13 Summary
 
 - The [Supported Browsers](/docs/basic-features/supported-browsers-features.md) have been changed to drop Internet Explorer and target modern browsers.
-- The minimum Node.js version has been bumped from 12.22.0 to 14.0.0, since 12.x has reached end-of-life.
+- The minimum Node.js version has been bumped from 12.22.0 to 14.6.0, since 12.x has reached end-of-life.
 - The minimum React version has been bumped from 17.0.2 to 18.2.0.
 - The `swcMinify` configuration property was changed from `false` to `true`. See [Next.js Compiler](/docs/advanced-features/compiler.md) for more info.
 - The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`. A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
@@ -28,22 +28,22 @@ pnpm up next react react-dom eslint-config-next --latest
 
 ## Migrating shared features
 
-Next.js 13 introduces a new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals) with new features and conventions. However, upgrading to Next.js 13 does **not** require using the new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals.md#the-app-directory).
+Next.js 13 introduces a new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals) with new features and conventions. However, upgrading to Next.js 13 does **not** require using the new [`app` directory](https://beta.nextjs.org/docs/routing/fundamentals#the-app-directory).
 
 You can continue using `pages` with new features that work in both directories, such as the updated [Image component](#image-component), [Link component](#link-component), [Script component](#script-component), and [Font optimization](#font-optimization).
 
 ### `<Image/>` Component
 
-Next.js 12 introduced new improvements to the Image Component with a temporary import: `next/future/image`. These improvements included less client-side JavaScript, easier ways to extend and style images, better accessibility, and native browser lazy loading.
+Next.js 12 introduced many improvements to the Image Component with a temporary import: `next/future/image`. These improvements included less client-side JavaScript, easier ways to extend and style images, better accessibility, and native browser lazy loading.
 
-In version 13, this new behavior is now the default for `next/image`.
+Starting in Next.js 13, this new behavior is now the default for `next/image`.
 
 There are two codemods to help you migrate to the new Image Component:
 
-- [**`next-image-to-legacy-image` codemod**](/docs/advanced-features/codemods.md#rename-instances-of-nextimage): Safely and automatically renames `next/image` imports to `next/legacy/image`. Existing components will maintain the same behavior.
-- [**`next-image-experimental` codemod**](/docs/advanced-features/codemods.md#migrate-next-image-experimental-experimental): Dangerously adds inline styles and removes unused props using the experimental. This will change the behavior of existing components to match the new defaults. To use this codemod, you need to run the `next-image-to-legacy-image` codemod first.
+- [next-image-to-legacy-image](/docs/advanced-features/codemods.md#next-image-to-legacy-image): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
+- [next-image-experimental](/docs/advanced-features/codemods.md#next-image-experimental-experimental): After running the previous codemod, you can optionally run this experimental codemod to upgrade `next/legacy/image` to the new `next/image`, which will remove unused props and add inline styles. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
-Alternatively, you can manually update props by following the [`next/future/image` migration guide](/docs/api-reference/next/image.md#migration). This will change the behavior of existing components to match the new defaults.
+Alternatively, you can manually update by following the [migration guide](/docs/advanced-features/codemods.md#next-image-experimental-experimental) and also see the [legacy comparison](/docs/api-reference/next/legacy/image.md#comparison).
 
 ### `<Link>` Component
 
@@ -65,7 +65,7 @@ import Link from 'next/link'
 </Link>
 ```
 
-To upgrade your links to Next.js 13, you can use the [`next-link` codemod](/docs/advanced-features/codemods.md#remove-a-from-links-next-link).
+To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/advanced-features/codemods.md#new-link).
 
 ### `<Script>` Component
 

@@ -1,6 +1,24 @@
-# Example app with absolute imports
+# Absolute Imports and Aliases
 
-This example shows how to configure Babel to have absolute imports instead of relative imports without modifying the Webpack configuration.
+This example shows how to configure [Absolute imports and Module path aliases](https://nextjs.org/docs/advanced-features/module-path-aliases) in `tsconfig.json` (or `jsconfig.json` for JavaScript projects). These options will allow absolute imports from `.` (the root directory), and allow you to create custom import aliases.
+
+If you’re working on a large project, your relative import statements might suffer from `../../../` spaghetti:
+
+```tsx
+import Button from '../../../components/button'
+```
+
+In such cases, we might want to setup absolute imports using the `baseUrl` option, for clearer and shorter imports:
+
+```tsx
+import Button from 'components/button'
+```
+
+Furthermore, TypeScript also supports the `paths` option, which allows you to configure custom module aliases. You can then use your alias like so:
+
+```tsx
+import Button from '@/components/button'
+```
 
 ## Deploy your own
 

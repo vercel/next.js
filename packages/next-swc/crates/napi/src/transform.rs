@@ -37,12 +37,12 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_swc::{custom_before_pass, TransformOptions};
-use swc_core::{
+use next_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
-    common::{errors::ColorConfig, FileName, GLOBALS},
+    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, GLOBALS},
     ecma::transforms::base::pass::noop,
 };
+use next_swc::{custom_before_pass, TransformOptions};
 
 use crate::{complete_output, get_compiler, util::MapErr};
 
@@ -61,6 +61,11 @@ pub struct TransformTask {
     pub options: Buffer,
 }
 
+#[inline]
+fn skip_filename() -> bool {
+    cfg!(debug_assertions)
+}
+
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
@@ -71,9 +76,9 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    swc_core::base::HandlerOpts {
-                        color: ColorConfig::Never,
-                        skip_filename: true,
+                    next_binding::swc::core::base::HandlerOpts {
+                        color: ColorConfig::Always,
+                        skip_filename: skip_filename(),
                     },
                     |handler| {
                         self.c.run(|| {
@@ -107,12 +112,14 @@ impl Task for TransformTask {
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
 
+                            let comments = SingleThreadedComments::default();
                             self.c.process_js_with_custom_pass(
                                 fm,
                                 None,
                                 handler,
                                 &options.swc,
-                                |_, comments| {
+                                comments.clone(),
+                                |_| {
                                     custom_before_pass(
                                         cm,
                                         file,
@@ -121,7 +128,7 @@ impl Task for TransformTask {
                                         eliminated_packages.clone(),
                                     )
                                 },
-                                |_, _| noop(),
+                                |_| noop(),
                             )
                         })
                     },

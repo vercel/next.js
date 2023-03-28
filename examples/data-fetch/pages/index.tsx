@@ -18,9 +18,7 @@ export default function IndexPage({
   return (
     <>
       <p>Next.js has {stars} ⭐️</p>
-      <Link href="/preact-stars">
-        <a>How about preact?</a>
-      </Link>
+      <Link href="/preact-stars">How about preact?</Link>
     </>
   )
 }

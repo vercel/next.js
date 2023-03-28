@@ -81,7 +81,7 @@ This script will load and execute when _any_ route in your application is access
 
 ### Strategy
 
-Although the default behavior of `next/script` allows you load third-party scripts in any page, you can fine-tune its loading behavior by using the `strategy` property:
+Although the default behavior of `next/script` allows you to load third-party scripts in any page, you can fine-tune its loading behavior by using the `strategy` property:
 
 - `beforeInteractive`: Load the script before any Next.js code and before any page hydration occurs.
 - `afterInteractive`: (**default**) Load the script early but after some hydration on the page occurs.
@@ -89,6 +89,8 @@ Although the default behavior of `next/script` allows you load third-party scrip
 - `worker`: (experimental) Load the script in a web worker.
 
 Refer to the [`next/script`](/docs/api-reference/next/script.md#strategy) API reference documentation to learn more about each strategy and their use cases.
+
+> **Note**: Once a `next/script` component has been loaded by the browser, it will stay in the DOM and client-side navigations won't re-execute the script.
 
 ### Offloading Scripts To A Web Worker (experimental)
 
@@ -141,7 +143,7 @@ There are a number of trade-offs that need to be considered when loading a third
 Inline scripts, or scripts not loaded from an external file, are also supported by the Script component. They can be written by placing the JavaScript within curly braces:
 
 ```jsx
-<Script id="show-banner">
+<Script id="show-banner" strategy="afterInteractive">
   {`document.getElementById('banner').classList.remove('hidden')`}
 </Script>
 ```
@@ -151,6 +153,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 ```jsx
 <Script
   id="show-banner"
+  strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}

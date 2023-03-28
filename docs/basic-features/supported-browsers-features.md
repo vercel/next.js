@@ -14,7 +14,19 @@ Next.js supports **modern browsers** with zero configuration.
 
 ## Browserslist
 
-If you would like to target specific browsers or features, Next.js supports [Browserslist](https://browsersl.ist) configuration.
+If you would like to target specific browsers or features, Next.js supports [Browserslist](https://browsersl.ist) configuration in your `package.json` file. Next.js uses the following Browserslist configuration by default:
+
+```json
+{
+  "browserslist": [
+    "chrome 64",
+    "edge 79",
+    "firefox 67",
+    "opera 51",
+    "safari 12"
+  ]
+}
+```
 
 ## Polyfills
 

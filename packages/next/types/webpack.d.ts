@@ -44,5 +44,5 @@ declare module 'next/dist/compiled/webpack/webpack' {
     NormalModule,
     ResolvePluginInstance,
   } from 'webpack'
-  export { default as webpack } from 'webpack'
+  export { default as webpack, ModuleFilenameHelpers } from 'webpack'
 }

@@ -140,7 +140,7 @@ export default function Page() {
 
 #### Resetting state after navigation
 
-When navigating to the same page in Next.js, the page's state **will not** be reset by default as react does not unmount unless the parent component has changed.
+When navigating to the same page in Next.js, the page's state **will not** be reset by default as React does not unmount unless the parent component has changed.
 
 ```jsx
 // pages/[slug].js
@@ -283,7 +283,7 @@ export default function Login() {
   useEffect(() => {
     // Prefetch the dashboard page
     router.prefetch('/dashboard')
-  }, [])
+  }, [router])
 
   return (
     <form onSubmit={handleSubmit}>
@@ -331,7 +331,7 @@ export default function Page() {
 
       return true
     })
-  }, [])
+  }, [router])
 
   return <p>Welcome to the page</p>
 }
@@ -425,7 +425,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeStart', handleRouteChange)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }
@@ -458,7 +458,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeError', handleRouteChangeError)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }

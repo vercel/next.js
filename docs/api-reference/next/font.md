@@ -1,168 +1,184 @@
 ---
-description: Optimizing loading web fonts with the built-in `@next/font` loaders.
+description: Optimizing loading web fonts with the built-in `next/font` loaders.
 ---
 
-# @next/font
+# next/font
 
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                 |
-| --------- | ----------------------- |
-| `v13.0.0` | `@next/font` was added. |
+| Version   | Changes                                                               |
+| --------- | --------------------------------------------------------------------- |
+| `v13.2.0` | `@next/font` renamed to `next/font`. Installation no longer required. |
+| `v13.0.0` | `next/font` was added.                                                |
 
 </details>
 
-This API reference will help you understand how to use [`@next/font/google`](#nextfontgoogle) and [`@next/font/local`](#nextfontlocal). For features and usage, please see the [Optimizing Fonts](/docs/basic-features/font-optimization.md) page.
-
-## @next/font/google
+This API reference will help you understand how to use `next/font/google` and `next/font/local`. For features and usage, please see the [Optimizing Fonts](/docs/basic-features/font-optimization.md) page.
 
 ### Font function arguments
 
-For usage, review [Google Fonts](/docs/basic-features/font-optimization.md#google-fonts).
+For usage, review [Google Fonts](/docs/basic-features/font-optimization.md#google-fonts) and [Local Fonts](/docs/basic-features/font-optimization#local-fonts).
 
-| Key                                         | Example                            | Data type                                                 | Required                                         |
-| ------------------------------------------- | ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------ |
-| [`weight`](#weight)                         | `weight: '600'`                    | String                                                    | Required if font is not variable                 |
-| [`style`](#style)                           | `style: 'italic'`                  | String                                                    | Optional                                         |
-| [`subsets`](#subsets)                       | `subsets: ['latin']`               | Array of Strings                                          | Optional                                         |
-| [`axes`](#axes)                             | `axes: ['slnt']`                   | Array of Strings based on the available axes for the font | Optional for variable fonts that have extra axes |
-| [`display`](#display)                       | `display: 'swap'`                  | String                                                    | Optional                                         |
-| [`preload`](#preload)                       | `preload: false`                   | Boolean                                                   | Optional                                         |
-| [`fallback`](#fallback)                     | `fallback: ['system-ui', 'arial']` | Array of Strings                                          | Optional                                         |
-| [`adjustFontFallback`](#adjustFontFallback) | `adjustFontFallback: false`        | Boolean                                                   | Optional                                         |
-| [`variable`](#variable)                     | `variable: '--my-font'`            | String                                                    | Optional                                         |
-
-### `weight`
-
-The font [`weight`](https://fonts.google.com/knowledge/glossary/weight) represented as a string with possible values of the weights available for the specific font. For example, for the font [`Inter`](https://fonts.google.com/specimen/Inter?query=inter), the possible values are `'100'`, `'200'`, `'300'`, `'400'`, `'500'`, `'600'`, `'700'`, `'800'`, `'900'` or `'variable'` (`'variable'` is the default in this case).
-
-- Required if the font being used is **not** [variable](https://fonts.google.com/variablefonts)
-
-### `style`
-
-The font [`style`](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style#values) of `'normal'` or `'italic'` with default value of `'normal'`.
-
-- Optional
-
-### `subsets`
-
-The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an Array of string values with the names of each subset you would like to be [preloaded](/docs/basic-features/font-optimization.md#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](#preload) option is true, which is the default.
-
-- Optional
-
-### `axes`
-
-Some variable fonts have extra `axes` that can be included. By default, only the font weight is included to keep the file size down. The possible values of `axes` depend on the specific font. For example, the `Inter` variable font has `slnt` as additional `axes` as shown [here](https://fonts.google.com/variablefonts?vfquery=inter#font-families). You can find the possible `axes` values for your font by using the filter on the [Google variable fonts page](https://fonts.google.com/variablefonts#font-families) and looking for axes other than `wght`.
-
-- Optional
-
-### `display`
-
-The font [`display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display#values) of `'auto'`, `'block'`, `'swap'`, `'fallback'` or `'optional'` with default value of `'optional'`.
-
-- Optional
-
-### `preload`
-
-A boolean value that specifies whether the font should be [preloaded](/docs/basic-features/font-optimization.md#preloading) or not. The default is `true`.
-
-- Optional
-
-### `fallback`
-
-The fallback font to use if the font cannot be loaded. An array of strings of fallback fonts such as `['system-ui', 'arial']` with no default.
-
-- Optional
-
-### `adjustFontFallback`
-
-A boolean value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The default is `true`.
-
-- Optional
-
-### `variable`
-
-A string value to define the CSS variable name to be used if the style is applied with the [CSS variable method](#css-variables).
-
-- Optional
-
-## @next/font/local
-
-### Font function arguments
-
-For usage, review [Local Fonts](/docs/optimizing/fonts#local-fonts).
-
-| Key                                         | Example                                                     | Data type                              | Required |
-| ------------------------------------------- | ----------------------------------------------------------- | -------------------------------------- | -------- |
-| [`src`](#src)                               | `src: './my-font.woff2'`                                    | String                                 | Required |
-| [`weight`](#weight)                         | `weight: '600' or '100 900'`                                | String                                 | Optional |
-| [`style`](#style)                           | `style: 'italic'`                                           | String                                 | Optional |
-| [`display`](#display)                       | `display: 'swap'`                                           | String                                 | Optional |
-| [`preload`](#preload)                       | `preload: false`                                            | Boolean                                | Optional |
-| [`fallback`](#fallback)                     | `fallback: ['system-ui', 'arial']`                          | Array of Strings                       | Optional |
-| [`adjustFontFallback`](#adjustFontFallback) | `adjustFontFallback: false`                                 | ['Arial', 'Times New Roman', false]    | Optional |
-| [`variable`](#variable)                     | `variable: '--my-font'`                                     | String                                 | Optional |
-| [`declarations`](#declarations)             | `declarations: [{ prop: 'ascent-override', value: '90%' }]` | Array<{ prop: string; value: string }> | Optional |
+| Key                                         | `font/google` | `font/local` | Data type                  | Required          |
+| ------------------------------------------- | ------------- | ------------ | -------------------------- | ----------------- |
+| [`src`](#src)                               | ❌            | ✅           | String or Array of Objects | Required          |
+| [`weight`](#weight)                         | ✅            | ✅           | String or Array            | Required/Optional |
+| [`style`](#style)                           | ✅            | ✅           | String or Array            | Optional          |
+| [`subsets`](#subsets)                       | ✅            | ❌           | Array of Strings           | Optional          |
+| [`axes`](#axes)                             | ✅            | ❌           | Array of Strings           | Optional          |
+| [`display`](#display)                       | ✅            | ✅           | String                     | Optional          |
+| [`preload`](#preload)                       | ✅            | ✅           | Boolean                    | Optional          |
+| [`fallback`](#fallback)                     | ✅            | ✅           | Array of Strings           | Optional          |
+| [`adjustFontFallback`](#adjustFontFallback) | ✅            | ✅           | Boolean or String          | Optional          |
+| [`variable`](#variable)                     | ✅            | ✅           | String                     | Optional          |
+| [`declarations`](#declarations)             | ❌            | ✅           | Array of Objects           | Optional          |
 
 ### `src`
 
-The path of the font file as a string relative to the directory where the font loader function is called or to the `app` directory.
+The path of the font file as a string or an array of objects (with type `Array<{path: string, weight?: string, style?: string}>`) relative to the directory where the font loader function is called.
+
+Used in `next/font/local`
 
 - Required
 
-Examples are:
+Examples:
 
-- `'./fonts/my-font.woff2'` where `my-font.woff2` is placed in a directory named `fonts` inside the `app` directory
-- if the font loader function is called in `app/page.tsx` using `'../styles/fonts/my-font.ttf'`, then `my-font.ttf` is placed in `styles/fonts` at the root of the project
+- `src:'./fonts/my-font.woff2'` where `my-font.woff2` is placed in a directory named `fonts` inside the `app` directory
+- `src:[{path: './inter/Inter-Thin.ttf', weight: '100',},{path: './inter/Inter-Regular.ttf',weight: '400',},{path: './inter/Inter-Bold-Italic.ttf', weight: '700',style: 'italic',},]`
+- if the font loader function is called in `app/page.tsx` using `src:'../styles/fonts/my-font.ttf'`, then `my-font.ttf` is placed in `styles/fonts` at the root of the project
 
 ### `weight`
 
-The font [`weight`](https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight) either as a specific weight string value such as `'400'` or a range of values if it's a variable font such as `'100 900'`.
+The font [`weight`](https://fonts.google.com/knowledge/glossary/weight) with the following possibilities:
 
-- Optional
+- A string with possible values of the weights available for the specific font or a range of values if it's a [variable](https://fonts.google.com/variablefonts) font
+- An array of weight values if the font is not a [variable google font](https://fonts.google.com/variablefonts). It applies to `next/font/google` only.
+
+Used in `next/font/google` and `next/font/local`
+
+- Required if the font being used is **not** [variable](https://fonts.google.com/variablefonts)
+
+Examples:
+
+- `weight: '400'`: A string for a single weight value - for the font [`Inter`](https://fonts.google.com/specimen/Inter?query=inter), the possible values are `'100'`, `'200'`, `'300'`, `'400'`, `'500'`, `'600'`, `'700'`, `'800'`, `'900'` or `'variable'` where `'variable'` is the default)
+- `weight: '100 900'`: A string for the range between `100` and `900` for a variable font
+- `weight: ['100','400','900']`: An array of 3 possible values for a non variable font
 
 ### `style`
 
-The font [`style`](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style#values) of `'normal'`, `'italic'` or `'oblique'` with default value of `'normal'`.
+The font [`style`](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style) with the following possibilities:
+
+- A string [value](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style#values) with default value of `'normal'`
+- An array of style values if the font is not a [variable google font](https://fonts.google.com/variablefonts). It applies to `next/font/google` only.
+
+Used in `next/font/google` and `next/font/local`
 
 - Optional
+
+Examples:
+
+- `style: 'italic'`: A string - it can be `normal` or `italic` for `next/font/google`
+- `style: 'oblique'`: A string - it can take any value for `next/font/local` but is expected to come from [standard font styles](https://developer.mozilla.org/en-US/docs/Web/CSS/font-style)
+- `style: ['italic','normal']`: An array of 2 values for `next/font/google` - the values are from `normal` and `italic`
+
+### `subsets`
+
+The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/basic-features/font-optimization#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](/docs/api-reference/next/font.md#preload) option is true, which is the default.
+
+Used in `next/font/google`
+
+- Optional
+
+Examples:
+
+- `subsets: ['latin']`: An array with the subset `latin`
+
+### `axes`
+
+Some variable fonts have extra `axes` that can be included. By default, only the font weight is included to keep the file size down. The possible values of `axes` depend on the specific font.
+
+Used in `next/font/google`
+
+- Optional
+
+Examples:
+
+- `axes: ['slnt']`: An array with value `slnt` for the `Inter` variable font which has `slnt` as additional `axes` as shown [here](https://fonts.google.com/variablefonts?vfquery=inter#font-families). You can find the possible `axes` values for your font by using the filter on the [Google variable fonts page](https://fonts.google.com/variablefonts#font-families) and looking for axes other than `wght`
 
 ### `display`
 
-The font [`display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display#values) of `'auto'`, `'block'`, `'swap'`, `'fallback'` or `'optional'` with default value of `'optional'`.
+The font [`display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) with possible string [values](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display#values) of `'auto'`, `'block'`, `'swap'`, `'fallback'` or `'optional'` with default value of `'swap'`.
+
+Used in `next/font/google` and `next/font/local`
 
 - Optional
+
+Examples:
+
+- `display: 'optional'`: A string assigned to the `optional` value
 
 ### `preload`
 
-A boolean value that specifies whether the font should be [preloaded](/docs/basic-features/font-optimization.md#preloading) or not. The default is `true`.
+A boolean value that specifies whether the font should be [preloaded](/docs/basic-features/font-optimization#preloading) or not. The default is `true`.
+
+Used in `next/font/google` and `next/font/local`
 
 - Optional
+
+Examples:
+
+- `preload: false`
 
 ### `fallback`
 
-The fallback font to use if the font cannot be loaded. An array of strings of fallback fonts such as `['system-ui', 'arial']` with no default.
+The fallback font to use if the font cannot be loaded. An array of strings of fallback fonts with no default.
 
 - Optional
+
+Used in `next/font/google` and `next/font/local`
+
+Examples:
+
+- `fallback: ['system-ui', 'arial']`: An array setting the fallback fonts to `system-ui` or `arial`
 
 ### `adjustFontFallback`
 
-A string or boolean `false` value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The possible values are `'Arial'`, `'Times New Roman'` or `false`. The default is `'Arial'`.
+- For `next/font/google`: A boolean value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The default is `true`.
+- For `next/font/local`: A string or boolean `false` value that sets whether an automatic fallback font should be used to reduce [Cumulative Layout Shift](https://web.dev/cls/). The possible values are `'Arial'`, `'Times New Roman'` or `false`. The default is `'Arial'`.
+
+Used in `next/font/google` and `next/font/local`
 
 - Optional
+
+Examples:
+
+- `adjustFontFallback: false`: for ``next/font/google`
+- `adjustFontFallback: 'Times New Roman'`: for `next/font/local`
 
 ### `variable`
 
 A string value to define the CSS variable name to be used if the style is applied with the [CSS variable method](#css-variables).
 
+Used in `next/font/google` and `next/font/local`
+
 - Optional
+
+Examples:
+
+- `variable: '--my-font'`: The CSS variable `--my-font` is declared
 
 ### `declarations`
 
-An array of font face [descriptor](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face#descriptors) key-value pairs that define the generated `@font-face` further such as `{ prop: 'ascent-override', value: '90%' }`.
+An array of font face [descriptor](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face#descriptors) key-value pairs that define the generated `@font-face` further.
+
+Used in `next/font/local`
 
 - Optional
+
+Examples:
+
+- `declarations: [{ prop: 'ascent-override', value: '90%' }]`
 
 ## Applying Styles
 
@@ -194,9 +210,9 @@ If you would like to set your styles in an external style sheet and specify addi
 
 In addition to importing the font, also import the CSS file where the CSS variable is defined and set the variable option of the font loader object as follows:
 
-```tsx
-// app/page.tsx
-import { Inter } from '@next/font/google'
+```js
+// pages/index.js
+import { Inter } from 'next/font/google'
 import styles from '../styles/component.module.css'
 
 const inter = Inter({
@@ -206,8 +222,8 @@ const inter = Inter({
 
 To use the font, set the `className` of the parent container of the text you would like to style to the font loader's `variable` value and the `className` of the text to the `styles` property from the external CSS file.
 
-```tsx
-// app/page.tsx
+```js
+// pages/index.js
 <main className={inter.variable}>
   <p className={styles.text}>Hello World</p>
 </main>
@@ -236,8 +252,8 @@ Then, specify your font definitions as follows:
 
 ```ts
 // styles/fonts.ts
-import { Inter, Lora, Source_Sans_Pro } from '@next/font/google';
-import localFont from '@next/font/local';
+import { Inter, Lora, Source_Sans_Pro } from 'next/font/google';
+import localFont from 'next/font/local';
 
 // define your variable fonts
 const inter = Inter();
@@ -295,7 +311,7 @@ import { greatVibes, sourceCodePro400 } from '@/fonts';
 
 <div class="card">
   <a href="/docs/basic-features/font-optimization.md">
-    <b>Font Optmization</b>
+    <b>Font Optimization</b>
     <small>Learn how to optimize fonts with the Font module.</small>
   </a>
 </div>

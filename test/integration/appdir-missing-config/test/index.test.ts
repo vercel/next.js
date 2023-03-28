@@ -14,7 +14,7 @@ const dir = path.join(__dirname, '..')
 const nextConfig = path.join(dir, 'next.config.js')
 const pagesIndex = path.join(dir, 'pages', 'index.js')
 const msg =
-  'The `app` dir is experimental. Please add `{experimental:{appDir: true}}` to your `next.config.js` to enable it'
+  'The `app` directory is experimental. To enable, add `appDir: true` to your `next.config.js` configuration under `experimental`. See https://nextjs.org/docs/messages/experimental-app-dir-config'
 
 function runTests(justPutIt: () => Promise<string>) {
   it('should print error when missing config with app', async () => {

@@ -1,4 +1,4 @@
-use swc_core::{
+use next_binding::swc::core::{
     ecma::ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
     ecma::atoms::JsWord,
     ecma::visit::Fold,

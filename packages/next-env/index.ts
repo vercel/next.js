@@ -20,6 +20,18 @@ type Log = {
   error: (...args: any[]) => void
 }
 
+function replaceProcessEnv(sourceEnv: Env) {
+  Object.keys(process.env).forEach((key) => {
+    if (sourceEnv[key] === undefined || sourceEnv[key] === '') {
+      delete process.env[key]
+    }
+  })
+
+  Object.entries(sourceEnv).forEach(([key, value]) => {
+    process.env[key] = value
+  })
+}
+
 export function processEnv(
   loadedEnvFiles: LoadedEnvFiles,
   dir?: string,
@@ -36,8 +48,7 @@ export function processEnv(
   ) {
     return process.env as Env
   }
-  // flag that we processed the environment values in case a serverless
-  // function is re-used or we are running in `next start` mode
+  // flag that we processed the environment values already.
   process.env.__NEXT_PROCESSED_ENV = 'true'
 
   const origEnv = Object.assign({}, initialEnv)
@@ -94,7 +105,7 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  process.env = Object.assign({}, initialEnv)
+  replaceProcessEnv(initialEnv)
   previousLoadedEnvFiles = cachedLoadedEnvFiles
   cachedLoadedEnvFiles = []
 

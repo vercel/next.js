@@ -6,9 +6,7 @@ import indexPageQuery from '../queries/indexPage'
 
 const Index = ({ viewer }) => (
   <div>
-    <Link href="/about">
-      <a>About</a>
-    </Link>
+    <Link href="/about">About</Link>
     <BlogPosts viewer={viewer} />
   </div>
 )

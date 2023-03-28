@@ -2,22 +2,20 @@
 // @ts-check
 
 const path = require('path')
-const { readdir } = require('fs/promises')
+const execa = require('execa')
+const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
-const { readJson } = require('fs-extra')
+const { readJson, readdir } = require('fs-extra')
 
 const cwd = process.cwd()
 
 ;(async function () {
   let isCanary = true
 
-  if (!process.env.NPM_TOKEN) {
-    console.log('No NPM_TOKEN, exiting...')
-    return
-  }
-
   try {
-    const tagOutput = execSync('git describe --exact-match').toString()
+    const tagOutput = execSync(
+      `node ${path.join(__dirname, 'check-is-release.js')}`
+    ).toString()
     console.log(tagOutput)
 
     if (tagOutput.trim().startsWith('v')) {
@@ -34,15 +32,28 @@ const cwd = process.cwd()
   }
   console.log(`Publishing ${isCanary ? 'canary' : 'stable'}`)
 
+  if (!process.env.NPM_TOKEN) {
+    console.log('No NPM_TOKEN, exiting...')
+    return
+  }
+
   const packagesDir = path.join(cwd, 'packages')
   const packageDirs = await readdir(packagesDir)
+  const publishSema = new Sema(2)
 
   const publish = async (pkg, retry = 0) => {
     try {
-      execSync(
-        `npm publish ${path.join(packagesDir, pkg)} --access public${
-          isCanary ? ' --tag canary' : ''
-        }`
+      await publishSema.acquire()
+      await execa(
+        `npm`,
+        [
+          'publish',
+          `${path.join(packagesDir, pkg)}`,
+          '--access',
+          'public',
+          ...(isCanary ? ['--tag', 'canary'] : []),
+        ],
+        { stdio: 'inherit' }
       )
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
@@ -66,18 +77,22 @@ const cwd = process.cwd()
         await publish(pkg, retry + 1)
       }
       throw err
+    } finally {
+      publishSema.release()
     }
   }
 
-  for (const packageDir of packageDirs) {
-    const pkgJson = await readJson(
-      path.join(packagesDir, packageDir, 'package.json')
-    )
+  await Promise.all(
+    packageDirs.map(async (packageDir) => {
+      const pkgJson = await readJson(
+        path.join(packagesDir, packageDir, 'package.json')
+      )
 
-    if (pkgJson.private) {
-      console.log(`Skipping private package ${packageDir}`)
-      continue
-    }
-    await publish(packageDir)
-  }
+      if (pkgJson.private) {
+        console.log(`Skipping private package ${packageDir}`)
+        return
+      }
+      await publish(packageDir)
+    })
+  )
 })()

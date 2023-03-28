@@ -6,9 +6,7 @@ export default function Home({ post }) {
     <div>
       <main style={{ margin: '3rem' }}>
         <div>
-          <Link href="/">
-            <a>&larr; back home</a>
-          </Link>
+          <Link href="/">&larr; back home</Link>
         </div>
         <h1>{post.title}</h1>
         <p>{post.content}</p>

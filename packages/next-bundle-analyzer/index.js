@@ -9,9 +9,11 @@ module.exports =
             new BundleAnalyzerPlugin({
               analyzerMode: 'static',
               openAnalyzer,
-              reportFilename: options.isServer
-                ? '../analyze/server.html'
-                : './analyze/client.html',
+              reportFilename: !options.nextRuntime
+                ? `./analyze/client.html`
+                : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
+                    options.nextRuntime
+                  }.html`,
             })
           )
         }

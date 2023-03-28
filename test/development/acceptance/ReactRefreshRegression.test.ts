@@ -2,6 +2,7 @@
 import { sandbox } from './helpers'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+import { check } from 'next-test-utils'
 
 describe('ReactRefreshRegression', () => {
   let next: NextInstance
@@ -76,7 +77,7 @@ describe('ReactRefreshRegression', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     await cleanup()
   })
@@ -231,9 +232,11 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('0')
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      '0'
+    )
+
     await session.evaluate(() => document.querySelector('button').click())
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -319,7 +322,7 @@ describe('ReactRefreshRegression', () => {
 
     let didNotReload = await session.patch('pages/index.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent
@@ -328,7 +331,7 @@ describe('ReactRefreshRegression', () => {
 
     didNotReload = await session.patch('pages/index.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent

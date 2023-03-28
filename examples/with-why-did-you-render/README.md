@@ -3,7 +3,7 @@
 This is a simple example of how to use [why-did-you-render](https://github.com/welldone-software/why-did-you-render) within a Next.js app.
 
 We are essentially extending webpack config to allow the monkey patched `React` version of WDYR in development mode and adding to our application
-by importing `wdyr.js` at the top of Next.js `_app.js`.
+by importing `wdyr.ts` at the top of Next.js `_app.tsx`.
 
 By default, all pure components will be tracked, but you can add
 `Component.whyDidYouRender = true` to regular function components in case you need.

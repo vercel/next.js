@@ -7,5 +7,5 @@ export default async (req) => {
 }
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }

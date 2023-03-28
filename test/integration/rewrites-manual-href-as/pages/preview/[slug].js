@@ -55,6 +55,15 @@ export default function Page(props) {
         go to /preview/321 as /rewrite-me
       </Link>
       <br />
+
+      <Link
+        href={{ pathname: '/news/[[...slugs]]', query: { slugs: [] } }}
+        as="/blog"
+        id="to-news-as-blog"
+      >
+        go to /news as /blog
+      </Link>
+      <br />
     </>
   )
 }

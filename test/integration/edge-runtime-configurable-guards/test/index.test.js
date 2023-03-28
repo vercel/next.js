@@ -72,7 +72,7 @@ describe('Edge runtime configurable guards', () => {
           return Response.json({ result: true })
         }
         export const config = {
-          runtime: 'experimental-edge',
+          runtime: 'edge',
           unstable_allowDynamic: '/lib/**'
         }
       `)
@@ -125,7 +125,7 @@ describe('Edge runtime configurable guards', () => {
             return Response.json({ result: true })
           }
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
             unstable_allowDynamic: '**'
           }
         `)
@@ -159,7 +159,7 @@ describe('Edge runtime configurable guards', () => {
             return Response.json({ result: true })
           }
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
             unstable_allowDynamic: '/lib/**'
           }
         `)
@@ -221,7 +221,7 @@ describe('Edge runtime configurable guards', () => {
             return Response.json({ result: true })
           }
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
             unstable_allowDynamic: '**'
           }
         `)
@@ -257,7 +257,7 @@ describe('Edge runtime configurable guards', () => {
             return Response.json({ result: true })
           }
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
             unstable_allowDynamic: '/lib/**'
           }
         `)
@@ -328,7 +328,7 @@ describe('Edge runtime configurable guards', () => {
             return Response.json({ result: true })
           }
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
             unstable_allowDynamic: '/pages/**'
           }
         `)
@@ -397,7 +397,7 @@ describe('Edge runtime configurable guards', () => {
           export default async function handler(request) {
             return Response.json({ result: (() => {}) instanceof Function })
           }
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },

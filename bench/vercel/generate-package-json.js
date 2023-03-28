@@ -46,7 +46,7 @@ async function getCurrentRootReactPackagesVersions() {
     await fs.readFile('../../package.json', 'utf8')
   )
   return {
-    react: packageJson.devDependencies['react-exp'],
-    'react-dom': packageJson.devDependencies['react-dom-exp'],
+    react: packageJson.devDependencies['react'],
+    'react-dom': packageJson.devDependencies['react-dom'],
   }
 }

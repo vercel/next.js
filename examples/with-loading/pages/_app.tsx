@@ -37,13 +37,13 @@ export default function App({ Component, pageProps }: AppProps) {
             margin: 0 10px 0 0;
           }
         `}</style>
-        <Link href="/">
+        <Link href="/" legacyBehavior>
           <a>Home</a>
         </Link>
-        <Link href="/about">
+        <Link href="/about" legacyBehavior>
           <a>About</a>
         </Link>
-        <Link href="/forever">
+        <Link href="/forever" legacyBehavior>
           <a>Forever</a>
         </Link>
         <a href="/non-existing">Non Existing Page</a>

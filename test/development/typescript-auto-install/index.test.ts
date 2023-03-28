@@ -2,7 +2,6 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-// @ts-expect-error missing types
 import stripAnsi from 'strip-ansi'
 
 describe('typescript-auto-install', () => {

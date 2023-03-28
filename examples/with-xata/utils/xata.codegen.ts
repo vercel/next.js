@@ -24,9 +24,7 @@ export type NextjsWithXataExampleRecord = NextjsWithXataExample & XataRecord
 
 const DatabaseClient = buildClient()
 
-const defaultOptions = {
-  databaseURL: 'https://xata-uq2d57.xata.sh/db/examples',
-}
+const defaultOptions = {}
 
 export class XataClient extends DatabaseClient<SchemaTables> {
   constructor(options?: BaseClientOptions) {

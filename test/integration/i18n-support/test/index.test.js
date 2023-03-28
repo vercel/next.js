@@ -257,7 +257,7 @@ describe('i18n Support', () => {
             expect(res.status).toBe(307)
 
             const parsed = url.parse(res.headers.get('location'), true)
-            expect(parsed.pathname).toBe(`/${locale}`)
+            expect(parsed.pathname).toBe(`/${locale}/`)
             expect(parsed.query).toEqual({})
           }
         }
@@ -419,6 +419,69 @@ describe('i18n Support', () => {
       beforeAll(async () => {
         await fs.remove(join(appDir, '.next'))
         nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+        await nextBuild(appDir)
+        curCtx.appPort = await findPort()
+        curCtx.app = await nextStart(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
+
+      runSlashTests(curCtx)
+    })
+  })
+
+  describe('with trailingSlash: false', () => {
+    const runSlashTests = (curCtx) => {
+      it('should redirect correctly', async () => {
+        for (const locale of nonDomainLocales) {
+          const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
+            redirect: 'manual',
+            headers: {
+              'accept-language': locale,
+            },
+          })
+
+          if (locale === 'en-US') {
+            expect(res.status).toBe(200)
+          } else {
+            expect(res.status).toBe(307)
+
+            const parsed = url.parse(res.headers.get('location'), true)
+            expect(parsed.pathname).toBe(`/${locale}`)
+            expect(parsed.query).toEqual({})
+          }
+        }
+      })
+    }
+
+    describe('dev mode', () => {
+      const curCtx = {
+        ...ctx,
+        isDev: true,
+      }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(curCtx.app)
+      })
+
+      runSlashTests(curCtx)
+    })
+
+    describe('production mode', () => {
+      const curCtx = { ...ctx }
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
 
         await nextBuild(appDir)
         curCtx.appPort = await findPort()

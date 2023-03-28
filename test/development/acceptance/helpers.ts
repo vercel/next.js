@@ -29,7 +29,7 @@ export async function sandbox(
     }
   }
   await next.start()
-  const browser = await webdriver(next.appPort, '/')
+  const browser = await webdriver(next.url, '/')
   return {
     session: {
       async write(filename, content) {
@@ -119,6 +119,17 @@ export async function sandbox(
           return `${header}\n\n${source}`
         }
         return source
+      },
+      async getRedboxComponentStack() {
+        await browser.waitForElementByCss('[data-nextjs-component-stack-frame]')
+        const componentStackFrameElements = await browser.elementsByCss(
+          '[data-nextjs-component-stack-frame]'
+        )
+        const componentStackFrameTexts = await Promise.all(
+          componentStackFrameElements.map((f) => f.innerText())
+        )
+
+        return componentStackFrameTexts.join('\n')
       },
     },
     async cleanup() {

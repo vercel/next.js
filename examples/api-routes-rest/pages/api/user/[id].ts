@@ -1,10 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import type { User } from '../../../interfaces'
 
-export default function userHandler(req: NextApiRequest, res: NextApiResponse) {
-  const {
-    query: { id, name },
-    method,
-  } = req
+export default function userHandler(
+  req: NextApiRequest,
+  res: NextApiResponse<User>
+) {
+  const { query, method } = req
+  const id = parseInt(query.id as string, 10)
+  const name = query.name as string
 
   switch (method) {
     case 'GET':

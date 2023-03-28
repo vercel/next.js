@@ -4,7 +4,7 @@ import mountains from '../public/mountains.jpg'
 
 const Fill = () => (
   <div>
-    <ViewSource pathname="pages/layout-fill.tsx" />
+    <ViewSource pathname="pages/fill.tsx" />
     <h1>Image Component With Layout Fill</h1>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image

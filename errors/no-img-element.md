@@ -1,47 +1,59 @@
-# No Img Element
+# No img element
 
-> Prevent usage of `<img>` element to prevent layout shift.
+> Prevent usage of `<img>` element due to slower LCP and higher bandwidth.
 
 ### Why This Error Occurred
 
-An `<img>` element was used to display an image. Use either `<picture>` in conjunction with `<img>` element, or use `next/image` that has better performance and automatic Image Optimization over `<img>`.
+An `<img>` element was used to display an image instead of `<Image />` from `next/image`.
 
 ### Possible Ways to Fix It
 
-Import and use the `<Image />` component:
+Use [`next/image`](https://nextjs.org/docs/api-reference/next/image) to improve performance with automatic [Image Optimization](https://nextjs.org/docs/basic-features/image-optimization).
+
+> Note: If deploying to a [managed hosting provider](https://nextjs.org/docs/deployment), remember to check provider pricing since optimized images might be charged differently than the original images.
+>
+> Common image optimization platform pricing:
+>
+> - [Vercel pricing](https://vercel.com/pricing)
+> - [Cloudinary pricing](https://cloudinary.com/pricing)
+> - [imgix pricing](https://imgix.com/pricing)
+
+> Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
 ```jsx
 import Image from 'next/image'
 
 function Home() {
   return (
-    <>
-      <Image
-        src="https://example.com/test"
-        alt="Landscape picture"
-        width={500}
-        height={500}
-      />
-    </>
+    <Image
+      src="https://example.com/hero.jpg"
+      alt="Landscape picture"
+      width={800}
+      height={500}
+    />
   )
 }
 
 export default Home
 ```
 
-<br />
+If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized).
 
-Use `<picture>` in conjunction with `<img>` element:
+Or, use a `<picture>` element with the nested `<img>` element:
 
 ```jsx
 function Home() {
   return (
-    <>
-      <picture>
-        <source srcSet="https://example.com/test" type="image/webp" />
-        <img src="https://example.com/test" alt="Landscape picture" />
-      </picture>
-    </>
+    <picture>
+      <source srcSet="https://example.com/hero.avif" type="image/avif" />
+      <source srcSet="https://example.com/hero.webp" type="image/webp" />
+      <img
+        src="https://example.com/hero.jpg"
+        alt="Landscape picture"
+        width={800}
+        height={500}
+      />
+    </picture>
   )
 }
 ```
@@ -49,3 +61,5 @@ function Home() {
 ### Useful Links
 
 - [Image Component and Image Optimization](https://nextjs.org/docs/basic-features/image-optimization)
+- [next/image API Reference](https://nextjs.org/docs/api-reference/next/image)
+- [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp)

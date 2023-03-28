@@ -134,7 +134,7 @@ Next.js has built-in support for [Server-side Rendering](/docs/basic-features/pa
 
 ## Code Splitting
 
-Next.js has built-in support for [Code Splitting](https://reactrouter.com/web/guides/code-splitting). This means you can remove any instances of:
+Next.js has built-in support for [Code Splitting](https://v5.reactrouter.com/web/guides/code-splitting). This means you can remove any instances of:
 
 - `@loadable/server`, `@loadable/babel-plugin`, and `@loadable/webpack-plugin`
 - Modifications to your `.babelrc` for `@loadable/babel-plugin`
@@ -145,7 +145,7 @@ For more information, read about [Dynamic Imports](https://nextjs.org/docs/advan
 
 ## Scroll Restoration
 
-Next.js has built-in support for [Scroll Restoration](https://reactrouter.com/web/guides/scroll-restoration). This means you can remove any custom `ScrollToTop` components you have defined.
+Next.js has built-in support for [Scroll Restoration](https://v5.reactrouter.com/web/guides/scroll-restoration). This means you can remove any custom `ScrollToTop` components you have defined.
 
 The default behavior of `next/link` and `next/router` is to scroll to the top of the page. You can also [disable this](https://nextjs.org/docs/api-reference/next/link#disable-scrolling-to-the-top-of-the-page) if you prefer.
 

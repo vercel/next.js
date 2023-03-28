@@ -19,4 +19,12 @@ module.exports = {
     }
     return cfg
   },
+  experimental: {
+    outputFileTracingIncludes: {
+      '/index': ['include-me/**/*'],
+    },
+    outputFileTracingExcludes: {
+      '/index': ['public/exclude-me/**/*'],
+    },
+  },
 }

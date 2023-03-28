@@ -58,6 +58,8 @@ export default Home
 - [`shallow`](/docs/routing/shallow-routing.md) - Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md). Defaults to `false`
 - `locale` - The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `href` has to include the locale as the default behavior is disabled.
 
+Note, when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
+
 ## If the route has dynamic segments
 
 There is nothing to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md), including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes), since Next.js 9.5.3 (for older versions check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
@@ -218,3 +220,43 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
   Disables scrolling to the top
 </Link>
 ```
+
+## With Next.js 13 Middleware
+
+It's common to use [Middleware](/docs/advanced-features/middleware) for authentication or other purposes that involve rewriting the user to a different page. In order for the `<Link />` component to properly prefetch links with rewrites via Middleware, you need to tell Next.js both the URL to display and the URL to prefetch. This is required to avoid un-necessary fetches to middleware to know the correct route to prefetch.
+
+For example, if you have want to serve a `/dashboard` route that has authenticated and visitor views, you may add something similar to the following in your Middleware to redirect the user to the correct page:
+
+```js
+// middleware.js
+export function middleware(req) {
+  const nextUrl = req.nextUrl
+  if (nextUrl.pathname === '/dashboard') {
+    if (req.cookies.authToken) {
+      return NextResponse.rewrite(new URL('/auth/dashboard', req.url))
+    } else {
+      return NextResponse.rewrite(new URL('/public/dashboard', req.url))
+    }
+  }
+}
+```
+
+In this case, you would want to use the following code in your `<Link />` component (inside `pages/`):
+
+```js
+// pages/index.js
+import Link from 'next/link'
+import useIsAuthed from './hooks/useIsAuthed'
+
+export default function Page() {
+  const isAuthed = useIsAuthed()
+  const path = isAuthed ? '/auth/dashboard' : '/dashboard'
+  return (
+    <Link as="/dashboard" href={path}>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+> **Note:** If you're using [Dynamic Routes](/docs/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.

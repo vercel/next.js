@@ -92,6 +92,7 @@ export default function EvilPage(): JSX.Element {
 }
 `
         )
+        appPort = await findPort()
         app = await launchApp(appDir, appPort)
 
         const $ = await get$('/hello')
@@ -142,6 +143,7 @@ export default function EvilPage(): JSX.Element {
       try {
         errorPage.replace('static ', 'static async ')
         const output = await nextBuild(appDir, [], { stdout: true })
+
         expect(output.stdout).toMatch(/Compiled successfully/)
       } finally {
         errorPage.restore()
@@ -153,6 +155,7 @@ export default function EvilPage(): JSX.Element {
       try {
         page.replace(/async \(/g, '(')
         const output = await nextBuild(appDir, [], { stdout: true })
+
         expect(output.stdout).toMatch(/Compiled successfully/)
       } finally {
         page.restore()

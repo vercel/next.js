@@ -23,7 +23,7 @@ describe('theme-ui SWC option', () => {
   it('should have theme provided styling', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
       const color = await browser.elementByCss('#hello').getComputedCss('color')
       expect(color).toBe('rgb(51, 51, 238)')
     } finally {

@@ -5,9 +5,9 @@ const eslint = new ESLint()
 const isWin = process.platform === 'win32'
 
 module.exports = {
-  '**/*.{js,jsx,ts,tsx}': (filenames) => {
+  '**/*.{js,jsx,mjs,ts,tsx,mts}': (filenames) => {
     const escapedFileNames = filenames
-      .map((filename) => `"${isWin ? filename : escape([filename])}"`)
+      .map((filename) => (isWin ? filename : escape([filename])))
       .join(' ')
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,
@@ -20,7 +20,7 @@ module.exports = {
   },
   '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
     const escapedFileNames = filenames
-      .map((filename) => `"${isWin ? filename : escape([filename])}"`)
+      .map((filename) => (isWin ? filename : escape([filename])))
       .join(' ')
     return [
       `prettier --with-node-modules --ignore-path .prettierignore_staged --write ${escapedFileNames}`,

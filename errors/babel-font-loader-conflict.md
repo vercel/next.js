@@ -1,8 +1,8 @@
-# Babel and Font loader conflict
+# Babel and `next/font` conflict
 
 #### Why This Error Occurred
 
-You have tried to use `experimental.fontLoaders` with a custom babel config. When your application has a custom babel config you opt-out of the Next.js Compiler which is required to use `experimental.fontLoaders`.
+You have tried to use `next/font` with a custom babel config. When your application has a custom babel config you opt-out of the Next.js Compiler which is required to use `next/font`.
 
 #### Possible Ways to Fix It
 

@@ -102,7 +102,9 @@ export async function downloadAndExtractRepo(
     strip: filePath ? filePath.split('/').length + 1 : 1,
     filter: (p) =>
       p.startsWith(
-        `${name}-${branch.replace(/\//g, '-')}${filePath ? `/${filePath}` : ''}`
+        `${name}-${branch.replace(/\//g, '-')}${
+          filePath ? `/${filePath}/` : '/'
+        }`
       ),
   })
 
@@ -121,7 +123,7 @@ export async function downloadAndExtractExample(root: string, name: string) {
   await tar.x({
     file: tempFile,
     cwd: root,
-    strip: 3,
+    strip: 2 + name.split('/').length,
     filter: (p) => p.includes(`next.js-canary/examples/${name}/`),
   })
 

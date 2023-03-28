@@ -17,6 +17,24 @@ Codemods are transformations that run on your codebase programmatically. This al
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Next.js 13.2
+
+### `built-in-next-font`
+
+This codemod uninstalls `@next/font` and transforms `@next/font` imports into the built-in `next/font`.
+
+For example:
+
+```jsx
+import { Inter } from '@next/font/google'
+```
+
+Transforms into:
+
+```jsx
+import { Inter } from 'next/font/google'
+```
+
 ## Next.js 13
 
 ### `new-link`
@@ -45,7 +63,7 @@ export default function Page() {
 
 ### `next-image-to-legacy-image`
 
-Safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.
+This codemod safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.
 
 For example:
 
@@ -81,7 +99,7 @@ export default function Home() {
 
 ### `next-image-experimental` (experimental)
 
-Dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props.
+This codemod dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
 - Removes `layout` prop and adds `style`
 - Removes `objectFit` prop and adds `style`

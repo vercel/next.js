@@ -3,7 +3,7 @@
 Running examples can be done with:
 
 ```sh
-pnpm next ./examples/basic-css/
+pnpm next-with-deps ./examples/basic-css/
 ```
 
 To figure out which pages are available for the given example, you can run:

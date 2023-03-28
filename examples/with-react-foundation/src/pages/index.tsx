@@ -16,7 +16,7 @@ export default function Home() {
             <code>react-foundation</code>.
           </p>
           <Link href="https://nextjs.org" passHref={true}>
-            <a>view repository</a>
+            view repository
           </Link>
         </Callout>
       </div>

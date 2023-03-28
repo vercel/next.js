@@ -6,10 +6,10 @@ export default function Header() {
 
   return (
     <header>
-      <Link href="/">
+      <Link href="/" legacyBehavior>
         <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
       </Link>
-      <Link href="/about">
+      <Link href="/about" legacyBehavior>
         <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
       </Link>
       <style jsx>{`
