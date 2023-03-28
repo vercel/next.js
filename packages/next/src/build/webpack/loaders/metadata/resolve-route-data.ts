@@ -16,15 +16,15 @@ export function resolveRobots(data: Robots): string {
     }
     if (rule.allow) {
       const allow = resolveArray(rule.allow)
-      allow.forEach((item) => {
+      for (const item of allow) {
         content += `Allow: ${item}\n`
-      })
+      }
     }
     if (rule.disallow) {
-      const disallow = resolveArray(rule.disallow)!
-      disallow.forEach((item) => {
+      const disallow = resolveArray(rule.disallow)
+      for (const item of disallow) {
         content += `Disallow: ${item}\n`
-      })
+      }
     }
     if (rule.crawlDelay) {
       content += `Crawl-delay: ${rule.crawlDelay}\n`
