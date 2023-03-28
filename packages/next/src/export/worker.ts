@@ -1,10 +1,5 @@
-import type {
-  AppRouteModule,
-  AppRouteRouteHandlerContext,
-} from '../server/future/route-handlers/app-route-route-handler'
 import type { FontManifest, FontConfig } from '../server/font-utils'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
-
 import { NextParsedUrlQuery } from '../server/request-meta'
 
 // `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
@@ -12,10 +7,7 @@ import { NextParsedUrlQuery } from '../server/request-meta'
 if (process.env.NEXT_PREBUNDLED_REACT) {
   require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 }
-
-// Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
-
 import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep, posix } from 'path'
@@ -45,8 +37,11 @@ import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { mockRequest } from '../server/lib/mock-request'
-import { NodeNextRequest } from '../server/base-http/node'
+import { RouteKind } from '../server/future/route-kind'
+import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
+import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { AppRouteRouteMatch } from '../server/future/route-matches/app-route-route-match'
 
 loadRequireHook()
 
@@ -91,7 +86,7 @@ interface ExportPageInput {
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
-  nextConfigOutput?: NextConfigComplete['output']
+  nextConfigOuput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -122,7 +117,7 @@ interface RenderOpts {
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
-  incrementalCache?: IncrementalCache
+  incrementalCache?: import('../server/lib/incremental-cache').IncrementalCache
 }
 
 // expose AsyncLocalStorage on globalThis for react usage
@@ -150,6 +145,7 @@ export default async function exportPage({
   isrMemoryCacheSize,
   fetchCache,
   incrementalCacheHandlerPath,
+  nextConfigOuput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -381,36 +377,42 @@ export default async function exportPage({
           isRedirectError(err)
 
         if (isRouteHandler) {
-          const request = new NodeNextRequest(req)
+          const { AppRouteRouteHandler } =
+            require('../server/future/route-handlers/app-route-route-handler') as typeof import('../server/future/route-handlers/app-route-route-handler')
+
+          const nodeReq = new NodeNextRequest(req)
+          const nodeRes = new NodeNextResponse(res)
 
           addRequestMeta(
-            request.originalRequest,
+            nodeReq.originalRequest,
             '__NEXT_INIT_URL',
             `http://localhost:3000${req.url}`
           )
+          const staticContext: StaticGenerationContext = {
+            nextExport: true,
+            supportsDynamicHTML: false,
+            incrementalCache: curRenderOpts.incrementalCache,
+          }
 
-          // Create the context for the handler. This contains the params from
-          // the route and the context for the request.
-          const context: AppRouteRouteHandlerContext = {
-            // Query contains the route parameters.
+          const match: AppRouteRouteMatch = {
             params: query,
-            staticGenerationContext: {
-              nextExport: true,
-              supportsDynamicHTML: false,
-              incrementalCache: curRenderOpts.incrementalCache,
+            definition: {
+              filename: posix.join(distDir, 'server', 'app', page),
+              bundlePath: posix.join('app', page),
+              kind: RouteKind.APP_ROUTE,
+              page,
+              pathname: path,
             },
           }
 
           try {
-            // This is a route handler, which means it has it's handler in the
-            // bundled file already, we should just use that.
-            const filename = posix.join(distDir, 'server', 'app', page)
-
-            // Load the module for the route.
-            const module: AppRouteModule = require(filename)
-
-            // Call the handler with the request and context from the module.
-            const response = await module.route.handler.handle(request, context)
+            const handler = new AppRouteRouteHandler(nextConfigOuput)
+            const response = await handler.handle(
+              match,
+              nodeReq,
+              nodeRes,
+              staticContext
+            )
 
             // we don't consider error status for static generation
             // except for 404
@@ -421,7 +423,8 @@ export default async function exportPage({
             if (isValidStatus) {
               const body = await response.blob()
               const revalidate =
-                context.staticGenerationContext.store?.revalidate || false
+                ((staticContext as any).store as any as { revalidate?: number })
+                  .revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
               const headers = Object.fromEntries(response.headers)
