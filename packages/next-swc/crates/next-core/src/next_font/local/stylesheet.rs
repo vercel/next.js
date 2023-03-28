@@ -34,6 +34,7 @@ pub(super) async fn build_stylesheet(
     )))
 }
 
+/// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
     scoped_font_family: StringVc,
@@ -77,6 +78,8 @@ pub(super) async fn build_font_face_definitions(
     Ok(StringVc::cell(definitions))
 }
 
+/// Used as e.g. `format('woff')` in `src` properties in `@font-face`
+/// definitions above.
 fn ext_to_format(ext: &str) -> Result<String> {
     Ok(match ext {
         "woff" => "woff",
