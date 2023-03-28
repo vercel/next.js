@@ -28,7 +28,6 @@ export interface RSCMeta {
   type: RSCModuleType
   actions?: string[]
   clientRefs?: string[]
-  clientEntryType?: 'cjs' | 'auto'
   requests?: string[] // client requests in flight client entry
 }
 
