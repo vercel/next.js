@@ -176,17 +176,28 @@ async function webpackBuildImpl(
     let edgeServerResult: UnwrapPromise<ReturnType<typeof runCompiler>> | null =
       null
 
+    // Make sure the server and edge server compilation are started in parallel.
+    let serverCompilationPromise: ReturnType<typeof runCompiler> | null = null
+    let edgeServerCompilationPromise: ReturnType<typeof runCompiler> | null =
+      null
+
     if (!compilerName || compilerName === 'server') {
-      serverResult = await runCompiler(serverConfig, {
+      serverCompilationPromise = runCompiler(serverConfig, {
         runWebpackSpan,
       })
-      debug('server result', serverResult)
+    }
+    if (!compilerName || compilerName === 'edge-server') {
+      edgeServerCompilationPromise = configs[2]
+        ? runCompiler(configs[2], { runWebpackSpan })
+        : null
     }
 
-    if (!compilerName || compilerName === 'edge-server') {
-      edgeServerResult = configs[2]
-        ? await runCompiler(configs[2], { runWebpackSpan })
-        : null
+    if (serverCompilationPromise) {
+      serverResult = await serverCompilationPromise
+      debug('server result', serverResult)
+    }
+    if (edgeServerCompilationPromise) {
+      edgeServerResult = await edgeServerCompilationPromise
       debug('edge server result', edgeServerResult)
     }
 
