@@ -1,5 +1,4 @@
 import type { NextConfigComplete } from '../config-shared'
-import type { AppRouteUserlandModule } from '../future/route-handlers/app-route-route-handler'
 
 import '../node-polyfill-fetch'
 import {
@@ -99,17 +98,16 @@ export async function loadStaticPaths({
   workerWasUsed = true
 
   if (isAppPath) {
-    const userland: AppRouteUserlandModule | undefined =
-      components.ComponentMod.userland
-    const generateParams: GenerateParams = userland
+    const handlers = components.ComponentMod.handlers
+    const generateParams: GenerateParams = handlers
       ? [
           {
             config: {
-              revalidate: userland.revalidate,
-              dynamic: userland.dynamic,
-              dynamicParams: userland.dynamicParams,
+              revalidate: handlers.revalidate,
+              dynamic: handlers.dynamic,
+              dynamicParams: handlers.dynamicParams,
             },
-            generateStaticParams: userland.generateStaticParams,
+            generateStaticParams: handlers.generateStaticParams,
             segmentPath: pathname,
           },
         ]

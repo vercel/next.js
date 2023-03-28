@@ -6,8 +6,7 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import { RouteMatch } from './future/route-matches/route-match'
 
-// FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
-export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
+export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
 export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
   [NEXT_REQUEST_META]?: RequestMeta
