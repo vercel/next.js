@@ -1,15 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::{
-    module_options::{
-        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext, ModuleOptionsContextVc,
-        PostCssTransformOptions, WebpackLoadersOptions,
-    },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_env::ProcessEnvVc;
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     compile_time_defines,
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     environment::{
@@ -17,8 +9,16 @@ use turbopack_core::{
         ServerAddrVc,
     },
 };
-use turbopack_ecmascript::EcmascriptInputTransform;
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::ecmascript::EcmascriptInputTransform;
+use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::turbopack::{
+    module_options::{
+        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext, ModuleOptionsContextVc,
+        PostCssTransformOptions, WebpackLoadersOptions,
+    },
+    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+};
+use turbo_tasks::{primitives::StringVc, Value};
 
 use super::{
     resolve::ExternalCjsModulesResolvePluginVc, transforms::get_next_server_transforms_rules,

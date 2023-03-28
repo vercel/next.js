@@ -3,15 +3,9 @@ use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    util::SharedError,
-    CompletionVc, CompletionsVc, Value,
-};
-use turbo_tasks_bytes::{Bytes, Stream};
-use turbo_tasks_fs::{json::parse_json_with_source_context, to_sys_path, File, FileSystemPathVc};
-use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_bytes::{Bytes, Stream};
+use turbo_binding::turbo::tasks_fs::{to_sys_path, File, FileSystemPathVc};
+use turbo_binding::turbopack::core::{
     asset::AssetVc,
     changed::any_content_changed,
     chunk::ChunkingContext,
@@ -24,16 +18,25 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_dev::DevChunkingContextVc;
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::dev::DevChunkingContextVc;
+use turbo_binding::turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
 };
-use turbopack_node::{
+use turbo_binding::turbopack::node::{
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
     source_map::StructuredError,
 };
+use turbo_binding::turbopack::turbopack::{
+    evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc,
+};
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
+    CompletionVc, CompletionsVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     embed_js::{next_asset, next_js_file},

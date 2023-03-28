@@ -36,19 +36,19 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::{
+use turbo_binding::turbo::tasks::{
     debug::{ValueDebug, ValueDebugStringReadRef},
     primitives::{BoolVc, StringVc},
     NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc};
-use turbo_tasks_memory::MemoryBackend;
-use turbo_tasks_testing::retry::retry_async;
-use turbopack_core::issue::{
+use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc};
+use turbo_binding::turbo::tasks_memory::MemoryBackend;
+use turbo_binding::turbo::tasks_testing::retry::retry_async;
+use turbo_binding::turbopack::core::issue::{
     CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc, IssuesVc,
     OptionIssueSourceVc, PlainIssueReadRef,
 };
-use turbopack_test_utils::snapshot::snapshot_issues;
+use turbo_binding::turbopack::test_utils::snapshot::snapshot_issues;
 
 fn register() {
     next_dev::register();
@@ -211,7 +211,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     .eager_compile(false)
     .hostname(requested_addr.ip())
     .port(requested_addr.port())
-    .log_level(turbopack_core::issue::IssueSeverity::Warning)
+    .log_level(turbo_binding::turbopack::core::issue::IssueSeverity::Warning)
     .log_detail(true)
     .issue_reporter(Box::new(move || {
         TestIssueReporterVc::new(issue_tx.clone()).into()
