@@ -178,9 +178,9 @@ fn normalize_app_page_to_pathname(page: &str) -> String {
 
         // Replace '%5F' with '_' in the segment only if it's present at the beginning
         // using the `replace` method.
-        if segment.starts_with("%5F") {
+        if let Some(rest) = segment.strip_prefix("%5F") {
             pathname.push('_');
-            pathname.push_str(&segment[3..]);
+            pathname.push_str(rest);
         } else {
             pathname.push_str(segment);
         }
