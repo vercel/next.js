@@ -89,7 +89,6 @@ import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/ap
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
-import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
@@ -248,20 +247,6 @@ export default class NextNodeServer extends BaseServer {
 
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
-  }
-
-  protected getRoutes() {
-    const routes = super.getRoutes()
-    const nextConfigOutput = this.nextConfig.output
-
-    if (this.hasAppDir) {
-      routes.handlers.set(
-        RouteKind.APP_ROUTE,
-        new AppRouteRouteHandler(nextConfigOutput)
-      )
-    }
-
-    return routes
   }
 
   protected loadEnvConfig({
