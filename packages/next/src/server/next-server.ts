@@ -102,7 +102,6 @@ import { nodeFs } from './lib/node-fs-methods'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './lib/utils'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { decorateServerError } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 
 export * from './base-server'
 
