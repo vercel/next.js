@@ -1,12 +1,8 @@
-import type {
-  Robots,
-  Sitemap,
-} from '../../../../lib/metadata/types/metadata-interface'
-import type { Manifest } from '../../../../lib/metadata/types/manifest-types'
+import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
-export function resolveRobots(data: Robots): string {
+export function resolveRobots(data: MetadataRoute.Robots): string {
   let content = ''
   const rules = Array.isArray(data.rules) ? data.rules : [data.rules]
   for (const rule of rules) {
@@ -47,7 +43,7 @@ export function resolveRobots(data: Robots): string {
 
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
-export function resolveSitemap(data: Sitemap): string {
+export function resolveSitemap(data: MetadataRoute.Sitemap): string {
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
   content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -67,22 +63,22 @@ export function resolveSitemap(data: Sitemap): string {
   return content
 }
 
-export function resolveManifest(data: Manifest): string {
+export function resolveManifest(data: MetadataRoute.Manifest): string {
   return JSON.stringify(data)
 }
 
 export function resolveRouteData(
-  data: Robots | Sitemap | Manifest,
+  data: MetadataRoute.Robots | MetadataRoute.Sitemap | MetadataRoute.Manifest,
   fileType: 'robots' | 'sitemap' | 'manifest'
 ): string {
   if (fileType === 'robots') {
-    return resolveRobots(data as Robots)
+    return resolveRobots(data as MetadataRoute.Robots)
   }
   if (fileType === 'sitemap') {
-    return resolveSitemap(data as Sitemap)
+    return resolveSitemap(data as MetadataRoute.Sitemap)
   }
   if (fileType === 'manifest') {
-    return resolveManifest(data as Manifest)
+    return resolveManifest(data as MetadataRoute.Manifest)
   }
   return ''
 }

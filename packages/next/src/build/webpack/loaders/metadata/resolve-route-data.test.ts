@@ -1,4 +1,4 @@
-import type { Robots } from '../../../../lib/metadata/types/metadata-interface'
+import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveRobots, resolveSitemap } from './resolve-route-data'
 
 describe('resolveRouteData', () => {
@@ -30,7 +30,7 @@ describe('resolveRouteData', () => {
     })
 
     it('should error with ts when specify both wildcard userAgent and specific userAgent', () => {
-      const data1: Robots = {
+      const data1: MetadataRoute.Robots = {
         rules: [
           // @ts-expect-error userAgent is required for Array<Robots>
           {
@@ -43,14 +43,14 @@ describe('resolveRouteData', () => {
         ],
       }
 
-      const data2: Robots = {
+      const data2: MetadataRoute.Robots = {
         rules: {
           // Can skip userAgent for single Robots
           allow: '/',
         },
       }
 
-      const data3: Robots = {
+      const data3: MetadataRoute.Robots = {
         rules: { allow: '/' },
       }
 
