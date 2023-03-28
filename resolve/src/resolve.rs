@@ -358,8 +358,6 @@ async fn main() {
 
     match result {
         Ok(result) => {
-            // println!("{:#?}", result);
-            // println!("Time spent: {:?}", elapsed);
             let mut entrypoints: HashMap<String, LoaderTree> = HashMap::new();
 
             directory_tree_to_loader_tree(
@@ -381,8 +379,6 @@ async fn main() {
 
             println!("Entrypoints JSON: {}", entrypoints_json);
             println!("Function took: {} microseconds", duration.as_micros());
-
-            // println!("{:#?}", entrypoints)
         }
         Err(e) => eprintln!("Error: {:?}", e),
     }
