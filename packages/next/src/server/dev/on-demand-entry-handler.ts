@@ -850,9 +850,9 @@ export function onDemandEntryHandler({
                     // wait for that additional build to prevent race conditions.
                     const needsRebuild = curInvalidator.willRebuild(compilerKey)
                     if (needsRebuild) {
-                      doneCallbacks.once(entryKey, (err: Error) => {
-                        if (err) {
-                          return reject(err)
+                      doneCallbacks.once(entryKey, (rebuildErr: Error) => {
+                        if (rebuildErr) {
+                          return reject(rebuildErr)
                         }
                         resolve()
                       })
