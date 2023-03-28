@@ -93,9 +93,14 @@ export function toNodeHeaders(headers?: Headers): NodeHeaders {
   const result: NodeHeaders = {}
   if (headers) {
     for (const [key, value] of headers.entries()) {
-      result[key] = value
       if (key.toLowerCase() === 'set-cookie') {
-        result[key] = splitCookiesString(value)
+        const curValue = result[key]
+        result[key] = [
+          ...(Array.isArray(curValue) ? curValue : curValue ? [curValue] : []),
+          ...splitCookiesString(value),
+        ]
+      } else {
+        result[key] = value
       }
     }
   }
