@@ -58,6 +58,7 @@ pub async fn get_edge_resolve_options_context(
         custom_conditions: vec!["worker".to_string(), "development".to_string()],
         import_map: Some(next_edge_import_map),
         module: true,
+        browser: true,
         ..Default::default()
     };
 
