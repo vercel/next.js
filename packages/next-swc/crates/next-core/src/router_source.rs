@@ -130,8 +130,8 @@ impl ContentSource for NextRouterContentSource {
             .with_context(|| anyhow!("failed to fetch /{path}{}", formated_query(raw_query)))?;
 
         Ok(match &*res {
-            RouterResult::Error => bail!(
-                "error during Next.js routing for /{path}{}",
+            RouterResult::Error(e) => bail!(
+                "error during Next.js routing for /{path}{}: {e}",
                 formated_query(raw_query)
             ),
             RouterResult::None => this
