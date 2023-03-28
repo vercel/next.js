@@ -3,7 +3,10 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
 import type {
   PageConfig,
   GetStaticPaths,
@@ -15,6 +18,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  FLIGHT_SERVER_CSS_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -22,6 +26,7 @@ import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
+import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 
 export type ManifestItem = {
   id: number | string
@@ -37,7 +42,8 @@ export type LoadComponentsReturnType = {
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest?: any
+  serverCSSManifest?: ClientCSSReferenceManifest
+  serverActionsManifest?: ActionManifest
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -109,6 +115,7 @@ async function loadComponentsImpl({
     buildManifest,
     reactLoadableManifest,
     clientReferenceManifest,
+    serverCSSManifest,
     serverActionsManifest,
   ] = await Promise.all([
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
@@ -119,10 +126,15 @@ async function loadComponentsImpl({
         )
       : undefined,
     hasServerComponents
-      ? loadManifest(
+      ? loadManifest<ClientCSSReferenceManifest>(
+          join(distDir, 'server', FLIGHT_SERVER_CSS_MANIFEST + '.json')
+        )
+      : undefined,
+    hasServerComponents
+      ? loadManifest<ActionManifest>(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
-        ).catch(() => null)
-      : null,
+        ) //.catch(() => null)
+      : undefined,
   ])
 
   const Component = interopDefault(ComponentMod)
@@ -143,6 +155,7 @@ async function loadComponentsImpl({
     getStaticProps,
     getStaticPaths,
     clientReferenceManifest,
+    serverCSSManifest,
     serverActionsManifest,
     isAppPath,
     pathname,

@@ -26,7 +26,10 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
@@ -91,6 +94,7 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
+import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -248,7 +252,8 @@ export type RenderOptsPartial = {
   resolvedUrl?: string
   resolvedAsPath?: string
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest?: any
+  serverCSSManifest?: ClientCSSReferenceManifest
+  serverActionsManifest?: ActionManifest
   nextFontManifest?: NextFontManifest
   distDir?: string
   locale?: string

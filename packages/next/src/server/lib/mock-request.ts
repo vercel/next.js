@@ -1,4 +1,5 @@
 import Stream from 'stream'
+import type { IncomingMessage, ServerResponse } from 'http'
 
 export function mockRequest(
   requestUrl: string,
@@ -64,8 +65,8 @@ export function mockRequest(
 
   return {
     resBuffers,
-    req: mockReq,
-    res: mockRes,
+    req: mockReq as IncomingMessage,
+    res: mockRes as ServerResponse,
     streamPromise: isStreamFinished,
   }
 }

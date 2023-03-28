@@ -28,7 +28,10 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type {
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
@@ -96,6 +99,7 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
+import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -230,8 +234,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
-    serverCSSManifest?: any
-    serverActionsManifest?: any
+    serverCSSManifest?: ClientCSSReferenceManifest
+    serverActionsManifest?: ActionManifest
     nextFontManifest?: NextFontManifest
     renderServerComponentData?: boolean
     serverComponentProps?: any
@@ -244,7 +248,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected clientReferenceManifest?: ClientReferenceManifest
-  protected serverCSSManifest?: any
+  protected serverCSSManifest?: ClientCSSReferenceManifest
   protected nextFontManifest?: NextFontManifest
   public readonly hostname?: string
   public readonly port?: number

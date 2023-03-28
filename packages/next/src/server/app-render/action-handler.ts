@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 
 import { ACTION } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -20,7 +21,7 @@ export async function handleAction({
   res: ServerResponse
   ComponentMod: any
   pathname: string
-  serverActionsManifest: any
+  serverActionsManifest: ActionManifest
 }): Promise<undefined | RenderResult | 'not-found'> {
   let actionId = req.headers[ACTION.toLowerCase()] as string
   const contentType = req.headers['content-type']

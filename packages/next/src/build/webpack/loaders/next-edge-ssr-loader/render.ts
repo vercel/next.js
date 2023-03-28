@@ -3,7 +3,10 @@ import type { NextConfigComplete } from '../../../../server/config-shared'
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
 import type { ReactLoadableManifest } from '../../../../server/load-components'
-import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
+import type {
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
+} from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifestPlugin } from '../../plugins/next-font-manifest-plugin'
 
 import WebServer from '../../../../server/web-server'
@@ -12,6 +15,7 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
+import type { ActionManifest } from '../../plugins/flight-client-entry-plugin'
 
 export function getRender({
   dev,
@@ -49,8 +53,8 @@ export function getRender({
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
-  serverCSSManifest: any
-  serverActionsManifest: any
+  serverCSSManifest: ClientCSSReferenceManifest
+  serverActionsManifest: ActionManifest
   appServerMod: any
   config: NextConfigComplete
   buildId: string

@@ -98,7 +98,6 @@ export async function renderToHTMLOrFlight(
   const {
     buildManifest,
     subresourceIntegrityManifest,
-    serverActionsManifest,
     ComponentMod,
     dev,
     nextFontManifest,
@@ -107,6 +106,7 @@ export async function renderToHTMLOrFlight(
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
   const serverCSSManifest = renderOpts.serverCSSManifest!
+  const serverActionsManifest = renderOpts.serverActionsManifest!
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []

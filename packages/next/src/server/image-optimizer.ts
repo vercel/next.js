@@ -364,7 +364,7 @@ export class ImageError extends Error {
   }
 }
 
-function parseCacheControl(str: string | null): Map<string, string> {
+function parseCacheControl(str: string | undefined): Map<string, string> {
   const map = new Map<string, string>()
   if (!str) {
     return map
@@ -380,7 +380,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
   return map
 }
 
-export function getMaxAge(str: string | null): number {
+export function getMaxAge(str: string | undefined): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -521,7 +521,7 @@ export async function imageOptimizer(
   ) => Promise<void>
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
   let upstreamBuffer: Buffer
-  let upstreamType: string | null
+  let upstreamType: string | undefined
   let maxAge: number
   const { isAbsolute, href, width, mimeType, quality } = paramsResult
 
@@ -541,10 +541,10 @@ export async function imageOptimizer(
     }
 
     upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
-    upstreamType =
-      detectContentType(upstreamBuffer) ||
-      upstreamRes.headers.get('Content-Type')
-    maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
+    const header = upstreamRes.headers.get('Content-Type')
+    const strHeader = header ? header.toString() : undefined
+    upstreamType = detectContentType(upstreamBuffer) || strHeader
+    maxAge = getMaxAge(strHeader)
   } else {
     try {
       const {
@@ -565,10 +565,11 @@ export async function imageOptimizer(
         )
       }
 
+      const header = mockRes.getHeader('Content-Type')
+      const strHeader = header ? header.toString() : undefined
       upstreamBuffer = Buffer.concat(resBuffers)
-      upstreamType =
-        detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+      upstreamType = detectContentType(upstreamBuffer) || strHeader
+      maxAge = getMaxAge(strHeader)
     } catch (err) {
       console.error('upstream image response failed for', href, err)
       throw new ImageError(

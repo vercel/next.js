@@ -1,5 +1,6 @@
 import type { LoadComponentsReturnType } from '../load-components'
 import type { ServerRuntime } from '../../../types'
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import type {
   ClientCSSReferenceManifest,
   ClientReferenceManifest,
@@ -116,9 +117,9 @@ export type RenderOptsPartial = {
   dev?: boolean
   clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: ClientCSSReferenceManifest
+  serverActionsManifest?: ActionManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
-  serverComponents?: boolean
   assetPrefix?: string
   nextFontManifest?: NextFontManifest
   isBot?: boolean
