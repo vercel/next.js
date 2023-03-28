@@ -164,6 +164,25 @@ createNextDescribe(
         await browser.forward()
         await step5()
       })
+
+      it('should match parallel routes', async () => {
+        const html = await next.render('/parallel/nested')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/@foo/nested/layout')
+        expect(html).toContain('parallel/@foo/nested/@a/page')
+        expect(html).toContain('parallel/@foo/nested/@b/page')
+        expect(html).toContain('parallel/@bar/nested/layout')
+        expect(html).toContain('parallel/@bar/nested/@a/page')
+        expect(html).toContain('parallel/@bar/nested/@b/page')
+        expect(html).toContain('parallel/nested/page')
+      })
+
+      it('should match parallel routes in route groups', async () => {
+        const html = await next.render('/parallel/nested-2')
+        expect(html).toContain('parallel/layout')
+        expect(html).toContain('parallel/(new)/layout')
+        expect(html).toContain('parallel/(new)/@baz/nested/page')
+      })
     })
 
     describe('route intercepting', () => {
@@ -243,25 +262,6 @@ createNextDescribe(
           next.url + '/intercepting-parallel-modal/photo/1'
         )
       })
-    })
-
-    it('should match parallel routes', async () => {
-      const html = await next.render('/parallel/nested')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/@foo/nested/layout')
-      expect(html).toContain('parallel/@foo/nested/@a/page')
-      expect(html).toContain('parallel/@foo/nested/@b/page')
-      expect(html).toContain('parallel/@bar/nested/layout')
-      expect(html).toContain('parallel/@bar/nested/@a/page')
-      expect(html).toContain('parallel/@bar/nested/@b/page')
-      expect(html).toContain('parallel/nested/page')
-    })
-
-    it('should match parallel routes in route groups', async () => {
-      const html = await next.render('/parallel/nested-2')
-      expect(html).toContain('parallel/layout')
-      expect(html).toContain('parallel/(new)/layout')
-      expect(html).toContain('parallel/(new)/@baz/nested/page')
     })
   }
 )
