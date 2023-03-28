@@ -163,8 +163,10 @@ createNextDescribe(
 
       if (isNextDev) {
         expect(
-          logs.includes(
-            `"metadataBase" is not set and fallbacks to "http://localhost:3000", Please specify it in root layout to resolve urls as absolute\n`
+          logs.some((log) =>
+            /"metadataBase" is not set and fallbacks to "http:\/\/localhost:\d+", please specify it in root layout to resolve absolute urls/.test(
+              log
+            )
           )
         ).toBe(true)
       }

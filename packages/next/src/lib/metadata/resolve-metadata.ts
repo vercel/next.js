@@ -82,7 +82,11 @@ function merge(
     openGraph: string | null
   }
 ) {
-  const metadataBase = source?.metadataBase || target.metadataBase
+  // If there's override metadata, prefer it otherwise fallback to the default metadata.
+  const metadataBase =
+    typeof source?.metadataBase !== 'undefined'
+      ? source.metadataBase
+      : source?.metadataBase || target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 

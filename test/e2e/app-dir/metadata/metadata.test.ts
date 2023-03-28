@@ -16,7 +16,7 @@ createNextDescribe(
     async function checkMeta(
       browser: BrowserInterface,
       queryValue: string,
-      expected: string | string[] | undefined | null,
+      expected: RegExp | string | string[] | undefined | null,
       queryKey: string = 'property',
       tag: string = 'meta',
       domAttributeField: string = 'content'
@@ -24,10 +24,14 @@ createNextDescribe(
       const values = await browser.eval(
         `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
       )
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
+      if (expected instanceof RegExp) {
+        expect(values[0]).toMatch(expected)
       } else {
-        expect(values[0]).toBe(expected)
+        if (Array.isArray(expected)) {
+          expect(values).toEqual(expected)
+        } else {
+          expect(values[0]).toBe(expected)
+        }
       }
     }
 
@@ -257,7 +261,7 @@ createNextDescribe(
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com/')
+        await checkLink(browser, 'canonical', 'https://example.com')
         await checkMeta(
           browser,
           'en-US',
@@ -277,7 +281,7 @@ createNextDescribe(
         await checkMeta(
           browser,
           'only screen and (max-width: 600px)',
-          'http://localhost:3000/mobile',
+          '/mobile',
           'media',
           'link',
           'href'
@@ -286,11 +290,11 @@ createNextDescribe(
 
         await matchDom('link', 'title="js title"', {
           type: 'application/rss+xml',
-          href: 'http://localhost:3000/blog/js.rss',
+          href: '/blog/js.rss',
         })
         await matchDom('link', 'title="rss"', {
           type: 'application/rss+xml',
-          href: 'http://localhost:3000/blog.rss',
+          href: '/blog.rss',
         })
       })
 

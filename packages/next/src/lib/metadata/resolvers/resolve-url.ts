@@ -24,10 +24,10 @@ function resolveUrl(
     )
   }
   if (metadataBase.origin === 'http://n') {
-    metadataBase = new URL('http://localhost:3000')
+    metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
     // Development mode warning
     warnOnce(
-      `"metadataBase" is not set and fallbacks to "http://localhost:3000", Please specify it in root layout to resolve urls as absolute`
+      `"metadataBase" is not set and fallbacks to "${metadataBase.origin}", please specify it in root layout to resolve absolute urls.`
     )
   }
 
