@@ -122,6 +122,10 @@ __turbopack_tests = ["__turbopack", "turbopack-tests"]
 __features = []
 __feature_mdx_rs = ["__features", "mdxjs/serializable"]
 __feature_node_file_trace = ["__features", "node-file-trace/node-api"]
+__feature_node_file_trace_cli = ["node-file-trace/cli"]
+__feature_node_file_trace_custom_allocator = [
+  "node-file-trace/custom_allocator",
+]
 __feature_auto_hash_map = ["__features", "auto-hash-map"]
 __feature_swc_ast_explorer = ["__features", "swc-ast-explorer"]
 
