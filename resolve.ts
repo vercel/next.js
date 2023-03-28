@@ -118,9 +118,6 @@ async function resolveAppTree(
   return [directoryName, children, components]
 }
 
-/**
- * LoaderTree is generated in next-app-loader.
- */
 type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
@@ -140,36 +137,46 @@ type LoaderTree = [
   }
 ]
 
-// directoryTree: [dirname: '', subdirs: string[], component: {}]
-// loaderTree: [segment: '', parallelRoutes: {}, components: {}]
+function mergeLoaderTrees(tree1: LoaderTree, tree2: LoaderTree): LoaderTree {
+  // Merge segment
+  const segment = tree1[0] || tree2[0]
 
-/** 
-app/dashboard/page.tsx
-app/about/page.tsx
+  // Merge parallelRoutes
+  const parallelRoutesKeys = new Set([
+    ...Object.keys(tree1[1]),
+    ...Object.keys(tree2[1]),
+  ])
+  const parallelRoutes: { [parallelRouterKey: string]: LoaderTree } = {}
+  for (const key of parallelRoutesKeys) {
+    const route1 = tree1[1][key]
+    const route2 = tree2[1][key]
 
-const directoryTree = [
-    '',
-    [
-        ['about', [], { page: 'app/about/page.tsx' }],
-        ['dashboard', [], { page: 'app/dashboard/page.tsx' }]
-    ]
-]
+    if (route1 && route2) {
+      parallelRoutes[key] = mergeLoaderTrees(route1, route2)
+    } else {
+      parallelRoutes[key] = route1 || route2
+    }
+  }
 
-walkDirectoryTree('')
-    walkDirectoryTree('about')
-    walkDirectoryTree('dashboard') // finds `page` adds it to entrypoints with the full tree
+  // Merge components
+  const components = { ...tree1[2], ...tree2[2] }
 
-const entrypoints = new Map()
+  return [segment, parallelRoutes, components]
+}
 
-map.set('/dashboard', ['', { children: ['dashboard', {
-    children: ['__PAGE__', {}, { page: 'app/dashboard/page.tsx' }]
-}, {}] }, {}])
+function omitKeys(obj, keys) {
+  const result = {}
+  for (const key in obj) {
+    if (!keys.includes(key)) {
+      result[key] = obj[key]
+    }
+  }
+  return result
+}
 
-map.set('/about', ['', { children: ['about', {
-    children: ['__PAGE__', {}, { page: 'app/about/page.tsx' }]
-}, {}] }, {}])
-
- */
+function omitPageAndDefault(obj) {
+  return omitKeys(obj, ['page', 'default'])
+}
 
 function matchParallelRoute(name: string) {
   return name.startsWith('@') ? name.slice(1) : null
@@ -179,44 +186,92 @@ function directoryTreeToLoaderTree(
   pathPrefix: string,
   addLoaderTree: (fullPath: string, loaderTree: LoaderTree) => void
 ) {
-  const item = [directoryName, {}, components] as LoaderTree
+  const currentLevelIsParallelRoute = matchParallelRoute(directoryName)
+  const componentsWithoutPageAndDefault = omitPageAndDefault(components)
+  if (components.page) {
+    if (currentLevelIsParallelRoute) {
+      addLoaderTree(pathPrefix, ['__PAGE__', {}, { page: components.page }])
+    } else {
+      const item = [
+        directoryName,
+        {},
+        componentsWithoutPageAndDefault,
+      ] as LoaderTree
+      item[1].children = ['__PAGE__', {}, { page: components.page }]
+      addLoaderTree(pathPrefix, item)
+    }
+  }
+
+  if (components.default) {
+    if (currentLevelIsParallelRoute) {
+      addLoaderTree(pathPrefix, [
+        '__DEFAULT__',
+        {},
+        { default: components.default },
+      ])
+    } else {
+      const item = [
+        directoryName,
+        {},
+        componentsWithoutPageAndDefault,
+      ] as LoaderTree
+      item[1].children = ['__DEFAULT__', {}, { default: components.default }]
+      addLoaderTree(pathPrefix, item)
+    }
+  }
 
   for (const subdirectory of subdirectories) {
     const parallelRouteKey = matchParallelRoute(subdirectory[0])
-    if (parallelRouteKey) {
-      continue
-    }
     directoryTreeToLoaderTree(
       subdirectory,
-      join(pathPrefix, subdirectory[0]),
+      pathPrefix +
+        (parallelRouteKey
+          ? ''
+          : (pathPrefix === '/' ? '' : '/') + subdirectory[0]),
       (fullPath: string, loaderTree: LoaderTree) => {
+        if (currentLevelIsParallelRoute) {
+          addLoaderTree(fullPath, loaderTree)
+          return
+        }
         const childLoaderTree = [
-          item[0],
-          { ...item[1], children: loaderTree },
-          item[2],
+          directoryName,
+          { [parallelRouteKey ?? 'children']: loaderTree },
+          componentsWithoutPageAndDefault,
         ] as LoaderTree
         addLoaderTree(fullPath, childLoaderTree)
       }
     )
   }
+}
 
-  if (components.page) {
-    item[1].children = ['__PAGE__', {}, { page: components.page }]
-    delete item[2].page
-    addLoaderTree(pathPrefix, item)
-  }
+async function collectLoaderTreeByEntrypoint(dir) {
+  const result = await resolveAppTree(join(__dirname, dir), [
+    'js',
+    'jsx',
+    'ts',
+    'tsx',
+  ])
+  const entrypoints = new Map<string, LoaderTree>()
+  console.time(dir + ' TIMING')
+  await directoryTreeToLoaderTree(result, '/', (fullPath, loaderTree) => {
+    const existingLoaderTree = entrypoints.get(fullPath)
+
+    if (existingLoaderTree) {
+      entrypoints.set(
+        fullPath,
+        mergeLoaderTrees(existingLoaderTree, loaderTree)
+      )
+      return
+    }
+    entrypoints.set(fullPath, loaderTree)
+  })
+  console.timeEnd(dir + ' TIMING')
+  return entrypoints
 }
-async function run() {
-  const result = await resolveAppTree(
-    join(__dirname, 'test/e2e/app-dir/metadata/app'),
-    ['js', 'jsx', 'ts', 'tsx']
-  )
-  const entrypoints = new Map()
-  await directoryTreeToLoaderTree(
-    result,
-    '/',
-    entrypoints.set.bind(entrypoints)
-  )
-  console.dir(entrypoints, { depth: null })
-}
-run()
+collectLoaderTreeByEntrypoint('test/e2e/app-dir/app/app')
+collectLoaderTreeByEntrypoint('test/e2e/app-dir/actions/app')
+collectLoaderTreeByEntrypoint('test/e2e/app-dir/navigation/app')
+collectLoaderTreeByEntrypoint(
+  'test/e2e/app-dir/parallel-routes-and-interception/app'
+)
+collectLoaderTreeByEntrypoint('../front/apps/vercel-site/app')
