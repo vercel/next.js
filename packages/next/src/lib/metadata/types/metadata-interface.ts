@@ -561,10 +561,10 @@ type SitemapFile = Array<{
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
-namespace MetadataRoute {
-  export type Robots = RobotsFile
-  export type Sitemap = SitemapFile
-  export type Manifest = ManifestFile
+type MetadataRoute = {
+  robots: RobotsFile
+  sitemap: SitemapFile
+  manifest: ManifestFile
 }
 
 export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }
