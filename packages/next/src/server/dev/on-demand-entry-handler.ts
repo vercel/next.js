@@ -98,10 +98,7 @@ export function getEntryKey(
 ) {
   // TODO: handle the /@children slot better
   // this is a quick hack to handle when children is provided as @children/page instead of /page
-  return `${compilerType}@${pageBundleType}@${page.replaceAll(
-    '/@children',
-    ''
-  )}`
+  return `${compilerType}@${pageBundleType}@${page.replace(/\/@children/g, '')}`
 }
 
 function getPageBundleType(pageBundlePath: string) {
