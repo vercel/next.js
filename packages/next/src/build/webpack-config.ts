@@ -1607,12 +1607,7 @@ export default async function getBaseWebpackConfig(
         }
       })(),
       runtimeChunk: isClient
-        ? // namespace runtime chunk when multiple workers are present
-          process.env.__NEXT_PRIVATE_RENDER_WORKER
-          ? {
-              name: `${CLIENT_STATIC_FILES_RUNTIME_WEBPACK}-${process.env.__NEXT_PRIVATE_RENDER_WORKER}`,
-            }
-          : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
+        ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
       minimize: !dev && (isClient || isEdgeServer),
       minimizer: [

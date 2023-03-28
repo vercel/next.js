@@ -12,6 +12,7 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { MiddlewareRoutingItem, RoutingItem } from '../base-server'
 import type { MiddlewareMatcher } from '../../build/analysis/get-page-static-info'
 import type { FunctionComponent } from 'react'
+import type { RouteMatch } from '../future/route-matches/route-match'
 
 import crypto from 'crypto'
 import fs from 'fs'
@@ -906,7 +907,7 @@ export default class DevServer extends Server {
     }
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader?.start(this.isRouterWorker || this.isRenderWorker)
+    await this.hotReloader?.start()
     await this.startWatcher()
     await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
@@ -1682,9 +1683,12 @@ export default class DevServer extends Server {
     global.fetch = this.originalFetch!
   }
 
-  protected async ensurePage(
-    opts: Parameters<InstanceType<typeof HotReloader>['ensurePage']>[0]
-  ) {
+  protected async ensurePage(opts: {
+    page: string
+    clientOnly: boolean
+    appPaths?: string[] | null
+    match?: RouteMatch
+  }) {
     const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
     if (ipcPort) {
       await fetch(
