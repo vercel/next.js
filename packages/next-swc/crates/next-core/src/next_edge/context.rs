@@ -31,15 +31,13 @@ pub fn get_edge_compile_time_info(
     server_addr: ServerAddrVc,
     intention: Value<EnvironmentIntention>,
 ) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::EdgeWorker(
-                EdgeWorkerEnvironment { server_addr }.into(),
-            )),
-            intention,
-        ),
-        defines: next_edge_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment { server_addr }.into(),
+        )),
+        intention,
+    ))
+    .defines(next_edge_defines())
     .cell()
 }
 

@@ -54,21 +54,19 @@ pub fn next_client_defines() -> CompileTimeDefinesVc {
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::Browser(
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: browserslist_query.to_owned(),
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        ),
-        defines: next_client_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Client),
+    ))
+    .defines(next_client_defines())
     .cell()
 }
 
