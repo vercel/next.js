@@ -465,7 +465,7 @@ export default async function exportPage({
           try {
             curRenderOpts.params ||= {}
 
-            const isNotFoundPage = page === '/not-found'
+            const isNotFoundPage = page === '/_not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
