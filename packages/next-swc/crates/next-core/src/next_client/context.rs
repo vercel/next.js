@@ -17,9 +17,13 @@ use turbopack::{
 use turbopack_core::{
     chunk::ChunkingContextVc,
     compile_time_defines,
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+    compile_time_info::{
+        CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
+        FreeVarReferencesVc,
+    },
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
+    free_var_references,
     resolve::{parse::RequestVc, pattern::Pattern},
 };
 use turbopack_dev::DevChunkingContextVc;
@@ -52,23 +56,33 @@ pub fn next_client_defines() -> CompileTimeDefinesVc {
     .cell()
 }
 
+pub fn next_client_free_vars() -> FreeVarReferencesVc {
+    free_var_references!(
+        Buffer = FreeVarReference::EcmaScriptModule {
+            request: "node:buffer".to_string(),
+            context: None,
+            export: Some("Buffer".to_string()),
+        },
+    )
+    .cell()
+}
+
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::Browser(
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: browserslist_query.to_owned(),
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        ),
-        defines: next_client_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Client),
+    ))
+    .defines(next_client_defines())
+    .free_var_references(next_client_free_vars())
     .cell()
 }
 
