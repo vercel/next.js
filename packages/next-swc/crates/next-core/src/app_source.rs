@@ -1,12 +1,13 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-    iter::once,
-};
+use async_recursion::async_recursion;
+use indexmap::IndexMap;
+use std::{collections::HashMap, io::Write};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{primitives::OptionStringVc, TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{
+    primitives::{OptionStringVc, StringVc},
+    Value,
+};
 use turbo_tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
 use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbopack::{
@@ -15,10 +16,11 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
+    asset::AssetVc,
     compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
@@ -26,7 +28,8 @@ use turbopack_dev::DevChunkingContextVc;
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
-        combined::CombinedContentSource, ContentSourceData, ContentSourceVc, NoContentSourceVc,
+        combined::CombinedContentSource, specificity::SpecificityVc, ContentSourceData,
+        ContentSourceVc, NoContentSourceVc,
     },
 };
 use turbopack_ecmascript::{
@@ -35,19 +38,14 @@ use turbopack_ecmascript::{
 };
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_node::{
-    execution_context::ExecutionContextVc,
-    render::{
-        node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
-    },
+    execution_context::ExecutionContextVc, render::rendered_source::create_node_rendered_source,
     NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
 };
 
 use crate::{
-    app_render::{
-        next_layout_entry_transition::NextLayoutEntryTransition, LayoutSegment, LayoutSegmentsVc,
-    },
-    app_structure::{AppStructure, AppStructureItem, AppStructureVc, OptionAppStructureVc},
-    embed_js::next_js_file,
+    app_render::next_layout_entry_transition::NextLayoutEntryTransition,
+    app_structure::{get_loader_trees, Components, LoaderTree, LoaderTreeVc, OptionAppDirVc},
+    embed_js::{next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
     next_client::{
@@ -73,7 +71,6 @@ use crate::{
         get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    util::pathname_for_path,
 };
 
 #[turbo_tasks::function]
@@ -309,7 +306,7 @@ fn app_context(
 /// Next.js app folder.
 #[turbo_tasks::function]
 pub async fn create_app_source(
-    app_structure: OptionAppStructureVc,
+    app_dir: OptionAppDirVc,
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     output_path: FileSystemPathVc,
@@ -319,10 +316,10 @@ pub async fn create_app_source(
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
 ) -> Result<ContentSourceVc> {
-    let Some(app_structure) = *app_structure.await? else {
+    let Some(app_dir) = *app_dir.await? else {
         return Ok(NoContentSourceVc::new().into());
     };
-    let app_dir = app_structure.directory();
+    let loader_trees = get_loader_trees(app_dir, next_config);
 
     let client_compile_time_info = get_client_compile_time_info(browserslist_query);
 
@@ -366,140 +363,114 @@ pub async fn create_app_source(
         next_config,
     );
 
-    let source = create_app_source_for_directory(
-        app_structure,
-        context_ssr,
-        context,
-        project_path,
-        env,
-        server_root,
-        EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
-        fallback_page,
-        output_path,
-    );
-    Ok(source)
+    let server_runtime_entries = EcmascriptChunkPlaceablesVc::cell(server_runtime_entries);
+
+    let sources = loader_trees
+        .await?
+        .iter()
+        .map(|(pathname, &loader_tree)| {
+            create_app_source_for_route(
+                pathname,
+                loader_tree,
+                context_ssr,
+                context,
+                project_path,
+                app_dir,
+                env,
+                server_root,
+                server_runtime_entries,
+                fallback_page,
+                output_path,
+            )
+        })
+        .collect();
+
+    Ok(CombinedContentSource { sources }.cell().into())
 }
 
 #[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
-async fn create_app_source_for_directory(
-    app_structure: AppStructureVc,
+async fn create_app_source_for_route(
+    pathname: &str,
+    loader_tree: LoaderTreeVc,
     context_ssr: AssetContextVc,
     context: AssetContextVc,
     project_path: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
     server_root: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
-    let AppStructure {
-        item,
-        ref children,
-        directory,
-    } = *app_structure.await?;
-    let mut sources = Vec::new();
+    let pathname_vc = StringVc::cell(pathname.to_string());
 
-    if let Some(item) = item {
-        match *item.await? {
-            AppStructureItem::Page {
-                segment,
-                url,
-                specificity,
-                page,
-                segments: layouts,
-            } => {
-                let LayoutSegment { target, .. } = *segment.await?;
-                let pathname = pathname_for_path(server_root, url, false, false);
-                let params_matcher = NextParamsMatcherVc::new(pathname);
+    let params_matcher = NextParamsMatcherVc::new(pathname_vc);
 
-                sources.push(create_node_rendered_source(
-                    project_path,
-                    env,
-                    specificity,
-                    server_root,
-                    params_matcher.into(),
-                    pathname,
-                    AppRenderer {
-                        context_ssr,
-                        context,
-                        server_root,
-                        layout_path: layouts,
-                        page_path: page,
-                        target,
-                        project_path,
-                        intermediate_output_path: intermediate_output_path_root,
-                    }
-                    .cell()
-                    .into(),
-                    runtime_entries,
-                    fallback_page,
-                ));
-            }
-            AppStructureItem::Route {
-                url,
-                specificity,
-                route,
-                ..
-            } => {
-                let pathname = pathname_for_path(server_root, url, false, false);
-                let params_matcher = NextParamsMatcherVc::new(pathname);
-
-                sources.push(create_node_api_source(
-                    project_path,
-                    env,
-                    specificity,
-                    server_root,
-                    params_matcher.into(),
-                    pathname,
-                    AppRoute {
-                        context: context_ssr,
-                        server_root,
-                        entry_path: route,
-                        project_path,
-                        intermediate_output_path: intermediate_output_path_root,
-                        output_root: intermediate_output_path_root,
-                    }
-                    .cell()
-                    .into(),
-                    runtime_entries,
-                ));
-            }
+    let source = create_node_rendered_source(
+        project_path,
+        env,
+        SpecificityVc::exact(),
+        server_root,
+        params_matcher.into(),
+        pathname_vc,
+        AppRenderer {
+            context_ssr,
+            context,
+            server_root,
+            project_path,
+            intermediate_output_path: intermediate_output_path_root,
+            loader_tree,
         }
-    }
-
-    if children.is_empty() {
-        if let Some(source) = sources.into_iter().next() {
-            return Ok(source);
-        } else {
-            return Ok(NoContentSourceVc::new().into());
-        }
-    }
-
-    let source = CombinedContentSource { sources }
         .cell()
-        .as_content_source()
-        .issue_context(directory, "Next.js App Router");
+        .into(),
+        runtime_entries,
+        fallback_page,
+    );
 
-    Ok(CombinedContentSource {
-        sources: once(source)
-            .chain(children.iter().map(|child| {
-                create_app_source_for_directory(
-                    *child,
-                    context_ssr,
-                    context,
-                    project_path,
-                    env,
-                    server_root,
-                    runtime_entries,
-                    fallback_page,
-                    intermediate_output_path_root,
-                )
-            }))
-            .collect(),
-    }
-    .cell()
-    .into())
+    // if let Some(item) = item {
+    //     match *item.await? {
+    //         AppStructureItem::Page {
+    //             segment,
+    //             url,
+    //             specificity,
+    //             page,
+    //         } => {
+
+    //         }
+    //         AppStructureItem::Route {
+    //             url,
+    //             specificity,
+    //             route,
+    //             ..
+    //         } => {
+    //             let pathname = pathname_for_path(server_root, url, false, false);
+    //             let params_matcher = NextParamsMatcherVc::new(pathname);
+
+    //             sources.push(create_node_api_source(
+    //                 project_path,
+    //                 env,
+    //                 specificity,
+    //                 server_root,
+    //                 params_matcher.into(),
+    //                 pathname,
+    //                 AppRoute {
+    //                     context: context_ssr,
+    //                     server_root,
+    //                     entry_path: route,
+    //                     project_path,
+    //                     intermediate_output_path: intermediate_output_path_root,
+    //                     output_root: intermediate_output_path_root,
+    //                 }
+    //                 .cell()
+    //                 .into(),
+    //                 runtime_entries,
+    //             ));
+    //         }
+    //     }
+    // }
+
+    return Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")));
 }
 
 /// The renderer for pages in app directory
@@ -507,125 +478,161 @@ async fn create_app_source_for_directory(
 struct AppRenderer {
     context_ssr: AssetContextVc,
     context: AssetContextVc,
-    server_root: FileSystemPathVc,
-    layout_path: LayoutSegmentsVc,
-    page_path: FileSystemPathVc,
-    target: FileSystemPathVc,
     project_path: FileSystemPathVc,
+    server_root: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
+    loader_tree: LoaderTreeVc,
 }
 
 #[turbo_tasks::value_impl]
 impl AppRendererVc {
     #[turbo_tasks::function]
     async fn entry(self, is_rsc: bool) -> Result<NodeRenderingEntryVc> {
-        let this = self.await?;
-        let layout_path = this.layout_path.await?;
-        let page = this.page_path;
-        let path = page.parent();
-        let path_value = &*path.await?;
+        let AppRenderer {
+            context_ssr,
+            context,
+            project_path,
+            server_root,
+            intermediate_output_path,
+            loader_tree,
+        } = *self.await?;
 
-        let layout_and_page = layout_path
-            .iter()
-            .copied()
-            .chain(std::iter::once(
-                LayoutSegment {
-                    files: HashMap::from([("page".to_string(), page)]),
-                    target: this.target,
-                }
-                .cell(),
-            ))
-            .try_join()
-            .await?;
+        let (context, intermediate_output_path) = if is_rsc {
+            (context, intermediate_output_path.join("rsc"))
+        } else {
+            (context_ssr, intermediate_output_path)
+        };
 
-        let segments: Vec<_> = layout_and_page
-            .into_iter()
-            .fold(
-                (this.server_root, Vec::new()),
-                |(last_path, mut futures), segment| {
-                    (segment.target, {
-                        futures.push(async move {
-                            let target = &*segment.target.await?;
-                            let segment_path =
-                                last_path.await?.get_path_to(target).unwrap_or_default();
-                            let mut imports = BTreeMap::new();
-                            for (key, file) in segment.files.iter() {
-                                let file_str = file.to_string().await?;
-                                let identifier = magic_identifier::mangle(&format!(
-                                    "imported namespace {}",
-                                    file_str
-                                ));
-                                let chunks_identifier = magic_identifier::mangle(&format!(
-                                    "client chunks for {}",
-                                    file_str
-                                ));
-                                if let Some(p) = path_value.get_relative_path_to(&*file.await?) {
-                                    imports.insert(
-                                        key.to_string(),
-                                        (p, identifier, chunks_identifier),
-                                    );
-                                } else {
-                                    return Err(anyhow!(
-                                        "Unable to generate import as there
-                                is no relative path to the layout module {} from context
-                                path {}",
-                                        file_str,
-                                        path.to_string().await?
-                                    ));
-                                }
-                            }
-                            Ok((StringifyJs(segment_path).to_string(), imports))
-                        });
-                        futures
-                    })
-                },
-            )
-            .1
-            .into_iter()
-            .try_join()
-            .await?;
+        struct State {
+            inner_assets: IndexMap<String, AssetVc>,
+            counter: usize,
+            imports: Vec<String>,
+            loader_tree_code: String,
+            bootstrap_code: String,
+            context: AssetContextVc,
+        }
+
+        let mut state = State {
+            inner_assets: IndexMap::new(),
+            counter: 0,
+            imports: Vec::new(),
+            loader_tree_code: String::new(),
+            bootstrap_code: String::new(),
+            context,
+        };
+
+        fn write_component(
+            state: &mut State,
+            name: &str,
+            component: Option<FileSystemPathVc>,
+        ) -> Result<()> {
+            use std::fmt::Write;
+
+            if let Some(component) = component {
+                let i = state.counter;
+                state.counter += 1;
+                let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
+                let chunks_identifier = magic_identifier::mangle(&format!("chunks of {name} #{i}"));
+                write!(
+                    state.loader_tree_code,
+                    "{name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + '.js']",
+                    name = StringifyJs(name)
+                )?;
+                state.imports.push(format!(
+                    r#"("TURBOPACK {{ chunking-type: isolatedParallel }}");
+import {}, {{ chunks as {} }} from "COMPONENT_{}";
+"#,
+                    identifier, chunks_identifier, i
+                ));
+
+                state.inner_assets.insert(
+                    format!("COMPONENT_{i}"),
+                    state.context.with_transition("next-layout-entry").process(
+                        SourceAssetVc::new(component).into(),
+                        Value::new(ReferenceType::EcmaScriptModules(
+                            EcmaScriptModulesReferenceSubType::Undefined,
+                        )),
+                    ),
+                );
+                writeln!(state.bootstrap_code, "  ...{chunks_identifier},")?;
+            }
+            Ok(())
+        }
+
+        #[async_recursion]
+        async fn walk_tree(state: &mut State, loader_tree: LoaderTreeVc) -> Result<()> {
+            use std::fmt::Write;
+
+            let LoaderTree {
+                segment,
+                parallel_routes,
+                components,
+            } = &*loader_tree.await?;
+
+            write!(
+                state.loader_tree_code,
+                "[{segment}, {{",
+                segment = StringifyJs(segment)
+            )?;
+            // add parallel_routers
+            for (key, &parallel_route) in parallel_routes.iter() {
+                write!(state.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
+                walk_tree(state, parallel_route).await?;
+                writeln!(state.loader_tree_code, ",")?;
+            }
+            write!(state.loader_tree_code, "}}, {{")?;
+            // add components
+            let Components {
+                page,
+                default,
+                error,
+                layout,
+                loading,
+                metadata: _,
+                template,
+            } = &*components.await?;
+            write_component(state, "page", *page)?;
+            write_component(state, "default", *default)?;
+            write_component(state, "error", *error)?;
+            write_component(state, "layout", *layout)?;
+            write_component(state, "loading", *loading)?;
+            write_component(state, "template", *template)?;
+            // TODO something for metadata
+            write!(state.loader_tree_code, "}}]")?;
+            Ok(())
+        }
+
+        walk_tree(&mut state, loader_tree).await?;
+
+        let State {
+            mut inner_assets,
+            imports,
+            loader_tree_code,
+            bootstrap_code,
+            ..
+        } = state;
 
         // IPC need to be the first import to allow it to catch errors happening during
         // the other imports
         let mut result =
             RopeBuilder::from("import { IPC } from \"@vercel/turbopack-next/ipc/index\";\n");
 
-        for (_, imports) in segments.iter() {
-            for (p, identifier, chunks_identifier) in imports.values() {
-                result += r#"("TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }");
-"#;
-                writeln!(
-                    result,
-                    "import {}, {{ chunks as {} }} from {};\n",
-                    identifier,
-                    chunks_identifier,
-                    StringifyJs(p)
-                )?
-            }
-        }
-        if let Some(page) = path_value.get_relative_path_to(&*page.await?) {
-            writeln!(
-                result,
-                r#"("TURBOPACK {{ transition: next-client }}");
-import BOOTSTRAP from {};
-"#,
-                StringifyJs(&page)
-            )?;
+        for import in imports {
+            writeln!(result, "{import}")?;
         }
 
-        result += "const LAYOUT_INFO = [";
-        for (segment_str_lit, imports) in segments.iter() {
-            writeln!(result, "  {{\n    segment: {segment_str_lit},")?;
-            for (key, (_, identifier, chunks_identifier)) in imports {
-                writeln!(
-                    result,
-                    "    {key}: {{ module: {identifier}, chunks: {chunks_identifier} }},",
-                    key = StringifyJs(key),
-                )?;
-            }
-            result += "  },";
-        }
-        result += "];\n\n";
+        writeln!(result, "const LOADER_TREE = {loader_tree_code};\n")?;
+        writeln!(result, "import BOOTSTRAP from \"BOOTSTRAP\";\n")?;
+
+        inner_assets.insert(
+            "BOOTSTRAP".to_string(),
+            context.with_transition("next-client").process(
+                SourceAssetVc::new(next_js_file_path("entry/app/hydrate.tsx")).into(),
+                Value::new(ReferenceType::EcmaScriptModules(
+                    EcmaScriptModulesReferenceSubType::Undefined,
+                )),
+            ),
+        );
 
         let base_code = next_js_file("entry/app-renderer.tsx");
         if let FileContent::Content(base_file) = &*base_code.await? {
@@ -633,27 +640,22 @@ import BOOTSTRAP from {};
         }
 
         let file = File::from(result.build());
-        let asset = VirtualAssetVc::new(path.join("entry"), file.into());
-        let (context, intermediate_output_path) = if is_rsc {
-            (this.context, this.intermediate_output_path.join("rsc"))
-        } else {
-            (this.context_ssr, this.intermediate_output_path)
-        };
+        let asset = VirtualAssetVc::new(next_js_file_path("entry/app-renderer.tsx"), file.into());
 
         let chunking_context = DevChunkingContextVc::builder(
-            this.project_path,
+            project_path,
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
-            this.server_root.join("_next/static/assets"),
+            server_root.join("_next/static/assets"),
             context.compile_time_info().environment(),
         )
         .layer("ssr")
-        .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
+        .css_chunk_root_path(server_root.join("_next/static/chunks"))
         .reference_chunk_source_maps(false)
         .build();
 
         Ok(NodeRenderingEntry {
-            module: EcmascriptModuleAssetVc::new(
+            module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 asset.into(),
                 context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
@@ -668,11 +670,12 @@ import BOOTSTRAP from {};
                     },
                 ]),
                 context.compile_time_info(),
+                InnerAssetsVc::cell(inner_assets),
             ),
             chunking_context,
             intermediate_output_path,
             output_root: intermediate_output_path.root(),
-            project_dir: this.project_path,
+            project_dir: project_path,
         }
         .cell())
     }

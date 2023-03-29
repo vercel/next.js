@@ -7,13 +7,8 @@ type FileType =
   | "not-found"
   | "head";
 declare global {
-  // an array of all layouts and the page
-  const LAYOUT_INFO: ({
-    segment: string;
-    page?: { module: any; chunks: string[] };
-  } & {
-    [componentKey in FileType]?: { module: any; chunks: string[] };
-  })[];
+  // an tree of all layouts and the page
+  const LOADER_TREE: LoaderTree;
   // array of chunks for the bootstrap script
   const BOOTSTRAP: string[];
   const IPC: Ipc<unknown, unknown>;
@@ -36,6 +31,11 @@ import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import { parse, ParsedUrlQuery } from "node:querystring";
+
+("TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }");
+// @ts-ignore
+import layoutEntry, { chunks as layoutEntryClientChunks } from "@vercel/turbopack-next/entry/app/layout-entry";
+
 
 globalThis.__next_require__ = (data) => {
   const [, , , ssr_id] = JSON.parse(data);
@@ -109,27 +109,7 @@ type LoaderTree = [
 
 async function runOperation(renderData: RenderData) {
   const layoutInfoChunks: Record<string, string[]> = {};
-  const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
-  const pageModule = pageItem.page!.module;
-  let tree: LoaderTree = [
-    "",
-    {},
-    { page: [() => pageModule.module, "page.js"] },
-  ];
-  layoutInfoChunks["page"] = pageItem.page!.chunks;
-  for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
-    const info = LAYOUT_INFO[i];
-    const components: ComponentsType = {};
-    for (const key of Object.keys(info)) {
-      if (key === "segment") {
-        continue;
-      }
-      const k = key as FileType;
-      components[k] = [() => info[k]!.module.module, `${k}${i}.js`];
-      layoutInfoChunks[`${k}${i}`] = info[k]!.chunks;
-    }
-    tree = [info.segment, { children: tree }, components];
-  }
+  let tree: LoaderTree = LOADER_TREE;
 
   const proxyMethodsForModule = (
     id: string
@@ -190,24 +170,32 @@ async function runOperation(renderData: RenderData) {
           return clientModulesProxy;
         }
         if (prop === "cssFiles") {
-          return cssFiles;
+          return new Proxy({} as any, cssFilesProxyMethods);
         }
       },
     };
   };
+  const cssFilesProxyMethods = {
+    get(_target: any, prop: string) {
+      const chunks = JSON.parse(prop);
+      const cssChunks = chunks.filter((path) => path.endsWith(".css"));
+      return cssChunks;
+    }
+  };
+  const cssImportProxyMethods = {
+    get(_target: any, prop: string) {
+      const chunks = JSON.parse(prop.replace(/\.js$/, ""));
+      const cssChunks = chunks.filter((path) => path.endsWith(".css"));
+      return cssChunks.map((chunk) =>
+        JSON.stringify([chunk, [chunk]])
+      )
+    }
+  }
   const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods());
   const serverCSSManifest: ClientCSSReferenceManifest = {
-    cssImports: {},
+    cssImports: new Proxy({} as any, cssImportProxyMethods),
     cssModules: {},
   };
-  const cssFiles: ClientReferenceManifest["cssFiles"] = {};
-  for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
-    const cssChunks = chunks.filter((path) => path.endsWith(".css"));
-    serverCSSManifest.cssImports[`${key}.js`] = cssChunks.map((chunk) =>
-      JSON.stringify([chunk, [chunk]])
-    );
-    cssFiles[key] = cssChunks;
-  }
   serverCSSManifest.cssModules = {
     page: serverCSSManifest.cssImports["page.js"],
   };
@@ -241,9 +229,9 @@ async function runOperation(renderData: RenderData) {
       ampFirstPages: [],
     },
     ComponentMod: {
-      ...pageModule,
+      ...layoutEntry,
       default: undefined,
-      tree,
+      tree: LOADER_TREE,
       pages: ["page.js"],
     },
     clientReferenceManifest: manifest,
@@ -251,7 +239,7 @@ async function runOperation(renderData: RenderData) {
     runtime: "nodejs",
     serverComponents: true,
     assetPrefix: "",
-    pageConfig: pageModule.config,
+    pageConfig: {},
     reactLoadableManifest: {},
   };
   const result = await renderToHTMLOrFlight(

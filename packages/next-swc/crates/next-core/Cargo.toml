@@ -11,6 +11,7 @@ bench = false
 [dependencies]
 anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
+async-recursion = "1.0.2"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 indoc = { workspace = true }

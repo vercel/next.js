@@ -8,6 +8,3 @@ import * as serverHooks from "next/dist/client/components/hooks-server-context.j
 export { serverHooks };
 export { renderToReadableStream } from "next/dist/compiled/react-server-dom-webpack/server.edge";
 
-// @ts-expect-error PAGE is provided by rust
-import * as module from "PAGE";
-export { module };

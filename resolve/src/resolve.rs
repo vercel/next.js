@@ -6,28 +6,40 @@ use tokio;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 struct Components {
+    #[serde(skip_serializing_if = "Option::is_none")]
     page: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     layout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     loading: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     default: Option<String>,
-    metadata: Option<HashMap<String, Vec<String>>>,
+    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    metadata: Metadata,
 }
 
 #[derive(Default, Debug)]
 struct DirectoryTree {
+    /// e.g. "dashboard", "(dashboard)", "@slot"
     directory_name: String,
-    subdirectories: Vec<Box<DirectoryTree>>,
+    subdirectories: Vec<DirectoryTree>,
     components: Components,
 }
 
 #[derive(Default, Serialize, Deserialize)]
 struct Metadata {
-    icon: Option<Vec<String>>,
-    apple: Option<Vec<String>>,
-    twitter: Option<Vec<String>>,
-    open_graph: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    icon: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    apple: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    twitter: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    open_graph: Vec<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -208,11 +220,11 @@ fn unbox<T>(value: Box<T>) -> T {
 }
 
 fn directory_tree_to_loader_tree(
+    directory_name: &str,
     directory_tree: DirectoryTree,
     path_prefix: String,
     add_loader_tree: &mut dyn FnMut(String, LoaderTree),
 ) {
-    let directory_name = directory_tree.directory_name;
     let subdirectories = directory_tree.subdirectories;
     let components = directory_tree.components;
 
@@ -293,11 +305,11 @@ fn directory_tree_to_loader_tree(
         }
     }
 
-    for subdirectory in subdirectories.into_iter() {
+    for (subdir_name, subdirectory) in subdirectories.into_iter() {
         let parallel_route_key: Option<String> = match_parallel_route(&subdirectory.directory_name);
         let subdir = unbox(subdirectory);
-        let subdir_name = subdir.directory_name.clone();
         directory_tree_to_loader_tree(
+            subdir_name,
             subdir,
             format!(
                 "{}{}",
@@ -349,11 +361,10 @@ async fn main() {
     // Call the necessary functions here or test the functions implemented above
     // For example, you can call `resolve_app_tree` function and print the result
     let dir = std::path::Path::new(
-        "/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception/app",
+        "/Users/timneutkens/projects/next.js/test/e2e/app-dir/app/app",
     );
-    let page_extensions = vec!["js", "jsx", "ts", "tsx"];
+    let page_extensions = vec!["js", "jsx", "ts", "tsx", "mdx"];
 
-    let start_time = Instant::now();
     let result = resolve_app_tree(dir, &page_extensions, String::new()).await;
 
     match result {
@@ -361,6 +372,7 @@ async fn main() {
             let mut entrypoints: HashMap<String, LoaderTree> = HashMap::new();
 
             directory_tree_to_loader_tree(
+                "",
                 result,
                 String::new(),
                 &mut |full_path: String, loader_tree: LoaderTree| {
@@ -375,7 +387,6 @@ async fn main() {
 
             let entrypoints_json = serde_json::to_string_pretty(&entrypoints)
                 .expect("Failed to convert entrypoints to JSON");
-            let duration = start_time.elapsed();
 
             println!("Entrypoints JSON: {}", entrypoints_json);
             println!("Function took: {} microseconds", duration.as_micros());
