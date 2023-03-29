@@ -20,6 +20,12 @@ sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
 
+# Internal only. Enabled when building for the Next.js integration test suite.
+__internal_nextjs_integration_test = [
+  "next-dev/__internal_nextjs_integration_test",
+  "next-dev/serializable"
+]
+
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
