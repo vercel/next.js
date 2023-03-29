@@ -1,6 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { createNextDescribe } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('app dir - metadata missing metadataBase', () => {
