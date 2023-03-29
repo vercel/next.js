@@ -1,10 +1,15 @@
 import { useMemo } from 'react'
-import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client'
+import {
+  ApolloClient,
+  InMemoryCache,
+  HttpLink,
+  NormalizedCacheObject,
+} from '@apollo/client'
 import { SchemaLink } from '@apollo/client/link/schema'
 import { schema } from '../apollo/schema'
 import merge from 'deepmerge'
 
-let apolloClient
+let apolloClient: ApolloClient<NormalizedCacheObject> | undefined
 
 function createIsomorphLink() {
   if (typeof window === 'undefined') {
@@ -25,7 +30,9 @@ function createApolloClient() {
   })
 }
 
-export function initializeApollo(initialState = null) {
+export function initializeApollo(
+  initialState: NormalizedCacheObject | null = null
+) {
   const _apolloClient = apolloClient ?? createApolloClient()
 
   // If your page has Next.js data fetching methods that use Apollo Client, the initial state
@@ -34,8 +41,18 @@ export function initializeApollo(initialState = null) {
     // Get existing cache, loaded during client side data fetching
     const existingCache = _apolloClient.extract()
 
+    // Overwrites the existing array values completely rather than concatenating them
+    // merge([1, 2, 3], [3, 2, 1], { arrayMerge: overwriteMerge }) => [3, 2, 1]
+    const overwriteMerge: merge.Options['arrayMerge'] = (
+      target,
+      sourceArray,
+      options
+    ) => sourceArray
+
     // Merge the existing cache into data passed from getStaticProps/getServerSideProps
-    const data = merge(initialState, existingCache)
+    const data = merge(initialState, existingCache, {
+      arrayMerge: overwriteMerge,
+    })
 
     // Restore the cache with the merged data
     _apolloClient.cache.restore(data)
@@ -48,7 +65,7 @@ export function initializeApollo(initialState = null) {
   return _apolloClient
 }
 
-export function useApollo(initialState) {
+export function useApollo(initialState: NormalizedCacheObject) {
   const store = useMemo(() => initializeApollo(initialState), [initialState])
   return store
 }
