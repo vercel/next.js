@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::{primitives::OptionStringVc, Value};
 use turbopack::ecmascript::chunk::EcmascriptChunkPlaceableVc;
