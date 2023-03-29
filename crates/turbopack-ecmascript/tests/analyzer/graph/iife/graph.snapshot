@@ -2,7 +2,7 @@
     (
         "a",
         FreeVar(
-            Require,
+            Atom('require' type=static),
         ),
     ),
     (

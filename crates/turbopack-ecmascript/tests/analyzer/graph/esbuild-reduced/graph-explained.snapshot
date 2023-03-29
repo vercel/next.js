@@ -1,4 +1,4 @@
-binPath = (???*0* | FreeVar(Require)["resolve"](`${pkg}/${subpath}`))
+binPath = (???*0* | FreeVar(require)["resolve"](`${pkg}/${subpath}`))
 - *0* binPath
   ⚠️  pattern without value
 
@@ -14,9 +14,9 @@ knownWindowsPackages = {
     "win32 x64 LE": "esbuild-windows-64"
 }
 
-path = FreeVar(Require)("path")
+path = FreeVar(require)("path")
 
-path2 = FreeVar(Require)("path")
+path2 = FreeVar(require)("path")
 
 pkg#3 = (???*0* | knownWindowsPackages[FreeVar(platformKey)])
 - *0* pkg

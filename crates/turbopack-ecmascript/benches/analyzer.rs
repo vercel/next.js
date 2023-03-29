@@ -13,7 +13,7 @@ use swc_core::{
 use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo},
+    compile_time_info::CompileTimeInfo,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     target::CompileTargetVc,
 };
@@ -93,19 +93,16 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     b.to_async(rt).iter(|| async {
         for val in input.var_graph.values.values() {
             VcStorage::with(async {
-                let compile_time_info = CompileTimeInfo {
-                    environment: EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment {
-                                compile_target: CompileTargetVc::unknown(),
-                                ..Default::default()
-                            }
-                            .into(),
-                        )),
-                        Value::new(EnvironmentIntention::ServerRendering),
-                    ),
-                    defines: CompileTimeDefinesVc::empty(),
-                }
+                let compile_time_info = CompileTimeInfo::builder(EnvironmentVc::new(
+                    Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment {
+                            compile_target: CompileTargetVc::unknown(),
+                            ..Default::default()
+                        }
+                        .into(),
+                    )),
+                    Value::new(EnvironmentIntention::ServerRendering),
+                ))
                 .cell();
                 link(
                     &input.var_graph,

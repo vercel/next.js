@@ -344,9 +344,7 @@
                             ),
                         ),
                         FreeVar(
-                            Other(
-                                Atom('unknown' type=static),
-                            ),
+                            Atom('unknown' type=static),
                         ),
                     ],
                     mutable: true,
@@ -431,9 +429,7 @@
                     ),
                 ),
                 FreeVar(
-                    Other(
-                        Atom('unknown' type=static),
-                    ),
+                    Atom('unknown' type=static),
                 ),
             ],
         ),

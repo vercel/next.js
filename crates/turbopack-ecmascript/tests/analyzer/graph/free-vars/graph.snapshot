@@ -1,0 +1,27 @@
+[
+    (
+        "buf",
+        MemberCall(
+            4,
+            FreeVar(
+                Atom('Buffer' type=inline),
+            ),
+            Constant(
+                Str(
+                    Word(
+                        Atom('from' type=static),
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            Atom('Hello World' type=dynamic),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

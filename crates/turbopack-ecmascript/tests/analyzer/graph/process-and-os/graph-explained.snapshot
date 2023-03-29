@@ -1,31 +1,31 @@
-arch = FreeVar(Require)("os")["arch"]
+arch = FreeVar(require)("os")["arch"]
 
-binding1 = FreeVar(Require)(
-    `esbuild-${FreeVar(NodeProcess)["arch"]}-${platform()}-${endianness()}`
+binding1 = FreeVar(require)(
+    `esbuild-${FreeVar(process)["arch"]}-${platform()}-${endianness()}`
 )
 
-binding2 = FreeVar(Require)(`esbuild-${arch()}-${platform()}-${endianness()}`)
+binding2 = FreeVar(require)(`esbuild-${arch()}-${platform()}-${endianness()}`)
 
-binding3 = FreeVar(Require)(
-    `esbuild-${arch()}-${FreeVar(NodeProcess)["platform"]}-${endianness()}`
+binding3 = FreeVar(require)(
+    `esbuild-${arch()}-${FreeVar(process)["platform"]}-${endianness()}`
 )
 
-binding4 = FreeVar(Require)(
-    `esbuild-${FreeVar(NodeProcess)["arch"]}-${FreeVar(NodeProcess)["platform"]}-${endianness()}`
+binding4 = FreeVar(require)(
+    `esbuild-${FreeVar(process)["arch"]}-${FreeVar(process)["platform"]}-${endianness()}`
 )
 
-binding5 = FreeVar(Require)(
+binding5 = FreeVar(require)(
     `esbuild-${p["arch"]}-${p["platform"]}-${endianness()}`
 )
 
-binding6 = FreeVar(Require)(
+binding6 = FreeVar(require)(
     `esbuild-${p["arch"]}-${processPlatform}-${endianness()}`
 )
 
-endianness = FreeVar(Require)("os")["endianness"]
+endianness = FreeVar(require)("os")["endianness"]
 
-p = FreeVar(NodeProcess)
+p = FreeVar(process)
 
-platform = FreeVar(Require)("os")["platform"]
+platform = FreeVar(require)("os")["platform"]
 
-processPlatform = FreeVar(Require)("process")["platform"]
+processPlatform = FreeVar(require)("process")["platform"]

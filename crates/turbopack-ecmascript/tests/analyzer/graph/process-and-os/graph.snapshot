@@ -6,7 +6,7 @@
             Call(
                 3,
                 FreeVar(
-                    Require,
+                    Atom('require' type=static),
                 ),
                 [
                     Constant(
@@ -32,7 +32,7 @@
         Call(
             13,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -48,7 +48,7 @@
                         Member(
                             3,
                             FreeVar(
-                                NodeProcess,
+                                Atom('process' type=static),
                             ),
                             Constant(
                                 Str(
@@ -102,7 +102,7 @@
         Call(
             12,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -169,7 +169,7 @@
         Call(
             13,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -202,7 +202,7 @@
                         Member(
                             3,
                             FreeVar(
-                                NodeProcess,
+                                Atom('process' type=static),
                             ),
                             Constant(
                                 Str(
@@ -239,7 +239,7 @@
         Call(
             14,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -255,7 +255,7 @@
                         Member(
                             3,
                             FreeVar(
-                                NodeProcess,
+                                Atom('process' type=static),
                             ),
                             Constant(
                                 Str(
@@ -275,7 +275,7 @@
                         Member(
                             3,
                             FreeVar(
-                                NodeProcess,
+                                Atom('process' type=static),
                             ),
                             Constant(
                                 Str(
@@ -312,7 +312,7 @@
         Call(
             14,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -391,7 +391,7 @@
         Call(
             12,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -462,7 +462,7 @@
             Call(
                 3,
                 FreeVar(
-                    Require,
+                    Atom('require' type=static),
                 ),
                 [
                     Constant(
@@ -486,7 +486,7 @@
     (
         "p",
         FreeVar(
-            NodeProcess,
+            Atom('process' type=static),
         ),
     ),
     (
@@ -496,7 +496,7 @@
             Call(
                 3,
                 FreeVar(
-                    Require,
+                    Atom('require' type=static),
                 ),
                 [
                     Constant(
@@ -524,7 +524,7 @@
             Call(
                 3,
                 FreeVar(
-                    Require,
+                    Atom('require' type=static),
                 ),
                 [
                     Constant(

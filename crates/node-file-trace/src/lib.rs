@@ -42,7 +42,7 @@ use turbopack::{
 use turbopack_cli_utils::issue::{ConsoleUiVc, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo},
+    compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::{IssueContextExt, IssueReporter, IssueSeverity, IssueVc},
@@ -646,11 +646,7 @@ async fn create_module_asset(
         )),
         Value::new(EnvironmentIntention::Api),
     );
-    let compile_time_info = CompileTimeInfo {
-        environment: env,
-        defines: CompileTimeDefinesVc::empty(),
-    }
-    .cell();
+    let compile_time_info = CompileTimeInfo::builder(env).cell();
     let glob_mappings = vec![
         (
             root,

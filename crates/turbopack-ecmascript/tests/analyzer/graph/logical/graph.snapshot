@@ -90,9 +90,7 @@
                     ),
                 ),
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
             ],
         ),
@@ -122,9 +120,7 @@
                             ),
                         ),
                         FreeVar(
-                            Other(
-                                Atom('global' type=static),
-                            ),
+                            Atom('global' type=static),
                         ),
                     ],
                 ),
@@ -193,9 +189,7 @@
                     ),
                 ),
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
                 Constant(
                     Num(
@@ -242,9 +236,7 @@
                     ),
                 ),
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
                 Constant(
                     Num(
@@ -263,9 +255,7 @@
             Or,
             [
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
                 Constant(
                     True,
@@ -283,9 +273,7 @@
                     True,
                 ),
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
             ],
         ),

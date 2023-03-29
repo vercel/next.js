@@ -1,12 +1,20 @@
-0 -> 1 call = require*0*("path")
-- *0* require: The require method from CommonJS
+0 -> 1 free var = FreeVar(require)
 
 0 -> 2 call = require*0*("path")
 - *0* require: The require method from CommonJS
 
-0 -> 4 call = (...) => (undefined | {"pkg": pkg, "subpath": subpath})()
+0 -> 3 free var = FreeVar(require)
 
-0 -> 6 member call = require*0*["resolve"](
+0 -> 4 call = require*0*("path")
+- *0* require: The require method from CommonJS
+
+0 -> 6 free var = FreeVar(platformKey)
+
+0 -> 7 call = (...) => (undefined | {"pkg": pkg, "subpath": subpath})()
+
+0 -> 9 free var = FreeVar(require)
+
+0 -> 10 member call = require*0*["resolve"](
     `${(
           | undefined["pkg"]
           | ???*1*
@@ -29,4 +37,4 @@
   ⚠️  pattern without value
 - *6* unknown mutation
 
-0 -> 7 call = (...) => (undefined | binPath)()
+0 -> 11 call = (...) => (undefined | binPath)()

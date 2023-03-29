@@ -107,7 +107,7 @@ b#9 = arguments[1]
 
 bb = b
 
-bin = FreeVar(Require)("charenc")["bin"]
+bin = FreeVar(require)("charenc")["bin"]
 
 c#10 = arguments[2]
 
@@ -150,7 +150,7 @@ c#9 = arguments[2]
 
 cc = c
 
-crypt = FreeVar(Require)("crypt")
+crypt = FreeVar(require)("crypt")
 
 d#10 = arguments[3]
 
@@ -200,7 +200,7 @@ digestbytes = crypt["wordsToBytes"](md5(message, options))
 
 i = 0
 
-isBuffer = FreeVar(Require)("is-buffer")
+isBuffer = FreeVar(require)("is-buffer")
 
 l = ???*0*
 - *0* unsupported expression
@@ -255,7 +255,7 @@ t#8 = arguments[6]
 
 t#9 = arguments[6]
 
-utf8 = FreeVar(Require)("charenc")["utf8"]
+utf8 = FreeVar(require)("charenc")["utf8"]
 
 x#10 = arguments[4]
 

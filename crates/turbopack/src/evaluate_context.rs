@@ -32,15 +32,15 @@ pub async fn node_evaluate_asset_context(
 ) -> Result<AssetContextVc> {
     Ok(ModuleAssetContextVc::new(
         transitions.unwrap_or_else(|| TransitionsByNameVc::cell(Default::default())),
-        CompileTimeInfo {
-            environment: node_build_environment(),
-            defines: compile_time_defines!(
-                process.turbopack = true,
-                process.env.NODE_ENV = "development",
+        CompileTimeInfo::builder(node_build_environment())
+            .defines(
+                compile_time_defines!(
+                    process.turbopack = true,
+                    process.env.NODE_ENV = "development",
+                )
+                .cell(),
             )
             .cell(),
-        }
-        .cell(),
         ModuleOptionsContext {
             enable_typescript_transform: Some(Default::default()),
             ..Default::default()

@@ -611,9 +611,7 @@
                 ),
                 KeyValue(
                     FreeVar(
-                        Other(
-                            Atom('global' type=static),
-                        ),
+                        Atom('global' type=static),
                     ),
                     Constant(
                         Num(
@@ -641,9 +639,7 @@
                 ),
                 KeyValue(
                     FreeVar(
-                        Other(
-                            Atom('global' type=static),
-                        ),
+                        Atom('global' type=static),
                     ),
                     Constant(
                         Num(
@@ -745,9 +741,7 @@
                 ),
                 Spread(
                     FreeVar(
-                        Other(
-                            Atom('global' type=static),
-                        ),
+                        Atom('global' type=static),
                     ),
                 ),
                 KeyValue(

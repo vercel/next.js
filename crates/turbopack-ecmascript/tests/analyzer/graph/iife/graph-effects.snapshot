@@ -1,4 +1,45 @@
 [
+    FreeVar {
+        var: FreeVar(
+            Atom('require' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                9,
+            ),
+            hi: BytePos(
+                16,
+            ),
+            ctxt: #1,
+        },
+    },
     Conditional {
         condition: Constant(
             True,

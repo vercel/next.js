@@ -1,7 +1,8 @@
 use std::{mem::take, sync::Arc};
 
+use swc_core::ecma::atoms::js_word;
+
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, ObjectPart};
-use crate::analyzer::FreeVarKind;
 
 /// Replaces some builtin values with their resulting values. Called early
 /// without lazy nested values. This allows to skip a lot of work to process the
@@ -247,7 +248,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                         }
                         if potential_values.is_empty() {
-                            *value = JsValue::FreeVar(FreeVarKind::Other("undefined".into()));
+                            *value = JsValue::FreeVar(js_word!("undefined"));
                         } else {
                             *value = potential_values_to_alternatives(
                                 potential_values,
