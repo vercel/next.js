@@ -341,6 +341,7 @@ export default class NextNodeServer extends BaseServer {
                   .trim(),
                 __NEXT_PRIVATE_RENDER_WORKER: type,
                 __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
+                NODE_ENV: process.env.NODE_ENV,
               },
               execArgv: genExecArgv(
                 options.isNodeDebugging === undefined
