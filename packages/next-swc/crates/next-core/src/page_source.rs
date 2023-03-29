@@ -129,8 +129,11 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let edge_compile_time_info =
-        get_edge_compile_time_info(server_addr, Value::new(EnvironmentIntention::Api));
+    let edge_compile_time_info = get_edge_compile_time_info(
+        project_path,
+        server_addr,
+        Value::new(EnvironmentIntention::Api),
+    );
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,

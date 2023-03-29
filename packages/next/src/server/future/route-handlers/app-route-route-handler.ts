@@ -1,20 +1,30 @@
+import type { Params } from '../../../shared/lib/router/utils/route-matcher'
+import type { HandlerModule } from '../route-handler-managers/route-handler-manager'
+import type { NextConfig } from '../../config-shared'
+import type { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
+import type { AppConfig } from '../../../build/utils'
+import type { RequestAsyncStorage } from '../../../client/components/request-async-storage'
+import type { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage'
+import type * as ServerHooks from '../../../client/components/hooks-server-context'
+import type * as HeaderHooks from '../../../client/components/headers'
+import type { staticGenerationBailout as StaticGenerationBailout } from '../../../client/components/static-generation-bailout'
+import type { WebNextRequest } from '../../base-http/web'
+
+import {
+  RequestAsyncStorageWrapper,
+  type RequestContext,
+} from '../../async-storage/request-async-storage-wrapper'
+import {
+  StaticGenerationAsyncStorageWrapper,
+  type StaticGenerationContext,
+} from '../../async-storage/static-generation-async-storage-wrapper'
 import { isNotFoundError } from '../../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../../client/components/redirect'
-import type {
-  RequestAsyncStorage,
-  RequestStore,
-} from '../../../client/components/request-async-storage'
-import type { Params } from '../../../shared/lib/router/utils/route-matcher'
-import type { AsyncStorageWrapper } from '../../async-storage/async-storage-wrapper'
-import {
-  RequestAsyncStorageWrapper,
-  type RequestContext,
-} from '../../async-storage/request-async-storage-wrapper'
-import { BaseNextRequest, BaseNextResponse } from '../../base-http'
-import { NodeNextRequest, NodeNextResponse } from '../../base-http/node'
+import { BaseNextRequest } from '../../base-http'
+import { NodeNextRequest } from '../../base-http/node'
 import { getRequestMeta } from '../../request-meta'
 import {
   handleBadRequestResponse,
@@ -23,34 +33,32 @@ import {
   handleNotFoundResponse,
   handleTemporaryRedirectResponse,
 } from '../helpers/response-handlers'
-import { AppRouteRouteMatch } from '../route-matches/app-route-route-match'
 import { HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
 import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
-import type { ModuleLoader } from '../helpers/module-loader/module-loader'
-import { RouteHandler } from './route-handler'
+import { RouteHandler, RouteHandlerContext } from './route-handler'
 import * as Log from '../../../build/output/log'
 import { patchFetch } from '../../lib/patch-fetch'
-import {
-  StaticGenerationAsyncStorage,
-  StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage'
-import { StaticGenerationAsyncStorageWrapper } from '../../async-storage/static-generation-async-storage-wrapper'
-import { IncrementalCache } from '../../lib/incremental-cache'
-import { AppConfig } from '../../../build/utils'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { NextURL } from '../../web/next-url'
-import { NextConfig } from '../../config-shared'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
-import { WebNextRequest } from '../../base-http/web'
 
-// TODO-APP: This module has a dynamic require so when bundling for edge it causes issues.
-const NodeModuleLoader =
-  process.env.NEXT_RUNTIME !== 'edge'
-    ? require('../helpers/module-loader/node-module-loader').NodeModuleLoader
-    : class {}
+/**
+ * AppRouteRouteHandlerContext is the context that is passed to the route
+ * handler for app routes.
+ */
+export interface AppRouteRouteHandlerContext extends RouteHandlerContext {
+  staticGenerationContext: StaticGenerationContext['renderOpts']
+}
+
+/**
+ * AppRouteHandlerFnContext is the context that is passed to the handler as the
+ * second argument.
+ */
+interface AppRouteHandlerFnContext {
+  params?: Params
+}
 
 /**
  * Handler function for app routes.
@@ -64,47 +72,24 @@ export type AppRouteHandlerFn = (
    * Context properties on the request (including the parameters if this was a
    * dynamic route).
    */
-  ctx: { params?: Params }
+  ctx: AppRouteHandlerFnContext
 ) => Response
 
+export type AppRouteUserlandModule = Record<HTTP_METHOD, AppRouteHandlerFn> &
+  Pick<AppConfig, 'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'> & {
+    // TODO: (wyattjoh) create a type for this
+    generateStaticParams?: any
+  }
+
 /**
- * AppRouteModule is the specific userland module that is exported. This will
- * contain the HTTP methods that this route can respond to.
+ * AppRouteModule is the module definition for the available exports from the
+ * compiled app route module.
  */
-export type AppRouteModule = {
-  /**
-   * Contains all the exported userland code.
-   */
-  handlers: Record<HTTP_METHOD, AppRouteHandlerFn> &
-    Record<'dynamic', AppConfig['dynamic']> &
-    Record<'revalidate', AppConfig['revalidate']> &
-    Record<'fetchCache', AppConfig['fetchCache']>
-
-  /**
-   * The exported async storage object for this worker/module.
-   */
-  requestAsyncStorage: RequestAsyncStorage
-
-  /**
-   * The absolute path to the module file
-   */
-  resolvedPagePath: string
-
-  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
-
-  serverHooks: typeof import('../../../client/components/hooks-server-context')
-
-  headerHooks: typeof import('../../../client/components/headers')
-
-  staticGenerationBailout: typeof import('../../../client/components/static-generation-bailout').staticGenerationBailout
-}
-
-export type StaticGenerationContext = {
-  incrementalCache?: IncrementalCache
-  supportsDynamicHTML: boolean
-  nextExport?: boolean
-  fetchCache?: StaticGenerationStore['fetchCache']
-}
+export type AppRouteModule = HandlerModule<
+  AppRouteRouteDefinition,
+  AppRouteRouteHandler,
+  AppRouteUserlandModule
+>
 
 /**
  * Wraps the base next request to a request compatible with the app route
@@ -162,7 +147,12 @@ function cleanURL(urlString: string): string {
 
 function proxyRequest(
   req: NextRequest | Request,
-  module: AppRouteModule
+  { dynamic }: Pick<AppRouteUserlandModule, 'dynamic'>,
+  hooks: {
+    readonly serverHooks: typeof ServerHooks
+    readonly headerHooks: typeof HeaderHooks
+    readonly staticGenerationBailout: typeof StaticGenerationBailout
+  }
 ): Request {
   function handleNextUrlBailout(prop: string | symbol) {
     switch (prop) {
@@ -171,7 +161,7 @@ function proxyRequest(
       case 'toString':
       case 'href':
       case 'origin':
-        module.staticGenerationBailout(`nextUrl.${prop as string}`)
+        hooks.staticGenerationBailout(`nextUrl.${prop as string}`)
         return
       default:
         return
@@ -229,10 +219,7 @@ function proxyRequest(
           get(target, prop) {
             handleNextUrlBailout(prop)
 
-            if (
-              module.handlers.dynamic === 'force-static' &&
-              typeof prop === 'string'
-            ) {
+            if (dynamic === 'force-static' && typeof prop === 'string') {
               const result = handleForceStatic(target.href, prop)
               if (result !== undefined) return result
             }
@@ -254,7 +241,7 @@ function proxyRequest(
   const handleReqBailout = (prop: string | symbol) => {
     switch (prop) {
       case 'headers':
-        module.headerHooks.headers()
+        hooks.headerHooks.headers()
         return
       // if request.url is accessed directly instead of
       // request.nextUrl we bail since it includes query
@@ -266,7 +253,7 @@ function proxyRequest(
       case 'text':
       case 'arrayBuffer':
       case 'formData':
-        module.staticGenerationBailout(`request.${prop}`)
+        hooks.staticGenerationBailout(`request.${prop}`)
         return
       default:
         return
@@ -281,14 +268,11 @@ function proxyRequest(
         return wrappedNextUrl
       }
 
-      if (
-        module.handlers.dynamic === 'force-static' &&
-        typeof prop === 'string'
-      ) {
+      if (dynamic === 'force-static' && typeof prop === 'string') {
         const result = handleForceStatic(target.url, prop)
         if (result !== undefined) return result
       }
-      const value = (target as any)[prop]
+      const value: any = (target as any)[prop]
 
       if (typeof value === 'function') {
         return value.bind(target)
@@ -322,14 +306,15 @@ function getPathnameFromAbsolutePath(absolutePath: string) {
  *
  * @param mod the module to validate
  */
-function validateModule(mod: AppRouteModule) {
-  const { handlers, resolvedPagePath } = mod
-
+function validateModule(
+  userland: Readonly<AppRouteUserlandModule>,
+  resolvedPagePath: string
+) {
   // Print error in development if the exported handlers are in lowercase, only
   // uppercase handlers are supported.
   const lowercased = HTTP_METHODS.map((method) => method.toLowerCase())
   for (const method of lowercased) {
-    if (method in handlers) {
+    if (method in userland) {
       Log.error(
         `Detected lowercase method '${method}' in '${resolvedPagePath}'. Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
       )
@@ -338,7 +323,7 @@ function validateModule(mod: AppRouteModule) {
 
   // Print error if the module exports a default handler, they must use named
   // exports for each HTTP method.
-  if ('default' in handlers) {
+  if ('default' in userland) {
     Log.error(
       `Detected default export in '${resolvedPagePath}'. Export a named export for each HTTP method instead.`
     )
@@ -346,44 +331,78 @@ function validateModule(mod: AppRouteModule) {
 
   // If there is no methods exported by this module, then return a not found
   // response.
-  if (!HTTP_METHODS.some((method) => method in handlers)) {
+  if (!HTTP_METHODS.some((method) => method in userland)) {
     Log.error(
       `No HTTP methods exported in '${resolvedPagePath}'. Export a named export for each HTTP method.`
     )
   }
 }
 
-export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
-  /**
-   * The module for this handler. When set, this will be used instead of loading
-   * the module from the loader.
-   */
-  public module: AppRouteModule | undefined
+export interface AppRouteRouteHandlerOptions {
+  readonly definition: AppRouteRouteDefinition
+  readonly userland: AppRouteUserlandModule
+  readonly resolvedPagePath: string
+  readonly nextConfigOutput: NextConfig['output']
 
-  constructor(
-    private readonly nextConfigOutput: NextConfig['output'] = undefined,
-    private readonly requestAsyncLocalStorageWrapper: AsyncStorageWrapper<
-      RequestStore,
-      RequestContext
-    > = new RequestAsyncStorageWrapper(),
-    protected readonly staticAsyncLocalStorageWrapper = new StaticGenerationAsyncStorageWrapper(),
-    protected readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
-  ) {}
+  // The following are included so that the external packages can call the
+  // correct instance of the storage/hooks objects.
 
-  private resolve(method: string, mod: AppRouteModule): AppRouteHandlerFn {
+  readonly requestAsyncStorage: RequestAsyncStorage
+  readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  readonly serverHooks: typeof ServerHooks
+  readonly headerHooks: typeof HeaderHooks
+  readonly staticGenerationBailout: typeof StaticGenerationBailout
+}
+
+export class AppRouteRouteHandler implements RouteHandler {
+  private readonly definition: AppRouteRouteDefinition
+  private readonly userland: AppRouteUserlandModule
+  private readonly resolvedPagePath: string
+  private readonly nextConfigOutput: NextConfig['output']
+
+  // The following are included so that the external packages can call the
+  // correct instance of the storage/hooks objects.
+
+  private readonly requestAsyncStorage: RequestAsyncStorage
+  private readonly staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  private readonly serverHooks: typeof ServerHooks
+  private readonly headerHooks: typeof HeaderHooks
+  private readonly staticGenerationBailout: typeof StaticGenerationBailout
+
+  constructor({
+    definition,
+    userland,
+    resolvedPagePath,
+    nextConfigOutput,
+    requestAsyncStorage,
+    staticGenerationAsyncStorage,
+    serverHooks,
+    headerHooks,
+    staticGenerationBailout,
+  }: AppRouteRouteHandlerOptions) {
+    this.definition = definition
+    this.userland = userland
+    this.resolvedPagePath = resolvedPagePath
+    this.nextConfigOutput = nextConfigOutput
+
+    this.requestAsyncStorage = requestAsyncStorage
+    this.staticGenerationAsyncStorage = staticGenerationAsyncStorage
+    this.serverHooks = serverHooks
+    this.headerHooks = headerHooks
+    this.staticGenerationBailout = staticGenerationBailout
+  }
+
+  private resolve(method: string): AppRouteHandlerFn {
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(method)) return handleBadRequestResponse
 
-    // Pull out the handlers from the app route module.
-    const { handlers } = mod
-
     // If we're in development, then validate the module.
     if (process.env.NODE_ENV !== 'production') {
-      validateModule(mod)
+      validateModule(this.userland, this.resolvedPagePath)
     }
 
     // Check to see if the requested method is available.
-    const handler: AppRouteHandlerFn | undefined = handlers[method]
+    const handler: AppRouteHandlerFn | undefined = this.userland[method]
     if (handler) return handler
 
     /**
@@ -394,8 +413,8 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
 
     // If HEAD is not provided, but GET is, then we respond to HEAD using the
     // GET handler without the body.
-    if (method === 'HEAD' && 'GET' in handlers) {
-      return handlers['GET']
+    if (method === 'HEAD' && 'GET' in this.userland) {
+      return this.userland['GET']
     }
 
     // If OPTIONS is not provided then implement it.
@@ -403,7 +422,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
       // TODO: check if HEAD is implemented, if so, use it to add more headers
 
       // Get all the handler methods from the list of handlers.
-      const methods = Object.keys(handlers).filter((handlerMethod) =>
+      const methods = Object.keys(this.userland).filter((handlerMethod) =>
         isHTTPMethod(handlerMethod)
       ) as HTTP_METHOD[]
 
@@ -432,71 +451,42 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     return handleMethodNotAllowedResponse
   }
 
-  /**
-   * Loads and patches the module for the given route definition unless it's
-   * already been loaded.
-   *
-   * @param definition the route definition to load the module for
-   * @returns the loaded and patched module
-   */
-  private async load(
-    definition: AppRouteRouteDefinition
-  ): Promise<AppRouteModule> {
-    // Modules that have been provided by the user are already patched.
-    if (this.module) return this.module
-
-    // Load the module using the module loader.
-    const module = await this.moduleLoader.load(definition.filename)
-
-    // Patch the module with the fetch polyfill.
-    patchFetch(module)
-
-    return module
-  }
-
-  // TODO-APP: this is temporarily used for edge.
-  public async execute(
-    { params, definition }: AppRouteRouteMatch,
+  private async execute(
     req: BaseNextRequest,
-    res: BaseNextResponse,
-    context?: StaticGenerationContext
+    context: AppRouteRouteHandlerContext
   ): Promise<Response> {
-    // Load the module.
-    const module = await this.load(definition)
-
     // Get the handler function for the given method.
-    const handle = this.resolve(req.method, module)
+    const handle = this.resolve(req.method)
 
-    // This is added by the webpack loader, we load it directly from the module.
-    const { requestAsyncStorage, staticGenerationAsyncStorage } = module
-
-    const requestContext: RequestContext =
-      process.env.NEXT_RUNTIME === 'edge'
-        ? { req, res }
-        : {
-            req: (req as NodeNextRequest).originalRequest,
-            res: (res as NodeNextResponse).originalResponse,
-          }
-
-    if (context) {
-      context.fetchCache = module.handlers.fetchCache
+    const requestContext: RequestContext = {
+      req:
+        'request' in (req as WebNextRequest)
+          ? req
+          : (req as NodeNextRequest).originalRequest,
     }
+
+    const staticGenerationContext: StaticGenerationContext = {
+      pathname: this.definition.pathname,
+      renderOpts:
+        // If the staticGenerationContext is not provided then we default to
+        // the default values.
+        context.staticGenerationContext ?? {
+          supportsDynamicHTML: false,
+        },
+    }
+
+    // Add the fetchCache option to the renderOpts.
+    staticGenerationContext.renderOpts.fetchCache = this.userland.fetchCache
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
-    const response = await this.requestAsyncLocalStorageWrapper.wrap(
-      requestAsyncStorage,
+    const response = await RequestAsyncStorageWrapper.wrap(
+      this.requestAsyncStorage,
       requestContext,
       () =>
-        this.staticAsyncLocalStorageWrapper.wrap(
-          staticGenerationAsyncStorage,
-          {
-            pathname: definition.pathname,
-            renderOpts: context ?? {
-              supportsDynamicHTML: false,
-              fetchCache: module.handlers.fetchCache,
-            },
-          },
+        StaticGenerationAsyncStorageWrapper.wrap(
+          this.staticGenerationAsyncStorage,
+          staticGenerationContext,
           (staticGenerationStore) => {
             // We can currently only statically optimize if only GET/HEAD
             // are used as a Prerender can't be used conditionally based
@@ -509,32 +499,30 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               'PATCH',
             ]
             const usedNonStaticHandlers = nonStaticHandlers.filter(
-              (name) => name in module.handlers
+              (name) => name in this.userland
             )
 
             if (usedNonStaticHandlers.length > 0) {
-              module.staticGenerationBailout(
+              this.staticGenerationBailout(
                 `non-static methods used ${usedNonStaticHandlers.join(', ')}`
               )
             }
 
+            let dynamic = this.userland.dynamic
             if (this.nextConfigOutput === 'export') {
-              if (
-                !module.handlers.dynamic ||
-                module.handlers.dynamic === 'auto'
-              ) {
-                module.handlers.dynamic = 'error'
-              } else if (module.handlers.dynamic === 'force-dynamic') {
+              if (!dynamic || dynamic === 'auto') {
+                dynamic = 'error'
+              } else if (dynamic === 'force-dynamic') {
                 throw new Error(
                   `export const dynamic = "force-dynamic" on route handler "${handle.name}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
                 )
               }
             }
 
-            switch (module.handlers.dynamic) {
+            switch (dynamic) {
               case 'force-dynamic':
                 staticGenerationStore.forceDynamic = true
-                module.staticGenerationBailout(`dynamic = 'force-dynamic'`)
+                this.staticGenerationBailout(`dynamic = 'force-dynamic'`)
                 break
               case 'force-static':
                 staticGenerationStore.forceStatic = true
@@ -548,14 +536,22 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
 
             if (typeof staticGenerationStore.revalidate === 'undefined') {
               staticGenerationStore.revalidate =
-                module.handlers.revalidate ?? false
+                this.userland.revalidate ?? false
             }
 
             // Wrap the request so we can add additional functionality to cases
             // that might change it's output or affect the rendering.
             const wrappedRequest = proxyRequest(
-              req instanceof WebNextRequest ? req.request : wrapRequest(req),
-              module
+              // TODO: (wyattjoh) replace with unified request type
+              'request' in (req as WebNextRequest)
+                ? ((req as WebNextRequest).request as Request)
+                : wrapRequest(req),
+              { dynamic },
+              {
+                headerHooks: this.headerHooks,
+                serverHooks: this.serverHooks,
+                staticGenerationBailout: this.staticGenerationBailout,
+              }
             )
 
             return getTracer().trace(
@@ -563,10 +559,13 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               {
                 // TODO: propagate this pathname from route matcher
                 spanName: `executing api route (app) ${getPathnameFromAbsolutePath(
-                  module.resolvedPagePath
+                  this.resolvedPagePath
                 )}`,
               },
-              () => handle(wrappedRequest, { params })
+              () =>
+                handle(wrappedRequest, {
+                  params: context.params,
+                })
             )
           }
         )
@@ -615,15 +614,35 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     return response
   }
 
+  /**
+   * When true, indicates that the global interfaces have been patched via the
+   * `patch()` method.
+   */
+  private patched: boolean = false
+
+  /**
+   * Patch will patch any global interfaces that require patching to support
+   * the route handler.
+   */
+  public patch(): void {
+    if (this.patched) return
+
+    // Patch the global fetch.
+    patchFetch({
+      serverHooks: this.serverHooks,
+      staticGenerationAsyncStorage: this.staticGenerationAsyncStorage,
+    })
+
+    this.patched = true
+  }
+
   public async handle(
-    match: AppRouteRouteMatch,
     req: BaseNextRequest,
-    res: BaseNextResponse,
-    context?: StaticGenerationContext
+    context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     try {
       // Execute the route to get the response.
-      const response = await this.execute(match, req, res, context)
+      const response = await this.execute(req, context)
 
       // The response was handled, return it.
       return response

@@ -8,11 +8,12 @@ const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 async function createNextInstall({
-  parentSpan,
-  dependencies,
-  installCommand,
+  parentSpan = null,
+  dependencies = null,
+  installCommand = null,
   packageJson = {},
   dirSuffix = '',
+  onlyPackages = false,
 }) {
   return await parentSpan
     .traceChild('createNextInstall')
@@ -96,6 +97,11 @@ async function createNextInstall({
               repoDir: tmpRepoDir,
             })
           )
+
+        if (onlyPackages) {
+          return pkgPaths
+        }
+
         combinedDependencies = {
           next: pkgPaths.get('next'),
           ...Object.keys(dependencies).reduce((prev, pkg) => {

@@ -11,6 +11,8 @@ import type {
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type { AppRouteUserlandModule } from '../server/future/route-handlers/app-route-route-handler'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -1189,6 +1191,7 @@ export async function buildAppStaticPaths({
     staticGenerationAsyncStorage,
     serverHooks,
   })
+
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
@@ -1215,9 +1218,7 @@ export async function buildAppStaticPaths({
     requestHeaders,
   })
 
-  const wrapper = new StaticGenerationAsyncStorageWrapper()
-
-  return wrapper.wrap(
+  return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
       pathname: page,
@@ -1425,20 +1426,22 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-        const handlers = componentsResult.ComponentMod.handlers
-        const staticGenerationAsyncStorage =
+        const userland: AppRouteUserlandModule | undefined =
+          componentsResult.ComponentMod.userland
+
+        const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
         const serverHooks = componentsResult.ComponentMod.serverHooks
 
-        const generateParams: GenerateParams = handlers
+        const generateParams: GenerateParams = userland
           ? [
               {
                 config: {
-                  revalidate: handlers.revalidate,
-                  dynamic: handlers.dynamic,
-                  dynamicParams: handlers.dynamicParams,
+                  revalidate: userland.revalidate,
+                  dynamic: userland.dynamic,
+                  dynamicParams: userland.dynamicParams,
                 },
-                generateStaticParams: handlers.generateStaticParams,
+                generateStaticParams: userland.generateStaticParams,
                 segmentPath: page,
               },
             ]
