@@ -75,11 +75,13 @@ export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
+    this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
   apply(compiler: webpack.Compiler) {
@@ -148,8 +150,6 @@ export class ClientReferenceEntryPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
-          // Have to be in the optimize stage to run after updating the CSS
-          // asset hash via extract mini css plugin.
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets) => this.createAsset(compilation, assets)
@@ -233,11 +233,13 @@ export class ClientReferenceEntryPlugin {
         })
       )
 
-      // Create action entry
-      if (this.isEdgeServer) {
-        pluginState.edgeServerActions = {}
-      } else {
-        pluginState.serverActions = {}
+      if (this.dev) {
+        // Create action entry every time
+        if (this.isEdgeServer) {
+          pluginState.edgeServerActions = {}
+        } else {
+          pluginState.serverActions = {}
+        }
       }
 
       if (actionEntryImports.size > 0) {
@@ -431,12 +433,14 @@ export class ClientReferenceEntryPlugin {
           },
         }
         const manifest = JSON.stringify(data, null, this.dev ? 2 : undefined)
-        assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
-          manifest
-        ) as unknown as webpack.sources.RawSource
-        assets[FLIGHT_SERVER_CSS_MANIFEST + '.js'] = new sources.RawSource(
-          'self.__RSC_CSS_MANIFEST=' + manifest
-        ) as unknown as webpack.sources.RawSource
+        assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.json`] =
+          new sources.RawSource(
+            manifest
+          ) as unknown as webpack.sources.RawSource
+        assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.js`] =
+          new sources.RawSource(
+            'self.__RSC_CSS_MANIFEST=' + manifest
+          ) as unknown as webpack.sources.RawSource
       }
     )
 
@@ -715,9 +719,9 @@ export class ClientReferenceEntryPlugin {
       actions: JSON.stringify(actionsArray),
     })}!`
 
-    let currentCompilerServerActions = this.isEdgeServer
-      ? pluginState.serverActions
-      : pluginState.edgeServerActions
+    const currentCompilerServerActions = this.isEdgeServer
+      ? pluginState.edgeServerActions
+      : pluginState.serverActions
     for (const [p, names] of actionsArray) {
       for (const name of names) {
         const id = generateActionId(p, name)
@@ -729,6 +733,7 @@ export class ClientReferenceEntryPlugin {
         currentCompilerServerActions[id].workers[bundlePath] = ''
       }
     }
+    pluginState.serverActions
 
     // Inject the entry to the server compiler
     const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
@@ -807,11 +812,12 @@ export class ClientReferenceEntryPlugin {
       null,
       this.dev ? 2 : undefined
     )
-    assets[SERVER_REFERENCE_MANIFEST + '.js'] = new sources.RawSource(
-      'self.__RSC_SERVER_MANIFEST=' + json
-    ) as unknown as webpack.sources.RawSource
-    assets[SERVER_REFERENCE_MANIFEST + '.json'] = new sources.RawSource(
-      json
-    ) as unknown as webpack.sources.RawSource
+
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+      new sources.RawSource(
+        'self.__RSC_SERVER_MANIFEST=' + json
+      ) as unknown as webpack.sources.RawSource
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
+      new sources.RawSource(json) as unknown as webpack.sources.RawSource
   }
 }

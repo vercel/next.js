@@ -229,7 +229,7 @@ export class FontStylesheetGatheringPlugin {
           }
 
           // @ts-expect-error invalid assets type
-          compilation.assets[FONT_MANIFEST] = new sources.RawSource(
+          compilation.assets['../' + FONT_MANIFEST] = new sources.RawSource(
             JSON.stringify(this.manifestContent, null, '  ')
           )
 
