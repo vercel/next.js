@@ -7,7 +7,6 @@ import { join } from "path";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
-// @ts-expect-error INNER_EDGE_CHUNK_GROUP is provided by rust
 import chunkGroup from "INNER_EDGE_CHUNK_GROUP";
 
 import {
