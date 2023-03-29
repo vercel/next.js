@@ -278,9 +278,10 @@ async fn get_app_structure_for_directory(
 
 
 
+let mut output_map = HashMap::new();
 
+foreach subdir {
 
-let mut output_list = HashMap::new();
 
 let map = directory_tree_to_loader_tree(
   subdir_name,
@@ -299,12 +300,12 @@ let map = directory_tree_to_loader_tree(
       },
   ),
 );
-list.for_each(&mut |full_path: String, loader_tree: LoaderTree| {
+map.for_each(&mut |full_path: String, loader_tree: LoaderTree| {
   if let Some(_) = current_level_is_parallel_route {
-      if let Some(value) = output_list.get(&full_path) {
-          output_list.insert(full_path, merge_loader_trees(value.clone(), loader_tree));
+      if let Some(value) = output_map.get(&full_path) {
+          output_map.insert(full_path, merge_loader_trees(value.clone(), loader_tree));
       } else {
-          output_list.insert(full_path, loader_tree);
+          output_map.insert(full_path, loader_tree);
       }
   } else {
       let default_key = "children".to_string();
@@ -323,10 +324,11 @@ list.for_each(&mut |full_path: String, loader_tree: LoaderTree| {
           },
           components: components_without_page_and_default.clone(),
       };
-      if let Some(value) = output_list.get(&full_path) {
-        output_list.insert(full_path, merge_loader_trees(value.clone(), child_loader_tree));
+      if let Some(value) = output_map.get(&full_path) {
+        output_map.insert(full_path, merge_loader_trees(value.clone(), child_loader_tree));
       } else {
-          output_list.insert(full_path, child_loader_tree);
+        output_map.insert(full_path, child_loader_tree);
       }
   }
 },)
+}
