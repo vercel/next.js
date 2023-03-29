@@ -3,9 +3,11 @@ import type {
   AppRouteRouteHandlerContext,
 } from '../server/future/route-handlers/app-route-route-handler'
 import type { FontManifest, FontConfig } from '../server/font-utils'
-import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
-
-import { NextParsedUrlQuery } from '../server/request-meta'
+import type {
+  DomainLocale,
+  ExportPathMap,
+  NextConfigComplete,
+} from '../server/config-shared'
 
 // `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
@@ -64,10 +66,7 @@ interface AmpValidation {
   }
 }
 
-interface PathMap {
-  page: string
-  query?: NextParsedUrlQuery
-}
+type PathMap = ExportPathMap[keyof ExportPathMap]
 
 interface ExportPageInput {
   path: string
