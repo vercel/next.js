@@ -22,6 +22,7 @@ use crate::{
     util::load_next_json,
 };
 
+/// An entry in the Google fonts metrics map
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
@@ -37,7 +38,7 @@ pub(super) struct FontMetricsMapEntry {
 pub(super) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
-pub(super) struct Font {
+struct Fallback {
     pub font_family: String,
     pub adjustment: Option<FontAdjustment>,
 }
@@ -105,7 +106,7 @@ fn lookup_fallback(
     font_family: &str,
     font_metrics_map: FontMetricsMap,
     adjust: bool,
-) -> Result<Font> {
+) -> Result<Fallback> {
     let metrics = font_metrics_map
         .0
         .get(font_family)
@@ -138,7 +139,7 @@ fn lookup_fallback(
         None
     };
 
-    Ok(Font {
+    Ok(Fallback {
         font_family: fallback.name.clone(),
         adjustment: metrics,
     })
@@ -150,7 +151,7 @@ mod tests {
     use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
-    use crate::next_font::google::font_fallback::{lookup_fallback, Font};
+    use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};
 
     #[test]
     fn test_fallback_from_metrics_sans_serif() -> Result<()> {
@@ -172,7 +173,7 @@ mod tests {
 
         assert_eq!(
             lookup_fallback("Inter", font_metrics, true)?,
-            Font {
+            Fallback {
                 font_family: "Arial".to_owned(),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.9000259575934895,
@@ -205,7 +206,7 @@ mod tests {
 
         assert_eq!(
             lookup_fallback("Roboto Slab", font_metrics, true)?,
-            Font {
+            Fallback {
                 font_family: "Times New Roman".to_owned(),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.8902691493151913,

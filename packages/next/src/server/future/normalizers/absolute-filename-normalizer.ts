@@ -18,8 +18,8 @@ export class AbsoluteFilenameNormalizer implements Normalizer {
     private readonly pagesType: 'pages' | 'app' | 'root'
   ) {}
 
-  public normalize(pathname: string): string {
-    return absolutePathToPage(pathname, {
+  public normalize(filename: string): string {
+    return absolutePathToPage(filename, {
       extensions: this.extensions,
       keepIndex: false,
       dir: this.dir,

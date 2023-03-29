@@ -633,7 +633,6 @@ export default async function getBaseWebpackConfig(
     originalRewrites,
     originalRedirects,
     runWebpackSpan,
-    target = COMPILER_NAMES.server,
     appDir,
     middlewareMatchers,
     noMangling = false,
@@ -654,7 +653,6 @@ export default async function getBaseWebpackConfig(
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
-    target?: string
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
@@ -1705,7 +1703,6 @@ export default async function getBaseWebpackConfig(
         'next-client-pages-loader',
         'next-image-loader',
         'next-metadata-image-loader',
-        'next-serverless-loader',
         'next-style-loader',
         'next-flight-loader',
         'next-flight-client-entry-loader',
@@ -2422,7 +2419,6 @@ export default async function getBaseWebpackConfig(
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
     disableOptimizedLoading,
-    target,
     isEdgeRuntime: isEdgeServer,
     reactProductionProfiling,
     webpack: !!config.webpack,

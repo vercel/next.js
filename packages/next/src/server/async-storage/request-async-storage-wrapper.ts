@@ -63,7 +63,7 @@ export class RequestAsyncStorageWrapper
   ): Result {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
-    // invoke, where we'd have to consider server & serverless.
+    // invoke.
     const previewData: PreviewData =
       renderOpts && RequestAsyncStorageWrapper.tryGetPreviewData
         ? // TODO: investigate why previewProps isn't on RenderOpts

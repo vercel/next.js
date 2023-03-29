@@ -22,7 +22,10 @@ use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
     next_client::context::ClientContextType,
     next_config::NextConfigVc,
-    next_font::google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
+    next_font::{
+        google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
+        local::{NextFontLocalCssModuleReplacerVc, NextFontLocalReplacerVc},
+    },
     next_server::context::ServerContextType,
 };
 
@@ -393,6 +396,23 @@ pub async fn insert_next_shared_aliases(
             NextFontGoogleCssModuleReplacerVc::new(project_path, execution_context).into(),
         )
         .into(),
+    );
+
+    import_map.insert_alias(
+        // Request path from js via next-font swc transform
+        AliasPattern::exact("next/font/local/target.css"),
+        ImportMapping::Dynamic(NextFontLocalReplacerVc::new(project_path).into()).into(),
+    );
+
+    import_map.insert_alias(
+        // Request path from js via next-font swc transform
+        AliasPattern::exact("@next/font/local/target.css"),
+        ImportMapping::Dynamic(NextFontLocalReplacerVc::new(project_path).into()).into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
+        ImportMapping::Dynamic(NextFontLocalCssModuleReplacerVc::new(project_path).into()).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
