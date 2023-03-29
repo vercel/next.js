@@ -1491,6 +1491,7 @@ export default class NextNodeServer extends BaseServer {
             }`
 
             const invokeHeaders: typeof req.headers = {
+              'cache-control': '',
               ...req.headers,
               'x-invoke-path': invokePath,
             }
