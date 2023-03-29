@@ -68,6 +68,7 @@ export default function Home() {
             <a
               className="underline text-blue-500"
               target="_blank"
+              rel="noreferrer"
               href="https://github.com/heyitsuzair"
             >
               Github
@@ -78,6 +79,7 @@ export default function Home() {
             <a
               className="underline text-blue-500"
               target="_blank"
+              rel="noreferrer"
               href="https://linkedin.com/in/uzair-dev"
             >
               Linkedin
