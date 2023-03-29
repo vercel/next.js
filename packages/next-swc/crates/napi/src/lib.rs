@@ -42,6 +42,7 @@ use next_binding::swc::core::{
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod app_structure;
 pub mod mdx;
 pub mod minify;
 pub mod parse;

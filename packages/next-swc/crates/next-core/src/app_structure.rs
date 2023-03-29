@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -84,6 +85,8 @@ pub struct Metadata {
     pub twitter: Vec<FileSystemPathVc>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub open_graph: Vec<FileSystemPathVc>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub favicon: Vec<FileSystemPathVc>,
 }
 
 impl Metadata {
@@ -93,8 +96,13 @@ impl Metadata {
             apple,
             twitter,
             open_graph,
+            favicon,
         } = self;
-        icon.is_empty() && apple.is_empty() && twitter.is_empty() && open_graph.is_empty()
+        icon.is_empty()
+            && apple.is_empty()
+            && twitter.is_empty()
+            && open_graph.is_empty()
+            && favicon.is_empty()
     }
 
     fn merge(a: &Self, b: &Self) -> Self {
@@ -108,6 +116,7 @@ impl Metadata {
                 .chain(b.open_graph.iter())
                 .copied()
                 .collect(),
+            favicon: a.favicon.iter().chain(b.favicon.iter()).copied().collect(),
         }
     }
 }
@@ -195,10 +204,12 @@ static STATIC_METADATA_IMAGES: Lazy<HashMap<&'static str, &'static [&'static str
         ])
     });
 
-fn match_metadata_file(basename: &str) -> Option<&str> {
+fn match_metadata_file(basename: &str) -> Option<&'static str> {
     let (stem, ext) = basename.split_once('.')?;
-    let exts = STATIC_METADATA_IMAGES.get(stem)?;
-    exts.contains(&ext).then_some(stem)
+    static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("\\d*$").unwrap());
+    let stem = REGEX.replace(stem, "");
+    let (key, exts) = STATIC_METADATA_IMAGES.get_key_value(stem.as_ref())?;
+    exts.contains(&ext).then_some(key)
 }
 
 #[turbo_tasks::function]
@@ -237,6 +248,7 @@ async fn get_directory_tree(
                         "apple-icon" => Some(&mut metadata.apple),
                         "twitter-image" => Some(&mut metadata.twitter),
                         "opengraph-image" => Some(&mut metadata.open_graph),
+                        "favicon" => Some(&mut metadata.favicon),
                         _ => None,
                     };
 

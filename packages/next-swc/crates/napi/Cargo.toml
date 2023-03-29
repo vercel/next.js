@@ -40,7 +40,11 @@ tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
 turbopack = { workspace = true }
+turbopack-dev = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-node = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 next-binding = { path = "../next-binding", features = [
   "__swc_core_binding_napi",
@@ -49,6 +53,7 @@ next-binding = { path = "../next-binding", features = [
   "__turbo_node_file_trace",
   "__feature_mdx_rs",
 ] }
+next-core = { workspace = true }
 
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]

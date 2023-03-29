@@ -3221,6 +3221,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "next-binding",
+ "next-core",
  "next-swc",
  "once_cell",
  "sentry",
@@ -3232,8 +3233,12 @@ dependencies = [
  "tracing-subscriber",
  "turbo-malloc",
  "turbo-tasks",
+ "turbo-tasks-fs",
  "turbo-tasks-memory",
  "turbopack",
+ "turbopack-core",
+ "turbopack-dev",
+ "turbopack-node",
 ]
 
 [[package]]
