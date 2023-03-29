@@ -62,7 +62,7 @@ export async function webpackBuildImpl(
   duration: number
   pluginState: any
   turbotraceContext?: TurbotraceContext
-  serializedPagesManifestEntries?: typeof NextBuildContext['serializedPagesManifestEntries']
+  serializedPagesManifestEntries?: (typeof NextBuildContext)['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],

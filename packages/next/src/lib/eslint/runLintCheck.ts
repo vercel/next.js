@@ -28,7 +28,7 @@ type Config = {
 
 // 0 is off, 1 is warn, 2 is error. See https://eslint.org/docs/user-guide/configuring/rules#configuring-rules
 const VALID_SEVERITY = ['off', 'warn', 'error'] as const
-type Severity = typeof VALID_SEVERITY[number]
+type Severity = (typeof VALID_SEVERITY)[number]
 
 function isValidSeverity(severity: string): severity is Severity {
   return VALID_SEVERITY.includes(severity as Severity)

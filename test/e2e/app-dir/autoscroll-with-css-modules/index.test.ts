@@ -7,7 +7,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    type BrowserInterface = Awaited<ReturnType<typeof next['browser']>>
+    type BrowserInterface = Awaited<ReturnType<(typeof next)['browser']>>
 
     const getTopScroll = async (browser: BrowserInterface) =>
       await browser.eval('document.documentElement.scrollTop')

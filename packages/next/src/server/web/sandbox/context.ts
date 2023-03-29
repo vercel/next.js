@@ -165,7 +165,7 @@ function getDecorateUnhandledRejection(runtime: EdgeRuntime) {
 
 const NativeModuleMap = (() => {
   const mods: Record<
-    `node:${typeof SUPPORTED_NATIVE_MODULES[number]}`,
+    `node:${(typeof SUPPORTED_NATIVE_MODULES)[number]}`,
     unknown
   > = {
     'node:buffer': pick(BufferImplementation, [

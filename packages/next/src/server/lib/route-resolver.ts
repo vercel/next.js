@@ -156,7 +156,7 @@ export async function makeResolver(
     }
 
     type GetEdgeFunctionInfo =
-      typeof DevServer['prototype']['getEdgeFunctionInfo']
+      (typeof DevServer)['prototype']['getEdgeFunctionInfo']
     const getEdgeFunctionInfo = (
       original: GetEdgeFunctionInfo
     ): GetEdgeFunctionInfo => {
