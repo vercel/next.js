@@ -285,7 +285,7 @@ describe('app dir with output export', () => {
     expect(stdout).toContain('Export successful. Files written to')
     expect(await getFiles()).toEqual(expectedFiles)
   })
-  it('should warn with deprecation message when no config.output detected for next export', async () => {
+  it('should error when no config.output detected for next export', async () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     nextConfig.replace(`output: 'export',`, '')
@@ -294,23 +294,29 @@ describe('app dir with output export', () => {
       expect(await getFiles()).toEqual([])
       let stdout = ''
       let stderr = ''
-      await nextExport(
-        appDir,
-        { outdir: exportDir },
-        {
-          onStdout(msg) {
-            stdout += msg
-          },
-          onStderr(msg) {
-            stderr += msg
-          },
-        }
-      )
+      let error = undefined
+      try {
+        await nextExport(
+          appDir,
+          { outdir: exportDir },
+          {
+            onStdout(msg) {
+              stdout += msg
+            },
+            onStderr(msg) {
+              stderr += msg
+            },
+          }
+        )
+      } catch (e) {
+        error = e
+      }
+      expect(error).toBeDefined()
       expect(stderr).toContain(
-        'warn  - "next export" is deprecated in favor of "output: export" in next.config.js'
+        'error - "next export" does not work with App Router. Please use "output: export" in next.config.js'
       )
-      expect(stdout).toContain('Export successful. Files written to')
-      expect(await getFiles()).toEqual(expectedFiles)
+      expect(stdout).not.toContain('Export successful. Files written to')
+      expect(await getFiles()).toEqual([])
     } finally {
       nextConfig.restore()
       await fs.remove(distDir)

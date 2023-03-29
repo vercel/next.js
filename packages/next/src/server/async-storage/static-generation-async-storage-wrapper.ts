@@ -1,9 +1,9 @@
-import { AsyncStorageWrapper } from './async-storage-wrapper'
+import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
 import type { AsyncLocalStorage } from 'async_hooks'
-import { IncrementalCache } from '../lib/incremental-cache'
+import type { IncrementalCache } from '../lib/incremental-cache'
 
-export type RequestContext = {
+export type StaticGenerationContext = {
   pathname: string
   renderOpts: {
     incrementalCache?: IncrementalCache
@@ -12,26 +12,26 @@ export type RequestContext = {
     isBot?: boolean
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
+
+    /**
+     * A hack around accessing the store value outside the context of the
+     * request.
+     *
+     * @internal
+     * @deprecated should only be used as a temporary workaround
+     */
+    // TODO: remove this when we resolve accessing the store outside the execution context
+    store?: StaticGenerationStore
   }
 }
 
-export class StaticGenerationAsyncStorageWrapper
-  implements AsyncStorageWrapper<StaticGenerationStore, RequestContext>
-{
-  public wrap<Result>(
+export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
+  StaticGenerationStore,
+  StaticGenerationContext
+> = {
+  wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    context: RequestContext,
-    callback: (store: StaticGenerationStore) => Result
-  ): Result {
-    return StaticGenerationAsyncStorageWrapper.wrap(storage, context, callback)
-  }
-
-  /**
-   * @deprecated instance method should be used in favor of the static method
-   */
-  public static wrap<Result>(
-    storage: AsyncLocalStorage<StaticGenerationStore>,
-    { pathname, renderOpts }: RequestContext,
+    { pathname, renderOpts }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -58,8 +58,10 @@ export class StaticGenerationAsyncStorageWrapper
       isPrerendering: renderOpts.nextExport,
       fetchCache: renderOpts.fetchCache,
     }
-    ;(renderOpts as any).store = store
+
+    // TODO: remove this when we resolve accessing the store outside the execution context
+    renderOpts.store = store
 
     return storage.run(store, callback, store)
-  }
+  },
 }
