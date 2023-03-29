@@ -1,10 +1,16 @@
-use anyhow::{bail, Result};
-use futures::StreamExt;
-use turbo_tasks::primitives::StringVc;
+use anyhow::{anyhow, bail, Result};
+use async_stream::try_stream as generator;
+use futures::{
+    channel::mpsc::{unbounded, UnboundedSender},
+    pin_mut, SinkExt, StreamExt, TryStreamExt,
+};
+use parking_lot::Mutex;
+use turbo_tasks::{mark_finished, primitives::StringVc, util::SharedError, RawVc};
+use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, error::PrettyPrintError};
-use turbopack_dev_server::source::{BodyVc, ProxyResult, ProxyResultVc};
+use turbopack_core::{chunk::ChunkingContextVc, error::PrettyPrintError};
+use turbopack_dev_server::source::{Body, BodyError, BodyVc, ProxyResult, ProxyResultVc};
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
 use super::{
@@ -31,118 +37,57 @@ pub async fn render_proxy(
     data: RenderDataVc,
     body: BodyVc,
 ) -> Result<ProxyResultVc> {
-    let intermediate_asset = get_intermediate_asset(
-        module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
-        intermediate_output_path,
-    );
-
-    let pool = get_renderer_pool(
+    let render = render_stream(
         cwd,
         env,
-        intermediate_asset,
+        path,
+        module,
+        runtime_entries,
+        chunking_context,
         intermediate_output_path,
         output_root,
         project_dir,
-        /* debug */ false,
+        data,
+        body,
     )
     .await?;
 
-    let mut operation = match pool.operation().await {
-        Ok(operation) => operation,
-        Err(err) => {
-            return proxy_error(path, err, None).await;
+    let mut stream = render.read();
+    let first = match stream.try_next().await? {
+        Some(f) => f,
+        None => {
+            // If an Error was received first, then it would have been
+            // transformed into a proxy err error response.
+            bail!("did not receive response from render");
         }
     };
 
-    match run_proxy_operation(
-        &mut operation,
-        data,
+    let RenderItem::Headers(data) = first else {
+        bail!("did not receive headers from render");
+    };
+
+    let body = Body::from_stream(stream.map(|item| match item {
+        Ok(RenderItem::BodyChunk(b)) => Ok(b),
+        Ok(v) => Err(BodyError::new(format!("unexpected render item: {:#?}", v))),
+        Err(e) => Err(BodyError::new(format!(
+            "error streaming proxied contents: {}",
+            e
+        ))),
+    }));
+    let result = ProxyResult {
+        status: data.status,
+        headers: data.headers,
         body,
-        intermediate_asset,
-        intermediate_output_path,
-        project_dir,
-    )
-    .await
-    {
-        Ok(proxy_result) => Ok(proxy_result.cell()),
-        Err(err) => Ok(proxy_error(path, err, Some(operation)).await?),
-    }
-}
-
-async fn run_proxy_operation(
-    operation: &mut NodeJsOperation,
-    data: RenderDataVc,
-    body: BodyVc,
-    intermediate_asset: AssetVc,
-    intermediate_output_path: FileSystemPathVc,
-    project_dir: FileSystemPathVc,
-) -> Result<ProxyResult> {
-    let data = data.await?;
-    // First, send the render data.
-    operation
-        .send(RenderProxyOutgoingMessage::Headers { data: &data })
-        .await?;
-
-    let mut body = body.await?.read();
-    // Then, send the binary body in chunks.
-    while let Some(data) = body.next().await {
-        operation
-            .send(RenderProxyOutgoingMessage::BodyChunk { data: &data? })
-            .await?;
-    }
-
-    operation.send(RenderProxyOutgoingMessage::BodyEnd).await?;
-
-    let (status, headers) = match operation.recv().await? {
-        RenderProxyIncomingMessage::Headers {
-            data: ResponseHeaders { status, headers },
-        } => (status, headers),
-        RenderProxyIncomingMessage::Error(error) => {
-            bail!(
-                trace_stack(
-                    error,
-                    intermediate_asset,
-                    intermediate_output_path,
-                    project_dir
-                )
-                .await?
-            )
-        }
-        _ => {
-            bail!("unexpected response from the Node.js process while reading response headers")
-        }
     };
 
-    let body = match operation.recv().await? {
-        RenderProxyIncomingMessage::Body { data: body } => body,
-        RenderProxyIncomingMessage::Error(error) => {
-            bail!(
-                trace_stack(
-                    error,
-                    intermediate_asset,
-                    intermediate_output_path,
-                    project_dir
-                )
-                .await?
-            )
-        }
-        _ => {
-            bail!("unexpected response from the Node.js process while reading response body")
-        }
-    };
-
-    Ok(ProxyResult {
-        status,
-        headers,
-        body: body.into(),
-    })
+    Ok(result.cell())
 }
 
 async fn proxy_error(
     path: FileSystemPathVc,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
-) -> Result<ProxyResultVc> {
+) -> Result<(u16, String)> {
     let message = format!("{}", PrettyPrintError(&error));
 
     let status = match operation {
@@ -156,12 +101,13 @@ async fn proxy_error(
     }
 
     let status_code = 500;
-    let body = &*error_html(
+    let body = error_html(
         status_code,
         "An error occurred while proxying the request to Node.js".to_string(),
         format!("{message}\n\n{}", details.join("\n")),
     )
-    .await?;
+    .await?
+    .clone_value();
 
     RenderingIssue {
         context: path,
@@ -172,13 +118,195 @@ async fn proxy_error(
     .as_issue()
     .emit();
 
-    Ok(ProxyResult {
-        status: status_code,
-        headers: vec![(
-            "content-type".to_string(),
-            "text/html; charset=utf-8".to_string(),
-        )],
-        body: body.clone().into(),
+    Ok((status_code, body))
+}
+
+#[derive(Clone, Debug)]
+#[turbo_tasks::value]
+enum RenderItem {
+    Headers(ResponseHeaders),
+    BodyChunk(Bytes),
+}
+
+type RenderItemResult = Result<RenderItem, SharedError>;
+
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+pub struct RenderStreamSender {
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    get: Box<dyn Fn() -> UnboundedSender<RenderItemResult> + Send + Sync>,
+}
+
+#[turbo_tasks::value(transparent, eq = "manual", cell = "new", serialization = "none")]
+struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
+
+#[turbo_tasks::function]
+fn render_stream(
+    cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
+    path: FileSystemPathVc,
+    module: EcmascriptModuleAssetVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
+    chunking_context: ChunkingContextVc,
+    intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
+    data: RenderDataVc,
+    body: BodyVc,
+) -> RenderStreamVc {
+    // Note the following code uses some hacks to create a child task that produces
+    // a stream that is returned by this task.
+
+    // We create a new cell in this task, which will be updated from the
+    // [render_stream_internal] task.
+    let cell = turbo_tasks::macro_helpers::find_cell_by_type(*RENDERSTREAM_VALUE_TYPE_ID);
+
+    // We initialize the cell with a stream that is open, but has no values.
+    // The first [render_stream_internal] pipe call will pick up that stream.
+    let (sender, receiver) = unbounded();
+    cell.update_shared(RenderStream(Stream::new_open(vec![], Box::new(receiver))));
+    let initial = Mutex::new(Some(sender));
+
+    // run the evaluation as side effect
+    render_stream_internal(
+        cwd,
+        env,
+        path,
+        module,
+        runtime_entries,
+        chunking_context,
+        intermediate_output_path,
+        output_root,
+        project_dir,
+        data,
+        body,
+        RenderStreamSender {
+            get: Box::new(move || {
+                if let Some(sender) = initial.lock().take() {
+                    sender
+                } else {
+                    // In cases when only [render_stream_internal] is (re)executed, we need to
+                    // update the old stream with a new value.
+                    let (sender, receiver) = unbounded();
+                    cell.update_shared(RenderStream(Stream::new_open(vec![], Box::new(receiver))));
+                    sender
+                }
+            }),
+        }
+        .cell(),
+    );
+
+    let raw: RawVc = cell.into();
+    raw.into()
+}
+
+#[turbo_tasks::function]
+async fn render_stream_internal(
+    cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
+    path: FileSystemPathVc,
+    module: EcmascriptModuleAssetVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
+    chunking_context: ChunkingContextVc,
+    intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
+    project_dir: FileSystemPathVc,
+    data: RenderDataVc,
+    body: BodyVc,
+    sender: RenderStreamSenderVc,
+) {
+    mark_finished();
+    let Ok(sender) = sender.await else {
+        // Impossible to handle the error in a good way.
+        return;
+    };
+
+    let stream = generator! {
+        let intermediate_asset = get_intermediate_asset(
+            module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
+            intermediate_output_path,
+        );
+        let pool = get_renderer_pool(
+            cwd,
+            env,
+            intermediate_asset,
+            intermediate_output_path,
+            output_root,
+            project_dir,
+            /* debug */ false,
+        );
+
+        // Read this strongly consistent, since we don't want to run inconsistent
+        // node.js code.
+        let pool = pool.strongly_consistent().await?;
+        let data = data.await?;
+        let mut operation = pool.operation().await?;
+
+        // First, send the render data.
+        operation
+            .send(RenderProxyOutgoingMessage::Headers { data: &data })
+            .await?;
+        // Then, send the binary body in chunks.
+        let mut body = body.await?.read();
+        while let Some(data) = body.next().await {
+            operation
+                .send(RenderProxyOutgoingMessage::BodyChunk { data: &data.unwrap() })
+                .await?;
+        }
+        operation.send(RenderProxyOutgoingMessage::BodyEnd).await?;
+
+        match operation.recv().await? {
+            RenderProxyIncomingMessage::Headers { data } => yield RenderItem::Headers(data),
+            RenderProxyIncomingMessage::Error(error) => {
+                // If we don't get headers, then something is very wrong. Instead, we send down a
+                // 500 proxy error as if it were the proper result.
+                let trace = trace_stack(
+                    error,
+                    intermediate_asset,
+                    intermediate_output_path,
+                    project_dir
+                )
+                .await?;
+                let (status, body) =  proxy_error(path, anyhow!("error rendering: {}", trace), Some(operation)).await?;
+                yield RenderItem::Headers(ResponseHeaders {
+                    status,
+                    headers: vec![(
+                        "content-type".to_string(),
+                        "text/html; charset=utf-8".to_string(),
+                    )],
+                });
+                yield RenderItem::BodyChunk(body.into());
+                return;
+            }
+            v => Err(anyhow!("unexpected message during rendering: {:#?}", v))?,
+        };
+
+        loop {
+            match operation.recv().await? {
+                RenderProxyIncomingMessage::BodyChunk { data } => {
+                    yield RenderItem::BodyChunk(data.into());
+                }
+                RenderProxyIncomingMessage::BodyEnd => break,
+                RenderProxyIncomingMessage::Error(error) => {
+                    // We have already started to send a result, so we can't change the
+                    // headers/body to a proxy error.
+                    operation.disallow_reuse();
+                    let trace =
+                        trace_stack(error, intermediate_asset, intermediate_output_path, project_dir).await?;
+                    Err(anyhow!("error during streaming render: {}", trace))?;
+                }
+                v => Err(anyhow!("unexpected message during rendering: {:#?}", v))?,
+            }
+        }
+    };
+
+    let mut sender = (sender.get)();
+    pin_mut!(stream);
+    while let Some(value) = stream.next().await {
+        if sender.send(value).await.is_err() {
+            return;
+        }
+        if sender.flush().await.is_err() {
+            return;
+        }
     }
-    .cell())
 }

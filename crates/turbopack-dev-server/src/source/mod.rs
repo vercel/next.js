@@ -52,6 +52,26 @@ impl BodyError {
     }
 }
 
+impl From<&str> for BodyError {
+    fn from(err: &str) -> Self {
+        BodyError {
+            err: err.to_string(),
+        }
+    }
+}
+
+impl From<String> for BodyError {
+    fn from(err: String) -> Self {
+        BodyError { err }
+    }
+}
+
+impl From<anyhow::Error> for BodyError {
+    fn from(value: anyhow::Error) -> Self {
+        value.to_string().into()
+    }
+}
+
 /// The return value of a content source when getting a path. A specificity is
 /// attached and when combining results this specificity should be used to order
 /// results.
@@ -246,29 +266,29 @@ pub struct ContentSourceData {
     pub cache_buster: u64,
 }
 
-type Chunk = Result<Bytes, BodyError>;
+pub type BodyChunk = Result<Bytes, BodyError>;
 /// A request body.
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct Body {
     #[turbo_tasks(trace_ignore)]
-    chunks: Stream<Chunk>,
+    chunks: Stream<BodyChunk>,
 }
 
 impl Body {
     /// Creates a new body from a list of chunks.
-    pub fn new(chunks: Vec<Chunk>) -> Self {
+    pub fn new(chunks: Vec<BodyChunk>) -> Self {
         Self {
             chunks: Stream::new_closed(chunks),
         }
     }
 
     /// Returns an iterator over the body's chunks.
-    pub fn read(&self) -> StreamRead<Chunk> {
+    pub fn read(&self) -> StreamRead<BodyChunk> {
         self.chunks.read()
     }
 
-    pub fn from_stream<T: StreamTrait<Item = Chunk> + Send + Sync + Unpin + 'static>(
+    pub fn from_stream<T: StreamTrait<Item = BodyChunk> + Send + Unpin + 'static>(
         source: T,
     ) -> Self {
         Self {

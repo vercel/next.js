@@ -278,6 +278,7 @@ pub async fn get_intermediate_asset(
     .into())
 }
 
+#[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct ResponseHeaders {
     pub status: u16,

@@ -21,7 +21,7 @@ use turbopack_dev_server::{
         specificity::SpecificityVc,
         ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
         ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceResult, ContentSourceResultVc,
-        ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc,
+        ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc, ProxyResult,
     },
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
@@ -237,6 +237,19 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
                 status_code,
                 headers,
             } => ContentSourceContentVc::static_with_headers(content.into(), status_code, headers),
+            StaticResult::StreamedContent {
+                status,
+                headers,
+                ref body,
+            } => ContentSourceContent::HttpProxy(
+                ProxyResult {
+                    status,
+                    headers: headers.await?.clone_value(),
+                    body: body.clone(),
+                }
+                .cell(),
+            )
+            .cell(),
             StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
         })
     }

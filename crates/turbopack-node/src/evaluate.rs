@@ -249,17 +249,6 @@ pub fn evaluate(
     additional_invalidation: CompletionVc,
     debug: bool,
 ) -> JavaScriptEvaluationVc {
-    let pool = get_evaluate_pool(
-        module_asset,
-        cwd,
-        env,
-        context,
-        chunking_context,
-        runtime_entries,
-        additional_invalidation,
-        debug,
-    );
-
     // Note the following code uses some hacks to create a child task that produces
     // a stream that is returned by this task.
 
@@ -278,11 +267,16 @@ pub fn evaluate(
 
     // run the evaluation as side effect
     compute_evaluate_stream(
-        pool,
+        module_asset,
         cwd,
+        env,
         context_ident_for_issue,
+        context,
         chunking_context,
+        runtime_entries,
         args,
+        additional_invalidation,
+        debug,
         JavaScriptStreamSender {
             get: Box::new(move || {
                 if let Some(sender) = initial.lock().take() {
@@ -308,11 +302,16 @@ pub fn evaluate(
 
 #[turbo_tasks::function]
 async fn compute_evaluate_stream(
-    pool: NodeJsPoolVc,
+    module_asset: AssetVc,
     cwd: FileSystemPathVc,
+    env: ProcessEnvVc,
     context_ident_for_issue: AssetIdentVc,
+    context: AssetContextVc,
     chunking_context: ChunkingContextVc,
+    runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
     args: Vec<JsonValueVc>,
+    additional_invalidation: CompletionVc,
+    debug: bool,
     sender: JavaScriptStreamSenderVc,
 ) {
     mark_finished();
@@ -322,7 +321,20 @@ async fn compute_evaluate_stream(
     };
 
     let stream = generator! {
-        let pool = pool.await?;
+        let pool = get_evaluate_pool(
+            module_asset,
+            cwd,
+            env,
+            context,
+            chunking_context,
+            runtime_entries,
+            additional_invalidation,
+            debug,
+        );
+
+        // Read this strongly consistent, since we don't want to run inconsistent
+        // node.js code.
+        let pool = pool.strongly_consistent().await?;
 
         let args = args.into_iter().try_join().await?;
         // Assume this is a one-off operation, so we can kill the process
@@ -407,7 +419,7 @@ async fn pull_operation(
         match operation.recv().await? {
             EvalJavaScriptIncomingMessage::Error(error) => {
                 EvaluationIssue {
-                    error: error.clone(),
+                    error,
                     context_ident: context_ident_for_issue,
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
