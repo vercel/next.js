@@ -1454,6 +1454,15 @@ export default class NextNodeServer extends BaseServer {
               invokePathname = normalizedInvokePathname
             }
 
+            if (
+              query.__nextLocale &&
+              !invokePathname.startsWith(`/${query.__nextLocale}`)
+            ) {
+              invokePathname = `/${query.__nextLocale}${
+                invokePathname === '/' ? '' : invokePathname
+              }`
+            }
+
             if (query.__nextDataReq) {
               invokePathname = `/_next/data/${this.buildId}${invokePathname}.json`
             }

@@ -1974,6 +1974,7 @@ export default async function build(
               '**/*.d.ts',
               '**/*.map',
               '**/next/dist/pages/**/*',
+              '**/next/dist/compiled/jest-worker/**/*',
               '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
               '**/node_modules/webpack5/**/*',
               '**/next/dist/server/lib/squoosh/**/*.wasm',

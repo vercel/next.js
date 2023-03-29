@@ -179,12 +179,12 @@ export async function startServer({
       }
       let didInitialize = false
 
-      for (const worker of ((routerWorker as any)._workerPool?._workers ||
+      for (const _worker of ((routerWorker as any)._workerPool?._workers ||
         []) as {
         _child: ChildProcess
       }[]) {
         // eslint-disable-next-line no-loop-func
-        worker._child.on('exit', (code, signal) => {
+        _worker._child.on('exit', (code, signal) => {
           // catch failed initializing without retry
           if ((code || signal) && !didInitialize) {
             routerWorker?.end()

@@ -1083,7 +1083,7 @@ export default class DevServer extends Server {
               `${basePath || assetPrefix || ''}/_next/webpack-hmr`
             )
           ) {
-            if (this.isRouterWorker) {
+            if (!this.isRenderWorker) {
               this.hotReloader?.onHMR(req, socket, head)
             }
           } else {

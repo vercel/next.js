@@ -23,7 +23,9 @@ createNextDescribe(
       await check(async () => {
         const spans = await getTraces()
         const rootSpans = spans.filter((span) => !span.parentId)
-        return String(rootSpans.length)
+        return rootSpans.length >= numberOfRootTraces
+          ? String(numberOfRootTraces)
+          : rootSpans.length
       }, String(numberOfRootTraces))
     }
 
@@ -40,14 +42,28 @@ createNextDescribe(
       span.parentId = span.parentId === undefined ? undefined : '[parent-id]'
       return span
     }
-    const sanitizeSpans = (spans: SavedSpan[]) =>
-      spans
+    const sanitizeSpans = (spans: SavedSpan[]) => {
+      const seenSpans = new Set()
+      return spans
         .sort((a, b) =>
           (a.attributes?.['next.span_type'] ?? '').localeCompare(
             b.attributes?.['next.span_type'] ?? ''
           )
         )
         .map(sanitizeSpan)
+        .filter((span) => {
+          const target = span.attributes?.['http.target']
+          const result =
+            !span.attributes?.['http.url']?.startsWith('http://localhost') &&
+            !seenSpans.has(target)
+
+          if (target) {
+            seenSpans.add(target)
+          }
+
+          return result
+        })
+    }
 
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
       await waitForRootSpan(numberOfRootTraces)

@@ -367,10 +367,19 @@ export default class Router {
         addRequestMeta(req, '_nextRewroteUrl', parsedUrlUpdated.pathname)
         addRequestMeta(req, '_nextDidRewrite', true)
       }
-      Object.assign(
-        parsedUrlUpdated.query,
-        Object.fromEntries(parsedMatchedPath.searchParams)
-      )
+
+      for (const key of [...new Set(parsedMatchedPath.searchParams.keys())]) {
+        const value = parsedMatchedPath.searchParams.getAll(key)
+        const curValue = parsedUrlUpdated.query[key]
+        parsedUrlUpdated.query[key] = [
+          ...(Array.isArray(curValue) ? curValue : curValue ? curValue : []),
+          ...value,
+        ]
+
+        if (parsedUrlUpdated.query[key]?.length === 1) {
+          parsedUrlUpdated.query[key] = parsedUrlUpdated.query[key]?.[0]
+        }
+      }
     }
 
     for (const route of curRoutes) {
