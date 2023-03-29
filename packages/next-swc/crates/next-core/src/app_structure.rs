@@ -49,27 +49,17 @@ impl Components {
         }
     }
 
-    fn merge(a: &Self, b: &Self) -> Result<Self, (FileSystemPathVc, FileSystemPathVc)> {
-        fn merge_component(
-            a: Option<FileSystemPathVc>,
-            b: Option<FileSystemPathVc>,
-        ) -> Result<Option<FileSystemPathVc>, (FileSystemPathVc, FileSystemPathVc)> {
-            match (a, b) {
-                (None, None) => Ok(None),
-                (Some(x), None) | (None, Some(x)) => Ok(Some(x)),
-                (Some(a), Some(b)) => Err((a, b)),
-            }
-        }
-        Ok(Self {
-            page: merge_component(a.page, b.page)?,
-            layout: merge_component(a.layout, b.layout)?,
-            error: merge_component(a.error, b.error)?,
-            loading: merge_component(a.loading, b.loading)?,
-            template: merge_component(a.template, b.template)?,
-            default: merge_component(a.default, b.default)?,
-            route: merge_component(a.default, b.route)?,
+    fn merge(a: &Self, b: &Self) -> Self {
+        Self {
+            page: a.page.or(b.page),
+            layout: a.layout.or(b.layout),
+            error: a.error.or(b.error),
+            loading: a.loading.or(b.loading),
+            template: a.template.or(b.template),
+            default: a.default.or(b.default),
+            route: a.default.or(b.route),
             metadata: Metadata::merge(&a.metadata, &b.metadata),
-        })
+        }
     }
 }
 
@@ -299,25 +289,7 @@ async fn merge_loader_trees(
         add_parallel_route(app_dir, &mut parallel_routes, key.clone(), tree2_route).await?
     }
 
-    let components = match Components::merge(&*tree1.components.await?, &*tree2.components.await?) {
-        Ok(components) => components.cell(),
-        Err((a, b)) => {
-            DirectoryTreeIssue {
-                severity: IssueSeverity::Error.cell(),
-                app_dir,
-                // TODO better error message
-                message: StringVc::cell(format!(
-                    "Conflict {} vs {}",
-                    a.to_string().await?,
-                    b.to_string().await?
-                )),
-            }
-            .cell()
-            .as_issue()
-            .emit();
-            tree1.components
-        }
-    };
+    let components = Components::merge(&*tree1.components.await?, &*tree2.components.await?).cell();
 
     Ok(LoaderTree {
         segment,
