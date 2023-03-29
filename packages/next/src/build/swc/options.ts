@@ -50,8 +50,8 @@ function getBaseSWCOptions({
     .filter(Array.isArray)
     .map(([name, options]: any) => [require.resolve(name), options])
 
-  // Use modularized imports for next/server to get fully-treeshaking.
-  // This can prevent ImageResponse related assets been bundled into middleware.
+  // Use modularized imports for next/server to ensure treeshaking.
+  // This prevents ImageResponse related assets from being bundled when not used.
   // TODO: move it into next-swc
   const modularizeImports = nextConfig?.modularizeImports || {}
   modularizeImports['next/server'] = {
