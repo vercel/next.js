@@ -1,9 +1,9 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
-import styles from '@/styles/Home.module.css'
+import Head from "next/head";
+import Image from "next/image";
+import { Inter } from "next/font/google";
+import styles from "@/styles/Home.module.css";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
   return (
@@ -26,7 +26,7 @@ export default function Home() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              By{' '}
+              By{" "}
               <Image
                 src="/vercel.svg"
                 alt="Vercel Logo"
@@ -58,11 +58,32 @@ export default function Home() {
             />
           </div>
         </div>
-          <div className='flex flex-col items-center gap-2 mb-10'>
-            <h1 className='text-2xl'>Contributed By <strong className='text-blue-500'>Muhammad Uzair</strong></h1>
-            <h1 className='text-xl'>Follow On <a className='underline text-blue-500' target='_blank' href="https://github.com/heyitsuzair">Github</a></h1>
-            <h1 className='text-xl'>Follow On <a className='underline text-blue-500' target='_blank' href="https://linkedin.com/in/uzair-dev">Linkedin</a></h1>
-          </div>
+        <div className="flex flex-col items-center gap-2 mb-10">
+          <h1 className="text-2xl">
+            Contributed By{" "}
+            <strong className="text-blue-500">Muhammad Uzair</strong>
+          </h1>
+          <h1 className="text-xl">
+            Follow On{" "}
+            <a
+              className="underline text-blue-500"
+              target="_blank"
+              href="https://github.com/heyitsuzair"
+            >
+              Github
+            </a>
+          </h1>
+          <h1 className="text-xl">
+            Follow On{" "}
+            <a
+              className="underline text-blue-500"
+              target="_blank"
+              href="https://linkedin.com/in/uzair-dev"
+            >
+              Linkedin
+            </a>
+          </h1>
+        </div>
 
         <div className={styles.grid}>
           <a
@@ -78,7 +99,6 @@ export default function Home() {
               Find in-depth information about Next.js features and&nbsp;API.
             </p>
           </a>
-
 
           <a
             href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
@@ -118,11 +138,11 @@ export default function Home() {
               Github <span>-&gt;</span>
             </h2>
             <p className={inter.className}>
-             With Tailwind Contributed By MUHAMMAD UZAIR
+              With Tailwind Contributed By MUHAMMAD UZAIR
             </p>
           </a>
         </div>
       </main>
     </>
-  )
+  );
 }
