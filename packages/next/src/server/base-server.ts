@@ -617,6 +617,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // hello/world or backslashes to forward slashes, this does not
       // handle trailing slash as that is handled the same as a next.config.js
       // redirect
+      console.log({ urlNoQuery })
       if (urlNoQuery?.match(/(\\|\/\/)/)) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()

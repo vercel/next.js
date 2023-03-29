@@ -4,6 +4,7 @@ import * as Log from '../../build/output/log'
 import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
+import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
 
 export interface StartServerOptions {
   dir: string
@@ -242,6 +243,7 @@ export async function startServer({
           ignorePath: true,
           xfwd: true,
           ws: true,
+          followRedirects: false,
         })
 
         proxyServer.on('error', () => {
@@ -252,6 +254,20 @@ export async function startServer({
 
       // proxy to router worker
       requestHandler = async (req, res) => {
+        const urlParts = (req.url || '').split('?')
+        const urlNoQuery = urlParts[0]
+
+        // this normalizes repeated slashes in the path e.g. hello//world ->
+        // hello/world or backslashes to forward slashes, this does not
+        // handle trailing slash as that is handled the same as a next.config.js
+        // redirect
+        if (urlNoQuery?.match(/(\\|\/\/)/)) {
+          const cleanUrl = normalizeRepeatedSlashes(req.url!)
+          res.statusCode = 308
+          res.setHeader('Location', cleanUrl)
+          res.end(cleanUrl)
+          return
+        }
         const proxyServer = getProxyServer(req.url || '/')
         proxyServer.web(req, res)
       }
