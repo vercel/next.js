@@ -294,20 +294,26 @@ describe('app dir with output export', () => {
       expect(await getFiles()).toEqual([])
       let stdout = ''
       let stderr = ''
-      await nextExport(
-        appDir,
-        { outdir: exportDir },
-        {
-          onStdout(msg) {
-            stdout += msg
-          },
-          onStderr(msg) {
-            stderr += msg
-          },
-        }
-      )
+      let error = undefined
+      try {
+        await nextExport(
+          appDir,
+          { outdir: exportDir },
+          {
+            onStdout(msg) {
+              stdout += msg
+            },
+            onStderr(msg) {
+              stderr += msg
+            },
+          }
+        )
+      } catch (e) {
+        error = e
+      }
+      expect(error).toBeDefined()
       expect(stderr).toContain(
-        'error  - "next export" does not work with App Router. Please use "output: export" in next.config.js'
+        'error - "next export" does not work with App Router. Please use "output: export" in next.config.js'
       )
       expect(stdout).not.toContain('Export successful. Files written to')
       expect(await getFiles()).toEqual([])
