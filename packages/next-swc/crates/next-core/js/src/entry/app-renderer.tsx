@@ -197,9 +197,6 @@ async function runOperation(renderData: RenderData) {
     cssImports: new Proxy({} as any, cssImportProxyMethods),
     cssModules: {},
   };
-  serverCSSManifest.cssModules = {
-    // page: serverCSSManifest.cssImports["page.js"],
-  };
   const req: IncomingMessage = {
     url: renderData.url,
     method: renderData.method,
