@@ -1812,6 +1812,9 @@ export default class NextNodeServer extends BaseServer {
       ) {
         res.statusCode = err.statusCode
         return this.renderError(err, req, res, path)
+      } else if ((err as any).expose === false) {
+        res.statusCode = 400
+        return this.renderError(null, req, res, path)
       } else {
         throw err
       }

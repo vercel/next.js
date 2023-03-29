@@ -123,19 +123,31 @@ export async function startServer({
       process.exit(1)
     }
   })
-  const host = hostname || '0.0.0.0'
-  let normalizedHost = isIPv6(host) ? `[${host}]` : host
+
+  let targetHost = hostname
 
   await new Promise<void>((resolve) => {
     server.on('listening', () => {
       const addr = server.address()
       port = typeof addr === 'object' ? addr?.port || port : port
-      normalizedHost =
-        !hostname || hostname === '0.0.0.0' ? 'localhost' : hostname
 
-      const appUrl = `http://${normalizedHost}:${port}`
+      let host = !hostname || hostname === '0.0.0.0' ? 'localhost' : hostname
 
-      Log.ready(`started server on ${host}:${port}, url: ${appUrl}`)
+      let normalizedHostname = hostname || '0.0.0.0'
+
+      if (isIPv6(hostname)) {
+        host = host === '::' ? '[::1]' : `[${host}]`
+        normalizedHostname = `[${hostname}]`
+      }
+      targetHost = host
+
+      const appUrl = `http://${host}:${port}`
+
+      Log.ready(
+        `started server on ${normalizedHostname}${
+          (port + '').startsWith(':') ? '' : ':'
+        }${port}, url: ${appUrl}`
+      )
       resolve()
     })
     server.listen(port, hostname)
@@ -222,7 +234,7 @@ export async function startServer({
       didInitialize = true
 
       const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${normalizedHost}:${routerPort}${pathname}`
+        const targetUrl = `http://${targetHost}:${routerPort}${pathname}`
 
         const proxyServer = httpProxy.createProxy({
           target: targetUrl,

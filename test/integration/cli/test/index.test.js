@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import {
+  check,
   findPort,
   killApp,
   launchApp,
@@ -393,9 +394,11 @@ describe('CLI Usage', () => {
         },
       })
 
-      expect(stderr).toMatch('both `sass` and `node-sass` installed')
-
-      await killApp(instance)
+      try {
+        await check(() => stderr, /both `sass` and `node-sass` installed/)
+      } finally {
+        await killApp(instance)
+      }
     })
 
     test('should exit when SIGINT is signalled', async () => {
