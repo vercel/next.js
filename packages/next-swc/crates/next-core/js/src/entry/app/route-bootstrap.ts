@@ -20,7 +20,6 @@ import { staticGenerationBailout } from "next/dist/client/components/static-gene
 
 enhanceGlobals();
 
-// @ts-expect-error ENTRY is set from rust code
 import * as userland from "ENTRY";
 
 const route = new Route({
