@@ -16,29 +16,15 @@ import { formatWithValidation } from "next/dist/shared/lib/router/utils/format-u
 import { initializeHMR } from "@vercel/turbopack-next/dev/client";
 import {
   subscribeToUpdate,
-  subscribeToCssChunkUpdates,
 } from "@vercel/turbopack-next/dev/hmr-client";
 
 import * as _app from "@vercel/turbopack-next/pages/_app";
-// @ts-expect-error PAGE is provided by rust
 import * as page from "PAGE";
 
 async function loadPageChunk(assetPrefix: string, chunkPath: string) {
   const fullPath = assetPrefix + chunkPath;
 
   await __turbopack_load__(fullPath);
-
-  // TODO: the turbopack chunk loader should do this somehow
-  if (chunkPath.endsWith(".css")) {
-    const link = document.querySelector<HTMLLinkElement>(
-      `link[href=${JSON.stringify(fullPath)}]`
-    );
-    if (!link) {
-      throw new Error("stylesheet should be loaded, but is not");
-    }
-
-    subscribeToCssChunkUpdates(assetPrefix, link);
-  }
 }
 
 (async () => {

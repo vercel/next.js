@@ -38,7 +38,7 @@ describe('resolveRouteData', () => {
           },
           {
             userAgent: 'Googlebot',
-            allow: '/bot',
+            allow: ['/bot', '/bot2'],
           },
         ],
       }
@@ -54,7 +54,17 @@ describe('resolveRouteData', () => {
         rules: { allow: '/' },
       }
 
-      resolveRobots(data1)
+      expect(resolveRobots(data1)).toMatchInlineSnapshot(`
+        "User-Agent: *
+        Allow: /
+
+        User-Agent: Googlebot
+        Allow: /bot
+        Allow: /bot2
+
+        "
+      `)
+
       resolveRobots(data2)
       expect(resolveRobots(data3)).toMatchInlineSnapshot(`
         "User-Agent: *

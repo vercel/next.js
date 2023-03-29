@@ -176,6 +176,7 @@ export default function startHandler({
       optimizeFonts: false,
       optimizeCss: false,
       nextScriptWorkers: false,
+      supportsDynamicHTML: true,
       images: {
         deviceSizes: [],
         imageSizes: [],
@@ -188,6 +189,7 @@ export default function startHandler({
         formats: [],
         dangerouslyAllowSVG: false,
         contentSecurityPolicy: "",
+        contentDispositionType: 'inline',
         remotePatterns: [],
         unoptimized: true,
       },
