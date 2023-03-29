@@ -370,11 +370,7 @@ export default class Router {
 
       for (const key of [...new Set(parsedMatchedPath.searchParams.keys())]) {
         const value = parsedMatchedPath.searchParams.getAll(key)
-        const curValue = parsedUrlUpdated.query[key]
-        parsedUrlUpdated.query[key] = [
-          ...(Array.isArray(curValue) ? curValue : curValue ? curValue : []),
-          ...value,
-        ]
+        parsedUrlUpdated.query[key] = [...value]
 
         if (parsedUrlUpdated.query[key]?.length === 1) {
           parsedUrlUpdated.query[key] = parsedUrlUpdated.query[key]?.[0]
