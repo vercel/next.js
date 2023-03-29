@@ -38,13 +38,18 @@ use turbopack_ecmascript::{
 };
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_node::{
-    execution_context::ExecutionContextVc, render::rendered_source::create_node_rendered_source,
+    execution_context::ExecutionContextVc,
+    render::{
+        node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
+    },
     NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
 };
 
 use crate::{
     app_render::next_layout_entry_transition::NextLayoutEntryTransition,
-    app_structure::{get_loader_trees, Components, LoaderTree, LoaderTreeVc, OptionAppDirVc},
+    app_structure::{
+        get_entrypoints, Components, Entrypoint, LoaderTree, LoaderTreeVc, OptionAppDirVc,
+    },
     embed_js::{next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
@@ -319,7 +324,7 @@ pub async fn create_app_source(
     let Some(app_dir) = *app_dir.await? else {
         return Ok(NoContentSourceVc::new().into());
     };
-    let loader_trees = get_loader_trees(app_dir, next_config);
+    let entrypoints = get_entrypoints(app_dir, next_config);
 
     let client_compile_time_info = get_client_compile_time_info(browserslist_query);
 
@@ -365,11 +370,11 @@ pub async fn create_app_source(
 
     let server_runtime_entries = EcmascriptChunkPlaceablesVc::cell(server_runtime_entries);
 
-    let sources = loader_trees
+    let sources = entrypoints
         .await?
         .iter()
-        .map(|(pathname, &loader_tree)| {
-            create_app_source_for_route(
+        .map(|(pathname, &loader_tree)| match loader_tree {
+            Entrypoint::AppPage { loader_tree } => create_app_page_source_for_route(
                 pathname,
                 loader_tree,
                 context_ssr,
@@ -381,7 +386,18 @@ pub async fn create_app_source(
                 server_runtime_entries,
                 fallback_page,
                 output_path,
-            )
+            ),
+            Entrypoint::AppRoute { path } => create_app_route_source_for_route(
+                pathname,
+                path,
+                context_ssr,
+                project_path,
+                app_dir,
+                env,
+                server_root,
+                server_runtime_entries,
+                output_path,
+            ),
         })
         .collect();
 
@@ -390,7 +406,7 @@ pub async fn create_app_source(
 
 #[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
-async fn create_app_source_for_route(
+async fn create_app_page_source_for_route(
     pathname: &str,
     loader_tree: LoaderTreeVc,
     context_ssr: AssetContextVc,
@@ -428,47 +444,45 @@ async fn create_app_source_for_route(
         fallback_page,
     );
 
-    // if let Some(item) = item {
-    //     match *item.await? {
-    //         AppStructureItem::Page {
-    //             segment,
-    //             url,
-    //             specificity,
-    //             page,
-    //         } => {
+    return Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")));
+}
 
-    //         }
-    //         AppStructureItem::Route {
-    //             url,
-    //             specificity,
-    //             route,
-    //             ..
-    //         } => {
-    //             let pathname = pathname_for_path(server_root, url, false, false);
-    //             let params_matcher = NextParamsMatcherVc::new(pathname);
+#[allow(clippy::too_many_arguments)]
+#[turbo_tasks::function]
+async fn create_app_route_source_for_route(
+    pathname: &str,
+    entry_path: FileSystemPathVc,
+    context_ssr: AssetContextVc,
+    project_path: FileSystemPathVc,
+    app_dir: FileSystemPathVc,
+    env: ProcessEnvVc,
+    server_root: FileSystemPathVc,
+    runtime_entries: EcmascriptChunkPlaceablesVc,
+    intermediate_output_path_root: FileSystemPathVc,
+) -> Result<ContentSourceVc> {
+    let pathname_vc = StringVc::cell(pathname.to_string());
 
-    //             sources.push(create_node_api_source(
-    //                 project_path,
-    //                 env,
-    //                 specificity,
-    //                 server_root,
-    //                 params_matcher.into(),
-    //                 pathname,
-    //                 AppRoute {
-    //                     context: context_ssr,
-    //                     server_root,
-    //                     entry_path: route,
-    //                     project_path,
-    //                     intermediate_output_path: intermediate_output_path_root,
-    //                     output_root: intermediate_output_path_root,
-    //                 }
-    //                 .cell()
-    //                 .into(),
-    //                 runtime_entries,
-    //             ));
-    //         }
-    //     }
-    // }
+    let params_matcher = NextParamsMatcherVc::new(pathname_vc);
+
+    let source = create_node_api_source(
+        project_path,
+        env,
+        SpecificityVc::exact(),
+        server_root,
+        params_matcher.into(),
+        pathname_vc,
+        AppRoute {
+            context: context_ssr,
+            server_root,
+            entry_path,
+            project_path,
+            intermediate_output_path: intermediate_output_path_root,
+            output_root: intermediate_output_path_root,
+        }
+        .cell()
+        .into(),
+        runtime_entries,
+    );
 
     return Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")));
 }
@@ -508,7 +522,6 @@ impl AppRendererVc {
             counter: usize,
             imports: Vec<String>,
             loader_tree_code: String,
-            bootstrap_code: String,
             context: AssetContextVc,
         }
 
@@ -517,7 +530,6 @@ impl AppRendererVc {
             counter: 0,
             imports: Vec::new(),
             loader_tree_code: String::new(),
-            bootstrap_code: String::new(),
             context,
         };
 
@@ -554,7 +566,6 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         )),
                     ),
                 );
-                writeln!(state.bootstrap_code, "  ...{chunks_identifier},")?;
             }
             Ok(())
         }
@@ -588,8 +599,9 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 error,
                 layout,
                 loading,
-                metadata: _,
                 template,
+                metadata: _,
+                route: _,
             } = &*components.await?;
             write_component(state, "page", *page)?;
             write_component(state, "default", *default)?;
@@ -608,7 +620,6 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             mut inner_assets,
             imports,
             loader_tree_code,
-            bootstrap_code,
             ..
         } = state;
 

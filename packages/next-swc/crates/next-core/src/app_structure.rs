@@ -3,12 +3,14 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use turbo_tasks::debug::ValueDebugFormat;
 use turbo_tasks::primitives::{StringVc, StringsVc};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks::CompletionVc;
 use turbo_tasks::CompletionsVc;
+use turbo_tasks::ValueToString;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack_core::issue::{Issue, IssueSeverityVc, IssueVc};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc};
 
 use crate::next_config::NextConfigVc;
 
@@ -27,12 +29,14 @@ pub struct Components {
     pub template: Option<FileSystemPathVc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<FileSystemPathVc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub route: Option<FileSystemPathVc>,
     #[serde(skip_serializing_if = "Metadata::is_empty")]
     pub metadata: Metadata,
 }
 
 impl Components {
-    fn without_page_and_default(&self) -> Self {
+    fn without_leafs(&self) -> Self {
         Self {
             page: None,
             layout: self.layout,
@@ -40,30 +44,37 @@ impl Components {
             loading: self.loading,
             template: self.template,
             default: None,
+            route: None,
             metadata: self.metadata.clone(),
         }
     }
 
-    fn merge(a: &Self, b: &Self) -> Self {
-        Self {
-            page: a.page.or(b.page),
-            layout: a.layout.or(b.layout),
-            error: a.error.or(b.error),
-            loading: a.loading.or(b.loading),
-            template: a.template.or(b.template),
-            default: a.default.or(b.default),
-            metadata: Metadata::merge(&a.metadata, &b.metadata),
+    fn merge(a: &Self, b: &Self) -> Result<Self, (FileSystemPathVc, FileSystemPathVc)> {
+        fn merge_component(
+            a: Option<FileSystemPathVc>,
+            b: Option<FileSystemPathVc>,
+        ) -> Result<Option<FileSystemPathVc>, (FileSystemPathVc, FileSystemPathVc)> {
+            match (a, b) {
+                (None, None) => Ok(None),
+                (Some(x), None) | (None, Some(x)) => Ok(Some(x)),
+                (Some(a), Some(b)) => Err((a, b)),
+            }
         }
+        Ok(Self {
+            page: merge_component(a.page, b.page)?,
+            layout: merge_component(a.layout, b.layout)?,
+            error: merge_component(a.error, b.error)?,
+            loading: merge_component(a.loading, b.loading)?,
+            template: merge_component(a.template, b.template)?,
+            default: merge_component(a.default, b.default)?,
+            route: merge_component(a.default, b.route)?,
+            metadata: Metadata::merge(&a.metadata, &b.metadata),
+        })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ComponentsVc {
-    #[turbo_tasks::function]
-    async fn merge(a: ComponentsVc, b: ComponentsVc) -> Result<Self> {
-        Ok(Components::merge(&*a.await?, &*b.await?).cell())
-    }
-
     /// Returns a completion that changes when any route in the components
     /// changes.
     #[turbo_tasks::function]
@@ -223,6 +234,7 @@ async fn get_directory_tree(
                             "loading" => components.loading = Some(file),
                             "template" => components.template = Some(file),
                             "default" => components.default = Some(file),
+                            "route" => components.route = Some(file),
                             _ => {}
                         }
                     }
@@ -268,7 +280,11 @@ pub struct LoaderTree {
 }
 
 #[turbo_tasks::function]
-async fn merge_loader_trees(tree1: LoaderTreeVc, tree2: LoaderTreeVc) -> Result<LoaderTreeVc> {
+async fn merge_loader_trees(
+    app_dir: FileSystemPathVc,
+    tree1: LoaderTreeVc,
+    tree2: LoaderTreeVc,
+) -> Result<LoaderTreeVc> {
     let tree1 = tree1.await?;
     let tree2 = tree2.await?;
 
@@ -280,10 +296,28 @@ async fn merge_loader_trees(tree1: LoaderTreeVc, tree2: LoaderTreeVc) -> Result<
 
     let mut parallel_routes = tree1.parallel_routes.clone();
     for (key, &tree2_route) in tree2.parallel_routes.iter() {
-        add_result(&mut parallel_routes, key.clone(), tree2_route).await?
+        add_parallel_route(app_dir, &mut parallel_routes, key.clone(), tree2_route).await?
     }
 
-    let components = ComponentsVc::merge(tree1.components, tree2.components);
+    let components = match Components::merge(&*tree1.components.await?, &*tree2.components.await?) {
+        Ok(components) => components.cell(),
+        Err((a, b)) => {
+            DirectoryTreeIssue {
+                severity: IssueSeverity::Error.cell(),
+                app_dir,
+                // TODO better error message
+                message: StringVc::cell(format!(
+                    "Conflict {} vs {}",
+                    a.to_string().await?,
+                    b.to_string().await?
+                )),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+            tree1.components
+        }
+    };
 
     Ok(LoaderTree {
         segment,
@@ -293,8 +327,14 @@ async fn merge_loader_trees(tree1: LoaderTreeVc, tree2: LoaderTreeVc) -> Result<
     .cell())
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+pub enum Entrypoint {
+    AppPage { loader_tree: LoaderTreeVc },
+    AppRoute { path: FileSystemPathVc },
+}
+
 #[turbo_tasks::value(transparent)]
-pub struct LoaderTreeByEntrypoint(HashMap<String, LoaderTreeVc>);
+pub struct Entrypoints(HashMap<String, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -304,7 +344,12 @@ fn match_parallel_route(name: &str) -> Option<String> {
     name.strip_prefix('@').map(|s| s.to_string())
 }
 
-async fn add_result(
+fn is_optional_segment(name: &str) -> bool {
+    name.starts_with('(') && name.ends_with(')')
+}
+
+async fn add_parallel_route(
+    app_dir: FileSystemPathVc,
     result: &mut HashMap<String, LoaderTreeVc>,
     key: String,
     loader_tree: LoaderTreeVc,
@@ -312,7 +357,9 @@ async fn add_result(
     match result.entry(key) {
         Entry::Occupied(mut e) => {
             let value = e.get_mut();
-            *value = merge_loader_trees(*value, loader_tree).resolve().await?;
+            *value = merge_loader_trees(app_dir, *value, loader_tree)
+                .resolve()
+                .await?;
         }
         Entry::Vacant(e) => {
             e.insert(loader_tree);
@@ -321,25 +368,70 @@ async fn add_result(
     Ok(())
 }
 
-#[turbo_tasks::function]
-pub fn get_loader_trees(
+async fn add_app_page(
     app_dir: FileSystemPathVc,
-    next_config: NextConfigVc,
-) -> LoaderTreeByEntrypointVc {
-    directory_tree_to_loader_tree(get_directory_tree(app_dir, next_config.page_extensions()))
+    result: &mut HashMap<String, Entrypoint>,
+    key: String,
+    loader_tree: LoaderTreeVc,
+) -> Result<()> {
+    match result.entry(key) {
+        Entry::Occupied(mut e) => {
+            let value = e.get_mut();
+            let Entrypoint::AppPage { loader_tree: value } = value else {
+                 // TODO better error message
+                bail!("Conflicting route")
+            };
+            *value = merge_loader_trees(app_dir, *value, loader_tree)
+                .resolve()
+                .await?;
+        }
+        Entry::Vacant(e) => {
+            e.insert(Entrypoint::AppPage { loader_tree });
+        }
+    }
+    Ok(())
+}
+
+async fn add_app_route(
+    result: &mut HashMap<String, Entrypoint>,
+    key: String,
+    path: FileSystemPathVc,
+) -> Result<()> {
+    match result.entry(key) {
+        Entry::Occupied(_) => {
+            // TODO better error message
+            bail!("Conflicting route")
+        }
+        Entry::Vacant(e) => {
+            e.insert(Entrypoint::AppRoute { path });
+        }
+    }
+    Ok(())
 }
 
 #[turbo_tasks::function]
-pub fn directory_tree_to_loader_tree(directory_tree: DirectoryTreeVc) -> LoaderTreeByEntrypointVc {
-    directory_tree_to_loader_tree_internal("", directory_tree, "")
+pub fn get_entrypoints(app_dir: FileSystemPathVc, next_config: NextConfigVc) -> EntrypointsVc {
+    directory_tree_to_entrypoints(
+        app_dir,
+        get_directory_tree(app_dir, next_config.page_extensions()),
+    )
 }
 
 #[turbo_tasks::function]
-async fn directory_tree_to_loader_tree_internal(
+pub fn directory_tree_to_entrypoints(
+    app_dir: FileSystemPathVc,
+    directory_tree: DirectoryTreeVc,
+) -> EntrypointsVc {
+    directory_tree_to_entrypoints_internal(app_dir, "", directory_tree, "")
+}
+
+#[turbo_tasks::function]
+async fn directory_tree_to_entrypoints_internal(
+    app_dir: FileSystemPathVc,
     directory_name: &str,
     directory_tree: DirectoryTreeVc,
     path_prefix: &str,
-) -> Result<LoaderTreeByEntrypointVc> {
+) -> Result<EntrypointsVc> {
     let mut result = HashMap::new();
 
     let directory_tree = &*directory_tree.await?;
@@ -350,7 +442,8 @@ async fn directory_tree_to_loader_tree_internal(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if let Some(page) = components.page {
-        add_result(
+        add_app_page(
+            app_dir,
             &mut result,
             path_prefix.to_string(),
             if current_level_is_parallel_route {
@@ -380,7 +473,7 @@ async fn directory_tree_to_loader_tree_internal(
                         }
                         .cell(),
                     )]),
-                    components: components.without_page_and_default().cell(),
+                    components: components.without_leafs().cell(),
                 }
                 .cell()
             },
@@ -389,7 +482,8 @@ async fn directory_tree_to_loader_tree_internal(
     }
 
     if let Some(default) = components.default {
-        add_result(
+        add_app_page(
+            app_dir,
             &mut result,
             path_prefix.to_string(),
             if current_level_is_parallel_route {
@@ -419,7 +513,7 @@ async fn directory_tree_to_loader_tree_internal(
                         }
                         .cell(),
                     )]),
-                    components: components.without_page_and_default().cell(),
+                    components: components.without_leafs().cell(),
                 }
                 .cell()
             },
@@ -427,15 +521,21 @@ async fn directory_tree_to_loader_tree_internal(
         .await?;
     }
 
+    if let Some(route) = components.route {
+        add_app_route(&mut result, path_prefix.to_string(), route).await?;
+    }
+
     for (subdir_name, &subdirectory) in subdirectories.iter() {
         let parallel_route_key: Option<String> = match_parallel_route(subdir_name);
-        let map = directory_tree_to_loader_tree_internal(
+        let optional_segment = is_optional_segment(subdir_name);
+        let map = directory_tree_to_entrypoints_internal(
+            app_dir,
             subdir_name,
             subdirectory,
             &format!(
                 "{}{}",
                 path_prefix,
-                if let Some(_) = parallel_route_key {
+                if parallel_route_key.is_some() || optional_segment {
                     format!("")
                 } else {
                     format!(
@@ -447,33 +547,41 @@ async fn directory_tree_to_loader_tree_internal(
             ),
         )
         .await?;
-        for (full_path, &loader_tree) in map.iter() {
-            if current_level_is_parallel_route {
-                add_result(&mut result, full_path.clone(), loader_tree).await?;
-            } else {
-                let child_loader_tree = LoaderTree {
-                    segment: directory_name.to_string(),
-                    parallel_routes: HashMap::from([(
-                        parallel_route_key
-                            .as_deref()
-                            .unwrap_or_else(|| "children")
-                            .to_string(),
-                        loader_tree,
-                    )]),
-                    components: components.without_page_and_default().cell(),
+        for (full_path, &entrypoint) in map.iter() {
+            match entrypoint {
+                Entrypoint::AppPage { loader_tree } => {
+                    if current_level_is_parallel_route {
+                        add_app_page(app_dir, &mut result, full_path.clone(), loader_tree).await?;
+                    } else {
+                        let child_loader_tree = LoaderTree {
+                            segment: directory_name.to_string(),
+                            parallel_routes: HashMap::from([(
+                                parallel_route_key
+                                    .as_deref()
+                                    .unwrap_or_else(|| "children")
+                                    .to_string(),
+                                loader_tree,
+                            )]),
+                            components: components.without_leafs().cell(),
+                        }
+                        .cell();
+                        add_app_page(app_dir, &mut result, full_path.clone(), child_loader_tree)
+                            .await?;
+                    }
                 }
-                .cell();
-                add_result(&mut result, full_path.clone(), child_loader_tree).await?;
+                Entrypoint::AppRoute { path } => {
+                    add_app_route(&mut result, full_path.clone(), path).await?;
+                }
             }
         }
     }
-    Ok(LoaderTreeByEntrypointVc::cell(result))
+    Ok(EntrypointsVc::cell(result))
 }
 
 #[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
     pub severity: IssueSeverityVc,
-    pub path: FileSystemPathVc,
+    pub app_dir: FileSystemPathVc,
     pub message: StringVc,
 }
 
@@ -498,7 +606,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn context(&self) -> FileSystemPathVc {
-        self.path
+        self.app_dir
     }
 
     #[turbo_tasks::function]
