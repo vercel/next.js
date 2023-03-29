@@ -178,15 +178,16 @@ async function runOperation(renderData: RenderData) {
   const cssFilesProxyMethods = {
     get(_target: any, prop: string) {
       const chunks = JSON.parse(prop);
-      const cssChunks = chunks.filter((path) => path.endsWith(".css"));
+      const cssChunks = chunks.filter((path: string) => path.endsWith(".css"));
       return cssChunks;
     }
   };
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {
       const chunks = JSON.parse(prop.replace(/\.js$/, ""));
-      const cssChunks = chunks.filter((path) => path.endsWith(".css"));
-      return cssChunks.map((chunk) =>
+
+      const cssChunks = chunks.filter((path: string) => path.endsWith(".css"));
+      return cssChunks.map((chunk: string) =>
         JSON.stringify([chunk, [chunk]])
       )
     }
@@ -197,7 +198,7 @@ async function runOperation(renderData: RenderData) {
     cssModules: {},
   };
   serverCSSManifest.cssModules = {
-    page: serverCSSManifest.cssImports["page.js"],
+    // page: serverCSSManifest.cssImports["page.js"],
   };
   const req: IncomingMessage = {
     url: renderData.url,
