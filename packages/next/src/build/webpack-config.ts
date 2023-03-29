@@ -1008,6 +1008,9 @@ export default async function getBaseWebpackConfig(
       ...(config.images.loaderFile
         ? {
             'next/dist/shared/lib/image-loader': config.images.loaderFile,
+            ...(isEdgeServer && {
+              'next/dist/esm/shared/lib/image-loader': config.images.loaderFile,
+            }),
           }
         : undefined),
 

@@ -259,6 +259,7 @@ export default async function build(
   appDirOnly = false,
   turboNextBuild = false
 ): Promise<void> {
+  let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       version: process.env.__NEXT_VERSION as string,
@@ -357,6 +358,7 @@ export default async function build(
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
+      hasAppDir = Boolean(appDir)
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -2450,6 +2452,7 @@ export default async function build(
           const exportOptions: ExportOptions = {
             isInvokedFromCli: false,
             nextConfig: exportConfig,
+            hasAppDir,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2465,7 +2468,6 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
-            appPaths,
           }
 
           await exportApp(dir, exportOptions, nextBuildSpan)
@@ -3122,6 +3124,7 @@ export default async function build(
         const options: ExportOptions = {
           isInvokedFromCli: false,
           nextConfig: config,
+          hasAppDir,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),
