@@ -404,6 +404,9 @@ declare module 'next/dist/compiled/shell-quote' {
   export = m
 }
 
+declare module 'next/dist/compiled/@vercel/og/satori-types' {
+  export * from 'satori'
+}
 declare module 'next/dist/compiled/@vercel/og' {
   export * from '@vercel/og'
 }
