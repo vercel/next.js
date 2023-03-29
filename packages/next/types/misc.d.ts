@@ -405,8 +405,7 @@ declare module 'next/dist/compiled/shell-quote' {
 }
 
 declare module 'next/dist/compiled/@vercel/og' {
-  import * as m from '@vercel/og'
-  export = m
+  export * from '@vercel/og'
 }
 declare module 'next/dist/compiled/@vercel/og/index.node'
 declare module 'next/dist/compiled/@vercel/og/index.edge'

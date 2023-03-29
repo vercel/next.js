@@ -1,17 +1,12 @@
 export class ImageResponse {
-  constructor(
-    ...args: ConstructorParameters<
-      typeof import('next/dist/compiled/@vercel/og').ImageResponse
-    >
-  ) {
+  constructor(...args: any[]) {
     const readable = new ReadableStream({
       async start(controller) {
-        const OGImageResponse: typeof import('next/dist/compiled/@vercel/og').ImageResponse =
+        const OGImageResponse =
           // So far we have to manually determine which build to use,
           // as the auto resolving is not working
           (
             await import(
-              /* webpackMode: "lazy" */
               process.env.NEXT_RUNTIME === 'edge'
                 ? 'next/dist/compiled/@vercel/og/index.edge'
                 : 'next/dist/compiled/@vercel/og/index.node'
