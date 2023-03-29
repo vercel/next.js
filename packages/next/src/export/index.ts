@@ -146,6 +146,7 @@ const createProgress = (total: number, label: string) => {
 export interface ExportOptions {
   outdir: string
   isInvokedFromCli: boolean
+  hasAppDir: boolean
   silent?: boolean
   threads?: number
   debugOutput?: boolean
@@ -154,7 +155,7 @@ export interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
-  appPaths?: string[]
+  //appPaths?: string[]
   nextConfig?: NextConfigComplete
 }
 
@@ -164,7 +165,6 @@ export default async function exportApp(
   span: Span
 ): Promise<void> {
   const nextExportSpan = span.traceChild('next-export')
-  const hasAppDir = !!options.appPaths
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -454,13 +454,33 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      serverComponents: hasAppDir,
+      serverComponents: options.hasAppDir,
+      hasServerComponents: options.hasAppDir,
       nextFontManifest: require(join(
         distDir,
         'server',
         `${NEXT_FONT_MANIFEST}.json`
       )),
       images: nextConfig.images,
+      ...(options.hasAppDir
+        ? {
+            clientReferenceManifest: require(join(
+              distDir,
+              SERVER_DIRECTORY,
+              CLIENT_REFERENCE_MANIFEST + '.json'
+            )),
+            serverCSSManifest: require(join(
+              distDir,
+              SERVER_DIRECTORY,
+              FLIGHT_SERVER_CSS_MANIFEST + '.json'
+            )),
+            serverActionsManifest: require(join(
+              distDir,
+              SERVER_DIRECTORY,
+              SERVER_REFERENCE_MANIFEST + '.json'
+            )),
+          }
+        : {}),
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -489,27 +509,6 @@ export default async function exportApp(
         })
         return exportMap
       })
-
-    if (options.buildExport && hasAppDir) {
-      // @ts-expect-error untyped
-      renderOpts.clientReferenceManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        CLIENT_REFERENCE_MANIFEST + '.json'
-      )) as PagesManifest
-      // @ts-expect-error untyped
-      renderOpts.serverCSSManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        FLIGHT_SERVER_CSS_MANIFEST + '.json'
-      )) as PagesManifest
-      // @ts-expect-error untyped
-      renderOpts.serverActionsManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        SERVER_REFERENCE_MANIFEST + '.json'
-      )) as PagesManifest
-    }
 
     // only add missing 404 page when `buildExport` is false
     if (!options.buildExport) {
@@ -705,8 +704,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: hasAppDir,
-            appPaths: options.appPaths || [],
+            serverComponents: options.hasAppDir,
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
