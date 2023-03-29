@@ -1,7 +1,7 @@
 import type { RemotePattern } from '../shared/lib/image-config'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 
@@ -2341,7 +2341,7 @@ export default async function build(
             // pages and incremental pages.
             // n.b. we cannot handle this above in combinedPages because the dynamic
             // page must be in the `pages` array, but not in the mapping.
-            exportPathMap: (defaultMap: any) => {
+            exportPathMap: (defaultMap: ExportPathMap) => {
               // Dynamically routed pages should be prerendered to be used as
               // a client-side skeleton (fallback) while data is being fetched.
               // This ensures the end-user never sees a 500 or slow response from the
@@ -2358,12 +2358,12 @@ export default async function build(
                     if (i18n) {
                       defaultMap[`/${i18n.defaultLocale}${page}`] = {
                         page,
-                        query: { __nextFallback: true },
+                        query: { __nextFallback: 'true' },
                       }
                     } else {
                       defaultMap[page] = {
                         page,
-                        query: { __nextFallback: true },
+                        query: { __nextFallback: 'true' },
                       }
                     }
                   } else {
@@ -2432,11 +2432,10 @@ export default async function build(
 
                     defaultMap[outputPath] = {
                       page: defaultMap[page]?.page || page,
-                      query: { __nextLocale: locale },
-                    }
-
-                    if (isFallback) {
-                      defaultMap[outputPath].query.__nextFallback = true
+                      query: {
+                        __nextLocale: locale,
+                        __nextFallback: isFallback ? 'true' : undefined,
+                      },
                     }
                   }
 
