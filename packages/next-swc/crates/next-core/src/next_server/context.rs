@@ -177,25 +177,21 @@ pub fn get_server_compile_time_info(
     process_env: ProcessEnvVc,
     server_addr: ServerAddrVc,
 ) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironmentVc::current(process_env, server_addr),
-            )),
-            match ty.into_value() {
-                ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-                    Value::new(EnvironmentIntention::ServerRendering)
-                }
-                ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
-                ServerContextType::AppRSC { .. } => {
-                    Value::new(EnvironmentIntention::ServerRendering)
-                }
-                ServerContextType::AppRoute { .. } => Value::new(EnvironmentIntention::Api),
-                ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
-            },
-        ),
-        defines: next_server_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironmentVc::current(process_env, server_addr),
+        )),
+        match ty.into_value() {
+            ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+                Value::new(EnvironmentIntention::ServerRendering)
+            }
+            ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
+            ServerContextType::AppRSC { .. } => Value::new(EnvironmentIntention::ServerRendering),
+            ServerContextType::AppRoute { .. } => Value::new(EnvironmentIntention::Api),
+            ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
+        },
+    ))
+    .defines(next_server_defines())
     .cell()
 }
 
