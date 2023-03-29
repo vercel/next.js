@@ -86,7 +86,7 @@ function merge(
   const metadataBase =
     typeof source?.metadataBase !== 'undefined'
       ? source.metadataBase
-      : source?.metadataBase || target.metadataBase
+      : target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
