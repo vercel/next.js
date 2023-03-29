@@ -30,7 +30,6 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { AppRouteRouteHandlerContext } from './future/route-handlers/app-route-route-handler'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -1526,16 +1525,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : undefined
 
       if (match) {
-        const context: AppRouteRouteHandlerContext = {
-          staticGenerationContext: {
-            supportsDynamicHTML,
-            incrementalCache,
-          },
+        const context = {
+          supportsDynamicHTML,
+          incrementalCache,
         }
 
         try {
           // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, context)
+          const response = await this.handlers.handle(match, req, res, context)
           if (response) {
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -1547,8 +1544,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
-              let revalidate: number | false | undefined =
-                context.staticGenerationContext.store?.revalidate
+              let revalidate: number | false | undefined = (
+                (context as any).store as any as
+                  | { revalidate?: number }
+                  | undefined
+              )?.revalidate
 
               if (typeof revalidate == 'undefined') {
                 revalidate = false
@@ -1702,7 +1702,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
-      async (hasResolved, hadCache): Promise<ResponseCacheEntry | null> => {
+      async (hasResolved, hadCache) => {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
@@ -1822,7 +1822,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (!result) {
           return null
         }
-
         return {
           ...result,
           revalidate:
@@ -2254,7 +2253,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            pathname: '/not-found',
+            pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
             query,
             params: {},
             isAppPath: true,

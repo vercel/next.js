@@ -1,9 +1,9 @@
-import type { AsyncStorageWrapper } from './async-storage-wrapper'
+import { AsyncStorageWrapper } from './async-storage-wrapper'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { IncrementalCache } from '../lib/incremental-cache'
+import { IncrementalCache } from '../lib/incremental-cache'
 
-export type StaticGenerationContext = {
+export type RequestContext = {
   pathname: string
   renderOpts: {
     incrementalCache?: IncrementalCache
@@ -12,26 +12,26 @@ export type StaticGenerationContext = {
     isBot?: boolean
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
-
-    /**
-     * A hack around accessing the store value outside the context of the
-     * request.
-     *
-     * @internal
-     * @deprecated should only be used as a temporary workaround
-     */
-    // TODO: remove this when we resolve accessing the store outside the execution context
-    store?: StaticGenerationStore
   }
 }
 
-export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
-  StaticGenerationStore,
-  StaticGenerationContext
-> = {
-  wrap<Result>(
+export class StaticGenerationAsyncStorageWrapper
+  implements AsyncStorageWrapper<StaticGenerationStore, RequestContext>
+{
+  public wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { pathname, renderOpts }: StaticGenerationContext,
+    context: RequestContext,
+    callback: (store: StaticGenerationStore) => Result
+  ): Result {
+    return StaticGenerationAsyncStorageWrapper.wrap(storage, context, callback)
+  }
+
+  /**
+   * @deprecated instance method should be used in favor of the static method
+   */
+  public static wrap<Result>(
+    storage: AsyncLocalStorage<StaticGenerationStore>,
+    { pathname, renderOpts }: RequestContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -58,10 +58,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isPrerendering: renderOpts.nextExport,
       fetchCache: renderOpts.fetchCache,
     }
-
-    // TODO: remove this when we resolve accessing the store outside the execution context
-    renderOpts.store = store
+    ;(renderOpts as any).store = store
 
     return storage.run(store, callback, store)
-  },
+  }
 }

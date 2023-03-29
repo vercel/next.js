@@ -1,3 +1,10 @@
+function resolveArray<T>(value: T): T[] {
+  if (Array.isArray(value)) {
+    return value
+  }
+  return [value]
+}
+
 function resolveAsArrayOrUndefined<T extends unknown | readonly unknown[]>(
   value: T | T[] | undefined | null
 ): undefined | T[] {
@@ -10,4 +17,4 @@ function resolveAsArrayOrUndefined<T extends unknown | readonly unknown[]>(
   return [value]
 }
 
-export { resolveAsArrayOrUndefined }
+export { resolveAsArrayOrUndefined, resolveArray }

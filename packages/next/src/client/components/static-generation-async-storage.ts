@@ -1,11 +1,10 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
   readonly pathname: string
-  readonly incrementalCache?: IncrementalCache
+  readonly incrementalCache?: import('../../server/lib/incremental-cache').IncrementalCache
   readonly isRevalidate?: boolean
   readonly isPrerendering?: boolean
 
