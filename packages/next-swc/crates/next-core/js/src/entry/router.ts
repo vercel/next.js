@@ -9,10 +9,7 @@ import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
-// @ts-expect-error internal package is injected by Rust
 import middlewareChunkGroup from "MIDDLEWARE_CHUNK_GROUP";
-
-// @ts-expect-error internal package is injected by Rust
 import middlewareConfig from "MIDDLEWARE_CONFIG";
 
 type RouterRequest = {
@@ -74,10 +71,8 @@ async function getResolveRoute(
   );
 
   return await makeResolver(dir, nextConfig, {
-    files: (middlewareChunkGroup as string[]).filter((f) =>
-      /\.[mc]?js$/.test(f)
-    ),
-    matcher: (middlewareConfig as { matcher: string[] }).matcher,
+    files: middlewareChunkGroup.filter((f) => /\.[mc]?js$/.test(f)),
+    matcher: middlewareConfig.matcher,
   });
 }
 

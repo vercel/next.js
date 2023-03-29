@@ -1,5 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
+import fs from 'fs-extra'
 import { check } from 'next-test-utils'
+import path from 'path'
 import { Readable } from 'stream'
 
 import {
@@ -14,6 +16,20 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDeploy, isNextDev, isNextStart }) => {
+    beforeAll(async () => {
+      if (isNextDev) {
+        await fs.move(
+          path.join(next.testDir, 'app/_lowercase'),
+          path.join(next.testDir, 'app/lowercase'),
+          { overwrite: true }
+        )
+        await fs.move(
+          path.join(next.testDir, 'app/_default'),
+          path.join(next.testDir, 'app/default'),
+          { overwrite: true }
+        )
+      }
+    })
     describe('works with api prefix correctly', () => {
       it('statically generates correctly with no dynamic usage', async () => {
         if (isNextStart) {
