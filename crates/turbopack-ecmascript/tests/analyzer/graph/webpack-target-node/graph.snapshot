@@ -107,7 +107,7 @@
         Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(
@@ -213,7 +213,7 @@
         Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(

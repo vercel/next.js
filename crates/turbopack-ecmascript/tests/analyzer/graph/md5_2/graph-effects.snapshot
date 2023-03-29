@@ -1,7 +1,92 @@
 [
+    FreeVar {
+        var: FreeVar(
+            Atom('require' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                30,
+            ),
+            hi: BytePos(
+                37,
+            ),
+            ctxt: #1,
+        },
+    },
     Call {
         func: FreeVar(
-            Require,
+            Atom('require' type=static),
         ),
         args: [
             Value(
@@ -90,7 +175,7 @@
         obj: Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(
@@ -181,9 +266,100 @@
             ctxt: #0,
         },
     },
+    FreeVar {
+        var: FreeVar(
+            Atom('require' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    1,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                59,
+            ),
+            hi: BytePos(
+                66,
+            ),
+            ctxt: #1,
+        },
+    },
     Call {
         func: FreeVar(
-            Require,
+            Atom('require' type=static),
         ),
         args: [
             Value(
@@ -274,9 +450,94 @@
             ctxt: #0,
         },
     },
+    FreeVar {
+        var: FreeVar(
+            Atom('require' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    2,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                99,
+            ),
+            hi: BytePos(
+                106,
+            ),
+            ctxt: #1,
+        },
+    },
     Call {
         func: FreeVar(
-            Require,
+            Atom('require' type=static),
         ),
         args: [
             Value(
@@ -365,7 +626,7 @@
         obj: Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(
@@ -456,9 +717,100 @@
             ctxt: #0,
         },
     },
+    FreeVar {
+        var: FreeVar(
+            Atom('require' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    3,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                131,
+            ),
+            hi: BytePos(
+                138,
+            ),
+            ctxt: #1,
+        },
+    },
     Call {
         func: FreeVar(
-            Require,
+            Atom('require' type=static),
         ),
         args: [
             Value(
@@ -661,6 +1013,108 @@
             ctxt: #0,
         },
     },
+    FreeVar {
+        var: FreeVar(
+            Atom('String' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    4,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Test,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                275,
+            ),
+            hi: BytePos(
+                281,
+            ),
+            ctxt: #1,
+        },
+    },
     Conditional {
         condition: Binary(
             5,
@@ -682,9 +1136,7 @@
             ),
             Equal,
             FreeVar(
-                Other(
-                    Atom('String' type=static),
-                ),
+                Atom('String' type=static),
             ),
         ),
         kind: IfElse {
@@ -1888,9 +2340,7 @@
                                             Member(
                                                 3,
                                                 FreeVar(
-                                                    Other(
-                                                        Atom('Array' type=static),
-                                                    ),
+                                                    Atom('Array' type=static),
                                                 ),
                                                 Constant(
                                                     Str(
@@ -2038,9 +2488,7 @@
                                         obj: Member(
                                             3,
                                             FreeVar(
-                                                Other(
-                                                    Atom('Array' type=static),
-                                                ),
+                                                Atom('Array' type=static),
                                             ),
                                             Constant(
                                                 Str(
@@ -2184,9 +2632,7 @@
                                     },
                                     Member {
                                         obj: FreeVar(
-                                            Other(
-                                                Atom('Array' type=static),
-                                            ),
+                                            Atom('Array' type=static),
                                         ),
                                         prop: Constant(
                                             Str(
@@ -2326,15 +2772,154 @@
                                             ctxt: #0,
                                         },
                                     },
+                                    FreeVar {
+                                        var: FreeVar(
+                                            Atom('Array' type=static),
+                                        ),
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Expr,
+                                            ),
+                                            ExprStmt(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Callee,
+                                            ),
+                                            Callee(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Paren,
+                                            ),
+                                            ParenExpr(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Fn,
+                                            ),
+                                            FnExpr(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Var,
+                                            ),
+                                            VarDecl(
+                                                Decls(
+                                                    4,
+                                                ),
+                                            ),
+                                            VarDeclarator(
+                                                Init,
+                                            ),
+                                            Expr(
+                                                Fn,
+                                            ),
+                                            FnExpr(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Alt,
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Cons,
+                                            ),
+                                            Stmt(
+                                                Expr,
+                                            ),
+                                            ExprStmt(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Assign,
+                                            ),
+                                            AssignExpr(
+                                                Right,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Callee,
+                                            ),
+                                            Callee(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Member,
+                                            ),
+                                            MemberExpr(
+                                                Obj,
+                                            ),
+                                            Expr(
+                                                Member,
+                                            ),
+                                            MemberExpr(
+                                                Obj,
+                                            ),
+                                            Expr(
+                                                Member,
+                                            ),
+                                            MemberExpr(
+                                                Obj,
+                                            ),
+                                            Expr(
+                                                Ident,
+                                            ),
+                                        ],
+                                        span: Span {
+                                            lo: BytePos(
+                                                489,
+                                            ),
+                                            hi: BytePos(
+                                                494,
+                                            ),
+                                            ctxt: #1,
+                                        },
+                                    },
                                     MemberCall {
                                         obj: Member(
                                             5,
                                             Member(
                                                 3,
                                                 FreeVar(
-                                                    Other(
-                                                        Atom('Array' type=static),
-                                                    ),
+                                                    Atom('Array' type=static),
                                                 ),
                                                 Constant(
                                                     Str(
@@ -2579,9 +3164,7 @@
                                 effects: [
                                     Member {
                                         obj: FreeVar(
-                                            Other(
-                                                Atom('Array' type=static),
-                                            ),
+                                            Atom('Array' type=static),
                                         ),
                                         prop: Constant(
                                             Str(
@@ -2709,11 +3292,138 @@
                                             ctxt: #0,
                                         },
                                     },
+                                    FreeVar {
+                                        var: FreeVar(
+                                            Atom('Array' type=static),
+                                        ),
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Expr,
+                                            ),
+                                            ExprStmt(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Callee,
+                                            ),
+                                            Callee(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Paren,
+                                            ),
+                                            ParenExpr(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Fn,
+                                            ),
+                                            FnExpr(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Var,
+                                            ),
+                                            VarDecl(
+                                                Decls(
+                                                    4,
+                                                ),
+                                            ),
+                                            VarDeclarator(
+                                                Init,
+                                            ),
+                                            Expr(
+                                                Fn,
+                                            ),
+                                            FnExpr(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Alt,
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Alt,
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Test,
+                                            ),
+                                            Expr(
+                                                Unary,
+                                            ),
+                                            UnaryExpr(
+                                                Arg,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Callee,
+                                            ),
+                                            Callee(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Member,
+                                            ),
+                                            MemberExpr(
+                                                Obj,
+                                            ),
+                                            Expr(
+                                                Ident,
+                                            ),
+                                        ],
+                                        span: Span {
+                                            lo: BytePos(
+                                                545,
+                                            ),
+                                            hi: BytePos(
+                                                550,
+                                            ),
+                                            ctxt: #1,
+                                        },
+                                    },
                                     MemberCall {
                                         obj: FreeVar(
-                                            Other(
-                                                Atom('Array' type=static),
-                                            ),
+                                            Atom('Array' type=static),
                                         ),
                                         prop: Constant(
                                             Str(
@@ -2848,9 +3558,7 @@
                                             MemberCall(
                                                 4,
                                                 FreeVar(
-                                                    Other(
-                                                        Atom('Array' type=static),
-                                                    ),
+                                                    Atom('Array' type=static),
                                                 ),
                                                 Constant(
                                                     Str(
@@ -28713,9 +29421,7 @@
     },
     Member {
         obj: FreeVar(
-            Other(
-                Atom('module' type=static),
-            ),
+            Atom('module' type=static),
         ),
         prop: Constant(
             Str(
@@ -28796,6 +29502,507 @@
             ),
             hi: BytePos(
                 5682,
+            ),
+            ctxt: #0,
+        },
+    },
+    FreeVar {
+        var: FreeVar(
+            Atom('module' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    7,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            PatOrExpr(
+                Pat,
+            ),
+            Pat(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                5668,
+            ),
+            hi: BytePos(
+                5674,
+            ),
+            ctxt: #1,
+        },
+    },
+    FreeVar {
+        var: FreeVar(
+            Atom('undefined' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    7,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Test,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                5735,
+            ),
+            hi: BytePos(
+                5744,
+            ),
+            ctxt: #1,
+        },
+    },
+    Conditional {
+        condition: Logical(
+            7,
+            Or,
+            [
+                Binary(
+                    3,
+                    Variable(
+                        (
+                            Atom('message' type=inline),
+                            #11,
+                        ),
+                    ),
+                    StrictEqual,
+                    FreeVar(
+                        Atom('undefined' type=static),
+                    ),
+                ),
+                Binary(
+                    3,
+                    Variable(
+                        (
+                            Atom('message' type=inline),
+                            #11,
+                        ),
+                    ),
+                    StrictEqual,
+                    Constant(
+                        Null,
+                    ),
+                ),
+            ],
+        ),
+        kind: If {
+            then: EffectsBlock {
+                effects: [
+                    FreeVar {
+                        var: FreeVar(
+                            Atom('Error' type=static),
+                        ),
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Paren,
+                            ),
+                            ParenExpr(
+                                Expr,
+                            ),
+                            Expr(
+                                Fn,
+                            ),
+                            FnExpr(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    7,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Fn,
+                            ),
+                            FnExpr(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Cons,
+                            ),
+                            Stmt(
+                                Throw,
+                            ),
+                            ThrowStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                New,
+                            ),
+                            NewExpr(
+                                Callee,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: Span {
+                            lo: BytePos(
+                                5782,
+                            ),
+                            hi: BytePos(
+                                5787,
+                            ),
+                            ctxt: #1,
+                        },
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Paren,
+                    ),
+                    ParenExpr(
+                        Expr,
+                    ),
+                    Expr(
+                        Fn,
+                    ),
+                    FnExpr(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    BlockStmt(
+                        Stmts(
+                            7,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Right,
+                    ),
+                    Expr(
+                        Fn,
+                    ),
+                    FnExpr(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    BlockStmt(
+                        Stmts(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        If,
+                    ),
+                    IfStmt(
+                        Cons,
+                    ),
+                ],
+            },
+        },
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    7,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Fn,
+            ),
+            FnExpr(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Test,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                5719,
+            ),
+            hi: BytePos(
+                5819,
             ),
             ctxt: #0,
         },

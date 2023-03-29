@@ -11,7 +11,7 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo},
+    compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     reference_type::ReferenceType,
@@ -80,15 +80,12 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let output_dir = output_fs.root();
 
                 let source = SourceAssetVc::new(input);
-                let compile_time_info = CompileTimeInfo {
-                    environment: EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment::default().into(),
-                        )),
-                        Value::new(EnvironmentIntention::ServerRendering),
-                    ),
-                    defines: CompileTimeDefinesVc::empty(),
-                }
+                let compile_time_info = CompileTimeInfo::builder(EnvironmentVc::new(
+                    Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().into(),
+                    )),
+                    Value::new(EnvironmentIntention::ServerRendering),
+                ))
                 .cell();
                 let context = ModuleAssetContextVc::new(
                     TransitionsByNameVc::cell(HashMap::new()),

@@ -174,17 +174,17 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         )),
         Value::new(EnvironmentIntention::Client),
     );
-    let compile_time_info = CompileTimeInfo {
-        environment: env,
-        defines: compile_time_defines!(
-            process.env.NODE_ENV = "development",
-            DEFINED_VALUE = "value",
-            DEFINED_TRUE = true,
-            A.VERY.LONG.DEFINED.VALUE = "value",
+    let compile_time_info = CompileTimeInfo::builder(env)
+        .defines(
+            compile_time_defines!(
+                process.env.NODE_ENV = "development",
+                DEFINED_VALUE = "value",
+                DEFINED_TRUE = true,
+                A.VERY.LONG.DEFINED.VALUE = "value",
+            )
+            .cell(),
         )
-        .cell(),
-    }
-    .cell();
+        .cell();
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),

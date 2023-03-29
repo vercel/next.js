@@ -40,7 +40,7 @@
                     MemberCall(
                         4,
                         FreeVar(
-                            Require,
+                            Atom('require' type=static),
                         ),
                         Constant(
                             Str(
@@ -271,7 +271,7 @@
                     MemberCall(
                         4,
                         FreeVar(
-                            Require,
+                            Atom('require' type=static),
                         ),
                         Constant(
                             Str(

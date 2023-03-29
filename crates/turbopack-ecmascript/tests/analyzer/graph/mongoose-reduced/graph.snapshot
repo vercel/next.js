@@ -4,7 +4,7 @@
         Call(
             5,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -33,7 +33,7 @@
         Call(
             5,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Concat(
@@ -66,9 +66,7 @@
                 Member(
                     3,
                     FreeVar(
-                        Other(
-                            Atom('global' type=static),
-                        ),
+                        Atom('global' type=static),
                     ),
                     Constant(
                         Str(

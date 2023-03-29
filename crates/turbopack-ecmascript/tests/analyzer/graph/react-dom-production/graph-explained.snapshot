@@ -2301,7 +2301,7 @@ a#994 = arguments[0]
 
 a#997 = arguments[0]
 
-aa = FreeVar(Require)("react")
+aa = FreeVar(require)("react")
 
 ab = (...) => undefined
 
@@ -3648,7 +3648,7 @@ c#994 = L()
 
 c#997 = Zg(a, b)
 
-ca = FreeVar(Require)("scheduler")
+ca = FreeVar(require)("scheduler")
 
 cb = (...) => undefined
 

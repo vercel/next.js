@@ -46,9 +46,7 @@
             Member(
                 3,
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
                 Constant(
                     Str(
@@ -96,9 +94,7 @@
             Member(
                 3,
                 FreeVar(
-                    Other(
-                        Atom('global' type=static),
-                    ),
+                    Atom('global' type=static),
                 ),
                 Constant(
                     Str(

@@ -3,7 +3,7 @@
   | [
         "node",
         [
-            path2["join"](FreeVar(Dirname), "..", "bin", "esbuild")
+            path2["join"](FreeVar(__dirname), "..", "bin", "esbuild")
         ]
     ]
   | [generateBinPath(), []]
@@ -13,7 +13,7 @@ args = esbuildCommandAndArgs()[1]
 
 binPath = (
   | ???*0*
-  | FreeVar(Require)["resolve"](`${pkg}/${subpath}`)
+  | FreeVar(require)["resolve"](`${pkg}/${subpath}`)
   | FreeVar(downloadedBinPath)(pkg, subpath)
 )
 - *0* binPath
@@ -33,7 +33,7 @@ e#15 = ???*0*
 
 esbuildCommandAndArgs = *arrow function 2666*
 
-esbuildLibDir = path["dirname"](FreeVar(Require)["resolve"]("esbuild"))
+esbuildLibDir = path["dirname"](FreeVar(require)["resolve"]("esbuild"))
 
 generateBinPath = (...) => (undefined | FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
 
@@ -63,11 +63,11 @@ knownWindowsPackages = {
     "win32 x64 LE": "esbuild-windows-64"
 }
 
-os = FreeVar(Require)("os")
+os = FreeVar(require)("os")
 
-path = FreeVar(Require)("path")
+path = FreeVar(require)("path")
 
-path2 = FreeVar(Require)("path")
+path2 = FreeVar(require)("path")
 
 pkg#3 = (???*0* | knownWindowsPackages[platformKey] | knownUnixlikePackages[platformKey])
 - *0* pkg
@@ -77,7 +77,7 @@ pkg#7 = pkgAndSubpathForCurrentPlatform()["pkg"]
 
 pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
 
-platformKey = `${FreeVar(NodeProcess)["platform"]} ${os["arch"]()} ${os["endianness"]()}`
+platformKey = `${FreeVar(process)["platform"]} ${os["arch"]()} ${os["endianness"]()}`
 
 subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath

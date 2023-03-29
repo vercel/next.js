@@ -40,7 +40,7 @@
                                         ),
                                         [
                                             FreeVar(
-                                                Dirname,
+                                                Atom('__dirname' type=dynamic),
                                             ),
                                             Constant(
                                                 Str(
@@ -138,7 +138,7 @@
                 MemberCall(
                     7,
                     FreeVar(
-                        Require,
+                        Atom('require' type=static),
                     ),
                     Constant(
                         Str(
@@ -177,9 +177,7 @@
                 Call(
                     4,
                     FreeVar(
-                        Other(
-                            Atom('downloadedBinPath' type=dynamic),
-                        ),
+                        Atom('downloadedBinPath' type=dynamic),
                     ),
                     [
                         Variable(
@@ -356,7 +354,7 @@
                 MemberCall(
                     4,
                     FreeVar(
-                        Require,
+                        Atom('require' type=static),
                     ),
                     Constant(
                         Str(
@@ -390,9 +388,7 @@
                         Undefined,
                     ),
                     FreeVar(
-                        Other(
-                            Atom('ESBUILD_BINARY_PATH' type=dynamic),
-                        ),
+                        Atom('ESBUILD_BINARY_PATH' type=dynamic),
                     ),
                     Variable(
                         (
@@ -735,7 +731,7 @@
         Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(
@@ -753,7 +749,7 @@
         Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(
@@ -771,7 +767,7 @@
         Call(
             3,
             FreeVar(
-                Require,
+                Atom('require' type=static),
             ),
             [
                 Constant(
@@ -915,7 +911,7 @@
                 Member(
                     3,
                     FreeVar(
-                        NodeProcess,
+                        Atom('process' type=static),
                     ),
                     Constant(
                         Str(

@@ -1,1 +1,43 @@
-[]
+[
+    FreeVar {
+        var: FreeVar(
+            Atom('f' type=inline),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    10,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                166,
+            ),
+            hi: BytePos(
+                167,
+            ),
+            ctxt: #1,
+        },
+    },
+]

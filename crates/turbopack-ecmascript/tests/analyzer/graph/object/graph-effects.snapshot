@@ -611,6 +611,61 @@
             ctxt: #0,
         },
     },
+    FreeVar {
+        var: FreeVar(
+            Atom('global' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    16,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Object,
+            ),
+            ObjectLit(
+                Props(
+                    1,
+                ),
+            ),
+            PropOrSpread(
+                Spread,
+            ),
+            SpreadElement(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                548,
+            ),
+            hi: BytePos(
+                554,
+            ),
+            ctxt: #1,
+        },
+    },
     Member {
         obj: Variable(
             (
@@ -762,6 +817,134 @@
                 650,
             ),
             ctxt: #0,
+        },
+    },
+    FreeVar {
+        var: FreeVar(
+            Atom('global' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    20,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Object,
+            ),
+            ObjectLit(
+                Props(
+                    1,
+                ),
+            ),
+            PropOrSpread(
+                Prop,
+            ),
+            Prop(
+                KeyValue,
+            ),
+            KeyValueProp(
+                Key,
+            ),
+            PropName(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                678,
+            ),
+            hi: BytePos(
+                684,
+            ),
+            ctxt: #1,
+        },
+    },
+    FreeVar {
+        var: FreeVar(
+            Atom('global' type=static),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    20,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Object,
+            ),
+            ObjectLit(
+                Props(
+                    3,
+                ),
+            ),
+            PropOrSpread(
+                Prop,
+            ),
+            Prop(
+                KeyValue,
+            ),
+            KeyValueProp(
+                Key,
+            ),
+            PropName(
+                Computed,
+            ),
+            ComputedPropName(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                697,
+            ),
+            hi: BytePos(
+                703,
+            ),
+            ctxt: #1,
         },
     },
     Member {

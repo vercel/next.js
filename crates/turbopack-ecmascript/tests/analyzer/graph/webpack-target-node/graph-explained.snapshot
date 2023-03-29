@@ -17,7 +17,7 @@ __webpack_exports__#4 = ???*0*
 - *0* __webpack_exports__
   ⚠️  pattern without value
 
-__webpack_require__#3 = FreeVar(Require)("../../webpack-api-runtime.js")
+__webpack_require__#3 = FreeVar(require)("../../webpack-api-runtime.js")
 
 __webpack_require__#4 = ???*0*
 - *0* __webpack_require__
@@ -35,7 +35,7 @@ moduleId = ???*0*
 - *0* moduleId
   ⚠️  pattern without value
 
-promises_namespaceObject = FreeVar(Require)("fs/promises")
+promises_namespaceObject = FreeVar(require)("fs/promises")
 
 res = arguments[1]
 

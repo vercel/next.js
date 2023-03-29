@@ -1,4 +1,4 @@
-a = FreeVar(Require)
+a = FreeVar(require)
 
 b = a
 

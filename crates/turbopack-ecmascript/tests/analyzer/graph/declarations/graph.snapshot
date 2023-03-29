@@ -103,9 +103,7 @@
     (
         "ff",
         FreeVar(
-            Other(
-                Atom('f' type=inline),
-            ),
+            Atom('f' type=inline),
         ),
     ),
 ]

@@ -1313,33 +1313,25 @@
                     Call(
                         16,
                         FreeVar(
-                            Other(
-                                Atom('safeAdd' type=inline),
-                            ),
+                            Atom('safeAdd' type=inline),
                         ),
                         [
                             Call(
                                 13,
                                 FreeVar(
-                                    Other(
-                                        Atom('bitRotateLeft' type=dynamic),
-                                    ),
+                                    Atom('bitRotateLeft' type=dynamic),
                                 ),
                                 [
                                     Call(
                                         10,
                                         FreeVar(
-                                            Other(
-                                                Atom('safeAdd' type=inline),
-                                            ),
+                                            Atom('safeAdd' type=inline),
                                         ),
                                         [
                                             Call(
                                                 4,
                                                 FreeVar(
-                                                    Other(
-                                                        Atom('safeAdd' type=inline),
-                                                    ),
+                                                    Atom('safeAdd' type=inline),
                                                 ),
                                                 [
                                                     Variable(
@@ -1359,9 +1351,7 @@
                                             Call(
                                                 4,
                                                 FreeVar(
-                                                    Other(
-                                                        Atom('safeAdd' type=inline),
-                                                    ),
+                                                    Atom('safeAdd' type=inline),
                                                 ),
                                                 [
                                                     Variable(
