@@ -1037,7 +1037,6 @@ export async function renderToHTMLOrFlight(
                 <MetadataTree key={requestId} metadata={metadataItems} />
               </>
             ),
-            // {/* `http://localhost:3000${req.url}` */}
             injectedCSS: new Set(),
             injectedFontPreloadTags: new Set(),
             rootLayoutIncluded: false,
