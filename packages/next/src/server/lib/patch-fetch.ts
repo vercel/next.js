@@ -22,11 +22,11 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
   const originFetch = globalThis.fetch
 
-  // @ts-expect-error - we're patching fetch
-  // eslint-disable-next-line no-native-reassign
-  fetch = async (input: RequestInfo | URL, init: RequestInit | undefined) => {
-  const fetchIdx = nextFetchIdx++
-  let url
+  globalThis.fetch = async (
+    input: RequestInfo | URL,
+    init: RequestInit | undefined
+  ) => {
+    let url
     try {
       url = new URL(input instanceof Request ? input.url : input)
       url.username = ''
@@ -36,8 +36,9 @@ export function patchFetch({
       url = undefined
     }
 
+    const method = init?.method?.toUpperCase() || 'GET'
     const originUrl = url?.toString() ?? ''
-    const method = (init?.method || 'GET').toUpperCase()
+    const fetchIdx = nextFetchIdx++
 
     return await getTracer().trace(
       AppRenderSpan.fetch,
@@ -347,7 +348,7 @@ export function patchFetch({
             }
 
             const hasNextConfig = 'next' in init
-            const next = init.next || ({} as NextFetchRequestConfig)
+            const next = init.next || {}
             if (
               typeof next.revalidate === 'number' &&
               (typeof staticGenerationStore.revalidate === 'undefined' || typeof staticGenerationStore.revalidate === 'boolean' ||
