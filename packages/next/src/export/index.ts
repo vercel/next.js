@@ -143,9 +143,14 @@ const createProgress = (total: number, label: string) => {
   }
 }
 
+export class ExportError extends Error {
+  type = 'ExportError'
+}
+
 export interface ExportOptions {
   outdir: string
   isInvokedFromCli: boolean
+  hasAppDir: boolean
   silent?: boolean
   threads?: number
   debugOutput?: boolean
@@ -154,7 +159,6 @@ export interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
-  appPaths?: string[]
   nextConfig?: NextConfigComplete
 }
 
@@ -164,7 +168,6 @@ export default async function exportApp(
   span: Span
 ): Promise<void> {
   const nextExportSpan = span.traceChild('next-export')
-  const hasAppDir = !!options.appPaths
 
   return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
@@ -180,21 +183,25 @@ export default async function exportApp(
         .traceChild('load-next-config')
         .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
 
+    const threads = options.threads || nextConfig.experimental.cpus
+    const distDir = join(dir, nextConfig.distDir)
+
     if (options.isInvokedFromCli) {
       if (nextConfig.output === 'export') {
         Log.warn(
-          '"next export" is no longer needed when "output: export" is configured in next.config.js'
+          '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
         return
-      } else {
-        Log.warn(
-          '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+      }
+      if (existsSync(join(distDir, 'server', 'app'))) {
+        throw new ExportError(
+          '"next export" does not work with App Router. Please use "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
         )
       }
+      Log.warn(
+        '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
+      )
     }
-
-    const threads = options.threads || nextConfig.experimental.cpus
-    const distDir = join(dir, nextConfig.distDir)
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
@@ -222,7 +229,7 @@ export default async function exportApp(
     const buildIdFile = join(distDir, BUILD_ID_FILE)
 
     if (!existsSync(buildIdFile)) {
-      throw new Error(
+      throw new ExportError(
         `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
       )
     }
@@ -328,13 +335,13 @@ export default async function exportApp(
     const outDir = options.outdir
 
     if (outDir === join(dir, 'public')) {
-      throw new Error(
+      throw new ExportError(
         `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-public`
       )
     }
 
     if (outDir === join(dir, 'static')) {
-      throw new Error(
+      throw new ExportError(
         `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-static`
       )
     }
@@ -395,7 +402,7 @@ export default async function exportApp(
     } = nextConfig
 
     if (i18n && !options.buildExport) {
-      throw new Error(
+      throw new ExportError(
         `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
       )
     }
@@ -416,7 +423,7 @@ export default async function exportApp(
         !unoptimized &&
         !hasNextSupport
       ) {
-        throw new Error(
+        throw new ExportError(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
     - Use \`next start\` to run a server, which includes the Image Optimization API.
@@ -454,13 +461,33 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-      serverComponents: hasAppDir,
+      serverComponents: options.hasAppDir,
+      hasServerComponents: options.hasAppDir,
       nextFontManifest: require(join(
         distDir,
         'server',
         `${NEXT_FONT_MANIFEST}.json`
       )),
       images: nextConfig.images,
+      ...(options.hasAppDir
+        ? {
+            clientReferenceManifest: require(join(
+              distDir,
+              SERVER_DIRECTORY,
+              CLIENT_REFERENCE_MANIFEST + '.json'
+            )),
+            serverCSSManifest: require(join(
+              distDir,
+              SERVER_DIRECTORY,
+              FLIGHT_SERVER_CSS_MANIFEST + '.json'
+            )),
+            serverActionsManifest: require(join(
+              distDir,
+              SERVER_DIRECTORY,
+              SERVER_REFERENCE_MANIFEST + '.json'
+            )),
+          }
+        : {}),
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -489,27 +516,6 @@ export default async function exportApp(
         })
         return exportMap
       })
-
-    if (options.buildExport && hasAppDir) {
-      // @ts-expect-error untyped
-      renderOpts.clientReferenceManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        CLIENT_REFERENCE_MANIFEST + '.json'
-      )) as PagesManifest
-      // @ts-expect-error untyped
-      renderOpts.serverCSSManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        FLIGHT_SERVER_CSS_MANIFEST + '.json'
-      )) as PagesManifest
-      // @ts-expect-error untyped
-      renderOpts.serverActionsManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        SERVER_REFERENCE_MANIFEST + '.json'
-      )) as PagesManifest
-    }
 
     // only add missing 404 page when `buildExport` is false
     if (!options.buildExport) {
@@ -565,7 +571,7 @@ export default async function exportApp(
       }
 
       if (fallbackEnabledPages.size) {
-        throw new Error(
+        throw new ExportError(
           `Found pages with \`fallback\` enabled:\n${[
             ...fallbackEnabledPages,
           ].join('\n')}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
@@ -654,7 +660,7 @@ export default async function exportApp(
         timeout: timeout * 1000,
         onRestart: (_method, [{ path }], attempts) => {
           if (attempts >= 3) {
-            throw new Error(
+            throw new ExportError(
               `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
             )
           }
@@ -705,8 +711,7 @@ export default async function exportApp(
               nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
             httpAgentOptions: nextConfig.httpAgentOptions,
-            serverComponents: hasAppDir,
-            appPaths: options.appPaths || [],
+            serverComponents: options.hasAppDir,
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
@@ -834,13 +839,13 @@ export default async function exportApp(
       console.log(formatAmpMessages(ampValidations))
     }
     if (hadValidationError) {
-      throw new Error(
+      throw new ExportError(
         `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
       )
     }
 
     if (renderError) {
-      throw new Error(
+      throw new ExportError(
         `Export encountered errors on following paths:\n\t${errorPaths
           .sort()
           .join('\n\t')}`
