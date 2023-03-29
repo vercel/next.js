@@ -21,6 +21,28 @@ const describeCase = (
   )
 }
 describe('Instrumentation Hook', () => {
+  createNextDescribe(
+    'with-esm-import',
+    {
+      files: path.join(__dirname, 'with-esm-import'),
+      nextConfig: {
+        experimental: {
+          instrumentationHook: true,
+        },
+      },
+      dependencies: {
+        '@vercel/og': ' 0.5.0', // This version uses ESM
+      },
+      skipDeployment: true,
+    },
+    ({ next }) => {
+      it('with-esm-import should run the instrumentation hook', async () => {
+        await next.render('/')
+        await check(() => next.cliOutput, /register threw error/)
+      })
+    }
+  )
+
   describeCase('with-middleware', ({ next }) => {
     it('with-middleware should run the instrumentation hook', async () => {
       await next.render('/')
