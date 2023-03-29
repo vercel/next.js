@@ -738,6 +738,7 @@ export default class HotReloader {
                 const appDirLoader = isAppPath
                   ? getAppEntry({
                       name: bundlePath,
+                      page,
                       appPaths: entryData.appPaths,
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
@@ -752,6 +753,7 @@ export default class HotReloader {
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
                       assetPrefix: this.config.assetPrefix,
+                      nextConfigOutput: this.config.output,
                     }).import
                   : undefined
 
@@ -819,6 +821,7 @@ export default class HotReloader {
                   value: isAppPath
                     ? getAppEntry({
                         name: bundlePath,
+                        page,
                         appPaths: entryData.appPaths,
                         pagePath: posix.join(
                           APP_DIR_ALIAS,
@@ -833,6 +836,7 @@ export default class HotReloader {
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
                         assetPrefix: this.config.assetPrefix,
+                        nextConfigOutput: this.config.output,
                       })
                     : relativeRequest,
                   hasAppDir,
