@@ -2469,7 +2469,6 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
-            appPaths,
           }
 
           await exportApp(dir, exportOptions, nextBuildSpan)
