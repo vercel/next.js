@@ -1,24 +1,26 @@
-import type {
-  Robots,
-  Sitemap,
-} from '../../../../lib/metadata/types/metadata-interface'
-import type { Manifest } from '../../../../lib/metadata/types/manifest-types'
-import { resolveAsArrayOrUndefined } from '../../../../lib/metadata/generate/utils'
+import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
+import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
 // convert robots data to txt string
-export function resolveRobots(data: Robots): string {
+export function resolveRobots(data: MetadataRoute['robots']): string {
   let content = ''
   const rules = Array.isArray(data.rules) ? data.rules : [data.rules]
   for (const rule of rules) {
-    const userAgent = resolveAsArrayOrUndefined(rule.userAgent) || ['*']
+    const userAgent = resolveArray(rule.userAgent || ['*'])
     for (const agent of userAgent) {
       content += `User-Agent: ${agent}\n`
     }
     if (rule.allow) {
-      content += `Allow: ${rule.allow}\n`
+      const allow = resolveArray(rule.allow)
+      for (const item of allow) {
+        content += `Allow: ${item}\n`
+      }
     }
     if (rule.disallow) {
-      content += `Disallow: ${rule.disallow}\n`
+      const disallow = resolveArray(rule.disallow)
+      for (const item of disallow) {
+        content += `Disallow: ${item}\n`
+      }
     }
     if (rule.crawlDelay) {
       content += `Crawl-delay: ${rule.crawlDelay}\n`
@@ -28,8 +30,8 @@ export function resolveRobots(data: Robots): string {
   if (data.host) {
     content += `Host: ${data.host}\n`
   }
-  const sitemap = resolveAsArrayOrUndefined(data.sitemap)
-  if (sitemap) {
+  if (data.sitemap) {
+    const sitemap = resolveArray(data.sitemap)
     // TODO-METADATA: support injecting sitemap url into robots.txt
     sitemap.forEach((item) => {
       content += `Sitemap: ${item}\n`
@@ -41,7 +43,7 @@ export function resolveRobots(data: Robots): string {
 
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
-export function resolveSitemap(data: Sitemap): string {
+export function resolveSitemap(data: MetadataRoute['sitemap']): string {
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
   content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -61,22 +63,25 @@ export function resolveSitemap(data: Sitemap): string {
   return content
 }
 
-export function resolveManifest(data: Manifest): string {
+export function resolveManifest(data: MetadataRoute['manifest']): string {
   return JSON.stringify(data)
 }
 
 export function resolveRouteData(
-  data: Robots | Sitemap | Manifest,
-  fileType: 'robots' | 'sitemap' | 'manifest'
+  data:
+    | MetadataRoute['robots']
+    | MetadataRoute['sitemap']
+    | MetadataRoute['manifest'],
+  fileType: keyof MetadataRoute
 ): string {
   if (fileType === 'robots') {
-    return resolveRobots(data as Robots)
+    return resolveRobots(data as MetadataRoute['robots'])
   }
   if (fileType === 'sitemap') {
-    return resolveSitemap(data as Sitemap)
+    return resolveSitemap(data as MetadataRoute['sitemap'])
   }
   if (fileType === 'manifest') {
-    return resolveManifest(data as Manifest)
+    return resolveManifest(data as MetadataRoute['manifest'])
   }
   return ''
 }
