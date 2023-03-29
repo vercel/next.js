@@ -19,16 +19,17 @@ function resolveUrl(
   } catch (_) {}
 
   if (!metadataBase) {
-    throw new Error(
-      `metadata.metadataBase needs to be provided for resolving absolute URL: ${url}`
-    )
-  }
-  if (metadataBase.origin === 'http://n') {
-    metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
-    // Development mode warning
-    warnOnce(
-      `"metadataBase" is not set and fallbacks to "${metadataBase.origin}", please specify it in root layout to resolve absolute urls.`
-    )
+    if (process.env.NODE_ENV !== 'production') {
+      metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
+      // Development mode warning
+      warnOnce(
+        `metadata.metadataBase is not set and fallbacks to "${metadataBase.origin}", please specify it in root layout to resolve absolute urls.`
+      )
+    } else {
+      throw new Error(
+        `metadata.metadataBase needs to be provided for resolving absolute URL: ${url}`
+      )
+    }
   }
 
   // Handle relative or absolute paths

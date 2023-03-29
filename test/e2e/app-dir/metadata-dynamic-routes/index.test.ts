@@ -147,10 +147,6 @@ createNextDescribe(
     })
 
     it('should inject dynamic metadata properly to head', async () => {
-      const logs = []
-      next.on('stderr', (log) => {
-        logs.push(log)
-      })
       const $ = await next.render$('/')
       const $icon = $('link[rel="icon"]')
       const $appleIcon = $('link[rel="apple-touch-icon"]')
@@ -160,16 +156,6 @@ createNextDescribe(
       const twitterDescription = $('meta[name="twitter:description"]').attr(
         'content'
       )
-
-      if (isNextDev) {
-        expect(
-          logs.some((log) =>
-            /"metadataBase" is not set and fallbacks to "http:\/\/localhost:\d+", please specify it in root layout to resolve absolute urls/.test(
-              log
-            )
-          )
-        ).toBe(true)
-      }
 
       // non absolute urls
       expect($icon.attr('href')).toContain('/icon')

@@ -2,10 +2,10 @@ import React from 'react'
 import type { ResolvedMetadata } from './types/metadata-interface'
 
 export function createDefaultMetadata(): ResolvedMetadata {
-  let defaultMetadataBase = new URL('http://n')
-  if (process.env.NODE_ENV === 'production' && process.env.VERCEL_URL) {
-    defaultMetadataBase = new URL(`https://${process.env.VERCEL_URL}`)
-  }
+  const defaultMetadataBase =
+    process.env.NODE_ENV === 'production' && process.env.VERCEL_URL
+      ? new URL(`https://${process.env.VERCEL_URL}`)
+      : null
 
   return {
     viewport: 'width=device-width, initial-scale=1',
