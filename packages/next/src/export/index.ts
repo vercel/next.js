@@ -155,7 +155,6 @@ export interface ExportOptions {
   statusMessage?: string
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
-  //appPaths?: string[]
   nextConfig?: NextConfigComplete
 }
 
