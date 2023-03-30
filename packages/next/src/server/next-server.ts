@@ -1465,16 +1465,12 @@ export default class NextNodeServer extends BaseServer {
               keptQuery[key] = query[key]
             }
             const invokeQuery = JSON.stringify(keptQuery)
-            const invokeQueryStr = keptQuery.toString()
-            const invokePath = `${invokePathname}${
-              invokeQueryStr ? `?${invokeQueryStr}` : ''
-            }`
 
             const invokeHeaders: typeof req.headers = {
               'cache-control': '',
               ...req.headers,
-              'x-invoke-path': invokePath,
-              'x-invoke-query': invokeQuery,
+              'x-invoke-path': invokePathname,
+              'x-invoke-query': encodeURIComponent(invokeQuery),
             }
 
             const forbiddenHeaders = (global as any).__NEXT_USE_UNDICI

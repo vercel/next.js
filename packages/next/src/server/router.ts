@@ -385,7 +385,10 @@ export default class Router {
       const invokeQuery = req.headers['x-invoke-query']
 
       if (typeof invokeQuery === 'string') {
-        Object.assign(parsedUrlUpdated.query, JSON.parse(invokeQuery))
+        Object.assign(
+          parsedUrlUpdated.query,
+          JSON.parse(decodeURIComponent(invokeQuery))
+        )
       }
     }
 
