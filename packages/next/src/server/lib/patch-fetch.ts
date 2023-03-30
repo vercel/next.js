@@ -1,4 +1,6 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type * as ServerHooks from '../../client/components/hooks-server-context'
+
 import { AppRenderSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
@@ -11,17 +13,18 @@ export function patchFetch({
   serverHooks,
   staticGenerationAsyncStorage,
 }: {
-  serverHooks: typeof import('../../client/components/hooks-server-context')
+  serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }) {
-  if ((fetch as any).__nextPatched) return
+  if ((globalThis.fetch as any).__nextPatched) return
 
   const { DynamicServerError } = serverHooks
-  const originFetch = fetch
+  const originFetch = globalThis.fetch
 
-  // @ts-expect-error - we're patching fetch
-  // eslint-disable-next-line no-native-reassign
-  fetch = async (input: RequestInfo | URL, init: RequestInit | undefined) => {
+  globalThis.fetch = async (
+    input: RequestInfo | URL,
+    init: RequestInit | undefined
+  ) => {
     let url
     try {
       url = new URL(input instanceof Request ? input.url : input)
@@ -32,7 +35,7 @@ export function patchFetch({
       url = undefined
     }
 
-    const method = (init?.method || 'GET').toUpperCase()
+    const method = init?.method?.toUpperCase() || 'GET'
 
     return await getTracer().trace(
       AppRenderSpan.fetch,

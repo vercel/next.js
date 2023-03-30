@@ -213,6 +213,77 @@ export async function copy_babel_runtime(task, opts) {
   }
 }
 
+externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
+export async function copy_vercel_og(task, opts) {
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        '{LICENSE,./dist/*.+(js|ttf|wasm)}'
+      )
+    )
+    .target('src/compiled/@vercel/og')
+
+  // Types are not bundled, include satori types here
+  await task
+    .source(
+      join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Ignore yoga-wasm-web types
+      file.data = source.replace(
+        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
+        'type Yoga = any'
+      )
+    })
+    .target('src/compiled/@vercel/og/satori')
+  await task
+    .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
+    .target('src/compiled/@vercel/og/satori')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        'dist/**/*.d.ts'
+      )
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Refers to copied satori types
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
+    })
+    .target('src/compiled/@vercel/og')
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/@vercel/og/package.json'),
+    JSON.stringify(
+      {
+        name: '@vercel/og',
+        LICENSE: 'MLP-2.0',
+        type: 'module',
+        main: './index.node.js',
+        exports: {
+          '.': {
+            'edge-light': './index.edge.js',
+            import: './index.node.js',
+            node: './index.node.js',
+            default: './index.node.js',
+          },
+        },
+      },
+      null,
+      2
+    )
+  )
+}
+
 // eslint-disable-next-line camelcase
 externals['node-fetch'] = 'next/dist/compiled/node-fetch'
 export async function ncc_node_fetch(task, opts) {
@@ -2211,6 +2282,7 @@ export async function ncc(task, opts) {
       'ncc_cssnano_simple_bundle',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
+      'copy_vercel_og',
       'copy_constants_browserify',
       'ncc_react',
       'ncc_react_server_dom_webpack',
