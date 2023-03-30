@@ -16,7 +16,7 @@ createNextDescribe(
     async function checkMeta(
       browser: BrowserInterface,
       queryValue: string,
-      expected: string | string[] | undefined | null,
+      expected: RegExp | string | string[] | undefined | null,
       queryKey: string = 'property',
       tag: string = 'meta',
       domAttributeField: string = 'content'
@@ -24,10 +24,14 @@ createNextDescribe(
       const values = await browser.eval(
         `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
       )
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
+      if (expected instanceof RegExp) {
+        expect(values[0]).toMatch(expected)
       } else {
-        expect(values[0]).toBe(expected)
+        if (Array.isArray(expected)) {
+          expect(values).toEqual(expected)
+        } else {
+          expect(values[0]).toBe(expected)
+        }
       }
     }
 
@@ -286,11 +290,11 @@ createNextDescribe(
 
         await matchDom('link', 'title="js title"', {
           type: 'application/rss+xml',
-          href: 'blog/js.rss',
+          href: '/blog/js.rss',
         })
         await matchDom('link', 'title="rss"', {
           type: 'application/rss+xml',
-          href: 'blog.rss',
+          href: '/blog.rss',
         })
       })
 
