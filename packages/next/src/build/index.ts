@@ -585,9 +585,6 @@ export default async function build(
       // needed for static exporting since we want to replace with HTML
       // files
 
-      const allStaticPages = new Set<string>()
-      let allPageInfos = new Map<string, PageInfo>()
-
       const previewProps: __ApiPreviewProps = {
         previewModeId: crypto.randomBytes(16).toString('hex'),
         previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
@@ -1782,7 +1779,7 @@ export default async function build(
         )
         const glob =
           require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
-        const compiledFiles: string[] = []
+        const compiledFiles = new Set<string>()
         const compiledNextServerFolder = path.dirname(
           require.resolve('next/dist/compiled/next-server/next-server.js')
         )
@@ -1804,7 +1801,7 @@ export default async function build(
               const statResult = await promises.stat(absolutePath)
 
               if (statResult.isFile()) {
-                compiledFiles.push(absolutePath)
+                compiledFiles.add(absolutePath)
               }
             })
           )
@@ -1823,15 +1820,15 @@ export default async function build(
           'next/dist/shared/lib/html-context.js',
         ]
         for (const file of externalLibFiles) {
-          compiledFiles.push(require.resolve(file))
+          compiledFiles.add(require.resolve(file))
         }
-        compiledFiles.push(nextServerPath)
+        compiledFiles.add(nextServerPath)
 
         await promises.writeFile(
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: [...new Set(compiledFiles)].map((file) =>
+            files: [...compiledFiles].map((file) =>
               path.relative(distDir, file)
             ),
           } as {
@@ -1918,7 +1915,7 @@ export default async function build(
               const traceContent = JSON.parse(
                 await promises.readFile(traceFile, 'utf8')
               )
-              let includes: string[] = []
+              const includes: string[] = []
 
               if (combinedIncludes?.size) {
                 await Promise.all(
@@ -2519,7 +2516,7 @@ export default async function build(
                   ? null
                   : path.posix.join(`${normalizedRoute}.rsc`)
 
-                let routeMeta: {
+                const routeMeta: {
                   initialStatus?: SsgRoute['initialStatus']
                   initialHeaders?: SsgRoute['initialHeaders']
                 } = {}
@@ -3073,13 +3070,8 @@ export default async function build(
         }
       }
 
-      staticPages.forEach((pg) => allStaticPages.add(pg))
-      pageInfos.forEach((info: PageInfo, key: string) => {
-        allPageInfos.set(key, info)
-      })
-
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(pageKeys, allPageInfos, {
+        printTreeView(pageKeys, pageInfos, {
           distPath: distDir,
           buildId: buildId,
           pagesDir,
