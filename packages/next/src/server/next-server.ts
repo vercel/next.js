@@ -1509,6 +1509,10 @@ export default class NextNodeServer extends BaseServer {
                 : {}),
             })
 
+            if (bubbleNoFallback && invokeRes.headers.get('x-no-fallback')) {
+              return { finished: false }
+            }
+
             for (const [key, value] of Object.entries(
               toNodeHeaders(invokeRes.headers)
             )) {
@@ -1605,6 +1609,14 @@ export default class NextNodeServer extends BaseServer {
           }
         } catch (err) {
           if (err instanceof NoFallbackError && bubbleNoFallback) {
+            if (this.isRenderWorker) {
+              res.setHeader('x-no-fallback', '1')
+              res.send()
+              return {
+                finished: true,
+              }
+            }
+
             return {
               finished: false,
             }
