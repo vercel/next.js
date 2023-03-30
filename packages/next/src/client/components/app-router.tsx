@@ -42,6 +42,8 @@ import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
+import { NotFoundBoundary } from './not-found-boundary'
+import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 
 const isServer = typeof window === 'undefined'
 
@@ -70,6 +72,10 @@ type AppRouterProps = Omit<
 > & {
   initialHead: ReactNode
   assetPrefix: string
+  // Top level boundaries props
+  notFound: React.ReactNode | undefined
+  notFoundStyles: React.ReactNode | undefined
+  asNotFound?: boolean
 }
 
 function isExternalURL(url: URL) {
@@ -85,6 +91,9 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
+  notFound,
+  notFoundStyles,
+  asNotFound,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -311,13 +320,22 @@ function Router({
     }
   }, [onPopState])
 
+  const head = useMemo(() => {
+    return findHeadInCache(cache, tree[1])
+  }, [cache, tree])
+
   const content = (
-    <>
+    <NotFoundBoundary
+      notFound={notFound}
+      notFoundStyles={notFoundStyles}
+      asNotFound={asNotFound}
+    >
       <RedirectBoundary>
+        {head}
         {cache.subTreeData}
         <AppRouterAnnouncer tree={tree} />
       </RedirectBoundary>
-    </>
+    </NotFoundBoundary>
   )
 
   return (
@@ -338,7 +356,6 @@ function Router({
                 // Root node always has `url`
                 // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
-                headRenderedAboveThisLevel: false,
               }}
             >
               {HotReloader ? (
