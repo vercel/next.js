@@ -71,7 +71,6 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
-import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 
@@ -1228,7 +1227,7 @@ export async function renderToHTMLOrFlight(
         const getServerInsertedHTML = () => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
-          const errorMetaTags = [...DEFAULT_METADATA_TAGS]
+          const errorMetaTags = []
           for (
             ;
             flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
