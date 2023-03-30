@@ -102,6 +102,7 @@ import { genExecArgv, getNodeOptionsWithoutInspect } from './lib/utils'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
+import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 
 export * from './base-server'
 
@@ -1439,11 +1440,9 @@ export default class NextNodeServer extends BaseServer {
 
             if (normalizedInvokePathname?.startsWith('/api')) {
               invokePathname = normalizedInvokePathname
-            }
-
-            if (
+            } else if (
               query.__nextLocale &&
-              !invokePathname.startsWith(`/${query.__nextLocale}`)
+              !pathHasPrefix(invokePathname, `/${query.__nextLocale}`)
             ) {
               invokePathname = `/${query.__nextLocale}${
                 invokePathname === '/' ? '' : invokePathname

@@ -368,6 +368,15 @@ export default class Router {
         addRequestMeta(req, '_nextDidRewrite', true)
       }
 
+      const pathnameInfo = getNextPathnameInfo(parsedMatchedPath.pathname, {
+        nextConfig: this.nextConfig,
+        parseData: false,
+      })
+
+      if (pathnameInfo.locale) {
+        parsedUrlUpdated.query.__nextLocale = pathnameInfo.locale
+      }
+
       for (const key of [...new Set(parsedMatchedPath.searchParams.keys())]) {
         const value = parsedMatchedPath.searchParams.getAll(key)
         parsedUrlUpdated.query[key] = [...value]
