@@ -107,7 +107,7 @@ export async function loadStaticPaths({
           ]
         : await collectGenerateParams(components.ComponentMod.tree)
 
-      return buildAppStaticPaths({
+      return await buildAppStaticPaths({
         page: pathname,
         generateParams,
         configFileName: config.configFileName,
@@ -122,7 +122,7 @@ export async function loadStaticPaths({
       })
     }
 
-    return buildStaticPaths({
+    return await buildStaticPaths({
       page: pathname,
       getStaticPaths: components.getStaticPaths,
       configFileName: config.configFileName,
