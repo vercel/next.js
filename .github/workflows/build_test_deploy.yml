@@ -35,6 +35,7 @@ jobs:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
+      codemodChange: ${{ steps.codemod-change.outputs.CODEMOD_CHANGE }}
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
       swcChange: ${{ steps.swc-change.outputs.SWC_CHANGE }}
       turboToken: ${{ steps.turbo-token.outputs.TURBO_TOKEN }}
@@ -671,7 +672,7 @@ jobs:
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
 
     steps:
-      - run: echo "${{needs.build.outputs.docsChange}}"
+      - run: echo "${{needs.build.outputs.codemodChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -679,17 +680,15 @@ jobs:
 
       - uses: actions/cache@v3
         timeout-minutes: 5
-        if: ${{ needs.build.outputs.docsChange == 'nope' }}
+        if: ${{ needs.build.outputs.codemodChange == 'yep' }}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
-        id: codemodChange
-
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ env.NODE_LTS_VERSION }} | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
-        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.codemodChange.outputs.CODEMOD_CHANGE == 'yup' }}
+      - name: Test if changes were found
+        run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ env.NODE_LTS_VERSION }} | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
+        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
 
   testIntegration:
     name: Test Integration
@@ -1172,6 +1171,10 @@ jobs:
         id: docs-change
 
       - run: echo "${{ steps.docs-chang.outputs.DOCS_CHANGE }}"
+
+      - name: Check codemod only change
+        run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+        id: codemod-change
 
       - name: Install
         if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
