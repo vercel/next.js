@@ -55,7 +55,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1
       '@typescript-eslint/parser': 4.29.1
       '@vercel/fetch': 6.1.1
-      '@vercel/og': 0.4.1
+      '@vercel/og': 0.5.0
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -155,11 +155,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: npm:react@17.0.2
-      react-builtin: npm:react@18.3.0-next-85de6fde5-20230328
+      react-builtin: npm:react@18.3.0-next-12a1d140e-20230321
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-builtin: npm:react-dom@18.3.0-next-85de6fde5-20230328
-      react-server-dom-webpack: 18.3.0-next-85de6fde5-20230328
+      react-dom-builtin: npm:react-dom@18.3.0-next-12a1d140e-20230321
+      react-server-dom-webpack: 18.3.0-next-12a1d140e-20230321
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -169,6 +169,7 @@ importers:
       resolve-from: 5.0.0
       rimraf: 3.0.2
       sass: 1.54.0
+      satori: 0.4.4
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -235,7 +236,7 @@ importers:
       '@typescript-eslint/eslint-plugin': 4.29.1_qxyn66xcaddhgaahwkbomftvi4
       '@typescript-eslint/parser': 4.29.1_6x3mpmmsttbpxxsctsorxedanu
       '@vercel/fetch': 6.1.1_fii5qhbaymjqmfm7e2spxc5z4m
-      '@vercel/og': 0.4.1
+      '@vercel/og': 0.5.0
       '@webassemblyjs/ast': 1.11.1
       '@webassemblyjs/floating-point-hex-parser': 1.11.1
       '@webassemblyjs/helper-api-error': 1.11.1
@@ -335,11 +336,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: /react/17.0.2
-      react-builtin: /react/18.3.0-next-85de6fde5-20230328
+      react-builtin: /react/18.3.0-next-12a1d140e-20230321
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-builtin: /react-dom/18.3.0-next-85de6fde5-20230328_react@18.2.0
-      react-server-dom-webpack: 18.3.0-next-85de6fde5-20230328_4ifzx734of5j5ymg4ksx54vtqi
+      react-dom-builtin: /react-dom/18.3.0-next-12a1d140e-20230321_react@18.2.0
+      react-server-dom-webpack: 18.3.0-next-12a1d140e-20230321_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -349,6 +350,7 @@ importers:
       resolve-from: 5.0.0
       rimraf: 3.0.2
       sass: 1.54.0
+      satori: 0.4.4
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -450,7 +452,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.2.5-canary.20
+      '@next/eslint-plugin-next': 13.2.5-canary.21
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -524,12 +526,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.2.5-canary.20
-      '@next/polyfill-module': 13.2.5-canary.20
-      '@next/polyfill-nomodule': 13.2.5-canary.20
-      '@next/react-dev-overlay': 13.2.5-canary.20
-      '@next/react-refresh-utils': 13.2.5-canary.20
-      '@next/swc': 13.2.5-canary.20
+      '@next/env': 13.2.5-canary.21
+      '@next/polyfill-module': 13.2.5-canary.21
+      '@next/polyfill-nomodule': 13.2.5-canary.21
+      '@next/react-dev-overlay': 13.2.5-canary.21
+      '@next/react-refresh-utils': 13.2.5-canary.21
+      '@next/swc': 13.2.5-canary.21
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
@@ -5971,7 +5973,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0
+      webpack: 5.74.0_@swc+core@1.2.203
     transitivePeerDependencies:
       - supports-color
 
@@ -6637,7 +6639,6 @@ packages:
     cpu: [arm]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-android-arm64/1.2.203:
@@ -6646,7 +6647,6 @@ packages:
     cpu: [arm64]
     os: [android]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-arm64/1.2.203:
@@ -6655,7 +6655,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.2.203:
@@ -6664,7 +6663,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-freebsd-x64/1.2.203:
@@ -6673,7 +6671,6 @@ packages:
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.2.203:
@@ -6682,7 +6679,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.2.203:
@@ -6691,7 +6687,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.2.203:
@@ -6700,7 +6695,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.2.203:
@@ -6709,7 +6703,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.2.203:
@@ -6718,7 +6711,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.2.203:
@@ -6727,7 +6719,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.2.203:
@@ -6736,7 +6727,6 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.2.203:
@@ -6745,7 +6735,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@swc/core/1.2.203:
@@ -6766,7 +6755,6 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.2.203
       '@swc/core-win32-ia32-msvc': 1.2.203
       '@swc/core-win32-x64-msvc': 1.2.203
-    dev: true
 
   /@swc/helpers/0.4.11:
     resolution: {integrity: sha512-rEUrBSGIoSFuYxwBYtlUFMlE2CwGhmW+w9355/5oduSw8e5h2+Tj4UrAGNNgP9915++wj5vkQo0UuOBqOAq4nw==}
@@ -7745,13 +7733,13 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og/0.4.1:
-    resolution: {integrity: sha512-N8SXkbmQQRK0iHpqwUe50Fe8JO3sx2ByV6hgPTi16ONiMdqOM9uzE4QMWoY1Oa0uYZuUVA30sEB84mVMn+gT3w==}
+  /@vercel/og/0.5.0:
+    resolution: {integrity: sha512-NrHyWFj7fLixXPjgCXlyX90VdbiIfP6IBcyimiFGgwpnmyRgLiYTvrnPIKI/JP49VF9bnYHFfVqzMupeyCamuQ==}
     engines: {node: '>=16'}
     dependencies:
       '@resvg/resvg-wasm': 2.4.1
-      satori: 0.4.1
-      yoga-wasm-web: 0.3.0
+      satori: 0.4.4
+      yoga-wasm-web: 0.3.3
     dev: true
 
   /@webassemblyjs/ast/1.11.1:
@@ -21247,14 +21235,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom/18.3.0-next-85de6fde5-20230328_react@18.2.0:
-    resolution: {integrity: sha512-j4iue3oK1wZuyQKiURbhOvffnyts9QNVhRpsgqHNb/QJhy7FXrIf3mruW9I49GpsOowuIkQartT2bhgJuzs7hw==}
+  /react-dom/18.3.0-next-12a1d140e-20230321_react@18.2.0:
+    resolution: {integrity: sha512-u2DZpyxyQJMIABtK7AyN31ypiH1Z5g4qTVXUQabmSeOrSFPUu3ccWIww/Ksuy37uxH25MoxBRp8iLQsCPVv12Q==}
     peerDependencies:
-      react: 18.3.0-next-85de6fde5-20230328
+      react: 18.3.0-next-12a1d140e-20230321
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-next-85de6fde5-20230328
+      scheduler: 0.24.0-next-12a1d140e-20230321
     dev: true
 
   /react-is/16.13.1:
@@ -21275,12 +21263,12 @@ packages:
     resolution: {integrity: sha512-suLIhrU2IHKL5JEKR/fAwJv7bbeq4kJ+pJopf77jHwuR+HmJS/HbrPIGsTBUVfw7tXPOmYv7UJ7PCaN49e8x4A==}
     engines: {node: '>=0.10.0'}
 
-  /react-server-dom-webpack/18.3.0-next-85de6fde5-20230328_4ifzx734of5j5ymg4ksx54vtqi:
-    resolution: {integrity: sha512-XuYQY+YGcpnr/+bZ7NXINP34LQSRhu5XxUmpzFjGtMAAHY0U5OWVS65xc4jJMk79cHdauaOSLvcKKTgsNHKEsA==}
+  /react-server-dom-webpack/18.3.0-next-12a1d140e-20230321_4ifzx734of5j5ymg4ksx54vtqi:
+    resolution: {integrity: sha512-A7U3mNGg4F7wdVXRfGt6U9NwQR3La/WCwxS/bbFEKoLlkJLwc2eydnsxDRWZ0L4ntkTMeXVkfVuH9h/AESL9FQ==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-next-85de6fde5-20230328
-      react-dom: 18.3.0-next-85de6fde5-20230328
+      react: 18.3.0-next-12a1d140e-20230321
+      react-dom: 18.3.0-next-12a1d140e-20230321
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
@@ -21352,8 +21340,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react/18.3.0-next-85de6fde5-20230328:
-    resolution: {integrity: sha512-jgX/67Wbt57go6J0tfJDXhd381pNFiYeY7bdfkBbpZQB11KOxdqE3flPVMqubCv3Ip6UNXEAoI8kS9qFaz1Jrw==}
+  /react/18.3.0-next-12a1d140e-20230321:
+    resolution: {integrity: sha512-LENzSZuxJWjbHoTHpLPyzlmyTyXu9+V6YJIl56DMNF8ztoaDR6bZUfvrp3BpTIuZo4kZ0d1+kLQ9MFJoLX3Mgw==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -22384,8 +22372,8 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori/0.4.1:
-    resolution: {integrity: sha512-uQm4+vQj57E9PO/ASAlxsRb+78fHkRUmkNLBBmfuEeGNLGqJ9ufYU7TzYP4XH60PLHYt9Wz1jSsgcAe2cz7+ng==}
+  /satori/0.4.4:
+    resolution: {integrity: sha512-UCgoY7CXibFQmgI4ay4QSWUOca07nI9pY56w8NKrBq+bkGgiMbcPXZWj9bxukyJkEl/cgAICGjjxvwlDF2NYRw==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
@@ -22420,8 +22408,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler/0.24.0-next-85de6fde5-20230328:
-    resolution: {integrity: sha512-sn0wt8FhhTEMREU94IbJM/0LddXs4B4b15p6PnL1zhv+x3zpGC/nLN2A+duu34Qf0hz2pQrrLQKAbTfxK3zUdA==}
+  /scheduler/0.24.0-next-12a1d140e-20230321:
+    resolution: {integrity: sha512-ks3fG/SE8JuDLFSTWi8ifadBN/RIO9AIw1gO1D6ryjDtcPnbPMf0XauJGZ1i6lxBlC2bR2tsPkUi4sUlSV4mmA==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -23739,7 +23727,6 @@ packages:
       source-map: 0.6.1
       terser: 5.14.1
       webpack: 5.74.0_@swc+core@1.2.203
-    dev: true
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -25145,7 +25132,6 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
-    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}
@@ -25526,10 +25512,6 @@ packages:
   /yocto-queue/1.0.0:
     resolution: {integrity: sha512-9bnSc/HEW2uRy67wc+T8UwauLuPJVn28jb+GtJY16iiKWyvmYJRXVT4UamsAEGQfPohgr2q4Tq0sQbQlxTfi1g==}
     engines: {node: '>=12.20'}
-    dev: true
-
-  /yoga-wasm-web/0.3.0:
-    resolution: {integrity: sha512-rD3L4jyMlO1m+RWU60lNwZQK5zmzglCV5fI1gTRikmpv3YzmNIZQbjyfE6cMNb9Xaly/C1SwemYGbsiOekMvnQ==}
     dev: true
 
   /yoga-wasm-web/0.3.3:
