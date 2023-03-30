@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
@@ -26,7 +26,7 @@ use turbo_binding::turbopack::ecmascript::{
 use turbo_binding::turbopack::node::{
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
-    source_map::{StructuredError, trace_stack},
+    source_map::{trace_stack, StructuredError},
 };
 use turbo_binding::turbopack::turbopack::{
     evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc,
@@ -129,7 +129,7 @@ pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),
     None,
-    Error(String),
+    Error(#[turbo_tasks(trace_ignore)] SharedError),
 }
 
 #[turbo_tasks::function]
@@ -330,6 +330,18 @@ pub async fn route(
     .await
 }
 
+macro_rules! shared_anyhow {
+    ($msg:literal $(,)?) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($msg))
+    };
+    ($err:expr $(,)?) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($err))
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($fmt, $($arg)*))
+    };
+}
+
 #[turbo_tasks::function]
 async fn route_internal(
     execution_context: ExecutionContextVc,
@@ -379,7 +391,6 @@ async fn route_internal(
             JsonValueVc::cell(dir.to_string_lossy().into()),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
-        // true,
         /* debug */ false,
     )
     .await?;
@@ -389,26 +400,22 @@ async fn route_internal(
     let first = match read.next().await {
         Some(Ok(first)) => first,
         Some(Err(e)) => {
-            return Ok(
-                RouterResult::Error(format!("received error from javascript stream: {}", e)).cell(),
-            )
+            return Ok(RouterResult::Error(shared_anyhow!(
+                "received error from javascript stream: {}",
+                e
+            ))
+            .cell())
         }
         None => {
-            return Ok(RouterResult::Error(
-                "no message received from javascript stream".to_string(),
-            )
+            return Ok(RouterResult::Error(shared_anyhow!(
+                "no message received from javascript stream"
+            ))
             .cell())
         }
     };
-    let first: RouterIncomingMessage = parse_json_with_source_context(first.to_str()?)
-        .with_context(|| {
-            format!(
-                "parsing incoming message ({})",
-                first
-                    .to_str()
-                    .expect("this was already successfully converted")
-            )
-        })?;
+    let first = first.to_str()?;
+    let first: RouterIncomingMessage = parse_json_with_source_context(first)
+        .with_context(|| format!("parsing incoming message ({})", first))?;
 
     let (res, read) = match first {
         RouterIncomingMessage::Rewrite { data } => (RouterResult::Rewrite(data), Some(read)),
@@ -424,10 +431,7 @@ async fn route_internal(
                     .and_then(parse_json_with_source_context)?;
                 match chunk {
                     RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
-                    m => Err(SharedError::new(anyhow!(
-                        "unexpected message type: {:#?}",
-                        m
-                    ))),
+                    m => Err(shared_anyhow!("unexpected message type: {:#?}", m)),
                 }
             });
             let middleware = MiddlewareResponse {
@@ -440,8 +444,8 @@ async fn route_internal(
         }
 
         RouterIncomingMessage::None => (RouterResult::None, Some(read)),
-        RouterIncomingMessage::Error { error } => {
-            bail!(
+        RouterIncomingMessage::Error { error } => (
+            RouterResult::Error(shared_anyhow!(
                 trace_stack(
                     error,
                     router_asset,
@@ -449,12 +453,13 @@ async fn route_internal(
                     project_path
                 )
                 .await?
-            )
-        }
+            )),
+            Some(read),
+        ),
         RouterIncomingMessage::MiddlewareBody { .. } => (
-            RouterResult::Error(
-                "unexpected incoming middleware body without middleware headers".to_string(),
-            ),
+            RouterResult::Error(shared_anyhow!(
+                "unexpected incoming middleware body without middleware headers"
+            )),
             Some(read),
         ),
     };
