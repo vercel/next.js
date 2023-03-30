@@ -672,7 +672,7 @@ jobs:
     name: Test Codemods
     runs-on: ubuntu-latest
     needs: [build]
-    if: ${{ needs.build.outputs.codemodChange == 'yep' }}
+    if: ${{ needs.build.outputs.codemodChange == 'yup' }}
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
