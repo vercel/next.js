@@ -48,12 +48,6 @@ export function getPluginState() {
 export const NextBuildContext: Partial<{
   compilerIdx?: number
   pluginState: Record<string, any>
-  serializedPagesManifestEntries: {
-    edgeServerPages?: PagesManifest
-    nodeServerPages?: PagesManifest
-    edgeServerAppPaths?: PagesManifest
-    nodeServerAppPaths?: PagesManifest
-  }
   // core fields
   dir: string
   buildId: string

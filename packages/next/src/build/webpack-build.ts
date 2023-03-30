@@ -63,7 +63,6 @@ async function webpackBuildImpl(
   duration: number
   pluginState: any
   turbotraceContext?: TurbotraceContext
-  serializedPagesManifestEntries?: typeof NextBuildContext['serializedPagesManifestEntries']
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -322,12 +321,6 @@ async function webpackBuildImpl(
       duration: webpackBuildEnd[0],
       turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
       pluginState: getPluginState(),
-      serializedPagesManifestEntries: {
-        edgeServerPages: pagesPluginModule.edgeServerPages,
-        edgeServerAppPaths: pagesPluginModule.edgeServerAppPaths,
-        nodeServerPages: pagesPluginModule.nodeServerPages,
-        nodeServerAppPaths: pagesPluginModule.nodeServerAppPaths,
-      },
     }
   }
 }
@@ -342,16 +335,6 @@ export async function workerMain(workerData: {
 
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
-
-  // restore module scope maps for flight plugins
-  const { serializedPagesManifestEntries } = NextBuildContext
-
-  for (const key of Object.keys(serializedPagesManifestEntries || {})) {
-    Object.assign(
-      (pagesPluginModule as any)[key],
-      (serializedPagesManifestEntries as any)?.[key]
-    )
-  }
 
   /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
@@ -441,17 +424,6 @@ async function webpackBuildWithWorker() {
 
     // Update plugin state
     prunedBuildContext.pluginState = curResult.pluginState
-
-    prunedBuildContext.serializedPagesManifestEntries = {
-      edgeServerAppPaths:
-        curResult.serializedPagesManifestEntries?.edgeServerAppPaths,
-      edgeServerPages:
-        curResult.serializedPagesManifestEntries?.edgeServerPages,
-      nodeServerAppPaths:
-        curResult.serializedPagesManifestEntries?.nodeServerAppPaths,
-      nodeServerPages:
-        curResult.serializedPagesManifestEntries?.nodeServerPages,
-    }
 
     combinedResult.duration += curResult.duration
 
