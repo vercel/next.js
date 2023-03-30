@@ -1,0 +1,19 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next/dist/compiled/@vercel/og/index.node.js",
+    category: "resolve",
+    title: "Error resolving EcmaScript Modules request",
+    description: "unable to resolve module \"url\"",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"url\"\nPath where resolving has started: [project]/packages/next/dist/compiled/@vercel/og/index.node.js\nType of request: EcmaScript Modules request\nImport map: No import map entry\n",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: None,
+                description: "Next.js Routing for GET /stream",
+            },
+        ],
+    ),
+}
