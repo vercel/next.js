@@ -1,30 +1,31 @@
-import type { RouteHandlerManagerContext } from '../../../../server/future/route-handler-managers/route-handler-manager'
-import type { RouteDefinition } from '../../../../server/future/route-definitions/route-definition'
-import type { RouteModule } from '../../../../server/future/route-modules/route-module'
+import type { RouteHandlerManagerContext } from '../future/route-handler-managers/route-handler-manager'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteModule } from '../future/route-modules/route-module'
 
-import {
-  adapter,
-  enhanceGlobals,
-  type AdapterOptions,
-} from '../../../../server/web/adapter'
+import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
 
 enhanceGlobals()
 
-import { WebNextRequest } from '../../../../server/base-http/web'
-import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
-import { RouteMatcher } from '../../../../server/future/route-matchers/route-matcher'
+import { WebNextRequest } from '../base-http/web'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
+import { RouteMatcher } from '../future/route-matchers/route-matcher'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
 /**
- * HandlerProvider is a wrapper around a route handler that allows the handler
- * to be patched and reused.
+ * EdgeRouteModuleWrapper is a wrapper around a route module.
  *
- * This should only be used in the edge runtime.
+ * Note that this class should only be used in the edge runtime.
  */
-export class EdgeModuleWrapper {
+export class EdgeRouteModuleWrapper {
   private readonly matcher: RouteMatcher
 
+  /**
+   * The constructor is wrapped with private to ensure that it can only be
+   * constructed by the static wrap method.
+   *
+   * @param routeModule the route module to wrap
+   */
   private constructor(
     private readonly routeModule: RouteModule<RouteDefinition>
   ) {
@@ -46,7 +47,7 @@ export class EdgeModuleWrapper {
     options: WrapOptions = {}
   ) {
     // Create the module wrapper.
-    const wrapper = new EdgeModuleWrapper(routeModule)
+    const wrapper = new EdgeRouteModuleWrapper(routeModule)
 
     // Return the wrapping function.
     return (opts: AdapterOptions) => {
