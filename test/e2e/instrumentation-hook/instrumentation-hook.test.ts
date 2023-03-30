@@ -38,7 +38,10 @@ describe('Instrumentation Hook', () => {
     ({ next }) => {
       it('with-esm-import should run the instrumentation hook', async () => {
         await next.render('/')
-        await check(() => next.cliOutput, /register threw error/)
+        await check(
+          () => next.cliOutput,
+          /register in instrumentation\.js is running/
+        )
       })
     }
   )

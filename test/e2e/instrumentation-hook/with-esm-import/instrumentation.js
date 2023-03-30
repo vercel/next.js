@@ -1,6 +1,7 @@
 import { ImageResponse } from '@vercel/og'
 
 export function register() {
-  throw new Error('register threw error')
+  console.log('register in instrumentation.js is running')
+  return
   void ImageResponse
 }
