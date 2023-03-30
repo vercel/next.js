@@ -4,9 +4,9 @@ const About = () => {
   return (
     <div>
       <h1>About</h1>
-      <p>Hello World! This is the About page</p>
+      <p>Now you are on the About page!</p>
       <p>
-        Visit the <Link href="/">Home</Link> page.
+        Go back to the <Link href="/">Home</Link> page.
       </p>
     </div>
   )
