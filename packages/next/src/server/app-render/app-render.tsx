@@ -1123,16 +1123,34 @@ export async function renderToHTMLOrFlight(
     }>(
       async (props) => {
         // Create full component tree from root to leaf.
+        const injectedCSS = new Set<string>()
         const { Component: ComponentTree } = await createComponentTree({
           createSegmentPath: (child) => child,
-          loaderTree: loaderTree,
+          loaderTree,
           parentParams: {},
           firstItem: true,
-          injectedCSS: new Set(),
+          injectedCSS,
           injectedFontPreloadTags: new Set(),
           rootLayoutIncluded: false,
           asNotFound: props.asNotFound,
         })
+
+        const { 'not-found': notFound, layout } = loaderTree[2]
+        const isLayout = typeof layout !== 'undefined'
+        const rootLayoutModule = layout?.[0]
+        const RootLayout = rootLayoutModule
+          ? interopDefault(await rootLayoutModule())
+          : null
+        const rootLayoutAtThisLevel = isLayout
+        const [NotFound, notFoundStyles] = notFound
+          ? await createComponentAndStyles({
+              filePath: notFound[1],
+              getComponent: notFound[0],
+              injectedCSS,
+            })
+          : rootLayoutAtThisLevel
+          ? [DefaultNotFound]
+          : []
 
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
@@ -1154,6 +1172,15 @@ export async function renderToHTMLOrFlight(
                 </>
               }
               globalErrorComponent={GlobalError}
+              notFound={
+                NotFound && RootLayout ? (
+                  <RootLayout params={{}}>
+                    <NotFound />
+                  </RootLayout>
+                ) : undefined
+              }
+              notFoundStyles={notFoundStyles}
+              asNotFound={props.asNotFound}
             >
               <ComponentTree />
             </AppRouter>
