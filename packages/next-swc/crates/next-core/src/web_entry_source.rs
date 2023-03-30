@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
 use turbo_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::{
+        tasks::{TryJoinIterExt, Value},
+        tasks_fs::FileSystemPathVc,
+    },
     turbopack::{
         core::{
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc,
-            },
+            chunk::{ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
             compile_time_defines,
             compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
             environment::{
@@ -23,7 +24,6 @@ use turbo_binding::{
         turbopack::ecmascript::EcmascriptModuleAssetVc,
     },
 };
-use turbo_tasks::{TryJoinIterExt, Value};
 
 use crate::{
     embed_js::next_js_file_path,
@@ -147,18 +147,16 @@ pub async fn create_web_entry_source(
         .flatten()
         .map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                let chunk = ecmascript.as_evaluated_chunk(chunking_context, Some(runtime_entries));
-                let chunk_group = ChunkGroupVc::from_chunk(chunk);
+                let chunk_group =
+                    ChunkGroupVc::evaluated(chunking_context, ecmascript.into(), runtime_entries);
                 Ok(chunk_group)
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
-                Ok(ChunkGroupVc::from_chunk(chunkable.as_chunk(
+                Ok(ChunkGroupVc::from_chunk(
                     chunking_context,
-                    Value::new(AvailabilityInfo::Root {
-                        current_availability_root: module,
-                    }),
-                )))
+                    chunkable.as_root_chunk(chunking_context),
+                ))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(
