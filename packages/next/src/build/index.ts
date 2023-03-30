@@ -1995,7 +1995,14 @@ export default async function build(
               ...additionalIgnores,
             ]
             const ignoreFn = (pathname: string) => {
-              return isMatch(pathname, ignores, { contains: true, dot: true })
+              if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+                return true
+              }
+
+              return isMatch(pathname, ignores, {
+                contains: true,
+                dot: true,
+              })
             }
             const traceContext = path.join(nextServerEntry, '..', '..')
             const tracedFiles = new Set<string>()
