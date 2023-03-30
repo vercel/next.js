@@ -66,6 +66,26 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
+  public async revalidateTag(tag: string) {
+    try {
+      const res = await fetch(
+        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tag=${tag}`,
+        {
+          method: 'GET',
+          headers: this.headers,
+          // @ts-expect-error
+          next: { internal: true },
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}.`)
+      }
+    } catch (err) {
+      console.warn(`Failed to revalidate tag ${tag}.`, err)
+    }
+  }
+
   public async get(key: string, fetchCache?: boolean) {
     if (!fetchCache) return null
 
@@ -174,11 +194,15 @@ export default class FetchCache implements CacheHandler {
             data.data.headers['cache-control']
         }
         const body = JSON.stringify(data)
+        const headers = { ...this.headers }
+        if (data !== null && 'data' in data && data.data.tags) {
+          headers['x-vercel-cache-tags'] = data.data.tags.join(',')
+        }
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
-            headers: this.headers,
+            headers,
             body: body,
             // @ts-expect-error
             next: { internal: true },

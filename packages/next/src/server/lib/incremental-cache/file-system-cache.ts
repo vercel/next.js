@@ -1,6 +1,7 @@
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import { CacheFs } from '../../../shared/lib/utils'
+import { CachedFetchValue } from '../../response-cache'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 type FileSystemCacheContext = Omit<
@@ -11,6 +12,11 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
+type TagsManifest = {
+  version: 1
+  items: { [tag: string]: { keys: string[]; revalidatedAt: number } }
+}
+
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 export default class FileSystemCache implements CacheHandler {
@@ -18,6 +24,8 @@ export default class FileSystemCache implements CacheHandler {
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
+  private tagsManifest?: TagsManifest
+  private tagsManifestPath?: string
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -47,6 +55,61 @@ export default class FileSystemCache implements CacheHandler {
         },
       })
     }
+
+    if (this.serverDistDir && this.fs) {
+      this.tagsManifestPath = path.join(
+        this.serverDistDir,
+        '..',
+        'cache',
+        'fetch-cache',
+        'tags-manifest-json'
+      )
+      try {
+        this.tagsManifest = JSON.parse(
+          this.fs?.readFileSync(this.tagsManifestPath)
+        )
+      } catch (err: any) {
+        if (err.code !== 'ENOENT') throw err
+      }
+    }
+  }
+
+  async setTags(key: string, tags: string[]) {
+    if (!this.tagsManifest || !this.tagsManifestPath) return
+
+    for (const tag of tags) {
+      const data = this.tagsManifest.items[tag] || { keys: [] }
+      if (!data.keys.includes(key)) {
+        data.keys.push(key)
+      }
+      this.tagsManifest.items[tag] = data
+    }
+
+    try {
+      await this.fs?.writeFile(
+        this.tagsManifestPath,
+        JSON.stringify(this.tagsManifest || {})
+      )
+    } catch (err) {
+      console.warn('Failed to update tags manifest.', err)
+    }
+  }
+
+  public async revalidateTag(tag: string) {
+    if (!this.tagsManifest || !this.tagsManifestPath) return
+
+    const data = this.tagsManifest.items[tag] || { keys: [] }
+    data.revalidatedAt = Date.now()
+    this.tagsManifest.items[tag] = data
+
+    try {
+      await this.fs?.writeFile(
+        this.tagsManifestPath,
+        JSON.stringify(this.tagsManifest || {})
+      )
+    } catch (err) {
+      console.warn('Failed to update tags manifest.', err)
+    }
   }
 
   public async get(key: string, fetchCache?: boolean) {
@@ -66,8 +129,10 @@ export default class FileSystemCache implements CacheHandler {
           await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
         )
 
+        let lastModified = mtime.getTime()
+
         const cacheEntry: CacheHandlerValue = {
-          lastModified: mtime.getTime(),
+          lastModified,
           value: {
             kind: 'ROUTE',
             body: Buffer.from(fileData),
@@ -89,10 +154,20 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         if (fetchCache) {
-          const lastModified = mtime.getTime()
+          const parsedData: CachedFetchValue = JSON.parse(fileData)
+          let lastModified = mtime.getTime()
+          const isStale = parsedData.data.tags?.some((tag) => {
+            return (
+              (this.tagsManifest?.items[tag].revalidatedAt || 0) >=
+              Date.now() - lastModified
+            )
+          })
+          if (isStale) {
+            lastModified = lastModified - parsedData.revalidate * 1000
+          }
           data = {
             lastModified,
-            value: JSON.parse(fileData),
+            value: parsedData,
           }
         } else {
           const pageData = isAppPath
@@ -177,6 +252,7 @@ export default class FileSystemCache implements CacheHandler {
       })
       await this.fs.mkdir(path.dirname(filePath))
       await this.fs.writeFile(filePath, JSON.stringify(data))
+      await this.setTags(key, data.data.tags || [])
     }
   }
 

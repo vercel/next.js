@@ -18,6 +18,7 @@ export interface CachedFetchValue {
     headers: { [k: string]: string }
     body: string
     status?: number
+    tags?: string[]
   }
   revalidate: number
 }

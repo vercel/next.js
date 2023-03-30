@@ -287,8 +287,8 @@ export class IncrementalCache {
         (Date.now() - (cacheData.lastModified || 0)) / 1000
       )
 
-      const isStale = age > revalidate
       const data = cacheData.value.data
+      const isStale = age > revalidate
 
       return {
         isStale: isStale,
