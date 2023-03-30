@@ -7,10 +7,10 @@ import {
 } from 'next/dist/compiled/stacktrace-parser'
 
 import type { NextConfig } from '../config'
-import { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import { RouteKind } from '../future/route-kind'
 import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
-import { RouteMatch } from '../future/route-matches/route-match'
+import type { RouteMatch } from '../future/route-matches/route-match'
 import type { PageChecker, Route } from '../router'
 import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
@@ -18,7 +18,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
 } from '../../shared/lib/constants'
-import { BaseNextRequest } from '../base-http'
+import type { BaseNextRequest } from '../base-http'
 
 type MiddlewareConfig = {
   matcher: string[]
