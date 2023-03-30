@@ -1,16 +1,16 @@
 use anyhow::{anyhow, bail, Context, Result};
 use futures::stream::StreamExt;
 use indexmap::IndexSet;
-use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
-use turbopack_core::{
+use turbo_binding::turbopack::core::{
     environment::ServerAddrVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
 };
-use turbopack_dev_server::source::{
+use turbo_binding::turbopack::dev_server::source::{
     Body, BodyError, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult, RewriteBuilder,
 };
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
+use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 
 use crate::{
     app_structure::OptionAppStructureVc,
@@ -153,10 +153,7 @@ impl ContentSource for NextRouterContentSource {
                         headers: data.headers.clone(),
                         body: Body::from_stream(data.body.read().map(|chunk| {
                             chunk.map_err(|e| {
-                                BodyError::new(format!(
-                                    "error streaming proxied contents: {}",
-                                    e.as_str()
-                                ))
+                                BodyError::new(format!("error streaming proxied contents: {}", e))
                             })
                         })),
                     }

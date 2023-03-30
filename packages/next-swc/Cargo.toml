@@ -4,7 +4,6 @@ members = [
   "crates/core",
   "crates/napi",
   "crates/wasm",
-  "crates/next-binding",
   "crates/next-build",
   "crates/next-core",
   "crates/next-dev",
@@ -26,9 +25,9 @@ lto = true
 
 [workspace.dependencies]
 # Workspace crates
-next-binding = { path = "crates/next-binding" }
+next-build = { path = "crates/next-build" }
 next-core = { path = "crates/next-core", default-features = false }
-next-dev = { path = "crates/next-dev" }
+next-dev = { path = "crates/next-dev", default-features = false, features = ["serializable"] }
 next-dev-tests = { path = "crates/next-dev-tests" }
 next-transform-font = { path = "crates/next-transform-font" }
 next-transform-dynamic = { path = "crates/next-transform-dynamic" }
@@ -46,38 +45,11 @@ swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-bytes = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3", default-features = false }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbo-updater = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-dev = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
-turbopack-tests = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230323.3" }
+turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230329.2" }
+# [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230329.2" }
+# [TODO]: need to refactor embed_directory! macro usage in next-core
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230329.2" }
 
 # General Deps
 
@@ -94,6 +66,8 @@ chromiumoxide = { version = "0.4.0", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.17.3"
 
+# flate2_zlib requires zlib, use flate2_rust
+allsorts = { version = "0.14.0", default_features = false, features = ["outline", "flate2_rust"] }
 anyhow = "1.0.69"
 assert_cmd = "2.0.8"
 async-compression = { version = "0.3.13", default-features = false, features = [

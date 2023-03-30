@@ -39,7 +39,7 @@ async function main() {
   config.set('token', githubToken)
 
   await execa(
-    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js`,
+    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js.git`,
     { stdio: 'inherit', shell: true }
   )
   await execa(`git config user.name "JJ Kasper"`, {
@@ -51,7 +51,7 @@ async function main() {
     shell: true,
   })
 
-  const child = execa(`pnpm publish-${isCanary ? 'canary' : 'stable'}`, {
+  const child = execa(`pnpm release-${isCanary ? 'canary' : 'stable'}`, {
     stdio: 'pipe',
     shell: true,
   })

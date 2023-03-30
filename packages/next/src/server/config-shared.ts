@@ -9,6 +9,7 @@ import {
 import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -16,7 +17,6 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
-  target?: string
 }
 
 export interface I18NConfig {
@@ -242,8 +242,9 @@ export interface ExperimentalConfig {
 export type ExportPathMap = {
   [path: string]: {
     page: string
-    query?: Record<string, string | string[]>
+    query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isDynamicError?: boolean
   }
 }
 
@@ -520,6 +521,7 @@ export interface NextConfig extends Record<string, any> {
       src: string
       artifactDirectory?: string
       language?: 'typescript' | 'javascript' | 'flow'
+      eagerEsModules?: boolean
     }
     removeConsole?:
       | boolean
@@ -615,7 +617,6 @@ export const defaultConfig: NextConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',

@@ -1,15 +1,9 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::{OptionStringVc, StringVc, StringsVc},
-    trace::TraceRawVcs,
-    Value,
-};
-use turbo_tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
-use turbo_tasks_fs::{FileContent, FileSystemPathVc};
-use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
+use turbo_binding::turbo::tasks_fs::{FileContent, FileSystemPathVc};
+use turbo_binding::turbopack::core::{
     asset::AssetVc,
     chunk::ChunkingContextVc,
     context::{AssetContext, AssetContextVc},
@@ -17,8 +11,8 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
-use turbopack_dev::DevChunkingContextVc;
-use turbopack_dev_server::{
+use turbo_binding::turbopack::dev::DevChunkingContextVc;
+use turbo_binding::turbopack::dev_server::{
     html::DevHtmlAssetVc,
     source::{
         asset_graph::AssetGraphContentSourceVc,
@@ -27,18 +21,24 @@ use turbopack_dev_server::{
         ContentSourceData, ContentSourceVc, NoContentSourceVc,
     },
 };
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::ecmascript::{
     chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
-use turbopack_env::ProcessEnvAssetVc;
-use turbopack_node::{
+use turbo_binding::turbopack::env::ProcessEnvAssetVc;
+use turbo_binding::turbopack::node::{
     execution_context::ExecutionContextVc,
     render::{
         node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
     },
     route_matcher::RouteMatcherVc,
     NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
+};
+use turbo_binding::turbopack::turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
+use turbo_tasks::{
+    primitives::{OptionStringVc, StringVc, StringsVc},
+    trace::TraceRawVcs,
+    Value,
 };
 
 use crate::{
@@ -129,8 +129,11 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let edge_compile_time_info =
-        get_edge_compile_time_info(server_addr, Value::new(EnvironmentIntention::Api));
+    let edge_compile_time_info = get_edge_compile_time_info(
+        project_path,
+        server_addr,
+        Value::new(EnvironmentIntention::Api),
+    );
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -735,6 +738,7 @@ impl SsrEntryVc {
                         runtime: OptionStringVc::cell(None),
                     },
                 ]),
+                Default::default(),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(inner_assets),
             ),

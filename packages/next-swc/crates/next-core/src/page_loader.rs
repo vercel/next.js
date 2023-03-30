@@ -2,9 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
+use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc, ChunkingContextVc, ChunksVc},
     context::{AssetContext, AssetContextVc},
@@ -13,11 +12,14 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc};
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::dev_server::source::{
+    asset_graph::AssetGraphContentSourceVc, ContentSourceVc,
+};
+use turbo_binding::turbopack::ecmascript::{
     utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_route};
 
@@ -89,6 +91,7 @@ impl PageLoaderAssetVc {
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
                 use_define_for_class_fields: false,
             }]),
+            Default::default(),
             this.client_context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))

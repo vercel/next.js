@@ -1,17 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, Value,
-};
-use turbo_tasks_bytes::stream::SingleValue;
-use turbo_tasks_env::EnvMapVc;
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
-use turbopack::evaluate_context::node_evaluate_asset_context;
-use turbopack_core::{
+use turbo_binding::turbo::tasks_env::EnvMapVc;
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     asset::Asset,
     changed::any_content_changed,
     chunk::ChunkingContext,
@@ -26,14 +19,21 @@ use turbopack_core::{
     },
     source_asset::SourceAssetVc,
 };
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::ecmascript::{
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
 };
-use turbopack_node::{
+use turbo_binding::turbopack::node::{
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
     transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
 };
+use turbo_binding::turbopack::turbopack::evaluate_context::node_evaluate_asset_context;
+use turbo_tasks::{
+    primitives::{BoolVc, StringsVc},
+    trace::TraceRawVcs,
+    CompletionVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::embed_js::next_asset;
 
@@ -581,6 +581,7 @@ pub async fn load_next_config_internal(
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
+            Default::default(),
             context.compile_time_info(),
         );
         any_content_changed(config_asset.into())
@@ -604,7 +605,7 @@ pub async fn load_next_config_internal(
     )
     .await?;
 
-    let SingleValue::Single(Ok(val)) = config_value.into_single().await else {
+    let turbo_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
         return Ok(NextConfig::default().cell());
     };
     let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;

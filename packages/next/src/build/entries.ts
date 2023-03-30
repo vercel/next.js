@@ -9,6 +9,8 @@ import type {
   MiddlewareMatcher,
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
+import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
+
 import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
@@ -78,6 +80,7 @@ export function createPagesMapping({
   pagesType: 'pages' | 'root' | 'app'
   pagesDir: string | undefined
 }): { [page: string]: string } {
+  const isAppRoute = pagesType === 'app'
   const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
@@ -86,7 +89,11 @@ export function createPagesMapping({
         return result
       }
 
-      const pageKey = getPageFromPath(pagePath, pageExtensions)
+      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      if (isAppRoute) {
+        pageKey = pageKey.replace(/%5F/g, '_')
+        pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
+      }
 
       if (pageKey in result) {
         warn(
@@ -185,7 +192,10 @@ export function getEdgeServerEntry(opts: {
       nextConfigOutput: opts.config.output,
     }
 
-    return `next-edge-app-route-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-edge-app-route-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.server,
+    }
   }
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -244,17 +254,7 @@ export function getEdgeServerEntry(opts: {
   }
 }
 
-export function getAppEntry(opts: {
-  name: string
-  pagePath: string
-  appDir: string
-  appPaths: ReadonlyArray<string> | null
-  pageExtensions: string[]
-  assetPrefix: string
-  isDev?: boolean
-  rootDir?: string
-  tsconfigPath?: string
-}) {
+export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
     layer: WEBPACK_LAYERS.server,
@@ -350,10 +350,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   if (appDir && appPaths) {
     for (const pathname in appPaths) {
       const normalizedPath = normalizeAppPath(pathname)
+      const actualPath = appPaths[pathname]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
-      appPathsPerRoute[normalizedPath].push(pathname)
+      appPathsPerRoute[normalizedPath].push(
+        // TODO-APP: refactor to pass the page path from createPagesMapping instead.
+        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      )
     }
 
     // Make sure to sort parallel routes to make the result deterministic.
@@ -445,12 +449,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
           if (pagesType === 'app' && appDir) {
             const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
             server[serverBundlePath] = getAppEntry({
+              page,
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
               assetPrefix: config.assetPrefix,
+              nextConfigOutput: config.output,
             })
           } else {
             if (isInstrumentationHookFile(page) && pagesType === 'root') {
@@ -470,11 +476,13 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
             const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
             appDirLoader = getAppEntry({
               name: serverBundlePath,
+              page,
               pagePath: mappings[page],
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
               assetPrefix: config.assetPrefix,
+              nextConfigOutput: config.output,
             }).import
           }
           const normalizedServerBundlePath =

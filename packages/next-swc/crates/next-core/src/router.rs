@@ -1,16 +1,11 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    CompletionVc, CompletionsVc, Value,
-};
-use turbo_tasks_bytes::{Bytes, Stream};
-use turbo_tasks_fs::{json::parse_json_with_source_context, to_sys_path, File, FileSystemPathVc};
-use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_bytes::{Bytes, Stream};
+use turbo_binding::turbo::tasks_fs::{to_sys_path, File, FileSystemPathVc};
+use turbo_binding::turbopack::core::{
     asset::AssetVc,
     changed::any_content_changed,
     chunk::ChunkingContext,
@@ -23,16 +18,25 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_dev::DevChunkingContextVc;
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::dev::DevChunkingContextVc;
+use turbo_binding::turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
 };
-use turbopack_node::{
+use turbo_binding::turbopack::node::{
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
     source_map::StructuredError,
 };
+use turbo_binding::turbopack::turbopack::{
+    evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc,
+};
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
+    CompletionVc, CompletionsVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     embed_js::{next_asset, next_js_file},
@@ -110,17 +114,17 @@ enum RouterIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
 #[derive(Debug, Clone, Default)]
 pub struct MiddlewareResponse {
     pub status_code: u16,
     pub headers: Vec<(String, String)>,
     #[turbo_tasks(trace_ignore)]
-    pub body: Stream<Result<Bytes, String>>,
+    pub body: Stream<Result<Bytes, SharedError>>,
 }
 
 #[derive(Debug)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),
@@ -153,6 +157,7 @@ fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModu
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
         }]),
+        Default::default(),
         context.compile_time_info(),
     )
 }
@@ -238,6 +243,7 @@ fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
         }]),
+        Default::default(),
         context.compile_time_info(),
         configs,
     )
@@ -252,7 +258,8 @@ fn edge_transition_map(
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
-    let edge_compile_time_info = get_edge_compile_time_info(server_addr, Value::new(Middleware));
+    let edge_compile_time_info =
+        get_edge_compile_time_info(project_path, server_addr, Value::new(Middleware));
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -391,17 +398,16 @@ async fn route_internal(
             // a buffer directly into the IPC message without having to wrap it in an
             // object.
             let body = read.map(|data| {
-                let chunk: RouterIncomingMessage = match data?
+                let chunk: RouterIncomingMessage = data?
                     .to_str()
                     .context("error decoding string")
-                    .and_then(parse_json_with_source_context)
-                {
-                    Ok(c) => c,
-                    Err(e) => return Err(e.to_string()),
-                };
+                    .and_then(parse_json_with_source_context)?;
                 match chunk {
                     RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
-                    m => Err(format!("unexpected message type: {:#?}", m)),
+                    m => Err(SharedError::new(anyhow!(
+                        "unexpected message type: {:#?}",
+                        m
+                    ))),
                 }
             });
             let middleware = MiddlewareResponse {

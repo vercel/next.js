@@ -99,6 +99,7 @@ import { logAppDirError } from './log-app-dir-error'
 import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
+import { NextUrlWithParsedQuery } from '../request-meta'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -553,9 +554,13 @@ export default class DevServer extends Server {
             if (!validFileMatcher.isAppRouterPage(fileName)) {
               continue
             }
+            // Ignore files/directories starting with `_` in the app directory
+            if (normalizePathSep(pageName).includes('/_')) {
+              continue
+            }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName)
+            pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
@@ -1152,6 +1157,15 @@ export default class DevServer extends Server {
     }
   }
 
+  public async handleRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    await this.devReady
+    return await super.handleRequest(req, res, parsedUrl)
+  }
+
   async run(
     req: NodeNextRequest,
     res: NodeNextResponse,
@@ -1394,7 +1408,12 @@ export default class DevServer extends Server {
         clientOnly: false,
       })
       try {
-        require(pathJoin(this.distDir, 'server', 'instrumentation')).register()
+        const instrumentationHook = await require(pathJoin(
+          this.distDir,
+          'server',
+          'instrumentation'
+        ))
+        instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err

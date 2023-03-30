@@ -5,33 +5,11 @@ import type {
 } from './types'
 import path from 'path'
 import { stringify } from 'querystring'
+import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
 
 const METADATA_TYPE = 'metadata'
 
 export const METADATA_RESOURCE_QUERY = '?__next_metadata'
-
-export const STATIC_METADATA_IMAGES = {
-  icon: {
-    filename: 'icon',
-    extensions: ['ico', 'jpg', 'jpeg', 'png', 'svg'],
-  },
-  apple: {
-    filename: 'apple-icon',
-    extensions: ['jpg', 'jpeg', 'png'],
-  },
-  favicon: {
-    filename: 'favicon',
-    extensions: ['ico'],
-  },
-  openGraph: {
-    filename: 'opengraph-image',
-    extensions: ['jpg', 'jpeg', 'png', 'gif'],
-  },
-  twitter: {
-    filename: 'twitter-image',
-    extensions: ['jpg', 'jpeg', 'png', 'gif'],
-  },
-} as const
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(

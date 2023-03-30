@@ -1,19 +1,20 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{primitives::OptionStringVc, Value};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::{
-    self,
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
+    asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext,
+};
+use turbo_binding::turbopack::ecmascript::{
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+    EcmascriptModuleAssetVc, InnerAssetsVc,
+};
+use turbo_binding::turbopack::turbopack::{
     module_options::ModuleOptionsContextVc,
     resolve_options_context::ResolveOptionsContextVc,
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbopack_core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext};
-use turbopack_ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
+use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use crate::{
     embed_js::next_asset, next_client_component::with_client_chunks::WithClientChunksAsset,
@@ -75,6 +76,7 @@ impl Transition for NextLayoutEntryTransition {
                     runtime: OptionStringVc::cell(None),
                 },
             ]),
+            Default::default(),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "PAGE".to_string() => asset

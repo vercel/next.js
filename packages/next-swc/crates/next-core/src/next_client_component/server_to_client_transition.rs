@@ -1,19 +1,19 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{primitives::OptionStringVc, Value};
-use turbopack::{
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
-};
-use turbopack_core::{
+use turbo_binding::turbopack::core::{
     asset::AssetVc,
     context::AssetContext,
     reference_type::{EntryReferenceSubType, ReferenceType},
 };
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc, InnerAssetsVc,
 };
+use turbo_binding::turbopack::turbopack::{
+    transition::{Transition, TransitionVc},
+    ModuleAssetContextVc,
+};
+use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use crate::embed_js::next_asset;
 
@@ -63,6 +63,7 @@ impl Transition for NextServerToClientTransition {
                     runtime: OptionStringVc::cell(None),
                 },
             ]),
+            Default::default(),
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "CLIENT_MODULE".to_string() => client_module,
