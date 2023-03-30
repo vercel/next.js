@@ -225,7 +225,7 @@ function stringToPrecomputedChunk(content) {
   return precomputedChunk;
 }
 function closeWithError(destination, error) {
-  // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
+  // $FlowFixMe: This is an Error object or the destination accepts other types.
   destination.destroy(error);
 }
 
@@ -355,6 +355,9 @@ var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a n
 // When falsy, it should be removed.
 
 var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
+// When falsy, it should be removed.
+
+var POSITIVE_NUMERIC = 6;
 
 function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
   this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
@@ -366,6 +369,18 @@ function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attribut
   this.sanitizeURL = sanitizeURL;
   this.removeEmptyString = removeEmptyString;
 } // When adding attributes to this list, be sure to also add them to
+// This is a mapping from React prop names to the attribute names.
+
+[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
+  var name = _ref[0],
+      attributeName = _ref[1];
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" HTML attributes that accept "true" and "false".
 // In React, we let users pass `true` and `false` even though technically
 // these aren't boolean attributes (they are coerced to strings).
 
@@ -377,6 +392,18 @@ function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attribut
   false, // sanitizeURL
   false);
 }); // These are "enumerated" SVG attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+// Since these are SVG attributes, their attribute names are case-sensitive.
+
+['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML boolean attributes.
 
 ['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
 // on the client side because the browsers are inconsistent. Instead we call focus().
@@ -389,6 +416,46 @@ function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attribut
   false, // sanitizeURL
   false);
 }); // These are the few React props that we set as DOM properties
+// rather than attributes. These are all booleans.
+
+['checked', // Note: `option.selected` is not updated if `select.multiple` is
+// disabled with `removeAttribute`. We have special logic for handling this.
+'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that are "overloaded booleans": they behave like
+// booleans, but can also accept a string value.
+
+['capture', 'download' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be positive numbers.
+
+['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be numbers.
 
 ['rowSpan', 'start'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
@@ -413,21 +480,34 @@ var capitalize = function (token) {
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, null, // attributeNamespace
+  false, // sanitizeURL
+  false);
 }); // String SVG attributes with the xlink namespace.
 
 ['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
+  false);
 }); // String SVG attributes with the xml namespace.
 
 ['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
 // you'll need to set attributeName to name.toLowerCase()
 // instead in the assignment below.
 ].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+  new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
+  false);
 }); // These attribute exists both in HTML and SVG.
 // The attribute name is case-sensitive in SVG so we can't just use
 // the React name like we do for attributes that exist only in HTML.
@@ -440,6 +520,16 @@ var capitalize = function (token) {
   false, // sanitizeURL
   false);
 }); // These attributes accept URLs. These must not allow javascript: URLS.
+
+new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
+'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
+false);
+
+new PropertyInfoRecord('formAction', STRING, false, // mustUseProperty
+'formaction', // attributeName
+null, // attributeNamespace
+true, // sanitizeURL
+false);
 ['src', 'href', 'action'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
@@ -534,7 +624,7 @@ function isArray(a) {
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
+var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(t,u,y){function v(n){this.s=n}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=y[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var e=f[m++];if(a=p.get(e)){var d=a._p;c=!0}else{a=r.createElement("link");a.href=e;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];d=f[m++];)a.setAttribute(d,f[m++]);d=a._p=new Promise(function(n,z){a.onload=n;a.onerror=z});d.then(v.bind(d,"l"),v.bind(d,"e"));p.set(e,a)}e=a.getAttribute("media");!d||"l"===d.s||e&&!matchMedia(e).matches||h.push(d);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
 
 stringToPrecomputedChunk('"></template>');
@@ -772,7 +862,7 @@ function switchContext(newSnapshot) {
 
   if (prev !== next) {
     if (prev === null) {
-      // $FlowFixMe[incompatible-call]: This has to be non-null since it's not equal to prev.
+      // $FlowFixMe: This has to be non-null since it's not equal to prev.
       pushAllNext(next);
     } else if (next === null) {
       popAllPrevious(prev);
@@ -1447,7 +1537,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe function signature doesn't reflect the symbol value
     REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
@@ -1909,7 +1999,7 @@ var insideContextProps = null;
 var isInsideContextValue = false;
 function resolveModelToJSON(request, parent, key, value) {
   {
-    // $FlowFixMe[incompatible-use]
+    // $FlowFixMe
     var originalValue = parent[key];
 
     if (typeof originalValue === 'object' && originalValue !== value) {
@@ -2066,7 +2156,7 @@ function resolveModelToJSON(request, parent, key, value) {
           }
         }
       }
-    } // $FlowFixMe[incompatible-return]
+    } // $FlowFixMe
 
 
     return value;
@@ -2106,13 +2196,13 @@ function resolveModelToJSON(request, parent, key, value) {
 
     if (existingId !== undefined) {
       return serializeByValueID(existingId);
-    } // $FlowFixMe[incompatible-type] `description` might be undefined
+    } // $FlowFixMe `description` might be undefined
 
 
     var name = value.description;
 
     if (Symbol.for(name) !== value) {
-      throw new Error('Only global symbols received from Symbol.for(...) can be passed to Client Components. ' + ("The symbol Symbol.for(" + // $FlowFixMe[incompatible-type] `description` might be undefined
+      throw new Error('Only global symbols received from Symbol.for(...) can be passed to Client Components. ' + ("The symbol Symbol.for(" + // $FlowFixMe `description` might be undefined
       value.description + ") cannot be found among global symbols.") + describeObjectForErrorMessage(parent, key));
     }
 
@@ -2642,7 +2732,7 @@ function getRoot(response) {
 }
 
 function createPendingChunk(response) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(PENDING, null, null, response);
 }
 
@@ -2691,7 +2781,7 @@ function triggerErrorOnChunk(chunk, error) {
 }
 
 function createResolvedModelChunk(response, value) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODEL, value, null, response);
 }
 
