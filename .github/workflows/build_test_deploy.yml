@@ -666,6 +666,7 @@ jobs:
     name: Test Codemods
     runs-on: ubuntu-latest
     needs: [build]
+    if: ${{ needs.build.outputs.codemodChange == 'yep' }}
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -680,15 +681,13 @@ jobs:
 
       - uses: actions/cache@v3
         timeout-minutes: 5
-        if: ${{ needs.build.outputs.codemodChange == 'yep' }}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - name: Test if changes were found
+      - name: Run tests
         run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ env.NODE_LTS_VERSION }} | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
-        if: ${{ needs.build.outputs.codemodChange == 'yup' }}
 
   testIntegration:
     name: Test Integration
