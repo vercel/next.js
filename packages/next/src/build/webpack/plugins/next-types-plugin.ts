@@ -44,9 +44,12 @@ function createTypeGuardFile(
   }
 ) {
   return `// File: ${fullPath}
-import * as entry from '${relativePath}'
-import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface'
-import type { NextRequest } from 'next/server'
+import * as entry from '${relativePath}.js'
+${
+  options.type === 'route'
+    ? `import type { NextRequest } from 'next/server.js'`
+    : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
+}
 
 type TEntry = typeof entry
 
@@ -81,44 +84,34 @@ checkFields<Diff<{
 
 ${
   options.type === 'route'
-    ? `// Check the prop type of the entry function
-${HTTP_METHODS.map(
-  (method) => `
+    ? HTTP_METHODS.map(
+        (method) => `// Check the prop type of the entry function
 if ('${method}' in entry) {
   checkFields<
     Diff<
+      ParamCheck<Request | NextRequest>,
       {
-        __tag__: '${method}',
-        __param_position__: string,
-        __param_type__: Request | NextRequest
-      },
-      {
-        __tag__: '${method}',
-        __param_position__: 'first',
+        __tag__: '${method}'
+        __param_position__: 'first'
         __param_type__: FirstArg<MaybeField<TEntry, '${method}'>>
       },
       '${method}'
     >
-  >();
+  >()
   checkFields<
     Diff<
+      ParamCheck<PageParams>,
       {
-        __tag__: '${method}',
-        __param_position__: string,
-        __param_type__: PageParams
-      },
-      {
-        __tag__: '${method}',
-        __param_position__: 'second',
+        __tag__: '${method}'
+        __param_position__: 'second'
         __param_type__: SecondArg<MaybeField<TEntry, '${method}'>>
       },
       '${method}'
     >
-  >();
+  >()
 }
 `
-).join('')}
-`
+      ).join('')
     : `// Check the prop type of the entry function
 checkFields<Diff<${
         options.type === 'page' ? 'PageProps' : 'LayoutProps'
@@ -165,6 +158,12 @@ type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T)
 type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
 type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
 type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
+
+type ParamCheck<T> = {
+  __tag__: string
+  __param_position__: string
+  __param_type__: T
+}
 
 function checkFields<_ extends { [k in keyof any]: never }>() {}
 
@@ -638,10 +637,18 @@ export class NextTypesPlugin {
               })
             }
 
+            // Support tsconfig values for "moduleResolution": "Node16" or "NodeNext"
+            const packageJsonTypePath = path.join('types', 'package.json')
+            const packageJsonAssetPath =
+              assetDirRelative + '/' + normalizePathSep(packageJsonTypePath)
+            assets[packageJsonAssetPath] = new sources.RawSource(
+              '{"type": "module"}'
+            ) as unknown as webpack.sources.RawSource
+
             const linkTypePath = path.join('types', 'link.d.ts')
-            const assetPath =
+            const linkAssetPath =
               assetDirRelative + '/' + normalizePathSep(linkTypePath)
-            assets[assetPath] = new sources.RawSource(
+            assets[linkAssetPath] = new sources.RawSource(
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource
           }

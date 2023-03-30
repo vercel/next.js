@@ -1,14 +1,10 @@
 use anyhow::{anyhow, bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::Value;
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc};
-use turbopack::{
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::turbo::tasks::Value;
+use turbo_binding::turbo::tasks_fs::{
+    rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc,
 };
-use turbopack_core::{
+use turbo_binding::turbopack::core::{
     asset::{Asset, AssetVc},
     chunk::ChunkingContextVc,
     compile_time_info::CompileTimeInfoVc,
@@ -17,10 +13,16 @@ use turbopack_core::{
     resolve::parse::RequestVc,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::ecmascript::{
     chunk_group_files_asset::ChunkGroupFilesAsset, resolve::esm_resolve, utils::StringifyJs,
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc, InnerAssetsVc,
+};
+use turbo_binding::turbopack::turbopack::{
+    module_options::ModuleOptionsContextVc,
+    resolve_options_context::ResolveOptionsContextVc,
+    transition::{Transition, TransitionVc},
+    ModuleAssetContextVc,
 };
 
 #[turbo_tasks::value(shared)]
