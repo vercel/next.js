@@ -233,15 +233,6 @@ export class ClientReferenceEntryPlugin {
         })
       )
 
-      if (this.dev) {
-        // Create action entry every time
-        if (this.isEdgeServer) {
-          pluginState.edgeServerActions = {}
-        } else {
-          pluginState.serverActions = {}
-        }
-      }
-
       if (actionEntryImports.size > 0) {
         addActionEntryList.push(
           this.injectActionEntry({
