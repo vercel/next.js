@@ -362,12 +362,6 @@ export default class Router {
     if (process.env.__NEXT_PRIVATE_RENDER_WORKER && matchedPath) {
       const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
 
-      if (parsedUrlUpdated.pathname !== parsedMatchedPath.pathname) {
-        parsedUrlUpdated.pathname = parsedMatchedPath.pathname
-        addRequestMeta(req, '_nextRewroteUrl', parsedUrlUpdated.pathname)
-        addRequestMeta(req, '_nextDidRewrite', true)
-      }
-
       const pathnameInfo = getNextPathnameInfo(parsedMatchedPath.pathname, {
         nextConfig: this.nextConfig,
         parseData: false,
@@ -375,6 +369,12 @@ export default class Router {
 
       if (pathnameInfo.locale) {
         parsedUrlUpdated.query.__nextLocale = pathnameInfo.locale
+      }
+
+      if (parsedUrlUpdated.pathname !== parsedMatchedPath.pathname) {
+        parsedUrlUpdated.pathname = parsedMatchedPath.pathname
+        addRequestMeta(req, '_nextRewroteUrl', pathnameInfo.pathname)
+        addRequestMeta(req, '_nextDidRewrite', true)
       }
 
       for (const key of [...new Set(parsedMatchedPath.searchParams.keys())]) {
