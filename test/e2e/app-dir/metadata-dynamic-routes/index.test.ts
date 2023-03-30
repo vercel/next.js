@@ -14,6 +14,9 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
+    dependencies: {
+      '@vercel/og': '0.4.1',
+    },
   },
   ({ next, isNextDev, isNextDeploy }) => {
     describe('text routes', () => {
