@@ -9,7 +9,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, useMemo, use } from 'react'
+import React, { useContext, use } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
