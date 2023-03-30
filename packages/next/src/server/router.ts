@@ -359,7 +359,11 @@ export default class Router {
         })
       : this.compiledRoutes
 
-    if (process.env.__NEXT_PRIVATE_RENDER_WORKER && matchedPath) {
+    if (
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      process.env.__NEXT_PRIVATE_RENDER_WORKER &&
+      matchedPath
+    ) {
       const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
 
       const pathnameInfo = getNextPathnameInfo(parsedMatchedPath.pathname, {
