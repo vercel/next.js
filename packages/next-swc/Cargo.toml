@@ -37,12 +37,12 @@ next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-e
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.12.2" }
 mdxjs = { version = "0.1.9" }
-modularize_imports = { version = "0.26.14" }
-styled_components = { version = "0.53.14" }
-styled_jsx = { version = "0.30.14" }
-swc_core = { version = "0.72.0" }
-swc_emotion = { version = "0.29.14" }
-testing = { version = "0.32.0" }
+modularize_imports = { version = "0.27.1" }
+styled_components = { version = "0.54.1" }
+styled_jsx = { version = "0.31.1" }
+swc_core = { version = "0.72.4" }
+swc_emotion = { version = "0.30.1" }
+testing = { version = "0.32.3" }
 
 # Turbo crates
 turbo-binding = { git = "https://github.com/vercel/turbo.git", branch = "kdy1/swc-update" }
