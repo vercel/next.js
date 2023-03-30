@@ -1509,8 +1509,17 @@ export default class NextNodeServer extends BaseServer {
                 : {}),
             })
 
-            if (bubbleNoFallback && invokeRes.headers.get('x-no-fallback')) {
-              return { finished: false }
+            const noFallback = invokeRes.headers.get('x-no-fallback')
+
+            if (noFallback) {
+              if (bubbleNoFallback) {
+                return { finished: false }
+              } else {
+                await this.render404(req, res, parsedUrl)
+                return {
+                  finished: true,
+                }
+              }
             }
 
             for (const [key, value] of Object.entries(
