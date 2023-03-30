@@ -1,4 +1,3 @@
-import React from 'react'
 import type { ResolvedMetadata } from './types/metadata-interface'
 
 export const createDefaultMetadata = (): ResolvedMetadata => {
