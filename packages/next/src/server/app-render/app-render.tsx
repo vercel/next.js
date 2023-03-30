@@ -1138,6 +1138,10 @@ export async function renderToHTMLOrFlight(
 
         const { 'not-found': notFound, layout } = loaderTree[2]
         const isLayout = typeof layout !== 'undefined'
+        const rootLayoutModule = layout?.[0]
+        const RootLayout = rootLayoutModule
+          ? interopDefault(await rootLayoutModule())
+          : null
         const rootLayoutAtThisLevel = isLayout
         const [NotFound, notFoundStyles] = notFound
           ? await createComponentAndStyles({
@@ -1169,7 +1173,13 @@ export async function renderToHTMLOrFlight(
                 </>
               }
               globalErrorComponent={GlobalError}
-              notFound={NotFound ? <NotFound /> : undefined}
+              notFound={
+                NotFound && RootLayout ? (
+                  <RootLayout>
+                    <NotFound />
+                  </RootLayout>
+                ) : undefined
+              }
               notFoundStyles={notFoundStyles}
               asNotFound={props.asNotFound}
             >
