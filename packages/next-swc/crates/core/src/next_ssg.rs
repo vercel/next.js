@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::mem::take;
 use std::rc::Rc;
 
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},

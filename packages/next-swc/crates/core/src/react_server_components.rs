@@ -5,7 +5,7 @@ use regex::Regex;
 use serde::Deserialize;
 
 use crate::auto_cjs::contains_cjs;
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
