@@ -3,6 +3,7 @@ export default function Page() {
 }
 
 export const metadata = {
+  metadataBase: null,
   alternates: {
     canonical: 'https://example.com',
     languages: {
@@ -14,8 +15,8 @@ export const metadata = {
     },
     types: {
       'application/rss+xml': [
-        { url: 'blog.rss', title: 'rss' },
-        { url: 'blog/js.rss', title: 'js title' },
+        { url: '/blog.rss', title: 'rss' },
+        { url: '/blog/js.rss', title: 'js title' },
       ],
     },
   },
