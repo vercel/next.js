@@ -225,9 +225,7 @@ export function middleware(request: NextRequest) {
 
 ## Producing a Response
 
-You can respond to middleware directly by returning a `NextResponse` (responding from middleware is available since Next.js v13.1.0).
-
-Once enabled, you can provide a response from middleware using the `Response` or `NextResponse` API:
+You can respond from Middleware directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-middleware))
 
 ```ts
 // middleware.ts
