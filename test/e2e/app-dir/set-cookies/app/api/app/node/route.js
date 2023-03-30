@@ -1,5 +1,3 @@
-// @ts-check
-
 import cookies from '../../../../cookies'
 
 export async function GET() {

@@ -1,5 +1,3 @@
-// @ts-check
-
 export const config = { runtime: 'experimental-edge' }
 
 import cookies from '../../../cookies'

@@ -1875,6 +1875,20 @@ export default class NextNodeServer extends BaseServer {
 
     const allHeaders = new Headers()
 
+    // Copy over the response headers from the original response. These headers
+    // could be set in middleware or by the Next.js router.
+    const responseHeaders = params.response.getHeaders()
+    for (const key of Object.keys(responseHeaders)) {
+      const value = responseHeaders[key]
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          allHeaders.append(key, v)
+        }
+      } else {
+        allHeaders.append(key, value)
+      }
+    }
+
     for (let [key, value] of result.response.headers) {
       if (key !== 'x-middleware-next') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
@@ -2254,7 +2268,9 @@ export default class NextNodeServer extends BaseServer {
       // The append handling is special cased for `set-cookie`.
       if (key.toLowerCase() === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
-        params.res.setHeader(key, splitCookiesString(value))
+        for (const cookie of splitCookiesString(value)) {
+          params.res.appendHeader(key, cookie)
+        }
       } else {
         params.res.appendHeader(key, value)
       }

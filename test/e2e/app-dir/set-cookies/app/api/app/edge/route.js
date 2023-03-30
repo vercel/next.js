@@ -1,5 +1,3 @@
-// @ts-check
-
 export const runtime = 'edge'
 
 import cookies from '../../../../cookies'

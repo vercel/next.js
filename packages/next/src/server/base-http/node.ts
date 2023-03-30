@@ -79,6 +79,21 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     this._res.statusMessage = value
   }
 
+  getHeaders(): Record<string, string | string[]> {
+    const headers = this._res.getHeaders()
+    const result: Record<string, string | string[]> = {}
+
+    for (const key in headers) {
+      let value = headers[key]
+      if (typeof value === 'undefined') continue
+
+      if (typeof value === 'number') result[key] = value.toString()
+      else result[key] = value
+    }
+
+    return result
+  }
+
   setHeader(name: string, value: string | string[]): this {
     this._res.setHeader(name, value)
     return this

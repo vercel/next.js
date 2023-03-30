@@ -25,7 +25,9 @@ export async function sendResponse(
       // The append handling is special cased for `set-cookie`.
       if (name.toLowerCase() === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
-        res.setHeader(name, splitCookiesString(value))
+        for (const cookie of splitCookiesString(value)) {
+          res.appendHeader(name, cookie)
+        }
       } else {
         res.appendHeader(name, value)
       }

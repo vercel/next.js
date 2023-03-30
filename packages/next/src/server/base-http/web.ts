@@ -1,4 +1,5 @@
 import type { IncomingHttpHeaders } from 'http'
+import { splitCookiesString } from '../web/utils'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
 
@@ -53,6 +54,21 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
   constructor(public transformStream = new TransformStream()) {
     super(transformStream.writable)
+  }
+
+  getHeaders(): Record<string, string | string[]> {
+    const result: Record<string, string | string[]> = {}
+
+    for (const [name, value] of this.headers.entries()) {
+      // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+      if (name.toLowerCase() === 'set-cookie') {
+        result[name] = splitCookiesString(value)
+      } else {
+        result[name] = value
+      }
+    }
+
+    return result
   }
 
   setHeader(name: string, value: string | string[]): this {

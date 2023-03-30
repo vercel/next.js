@@ -92,7 +92,7 @@ export const createHeaderRoute = ({
           key = compileNonPath(key, params)
           value = compileNonPath(value, params)
         }
-        res.setHeader(key, value)
+        res.appendHeader(key, value)
       }
       return { finished: false }
     },
