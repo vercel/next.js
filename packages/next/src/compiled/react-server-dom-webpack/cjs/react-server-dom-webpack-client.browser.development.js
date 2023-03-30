@@ -185,7 +185,7 @@ var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FI
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe function signature doesn't reflect the symbol value
     REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
@@ -289,17 +289,17 @@ function getRoot(response) {
 }
 
 function createPendingChunk(response) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(PENDING, null, null, response);
 }
 
 function createBlockedChunk(response) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(BLOCKED, null, null, response);
 }
 
 function createErrorChunk(response, error) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(ERRORED, null, error, response);
 }
 
@@ -348,12 +348,12 @@ function triggerErrorOnChunk(chunk, error) {
 }
 
 function createResolvedModelChunk(response, value) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODEL, value, null, response);
 }
 
 function createResolvedModuleChunk(response, value) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  // $FlowFixMe Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODULE, value, null, response);
 }
 
@@ -1304,7 +1304,7 @@ function processReply(root, resolve, reject) {
     var parent = this;
 
     {
-      // $FlowFixMe[incompatible-use]
+      // $FlowFixMe
       var originalValue = this[key];
 
       if (typeof originalValue === 'object' && originalValue !== value) {
@@ -1381,7 +1381,7 @@ function processReply(root, resolve, reject) {
             }
           }
         }
-      } // $FlowFixMe[incompatible-return]
+      } // $FlowFixMe
 
 
       return value;
@@ -1421,11 +1421,11 @@ function processReply(root, resolve, reject) {
     }
 
     if (typeof value === 'symbol') {
-      // $FlowFixMe[incompatible-type] `description` might be undefined
+      // $FlowFixMe `description` might be undefined
       var name = value.description;
 
       if (Symbol.for(name) !== value) {
-        throw new Error('Only global symbols received from Symbol.for(...) can be passed to Server Functions. ' + ("The symbol Symbol.for(" + // $FlowFixMe[incompatible-type] `description` might be undefined
+        throw new Error('Only global symbols received from Symbol.for(...) can be passed to Server Functions. ' + ("The symbol Symbol.for(" + // $FlowFixMe `description` might be undefined
         value.description + ") cannot be found among global symbols."));
       }
 
