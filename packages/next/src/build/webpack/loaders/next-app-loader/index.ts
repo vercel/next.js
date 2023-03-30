@@ -19,7 +19,7 @@ import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
 import { NextConfig } from '../../../../server/config-shared'
-import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
+import { AppPathnameNormalizer } from '../../../../server/future/normalizers/built/app/app-pathname-normalizer'
 
 export type AppLoaderOptions = {
   name: string
@@ -102,6 +102,8 @@ async function createAppRouteCode({
   // References the route handler file to load found in `./routes/${kind}.ts`.
   // TODO: allow switching to the different kinds of routes
   const kind = 'app-route'
+  const normalizer = new AppPathnameNormalizer()
+  const pathname = normalizer.normalize(page)
 
   // This is providing the options defined by the route options type found at
   // ./routes/${kind}.ts. This is stringified here so that the literal for
@@ -109,7 +111,7 @@ async function createAppRouteCode({
   // the loader code.
   const options = `{
     userland,
-    pathname: ${JSON.stringify(normalizeAppPath(page))},
+    pathname: ${JSON.stringify(pathname)},
     resolvedPagePath: ${JSON.stringify(resolvedPagePath)},
     nextConfigOutput: ${
       nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'

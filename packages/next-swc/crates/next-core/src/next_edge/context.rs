@@ -4,11 +4,15 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc};
 use turbopack_core::{
     compile_time_defines,
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+    compile_time_info::{
+        CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
+        FreeVarReferencesVc,
+    },
     environment::{
         EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
         ServerAddrVc,
     },
+    free_var_references,
 };
 use turbopack_node::execution_context::ExecutionContextVc;
 
@@ -26,20 +30,31 @@ pub fn next_edge_defines() -> CompileTimeDefinesVc {
     .cell()
 }
 
+pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesVc {
+    free_var_references!(
+        Buffer = FreeVarReference::EcmaScriptModule {
+            request: "next/dist/compiled/buffer".to_string(),
+            context: Some(project_path),
+            export: Some("Buffer".to_string()),
+        },
+    )
+    .cell()
+}
+
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
+    project_path: FileSystemPathVc,
     server_addr: ServerAddrVc,
     intention: Value<EnvironmentIntention>,
 ) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::EdgeWorker(
-                EdgeWorkerEnvironment { server_addr }.into(),
-            )),
-            intention,
-        ),
-        defines: next_edge_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::EdgeWorker(
+            EdgeWorkerEnvironment { server_addr }.into(),
+        )),
+        intention,
+    ))
+    .defines(next_edge_defines())
+    .free_var_references(next_edge_free_vars(project_path))
     .cell()
 }
 

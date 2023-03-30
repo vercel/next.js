@@ -17,7 +17,7 @@ import {
 startHandler(async ({ request, response, query, params, path }) => {
   const edgeInfo = {
     name: "edge",
-    paths: chunkGroup.map((chunk: string) =>
+    paths: chunkGroup.map((chunk) =>
       join(process.cwd(), ".next/server/app", chunk)
     ),
     wasm: [],
