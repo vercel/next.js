@@ -1,25 +1,25 @@
 import type webpack from 'webpack'
-import type { ValueOf } from '../../../../shared/lib/constants'
-import type { ModuleReference, CollectedMetadata } from '../metadata/types'
+import type { ValueOf } from '../../../shared/lib/constants'
+import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
-import { NODE_RESOLVE_OPTIONS } from '../../../webpack-config'
-import { getModuleBuildInfo } from '../get-module-build-info'
-import { verifyRootLayout } from '../../../../lib/verifyRootLayout'
-import * as Log from '../../../output/log'
-import { APP_DIR_ALIAS } from '../../../../lib/constants'
+import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
+import { getModuleBuildInfo } from './get-module-build-info'
+import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import * as Log from '../../output/log'
+import { APP_DIR_ALIAS } from '../../../lib/constants'
 import {
   createMetadataExportsCode,
   createStaticMetadataFromRoute,
   METADATA_RESOURCE_QUERY,
-} from '../metadata/discover'
+} from './metadata/discover'
 import { promises as fs } from 'fs'
-import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
-import { NextConfig } from '../../../../server/config-shared'
-import { AppPathnameNormalizer } from '../../../../server/future/normalizers/built/app/app-pathname-normalizer'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { NextConfig } from '../../../server/config-shared'
+import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
 
 export type AppLoaderOptions = {
   name: string
@@ -92,6 +92,8 @@ async function createAppRouteCode({
     )
   }
 
+  // If this is a metadata route, then we need to use the metadata loader for
+  // the route to ensure that the route is generated.
   const filename = path.parse(resolvedPagePath).name
   if (isMetadataRoute(name) && filename !== 'route') {
     resolvedPagePath = `next-metadata-route-loader?${stringify({
@@ -116,32 +118,30 @@ async function createAppRouteCode({
     nextConfigOutput: ${
       nextConfigOutput ? JSON.stringify(nextConfigOutput) : 'undefined'
     },
-    requestAsyncStorage,
-    staticGenerationAsyncStorage,
-    staticGenerationBailout,
-    headerHooks,
-    serverHooks,
   }`
 
   return `
     import 'next/dist/server/node-polyfill-headers'
 
-    import { Route } from 'next/dist/build/webpack/loaders/next-app-loader/routes/${kind}'
-
-    import { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
-    import { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
-
-    import * as headerHooks from 'next/dist/client/components/headers'
-    import * as serverHooks from 'next/dist/client/components/hooks-server-context'
-    import { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
+    import RouteModule from 'next/dist/server/future/route-modules/${kind}/module'
 
     import * as userland from ${JSON.stringify(resolvedPagePath)}
 
-    const route = new Route(${options})
-    
+    const routeModule = new RouteModule(${options})
+
+    // Pull out the exports that we need to expose from the module. This should
+    // be eliminated when we've moved the other routes to the new format. These
+    // are used to hook into the route.
+    const {
+      requestAsyncStorage,
+      staticGenerationAsyncStorage,
+      serverHooks,
+      headerHooks,
+      staticGenerationBailout
+    } = routeModule
+
     export {
-      userland,
-      route,
+      routeModule,
       requestAsyncStorage,
       staticGenerationAsyncStorage,
       serverHooks,

@@ -3,48 +3,24 @@ declare const PAGE: string;
 // PATHNAME is set from rust code
 declare const PATHNAME: string;
 
-import { HandlerProvider } from "next/dist/build/webpack/loaders/next-edge-app-route-loader/provider";
-import { adapter, enhanceGlobals } from "next/dist/server/web/adapter";
+import { EdgeModuleWrapper } from "next/dist/build/webpack/loaders/next-edge-app-route-loader/edge-module-wrapper";
 
-// For each of the route kinds, import the route so we can pass it to the
-// HandlerProvider.
-// @ts-expect-error - ROUTE is set from rust code
-import { Route } from "ROUTE";
-
-import { requestAsyncStorage } from "next/dist/client/components/request-async-storage";
-import { staticGenerationAsyncStorage } from "next/dist/client/components/static-generation-async-storage";
-
-import * as headerHooks from "next/dist/client/components/headers";
-import * as serverHooks from "next/dist/client/components/hooks-server-context";
-import { staticGenerationBailout } from "next/dist/client/components/static-generation-bailout";
-
-enhanceGlobals();
+// @ts-expect-error - ROUTE_MODULE is set from rust code
+import RouteModule from "ROUTE_MODULE";
 
 import * as userland from "ENTRY";
 
-const route = new Route({
+// TODO: (wyattjoh) - perform the option construction in Rust to allow other modules to accept different options
+const routeModule = new RouteModule({
   userland,
   pathname: PATHNAME,
   resolvedPagePath: `app/${PAGE}`,
   nextConfigOutput: undefined,
-  requestAsyncStorage,
-  staticGenerationAsyncStorage,
-  staticGenerationBailout,
-  headerHooks,
-  serverHooks,
 });
 
-const provider = new HandlerProvider(route);
-
-// @ts-ignore
+// @ts-expect-error - exposed for edge support
 globalThis._ENTRIES = {
   middleware_edge: {
-    default: function (opts: any) {
-      return adapter({
-        ...opts,
-        page: `/${PAGE}`,
-        handler: provider.handler.bind(provider),
-      });
-    },
+    default: EdgeModuleWrapper.wrap(routeModule, { page: `/${PAGE}` }),
   },
 };
