@@ -31,7 +31,8 @@ describe('Instrumentation Hook', () => {
         },
       },
       dependencies: {
-        '@vercel/og': ' 0.5.0', // This version uses ESM
+        // This test is mostly for compatibility with this package
+        '@vercel/otel': 'latest',
       },
       skipDeployment: true,
     },
