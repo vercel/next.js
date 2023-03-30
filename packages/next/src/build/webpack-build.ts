@@ -28,7 +28,6 @@ import {
   TurbotraceContext,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { UnwrapPromise } from '../lib/coalesced-function'
-import * as pagesPluginModule from './webpack/plugins/pages-manifest-plugin'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import origDebug from 'next/dist/compiled/debug'
 import { ChildProcess } from 'child_process'
