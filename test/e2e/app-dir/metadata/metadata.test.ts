@@ -369,12 +369,11 @@ createNextDescribe(
         const res = await next.fetch('/async/not-found')
         expect(res.status).toBe(404)
         const html = await res.text()
-        expect(html).not.toBe('not-found-text')
-        expect(html).toContain('This page could not be found.')
+        expect(html).toContain('root not found page')
 
         const browser = await next.browser('/async/not-found')
         expect(await browser.elementByCss('h2').text()).toBe(
-          'This page could not be found.'
+          'root not found page'
         )
       })
 
