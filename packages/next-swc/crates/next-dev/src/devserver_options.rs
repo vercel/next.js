@@ -2,7 +2,7 @@ use std::{net::IpAddr, path::PathBuf};
 
 #[cfg(feature = "cli")]
 use clap::Parser;
-use turbopack_cli_utils::issue::IssueSeverityCliOption;
+use turbo_binding::turbopack::cli_utils::issue::IssueSeverityCliOption;
 
 #[derive(Debug)]
 #[cfg_attr(feature = "cli", derive(Parser))]

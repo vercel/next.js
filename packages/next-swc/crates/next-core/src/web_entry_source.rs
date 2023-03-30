@@ -1,18 +1,18 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::{TryJoinIterExt, Value};
-use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::EcmascriptModuleAssetVc;
-use turbopack_core::{
+use turbo_binding::turbo::tasks_env::ProcessEnvVc;
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     chunk::{availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
-use turbopack_dev_server::{
+use turbo_binding::turbopack::dev_server::{
     html::DevHtmlAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::turbopack::ecmascript::EcmascriptModuleAssetVc;
+use turbo_tasks::{TryJoinIterExt, Value};
 
 use crate::{
     next_client::context::{

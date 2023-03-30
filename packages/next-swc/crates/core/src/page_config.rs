@@ -1,6 +1,6 @@
 use chrono::Utc;
 
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     common::{errors::HANDLER, Span, DUMMY_SP},
     ecma::ast::*,
     ecma::visit::{Fold, FoldWith},

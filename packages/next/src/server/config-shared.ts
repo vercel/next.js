@@ -9,6 +9,7 @@ import {
 import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -240,8 +241,9 @@ export interface ExperimentalConfig {
 export type ExportPathMap = {
   [path: string]: {
     page: string
-    query?: Record<string, string | string[]>
+    query?: NextParsedUrlQuery
     _isAppDir?: boolean
+    _isDynamicError?: boolean
   }
 }
 
