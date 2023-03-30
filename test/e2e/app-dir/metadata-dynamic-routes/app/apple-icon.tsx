@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from '@vercel/og'
 
 export const contentType = 'image/png'
 
