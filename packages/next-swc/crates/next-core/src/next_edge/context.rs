@@ -70,9 +70,11 @@ pub async fn get_edge_resolve_options_context(
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec!["worker".to_string(), "development".to_string()],
+        // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
+        custom_conditions: vec!["edge-light".to_string(), "worker".to_string(), "development".to_string()],
         import_map: Some(next_edge_import_map),
         module: true,
+        browser: true,
         ..Default::default()
     };
 
