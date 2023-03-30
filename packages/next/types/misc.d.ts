@@ -404,15 +404,6 @@ declare module 'next/dist/compiled/shell-quote' {
   export = m
 }
 
-declare module 'next/dist/compiled/@vercel/og/satori-types' {
-  export * from 'satori'
-}
-declare module 'next/dist/compiled/@vercel/og' {
-  export * from '@vercel/og'
-}
-declare module 'next/dist/compiled/@vercel/og/index.node'
-declare module 'next/dist/compiled/@vercel/og/index.edge'
-
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
