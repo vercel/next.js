@@ -45,11 +45,11 @@ function createTypeGuardFile(
   }
 ) {
   return `// File: ${fullPath}
-import * as entry from '${relativePath}'
+import * as entry from '${relativePath}.js'
 ${
   options.type === 'route'
-    ? `import type { NextRequest } from 'next/server'`
-    : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface'`
+    ? `import type { NextRequest } from 'next/server.js'`
+    : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
 type TEntry = typeof entry
@@ -638,10 +638,18 @@ export class NextTypesPlugin {
               })
             }
 
+            // Support tsconfig values for "moduleResolution": "Node16" or "NodeNext"
+            const packageJsonTypePath = path.join('types', 'package.json')
+            const packageJsonAssetPath =
+              assetDirRelative + '/' + normalizePathSep(packageJsonTypePath)
+            assets[packageJsonAssetPath] = new sources.RawSource(
+              '{"type": "module"}'
+            ) as unknown as webpack.sources.RawSource
+
             const linkTypePath = path.join('types', 'link.d.ts')
-            const assetPath =
+            const linkAssetPath =
               assetDirRelative + '/' + normalizePathSep(linkTypePath)
-            assets[assetPath] = new sources.RawSource(
+            assets[linkAssetPath] = new sources.RawSource(
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource
           }

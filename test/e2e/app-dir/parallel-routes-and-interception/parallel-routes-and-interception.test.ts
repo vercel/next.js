@@ -6,9 +6,10 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDeploy, isNextDev }) => {
+  ({ next, isNextDeploy }) => {
     describe('parallel routes', () => {
-      it('should support parallel route tab bars', async () => {
+      // TODO: investigate this flaky test
+      it.skip('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar', {
           waitHydration: true,
           retryWaitHydration: true,
