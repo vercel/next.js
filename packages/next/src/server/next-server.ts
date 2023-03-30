@@ -2334,10 +2334,18 @@ export default class NextNodeServer extends BaseServer {
                   ) {
                     result.response.headers.delete(key)
                   } else {
+                    const value = result.response.headers.get(key)
                     // propagate this to req headers so it's
                     // passed to the render worker for the page
-                    req.headers[key] =
-                      result.response.headers.get(key) || undefined
+                    req.headers[key] = value || undefined
+
+                    if (key.toLowerCase() === 'set-cookie' && value) {
+                      addRequestMeta(
+                        req,
+                        '_nextMiddlewareCookie',
+                        splitCookiesString(value)
+                      )
+                    }
                   }
                 }
               } else {
