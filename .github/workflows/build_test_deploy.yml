@@ -8,11 +8,12 @@ name: Build, test, and deploy
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.6.3
+  TURBO_VERSION: 1.8.8
   RUST_TOOLCHAIN: nightly-2023-03-09
   PNPM_VERSION: 7.24.3
   NODE_MAINTENANCE_VERSION: 16
   NODE_LTS_VERSION: 18
+  TURBO_RUN_SUMMARY: 'true'
 
 jobs:
   check-examples:
