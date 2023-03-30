@@ -4,7 +4,6 @@ import { fetchViaHTTP } from 'next-test-utils'
 
 describe('app dir - metadata missing metadataBase', () => {
   let next: NextInstance
-  // const logs = []
 
   beforeAll(async () => {
     next = await createNext({
@@ -14,9 +13,6 @@ describe('app dir - metadata missing metadataBase', () => {
       },
       files: new FileRef(__dirname),
     })
-    // next.on('stderr', (log) => {
-    //   logs.push(log)
-    // })
   })
   afterAll(() => next.destroy())
 
@@ -40,28 +36,3 @@ describe('app dir - metadata missing metadataBase', () => {
     })
   }
 })
-
-// createNextDescribe(
-//   'app dir - metadata missing metadataBase',
-//   {
-//     files: __dirname,
-//     dependencies: {
-//       '@vercel/og': '0.4.1',
-//     },
-//   },
-//   ({ next, isNextDev, isNextStart }) => {
-
-//     if (isNextDev) {
-//       console.log('logs', logs)
-//       expect(
-//         logs.some((log) =>
-//           /metadata\.metadataBase is not set and fallbacks to "http:\/\/localhost:\d+", please specify it in root layout to resolve absolute urls/.test(
-//             log
-//           )
-//         )
-//       ).toBe(true)
-//     } else if (isNextStart) {
-
-//     }
-//   }
-// )
