@@ -5,7 +5,7 @@ export async function middleware(request) {
   if (
     request.url.endsWith('_next/static/css/app/suspensey-css/slow/page.css')
   ) {
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await new Promise((resolve) => setTimeout(resolve, 150))
   } else if (
     request.url.endsWith('_next/static/css/app/suspensey-css/timeout/page.css')
   ) {
