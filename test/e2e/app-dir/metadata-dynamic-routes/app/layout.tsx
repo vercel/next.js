@@ -8,6 +8,9 @@ export default function Layout({ children }) {
 }
 
 export const metadata = {
+  metadataBase: process.env.VERCEL_URL
+    ? new URL(`https://${process.env.VERCEL_URL}`)
+    : new URL(`http://localhost:${process.env.PORT || 3000}`),
   title: 'Next.js App',
   description: 'This is a Next.js App',
   twitter: {
