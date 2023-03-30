@@ -1326,7 +1326,10 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer,
             element: (
               <html id="__next_error__">
-                <head></head>
+                <head>
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree key={requestId} metadata={[]} />
+                </head>
                 <body></body>
               </html>
             ),
