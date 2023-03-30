@@ -166,7 +166,7 @@ Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescr
 
 ## Minimum TypeScript Version
 
-It is highly recommended to be on at least `v4.5.2` of TypeScript to get syntax features such as [type modifiers on import names](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#type-on-import-names) and [performance improvments](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#real-path-sync-native).
+It is highly recommended to be on at least `v4.5.2` of TypeScript to get syntax features such as [type modifiers on import names](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#type-on-import-names) and [performance improvements](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#real-path-sync-native).
 
 ## Ignoring TypeScript Errors
 
