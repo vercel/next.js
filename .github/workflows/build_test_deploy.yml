@@ -62,6 +62,10 @@ jobs:
 
       - run: echo "${{steps.docs-change.outputs.DOCS_CHANGE}}"
 
+      - name: Check codemod only change
+        run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+        id: codemod-change
+
       - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
 
@@ -1170,10 +1174,6 @@ jobs:
         id: docs-change
 
       - run: echo "${{ steps.docs-chang.outputs.DOCS_CHANGE }}"
-
-      - name: Check codemod only change
-        run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
-        id: codemod-change
 
       - name: Install
         if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
