@@ -642,7 +642,7 @@ export class NextTypesPlugin {
             const packageJsonAssetPath =
               assetDirRelative + '/' + normalizePathSep(packageJsonTypePath)
             assets[packageJsonAssetPath] = new sources.RawSource(
-              '{ "type": "module" }'
+              '{"type": "module"}'
             ) as unknown as webpack.sources.RawSource
 
             const linkTypePath = path.join('types', 'link.d.ts')
