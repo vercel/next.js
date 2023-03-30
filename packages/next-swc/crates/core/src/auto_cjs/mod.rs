@@ -1,4 +1,4 @@
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     ecma::ast::*,
     ecma::visit::{Visit, VisitWith},
 };

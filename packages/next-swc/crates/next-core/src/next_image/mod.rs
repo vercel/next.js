@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbopack_core::introspect::{Introspectable, IntrospectableVc};
-use turbopack_dev_server::source::{
+use turbo_binding::turbopack::core::introspect::{Introspectable, IntrospectableVc};
+use turbo_binding::turbopack::dev_server::source::{
     query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
     ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
     NeededData, ProxyResult,
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 /// Serves, resizes, optimizes, and re-encodes images to be used with
 /// next/image.
