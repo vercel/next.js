@@ -1175,7 +1175,7 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <RootLayout>
+                  <RootLayout params={{}}>
                     <NotFound />
                   </RootLayout>
                 ) : undefined
