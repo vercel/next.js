@@ -4,6 +4,7 @@ use std::{
     io::{BufWriter, Write},
     path::Path,
 };
+use turbo_tasks_build::generate_register;
 
 extern crate napi_build;
 
@@ -39,4 +40,6 @@ fn main() {
     .expect("Failed to write target triple text");
 
     napi_build::setup();
+
+    generate_register();
 }

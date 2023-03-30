@@ -36,7 +36,7 @@ use std::{env, panic::set_hook, sync::Arc};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
-use napi::bindgen_prelude::*;
+use napi::{bindgen_prelude::*, JsObject};
 use next_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
@@ -98,6 +98,11 @@ pub fn complete_output(
 }
 
 pub type ArcCompiler = Arc<Compiler>;
+
+pub static REGISTER: Lazy<()> = Lazy::new(|| {
+    next_core::register();
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
+});
 
 #[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
 compile_error!("You can't enable both `native-tls` and `rustls-tls`");

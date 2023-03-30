@@ -3233,6 +3233,7 @@ dependencies = [
  "tracing-subscriber",
  "turbo-malloc",
  "turbo-tasks",
+ "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-memory",
  "turbopack",

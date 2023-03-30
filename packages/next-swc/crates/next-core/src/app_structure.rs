@@ -1,17 +1,18 @@
 use anyhow::{bail, Result};
+use indexmap::indexmap;
+use indexmap::map::Entry;
+use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use turbo_tasks::debug::ValueDebugFormat;
 use turbo_tasks::primitives::{StringVc, StringsVc};
 use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks::CompletionVc;
 use turbo_tasks::CompletionsVc;
-use turbo_tasks::ValueToString;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack_core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc};
+use turbopack_core::issue::{Issue, IssueSeverityVc, IssueVc};
 
 use crate::next_config::NextConfigVc;
 
@@ -125,7 +126,7 @@ impl Metadata {
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
-    pub subdirectories: HashMap<String, DirectoryTreeVc>,
+    pub subdirectories: BTreeMap<String, DirectoryTreeVc>,
     pub components: ComponentsVc,
 }
 
@@ -165,16 +166,9 @@ impl OptionAppDirVc {
     }
 }
 
-/// Finds and returns the [DirectoryTree] of the app directory if enabled and
-/// existing.
+/// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
-pub async fn find_app_dir(
-    project_path: FileSystemPathVc,
-    next_config: NextConfigVc,
-) -> Result<OptionAppDirVc> {
-    if !*next_config.app_dir().await? {
-        return Ok(OptionAppDirVc::cell(None));
-    }
+pub async fn find_app_dir(project_path: FileSystemPathVc) -> Result<OptionAppDirVc> {
     let app = project_path.join("app");
     let src_app = project_path.join("src/app");
     let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
@@ -188,6 +182,19 @@ pub async fn find_app_dir(
     .await?;
 
     Ok(OptionAppDirVc::cell(Some(app_dir)))
+}
+
+/// Finds and returns the [DirectoryTree] of the app directory if enabled and
+/// existing.
+#[turbo_tasks::function]
+pub async fn find_app_dir_if_enabled(
+    project_path: FileSystemPathVc,
+    next_config: NextConfigVc,
+) -> Result<OptionAppDirVc> {
+    if !*next_config.app_dir().await? {
+        return Ok(OptionAppDirVc::cell(None));
+    }
+    Ok(find_app_dir(project_path))
 }
 
 static STATIC_METADATA_IMAGES: Lazy<HashMap<&'static str, &'static [&'static str]>> =
@@ -220,7 +227,7 @@ async fn get_directory_tree(
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
     };
-    let mut subdirectories = HashMap::new();
+    let mut subdirectories = BTreeMap::new();
     let mut components = Components::default();
 
     for (basename, entry) in entries {
@@ -277,7 +284,7 @@ async fn get_directory_tree(
 #[derive(Debug, Clone)]
 pub struct LoaderTree {
     pub segment: String,
-    pub parallel_routes: HashMap<String, LoaderTreeVc>,
+    pub parallel_routes: IndexMap<String, LoaderTreeVc>,
     pub components: ComponentsVc,
 }
 
@@ -311,14 +318,16 @@ async fn merge_loader_trees(
     .cell())
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug,
+)]
 pub enum Entrypoint {
     AppPage { loader_tree: LoaderTreeVc },
     AppRoute { path: FileSystemPathVc },
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(HashMap<String, Entrypoint>);
+pub struct Entrypoints(IndexMap<String, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -334,7 +343,7 @@ fn is_optional_segment(name: &str) -> bool {
 
 async fn add_parallel_route(
     app_dir: FileSystemPathVc,
-    result: &mut HashMap<String, LoaderTreeVc>,
+    result: &mut IndexMap<String, LoaderTreeVc>,
     key: String,
     loader_tree: LoaderTreeVc,
 ) -> Result<()> {
@@ -354,7 +363,7 @@ async fn add_parallel_route(
 
 async fn add_app_page(
     app_dir: FileSystemPathVc,
-    result: &mut HashMap<String, Entrypoint>,
+    result: &mut IndexMap<String, Entrypoint>,
     key: String,
     loader_tree: LoaderTreeVc,
 ) -> Result<()> {
@@ -377,7 +386,7 @@ async fn add_app_page(
 }
 
 async fn add_app_route(
-    result: &mut HashMap<String, Entrypoint>,
+    result: &mut IndexMap<String, Entrypoint>,
     key: String,
     path: FileSystemPathVc,
 ) -> Result<()> {
@@ -394,11 +403,8 @@ async fn add_app_route(
 }
 
 #[turbo_tasks::function]
-pub fn get_entrypoints(app_dir: FileSystemPathVc, next_config: NextConfigVc) -> EntrypointsVc {
-    directory_tree_to_entrypoints(
-        app_dir,
-        get_directory_tree(app_dir, next_config.page_extensions()),
-    )
+pub fn get_entrypoints(app_dir: FileSystemPathVc, page_extensions: StringsVc) -> EntrypointsVc {
+    directory_tree_to_entrypoints(app_dir, get_directory_tree(app_dir, page_extensions))
 }
 
 #[turbo_tasks::function]
@@ -406,7 +412,7 @@ pub fn directory_tree_to_entrypoints(
     app_dir: FileSystemPathVc,
     directory_tree: DirectoryTreeVc,
 ) -> EntrypointsVc {
-    directory_tree_to_entrypoints_internal(app_dir, "", directory_tree, "")
+    directory_tree_to_entrypoints_internal(app_dir, "", directory_tree, "/")
 }
 
 #[turbo_tasks::function]
@@ -416,7 +422,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_tree: DirectoryTreeVc,
     path_prefix: &str,
 ) -> Result<EntrypointsVc> {
-    let mut result = HashMap::new();
+    let mut result = IndexMap::new();
 
     let directory_tree = &*directory_tree.await?;
 
@@ -433,7 +439,7 @@ async fn directory_tree_to_entrypoints_internal(
             if current_level_is_parallel_route {
                 LoaderTree {
                     segment: "__PAGE__".to_string(),
-                    parallel_routes: HashMap::new(),
+                    parallel_routes: IndexMap::new(),
                     components: Components {
                         page: Some(page),
                         ..Default::default()
@@ -444,11 +450,10 @@ async fn directory_tree_to_entrypoints_internal(
             } else {
                 LoaderTree {
                     segment: directory_name.to_string(),
-                    parallel_routes: HashMap::from([(
-                        "children".to_string(),
-                        LoaderTree {
+                    parallel_routes: indexmap! {
+                        "children".to_string() => LoaderTree {
                             segment: "__PAGE__".to_string(),
-                            parallel_routes: HashMap::new(),
+                            parallel_routes: IndexMap::new(),
                             components: Components {
                                 page: Some(page.clone()),
                                 ..Default::default()
@@ -456,7 +461,7 @@ async fn directory_tree_to_entrypoints_internal(
                             .cell(),
                         }
                         .cell(),
-                    )]),
+                    },
                     components: components.without_leafs().cell(),
                 }
                 .cell()
@@ -473,7 +478,7 @@ async fn directory_tree_to_entrypoints_internal(
             if current_level_is_parallel_route {
                 LoaderTree {
                     segment: "__DEFAULT__".to_string(),
-                    parallel_routes: HashMap::new(),
+                    parallel_routes: IndexMap::new(),
                     components: Components {
                         default: Some(default),
                         ..Default::default()
@@ -484,11 +489,10 @@ async fn directory_tree_to_entrypoints_internal(
             } else {
                 LoaderTree {
                     segment: directory_name.to_string(),
-                    parallel_routes: HashMap::from([(
-                        "children".to_string(),
-                        LoaderTree {
+                    parallel_routes: indexmap! {
+                        "children".to_string() => LoaderTree {
                             segment: "__DEFAULT__".to_string(),
-                            parallel_routes: HashMap::new(),
+                            parallel_routes: IndexMap::new(),
                             components: Components {
                                 default: Some(default.clone()),
                                 ..Default::default()
@@ -496,7 +500,7 @@ async fn directory_tree_to_entrypoints_internal(
                             .cell(),
                         }
                         .cell(),
-                    )]),
+                    },
                     components: components.without_leafs().cell(),
                 }
                 .cell()
@@ -537,15 +541,15 @@ async fn directory_tree_to_entrypoints_internal(
                     if current_level_is_parallel_route {
                         add_app_page(app_dir, &mut result, full_path.clone(), loader_tree).await?;
                     } else {
+                        let key = parallel_route_key
+                            .as_deref()
+                            .unwrap_or_else(|| "children")
+                            .to_string();
                         let child_loader_tree = LoaderTree {
                             segment: directory_name.to_string(),
-                            parallel_routes: HashMap::from([(
-                                parallel_route_key
-                                    .as_deref()
-                                    .unwrap_or_else(|| "children")
-                                    .to_string(),
-                                loader_tree,
-                            )]),
+                            parallel_routes: indexmap! {
+                                key => loader_tree,
+                            },
                             components: components.without_leafs().cell(),
                         }
                         .cell();

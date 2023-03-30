@@ -324,7 +324,7 @@ pub async fn create_app_source(
     let Some(app_dir) = *app_dir.await? else {
         return Ok(NoContentSourceVc::new().into());
     };
-    let entrypoints = get_entrypoints(app_dir, next_config);
+    let entrypoints = get_entrypoints(app_dir, next_config.page_extensions());
 
     let client_compile_time_info = get_client_compile_time_info(browserslist_query);
 

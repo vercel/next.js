@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "next-swc-napi"
 version = "0.0.0"
 publish = false
@@ -21,20 +21,20 @@ native-tls = ["next-binding/__turbo_native_tls"]
 rustls-tls = ["next-binding/__turbo_rustls_tls"]
 
 [dependencies]
-anyhow = "1.0.66"
+anyhow = { workspace = true }
 backtrace = "0.3"
 fxhash = "0.2.1"
-napi = { version = "2", default-features = false, features = [
+napi = { version = "2.11.2", default-features = false, features = [
   "napi3",
   "serde-json",
   "tokio_rt",
   "error_anyhow",
 ] }
-napi-derive = "2"
+napi-derive = "2.11.1"
 next-swc = { version = "0.0.0", path = "../core" }
 once_cell = { workspace = true }
-serde = "1"
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
@@ -74,3 +74,4 @@ sentry = { version = "0.27.0", default-features = false, features = [
 napi-build = "2"
 serde = "1"
 serde_json = "1"
+turbo-tasks-build = { workspace = true }

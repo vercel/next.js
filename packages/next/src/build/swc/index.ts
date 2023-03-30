@@ -324,6 +324,29 @@ function loadNative(isCustomTurbopack = false) {
   }
 
   if (bindings) {
+    ;(async () => {
+      const turboTasks = bindings.createTurboTasks()
+      const entrypoints = await bindings.getEntrypoints(
+        turboTasks,
+        '/Users/timneutkens/projects/next.js',
+        '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception',
+        ['ts', 'tsx', 'js', 'jsx']
+      )
+      console.log({ entrypoints })
+      console.dir({ test: entrypoints['/parallel-tab-bar'] }, { depth: null })
+      // bindings.streamEntrypoints(
+      //   turboTasks,
+      //   '/Users/timneutkens/projects/next.js',
+      //   '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception',
+      //   ['ts', 'tsx', 'js', 'jsx'],
+      //   (err, entrypoints) => {
+      //     if (err) console.log({ err })
+      //     console.log({ entrypoints })
+      //     console.dir({ test: entrypoints['/parallel-tab-bar'] }, { depth: null })
+      //   }
+      // )
+    })().catch((e) => console.error(e))
+
     // Initialize crash reporter, as earliest as possible from any point of import.
     // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
     // we can't rely on explicit manual initialization as similar to trace reporter.
