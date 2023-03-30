@@ -229,7 +229,7 @@ You can respond from Middleware directly by returning a `Response` or `NextRespo
 
 ```ts
 // middleware.ts
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`
