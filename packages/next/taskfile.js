@@ -1620,7 +1620,7 @@ export async function ncc_icss_utils(task, opts) {
 }
 
 externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function copy_vendor_react(task, opts) {
+export async function ncc_react(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('scheduler')))
     .ncc({ packageName: 'scheduler', externals })
@@ -1684,8 +1684,20 @@ export async function copy_vendor_react(task, opts) {
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
   )
+}
 
-  // react-server-dom-webpack
+// eslint-disable-next-line camelcase
+export async function ncc_rsc_poison_packages(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('server-only')), '*'))
+    .target('src/compiled/server-only')
+  await task
+    .source(join(dirname(require.resolve('client-only')), '*'))
+    .target('src/compiled/client-only')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_react_server_dom_webpack(task, opts) {
   const reactServerDomDir = dirname(
     relative(
       __dirname,
@@ -1708,16 +1720,6 @@ export async function copy_vendor_react(task, opts) {
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
     .target(`src/compiled/react-server-dom-webpack`)
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_rsc_poison_packages(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/compiled/server-only')
-  await task
-    .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/compiled/client-only')
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2210,7 +2212,8 @@ export async function ncc(task, opts) {
       'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_constants_browserify',
-      'copy_vendor_react',
+      'ncc_react',
+      'ncc_react_server_dom_webpack',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
