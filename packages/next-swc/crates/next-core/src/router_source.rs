@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use futures::stream::StreamExt;
 use indexmap::IndexSet;
 use turbo_binding::turbopack::core::{
@@ -127,13 +127,15 @@ impl ContentSource for NextRouterContentSource {
 
         let res = res
             .await
-            .with_context(|| anyhow!("failed to fetch /{path}{}", formated_query(raw_query)))?;
+            .with_context(|| format!("failed to fetch /{path}{}", formated_query(raw_query)))?;
 
         Ok(match &*res {
-            RouterResult::Error(e) => bail!(
-                "error during Next.js routing for /{path}{}: {e}",
-                formated_query(raw_query)
-            ),
+            RouterResult::Error(e) => {
+                return Err(anyhow!(e.clone()).context(format!(
+                    "error during Next.js routing for /{path}{}: {e}",
+                    formated_query(raw_query)
+                )))
+            }
             RouterResult::None => this
                 .inner
                 .get(path, Value::new(ContentSourceData::default())),

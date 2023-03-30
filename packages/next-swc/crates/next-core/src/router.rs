@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
@@ -400,15 +400,15 @@ async fn route_internal(
     let first = match read.next().await {
         Some(Ok(first)) => first,
         Some(Err(e)) => {
-            return Ok(RouterResult::Error(shared_anyhow!(
-                "received error from javascript stream: {}",
-                e
+            return Ok(RouterResult::Error(SharedError::new(
+                anyhow!(e)
+                    .context("router evaluation failed: received error from javascript stream"),
             ))
             .cell())
         }
         None => {
             return Ok(RouterResult::Error(shared_anyhow!(
-                "no message received from javascript stream"
+                "router evaluation failed: no message received from javascript stream"
             ))
             .cell())
         }
@@ -444,6 +444,7 @@ async fn route_internal(
         }
 
         RouterIncomingMessage::None => (RouterResult::None, Some(read)),
+
         RouterIncomingMessage::Error { error } => (
             RouterResult::Error(shared_anyhow!(
                 trace_stack(
@@ -456,6 +457,7 @@ async fn route_internal(
             )),
             Some(read),
         ),
+
         RouterIncomingMessage::MiddlewareBody { .. } => (
             RouterResult::Error(shared_anyhow!(
                 "unexpected incoming middleware body without middleware headers"
