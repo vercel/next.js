@@ -175,7 +175,6 @@ export async function startServer({
         // TODO: do we want to allow more than 10 OOM restarts?
         maxRetries: 10,
         forkOptions: {
-          cwd: dir,
           env: {
             FORCE_COLOR: '1',
             ...process.env,
