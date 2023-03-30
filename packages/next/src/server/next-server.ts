@@ -1877,7 +1877,14 @@ export default class NextNodeServer extends BaseServer {
 
     for (let [key, value] of result.response.headers) {
       if (key !== 'x-middleware-next') {
-        allHeaders.append(key, value)
+        // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+        if (key.toLowerCase() === 'set-cookie') {
+          for (const setCookie of splitCookiesString(value)) {
+            allHeaders.append(key, setCookie)
+          }
+        } else {
+          allHeaders.append(key, value)
+        }
       }
     }
 
@@ -2244,9 +2251,10 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusMessage = result.response.statusText
 
     result.response.headers.forEach((value: string, key) => {
-      // the append handling is special cased for `set-cookie`
+      // The append handling is special cased for `set-cookie`.
       if (key.toLowerCase() === 'set-cookie') {
-        params.res.setHeader(key, value)
+        // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+        params.res.setHeader(key, splitCookiesString(value))
       } else {
         params.res.appendHeader(key, value)
       }
