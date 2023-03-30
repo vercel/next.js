@@ -13,9 +13,7 @@ createNextDescribe(
   'app dir - metadata dynamic routes',
   {
     files: __dirname,
-    dependencies: {
-      '@vercel/og': '0.4.1',
-    },
+    skipDeployment: true,
   },
   ({ next, isNextDev, isNextDeploy }) => {
     describe('text routes', () => {

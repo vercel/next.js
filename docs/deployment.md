@@ -37,7 +37,7 @@ When deploying to Vercel, the platform [automatically detects Next.js](https://v
 - [Pages](/docs/basic-features/pages.md) are automatically statically optimized, if possible
 - Assets (JavaScript, CSS, images, fonts) are compressed and served from a [Global Edge Network](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - [API Routes](/docs/api-routes/introduction.md) are automatically optimized as isolated [Serverless Functions](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that can scale infinitely
-- [Middleware](/docs/middleware.md) are automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that have zero cold starts and boot instantly
+- [Middleware](/docs/middleware.md) is automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that have zero cold starts and boot instantly
 
 In addition, Vercel provides features like:
 

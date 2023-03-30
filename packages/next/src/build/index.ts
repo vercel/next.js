@@ -1,7 +1,7 @@
 import type { RemotePattern } from '../shared/lib/image-config'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 
@@ -259,6 +259,7 @@ export default async function build(
   appDirOnly = false,
   turboNextBuild = false
 ): Promise<void> {
+  let hasAppDir = false
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       version: process.env.__NEXT_VERSION as string,
@@ -357,6 +358,7 @@ export default async function build(
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
+      hasAppDir = Boolean(appDir)
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -678,7 +680,7 @@ export default async function build(
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
-      const hasApp404 = !!mappedAppPages?.['/not-found']
+      const hasApp404 = !!mappedAppPages?.['/_not-found']
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -2339,7 +2341,7 @@ export default async function build(
             // pages and incremental pages.
             // n.b. we cannot handle this above in combinedPages because the dynamic
             // page must be in the `pages` array, but not in the mapping.
-            exportPathMap: (defaultMap: any) => {
+            exportPathMap: (defaultMap: ExportPathMap) => {
               // Dynamically routed pages should be prerendered to be used as
               // a client-side skeleton (fallback) while data is being fetched.
               // This ensures the end-user never sees a 500 or slow response from the
@@ -2356,12 +2358,12 @@ export default async function build(
                     if (i18n) {
                       defaultMap[`/${i18n.defaultLocale}${page}`] = {
                         page,
-                        query: { __nextFallback: true },
+                        query: { __nextFallback: 'true' },
                       }
                     } else {
                       defaultMap[page] = {
                         page,
-                        query: { __nextFallback: true },
+                        query: { __nextFallback: 'true' },
                       }
                     }
                   } else {
@@ -2430,11 +2432,10 @@ export default async function build(
 
                     defaultMap[outputPath] = {
                       page: defaultMap[page]?.page || page,
-                      query: { __nextLocale: locale },
-                    }
-
-                    if (isFallback) {
-                      defaultMap[outputPath].query.__nextFallback = true
+                      query: {
+                        __nextLocale: locale,
+                        __nextFallback: isFallback ? 'true' : undefined,
+                      },
                     }
                   }
 
@@ -2451,6 +2452,7 @@ export default async function build(
           const exportOptions: ExportOptions = {
             isInvokedFromCli: false,
             nextConfig: exportConfig,
+            hasAppDir,
             silent: false,
             buildExport: true,
             debugOutput,
@@ -2466,7 +2468,6 @@ export default async function build(
                   await staticWorkers.end()
                 }
               : undefined,
-            appPaths,
           }
 
           await exportApp(dir, exportOptions, nextBuildSpan)
@@ -2493,7 +2494,7 @@ export default async function build(
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
-              if (route === '/not-found') return
+              if (route === '/_not-found') return
 
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
@@ -2703,7 +2704,7 @@ export default async function build(
                   distDir,
                   'server',
                   'app',
-                  'not-found.html'
+                  '_not-found.html'
                 )
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
@@ -3123,6 +3124,7 @@ export default async function build(
         const options: ExportOptions = {
           isInvokedFromCli: false,
           nextConfig: config,
+          hasAppDir,
           silent: true,
           threads: config.experimental.cpus,
           outdir: path.join(dir, configOutDir),

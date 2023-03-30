@@ -1,13 +1,7 @@
 use anyhow::{Context, Result};
 use indoc::formatdoc;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExports, EcmascriptExportsVc,
-};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         availability_info::AvailabilityInfo, Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc,
@@ -18,7 +12,15 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkingContextVc, utils::StringifyJs};
+use turbo_binding::turbopack::turbopack::ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
+    },
+    utils::StringifyJs,
+};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
