@@ -733,7 +733,6 @@ export class ClientReferenceEntryPlugin {
         currentCompilerServerActions[id].workers[bundlePath] = ''
       }
     }
-    pluginState.serverActions
 
     // Inject the entry to the server compiler
     const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {

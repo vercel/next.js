@@ -5,13 +5,17 @@ import {
 } from '../../../shared/lib/constants'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { getProxiedPluginState } from '../../build-context'
 
 export type PagesManifest = { [page: string]: string }
 
-export let edgeServerPages = {}
-export let nodeServerPages = {}
-export let edgeServerAppPaths = {}
-export let nodeServerAppPaths = {}
+// This makes sure that the plugin state can be shared across workers.
+const pluginState = getProxiedPluginState({
+  edgeServerPages: {},
+  nodeServerPages: {},
+  edgeServerAppPaths: {},
+  nodeServerAppPaths: {},
+})
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
@@ -85,11 +89,11 @@ export default class PagesManifestPlugin
     // This plugin is used by both the Node server and Edge server compilers,
     // we need to merge both pages to generate the full manifest.
     if (this.isEdgeRuntime) {
-      edgeServerPages = pages
-      edgeServerAppPaths = appPaths
+      pluginState.edgeServerPages = pages
+      pluginState.edgeServerAppPaths = appPaths
     } else {
-      nodeServerPages = pages
-      nodeServerAppPaths = appPaths
+      pluginState.nodeServerPages = pages
+      pluginState.nodeServerAppPaths = appPaths
     }
 
     assets[
@@ -97,8 +101,8 @@ export default class PagesManifestPlugin
     ] = new sources.RawSource(
       JSON.stringify(
         {
-          ...edgeServerPages,
-          ...nodeServerPages,
+          ...pluginState.edgeServerPages,
+          ...pluginState.nodeServerPages,
         },
         null,
         2
@@ -111,8 +115,8 @@ export default class PagesManifestPlugin
       ] = new sources.RawSource(
         JSON.stringify(
           {
-            ...edgeServerAppPaths,
-            ...nodeServerAppPaths,
+            ...pluginState.edgeServerAppPaths,
+            ...pluginState.nodeServerAppPaths,
           },
           null,
           2
