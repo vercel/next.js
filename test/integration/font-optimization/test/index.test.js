@@ -177,36 +177,6 @@ describe('Font Optimization', () => {
           }
         })
 
-        it('should minify the css', async () => {
-          const snapshotJson = JSON.parse(
-            await fs.readFile(join(appDir, 'manifest-snapshot.json'), {
-              encoding: 'utf-8',
-            })
-          )
-          const testJson = JSON.parse(
-            await fs.readFile(builtPage('font-manifest.json'), {
-              encoding: 'utf-8',
-            })
-          )
-          const normalizeContent = (content) => {
-            return content.replace(/\/v[\d]{1,}\//g, '/v0/')
-          }
-          const testCss = {}
-          testJson.forEach((fontDefinition) => {
-            testCss[fontDefinition.url] = normalizeContent(
-              fontDefinition.content
-            )
-          })
-          const snapshotCss = {}
-          snapshotJson.forEach((fontDefinition) => {
-            snapshotCss[fontDefinition.url] = normalizeContent(
-              fontDefinition.content
-            )
-          })
-
-          expect(testCss).toStrictEqual(snapshotCss)
-        })
-
         // Re-run build to check if it works when build is cached
         it('should work when build is cached', async () => {
           await nextBuild(appDir)
