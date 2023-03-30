@@ -40,6 +40,11 @@ pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesV
             context: Some(project_path),
             export: Some("Buffer".to_string()),
         },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "next/dist/build/polyfills/process".to_string(),
+            context: Some(project_path),
+            export: Some("Buffer".to_string()),
+        },
     )
     .cell()
 }

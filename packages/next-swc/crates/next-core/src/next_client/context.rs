@@ -63,6 +63,11 @@ pub fn next_client_free_vars() -> FreeVarReferencesVc {
             context: None,
             export: Some("Buffer".to_string()),
         },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "node:process".to_string(),
+            context: None,
+            export: None,
+        }
     )
     .cell()
 }
