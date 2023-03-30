@@ -1,5 +1,5 @@
-import type { IncomingHttpHeaders } from 'http'
-import { splitCookiesString } from '../web/utils'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import { toNodeHeaders } from '../web/utils'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
 
@@ -56,21 +56,6 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     super(transformStream.writable)
   }
 
-  getHeaders(): Record<string, string | string[]> {
-    const result: Record<string, string | string[]> = {}
-
-    for (const [name, value] of this.headers.entries()) {
-      // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
-      if (name.toLowerCase() === 'set-cookie') {
-        result[name] = splitCookiesString(value)
-      } else {
-        result[name] = value
-      }
-    }
-
-    return result
-  }
-
   setHeader(name: string, value: string | string[]): this {
     this.headers.delete(name)
     for (const val of Array.isArray(value) ? value : [value]) {
@@ -88,6 +73,10 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
 
   getHeader(name: string): string | undefined {
     return this.headers.get(name) ?? undefined
+  }
+
+  getHeaders(): OutgoingHttpHeaders {
+    return toNodeHeaders(this.headers)
   }
 
   hasHeader(name: string): boolean {

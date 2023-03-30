@@ -70,7 +70,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { splitCookiesString, toNodeHeaders } from './web/utils'
+import { fromNodeHeaders, splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -1873,32 +1873,22 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
     })
 
-    const allHeaders = new Headers()
-
     // Copy over the response headers from the original response. These headers
     // could be set in middleware or by the Next.js router.
-    const responseHeaders = params.response.getHeaders()
-    for (const key of Object.keys(responseHeaders)) {
-      const value = responseHeaders[key]
-      if (Array.isArray(value)) {
-        for (const v of value) {
-          allHeaders.append(key, v)
+    const allHeaders = new Headers(
+      fromNodeHeaders(params.response.getHeaders())
+    )
+
+    for (let [key, value] of result.response.headers) {
+      if (key === 'x-middleware-next') continue
+
+      // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+      if (key.toLowerCase() === 'set-cookie') {
+        for (const setCookie of splitCookiesString(value)) {
+          allHeaders.append(key, setCookie)
         }
       } else {
         allHeaders.append(key, value)
-      }
-    }
-
-    for (let [key, value] of result.response.headers) {
-      if (key !== 'x-middleware-next') {
-        // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
-        if (key.toLowerCase() === 'set-cookie') {
-          for (const setCookie of splitCookiesString(value)) {
-            allHeaders.append(key, setCookie)
-          }
-        } else {
-          allHeaders.append(key, value)
-        }
       }
     }
 
@@ -2059,7 +2049,11 @@ export default class NextNodeServer extends BaseServer {
                 continue
               }
               if (key !== 'content-encoding' && value !== undefined) {
-                res.setHeader(key, value)
+                if (typeof value === 'number') {
+                  res.setHeader(key, value.toString())
+                } else {
+                  res.setHeader(key, value)
+                }
               }
             }
 

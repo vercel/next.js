@@ -5,8 +5,6 @@ const headers = nextConfigHeaders.map((header) => ({
   value: header,
 }))
 
-console.log('debug:next.config.mjs:headers', headers)
-
 /**
  * @type {import('next').NextConfig}
  */

@@ -33,8 +33,6 @@ export abstract class BaseNextResponse<Destination = any> {
 
   constructor(public destination: Destination) {}
 
-  abstract getHeaders(): Record<string, string | string[]>
-
   /**
    * Sets a value for the header overwriting existing values
    */
