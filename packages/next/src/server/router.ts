@@ -377,13 +377,15 @@ export default class Router {
         addRequestMeta(req, '_nextDidRewrite', true)
       }
 
-      for (const key of [...new Set(parsedMatchedPath.searchParams.keys())]) {
-        const value = parsedMatchedPath.searchParams.getAll(key)
-        parsedUrlUpdated.query[key] = [...value]
-
-        if (parsedUrlUpdated.query[key]?.length === 1) {
-          parsedUrlUpdated.query[key] = parsedUrlUpdated.query[key]?.[0]
+      for (const key of Object.keys(parsedUrlUpdated.query)) {
+        if (!key.startsWith('__next') && !key.startsWith('_next')) {
+          delete parsedUrlUpdated.query[key]
         }
+      }
+      const invokeQuery = req.headers['x-invoke-query']
+
+      if (typeof invokeQuery === 'string') {
+        Object.assign(parsedUrlUpdated.query, JSON.parse(invokeQuery))
       }
     }
 

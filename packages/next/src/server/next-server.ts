@@ -1456,21 +1456,15 @@ export default class NextNodeServer extends BaseServer {
               invokePathname,
               this.nextConfig.basePath
             )
-
-            const keptQuery = new URLSearchParams()
+            const keptQuery: ParsedUrlQuery = {}
 
             for (const key of Object.keys(query)) {
               if (key.startsWith('__next') || key.startsWith('_next')) {
                 continue
               }
-              if (Array.isArray(query[key])) {
-                ;(query[key] as string[]).forEach((val) => {
-                  keptQuery.append(key, val)
-                })
-              } else {
-                keptQuery.set(key, query[key] as string)
-              }
+              keptQuery[key] = query[key]
             }
+            const invokeQuery = JSON.stringify(keptQuery)
             const invokeQueryStr = keptQuery.toString()
             const invokePath = `${invokePathname}${
               invokeQueryStr ? `?${invokeQueryStr}` : ''
@@ -1480,6 +1474,7 @@ export default class NextNodeServer extends BaseServer {
               'cache-control': '',
               ...req.headers,
               'x-invoke-path': invokePath,
+              'x-invoke-query': invokeQuery,
             }
 
             const forbiddenHeaders = (global as any).__NEXT_USE_UNDICI
