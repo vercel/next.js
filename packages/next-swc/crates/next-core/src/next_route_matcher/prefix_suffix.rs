@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
+use turbo_binding::turbopack::node::route_matcher::{ParamsVc, RouteMatcher};
 use turbo_tasks::primitives::BoolVc;
-use turbopack_node::route_matcher::{ParamsVc, RouteMatcher};
 
 /// A composite route matcher that matches a path if it has a given prefix and
 /// suffix.

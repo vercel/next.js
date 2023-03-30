@@ -14,7 +14,7 @@ const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
 const PlatformName = platform()
-const triples = platformArchTriples[PlatformName][ArchName] || []
+const triples = platformArchTriples[PlatformName]?.[ArchName] || []
 
 const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
@@ -100,7 +100,10 @@ export async function loadBindings(): Promise<any> {
     )
 
     if (shouldLoadWasmFallbackFirst) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      const fallbackBindings = await tryLoadWasmWithFallback(
+        attempts,
+        isCustomTurbopack
+      )
       if (fallbackBindings) {
         return resolve(fallbackBindings)
       }
@@ -114,7 +117,10 @@ export async function loadBindings(): Promise<any> {
 
     // For these platforms we already tried to load wasm and failed, skip reattempt
     if (!shouldLoadWasmFallbackFirst) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      const fallbackBindings = await tryLoadWasmWithFallback(
+        attempts,
+        isCustomTurbopack
+      )
       if (fallbackBindings) {
         return resolve(fallbackBindings)
       }
@@ -125,9 +131,12 @@ export async function loadBindings(): Promise<any> {
   return pendingBindings
 }
 
-async function tryLoadWasmWithFallback(attempts: any) {
+async function tryLoadWasmWithFallback(
+  attempts: any,
+  isCustomTurbopack: boolean
+) {
   try {
-    let bindings = await loadWasm()
+    let bindings = await loadWasm('', isCustomTurbopack)
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({ wasm: 'enabled' })
     return bindings
@@ -148,7 +157,10 @@ async function tryLoadWasmWithFallback(attempts: any) {
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
-    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    let bindings = await loadWasm(
+      pathToFileURL(wasmDirectory).href,
+      isCustomTurbopack
+    )
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({ wasm: 'fallback' })
 
@@ -202,7 +214,7 @@ function logLoadFailure(attempts: any, triedWasm = false) {
     })
 }
 
-async function loadWasm(importPath = '') {
+async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
   if (wasmBindings) {
     return wasmBindings
   }
@@ -256,8 +268,26 @@ async function loadWasm(importPath = '') {
           return undefined
         },
         turbo: {
-          startDev: () => {
-            Log.error('Wasm binding does not support --turbo yet')
+          startDev: (options: any) => {
+            if (!isCustomTurbopack) {
+              Log.error('Wasm binding does not support --turbo yet')
+              return
+            } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS) {
+              Log.warn(
+                'Trying to load custom turbopack bindings. Note this is internal testing purpose only, actual wasm fallback cannot load this bindings'
+              )
+              Log.warn(
+                `Loading custom turbopack bindings from ${__INTERNAL_CUSTOM_TURBOPACK_BINDINGS}`
+              )
+
+              const devOptions = {
+                ...options,
+                noOpen: options.noOpen ?? true,
+              }
+              require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startTurboDev(
+                toBuffer(devOptions)
+              )
+            }
           },
           startTrace: () => {
             Log.error('Wasm binding does not support trace yet')
@@ -464,11 +494,13 @@ function loadNative(isCustomTurbopack = false) {
             })
           } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS) {
             console.warn(
-              `Loading custom turbopack bindings from ${__INTERNAL_CUSTOM_TURBOPACK_BINARY}`
+              `Loading custom turbopack bindings from ${__INTERNAL_CUSTOM_TURBOPACK_BINDINGS}`
             )
             console.warn(`Running turbopack with args: `, devOptions)
 
-            require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
+            require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startTurboDev(
+              toBuffer(devOptions)
+            )
           }
         },
         nextBuild: (options: unknown) => {

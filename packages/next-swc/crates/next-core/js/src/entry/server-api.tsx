@@ -4,7 +4,6 @@ import startHandler from "@vercel/turbopack-next/internal/api-server-handler";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
-// @ts-expect-error INNER is provided by rust
 import * as allExports from "INNER";
 import { apiResolver } from "next/dist/server/api-utils/node";
 import {

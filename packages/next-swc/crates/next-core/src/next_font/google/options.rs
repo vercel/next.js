@@ -198,7 +198,7 @@ pub(super) fn options_from_request(
 mod tests {
     use anyhow::Result;
     use indexmap::IndexMap;
-    use turbo_tasks_fs::json::parse_json_with_source_context;
+    use turbo_binding::turbo::tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
     use crate::next_font::google::{options::FontWeights, request::NextFontRequest};

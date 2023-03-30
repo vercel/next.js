@@ -16,11 +16,12 @@ import {
   shouldBeTypescriptProject,
   spawnExitPromise,
 } from './lib/utils'
+import { Span } from 'next/dist/trace'
 
 import { useTempDir } from '../../../test/lib/use-temp-dir'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import resolveFrom from 'resolve-from'
-import { getPkgPaths } from '../../../test/lib/create-next-install'
+import { createNextInstall } from '../../../test/lib/create-next-install'
 
 const startsWithoutError = async (
   appDir: string,
@@ -38,16 +39,16 @@ const startsWithoutError = async (
 
     try {
       const res = await fetchViaHTTP(appPort, '/')
-      expect(res.status).toBe(200)
       expect(await res.text()).toContain('Get started by editing')
+      expect(res.status).toBe(200)
 
       const apiRes = await fetchViaHTTP(appPort, '/api/hello')
-      expect(apiRes.status).toBe(200)
       if (usingAppDirectory) {
         expect(await apiRes.text()).toEqual('Hello, Next.js!')
       } else {
         expect(await apiRes.json()).toEqual({ name: 'John Doe' })
       }
+      expect(apiRes.status).toBe(200)
     } finally {
       await killApp(app)
     }
@@ -62,11 +63,9 @@ describe('create-next-app templates', () => {
   }
 
   beforeAll(async () => {
+    const span = new Span({ name: 'parent' })
     testVersion = (
-      await getPkgPaths({
-        repoDir: path.join(__dirname, '../../../'),
-        nextSwcVersion: '',
-      })
+      await createNextInstall({ onlyPackages: true, parentSpan: span })
     ).get('next')
   })
 
@@ -417,11 +416,9 @@ describe('create-next-app --experimental-app', () => {
 
   beforeAll(async () => {
     if (testVersion) return
+    const span = new Span({ name: 'parent' })
     testVersion = (
-      await getPkgPaths({
-        repoDir: path.join(__dirname, '../../../'),
-        nextSwcVersion: '',
-      })
+      await createNextInstall({ onlyPackages: true, parentSpan: span })
     ).get('next')
   })
 
