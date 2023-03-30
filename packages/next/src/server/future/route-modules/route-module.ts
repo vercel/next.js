@@ -75,9 +75,10 @@ export abstract class RouteModule<
 
   /**
    * The userland module. This is the module that is exported from the user's
-   * code.
+   * code. This is marked as readonly to ensure that the module is not mutated
+   * because the module (when compiled) only provides getters.
    */
-  public readonly userland: U
+  public readonly userland: Readonly<U>
 
   /**
    * The definition of the route.

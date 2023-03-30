@@ -22,7 +22,6 @@ import {
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
-  handleMethodNotAllowedResponse,
 } from '../helpers/response-handlers'
 import { HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
 import { patchFetch } from '../../../lib/patch-fetch'
@@ -34,6 +33,8 @@ import { resolveHandlerError } from './helpers/resolve-handler-error'
 import { wrapRequest } from './helpers/wrap-request'
 import { RouteKind } from '../../route-kind'
 import * as Log from '../../../../build/output/log'
+import { autoImplementMethods } from './helpers/auto-implement-methods'
+import { getNonStaticMethods } from './helpers/get-non-static-methods'
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -66,12 +67,28 @@ export type AppRouteHandlerFn = (
   ctx: AppRouteHandlerFnContext
 ) => Response
 
-export type AppRouteUserlandModule = Record<HTTP_METHOD, AppRouteHandlerFn> &
+/**
+ * AppRouteHandlers describes the handlers for app routes that is provided by
+ * the userland module.
+ */
+export type AppRouteHandlers = {
+  [method in HTTP_METHOD]?: AppRouteHandlerFn
+}
+
+/**
+ * AppRouteUserlandModule is the userland module that is provided for app
+ * routes. This contains all the user generated code.
+ */
+export type AppRouteUserlandModule = AppRouteHandlers &
   Pick<AppConfig, 'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'> & {
     // TODO: (wyattjoh) create a type for this
     generateStaticParams?: any
   }
 
+/**
+ * AppRouteRouteModuleOptions is the options that are passed to the app route
+ * module from the bundled code.
+ */
 export interface AppRouteRouteModuleOptions
   extends RouteModuleOptions<AppRouteUserlandModule> {
   readonly pathname: string
@@ -90,6 +107,10 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly pathname: string
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+
+  private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
+  private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
+  private readonly dynamic: AppRouteUserlandModule['dynamic']
 
   constructor({
     userland,
@@ -111,6 +132,25 @@ export class AppRouteRouteModule extends RouteModule<
     this.pathname = pathname
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+
+    // Automatically implement some methods if they aren't implemented by the
+    // userland module.
+    this.methods = autoImplementMethods(userland)
+
+    // Get the non-static methods for this route.
+    this.nonStaticMethods = getNonStaticMethods(userland)
+
+    // Get the dynamic property from the userland module.
+    this.dynamic = this.userland.dynamic
+    if (this.nextConfigOutput === 'export') {
+      if (!this.dynamic || this.dynamic === 'auto') {
+        this.dynamic = 'error'
+      } else if (this.dynamic === 'force-dynamic') {
+        throw new Error(
+          `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+        )
+      }
+    }
   }
 
   /**
@@ -183,54 +223,8 @@ export class AppRouteRouteModule extends RouteModule<
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(method)) return handleBadRequestResponse
 
-    // Check to see if the requested method is available.
-    const handler: AppRouteHandlerFn | undefined = this.userland[method]
-    if (handler) return handler
-
-    /**
-     * If the request got here, then it means that there was not a handler for
-     * the requested method. We'll try to automatically setup some methods if
-     * there's enough information to do so.
-     */
-
-    // If HEAD is not provided, but GET is, then we respond to HEAD using the
-    // GET handler without the body.
-    if (method === 'HEAD' && 'GET' in this.userland) {
-      return this.userland['GET']
-    }
-
-    // If OPTIONS is not provided then implement it.
-    if (method === 'OPTIONS') {
-      // TODO: check if HEAD is implemented, if so, use it to add more headers
-
-      // Get all the handler methods from the list of handlers.
-      const methods = Object.keys(this.userland).filter((handlerMethod) =>
-        isHTTPMethod(handlerMethod)
-      ) as HTTP_METHOD[]
-
-      // If the list of methods doesn't include OPTIONS, add it, as it's
-      // automatically implemented.
-      if (!methods.includes('OPTIONS')) {
-        methods.push('OPTIONS')
-      }
-
-      // If the list of methods doesn't include HEAD, but it includes GET, then
-      // add HEAD as it's automatically implemented.
-      if (!methods.includes('HEAD') && methods.includes('GET')) {
-        methods.push('HEAD')
-      }
-
-      // Sort and join the list with commas to create the `Allow` header. See:
-      // https://httpwg.org/specs/rfc9110.html#field.allow
-      const allow = methods.sort().join(', ')
-
-      return () =>
-        new Response(null, { status: 204, headers: { Allow: allow } })
-    }
-
-    // A handler for the requested method was not found, so we should respond
-    // with the method not allowed handler.
-    return handleMethodNotAllowedResponse
+    // Return the handler.
+    return this.methods[method]
   }
 
   /**
@@ -241,8 +235,9 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     // Get the handler function for the given method.
-    const handle = this.resolve(req.method)
+    const handler = this.resolve(req.method)
 
+    // Get the context for the request.
     const requestContext: RequestContext = {
       req:
         'request' in (req as WebNextRequest)
@@ -250,6 +245,7 @@ export class AppRouteRouteModule extends RouteModule<
           : (req as NodeNextRequest).originalRequest,
     }
 
+    // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       pathname: this.definition.pathname,
       renderOpts:
@@ -273,56 +269,41 @@ export class AppRouteRouteModule extends RouteModule<
           this.staticGenerationAsyncStorage,
           staticGenerationContext,
           (staticGenerationStore) => {
-            // We can currently only statically optimize if only GET/HEAD
-            // are used as a Prerender can't be used conditionally based
-            // on the method currently
-            const nonStaticHandlers: ReadonlyArray<HTTP_METHOD> = [
-              'OPTIONS',
-              'POST',
-              'PUT',
-              'DELETE',
-              'PATCH',
-            ]
-            const usedNonStaticHandlers = nonStaticHandlers.filter(
-              (name) => name in this.userland
-            )
-
-            if (usedNonStaticHandlers.length > 0) {
+            // Check to see if we should bail out of static generation based on
+            // having non-static methods.
+            if (this.nonStaticMethods) {
               this.staticGenerationBailout(
-                `non-static methods used ${usedNonStaticHandlers.join(', ')}`
+                `non-static methods used ${this.nonStaticMethods.join(', ')}`
               )
             }
 
-            // let dynamic = this.userland.dynamic
-            if (this.nextConfigOutput === 'export') {
-              if (!this.userland.dynamic || this.userland.dynamic === 'auto') {
-                this.userland.dynamic = 'error'
-              } else if (this.userland.dynamic === 'force-dynamic') {
-                throw new Error(
-                  `export const dynamic = "force-dynamic" on route handler "${handle.name}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
-                )
-              }
-            }
-
-            switch (this.userland.dynamic) {
+            // Update the static generation store based on the dynamic property.
+            switch (this.dynamic) {
               case 'force-dynamic':
+                // The dynamic property is set to force-dynamic, so we should
+                // force the page to be dynamic.
                 staticGenerationStore.forceDynamic = true
                 this.staticGenerationBailout(`dynamic = 'force-dynamic'`)
                 break
               case 'force-static':
+                // The dynamic property is set to force-static, so we should
+                // force the page to be static.
                 staticGenerationStore.forceStatic = true
                 break
               case 'error':
+                // The dynamic property is set to error, so we should throw an
+                // error if the page is being statically generated.
                 staticGenerationStore.dynamicShouldError = true
                 break
               default:
                 break
             }
 
-            if (typeof staticGenerationStore.revalidate === 'undefined') {
-              staticGenerationStore.revalidate =
-                this.userland.revalidate ?? false
-            }
+            // If the static generation store does not have a revalidate value
+            // set, then we should set it the revalidate value from the userland
+            // module or default to false.
+            staticGenerationStore.revalidate ??=
+              this.userland.revalidate ?? false
 
             // Wrap the request so we can add additional functionality to cases
             // that might change it's output or affect the rendering.
@@ -331,7 +312,7 @@ export class AppRouteRouteModule extends RouteModule<
               'request' in (req as WebNextRequest)
                 ? ((req as WebNextRequest).request as Request)
                 : wrapRequest(req),
-              this.userland,
+              { dynamic: this.dynamic },
               {
                 headerHooks: this.headerHooks,
                 serverHooks: this.serverHooks,
@@ -348,7 +329,7 @@ export class AppRouteRouteModule extends RouteModule<
                 )}`,
               },
               () =>
-                handle(wrappedRequest, {
+                handler(wrappedRequest, {
                   params: context.params,
                 })
             )
