@@ -49,10 +49,11 @@ declare module "MIDDLEWARE_CONFIG" {
 }
 
 declare module "ENTRY" {
-  import type { AppRouteModule } from "next/dist/server/future/route-handlers/app-route-route-handler";
+  // TODO: (wyattjoh) support other types of userland modules
+  import type { AppRouteUserlandModule } from "next/dist/server/future/route-modules/app-route/module";
 
-  const handlers: AppRouteModule["handlers"];
-  export = handlers;
+  const module: AppRouteUserlandModule
+  export = module;
 }
 
 declare module "ROUTE_MODULE" {
