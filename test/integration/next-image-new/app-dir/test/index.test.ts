@@ -778,6 +778,16 @@ function runTests(mode) {
       }, /Image is missing required "src" property/gm)
     })
 
+    it('should show empty string src error', async () => {
+      const browser = await webdriver(appPort, '/empty-string-src')
+
+      expect(await hasRedbox(browser, false)).toBe(false)
+
+      await check(async () => {
+        return (await browser.log()).map((log) => log.message).join('\n')
+      }, /Image is missing required "src" property/gm)
+    })
+
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
@@ -1027,6 +1037,36 @@ function runTests(mode) {
       expect(
         existsSync(join(appDir, '.next/server/chunks/static/media'))
       ).toBeFalsy()
+    })
+    it('should render as unoptimized with missing src prop', async () => {
+      const browser = await webdriver(appPort, '/missing-src')
+
+      const warnings = (await browser.log()).filter(
+        (log) => log.source === 'error'
+      )
+      expect(warnings.length).toBe(0)
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('width')).toBe('200')
+      expect(await browser.elementById('img').getAttribute('height')).toBe(
+        '300'
+      )
+    })
+    it('should render as unoptimized with empty string src prop', async () => {
+      const browser = await webdriver(appPort, '/empty-string-src')
+
+      const warnings = (await browser.log()).filter(
+        (log) => log.source === 'error'
+      )
+      expect(warnings.length).toBe(0)
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('width')).toBe('200')
+      expect(await browser.elementById('img').getAttribute('height')).toBe(
+        '300'
+      )
     })
   }
 
