@@ -213,6 +213,77 @@ export async function copy_babel_runtime(task, opts) {
   }
 }
 
+externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
+export async function copy_vercel_og(task, opts) {
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        '{LICENSE,./dist/*.+(js|ttf|wasm)}'
+      )
+    )
+    .target('src/compiled/@vercel/og')
+
+  // Types are not bundled, include satori types here
+  await task
+    .source(
+      join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Ignore yoga-wasm-web types
+      file.data = source.replace(
+        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
+        'type Yoga = any'
+      )
+    })
+    .target('src/compiled/@vercel/og/satori')
+  await task
+    .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
+    .target('src/compiled/@vercel/og/satori')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        'dist/**/*.d.ts'
+      )
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Refers to copied satori types
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
+    })
+    .target('src/compiled/@vercel/og')
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/@vercel/og/package.json'),
+    JSON.stringify(
+      {
+        name: '@vercel/og',
+        LICENSE: 'MLP-2.0',
+        type: 'module',
+        main: './index.node.js',
+        exports: {
+          '.': {
+            'edge-light': './index.edge.js',
+            import: './index.node.js',
+            node: './index.node.js',
+            default: './index.node.js',
+          },
+        },
+      },
+      null,
+      2
+    )
+  )
+}
+
 // eslint-disable-next-line camelcase
 externals['node-fetch'] = 'next/dist/compiled/node-fetch'
 export async function ncc_node_fetch(task, opts) {
@@ -1620,7 +1691,7 @@ export async function ncc_icss_utils(task, opts) {
 }
 
 externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function copy_vendor_react(task, opts) {
+export async function ncc_react(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('scheduler')))
     .ncc({ packageName: 'scheduler', externals })
@@ -1684,8 +1755,20 @@ export async function copy_vendor_react(task, opts) {
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
   )
+}
 
-  // react-server-dom-webpack
+// eslint-disable-next-line camelcase
+export async function ncc_rsc_poison_packages(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('server-only')), '*'))
+    .target('src/compiled/server-only')
+  await task
+    .source(join(dirname(require.resolve('client-only')), '*'))
+    .target('src/compiled/client-only')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_react_server_dom_webpack(task, opts) {
   const reactServerDomDir = dirname(
     relative(
       __dirname,
@@ -1708,16 +1791,6 @@ export async function copy_vendor_react(task, opts) {
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
     .target(`src/compiled/react-server-dom-webpack`)
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_rsc_poison_packages(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/compiled/server-only')
-  await task
-    .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/compiled/client-only')
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2209,8 +2282,10 @@ export async function ncc(task, opts) {
       'ncc_cssnano_simple_bundle',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
+      'copy_vercel_og',
       'copy_constants_browserify',
-      'copy_vendor_react',
+      'ncc_react',
+      'ncc_react_server_dom_webpack',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
