@@ -1806,6 +1806,8 @@ export async function copy_vendor_react(task) {
       .target(`src/compiled/react-server-dom-webpack`)
   }
 
+  // As taskr transpiles async functions into generators, to reuse the same logic
+  // we need to directly write this iteration logic here.
   for (const res of copy_vendor_react_impl(task, { experimental: false })) {
     await res
   }
