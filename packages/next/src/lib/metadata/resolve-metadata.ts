@@ -72,16 +72,23 @@ function mergeStaticMetadata(
 }
 
 // Merge the source metadata into the resolved target metadata.
-function merge(
-  target: ResolvedMetadata,
-  source: Metadata | null,
-  staticFilesMetadata: StaticMetadata,
+function merge({
+  pathname,
+  target,
+  source,
+  staticFilesMetadata,
+  titleTemplates,
+}: {
+  pathname: string
+  target: ResolvedMetadata
+  source: Metadata | null
+  staticFilesMetadata: StaticMetadata
   titleTemplates: {
     title: string | null
     twitter: string | null
     openGraph: string | null
   }
-) {
+}) {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
     typeof source?.metadataBase !== 'undefined'
@@ -96,7 +103,9 @@ function merge(
         break
       }
       case 'alternates': {
-        target.alternates = resolveAlternates(source.alternates, metadataBase)
+        target.alternates = resolveAlternates(source.alternates, metadataBase, {
+          pathname,
+        })
         break
       }
       case 'openGraph': {
@@ -271,7 +280,8 @@ export async function collectMetadata({
 }
 
 export async function accumulateMetadata(
-  metadataItems: MetadataItems
+  metadataItems: MetadataItems,
+  pathname: string
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
 
@@ -339,7 +349,13 @@ export async function accumulateMetadata(
       metadata = metadataExport
     }
 
-    merge(resolvedMetadata, metadata, staticFilesMetadata, titleTemplates)
+    merge({
+      pathname,
+      target: resolvedMetadata,
+      source: metadata,
+      staticFilesMetadata,
+      titleTemplates,
+    })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
     // The leaf layout and page are the last two items
