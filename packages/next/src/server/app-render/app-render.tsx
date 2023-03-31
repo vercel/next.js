@@ -71,7 +71,6 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
-import { DEFAULT_METADATA_TAGS } from '../../lib/metadata/default-metadata'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 
@@ -1124,16 +1123,34 @@ export async function renderToHTMLOrFlight(
     }>(
       async (props) => {
         // Create full component tree from root to leaf.
+        const injectedCSS = new Set<string>()
         const { Component: ComponentTree } = await createComponentTree({
           createSegmentPath: (child) => child,
-          loaderTree: loaderTree,
+          loaderTree,
           parentParams: {},
           firstItem: true,
-          injectedCSS: new Set(),
+          injectedCSS,
           injectedFontPreloadTags: new Set(),
           rootLayoutIncluded: false,
           asNotFound: props.asNotFound,
         })
+
+        const { 'not-found': notFound, layout } = loaderTree[2]
+        const isLayout = typeof layout !== 'undefined'
+        const rootLayoutModule = layout?.[0]
+        const RootLayout = rootLayoutModule
+          ? interopDefault(await rootLayoutModule())
+          : null
+        const rootLayoutAtThisLevel = isLayout
+        const [NotFound, notFoundStyles] = notFound
+          ? await createComponentAndStyles({
+              filePath: notFound[1],
+              getComponent: notFound[0],
+              injectedCSS,
+            })
+          : rootLayoutAtThisLevel
+          ? [DefaultNotFound]
+          : []
 
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
@@ -1155,6 +1172,15 @@ export async function renderToHTMLOrFlight(
                 </>
               }
               globalErrorComponent={GlobalError}
+              notFound={
+                NotFound && RootLayout ? (
+                  <RootLayout params={{}}>
+                    <NotFound />
+                  </RootLayout>
+                ) : undefined
+              }
+              notFoundStyles={notFoundStyles}
+              asNotFound={props.asNotFound}
             >
               <ComponentTree />
             </AppRouter>
@@ -1228,7 +1254,7 @@ export async function renderToHTMLOrFlight(
         const getServerInsertedHTML = () => {
           // Loop through all the errors that have been captured but not yet
           // flushed.
-          const errorMetaTags = [...DEFAULT_METADATA_TAGS]
+          const errorMetaTags = []
           for (
             ;
             flushedErrorMetaTagsUntilIndex < allCapturedErrors.length;
@@ -1327,7 +1353,10 @@ export async function renderToHTMLOrFlight(
             ReactDOMServer,
             element: (
               <html id="__next_error__">
-                <head></head>
+                <head>
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree key={requestId} metadata={[]} />
+                </head>
                 <body></body>
               </html>
             ),

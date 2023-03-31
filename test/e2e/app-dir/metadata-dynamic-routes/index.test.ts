@@ -14,8 +14,11 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
+    dependencies: {
+      '@vercel/og': '0.4.1',
+    },
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextDeploy }) => {
     describe('text routes', () => {
       it('should handle robots.[ext] dynamic routes', async () => {
         const res = await next.fetch('/robots.txt')
@@ -169,14 +172,18 @@ createNextDescribe(
       expect(twitterTitle).toBe('Twitter - Next.js App')
       expect(twitterDescription).toBe('Twitter - This is a Next.js App')
 
-      // absolute urls
-      expect(ogImageUrl).toContain(
-        `https://deploy-preview-abc.vercel.app/opengraph-image`
-      )
+      if (isNextDeploy) {
+        // absolute urls
+        expect(ogImageUrl).toMatch(/https:\/\/\w+.vercel.app\/opengraph-image/)
+        expect(twitterImageUrl).toMatch(
+          /https:\/\/\w+.vercel.app\/twitter-image/
+        )
+      } else {
+        // absolute urls
+        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image/)
+        expect(twitterImageUrl).toMatch(/http:\/\/localhost:\d+\/twitter-image/)
+      }
       expect(ogImageUrl).toMatch(hashRegex)
-      expect(twitterImageUrl).toContain(
-        `https://deploy-preview-abc.vercel.app/twitter-image`
-      )
       expect(twitterImageUrl).toMatch(hashRegex)
 
       // alt text

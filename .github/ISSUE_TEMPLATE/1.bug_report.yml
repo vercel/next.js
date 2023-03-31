@@ -43,7 +43,7 @@ body:
         - 'Routing (next/router, next/navigation, next/link)'
         - 'Script optimization (next/script)'
         - 'Standalone mode (output: "standalone")'
-        - 'Static HTML Export (next export)'
+        - 'Static HTML Export (output: "export")'
         - 'SWC minifier (swcMinify: true)'
         - 'SWC transpilation'
         - 'Turbopack (--turbo)'
@@ -90,4 +90,4 @@ body:
   - type: input
     attributes:
       label: How are you deploying your application? (if relevant)
-      description: 'For example: next start, next export, Vercel, Other platform'
+      description: 'For example: next start, Vercel, Other platform'
