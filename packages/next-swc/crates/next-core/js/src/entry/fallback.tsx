@@ -1,34 +1,34 @@
-import "@vercel/turbopack-next/internal/shims-client";
+import '@vercel/turbopack-next/internal/shims-client'
 
-import { createRoot } from "react-dom/client";
+import { createRoot } from 'react-dom/client'
 
 import {
   initializeHMR,
   ReactDevOverlay,
-} from "@vercel/turbopack-next/dev/client";
-import { subscribeToUpdate } from "@vercel/turbopack-next/dev/hmr-client";
+} from '@vercel/turbopack-next/dev/client'
+import { subscribeToUpdate } from '@vercel/turbopack-next/dev/hmr-client'
 
-const pageChunkPath = location.pathname.slice(1);
+const pageChunkPath = location.pathname.slice(1)
 
 subscribeToUpdate(
   {
     path: pageChunkPath,
     headers: {
-      accept: "text/html",
+      accept: 'text/html',
     },
   },
   (update) => {
-    if (update.type === "restart" || update.type === "notFound") {
-      location.reload();
+    if (update.type === 'restart' || update.type === 'notFound') {
+      location.reload()
     }
   }
-);
+)
 
 initializeHMR({
-  assetPrefix: "",
-});
+  assetPrefix: '',
+})
 
-const el = document.getElementById("__next")!;
-el.innerText = "";
+const el = document.getElementById('__next')!
+el.innerText = ''
 
-createRoot(el).render(<ReactDevOverlay />);
+createRoot(el).render(<ReactDevOverlay />)
