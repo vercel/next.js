@@ -33,7 +33,7 @@ It is not possible to use `getServerSideProps` without a server, so you'll need 
    {
      module.exports = {
        reactStrictMode: true,
-   -    "output": "export",
+   -    output: "export",
      }
    }
    ```
