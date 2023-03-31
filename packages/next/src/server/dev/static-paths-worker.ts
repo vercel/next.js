@@ -25,8 +25,6 @@ if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
 
-let workerWasUsed = false
-
 // expose AsyncLocalStorage on globalThis for react usage
 const { AsyncLocalStorage } = require('async_hooks')
 ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
@@ -69,12 +67,6 @@ export async function loadStaticPaths({
   encodedPaths?: string[]
   fallback?: boolean | 'blocking'
 }> {
-  // we only want to use each worker once to prevent any invalid
-  // caches
-  if (workerWasUsed) {
-    process.exit(1)
-  }
-
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpClientAndAgentOptions({
@@ -96,45 +88,52 @@ export async function loadStaticPaths({
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
-  workerWasUsed = true
 
-  if (isAppPath) {
-    const userland: AppRouteUserlandModule | undefined =
-      components.ComponentMod.routeModule?.userland
-    const generateParams: GenerateParams = userland
-      ? [
-          {
-            config: {
-              revalidate: userland.revalidate,
-              dynamic: userland.dynamic,
-              dynamicParams: userland.dynamicParams,
+  try {
+    if (isAppPath) {
+      const userland: AppRouteUserlandModule | undefined =
+        components.ComponentMod.routeModule?.userland
+      const generateParams: GenerateParams = userland
+        ? [
+            {
+              config: {
+                revalidate: userland.revalidate,
+                dynamic: userland.dynamic,
+                dynamicParams: userland.dynamicParams,
+              },
+              generateStaticParams: userland.generateStaticParams,
+              segmentPath: pathname,
             },
-            generateStaticParams: userland.generateStaticParams,
-            segmentPath: pathname,
-          },
-        ]
-      : await collectGenerateParams(components.ComponentMod.tree)
+          ]
+        : await collectGenerateParams(components.ComponentMod.tree)
 
-    return buildAppStaticPaths({
+      return await buildAppStaticPaths({
+        page: pathname,
+        generateParams,
+        configFileName: config.configFileName,
+        distDir,
+        requestHeaders,
+        incrementalCacheHandlerPath,
+        serverHooks,
+        staticGenerationAsyncStorage,
+        isrFlushToDisk,
+        fetchCacheKeyPrefix,
+        maxMemoryCacheSize,
+      })
+    }
+
+    return await buildStaticPaths({
       page: pathname,
-      generateParams,
+      getStaticPaths: components.getStaticPaths,
       configFileName: config.configFileName,
-      distDir,
-      requestHeaders,
-      incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
-      isrFlushToDisk,
-      fetchCacheKeyPrefix,
-      maxMemoryCacheSize,
+      locales,
+      defaultLocale,
+    })
+  } finally {
+    setTimeout(() => {
+      // we only want to use each worker once to prevent any invalid
+      // caches
+      process.exit(1)
     })
   }
-
-  return buildStaticPaths({
-    page: pathname,
-    getStaticPaths: components.getStaticPaths,
-    configFileName: config.configFileName,
-    locales,
-    defaultLocale,
-  })
 }
