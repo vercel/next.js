@@ -1,21 +1,22 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-
-use crate::auto_cjs::contains_cjs;
 use turbo_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         FileName, Span, Spanned, DUMMY_SP,
     },
-    ecma::ast::*,
-    ecma::atoms::{js_word, JsWord},
-    ecma::utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
-    ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    ecma::{
+        ast::*,
+        atoms::{js_word, JsWord},
+        utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    },
 };
+
+use crate::auto_cjs::contains_cjs;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]

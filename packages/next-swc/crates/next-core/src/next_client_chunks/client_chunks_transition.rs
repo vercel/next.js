@@ -1,15 +1,17 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc},
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            ecmascript::chunk::EcmascriptChunkPlaceableVc,
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
 use turbo_tasks::Value;
 

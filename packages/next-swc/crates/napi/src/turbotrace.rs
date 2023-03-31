@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use napi::bindgen_prelude::*;
-use turbo_binding::features::node_file_trace::{start, Args};
-use turbo_binding::turbo::tasks::TurboTasks;
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
-use turbo_binding::turbopack::turbopack::{
-    module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+use turbo_binding::{
+    features::node_file_trace::{start, Args},
+    turbo::{tasks::TurboTasks, tasks_memory::MemoryBackend},
+    turbopack::turbopack::{
+        module_options::ModuleOptionsContext, resolve_options_context::ResolveOptionsContext,
+    },
 };
 
 #[napi]

@@ -1,17 +1,22 @@
 use anyhow::{anyhow, Result};
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc,
+            },
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+        },
+        dev_server::{
+            html::DevHtmlAssetVc,
+            source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::ecmascript::EcmascriptModuleAssetVc,
+    },
 };
-use turbo_binding::turbopack::dev_server::{
-    html::DevHtmlAssetVc,
-    source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbo_tasks::{TryJoinIterExt, Value};
 
 use crate::{
