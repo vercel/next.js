@@ -94,10 +94,15 @@ export function splitCookiesString(cookiesString: string) {
 
 export function toNodeHeaders(headers?: Headers): OutgoingHttpHeaders {
   const result: OutgoingHttpHeaders = {}
+  const cookies: string[] = []
   if (headers) {
     for (const [key, value] of headers.entries()) {
       if (key.toLowerCase() === 'set-cookie') {
-        result[key] = splitCookiesString(value)
+        // We may have gotten a comma joined string of cookies, or multiple
+        // set-cookie headers. We need to merge them into one header array
+        // to represent all the cookies.
+        cookies.push(...splitCookiesString(value))
+        result[key] = cookies
       } else {
         result[key] = value
       }
