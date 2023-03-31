@@ -53,6 +53,45 @@ pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
 
 impl<T> MapErr<T> for Result<T, anyhow::Error> {}
 
+#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
+#[napi]
+pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<dhat::Profiler>>>> {
+    #[cfg(feature = "__internal_dhat-heap")]
+    {
+        println!("[dhat-heap]: Initializing heap profiler");
+        let _profiler = dhat::Profiler::new_heap();
+        return Ok(External::new(RefCell::new(Some(_profiler))));
+    }
+
+    #[cfg(feature = "__internal_dhat-ad-hoc")]
+    {
+        println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
+        let _profiler = dhat::Profiler::new_ad_hoc();
+        return Ok(External::new(RefCell::new(Some(_profiler))));
+    }
+}
+
+#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
+#[napi]
+pub fn teardown_heap_profiler(guard_external: External<RefCell<Option<dhat::Profiler>>>) {
+    let guard_cell = &*guard_external;
+
+    if let Some(guard) = guard_cell.take() {
+        println!("[dhat]: Teardown profiler");
+        drop(guard);
+    }
+}
+
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[napi]
+pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<u32>>>> {
+    Ok(External::new(RefCell::new(Some(0))))
+}
+
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[napi]
+pub fn teardown_heap_profiler(_guard_external: External<RefCell<Option<u32>>>) {}
+
 /// Initialize tracing subscriber to emit traces. This configures subscribers
 /// for Trace Event Format (https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
 #[napi]
