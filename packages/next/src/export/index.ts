@@ -424,7 +424,7 @@ export default async function exportApp(
         !hasNextSupport
       ) {
         throw new ExportError(
-          `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
+          `Image Optimization using the default loader is not compatible with export.
   Possible solutions:
     - Use \`next start\` to run a server, which includes the Image Optimization API.
     - Configure \`images.unoptimized = true\` in \`next.config.js\` to disable the Image Optimization API.
