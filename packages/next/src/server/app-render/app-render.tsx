@@ -89,6 +89,56 @@ export type GetDynamicParamFromSegment = (
   type: DynamicParamTypesShort
 } | null
 
+/* This method is important for intercepted routes to function:
+ * when a route is intercepted, e.g. /blog/[slug], it will be rendered
+ * with the layout of the previous page, e.g. /profile/[id]. The problem is
+ * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
+ * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
+ * so we need to read it from the router state.
+ */
+function findDynamicParamFromRouterState(
+  providedFlightRouterState: FlightRouterState | undefined,
+  segment: string
+): {
+  param: string
+  value: string | string[] | null
+  treeSegment: Segment
+  type: DynamicParamTypesShort
+} | null {
+  if (!providedFlightRouterState) {
+    return null
+  }
+
+  const treeSegment = providedFlightRouterState[0]
+
+  if (canSegmentBeOverridden(segment, treeSegment)) {
+    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
+      return null
+    }
+
+    return {
+      param: treeSegment[0],
+      value: treeSegment[1],
+      treeSegment: treeSegment,
+      type: treeSegment[2],
+    }
+  }
+
+  for (const parallelRouterState of Object.values(
+    providedFlightRouterState[1]
+  )) {
+    const maybeDynamicParma = findDynamicParamFromRouterState(
+      parallelRouterState,
+      segment
+    )
+    if (maybeDynamicParma) {
+      return maybeDynamicParma
+    }
+  }
+
+  return null
+}
+
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
   res: ServerResponse,
@@ -232,41 +282,12 @@ export async function renderToHTMLOrFlight(
     const pathParams = (renderOpts as any).params as ParsedUrlQuery
 
     /**
-     * In certain cases, we want to be able to override the dynamic parameters during rendering.
-     * This is useful when we want to render an intercepted route with that does not contain the dynamic parameters needed for the current layout file.
-     * Example:
-     *  - for /profile/[profileId], we want to intercept all routes going to /photos/[id] and render them from the profile layout
-     *  - when we render /photos/1, we will render the profile layout but the pathParams will not contain profileId, so we need to override it
-     */
-    const segmentOverrides = {} as Record<
-      string,
-      ReturnType<GetDynamicParamFromSegment>
-    >
-    const injectTreeSegmentOverride = (
-      segment: Segment,
-      treeSegment: Segment
-    ) => {
-      if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
-        return
-      }
-      segmentOverrides[segment] = {
-        param: treeSegment[0],
-        value: treeSegment[1],
-        treeSegment: treeSegment,
-        type: treeSegment[2],
-      }
-    }
-
-    /**
      * Parse the dynamic segment and return the associated value.
      */
     const getDynamicParamFromSegment: GetDynamicParamFromSegment = (
       // [slug] / [[slug]] / [...slug]
       segment: string
     ) => {
-      if (segmentOverrides[segment]) {
-        return segmentOverrides[segment]
-      }
       const segmentParam = getSegmentParam(segment)
       if (!segmentParam) {
         return null
@@ -294,7 +315,10 @@ export async function renderToHTMLOrFlight(
             treeSegment: [key, '', type],
           }
         }
-        return null
+        return findDynamicParamFromRouterState(
+          providedFlightRouterState,
+          segment
+        )
       }
 
       const type = getShortDynamicParamType(segmentParam.type)
@@ -955,10 +979,6 @@ export async function renderToHTMLOrFlight(
             canSegmentBeOverridden(actualSegment, flightRouterState[0])
               ? flightRouterState[0]
               : null
-
-          if (overriddenSegment) {
-            injectTreeSegmentOverride(actualSegment, overriddenSegment)
-          }
 
           return [
             overriddenSegment ?? actualSegment,
