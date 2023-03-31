@@ -11,12 +11,14 @@ use swc_core::{
         visit::{FoldWith, VisitMutWith},
     },
 };
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
-use turbopack_ecmascript::{
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbo_binding::turbopack::ecmascript::{
     CustomTransformVc, CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     TransformContext,
+};
+use turbo_binding::turbopack::turbopack::module_options::{
+    ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
 };
 
 /// Returns a rule which applies the Next.js page export stripping transform.

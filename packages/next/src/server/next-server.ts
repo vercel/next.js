@@ -89,7 +89,6 @@ import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/ap
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
-import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
@@ -207,24 +206,6 @@ export default class NextNodeServer extends BaseServer {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    if (!options.dev && this.nextConfig.experimental.instrumentationHook) {
-      try {
-        const instrumentationHook = require(join(
-          options.dir || '.',
-          options.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
-
-        instrumentationHook.register?.()
-      } catch (err: any) {
-        if (err.code !== 'MODULE_NOT_FOUND') {
-          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-          throw err
-        }
-      }
-    }
-
     if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
@@ -250,18 +231,28 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
-  protected getRoutes() {
-    const routes = super.getRoutes()
-    const nextConfigOutput = this.nextConfig.output
+  public async prepare() {
+    await super.prepare()
+    if (
+      !this.serverOptions.dev &&
+      this.nextConfig.experimental.instrumentationHook
+    ) {
+      try {
+        const instrumentationHook = await require(join(
+          this.serverOptions.dir || '.',
+          this.serverOptions.conf.distDir!,
+          'server',
+          INSTRUMENTATION_HOOK_FILENAME
+        ))
 
-    if (this.hasAppDir) {
-      routes.handlers.set(
-        RouteKind.APP_ROUTE,
-        new AppRouteRouteHandler(nextConfigOutput)
-      )
+        instrumentationHook.register?.()
+      } catch (err: any) {
+        if (err.code !== 'MODULE_NOT_FOUND') {
+          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+          throw err
+        }
+      }
     }
-
-    return routes
   }
 
   protected loadEnvConfig({

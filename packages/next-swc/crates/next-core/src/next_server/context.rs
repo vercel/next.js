@@ -1,15 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::{
-    module_options::{
-        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext, ModuleOptionsContextVc,
-        PostCssTransformOptions, WebpackLoadersOptions,
-    },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_env::ProcessEnvVc;
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     compile_time_defines,
     compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     environment::{
@@ -17,8 +9,16 @@ use turbopack_core::{
         ServerAddrVc,
     },
 };
-use turbopack_ecmascript::EcmascriptInputTransform;
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::ecmascript::EcmascriptInputTransform;
+use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
+use turbo_binding::turbopack::turbopack::{
+    module_options::{
+        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext, ModuleOptionsContextVc,
+        PostCssTransformOptions, WebpackLoadersOptions,
+    },
+    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+};
+use turbo_tasks::{primitives::StringVc, Value};
 
 use super::{
     resolve::ExternalCjsModulesResolvePluginVc, transforms::get_next_server_transforms_rules,
@@ -166,7 +166,8 @@ pub fn next_server_defines() -> CompileTimeDefinesVc {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.NEXT_RUNTIME = "nodejs"
     )
     .cell()
 }
@@ -177,25 +178,21 @@ pub fn get_server_compile_time_info(
     process_env: ProcessEnvVc,
     server_addr: ServerAddrVc,
 ) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironmentVc::current(process_env, server_addr),
-            )),
-            match ty.into_value() {
-                ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-                    Value::new(EnvironmentIntention::ServerRendering)
-                }
-                ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
-                ServerContextType::AppRSC { .. } => {
-                    Value::new(EnvironmentIntention::ServerRendering)
-                }
-                ServerContextType::AppRoute { .. } => Value::new(EnvironmentIntention::Api),
-                ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
-            },
-        ),
-        defines: next_server_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironmentVc::current(process_env, server_addr),
+        )),
+        match ty.into_value() {
+            ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+                Value::new(EnvironmentIntention::ServerRendering)
+            }
+            ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
+            ServerContextType::AppRSC { .. } => Value::new(EnvironmentIntention::ServerRendering),
+            ServerContextType::AppRoute { .. } => Value::new(EnvironmentIntention::Api),
+            ServerContextType::Middleware => Value::new(EnvironmentIntention::Middleware),
+        },
+    ))
+    .defines(next_server_defines())
     .cell()
 }
 

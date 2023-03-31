@@ -1,13 +1,7 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExports, EcmascriptExportsVc,
-};
-use turbopack_core::{
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         availability_info::AvailabilityInfo, Chunk, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem,
@@ -17,8 +11,15 @@ use turbopack_core::{
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkingContextVc, utils::StringifyJs};
-
+use turbo_binding::turbopack::turbopack::ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
+    },
+    utils::StringifyJs,
+};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
     StringVc::cell("chunks".to_string())
