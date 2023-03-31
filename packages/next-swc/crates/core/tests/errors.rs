@@ -1,4 +1,13 @@
-use next_binding::swc::{
+use next_swc::{
+    disallow_re_export_all_in_page::disallow_re_export_all_in_page,
+    next_dynamic::next_dynamic,
+    next_ssg::next_ssg,
+    react_server_components::server_components,
+    server_actions::{self, server_actions},
+};
+use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
+use std::path::PathBuf;
+use turbo_binding::swc::{
     core::{
         common::{chain, FileName, Mark},
         ecma::{
@@ -11,15 +20,6 @@ use next_binding::swc::{
     },
     testing::fixture,
 };
-use next_swc::{
-    disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    next_dynamic::next_dynamic,
-    next_ssg::next_ssg,
-    react_server_components::server_components,
-    server_actions::{self, server_actions},
-};
-use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use std::path::PathBuf;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {

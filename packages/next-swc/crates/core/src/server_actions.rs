@@ -1,7 +1,9 @@
 use std::convert::{TryFrom, TryInto};
 
 use hex::encode as hex_encode;
-use next_binding::swc::core::{
+use serde::Deserialize;
+use sha1::{Digest, Sha1};
+use turbo_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -15,8 +17,6 @@ use next_binding::swc::core::{
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
-use serde::Deserialize;
-use sha1::{Digest, Sha1};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

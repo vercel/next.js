@@ -1,15 +1,15 @@
 use anyhow::{bail, Result};
-use turbo_tasks::ValueToString;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
     asset::Asset,
     context::AssetContextVc,
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::ecmascript::{
     chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
     resolve::cjs_resolve,
 };
+use turbo_tasks::ValueToString;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {

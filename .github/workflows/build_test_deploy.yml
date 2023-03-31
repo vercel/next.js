@@ -35,6 +35,7 @@ jobs:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
     outputs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
+      codemodChange: ${{ steps.codemod-change.outputs.CODEMOD_CHANGE }}
       isRelease: ${{ steps.check-release.outputs.IS_RELEASE }}
       swcChange: ${{ steps.swc-change.outputs.SWC_CHANGE }}
       turboToken: ${{ steps.turbo-token.outputs.TURBO_TOKEN }}
@@ -60,6 +61,12 @@ jobs:
         id: docs-change
 
       - run: echo "${{steps.docs-change.outputs.DOCS_CHANGE}}"
+
+      - name: Check codemod change
+        run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: codemod-change
+
+      - run: echo "${{steps.codemod-change.outputs.CODEMOD_CHANGE}}"
 
       - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
@@ -182,6 +189,7 @@ jobs:
         run: |
           cargo fmt -- --check
           cargo clippy --all -- -D warnings -A deprecated
+          cargo check -p next-dev --no-default-features --features cli,custom_allocator,rustls-tls,__internal_nextjs_integration_test
         working-directory: packages/next-swc
 
   checkPrecompiled:
@@ -647,11 +655,8 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: echo "CNA_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
-        id: cna-change
-
       - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ env.NODE_LTS_VERSION }} | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_CNA=1 xvfb-run node run-tests.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/templates.test.ts >> /proc/1/fd/1"
-        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
 
       - name: Upload test trace
         if: always()
@@ -667,13 +672,14 @@ jobs:
     name: Test Codemods
     runs-on: ubuntu-latest
     needs: [build]
+    if: ${{ needs.build.outputs.codemodChange == 'yup' }}
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
 
     steps:
-      - run: echo "${{needs.build.outputs.docsChange}}"
+      - run: echo "${{needs.build.outputs.codemodChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -681,17 +687,13 @@ jobs:
 
       - uses: actions/cache@v3
         timeout-minutes: 5
-        if: ${{ needs.build.outputs.docsChange == 'nope' }}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
-        id: codemodChange
-
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ env.NODE_LTS_VERSION }} | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
-        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.codemodChange.outputs.CODEMOD_CHANGE == 'yup' }}
+      - name: Run tests
+        run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ env.NODE_LTS_VERSION }} | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
 
   testIntegration:
     name: Test Integration
@@ -1169,13 +1171,14 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
-        id: swc-change
+      - name: Check non-docs only change
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type docs --exec echo 'yep')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: docs-change
 
-      - run: echo "${{ steps.swc-change.outputs.SWC_CHANGE }}"
+      - run: echo "${{ steps.docs-chang.outputs.DOCS_CHANGE }}"
 
       - name: Install
-        if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
+        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
@@ -1187,12 +1190,12 @@ jobs:
       - name: Build tests
         timeout-minutes: 60
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-run
-        if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
+        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
 
       - name: Run tests
         timeout-minutes: 20
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-fail-fast
-        if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
+        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
 
   test-wasm:
     name: Test the wasm build

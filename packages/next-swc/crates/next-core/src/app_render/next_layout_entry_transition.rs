@@ -1,14 +1,15 @@
 use anyhow::{bail, Result};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::chunk::EcmascriptChunkPlaceableVc;
-use turbopack::{
-    self,
+use indexmap::indexmap;
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::{
+    asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext,
+};
+use turbo_binding::turbopack::turbopack::{
     module_options::ModuleOptionsContextVc,
     resolve_options_context::ResolveOptionsContextVc,
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbopack_core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc};
 
 use crate::next_client_component::with_client_chunks::WithClientChunksAsset;
 
@@ -55,6 +56,7 @@ impl Transition for NextLayoutEntryTransition {
         let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
             bail!("Not an ecmascript module");
         };
+
         Ok(WithClientChunksAsset {
             asset,
             // next.js code already adds _next prefix

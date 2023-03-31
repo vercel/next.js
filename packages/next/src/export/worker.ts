@@ -1,13 +1,23 @@
+import type {
+  AppRouteRouteModule,
+  AppRouteRouteHandlerContext,
+} from '../server/future/route-modules/app-route/module'
 import type { FontManifest, FontConfig } from '../server/font-utils'
-import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
-import { NextParsedUrlQuery } from '../server/request-meta'
+import type {
+  DomainLocale,
+  ExportPathMap,
+  NextConfigComplete,
+} from '../server/config-shared'
 
 // `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
 if (process.env.NEXT_PREBUNDLED_REACT) {
   require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 }
+
+// Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
+
 import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep, posix } from 'path'
@@ -37,11 +47,9 @@ import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { mockRequest } from '../server/lib/mock-request'
-import { RouteKind } from '../server/future/route-kind'
-import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
-import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
+import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { AppRouteRouteMatch } from '../server/future/route-matches/app-route-route-match'
+import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 
 loadRequireHook()
 
@@ -59,10 +67,7 @@ interface AmpValidation {
   }
 }
 
-interface PathMap {
-  page: string
-  query?: NextParsedUrlQuery
-}
+type PathMap = ExportPathMap[keyof ExportPathMap]
 
 interface ExportPageInput {
   path: string
@@ -80,13 +85,12 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appPaths: string[]
   enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
-  nextConfigOuput?: NextConfigComplete['output']
+  nextConfigOutput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -117,7 +121,7 @@ interface RenderOpts {
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
-  incrementalCache?: import('../server/lib/incremental-cache').IncrementalCache
+  incrementalCache?: IncrementalCache
 }
 
 // expose AsyncLocalStorage on globalThis for react usage
@@ -145,7 +149,6 @@ export default async function exportPage({
   isrMemoryCacheSize,
   fetchCache,
   incrementalCacheHandlerPath,
-  nextConfigOuput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -377,42 +380,36 @@ export default async function exportPage({
           isRedirectError(err)
 
         if (isRouteHandler) {
-          const { AppRouteRouteHandler } =
-            require('../server/future/route-handlers/app-route-route-handler') as typeof import('../server/future/route-handlers/app-route-route-handler')
-
-          const nodeReq = new NodeNextRequest(req)
-          const nodeRes = new NodeNextResponse(res)
+          const request = new NodeNextRequest(req)
 
           addRequestMeta(
-            nodeReq.originalRequest,
+            request.originalRequest,
             '__NEXT_INIT_URL',
             `http://localhost:3000${req.url}`
           )
-          const staticContext: StaticGenerationContext = {
-            nextExport: true,
-            supportsDynamicHTML: false,
-            incrementalCache: curRenderOpts.incrementalCache,
-          }
 
-          const match: AppRouteRouteMatch = {
+          // Create the context for the handler. This contains the params from
+          // the route and the context for the request.
+          const context: AppRouteRouteHandlerContext = {
+            // Query contains the route parameters.
             params: query,
-            definition: {
-              filename: posix.join(distDir, 'server', 'app', page),
-              bundlePath: posix.join('app', page),
-              kind: RouteKind.APP_ROUTE,
-              page,
-              pathname: path,
+            staticGenerationContext: {
+              nextExport: true,
+              supportsDynamicHTML: false,
+              incrementalCache: curRenderOpts.incrementalCache,
             },
           }
 
           try {
-            const handler = new AppRouteRouteHandler(nextConfigOuput)
-            const response = await handler.handle(
-              match,
-              nodeReq,
-              nodeRes,
-              staticContext
-            )
+            // This is a route handler, which means it has it's handler in the
+            // bundled file already, we should just use that.
+            const filename = posix.join(distDir, 'server', 'app', page)
+
+            // Load the module for the route.
+            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+
+            // Call the handler with the request and context from the module.
+            const response = await module.handle(request, context)
 
             // we don't consider error status for static generation
             // except for 404
@@ -423,8 +420,7 @@ export default async function exportPage({
             if (isValidStatus) {
               const body = await response.blob()
               const revalidate =
-                ((staticContext as any).store as any as { revalidate?: number })
-                  .revalidate || false
+                context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
               const headers = Object.fromEntries(response.headers)
@@ -460,12 +456,12 @@ export default async function exportPage({
           }
         } else {
           const { renderToHTMLOrFlight } =
-            require('../server/app-render') as typeof import('../server/app-render')
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
 
           try {
             curRenderOpts.params ||= {}
 
-            const isNotFoundPage = page === '/not-found'
+            const isNotFoundPage = page === '/_not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,

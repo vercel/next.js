@@ -53,9 +53,17 @@ pub mod util;
 
 // don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
 // compile error
-#[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
+#[cfg(not(any(
+    all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
+    feature = "__internal_dhat-heap",
+    feature = "__internal_dhat-ad-hoc"
+)))]
 #[global_allocator]
-static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
+static ALLOC: turbo_binding::turbo::malloc::TurboMalloc = turbo_binding::turbo::malloc::TurboMalloc;
+
+#[cfg(feature = "__internal_dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));

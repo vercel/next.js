@@ -11,12 +11,14 @@ use swc_core::{
         visit::{FoldWith, VisitMutWith},
     },
 };
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
-use turbopack_ecmascript::{
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbo_binding::turbopack::ecmascript::{
     CustomTransformVc, CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     TransformContext,
+};
+use turbo_binding::turbopack::turbopack::module_options::{
+    ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
 };
 
 /// Returns a rule which applies the Next.js page export stripping transform.
@@ -121,13 +123,12 @@ impl CustomTransformer for NextJsDynamic {
 
 /// Returns a rule which applies the Next.js font transform.
 pub fn get_next_font_transform_rule() -> ModuleRule {
-    #[allow(unused_mut)] // This is mutated when next-font-local is enabled
-    let mut font_loaders = vec!["next/font/google".into(), "@next/font/google".into()];
-    #[cfg(feature = "next-font-local")]
-    {
-        font_loaders.push("next/font/local".into());
-        font_loaders.push("@next/font/local".into());
-    }
+    let font_loaders = vec![
+        "next/font/google".into(),
+        "@next/font/google".into(),
+        "next/font/local".into(),
+        "@next/font/local".into(),
+    ];
 
     let transformer =
         EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont { font_loaders }));

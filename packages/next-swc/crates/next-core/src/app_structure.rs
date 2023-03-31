@@ -1,21 +1,24 @@
 use anyhow::{bail, Result};
-use indexmap::indexmap;
-use indexmap::map::Entry;
-use indexmap::IndexMap;
+use indexmap::{indexmap, map::Entry, IndexMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
-use turbo_tasks::debug::ValueDebugFormat;
-use turbo_tasks::primitives::{StringVc, StringsVc};
-use turbo_tasks::trace::TraceRawVcs;
-use turbo_tasks::CompletionVc;
-use turbo_tasks::CompletionsVc;
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack_core::issue::{Issue, IssueSeverityVc, IssueVc};
+use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
+use turbo_binding::turbo::tasks::primitives::{StringVc, StringsVc};
+use turbo_binding::turbo::tasks::trace::TraceRawVcs;
+use turbo_binding::turbo::tasks::CompletionVc;
+use turbo_binding::turbo::tasks::CompletionsVc;
+use turbo_binding::turbo::tasks::ValueToString;
+use turbo_binding::turbo::tasks_fs::{
+    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
+};
+
+use turbo_binding::turbopack::core::issue::{Issue, IssueSeverityVc, IssueVc};
 
 use crate::next_config::NextConfigVc;
 
+/// A final route in the app directory.
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct Components {

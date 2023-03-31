@@ -97,7 +97,7 @@ export default async function edgeSSRLoader(this: any) {
     ${
       isAppDir
         ? `
-      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render'
+      import { renderToHTMLOrFlight as appRenderToHTML } from 'next/dist/esm/server/app-render/app-render'
       import * as pageMod from ${JSON.stringify(pageModPath)}
       const Document = null
       const pagesRenderToHTML = null

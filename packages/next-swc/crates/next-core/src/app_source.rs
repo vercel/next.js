@@ -1,22 +1,15 @@
-use async_recursion::async_recursion;
-use indexmap::IndexMap;
-use std::{collections::HashMap, io::Write};
-
 use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::{
+use async_recursion::async_recursion;
+use indexmap::{indexmap, IndexMap};
+use std::{collections::HashMap, io::Write};
+use turbo_binding::turbo::tasks::{
     primitives::{OptionStringVc, StringVc},
     Value,
 };
-use turbo_tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
-use turbopack::{
-    ecmascript::EcmascriptInputTransform,
-    transition::{TransitionVc, TransitionsByNameVc},
-    ModuleAssetContextVc,
-};
-use turbopack_core::{
-    asset::AssetVc,
+use turbo_binding::turbo::tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
+use turbo_binding::turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
+use turbo_binding::turbopack::core::asset::AssetVc;
+use turbo_binding::turbopack::core::{
     compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, ServerAddrVc},
@@ -24,25 +17,30 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_dev::DevChunkingContextVc;
-use turbopack_dev_server::{
+use turbo_binding::turbopack::dev::DevChunkingContextVc;
+use turbo_binding::turbopack::dev_server::{
     html::DevHtmlAssetVc,
     source::{
         combined::CombinedContentSource, specificity::SpecificityVc, ContentSourceData,
         ContentSourceVc, NoContentSourceVc,
     },
 };
-use turbopack_ecmascript::{
+use turbo_binding::turbopack::ecmascript::{
     chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::StringifyJs,
     EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
-use turbopack_env::ProcessEnvAssetVc;
-use turbopack_node::{
+use turbo_binding::turbopack::env::ProcessEnvAssetVc;
+use turbo_binding::turbopack::node::{
     execution_context::ExecutionContextVc,
     render::{
         node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
     },
     NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
+};
+use turbo_binding::turbopack::turbopack::{
+    ecmascript::EcmascriptInputTransform,
+    transition::{TransitionVc, TransitionsByNameVc},
+    ModuleAssetContextVc,
 };
 
 use crate::{
@@ -187,8 +185,11 @@ fn next_route_transition(
 ) -> TransitionVc {
     let server_ty = Value::new(ServerContextType::AppRoute { app_dir });
 
-    let edge_compile_time_info =
-        get_edge_compile_time_info(server_addr, Value::new(EnvironmentIntention::Api));
+    let edge_compile_time_info = get_edge_compile_time_info(
+        project_path,
+        server_addr,
+        Value::new(EnvironmentIntention::Api),
+    );
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -680,6 +681,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         use_define_for_class_fields: false,
                     },
                 ]),
+                Default::default(),
                 context.compile_time_info(),
                 InnerAssetsVc::cell(inner_assets),
             ),
@@ -752,6 +754,7 @@ impl AppRouteVc {
                 EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
                     use_define_for_class_fields: false,
                 }]),
+                Default::default(),
                 this.context.compile_time_info(),
                 InnerAssetsVc::cell(indexmap! {
                     "ROUTE_CHUNK_GROUP".to_string() => entry
