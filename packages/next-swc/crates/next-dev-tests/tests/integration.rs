@@ -1,8 +1,6 @@
 #![feature(min_specialization)]
 #![cfg(test)]
 
-use dunce::canonicalize;
-use regex::{Captures, Regex, Replacer};
 use std::{
     env,
     fmt::Write,
@@ -25,10 +23,12 @@ use chromiumoxide::{
     },
     error::CdpError::Ws,
 };
+use dunce::canonicalize;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
+use regex::{Captures, Regex, Replacer};
 use serde::Deserialize;
 use tokio::{
     net::TcpSocket,
@@ -36,19 +36,25 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_binding::turbo::tasks::{
-    debug::{ValueDebug, ValueDebugStringReadRef},
-    primitives::{BoolVc, StringVc},
-    NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+use turbo_binding::{
+    turbo::{
+        tasks::{
+            debug::{ValueDebug, ValueDebugStringReadRef},
+            primitives::{BoolVc, StringVc},
+            NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+        },
+        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
+        tasks_memory::MemoryBackend,
+        tasks_testing::retry::retry_async,
+    },
+    turbopack::{
+        core::issue::{
+            CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc,
+            IssuesVc, OptionIssueSourceVc, PlainIssueReadRef,
+        },
+        test_utils::snapshot::snapshot_issues,
+    },
 };
-use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc};
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
-use turbo_binding::turbo::tasks_testing::retry::retry_async;
-use turbo_binding::turbopack::core::issue::{
-    CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc, IssuesVc,
-    OptionIssueSourceVc, PlainIssueReadRef,
-};
-use turbo_binding::turbopack::test_utils::snapshot::snapshot_issues;
 
 fn register() {
     next_dev::register();
