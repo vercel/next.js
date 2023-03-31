@@ -1873,14 +1873,6 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
     })
 
-    const allHeaders = new Headers()
-
-    for (let [key, value] of result.response.headers) {
-      if (key !== 'x-middleware-next') {
-        allHeaders.append(key, value)
-      }
-    }
-
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
@@ -1890,19 +1882,24 @@ export default class NextNodeServer extends BaseServer {
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
       return { finished: true }
-    } else {
-      for (let [key, value] of allHeaders) {
-        result.response.headers.set(key, value)
-
-        if (key.toLowerCase() === 'set-cookie') {
-          addRequestMeta(
-            params.request,
-            '_nextMiddlewareCookie',
-            splitCookiesString(value)
-          )
-        }
-      }
     }
+
+    for (let [key, value] of result.response.headers) {
+      if (key.toLowerCase() !== 'set-cookie') continue
+
+      // Clear existing header.
+      result.response.headers.delete(key)
+
+      // Append each cookie individually.
+      const cookies = splitCookiesString(value)
+      for (const cookie of cookies) {
+        result.response.headers.append(key, cookie)
+      }
+
+      // Add cookies to request meta.
+      addRequestMeta(params.request, '_nextMiddlewareCookie', cookies)
+    }
+
     return result
   }
 
@@ -2038,7 +2035,11 @@ export default class NextNodeServer extends BaseServer {
                 continue
               }
               if (key !== 'content-encoding' && value !== undefined) {
-                res.setHeader(key, value)
+                if (typeof value === 'number') {
+                  res.setHeader(key, value.toString())
+                } else {
+                  res.setHeader(key, value)
+                }
               }
             }
 
@@ -2243,10 +2244,15 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value: string, key) => {
-      // the append handling is special cased for `set-cookie`
+    // TODO: (wyattjoh) investigate improving this
+
+    result.response.headers.forEach((value, key) => {
+      // The append handling is special cased for `set-cookie`.
       if (key.toLowerCase() === 'set-cookie') {
-        params.res.setHeader(key, value)
+        // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+        for (const cookie of splitCookiesString(value)) {
+          params.res.appendHeader(key, cookie)
+        }
       } else {
         params.res.appendHeader(key, value)
       }
