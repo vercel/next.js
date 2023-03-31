@@ -228,9 +228,7 @@ pub async fn create_page_source(
         AssetsVc::cell(vec![
             ProcessEnvAssetVc::new(project_path, injected_env).into()
         ]);
-    let fallback_runtime_entries =
-        AssetsVc::cell(vec![
-        ]);
+    let fallback_runtime_entries = AssetsVc::cell(vec![]);
 
     let fallback_page = get_fallback_page(
         project_path,
