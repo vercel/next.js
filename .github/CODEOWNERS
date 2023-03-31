@@ -13,12 +13,6 @@
 /*.md                                         @vercel/next-js @leerob
 /packages/create-next-app/                    @vercel/next-js
 
-# Tooling & Telemetry
-
-/packages/next/src/build/                     @timneutkens @ijjk @shuding @vercel/web-tooling @huozhi
-/packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
-/packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
-
 # Image Component (@styfle)
 
 /**/*image*                                   @timneutkens @ijjk @shuding @styfle
@@ -27,3 +21,9 @@
 /packages/next/server/lib/squoosh/            @timneutkens @ijjk @shuding @styfle
 /packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle
 /packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle
+
+# Tooling & Telemetry
+
+/packages/next/src/build/                     @timneutkens @ijjk @shuding @vercel/web-tooling @huozhi
+/packages/next/src/telemetry/                 @timneutkens @ijjk @shuding @padmaia
+/packages/next-swc/                           @timneutkens @ijjk @shuding @vercel/web-tooling
