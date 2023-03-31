@@ -36,7 +36,7 @@ export function fillLazyItemsTillLeafWithHead(
         parallelRouteCacheNode.set(cacheKey, newCacheNode)
         fillLazyItemsTillLeafWithHead(
           newCacheNode,
-          undefined,
+          existingCacheNode,
           parallelRouteState,
           head
         )
