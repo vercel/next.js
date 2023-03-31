@@ -16,8 +16,6 @@ import type {
   TurbopackGlobals,
 } from '@vercel/turbopack-dev-runtime/types'
 
-import stripAnsi from '@vercel/turbopack-next/compiled/strip-ansi'
-
 import {
   onBeforeRefresh,
   onBuildOk,
@@ -464,7 +462,6 @@ function handleIssues(msg: ServerMessage): boolean {
 
   for (const issue of msg.issues) {
     if (CRITICAL.includes(issue.severity)) {
-      console.error(stripAnsi(issue.formatted))
       hasCriticalIssues = true
     }
   }

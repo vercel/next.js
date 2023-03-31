@@ -29,6 +29,13 @@ initializeHMR({
 })
 
 const el = document.getElementById('__next')!
-el.innerText = ''
 
-createRoot(el).render(<ReactDevOverlay />)
+const innerHtml = {
+  __html: el.innerHTML,
+}
+
+createRoot(el).render(
+  <ReactDevOverlay>
+    <div dangerouslySetInnerHTML={innerHtml}></div>
+  </ReactDevOverlay>
+)

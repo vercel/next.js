@@ -20,6 +20,7 @@ type RefreshState =
       // executed yet.
       type: 'pending'
       errors: SupportedErrorEvent[]
+      reactError: Error | null
     }
 
 type OverlayState = {
@@ -52,20 +53,16 @@ function pushErrorFilterDuplicates(
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_BUILD_OK: {
-      if (state.reactError != null) {
-        console.warn(
-          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
-        )
-        window.location.reload()
-      }
-
       return { ...state }
     }
     case Bus.TYPE_TURBOPACK_ISSUES: {
       return { ...state, issues: ev.issues }
     }
     case Bus.TYPE_BEFORE_REFRESH: {
-      return { ...state, refreshState: { type: 'pending', errors: [] } }
+      return {
+        ...state,
+        refreshState: { type: 'pending', errors: [], reactError: null },
+      }
     }
     case Bus.TYPE_REFRESH: {
       return {
@@ -80,6 +77,10 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
           state.refreshState.type === 'pending'
             ? state.refreshState.errors
             : [],
+        reactError:
+          state.refreshState.type === 'pending'
+            ? state.refreshState.reactError
+            : null,
         refreshState: { type: 'idle' },
       }
     }
@@ -114,7 +115,25 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
       }
     }
     case Bus.TYPE_REACT_ERROR: {
-      return { ...state, reactError: ev.error }
+      switch (state.refreshState.type) {
+        case 'idle': {
+          return {
+            ...state,
+            reactError: ev.error,
+          }
+        }
+        case 'pending': {
+          return {
+            ...state,
+            refreshState: {
+              ...state.refreshState,
+              reactError: ev.error,
+            },
+          }
+        }
+        default:
+          return state
+      }
     }
     default: {
       return state
@@ -189,6 +208,7 @@ export default function ReactDevOverlay({
   return (
     <React.Fragment>
       <ErrorBoundary
+        error={state.reactError}
         onError={onComponentError}
         fallback={
           // When the overlay is global for the application and it wraps a component rendering `<html>`
