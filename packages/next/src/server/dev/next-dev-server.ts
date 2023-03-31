@@ -632,7 +632,8 @@ export default class DevServer extends Server {
               ? ((this.nextConfig as any)._originalRedirects || []).filter(
                   (r: any) => !r.internal
                 )
-              : []
+              : [],
+            this.nextConfig.experimental.clientRouterFilterAllowedRate
           )
 
           if (
@@ -1445,7 +1446,12 @@ export default class DevServer extends Server {
         clientOnly: false,
       })
       try {
-        require(pathJoin(this.distDir, 'server', 'instrumentation')).register()
+        const instrumentationHook = await require(pathJoin(
+          this.distDir,
+          'server',
+          'instrumentation'
+        ))
+        instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err

@@ -16,6 +16,24 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (!isDev) {
+      it('should successfully detect app route during prefetch', async () => {
+        const browser = await next.browser('/')
+
+        await check(async () => {
+          const found = await browser.eval(
+            '!!window.next.router.components["/dashboard"]'
+          )
+          return found
+            ? 'success'
+            : await browser.eval('Object.keys(window.next.router.components)')
+        }, 'success')
+
+        await browser.elementByCss('a').click()
+        await browser.waitForElementByCss('#from-dashboard')
+      })
+    }
+
     it('should encode chunk path correctly', async () => {
       await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')

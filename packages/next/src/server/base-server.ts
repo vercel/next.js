@@ -30,7 +30,6 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { AppRouteRouteHandlerContext } from './future/route-handlers/app-route-route-handler'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -83,7 +82,10 @@ import {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
-import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
+import {
+  RouteHandlerManager,
+  type RouteHandlerManagerContext,
+} from './future/route-handler-managers/route-handler-manager'
 import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
 import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
@@ -96,7 +98,8 @@ import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
-import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
+import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import { fromNodeHeaders, toNodeHeaders } from './web/utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -599,12 +602,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             !val.every((item, idx) => item === middlewareValue[idx])
           ) {
             val = [
-              ...(middlewareValue || []),
-              ...(typeof val === 'string'
-                ? [val]
-                : Array.isArray(val)
-                ? val
-                : []),
+              // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
+              ...new Set([
+                ...(middlewareValue || []),
+                ...(typeof val === 'string'
+                  ? [val]
+                  : Array.isArray(val)
+                  ? val
+                  : []),
+              ]),
             ]
           }
         }
@@ -1533,7 +1539,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : undefined
 
       if (match) {
-        const context: AppRouteRouteHandlerContext = {
+        const context: RouteHandlerManagerContext = {
+          params: match.params,
           staticGenerationContext: {
             supportsDynamicHTML,
             incrementalCache,
@@ -1550,7 +1557,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              const headers = Object.fromEntries(response.headers)
+              const headers = toNodeHeaders(response.headers)
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
@@ -1925,7 +1932,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         req,
         res,
         new Response(cachedData.body, {
-          headers: new Headers((cachedData.headers || {}) as any),
+          headers: fromNodeHeaders(cachedData.headers),
           status: cachedData.status || 200,
         })
       )

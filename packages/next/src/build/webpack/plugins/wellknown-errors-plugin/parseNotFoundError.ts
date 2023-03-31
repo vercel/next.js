@@ -136,11 +136,10 @@ export async function getNotFoundError(
         .filter(
           (name) =>
             name &&
-            !/next-(middleware|client-pages|flight-(client|server|client-entry))-loader\.js/.test(
+            !/next-(app|middleware|client-pages|flight-(client|server|client-entry))-loader\.js/.test(
               name
             ) &&
-            !/css-loader.+\.js/.test(name) &&
-            !/next-app-loader\/index.js/.test(name)
+            !/css-loader.+\.js/.test(name)
         )
       if (moduleTrace.length === 0) return ''
 

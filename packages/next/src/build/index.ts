@@ -119,6 +119,7 @@ import {
   teardownTraceSubscriber,
   teardownCrashReporter,
   loadBindings,
+  teardownHeapProfiler,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
@@ -891,7 +892,8 @@ export default async function build(
           appPageKeys,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
-            : []
+            : [],
+          config.experimental.clientRouterFilterAllowedRate
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters
@@ -3080,6 +3082,7 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
+    teardownHeapProfiler()
     teardownCrashReporter()
   }
 }

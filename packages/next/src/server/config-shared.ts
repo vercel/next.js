@@ -116,6 +116,10 @@ export interface NextJsWebpackConfig {
 export interface ExperimentalConfig {
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  // decimal for percent for possible false positives
+  // e.g. 0.01 for 10% potential false matches lower
+  // percent increases size of the filter
+  clientRouterFilterAllowedRate?: number
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
