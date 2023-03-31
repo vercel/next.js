@@ -986,8 +986,7 @@ export async function renderToHTMLOrFlight(
               // Create router state using the slice of the loaderTree
               loaderTreeToFilter,
               getDynamicParamFromSegment,
-              query,
-              false
+              query
             ),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
             isPrefetch && !Boolean(components.loading)
