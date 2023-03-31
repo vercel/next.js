@@ -7,6 +7,7 @@ use turbo_binding::{
     },
     turbopack::{
         core::{
+            issue::OptionIssueSourceVc,
             asset::{Asset, AssetVc},
             chunk::ChunkingContextVc,
             compile_time_info::CompileTimeInfoVc,
@@ -125,6 +126,7 @@ impl Transition for NextEdgeTransition {
                 route_module_kind
             )),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            OptionIssueSourceVc::none(),
         );
         let route_module_asset = match &*resolved_route_module_asset.first_asset().await? {
             Some(a) => *a,

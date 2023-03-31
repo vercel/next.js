@@ -7,7 +7,7 @@ use turbo_binding::{
         core::{
             asset::{Asset, AssetVc},
             ident::AssetIdentVc,
-            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
             reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
             resolve::{
                 self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
@@ -323,6 +323,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
         context,
         request,
         resolve_options,
+        OptionIssueSourceVc::none(),
     )
     .await?;
     let resolve_result = &*resolve_result.await?;

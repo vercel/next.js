@@ -3,7 +3,7 @@ use turbo_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
         core::{
-            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
             resolve::{origin::ResolveOriginVc, parse::RequestVc},
         },
         turbopack::{
@@ -86,7 +86,7 @@ pub async fn assert_can_resolve_react_refresh(
 /// Resolves the React Refresh runtime module from the given [AssetContextVc].
 #[turbo_tasks::function]
 pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<EcmascriptChunkPlaceableVc> {
-    if let Some(asset) = *cjs_resolve(origin, react_refresh_request())
+    if let Some(asset) = *cjs_resolve(origin, react_refresh_request(), OptionIssueSourceVc::none())
         .first_asset()
         .await?
     {
