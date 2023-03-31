@@ -9,10 +9,6 @@ export async function generateMetadata(props, parentResolvingMetadata) {
     ...parentMetadata,
     alternates: {
       ...parentMetadata.alternates,
-      languages: {
-        'en-US': 'https://example.com/en-US',
-        'de-DE': 'https://example.com/de-DE',
-      },
       media: {
         'only screen and (max-width: 600px)': '/mobile',
       },
