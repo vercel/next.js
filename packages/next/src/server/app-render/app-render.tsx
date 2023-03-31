@@ -1097,7 +1097,11 @@ export async function renderToHTMLOrFlight(
               <>
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree key={requestId} metadata={metadataItems} />
+                <MetadataTree
+                  key={requestId}
+                  metadata={metadataItems}
+                  pathname={pathname}
+                />
               </>
             ),
             injectedCSS: new Set(),
@@ -1232,7 +1236,11 @@ export async function renderToHTMLOrFlight(
                 <>
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree key={requestId} metadata={metadataItems} />
+                  <MetadataTree
+                    key={requestId}
+                    metadata={metadataItems}
+                    pathname={pathname}
+                  />
                 </>
               }
               globalErrorComponent={GlobalError}
@@ -1419,7 +1427,11 @@ export async function renderToHTMLOrFlight(
               <html id="__next_error__">
                 <head>
                   {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree key={requestId} metadata={[]} />
+                  <MetadataTree
+                    key={requestId}
+                    metadata={[]}
+                    pathname={pathname}
+                  />
                 </head>
                 <body></body>
               </html>

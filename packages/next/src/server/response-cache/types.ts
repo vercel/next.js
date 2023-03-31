@@ -1,3 +1,4 @@
+import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 
 export interface ResponseCacheBase {
@@ -41,7 +42,7 @@ export interface CachedRouteValue {
   // expects that type instead of a string
   body: Buffer
   status: number
-  headers: Record<string, undefined | string | string[]>
+  headers: OutgoingHttpHeaders
 }
 
 export interface CachedImageValue {

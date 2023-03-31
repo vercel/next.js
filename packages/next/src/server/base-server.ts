@@ -100,6 +100,7 @@ import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
+import { fromNodeHeaders, toNodeHeaders } from './web/utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -593,12 +594,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             !val.every((item, idx) => item === middlewareValue[idx])
           ) {
             val = [
-              ...(middlewareValue || []),
-              ...(typeof val === 'string'
-                ? [val]
-                : Array.isArray(val)
-                ? val
-                : []),
+              // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
+              ...new Set([
+                ...(middlewareValue || []),
+                ...(typeof val === 'string'
+                  ? [val]
+                  : Array.isArray(val)
+                  ? val
+                  : []),
+              ]),
             ]
           }
         }
@@ -1546,7 +1550,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              const headers = Object.fromEntries(response.headers)
+              const headers = toNodeHeaders(response.headers)
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
@@ -1921,7 +1925,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         req,
         res,
         new Response(cachedData.body, {
-          headers: new Headers((cachedData.headers || {}) as any),
+          headers: fromNodeHeaders(cachedData.headers),
           status: cachedData.status || 200,
         })
       )
