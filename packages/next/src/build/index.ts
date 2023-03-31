@@ -1066,7 +1066,7 @@ export default async function build(
         })
       )
 
-      let turboTasks: unknown
+      let turboTasksForTrace: unknown
 
       async function runTurbotrace(staticPages: Set<string>) {
         if (!turbotraceContext) {
@@ -1078,7 +1078,7 @@ export default async function build(
         ) {
           let turbotraceOutputPath: string | undefined
           let turbotraceFiles: string[] | undefined
-          turboTasks = binding.turbo.createTurboTasks(
+          turboTasksForTrace = binding.turbo.createTurboTasks(
             (config.experimental.turbotrace?.memoryLimit ??
               TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
               1024 *
@@ -1096,7 +1096,7 @@ export default async function build(
             } = entriesTrace
             const depModSet = new Set(depModArray)
             const filesTracedInEntries: string[] =
-              await binding.turbo.startTrace(action, turboTasks)
+              await binding.turbo.startTrace(action, turboTasksForTrace)
 
             const { contextDirectory, input: entriesToTrace } = action
 
@@ -1141,7 +1141,7 @@ export default async function build(
                 )
               )
             })
-            await binding.turbo.startTrace(action, turboTasks)
+            await binding.turbo.startTrace(action, turboTasksForTrace)
             if (turbotraceOutputPath && turbotraceFiles) {
               const existedNftFile = await promises
                 .readFile(turbotraceOutputPath, 'utf8')
@@ -2079,7 +2079,7 @@ export default async function build(
                   logDetail: config.experimental.turbotrace.logDetail,
                   showAll: config.experimental.turbotrace.logAll,
                 },
-                turboTasks
+                turboTasksForTrace
               )
               for (const file of files) {
                 if (!ignoreFn(path.join(traceContext, file))) {

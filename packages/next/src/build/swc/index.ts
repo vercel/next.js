@@ -262,6 +262,34 @@ async function loadWasm(importPath = '') {
           startTrace: () => {
             Log.error('Wasm binding does not support trace yet')
           },
+          entrypoints: {
+            stream: (
+              turboTasks: any,
+              rootDir: string,
+              applicationDir: string,
+              pageExtensions: string[]
+            ) => {
+              return bindings.streamEntrypoints(
+                turboTasks,
+                rootDir,
+                applicationDir,
+                pageExtensions
+              )
+            },
+            get: (
+              turboTasks: any,
+              rootDir: string,
+              applicationDir: string,
+              pageExtensions: string[]
+            ) => {
+              return bindings.getEntrypoints(
+                turboTasks,
+                rootDir,
+                applicationDir,
+                pageExtensions
+              )
+            },
+          },
         },
         mdx: {
           compile: (src: string, options: any) =>
@@ -324,40 +352,40 @@ function loadNative(isCustomTurbopack = false) {
   }
 
   if (bindings) {
-    ;(async () => {
-      const turboTasks = bindings.createTurboTasks()
-      const entrypoints = await bindings.getEntrypoints(
-        turboTasks,
-        '/Users/timneutkens/projects/next.js',
-        '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception',
-        ['ts', 'tsx', 'js', 'jsx']
-      )
-      console.log({ entrypoints })
-      console.dir({ test: entrypoints['/parallel-tab-bar'] }, { depth: null })
-      // bindings.streamEntrypoints(
-      //   turboTasks,
-      //   '/Users/timneutkens/projects/next.js',
-      //   '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception',
-      //   ['ts', 'tsx', 'js', 'jsx'],
-      //   (err, entrypoints) => {
-      //     if (err) console.log({ err })
-      //     console.log({ entrypoints })
-      //     console.dir({ test: entrypoints['/parallel-tab-bar'] }, { depth: null })
-      //   }
-      // )
-    })().catch((e) => console.error(e))
+    // ;(async () => {
+    //   const turboTasks = bindings.createTurboTasks()
+    //   const entrypoints = await bindings.getEntrypoints(
+    //     turboTasks,
+    //     '/Users/timneutkens/projects/next.js',
+    //     '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception',
+    //     ['ts', 'tsx', 'js', 'jsx']
+    //   )
+    //   console.log({ entrypoints })
+    //   console.dir({ test: entrypoints['/parallel-tab-bar'] }, { depth: null })
+    //   // bindings.streamEntrypoints(
+    //   //   turboTasks,
+    //   //   '/Users/timneutkens/projects/next.js',
+    //   //   '/Users/timneutkens/projects/next.js/test/e2e/app-dir/parallel-routes-and-interception',
+    //   //   ['ts', 'tsx', 'js', 'jsx'],
+    //   //   (err, entrypoints) => {
+    //   //     if (err) console.log({ err })
+    //   //     console.log({ entrypoints })
+    //   //     console.dir({ test: entrypoints['/parallel-tab-bar'] }, { depth: null })
+    //   //   }
+    //   // )
+    // })().catch((e) => console.error(e))
 
-    // Initialize crash reporter, as earliest as possible from any point of import.
-    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
-    // we can't rely on explicit manual initialization as similar to trace reporter.
-    if (!swcCrashReporterFlushGuard) {
-      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
-      /* TODO: temporarily disable initialization while confirming logistics.
-      let telemetry = new Telemetry({ distDir: process.cwd() })
-      if (telemetry.isEnabled) {
-        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
-      }*/
-    }
+    // // Initialize crash reporter, as earliest as possible from any point of import.
+    // // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
+    // // we can't rely on explicit manual initialization as similar to trace reporter.
+    // if (!swcCrashReporterFlushGuard) {
+    //   // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
+    //   /* TODO: temporarily disable initialization while confirming logistics.
+    //   let telemetry = new Telemetry({ distDir: process.cwd() })
+    //   if (telemetry.isEnabled) {
+    //     swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
+    //   }*/
+    // }
 
     nativeBindings = {
       isWasm: false,
@@ -504,6 +532,34 @@ function loadNative(isCustomTurbopack = false) {
           ),
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
+        entrypoints: {
+          stream: (
+            turboTasks: any,
+            rootDir: string,
+            applicationDir: string,
+            pageExtensions: string[]
+          ) => {
+            return bindings.streamEntrypoints(
+              turboTasks,
+              rootDir,
+              applicationDir,
+              pageExtensions
+            )
+          },
+          get: (
+            turboTasks: any,
+            rootDir: string,
+            applicationDir: string,
+            pageExtensions: string[]
+          ) => {
+            return bindings.getEntrypoints(
+              turboTasks,
+              rootDir,
+              applicationDir,
+              pageExtensions
+            )
+          },
+        },
       },
       mdx: {
         compile: (src: string, options: any) =>
