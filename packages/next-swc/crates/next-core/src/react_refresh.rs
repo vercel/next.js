@@ -86,9 +86,14 @@ pub async fn assert_can_resolve_react_refresh(
 /// Resolves the React Refresh runtime module from the given [AssetContextVc].
 #[turbo_tasks::function]
 pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<EcmascriptChunkPlaceableVc> {
-    if let Some(asset) = *cjs_resolve(origin, react_refresh_request(), OptionIssueSourceVc::none())
-        .first_asset()
-        .await?
+    if let Some(asset) = *cjs_resolve(
+        origin,
+        react_refresh_request(),
+        OptionIssueSourceVc::none(),
+        IssueSeverity::Error.cell(),
+    )
+    .first_asset()
+    .await?
     {
         if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
             Ok(placeable)

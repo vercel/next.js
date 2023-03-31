@@ -5,7 +5,7 @@ use turbo_binding::{
         core::{
             asset::{Asset, AssetVc, AssetsVc},
             context::AssetContextVc,
-            issue::OptionIssueSourceVc,
+            issue::{IssueSeverity, OptionIssueSourceVc},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
         },
         ecmascript::{
@@ -45,6 +45,7 @@ impl RuntimeEntryVc {
             PlainResolveOriginVc::new(context, path).into(),
             request,
             OptionIssueSourceVc::none(),
+            IssueSeverity::Error.cell(),
         )
         .primary_assets()
         .await?;

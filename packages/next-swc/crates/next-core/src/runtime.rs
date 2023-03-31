@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbopack::core::issue::OptionIssueSourceVc;
+use turbo_binding::turbopack::core::issue::{IssueSeverity, OptionIssueSourceVc};
 use turbo_binding::turbopack::{
     core::resolve::{origin::ResolveOriginVc, parse::RequestVc},
     turbopack::ecmascript::{chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve},
@@ -14,9 +14,14 @@ pub async fn resolve_runtime_request(
     let runtime_request_path = format!("@vercel/turbopack-next/{}", path);
     let request = RequestVc::parse_string(runtime_request_path.clone());
 
-    if let Some(asset) = *cjs_resolve(origin, request, OptionIssueSourceVc::none())
-        .first_asset()
-        .await?
+    if let Some(asset) = *cjs_resolve(
+        origin,
+        request,
+        OptionIssueSourceVc::none(),
+        IssueSeverity::Error.cell(),
+    )
+    .first_asset()
+    .await?
     {
         if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
             Ok(placeable)

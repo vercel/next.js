@@ -324,6 +324,7 @@ pub async fn load_next_json<T: DeserializeOwned>(
         request,
         resolve_options,
         OptionIssueSourceVc::none(),
+        IssueSeverity::Error.cell(),
     )
     .await?;
     let resolve_result = &*resolve_result.await?;
