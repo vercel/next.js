@@ -260,41 +260,47 @@ createNextDescribe(
       })
 
       it('should support alternate tags', async () => {
-        const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
-        await checkMeta(
-          browser,
-          'en-US',
-          'https://example.com/en-US',
-          'hreflang',
-          'link',
-          'href'
-        )
-        await checkMeta(
-          browser,
-          'de-DE',
-          'https://example.com/de-DE',
-          'hreflang',
-          'link',
-          'href'
-        )
-        await checkMeta(
-          browser,
-          'only screen and (max-width: 600px)',
-          '/mobile',
-          'media',
-          'link',
-          'href'
-        )
+        const browser = await next.browser('/alternates')
         const matchDom = createDomMatcher(browser)
 
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
         await matchDom('link', 'title="js title"', {
           type: 'application/rss+xml',
-          href: '/blog/js.rss',
+          href: 'https://example.com/blog/js.rss',
         })
         await matchDom('link', 'title="rss"', {
           type: 'application/rss+xml',
-          href: '/blog.rss',
+          href: 'https://example.com/blog.rss',
+        })
+        await matchDom('link', 'hreflang="en-US"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/en-US',
+        })
+        await matchDom('link', 'hreflang="de-DE"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/de-DE',
+        })
+        await matchDom('link', 'media="only screen and (max-width: 600px)"', {
+          rel: 'alternate',
+          href: 'https://example.com/mobile',
+        })
+      })
+
+      it('should relative canonical url', async () => {
+        const browser = await next.browser('/alternates/child')
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child',
+        })
+        await matchDom('link', 'hreflang="en-US"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/child/en-US',
+        })
+        await matchDom('link', 'hreflang="de-DE"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/child/de-DE',
         })
       })
 
