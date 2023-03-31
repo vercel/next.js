@@ -268,6 +268,7 @@ fn edge_transition_map(
         output_path.join("edge/assets"),
         edge_compile_time_info.environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(

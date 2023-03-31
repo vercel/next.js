@@ -311,7 +311,6 @@ async fn source(
         execution_context,
         entry_requests,
         dev_server_root,
-        env,
         eager_compile,
         &browserslist_query,
         next_config,

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::{FileSystem, FileSystemPathVc};
+use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
     chunk::ChunkingContextVc,
     compile_time_defines,
@@ -14,7 +14,6 @@ use turbo_binding::turbopack::core::{
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     free_var_references,
-    resolve::{parse::RequestVc, pattern::Pattern},
 };
 use turbo_binding::turbopack::dev::DevChunkingContextVc;
 use turbo_binding::turbopack::env::ProcessEnvAssetVc;
@@ -33,7 +32,6 @@ use turbo_tasks::{primitives::StringVc, Value};
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
-    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -66,7 +64,7 @@ pub fn next_client_free_vars() -> FreeVarReferencesVc {
         process = FreeVarReference::EcmaScriptModule {
             request: "node:process".to_string(),
             context: None,
-            export: None,
+            export: Some("default".to_string()),
         }
     )
     .cell()
@@ -285,7 +283,7 @@ pub async fn get_client_runtime_entries(
             .await?
             .as_request();
 
-    let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
+    let mut runtime_entries = vec![RuntimeEntry::Source(
         ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
     )
     .cell()];
@@ -296,17 +294,6 @@ pub async fn get_client_runtime_entries(
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };
-    if matches!(ty.into_value(), ClientContextType::Other) {
-        runtime_entries.push(
-            RuntimeEntry::Request(
-                RequestVc::parse(Value::new(Pattern::Constant(
-                    "./dev/bootstrap.ts".to_string(),
-                ))),
-                next_js_fs().root().join("_"),
-            )
-            .cell(),
-        );
-    }
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
 }

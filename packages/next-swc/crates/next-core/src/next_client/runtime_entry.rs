@@ -1,10 +1,12 @@
 use anyhow::{bail, Result};
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
+use turbo_binding::turbopack::core::asset::{AssetVc, AssetsVc};
 use turbo_binding::turbopack::core::{
     asset::Asset,
     context::AssetContextVc,
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
+use turbo_binding::turbopack::ecmascript::process_runtime_entries;
 use turbo_binding::turbopack::ecmascript::{
     chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
     resolve::cjs_resolve,
@@ -15,6 +17,7 @@ use turbo_tasks::ValueToString;
 pub enum RuntimeEntry {
     Request(RequestVc, FileSystemPathVc),
     Ecmascript(EcmascriptChunkPlaceableVc),
+    Source(AssetVc),
 }
 
 #[turbo_tasks::value_impl]
@@ -26,6 +29,12 @@ impl RuntimeEntryVc {
     ) -> Result<EcmascriptChunkPlaceablesVc> {
         let (request, path) = match *self.await? {
             RuntimeEntry::Ecmascript(e) => return Ok(EcmascriptChunkPlaceablesVc::cell(vec![e])),
+            RuntimeEntry::Source(source) => {
+                return Ok(process_runtime_entries(
+                    context,
+                    AssetsVc::cell(vec![source]),
+                ))
+            }
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
