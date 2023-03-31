@@ -2,10 +2,15 @@ use anyhow::{anyhow, Result};
 use napi::bindgen_prelude::External;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::JsFunction;
+use next_core::app_structure::{
+    find_app_dir, get_entrypoints as get_entrypoints_impl, Components, ComponentsVc, Entrypoint,
+    EntrypointsVc, LoaderTree, LoaderTreeVc,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::MAIN_SEPARATOR;
 use std::sync::Arc;
+use turbo_binding::turbo::tasks;
 use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
 use turbo_binding::turbo::tasks::primitives::StringsVc;
 use turbo_binding::turbo::tasks::trace::TraceRawVcs;
@@ -19,7 +24,7 @@ use turbo_binding::turbo::tasks_memory::MemoryBackend;
 
 use crate::REGISTER;
 
-#[turbo_tasks::function]
+#[tasks::function]
 async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
     let disk_fs =
         DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
@@ -29,7 +34,7 @@ async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
     Ok(disk_fs.into())
 }
 
-#[turbo_tasks::value]
+#[tasks::value]
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: String,
@@ -44,11 +49,11 @@ enum EntrypointForJs {
     AppRoute { path: String },
 }
 
-#[turbo_tasks::value(transparent)]
+#[tasks::value(transparent)]
 #[serde(rename_all = "camelCase")]
 struct EntrypointsForJs(HashMap<String, EntrypointForJs>);
 
-#[turbo_tasks::value(transparent)]
+#[tasks::value(transparent)]
 struct OptionEntrypointsForJs(Option<EntrypointsForJsVc>);
 
 async fn fs_path_to_path(project_path: FileSystemPathVc, path: FileSystemPathVc) -> Result<String> {
@@ -131,7 +136,7 @@ async fn prepare_components_for_js(
     Ok(map.into())
 }
 
-#[turbo_tasks::function]
+#[tasks::function]
 async fn prepare_loader_tree_for_js(
     project_path: FileSystemPathVc,
     loader_tree: LoaderTreeVc,
@@ -162,7 +167,7 @@ async fn prepare_loader_tree_for_js(
     .cell())
 }
 
-#[turbo_tasks::function]
+#[tasks::function]
 async fn prepare_entrypoints_for_js(
     project_path: FileSystemPathVc,
     entrypoints: EntrypointsVc,
@@ -191,7 +196,7 @@ async fn prepare_entrypoints_for_js(
     Ok(EntrypointsForJsVc::cell(entrypoints))
 }
 
-#[turbo_tasks::function]
+#[tasks::function]
 async fn get_value(
     root_dir: &str,
     project_dir: &str,
@@ -207,10 +212,10 @@ async fn get_value(
         .replace(MAIN_SEPARATOR, "/");
     let project_path = fs.root().join(&project_relative);
 
-    let app_dir = next_core::app_structure::find_app_dir(project_path);
+    let app_dir = find_app_dir(project_path);
 
     let result = if let Some(app_dir) = *app_dir.await? {
-        let entrypoints = next_core::app_structure::get_entrypoints(app_dir, page_extensions);
+        let entrypoints = get_entrypoints_impl(app_dir, page_extensions);
         let entrypoints_for_js = prepare_entrypoints_for_js(project_path, entrypoints);
 
         Some(entrypoints_for_js)

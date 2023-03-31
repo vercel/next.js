@@ -3226,6 +3226,7 @@ dependencies = [
  "tracing-futures",
  "tracing-subscriber",
  "turbo-binding",
+ "turbo-tasks",
 ]
 
 [[package]]

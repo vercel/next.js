@@ -35,6 +35,7 @@ next-swc = { version = "0.0.0", path = "../core" }
 next-dev = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
+turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
