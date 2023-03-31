@@ -80,6 +80,13 @@ export function patchFetch({
             ? (input as any).next?.revalidate
             : undefined
 
+        const tags =
+          typeof init?.next?.tags !== 'undefined'
+            ? init?.next?.tags
+            : isRequestInput
+            ? (input as any).next?.tags
+            : undefined
+
         const _cache = getRequestMeta('cache')
 
         if (_cache === 'force-cache') {
@@ -230,8 +237,8 @@ export function patchFetch({
                     data: {
                       headers: Object.fromEntries(res.headers.entries()),
                       body: base64Body,
-                      tags: getRequestMeta('next')?.tags,
                       status: res.status,
+                      tags,
                     },
                     revalidate,
                   },
@@ -351,4 +358,20 @@ export function patchFetch({
     )
   }
   ;(fetch as any).__nextPatched = true
+  ;(fetch as any).revalidateTag = async (tag: string) => {
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+    if (!staticGenerationStore) {
+      throw new Error(`invariant missing staticGenerationStore`)
+    }
+    const store = staticGenerationAsyncStorage.getStore()
+
+    const incrementalCache = store?.incrementalCache
+
+    if (!incrementalCache) {
+      throw new Error('invariant missing incrementalCache')
+    }
+
+    return incrementalCache.revalidateTag(tag)
+  }
 }

@@ -613,27 +613,16 @@ export class AppRouteRouteHandler implements RouteHandler {
 
     return response
   }
-
-  /**
-   * When true, indicates that the global interfaces have been patched via the
-   * `patch()` method.
-   */
-  private patched: boolean = false
-
   /**
    * Patch will patch any global interfaces that require patching to support
    * the route handler.
    */
   public patch(): void {
-    if (this.patched) return
-
     // Patch the global fetch.
     patchFetch({
       serverHooks: this.serverHooks,
       staticGenerationAsyncStorage: this.staticGenerationAsyncStorage,
     })
-
-    this.patched = true
   }
 
   public async handle(

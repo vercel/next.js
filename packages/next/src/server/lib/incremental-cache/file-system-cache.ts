@@ -18,13 +18,13 @@ type TagsManifest = {
 }
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+let tagsManifest: TagsManifest | undefined
 
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
-  private tagsManifest?: TagsManifest
   private tagsManifestPath?: string
 
   constructor(ctx: FileSystemCacheContext) {
@@ -65,30 +65,29 @@ export default class FileSystemCache implements CacheHandler {
         'tags-manifest-json'
       )
       try {
-        this.tagsManifest = JSON.parse(
-          this.fs?.readFileSync(this.tagsManifestPath)
-        )
+        tagsManifest = JSON.parse(this.fs?.readFileSync(this.tagsManifestPath))
       } catch (err: any) {
         if (err.code !== 'ENOENT') throw err
+        tagsManifest = { version: 1, items: {} }
       }
     }
   }
 
   async setTags(key: string, tags: string[]) {
-    if (!this.tagsManifest || !this.tagsManifestPath) return
+    if (!tagsManifest || !this.tagsManifestPath) return
 
     for (const tag of tags) {
-      const data = this.tagsManifest.items[tag] || { keys: [] }
+      const data = tagsManifest.items[tag] || { keys: [] }
       if (!data.keys.includes(key)) {
         data.keys.push(key)
       }
-      this.tagsManifest.items[tag] = data
+      tagsManifest.items[tag] = data
     }
 
     try {
       await this.fs?.writeFile(
         this.tagsManifestPath,
-        JSON.stringify(this.tagsManifest || {})
+        JSON.stringify(tagsManifest || {})
       )
     } catch (err) {
       console.warn('Failed to update tags manifest.', err)
@@ -96,16 +95,16 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   public async revalidateTag(tag: string) {
-    if (!this.tagsManifest || !this.tagsManifestPath) return
+    if (!tagsManifest || !this.tagsManifestPath) return
 
-    const data = this.tagsManifest.items[tag] || { keys: [] }
+    const data = tagsManifest.items[tag] || { keys: [] }
     data.revalidatedAt = Date.now()
-    this.tagsManifest.items[tag] = data
+    tagsManifest.items[tag] = data
 
     try {
       await this.fs?.writeFile(
         this.tagsManifestPath,
-        JSON.stringify(this.tagsManifest || {})
+        JSON.stringify(tagsManifest || {})
       )
     } catch (err) {
       console.warn('Failed to update tags manifest.', err)
@@ -155,16 +154,7 @@ export default class FileSystemCache implements CacheHandler {
 
         if (fetchCache) {
           const parsedData: CachedFetchValue = JSON.parse(fileData)
-          let lastModified = mtime.getTime()
-          const isStale = parsedData.data.tags?.some((tag) => {
-            return (
-              (this.tagsManifest?.items[tag].revalidatedAt || 0) >=
-              Date.now() - lastModified
-            )
-          })
-          if (isStale) {
-            lastModified = lastModified - parsedData.revalidate * 1000
-          }
+          const lastModified = mtime.getTime()
           data = {
             lastModified,
             value: parsedData,
@@ -203,6 +193,22 @@ export default class FileSystemCache implements CacheHandler {
         // unable to get data from disk
       }
     }
+
+    if (data && data?.value?.kind === 'FETCH') {
+      const innerData = data.value.data
+      const isStale = innerData.tags?.some((tag) => {
+        return (
+          tagsManifest?.items[tag].revalidatedAt &&
+          tagsManifest?.items[tag].revalidatedAt >=
+            (data?.lastModified || Date.now())
+        )
+      })
+      if (isStale) {
+        data.lastModified =
+          (data?.lastModified || 0) - (data.value.revalidate || 0) * 1000
+      }
+    }
+
     return data || null
   }
 

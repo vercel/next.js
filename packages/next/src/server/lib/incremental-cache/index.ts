@@ -49,6 +49,8 @@ export class CacheHandler {
     _data: IncrementalCacheValue | null,
     _fetchCache?: boolean
   ): Promise<void> {}
+
+  public async revalidateTag(_key: string): Promise<void> {}
 }
 
 export class IncrementalCache {
@@ -260,6 +262,10 @@ export class IncrementalCache {
       cacheKey = crypto.createHash('sha256').update(cacheString).digest('hex')
     }
     return cacheKey
+  }
+
+  async revalidateTag(tag: string) {
+    return this.cacheHandler?.revalidateTag(tag)
   }
 
   // get data from cache if available
