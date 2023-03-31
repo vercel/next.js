@@ -101,20 +101,16 @@ pub async fn get_next_client_import_map(
     }
 
     match ty.into_value() {
-        ClientContextType::Pages {
-            pages_dir: context_dir,
-        }
-        | ClientContextType::App {
-            app_dir: context_dir,
-        } => {
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => {
             for (original, alias) in NEXT_ALIASES {
                 import_map.insert_exact_alias(
                     format!("node:{original}"),
-                    request_to_import_mapping(context_dir, alias),
+                    request_to_import_mapping(project_path, alias),
                 );
             }
         }
-        ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
 

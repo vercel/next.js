@@ -243,10 +243,10 @@ pub fn get_client_chunking_context(
         project_path,
         server_root,
         match ty.into_value() {
-            ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-                server_root.join("/_next/static/chunks")
-            }
-            ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_chunks"),
+            ClientContextType::Pages { .. }
+            | ClientContextType::App { .. }
+            | ClientContextType::Fallback => server_root.join("/_next/static/chunks"),
+            ClientContextType::Other => server_root.join("/_chunks"),
         },
         get_client_assets_path(server_root, ty),
         environment,
@@ -261,10 +261,10 @@ pub fn get_client_assets_path(
     ty: Value<ClientContextType>,
 ) -> FileSystemPathVc {
     match ty.into_value() {
-        ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-            server_root.join("/_next/static/assets")
-        }
-        ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_assets"),
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => server_root.join("/_next/static/assets"),
+        ClientContextType::Other => server_root.join("/_assets"),
     }
 }
 
@@ -283,10 +283,19 @@ pub async fn get_client_runtime_entries(
             .await?
             .as_request();
 
-    let mut runtime_entries = vec![RuntimeEntry::Source(
-        ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
-    )
-    .cell()];
+    let mut runtime_entries = vec![];
+
+    if matches!(
+        *ty,
+        ClientContextType::App { .. } | ClientContextType::Pages { .. },
+    ) {
+        runtime_entries.push(
+            RuntimeEntry::Source(
+                ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
+            )
+            .cell(),
+        );
+    }
 
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
