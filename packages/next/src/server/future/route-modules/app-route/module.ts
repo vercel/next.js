@@ -320,13 +320,15 @@ export class AppRouteRouteModule extends RouteModule<
               }
             )
 
+            // TODO: propagate this pathname from route matcher
+            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
             return getTracer().trace(
               AppRouteRouteHandlersSpan.runHandler,
               {
-                // TODO: propagate this pathname from route matcher
-                spanName: `executing api route (app) ${getPathnameFromAbsolutePath(
-                  this.resolvedPagePath
-                )}`,
+                spanName: `executing api route (app) ${route}`,
+                attributes: {
+                  'next.route': route,
+                },
               },
               () =>
                 handler(wrappedRequest, {
