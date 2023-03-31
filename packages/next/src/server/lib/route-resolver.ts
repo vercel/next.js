@@ -176,7 +176,7 @@ export async function makeResolver(
     devServer.hasMiddleware = () => true
   }
 
-  const routes = devServer.generateRoutes()
+  const routes = devServer.generateRoutes(true)
   // @ts-expect-error protected
   const catchAllMiddleware = devServer.generateCatchAllMiddlewareRoute(true)
 
