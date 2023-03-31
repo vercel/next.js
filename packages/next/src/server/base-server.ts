@@ -30,7 +30,6 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { AppRouteRouteHandlerContext } from './future/route-handlers/app-route-route-handler'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
@@ -83,7 +82,10 @@ import {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
-import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
+import {
+  RouteHandlerManager,
+  type RouteHandlerManagerContext,
+} from './future/route-handler-managers/route-handler-manager'
 import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
 import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
@@ -96,7 +98,7 @@ import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
-import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
+import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1524,7 +1526,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : undefined
 
       if (match) {
-        const context: AppRouteRouteHandlerContext = {
+        const context: RouteHandlerManagerContext = {
+          params: match.params,
           staticGenerationContext: {
             supportsDynamicHTML,
             incrementalCache,

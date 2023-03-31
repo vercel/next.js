@@ -1,5 +1,5 @@
 import type { NextConfigComplete } from '../config-shared'
-import type { AppRouteUserlandModule } from '../future/route-handlers/app-route-route-handler'
+import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
 import '../node-polyfill-fetch'
 import {
@@ -100,7 +100,7 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const userland: AppRouteUserlandModule | undefined =
-      components.ComponentMod.userland
+      components.ComponentMod.routeModule?.userland
     const generateParams: GenerateParams = userland
       ? [
           {

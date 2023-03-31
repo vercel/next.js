@@ -26,7 +26,7 @@ use turbo_binding::turbopack::ecmascript::{
 use turbo_binding::turbopack::node::{
     evaluate::evaluate,
     execution_context::{ExecutionContext, ExecutionContextVc},
-    source_map::StructuredError,
+    source_map::{trace_stack, StructuredError},
 };
 use turbo_binding::turbopack::turbopack::{
     evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc,
@@ -111,7 +111,7 @@ enum RouterIncomingMessage {
     MiddlewareHeaders { data: MiddlewareHeadersResponse },
     MiddlewareBody { data: Vec<u8> },
     None,
-    Error(StructuredError),
+    Error { error: StructuredError },
 }
 
 #[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
@@ -123,13 +123,13 @@ pub struct MiddlewareResponse {
     pub body: Stream<Result<Bytes, SharedError>>,
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+#[derive(Debug)]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),
     None,
-    Error,
+    Error(#[turbo_tasks(trace_ignore)] SharedError),
 }
 
 #[turbo_tasks::function]
@@ -330,6 +330,18 @@ pub async fn route(
     .await
 }
 
+macro_rules! shared_anyhow {
+    ($msg:literal $(,)?) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($msg))
+    };
+    ($err:expr $(,)?) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($err))
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($fmt, $($arg)*))
+    };
+}
+
 #[turbo_tasks::function]
 async fn route_internal(
     execution_context: ExecutionContextVc,
@@ -385,10 +397,25 @@ async fn route_internal(
 
     let mut read = result.read();
 
-    let Some(Ok(first)) = read.next().await else {
-        return Ok(RouterResult::Error.cell());
+    let first = match read.next().await {
+        Some(Ok(first)) => first,
+        Some(Err(e)) => {
+            return Ok(RouterResult::Error(SharedError::new(
+                anyhow!(e)
+                    .context("router evaluation failed: received error from javascript stream"),
+            ))
+            .cell())
+        }
+        None => {
+            return Ok(RouterResult::Error(shared_anyhow!(
+                "router evaluation failed: no message received from javascript stream"
+            ))
+            .cell())
+        }
     };
-    let first: RouterIncomingMessage = parse_json_with_source_context(first.to_str()?)?;
+    let first = first.to_str()?;
+    let first: RouterIncomingMessage = parse_json_with_source_context(first)
+        .with_context(|| format!("parsing incoming message ({})", first))?;
 
     let (res, read) = match first {
         RouterIncomingMessage::Rewrite { data } => (RouterResult::Rewrite(data), Some(read)),
@@ -404,10 +431,7 @@ async fn route_internal(
                     .and_then(parse_json_with_source_context)?;
                 match chunk {
                     RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
-                    m => Err(SharedError::new(anyhow!(
-                        "unexpected message type: {:#?}",
-                        m
-                    ))),
+                    m => Err(shared_anyhow!("unexpected message type: {:#?}", m)),
                 }
             });
             let middleware = MiddlewareResponse {
@@ -420,7 +444,26 @@ async fn route_internal(
         }
 
         RouterIncomingMessage::None => (RouterResult::None, Some(read)),
-        _ => (RouterResult::Error, Some(read)),
+
+        RouterIncomingMessage::Error { error } => (
+            RouterResult::Error(shared_anyhow!(
+                trace_stack(
+                    error,
+                    router_asset,
+                    chunking_context.output_root(),
+                    project_path
+                )
+                .await?
+            )),
+            Some(read),
+        ),
+
+        RouterIncomingMessage::MiddlewareBody { .. } => (
+            RouterResult::Error(shared_anyhow!(
+                "unexpected incoming middleware body without middleware headers"
+            )),
+            Some(read),
+        ),
     };
 
     // Middleware will naturally drain the full stream, but the rest only take a

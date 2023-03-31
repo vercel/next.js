@@ -57,7 +57,7 @@ For new projects, you can build your entire API with API Routes. If you have an 
 ## Caveats
 
 - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [CORS request helpers](https://github.com/vercel/next.js/tree/canary/examples/api-routes-cors).
-- API Routes can't be used with [`next export`](/docs/advanced-features/static-html-export.md)
+- API Routes can't be used with [`output: 'export'`](/docs/advanced-features/static-html-export.md)
 
 ## Related
 
