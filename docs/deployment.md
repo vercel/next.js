@@ -107,11 +107,11 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 ### Static Only
 
-The following services only support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+The following services only support deploying Next.js using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
 
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
 
-You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
+You can also manually deploy the output from [`output: 'export'`](/docs/advanced-features/static-html-export.md) to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
 
 ### Serverless
 
