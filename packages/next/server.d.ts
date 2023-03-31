@@ -11,3 +11,9 @@ export { NextMiddleware } from 'next/dist/server/web/types'
 export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
 export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
 export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
+export { RequestCookies } from 'next/dist/server/web/spec-extension/cookies/request-cookies'
+export { ResponseCookies } from 'next/dist/server/web/spec-extension/cookies/response-cookies'
+export {
+  RequestCookie,
+  ResponseCookie,
+} from 'next/dist/server/web/spec-extension/cookies/types'
