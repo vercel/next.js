@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use next_binding::swc::core::{
+use turbo_binding::swc::core::{
     common::{collections::AHashSet, SyntaxContext},
     ecma::ast::{
         ClassDecl, FnDecl, Ident, ImportDefaultSpecifier, ImportNamedSpecifier,

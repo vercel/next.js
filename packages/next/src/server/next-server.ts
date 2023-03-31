@@ -89,7 +89,6 @@ import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/ap
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
-import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
@@ -206,24 +205,6 @@ export default class NextNodeServer extends BaseServer {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    if (!options.dev && this.nextConfig.experimental.instrumentationHook) {
-      try {
-        const instrumentationHook = require(join(
-          options.dir || '.',
-          options.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
-
-        instrumentationHook.register?.()
-      } catch (err: any) {
-        if (err.code !== 'MODULE_NOT_FOUND') {
-          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-          throw err
-        }
-      }
-    }
-
     if (!options.dev) {
       // pre-warm _document and _app as these will be
       // needed for most requests
@@ -249,18 +230,28 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
-  protected getRoutes() {
-    const routes = super.getRoutes()
-    const nextConfigOutput = this.nextConfig.output
+  public async prepare() {
+    await super.prepare()
+    if (
+      !this.serverOptions.dev &&
+      this.nextConfig.experimental.instrumentationHook
+    ) {
+      try {
+        const instrumentationHook = await require(join(
+          this.serverOptions.dir || '.',
+          this.serverOptions.conf.distDir!,
+          'server',
+          INSTRUMENTATION_HOOK_FILENAME
+        ))
 
-    if (this.hasAppDir) {
-      routes.handlers.set(
-        RouteKind.APP_ROUTE,
-        new AppRouteRouteHandler(nextConfigOutput)
-      )
+        instrumentationHook.register?.()
+      } catch (err: any) {
+        if (err.code !== 'MODULE_NOT_FOUND') {
+          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+          throw err
+        }
+      }
     }
-
-    return routes
   }
 
   protected loadEnvConfig({
@@ -1882,14 +1873,6 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
     })
 
-    const allHeaders = new Headers()
-
-    for (let [key, value] of result.response.headers) {
-      if (key !== 'x-middleware-next') {
-        allHeaders.append(key, value)
-      }
-    }
-
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
@@ -1899,19 +1882,24 @@ export default class NextNodeServer extends BaseServer {
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
       return { finished: true }
-    } else {
-      for (let [key, value] of allHeaders) {
-        result.response.headers.set(key, value)
-
-        if (key.toLowerCase() === 'set-cookie') {
-          addRequestMeta(
-            params.request,
-            '_nextMiddlewareCookie',
-            splitCookiesString(value)
-          )
-        }
-      }
     }
+
+    for (let [key, value] of result.response.headers) {
+      if (key.toLowerCase() !== 'set-cookie') continue
+
+      // Clear existing header.
+      result.response.headers.delete(key)
+
+      // Append each cookie individually.
+      const cookies = splitCookiesString(value)
+      for (const cookie of cookies) {
+        result.response.headers.append(key, cookie)
+      }
+
+      // Add cookies to request meta.
+      addRequestMeta(params.request, '_nextMiddlewareCookie', cookies)
+    }
+
     return result
   }
 
@@ -2047,7 +2035,11 @@ export default class NextNodeServer extends BaseServer {
                 continue
               }
               if (key !== 'content-encoding' && value !== undefined) {
-                res.setHeader(key, value)
+                if (typeof value === 'number') {
+                  res.setHeader(key, value.toString())
+                } else {
+                  res.setHeader(key, value)
+                }
               }
             }
 
@@ -2252,10 +2244,15 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value: string, key) => {
-      // the append handling is special cased for `set-cookie`
+    // TODO: (wyattjoh) investigate improving this
+
+    result.response.headers.forEach((value, key) => {
+      // The append handling is special cased for `set-cookie`.
       if (key.toLowerCase() === 'set-cookie') {
-        params.res.setHeader(key, value)
+        // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
+        for (const cookie of splitCookiesString(value)) {
+          params.res.appendHeader(key, cookie)
+        }
       } else {
         params.res.appendHeader(key, value)
       }

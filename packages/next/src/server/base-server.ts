@@ -82,7 +82,10 @@ import {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
-import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
+import {
+  RouteHandlerManager,
+  type RouteHandlerManagerContext,
+} from './future/route-handler-managers/route-handler-manager'
 import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
 import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
@@ -95,7 +98,8 @@ import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
-import { handleInternalServerErrorResponse } from './future/helpers/response-handlers'
+import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import { fromNodeHeaders, toNodeHeaders } from './web/utils'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -589,12 +593,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             !val.every((item, idx) => item === middlewareValue[idx])
           ) {
             val = [
-              ...(middlewareValue || []),
-              ...(typeof val === 'string'
-                ? [val]
-                : Array.isArray(val)
-                ? val
-                : []),
+              // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
+              ...new Set([
+                ...(middlewareValue || []),
+                ...(typeof val === 'string'
+                  ? [val]
+                  : Array.isArray(val)
+                  ? val
+                  : []),
+              ]),
             ]
           }
         }
@@ -1523,14 +1530,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           : undefined
 
       if (match) {
-        const context = {
-          supportsDynamicHTML,
-          incrementalCache,
+        const context: RouteHandlerManagerContext = {
+          params: match.params,
+          staticGenerationContext: {
+            supportsDynamicHTML,
+            incrementalCache,
+          },
         }
 
         try {
           // Handle the match and collect the response if it's a static response.
-          const response = await this.handlers.handle(match, req, res, context)
+          const response = await this.handlers.handle(match, req, context)
           if (response) {
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -1538,15 +1548,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               const blob = await response.blob()
 
               // Copy the headers from the response.
-              const headers = Object.fromEntries(response.headers)
+              const headers = toNodeHeaders(response.headers)
               if (!headers['content-type'] && blob.type) {
                 headers['content-type'] = blob.type
               }
-              let revalidate: number | false | undefined = (
-                (context as any).store as any as
-                  | { revalidate?: number }
-                  | undefined
-              )?.revalidate
+              let revalidate: number | false | undefined =
+                context.staticGenerationContext.store?.revalidate
 
               if (typeof revalidate == 'undefined') {
                 revalidate = false
@@ -1700,7 +1707,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
-      async (hasResolved, hadCache) => {
+      async (hasResolved, hadCache): Promise<ResponseCacheEntry | null> => {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
@@ -1820,6 +1827,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (!result) {
           return null
         }
+
         return {
           ...result,
           revalidate:
@@ -1915,7 +1923,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         req,
         res,
         new Response(cachedData.body, {
-          headers: new Headers((cachedData.headers || {}) as any),
+          headers: fromNodeHeaders(cachedData.headers),
           status: cachedData.status || 200,
         })
       )
@@ -2247,7 +2255,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (this.hasAppDir) {
           // Use the not-found entry in app directory
           result = await this.findPageComponents({
-            pathname: '/not-found',
+            pathname: this.renderOpts.dev ? '/not-found' : '/_not-found',
             query,
             params: {},
             isAppPath: true,
