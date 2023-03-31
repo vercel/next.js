@@ -10,6 +10,7 @@ import type {
   Segment,
 } from './types'
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
 // Import builtin react directly to avoid require cache conflicts
@@ -103,6 +104,7 @@ export async function renderToHTMLOrFlight(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
+    nextConfigOutput,
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
@@ -154,6 +156,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -504,12 +508,25 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
+      if (nextConfigOutput === 'export' && layoutOrPageMod) {
+        if (!layoutOrPageMod.dynamic || layoutOrPageMod.dynamic === 'auto') {
+          layoutOrPageMod.dynamic = 'error'
+        } else if (layoutOrPageMod.dynamic === 'force-dynamic') {
+          throw new Error(
+            `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          )
+        }
+      }
+
       if (typeof layoutOrPageMod?.dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
         if (layoutOrPageMod.dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (layoutOrPageMod.dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`dynamic = 'force-dynamic'`)
         } else {
           staticGenerationStore.dynamicShouldError = false
           if (layoutOrPageMod.dynamic === 'force-static') {
