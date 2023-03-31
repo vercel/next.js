@@ -194,19 +194,15 @@ export async function writeConfigurationDefaults(
       userTsConfig.include.splice(nextAppTypesIndex)
       suggestedActions.push(
         chalk.cyan('include') +
-          ' was set to ' +
-          chalk.bold(
-            `['next-env.d.ts', './${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-          )
+          ' was updated to use only' +
+          chalk.bold(`'./${nextAppTypes}'`)
       )
     } else if (nextAppTypesIndex < 0 && relativeNextAppTypesIndex < 0) {
       userTsConfig.include.push(nextAppTypes)
       suggestedActions.push(
         chalk.cyan('include') +
-          ' was set to ' +
-          chalk.bold(
-            `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-          )
+          ' was updated to add ' +
+          chalk.bold(`'${nextAppTypes}'`)
       )
     }
   }
