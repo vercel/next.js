@@ -1,7 +1,7 @@
 import type {
-  AppRouteModule,
+  AppRouteRouteModule,
   AppRouteRouteHandlerContext,
-} from '../server/future/route-handlers/app-route-route-handler'
+} from '../server/future/route-modules/app-route/module'
 import type { FontManifest, FontConfig } from '../server/font-utils'
 import type {
   DomainLocale,
@@ -49,6 +49,7 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-erro
 import { mockRequest } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 
 loadRequireHook()
 
@@ -405,10 +406,10 @@ export default async function exportPage({
             const filename = posix.join(distDir, 'server', 'app', page)
 
             // Load the module for the route.
-            const module: AppRouteModule = require(filename)
+            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
 
             // Call the handler with the request and context from the module.
-            const response = await module.route.handler.handle(request, context)
+            const response = await module.handle(request, context)
 
             // we don't consider error status for static generation
             // except for 404

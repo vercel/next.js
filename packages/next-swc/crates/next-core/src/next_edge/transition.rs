@@ -95,7 +95,7 @@ impl Transition for NextEdgeTransition {
         };
 
         // TODO: this is where you'd switch the route kind to the one you need
-        let kind = "app-route";
+        let route_module_kind = "app-route";
         let pathname = normalize_app_page_to_pathname(path);
 
         let mut new_content = RopeBuilder::from(
@@ -114,15 +114,15 @@ impl Transition for NextEdgeTransition {
             FileContent::Content(file).cell().into(),
         );
 
-        let resolved_route_asset = esm_resolve(
+        let resolved_route_module_asset = esm_resolve(
             resolve_origin,
             RequestVc::parse_string(format!(
-                "next/dist/build/webpack/loaders/next-app-loader/routes/{}",
-                kind
+                "next/dist/server/future/route-modules/{}/module",
+                route_module_kind
             )),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
         );
-        let route_asset = match &*resolved_route_asset.first_asset().await? {
+        let route_module_asset = match &*resolved_route_module_asset.first_asset().await? {
             Some(a) => *a,
             None => bail!("could not find app asset"),
         };
@@ -138,7 +138,7 @@ impl Transition for NextEdgeTransition {
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "ENTRY".to_string() => asset,
-                "ROUTE".to_string() => route_asset
+                "ROUTE_MODULE".to_string() => route_module_asset
             }),
         );
 
