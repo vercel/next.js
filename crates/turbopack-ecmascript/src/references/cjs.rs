@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{Callee, Expr, ExprOrSpread, Ident},
+    ecma::ast::{Callee, Expr, ExprOrSpread, Ident, ObjectLit},
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
@@ -116,32 +116,44 @@ impl CodeGenerateable for CjsRequireAssetReference {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
-        if let PatternMapping::Invalid = &*pm {
-            let request_string = self.request.to_string().await?;
-            visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                // In Node.js, a require call that cannot be resolved will throw an error.
-                *expr = throw_module_not_found_expr(&request_string);
-            }));
-        } else {
-            visitors.push(
-                create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                    call_expr.callee = Callee::Expr(
-                        box Expr::Ident(Ident::new(
-                            if pm.is_internal_import() {
-                                "__turbopack_require__"
-                            } else {
-                                "__turbopack_external_require__"
-                            }.into(), DUMMY_SP
-                        ))
-                    );
-                    let old_args = std::mem::take(&mut call_expr.args);
-                    let expr = match old_args.into_iter().next() {
-                        Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
-                        _ => pm.create(),
-                    };
-                    call_expr.args.push(ExprOrSpread { spread: None, expr: box expr });
-                }),
-            );
+        match &*pm {
+            PatternMapping::Invalid => {
+                let request_string = self.request.to_string().await?;
+                visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+                    // In Node.js, a require call that cannot be resolved will throw an error.
+                    *expr = throw_module_not_found_expr(&request_string);
+                }));
+            }
+            PatternMapping::Ignored => {
+                visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+                    // Ignored modules behave as if they have no code nor exports.
+                    *expr = Expr::Object(ObjectLit {
+                        span: DUMMY_SP,
+                        props: vec![],
+                    });
+                }));
+            }
+            _ => {
+                visitors.push(
+                    create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
+                        call_expr.callee = Callee::Expr(
+                            box Expr::Ident(Ident::new(
+                                if pm.is_internal_import() {
+                                    "__turbopack_require__"
+                                } else {
+                                    "__turbopack_external_require__"
+                                }.into(), DUMMY_SP
+                            ))
+                        );
+                        let old_args = std::mem::take(&mut call_expr.args);
+                        let expr = match old_args.into_iter().next() {
+                            Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
+                            _ => pm.create(),
+                        };
+                        call_expr.args.push(ExprOrSpread { spread: None, expr: box expr });
+                    }),
+                );
+            }
         }
 
         Ok(CodeGeneration { visitors }.into())
