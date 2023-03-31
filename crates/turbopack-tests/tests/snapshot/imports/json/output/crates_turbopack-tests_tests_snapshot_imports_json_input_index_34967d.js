@@ -5,11 +5,11 @@
 throw new Error("An error occurred while generating the chunk item [project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)\n  at Execution of module_factory failed\n  at Execution of JsonChunkItem::content failed\n  at Unable to make a module from invalid JSON: expected `,` or `}` at line 3 column 26\n  at nested.?\n     1 | {\n     2 |   \"nested\": {\n       |                          v\n     3 +     \"this-is\": \"invalid\" // lint-staged will remove trailing commas, so here's a comment\n       |                          ^\n     4 |   }\n     5 | }\n");
 
 }}),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 __turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__$28$json$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__$28$json$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)");
@@ -341,15 +341,6 @@ const chunkListChunksMap = new Map();
 const chunkChunkListsMap = new Map();
 
 const hOP = Object.prototype.hasOwnProperty;
-const _process =
-  typeof process !== "undefined"
-    ? process
-    : {
-        env: {},
-        // Some modules rely on `process.browser` to execute browser-specific code.
-        // NOTE: `process.browser` is specific to Webpack.
-        browser: true,
-      };
 
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -577,7 +568,6 @@ function instantiateModule(id, source) {
       c: moduleCache,
       l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
       k: registerChunkList,
-      p: _process,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });

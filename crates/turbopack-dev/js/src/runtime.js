@@ -88,15 +88,6 @@ const chunkListChunksMap = new Map();
 const chunkChunkListsMap = new Map();
 
 const hOP = Object.prototype.hasOwnProperty;
-const _process =
-  typeof process !== "undefined"
-    ? process
-    : {
-        env: {},
-        // Some modules rely on `process.browser` to execute browser-specific code.
-        // NOTE: `process.browser` is specific to Webpack.
-        browser: true,
-      };
 
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -324,7 +315,6 @@ function instantiateModule(id, source) {
       c: moduleCache,
       l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
       k: registerChunkList,
-      p: _process,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });

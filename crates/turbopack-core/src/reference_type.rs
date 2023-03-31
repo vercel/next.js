@@ -58,6 +58,7 @@ pub enum EntryReferenceSubType {
     AppPage,
     AppRoute,
     AppClientComponent,
+    Runtime,
     Custom(u8),
     Undefined,
 }

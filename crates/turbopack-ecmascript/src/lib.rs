@@ -51,15 +51,16 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetOptionVc, AssetVc},
+    asset::{Asset, AssetContentVc, AssetOptionVc, AssetVc, AssetsVc},
     chunk::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset,
         ChunkableAssetVc, ChunkingContextVc,
     },
     compile_time_info::CompileTimeInfoVc,
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     reference::{AssetReferencesReadRef, AssetReferencesVc},
+    reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::RequestVc,
@@ -561,6 +562,20 @@ async fn gen_content(
         }
         .into())
     }
+}
+
+#[turbo_tasks::function]
+pub async fn process_runtime_entries(
+    context: AssetContextVc,
+    entries: AssetsVc,
+) -> Result<EcmascriptChunkPlaceablesVc> {
+    Ok(EcmascriptChunkPlaceablesVc::cell(entries.await?.iter().copied().map(|asset| async move {
+        let asset = context.process(asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Runtime)));
+        let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
+            bail!("{} is not placeable in a ecmascript chunk as runtime entry", asset.ident().to_string().await?)
+        };
+        Ok(placeable)
+    }).try_join().await?))
 }
 
 pub fn register() {

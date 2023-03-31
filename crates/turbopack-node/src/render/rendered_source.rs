@@ -4,7 +4,7 @@ use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetsSetVc},
+    asset::{Asset, AssetsSetVc, AssetsVc},
     introspect::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
@@ -24,7 +24,7 @@ use turbopack_dev_server::{
         ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc, ProxyResult,
     },
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
+use turbopack_ecmascript::process_runtime_entries;
 
 use super::{
     render_static::{render_static, StaticResult},
@@ -51,7 +51,7 @@ pub fn create_node_rendered_source(
     route_match: RouteMatcherVc,
     pathname: StringVc,
     entry: NodeEntryVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
@@ -87,7 +87,7 @@ pub struct NodeRenderContentSource {
     route_match: RouteMatcherVc,
     pathname: StringVc,
     entry: NodeEntryVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
 }
 
@@ -128,7 +128,7 @@ impl GetContentSource for NodeRenderContentSource {
             set.extend(
                 external_asset_entrypoints(
                     entry.module,
-                    self.runtime_entries,
+                    process_runtime_entries(entry.context, self.runtime_entries),
                     entry.chunking_context,
                     entry.intermediate_output_path,
                 )
@@ -210,7 +210,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
             source.env,
             source.server_root.join(&self.path),
             entry.module,
-            source.runtime_entries,
+            process_runtime_entries(entry.context, source.runtime_entries),
             source.fallback_page,
             entry.chunking_context,
             entry.intermediate_output_path,
@@ -292,9 +292,10 @@ impl Introspectable for NodeRenderContentSource {
             set.insert((
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
-                    entry
-                        .module
-                        .as_evaluated_chunk(entry.chunking_context, Some(self.runtime_entries)),
+                    entry.module.as_evaluated_chunk(
+                        entry.chunking_context,
+                        Some(process_runtime_entries(entry.context, self.runtime_entries)),
+                    ),
                     entry.intermediate_output_path,
                 )),
             ));

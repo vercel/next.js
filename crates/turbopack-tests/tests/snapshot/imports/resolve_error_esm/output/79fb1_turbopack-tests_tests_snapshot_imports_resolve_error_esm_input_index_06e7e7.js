@@ -1,6 +1,6 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_esm_input_index_06e7e7.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 (()=>{
     const e = new Error("Cannot find module 'does-not-exist/path'");
@@ -332,15 +332,6 @@ const chunkListChunksMap = new Map();
 const chunkChunkListsMap = new Map();
 
 const hOP = Object.prototype.hasOwnProperty;
-const _process =
-  typeof process !== "undefined"
-    ? process
-    : {
-        env: {},
-        // Some modules rely on `process.browser` to execute browser-specific code.
-        // NOTE: `process.browser` is specific to Webpack.
-        browser: true,
-      };
 
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -568,7 +559,6 @@ function instantiateModule(id, source) {
       c: moduleCache,
       l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
       k: registerChunkList,
-      p: _process,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });

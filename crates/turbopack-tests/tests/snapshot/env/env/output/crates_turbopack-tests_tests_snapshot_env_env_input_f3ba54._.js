@@ -1,14 +1,15 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_env_env_input_db47d3._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_env_env_input_f3ba54._.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname, m: module, e: exports }) { !function() {
 
-const env = process.env = {...process.env};
-
+const env = process.env = {
+    ...process.env
+};
 env["FOO"] = foo;
 env["FOOBAR"] = foobar;
 
-})()),
-"[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
+}.call(this) }),
+"[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname, m: module, e: exports }) { !function() {
 
 console.log(process.env.FOOBAR);
 
@@ -17,10 +18,10 @@ console.log(process.env.FOOBAR);
 ,{
   "otherChunks": [],
   "runtimeModuleIds": [
-    "[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js",
+    "[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js (ecmascript)",
     "[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js (ecmascript)"
   ],
-  "chunkListPath": "output/crates_turbopack-tests_tests_snapshot_env_env_input_dd8849._.js.chunk-list.json"
+  "chunkListPath": "output/crates_turbopack-tests_tests_snapshot_env_env_input_a2baa6._.js.chunk-list.json"
 }]);
 
 (() => {
@@ -333,15 +334,6 @@ const chunkListChunksMap = new Map();
 const chunkChunkListsMap = new Map();
 
 const hOP = Object.prototype.hasOwnProperty;
-const _process =
-  typeof process !== "undefined"
-    ? process
-    : {
-        env: {},
-        // Some modules rely on `process.browser` to execute browser-specific code.
-        // NOTE: `process.browser` is specific to Webpack.
-        browser: true,
-      };
 
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -569,7 +561,6 @@ function instantiateModule(id, source) {
       c: moduleCache,
       l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
       k: registerChunkList,
-      p: _process,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });
@@ -1565,4 +1556,4 @@ chunksToRegister.forEach(registerChunk);
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_env_env_input_db47d3._.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_env_env_input_f3ba54._.js.map
