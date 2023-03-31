@@ -18,8 +18,7 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use futures::stream::Stream as StreamTrait;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use turbo_tasks::{trace::TraceRawVcs, Value};
+use turbo_tasks::{trace::TraceRawVcs, util::SharedError, Value};
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::version::VersionedContentVc;
@@ -38,38 +37,6 @@ pub struct ProxyResult {
     pub headers: Vec<(String, String)>,
     /// The body to return.
     pub body: Body,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Error)]
-#[error("{err}")]
-pub struct BodyError {
-    err: String,
-}
-
-impl BodyError {
-    pub fn new(err: String) -> Self {
-        BodyError { err }
-    }
-}
-
-impl From<&str> for BodyError {
-    fn from(err: &str) -> Self {
-        BodyError {
-            err: err.to_string(),
-        }
-    }
-}
-
-impl From<String> for BodyError {
-    fn from(err: String) -> Self {
-        BodyError { err }
-    }
-}
-
-impl From<anyhow::Error> for BodyError {
-    fn from(value: anyhow::Error) -> Self {
-        value.to_string().into()
-    }
 }
 
 /// The return value of a content source when getting a path. A specificity is
@@ -266,7 +233,8 @@ pub struct ContentSourceData {
     pub cache_buster: u64,
 }
 
-pub type BodyChunk = Result<Bytes, BodyError>;
+pub type BodyChunk = Result<Bytes, SharedError>;
+
 /// A request body.
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]

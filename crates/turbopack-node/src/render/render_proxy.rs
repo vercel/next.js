@@ -10,7 +10,7 @@ use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{chunk::ChunkingContextVc, error::PrettyPrintError};
-use turbopack_dev_server::source::{Body, BodyError, BodyVc, ProxyResult, ProxyResultVc};
+use turbopack_dev_server::source::{Body, BodyVc, ProxyResult, ProxyResultVc};
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
 use super::{
@@ -68,11 +68,11 @@ pub async fn render_proxy(
 
     let body = Body::from_stream(stream.map(|item| match item {
         Ok(RenderItem::BodyChunk(b)) => Ok(b),
-        Ok(v) => Err(BodyError::new(format!("unexpected render item: {:#?}", v))),
-        Err(e) => Err(BodyError::new(format!(
-            "error streaming proxied contents: {}",
-            e
+        Ok(v) => Err(SharedError::new(anyhow!(
+            "unexpected render item: {:#?}",
+            v
         ))),
+        Err(e) => Err(e),
     }));
     let result = ProxyResult {
         status: data.status,
@@ -131,12 +131,12 @@ enum RenderItem {
 type RenderItemResult = Result<RenderItem, SharedError>;
 
 #[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
-pub struct RenderStreamSender {
+struct RenderStreamSender {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     get: Box<dyn Fn() -> UnboundedSender<RenderItemResult> + Send + Sync>,
 }
 
-#[turbo_tasks::value(transparent, eq = "manual", cell = "new", serialization = "none")]
+#[turbo_tasks::value(transparent)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[turbo_tasks::function]

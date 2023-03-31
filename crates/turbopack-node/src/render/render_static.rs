@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
-    source::{Body, BodyError, HeaderListVc, RewriteBuilder, RewriteVc},
+    source::{Body, HeaderListVc, RewriteBuilder, RewriteVc},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
@@ -107,11 +107,11 @@ pub async fn render_static(
         RenderItem::Headers(data) => {
             let body = stream.map(|item| match item {
                 Ok(RenderItem::BodyChunk(b)) => Ok(b),
-                Ok(v) => Err(BodyError::new(format!("unexpected render item: {:#?}", v))),
-                Err(e) => Err(BodyError::new(format!(
-                    "error streaming proxied contents: {}",
-                    e
+                Ok(v) => Err(SharedError::new(anyhow!(
+                    "unexpected render item: {:#?}",
+                    v
                 ))),
+                Err(e) => Err(e),
             });
             StaticResult::StreamedContent {
                 status: data.status,
@@ -180,12 +180,12 @@ enum RenderItem {
 type RenderItemResult = Result<RenderItem, SharedError>;
 
 #[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
-pub struct RenderStreamSender {
+struct RenderStreamSender {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     get: Box<dyn Fn() -> UnboundedSender<RenderItemResult> + Send + Sync>,
 }
 
-#[turbo_tasks::value(transparent, eq = "manual", cell = "new", serialization = "none")]
+#[turbo_tasks::value(transparent)]
 struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[turbo_tasks::function]
