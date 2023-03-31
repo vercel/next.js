@@ -139,7 +139,7 @@ console.log(process.env.TEST_VARIABLE)
 // value
 ```
 
-## Compatible Node.js modules
+## Compatible Node.js Modules
 
 The following modules can be imported with and without the `node:` prefix when using the `import` statement:
 
