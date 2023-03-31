@@ -201,7 +201,7 @@ async function getDefinedMetadata(
             {
               spanName: `generateMetadata ${route}`,
               attributes: {
-                'next.route': route,
+                'next.page': route,
               },
             },
             () => mod.generateMetadata(props, parent)
