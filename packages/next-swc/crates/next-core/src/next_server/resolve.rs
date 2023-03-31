@@ -1,6 +1,7 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use turbo_binding::turbo::tasks::primitives::{BoolVc, StringsVc};
 use turbo_binding::turbo::tasks_fs::{glob::GlobVc, FileJsonContent, FileSystemPathVc};
 use turbo_binding::turbopack::core::{
     asset::Asset,
@@ -13,7 +14,6 @@ use turbo_binding::turbopack::core::{
         resolve, FindContextFileResult, PrimaryResolveResult, ResolveResult, ResolveResultOptionVc,
     },
 };
-use turbo_tasks::primitives::{BoolVc, StringsVc};
 
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {

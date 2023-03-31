@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use turbo_binding::turbo::tasks::{TryJoinIterExt, Value};
 use turbo_binding::turbo::tasks_env::ProcessEnvVc;
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
@@ -12,7 +13,6 @@ use turbo_binding::turbopack::dev_server::{
 };
 use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_binding::turbopack::turbopack::ecmascript::EcmascriptModuleAssetVc;
-use turbo_tasks::{TryJoinIterExt, Value};
 
 use crate::{
     next_client::context::{

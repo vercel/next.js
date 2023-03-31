@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_binding::turbo::tasks::Value;
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
     compile_time_defines,
@@ -16,7 +17,6 @@ use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_binding::turbopack::turbopack::resolve_options_context::{
     ResolveOptionsContext, ResolveOptionsContextVc,
 };
-use turbo_tasks::Value;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,

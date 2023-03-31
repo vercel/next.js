@@ -2,6 +2,11 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
+use turbo_binding::turbo::tasks::{
+    graph::{GraphTraversal, NonDeterministic},
+    primitives::{StringVc, StringsVc},
+    TryJoinIterExt,
+};
 use turbo_binding::turbo::tasks_fs::File;
 use turbo_binding::turbopack::core::asset::AssetContentVc;
 use turbo_binding::turbopack::dev_server::source::{
@@ -10,11 +15,6 @@ use turbo_binding::turbopack::dev_server::source::{
 };
 use turbo_binding::turbopack::node::render::{
     node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
-};
-use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
-    primitives::{StringVc, StringsVc},
-    TryJoinIterExt,
 };
 
 use crate::{

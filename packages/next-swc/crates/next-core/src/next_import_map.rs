@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
+use turbo_binding::turbo::tasks::Value;
 use turbo_binding::turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc};
 use turbo_binding::turbopack::core::{
     asset::Asset,
@@ -18,7 +19,6 @@ use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_binding::turbopack::turbopack::{
     resolve_options, resolve_options_context::ResolveOptionsContext,
 };
-use turbo_tasks::Value;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},

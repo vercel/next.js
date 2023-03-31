@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use indoc::formatdoc;
+use turbo_binding::turbo::tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -20,7 +21,6 @@ use turbo_binding::turbopack::turbopack::ecmascript::{
     },
     utils::StringifyJs,
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {

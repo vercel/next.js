@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use turbo_binding::turbo::tasks::{debug::ValueDebug, primitives::StringVc};
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
@@ -11,7 +12,6 @@ use turbo_binding::turbopack::turbopack::{
     },
     resolve_options_context::ResolveOptionsContextVc,
 };
-use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 
 #[turbo_tasks::function]
 fn react_refresh_request() -> RequestVc {

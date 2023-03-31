@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_binding::turbo::tasks::Value;
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
     asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
@@ -11,7 +12,6 @@ use turbo_binding::turbopack::turbopack::{
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbo_tasks::Value;
 
 use super::with_chunks::WithChunksAsset;
 use crate::{

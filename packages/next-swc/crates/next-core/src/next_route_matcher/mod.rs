@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
+use turbo_binding::turbo::tasks::primitives::{BoolVc, StringVc};
 use turbo_binding::turbopack::node::route_matcher::{ParamsVc, RouteMatcher, RouteMatcherVc};
-use turbo_tasks::primitives::{BoolVc, StringVc};
 
 use self::{
     all::AllMatch,

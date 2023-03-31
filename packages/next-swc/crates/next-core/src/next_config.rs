@@ -2,6 +2,11 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use turbo_binding::turbo::tasks::{
+    primitives::{BoolVc, StringsVc},
+    trace::TraceRawVcs,
+    CompletionVc, Value,
+};
 use turbo_binding::turbo::tasks_env::EnvMapVc;
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
@@ -28,11 +33,6 @@ use turbo_binding::turbopack::node::{
     transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
 };
 use turbo_binding::turbopack::turbopack::evaluate_context::node_evaluate_asset_context;
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    trace::TraceRawVcs,
-    CompletionVc, Value,
-};
 use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::embed_js::next_asset;

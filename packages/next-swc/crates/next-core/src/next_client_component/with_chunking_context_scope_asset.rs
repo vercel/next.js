@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use turbo_binding::turbo::tasks::{primitives::StringVc, Value};
 use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
@@ -13,7 +14,6 @@ use turbo_binding::turbopack::turbopack::ecmascript::chunk::{
     EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
     EcmascriptExportsVc,
 };
-use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {

@@ -2,6 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
+use turbo_binding::turbo::tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbo_binding::turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -19,7 +20,6 @@ use turbo_binding::turbopack::ecmascript::{
     utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_route};
 

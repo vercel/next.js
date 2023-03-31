@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
+use turbo_binding::turbo::tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
 use turbo_binding::turbo::tasks_fs::{
     json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc,
 };
@@ -20,7 +21,6 @@ use turbo_binding::turbopack::ecmascript::{
     EcmascriptModuleAssetVc,
 };
 use turbo_binding::turbopack::turbopack::condition::ContextCondition;
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
 
 use crate::next_config::NextConfigVc;
 

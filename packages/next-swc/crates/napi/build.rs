@@ -4,7 +4,7 @@ use std::{
     io::{BufWriter, Write},
     path::Path,
 };
-use turbo_tasks_build::generate_register;
+use turbo_binding::turbo::tasks_build::generate_register;
 
 extern crate napi_build;
 

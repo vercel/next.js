@@ -2,6 +2,7 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
+use turbo_binding::turbo::tasks::{primitives::StringVc, Value};
 use turbo_binding::turbo::tasks_env::ProcessEnvVc;
 use turbo_binding::turbo::tasks_fs::{FileSystem, FileSystemPathVc};
 use turbo_binding::turbopack::core::{
@@ -28,7 +29,6 @@ use turbo_binding::turbopack::turbopack::{
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
-use turbo_tasks::{primitives::StringVc, Value};
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{

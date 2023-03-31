@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
+use turbo_binding::turbo::tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -19,7 +20,6 @@ use turbo_binding::turbopack::turbopack::ecmascript::{
     },
     utils::StringifyJs,
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
     StringVc::cell("chunks".to_string())

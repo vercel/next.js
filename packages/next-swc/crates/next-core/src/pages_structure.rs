@@ -1,12 +1,12 @@
 use anyhow::Result;
+use turbo_binding::turbo::tasks::{
+    primitives::{BoolVc, StringsVc},
+    CompletionVc,
+};
 use turbo_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
 };
 use turbo_binding::turbopack::dev_server::source::specificity::SpecificityVc;
-use turbo_tasks::{
-    primitives::{BoolVc, StringsVc},
-    CompletionVc,
-};
 
 use crate::next_config::NextConfigVc;
 

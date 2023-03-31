@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_binding::turbo::tasks::{primitives::StringVc, Value};
 use turbo_binding::turbo::tasks_env::ProcessEnvVc;
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
@@ -18,7 +19,6 @@ use turbo_binding::turbopack::turbopack::{
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
-use turbo_tasks::{primitives::StringVc, Value};
 
 use super::{
     resolve::ExternalCjsModulesResolvePluginVc, transforms::get_next_server_transforms_rules,

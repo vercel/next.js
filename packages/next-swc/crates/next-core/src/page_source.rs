@@ -1,6 +1,11 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
+use turbo_binding::turbo::tasks::{
+    primitives::{OptionStringVc, StringVc, StringsVc},
+    trace::TraceRawVcs,
+    Value,
+};
 use turbo_binding::turbo::tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
 use turbo_binding::turbo::tasks_fs::{FileContent, FileSystemPathVc};
 use turbo_binding::turbopack::core::{
@@ -35,11 +40,6 @@ use turbo_binding::turbopack::node::{
     NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
 };
 use turbo_binding::turbopack::turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
-use turbo_tasks::{
-    primitives::{OptionStringVc, StringVc, StringsVc},
-    trace::TraceRawVcs,
-    Value,
-};
 
 use crate::{
     embed_js::{next_asset, next_js_file},

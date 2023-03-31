@@ -1,4 +1,8 @@
 use anyhow::Result;
+use turbo_binding::turbo::tasks::{
+    primitives::{BoolVc, StringVc},
+    Value,
+};
 use turbo_binding::turbo::tasks_fs::{FileSystemEntryType, FileSystemPathVc};
 use turbo_binding::turbopack::core::{
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
@@ -10,10 +14,6 @@ use turbo_binding::turbopack::node::transforms::webpack::{
 use turbo_binding::turbopack::turbopack::{
     module_options::WebpackLoadersOptionsVc, resolve_options,
     resolve_options_context::ResolveOptionsContext,
-};
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value,
 };
 
 const BABEL_CONFIG_FILES: &[&str] = &[

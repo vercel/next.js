@@ -14,7 +14,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use turbo_tasks::UpdateInfo;
+use turbo_binding::turbo::tasks::UpdateInfo;
 
 use anyhow::{Context, Result};
 use devserver_options::DevServerOptions;
@@ -50,7 +50,7 @@ use turbo_binding::turbopack::dev_server::{
 };
 use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_binding::turbopack::turbopack::evaluate_context::node_build_environment;
-use turbo_tasks::{
+use turbo_binding::turbo::tasks
     util::{FormatBytes, FormatDuration},
     StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
 };

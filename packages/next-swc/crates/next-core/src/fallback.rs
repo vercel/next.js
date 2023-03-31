@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
+use turbo_binding::turbo::tasks::Value;
 use turbo_binding::turbo::tasks_env::ProcessEnvVc;
 use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
 use turbo_binding::turbopack::core::{
@@ -14,7 +15,6 @@ use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_binding::turbopack::turbopack::{
     ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
 };
-use turbo_tasks::Value;
 
 use crate::{
     next_client::context::{

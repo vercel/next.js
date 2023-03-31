@@ -8,19 +8,21 @@ use std::collections::HashMap;
 use std::path::MAIN_SEPARATOR;
 use std::sync::Arc;
 use std::time::Duration;
-use turbo_tasks::debug::ValueDebugFormat;
-use turbo_tasks::primitives::StringsVc;
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
+use turbo_binding::turbo::tasks::primitives::StringsVc;
+use turbo_binding::turbo::tasks::trace::TraceRawVcs;
 use turbopack_dev::DevChunkingContextVc;
 
 use next_core::app_structure::{
     find_app_dir, Components, ComponentsVc, Entrypoint, EntrypointsVc, LoaderTree, LoaderTreeVc,
 };
 use next_core::next_config::load_next_config;
-use turbo_tasks::{NothingVc, TryJoinIterExt};
-use turbo_tasks::{TurboTasks, ValueToString};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc};
-use turbo_tasks_memory::MemoryBackend;
+use turbo_binding::turbo::tasks::{NothingVc, TryJoinIterExt};
+use turbo_binding::turbo::tasks::{TurboTasks, ValueToString};
+use turbo_binding::turbo::tasks_fs::{
+    DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc,
+};
+use turbo_binding::turbo::tasks_memory::MemoryBackend;
 use turbopack::evaluate_context::node_build_environment;
 
 use turbopack_core::PROJECT_FILESYSTEM_NAME;

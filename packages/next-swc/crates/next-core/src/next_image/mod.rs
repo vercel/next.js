@@ -7,7 +7,7 @@ use turbo_binding::turbopack::dev_server::source::{
     ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
     NeededData, ProxyResult,
 };
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_binding::turbo::tasks;
 
 /// Serves, resizes, optimizes, and re-encodes images to be used with
 /// next/image.

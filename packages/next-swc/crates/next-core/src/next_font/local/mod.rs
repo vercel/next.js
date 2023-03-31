@@ -1,5 +1,12 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
+use turbo_binding::turbo::tasks::{
+    primitives::{OptionStringVc, U32Vc},
+    Value,
+};
+use turbo_binding::turbo::tasks_fs::{
+    json::parse_json_with_source_context, FileContent, FileSystemPathVc,
+};
 use turbo_binding::turbopack::core::{
     resolve::{
         options::{
@@ -12,11 +19,6 @@ use turbo_binding::turbopack::core::{
     },
     virtual_asset::VirtualAssetVc,
 };
-use turbo_tasks::{
-    primitives::{OptionStringVc, U32Vc},
-    Value,
-};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc};
 
 use self::{
     font_fallback::get_font_fallbacks,
