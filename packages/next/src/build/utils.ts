@@ -11,7 +11,7 @@ import type {
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-import type { AppRouteUserlandModule } from '../server/future/route-handlers/app-route-route-handler'
+import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/node-polyfill-fetch'
@@ -1426,12 +1426,25 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
+
+        // This is present on the new route modules.
         const userland: AppRouteUserlandModule | undefined =
-          componentsResult.ComponentMod.userland
+          componentsResult.ComponentMod.routeModule?.userland
 
         const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
           componentsResult.ComponentMod.staticGenerationAsyncStorage
+        if (!staticGenerationAsyncStorage) {
+          throw new Error(
+            'Invariant: staticGenerationAsyncStorage should be defined on the module'
+          )
+        }
+
         const serverHooks = componentsResult.ComponentMod.serverHooks
+        if (!serverHooks) {
+          throw new Error(
+            'Invariant: serverHooks should be defined on the module'
+          )
+        }
 
         const generateParams: GenerateParams = userland
           ? [
