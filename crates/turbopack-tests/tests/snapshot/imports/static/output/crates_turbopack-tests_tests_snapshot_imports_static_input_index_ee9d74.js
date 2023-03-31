@@ -1,10 +1,10 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_imports_static_input_index_ee9d74.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 __turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/imports/static/static/957b9b162f8447f9.svg");
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2f$input$2f$vercel$2e$svg__$28$static$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)");
 "__TURBOPACK__ecmascript__hoisting__location__";
@@ -333,15 +333,6 @@ const chunkListChunksMap = new Map();
 const chunkChunkListsMap = new Map();
 
 const hOP = Object.prototype.hasOwnProperty;
-const _process =
-  typeof process !== "undefined"
-    ? process
-    : {
-        env: {},
-        // Some modules rely on `process.browser` to execute browser-specific code.
-        // NOTE: `process.browser` is specific to Webpack.
-        browser: true,
-      };
 
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -569,7 +560,6 @@ function instantiateModule(id, source) {
       c: moduleCache,
       l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
       k: registerChunkList,
-      p: _process,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });

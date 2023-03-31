@@ -19,14 +19,16 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     condition::ContextCondition,
-    ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
+    ecmascript::{
+        chunk::EcmascriptChunkPlaceablesVc, process_runtime_entries, EcmascriptModuleAssetVc,
+    },
     module_options::{JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext},
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::{Asset, AssetVc},
+    asset::{Asset, AssetVc, AssetsVc},
     chunk::{availability_info::AvailabilityInfo, ChunkableAsset, ChunkableAssetVc},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -159,8 +161,6 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
     let entry_asset = project_path.join(&options.entry);
     let entry_paths = vec![entry_asset];
 
-    let runtime_entries = maybe_load_env(project_path).await?;
-
     let env = EnvironmentVc::new(
         Value::new(ExecutionEnvironment::Browser(
             // TODO: load more from options.json
@@ -225,6 +225,9 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         .cell(),
     )
     .into();
+
+    let runtime_entries = maybe_load_env(context, project_path).await?;
+    let runtime_entries = runtime_entries.map(|e| process_runtime_entries(context, e));
 
     let chunk_root_path = path.join("output");
     let static_root_path = path.join("static");
@@ -311,7 +314,10 @@ async fn walk_asset(
     Ok(())
 }
 
-async fn maybe_load_env(path: FileSystemPathVc) -> Result<Option<EcmascriptChunkPlaceablesVc>> {
+async fn maybe_load_env(
+    context: AssetContextVc,
+    path: FileSystemPathVc,
+) -> Result<Option<AssetsVc>> {
     let dotenv_path = path.join("input/.env");
 
     if !dotenv_path.read().await?.is_content() {
@@ -320,7 +326,5 @@ async fn maybe_load_env(path: FileSystemPathVc) -> Result<Option<EcmascriptChunk
 
     let env = DotenvProcessEnvVc::new(None, dotenv_path);
     let asset = ProcessEnvAssetVc::new(dotenv_path, env.into());
-    Ok(Some(EcmascriptChunkPlaceablesVc::cell(vec![
-        asset.as_ecmascript_chunk_placeable()
-    ])))
+    Ok(Some(AssetsVc::cell(vec![asset.into()])))
 }

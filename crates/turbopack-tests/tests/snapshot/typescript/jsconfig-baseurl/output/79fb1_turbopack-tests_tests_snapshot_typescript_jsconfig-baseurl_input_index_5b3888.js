@@ -1,6 +1,6 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_typescript_jsconfig-baseurl_input_index_5b3888.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/typescript/jsconfig-baseurl/input/prop.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/typescript/jsconfig-baseurl/input/prop.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 __turbopack_esm__({
     "prop": ()=>prop
@@ -8,7 +8,7 @@ __turbopack_esm__({
 const prop = 1;
 
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/typescript/jsconfig-baseurl/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/typescript/jsconfig-baseurl/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, k: __turbopack_register_chunk_list__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$jsconfig$2d$baseurl$2f$input$2f$prop$2e$js__$28$ecmascript$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/typescript/jsconfig-baseurl/input/prop.js (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$jsconfig$2d$baseurl$2f$input$2f$prop$2e$js__$28$ecmascript$29$__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/typescript/jsconfig-baseurl/input/prop.js (ecmascript)");
@@ -339,15 +339,6 @@ const chunkListChunksMap = new Map();
 const chunkChunkListsMap = new Map();
 
 const hOP = Object.prototype.hasOwnProperty;
-const _process =
-  typeof process !== "undefined"
-    ? process
-    : {
-        env: {},
-        // Some modules rely on `process.browser` to execute browser-specific code.
-        // NOTE: `process.browser` is specific to Webpack.
-        browser: true,
-      };
 
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
 
@@ -575,7 +566,6 @@ function instantiateModule(id, source) {
       c: moduleCache,
       l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
       k: registerChunkList,
-      p: _process,
       g: globalThis,
       __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
     });

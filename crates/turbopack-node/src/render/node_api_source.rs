@@ -3,15 +3,18 @@ use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::introspect::{
-    asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
+use turbopack_core::{
+    asset::AssetsVc,
+    introspect::{
+        asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
+    },
 };
 use turbopack_dev_server::source::{
     specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceContentVc,
     ContentSourceData, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceResult,
     ContentSourceResultVc, ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
+use turbopack_ecmascript::process_runtime_entries;
 
 use super::{render_proxy::render_proxy, RenderData};
 use crate::{
@@ -30,7 +33,7 @@ pub fn create_node_api_source(
     route_match: RouteMatcherVc,
     pathname: StringVc,
     entry: NodeEntryVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
 ) -> ContentSourceVc {
     NodeApiContentSource {
         cwd,
@@ -61,7 +64,7 @@ pub struct NodeApiContentSource {
     pathname: StringVc,
     route_match: RouteMatcherVc,
     entry: NodeEntryVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -140,7 +143,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
             source.env,
             source.server_root.join(&self.path),
             entry.module,
-            source.runtime_entries,
+            process_runtime_entries(entry.context, source.runtime_entries),
             entry.chunking_context,
             entry.intermediate_output_path,
             entry.output_root,
@@ -197,9 +200,10 @@ impl Introspectable for NodeApiContentSource {
             set.insert((
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
-                    entry
-                        .module
-                        .as_evaluated_chunk(entry.chunking_context, Some(self.runtime_entries)),
+                    entry.module.as_evaluated_chunk(
+                        entry.chunking_context,
+                        Some(process_runtime_entries(entry.context, self.runtime_entries)),
+                    ),
                     entry.intermediate_output_path,
                 )),
             ));
