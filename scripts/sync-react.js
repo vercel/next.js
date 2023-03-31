@@ -15,21 +15,25 @@ const fetch = require('node-fetch')
 // Specify a canary version:
 //   pnpm run sync-react --version 18.3.0-next-41110021f-20230301
 //
+// Sync experimental channel:
+//   pnpm run sync-react --experimental
+//
 // Update package.json but skip installing the dependencies automatically:
 //   pnpm run sync-react --no-install
 
 async function main() {
   const noInstall = readBoolArg(process.argv, 'no-install')
+  const useExperimental = readBoolArg(process.argv, 'experimental')
   let newVersionStr = readStringArg(process.argv, 'version')
   if (newVersionStr === null) {
     const { stdout, stderr } = await execa('npm', [
       'view',
-      'react@next',
+      useExperimental ? 'react@experimental' : 'react@next',
       'version',
     ])
     if (stderr) {
       console.error(stderr)
-      throw new Error('Failed to read latest React canary version from npm.')
+      throw new Error(`Failed to read latest React canary version from npm.`)
     }
     newVersionStr = stdout.trim()
   }
@@ -49,10 +53,9 @@ Or, run this command with no arguments to use the most recently published versio
   const cwd = process.cwd()
   const pkgJson = await readJson(path.join(cwd, 'package.json'))
   const devDependencies = pkgJson.devDependencies
-  const baseVersionStr = devDependencies['react-builtin'].replace(
-    /^npm:react@/,
-    ''
-  )
+  const baseVersionStr = devDependencies[
+    useExperimental ? 'react-experimental-builtin' : 'react-builtin'
+  ].replace(/^npm:react@/, '')
 
   const baseVersionInfo = extractInfoFromReactCanaryVersion(baseVersionStr)
   if (!baseVersionInfo) {

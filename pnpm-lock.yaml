@@ -159,6 +159,8 @@ importers:
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
       react-dom-builtin: npm:react-dom@18.3.0-next-85de6fde5-20230328
+      react-dom-experimental-builtin: npm:react-dom@0.0.0-experimental-1308e49a6-20230330
+      react-experimental-builtin: npm:react@0.0.0-experimental-1308e49a6-20230330
       react-server-dom-webpack: 18.3.0-next-85de6fde5-20230328
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
@@ -170,6 +172,8 @@ importers:
       rimraf: 3.0.2
       sass: 1.54.0
       satori: 0.4.4
+      scheduler-builtin: npm:scheduler@0.24.0-next-85de6fde5-20230328
+      scheduler-experimental-builtin: npm:scheduler@0.0.0-experimental-1308e49a6-20230330
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -340,6 +344,8 @@ importers:
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
       react-dom-builtin: /react-dom/18.3.0-next-85de6fde5-20230328_react@18.2.0
+      react-dom-experimental-builtin: /react-dom/0.0.0-experimental-1308e49a6-20230330_react@18.2.0
+      react-experimental-builtin: /react/0.0.0-experimental-1308e49a6-20230330
       react-server-dom-webpack: 18.3.0-next-85de6fde5-20230328_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
@@ -351,6 +357,8 @@ importers:
       rimraf: 3.0.2
       sass: 1.54.0
       satori: 0.4.4
+      scheduler-builtin: /scheduler/0.24.0-next-85de6fde5-20230328
+      scheduler-experimental-builtin: /scheduler/0.0.0-experimental-1308e49a6-20230330
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
@@ -5973,7 +5981,7 @@ packages:
     dependencies:
       '@mdx-js/mdx': 2.2.1
       source-map: 0.7.3
-      webpack: 5.74.0_@swc+core@1.2.203
+      webpack: 5.74.0
     transitivePeerDependencies:
       - supports-color
 
@@ -6639,6 +6647,7 @@ packages:
     cpu: [arm]
     os: [android]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-android-arm64/1.2.203:
@@ -6647,6 +6656,7 @@ packages:
     cpu: [arm64]
     os: [android]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-darwin-arm64/1.2.203:
@@ -6655,6 +6665,7 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-darwin-x64/1.2.203:
@@ -6663,6 +6674,7 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-freebsd-x64/1.2.203:
@@ -6671,6 +6683,7 @@ packages:
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-arm-gnueabihf/1.2.203:
@@ -6679,6 +6692,7 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-arm64-gnu/1.2.203:
@@ -6687,6 +6701,7 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-arm64-musl/1.2.203:
@@ -6695,6 +6710,7 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-x64-gnu/1.2.203:
@@ -6703,6 +6719,7 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-linux-x64-musl/1.2.203:
@@ -6711,6 +6728,7 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-win32-arm64-msvc/1.2.203:
@@ -6719,6 +6737,7 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-win32-ia32-msvc/1.2.203:
@@ -6727,6 +6746,7 @@ packages:
     cpu: [ia32]
     os: [win32]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core-win32-x64-msvc/1.2.203:
@@ -6735,6 +6755,7 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
+    dev: true
     optional: true
 
   /@swc/core/1.2.203:
@@ -6755,6 +6776,7 @@ packages:
       '@swc/core-win32-arm64-msvc': 1.2.203
       '@swc/core-win32-ia32-msvc': 1.2.203
       '@swc/core-win32-x64-msvc': 1.2.203
+    dev: true
 
   /@swc/helpers/0.4.11:
     resolution: {integrity: sha512-rEUrBSGIoSFuYxwBYtlUFMlE2CwGhmW+w9355/5oduSw8e5h2+Tj4UrAGNNgP9915++wj5vkQo0UuOBqOAq4nw==}
@@ -21204,6 +21226,16 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
+  /react-dom/0.0.0-experimental-1308e49a6-20230330_react@18.2.0:
+    resolution: {integrity: sha512-bnYIO4uqjkTBgA4hR95WcU9yvUhebG/WQsh6Jh2XwEqiETwlI+LgIFAdsxNMFGKo9zWWyFkigJ/IKbtNTbKENA==}
+    peerDependencies:
+      react: 0.0.0-experimental-1308e49a6-20230330
+    dependencies:
+      loose-envify: 1.4.0
+      react: 18.2.0
+      scheduler: 0.0.0-experimental-1308e49a6-20230330
+    dev: true
+
   /react-dom/17.0.2_react@17.0.2:
     resolution: {integrity: sha512-s4h96KtLDUQlsENhMn1ar8t2bEa+q/YAtj8pPPdIjPDGBDIVNsrD9aXNWqspUe6AzKCIG0C1HZZLqLV7qpOBGA==}
     peerDependencies:
@@ -21325,6 +21357,13 @@ packages:
       react: 18.2.0
       react-dom: 18.2.0_react@18.2.0
       react-lifecycles-compat: 3.0.4
+    dev: true
+
+  /react/0.0.0-experimental-1308e49a6-20230330:
+    resolution: {integrity: sha512-qxGAP/C2Lm6TyV0/+PG0B3cCllJQAnrf6eMMK08SrOPLCIB29yLqDxro+XRTEyNrEW4axEZwyP7aMwrlPjs6Tw==}
+    engines: {node: '>=0.10.0'}
+    dependencies:
+      loose-envify: 1.4.0
     dev: true
 
   /react/17.0.2:
@@ -22395,6 +22434,12 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       xmlchars: 2.2.0
+    dev: true
+
+  /scheduler/0.0.0-experimental-1308e49a6-20230330:
+    resolution: {integrity: sha512-kKxu1Mnrj/vRrTGtNAUBKUgOelbp4iDrYZdNGywQhhiOVDqcMrd8JQwRw0g2yGc1/tlJuL4VeEabrPh27pQnRA==}
+    dependencies:
+      loose-envify: 1.4.0
     dev: true
 
   /scheduler/0.20.2:
@@ -23727,6 +23772,7 @@ packages:
       source-map: 0.6.1
       terser: 5.14.1
       webpack: 5.74.0_@swc+core@1.2.203
+    dev: true
 
   /terser-webpack-plugin/5.2.4_webpack@5.74.0:
     resolution: {integrity: sha512-E2CkNMN+1cho04YpdANyRrn8CyN4yMy+WdFKZIySFZrGXZxJwJP6PMNGGc/Mcr6qygQHUUqRxnAPmi0M9f00XA==}
@@ -25132,6 +25178,7 @@ packages:
       - '@swc/core'
       - esbuild
       - uglify-js
+    dev: true
 
   /websocket-driver/0.7.3:
     resolution: {integrity: sha512-bpxWlvbbB459Mlipc5GBzzZwhoZgGEZLuqPaR0INBGnPAY1vdBX6hPnoFXiw+3yWxDuHyQjO2oXTMyS8A5haFg==}

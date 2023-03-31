@@ -237,6 +237,13 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
+
+  /**
+   * Use the `experimental` channel of React and React DOM in the app/ directory.
+   * By default, this will be disable and the `next` channel will be used.
+   * This requires `appDir` to be enabled first.
+   */
+  experimentalReact?: boolean
 }
 
 export type ExportPathMap = {
