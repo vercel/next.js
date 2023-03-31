@@ -107,21 +107,21 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 ### Static Only
 
-The following services only support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+The following services only support deploying Next.js using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
 
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
 
-You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
+You can also manually deploy the output from [`output: 'export'`](/docs/advanced-features/static-html-export.md) to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
 
 ### Serverless
 
 - [AWS Amplify](https://aws.amazon.com/blogs/mobile/amplify-next-js-13/)
-- [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
 - [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
 - [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
 - [Firebase](https://firebase.google.com/docs/hosting/nextjs)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
+- [SST](https://sst.dev/)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 
