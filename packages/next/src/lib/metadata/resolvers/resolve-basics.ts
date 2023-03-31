@@ -9,8 +9,9 @@ import type {
   FieldResolverWithMetadataBase,
 } from '../types/resolvers'
 import type { Viewport } from '../types/extra-types'
+import path from '../../../shared/lib/isomorphic/path'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveUrl } from './resolve-url'
+import { resolveUrl, resolveStringUrl } from './resolve-url'
 import { ViewPortKeys } from '../constants'
 
 export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
@@ -85,32 +86,48 @@ function resolveUrlValuesOfObject(
 
 function resolveCanonicalUrl(
   urlOrDescriptor: string | URL | null | AlternateLinkDescriptor | undefined,
-  metadataBase: URL | null
+  metadataBase: URL | null,
+  pathname: string
 ): null | AlternateLinkDescriptor {
   if (!urlOrDescriptor) return null
 
+  let url
   if (typeof urlOrDescriptor === 'string' || urlOrDescriptor instanceof URL) {
-    return {
-      url: (metadataBase
-        ? resolveUrl(urlOrDescriptor, metadataBase)
-        : urlOrDescriptor)!,
+    // if it's relative path, get the relative path from the current pathname
+    if (
+      typeof urlOrDescriptor === 'string' &&
+      urlOrDescriptor.startsWith('./')
+    ) {
+      urlOrDescriptor = path.join(pathname, urlOrDescriptor)
     }
+
+    url = (
+      metadataBase ? resolveUrl(urlOrDescriptor, metadataBase) : urlOrDescriptor
+    )!
   } else {
-    const url = metadataBase
-      ? resolveUrl(urlOrDescriptor.url, metadataBase)
-      : urlOrDescriptor.url
-    urlOrDescriptor.url = url!
-    return urlOrDescriptor
+    url = (
+      metadataBase
+        ? resolveUrl(urlOrDescriptor.url, metadataBase)
+        : urlOrDescriptor.url
+    )!
+  }
+  // Return string url because structureClone can't handle URL instance
+  return {
+    url: resolveStringUrl(url),
   }
 }
 
-export const resolveAlternates: FieldResolverWithMetadataBase<'alternates'> = (
-  alternates,
-  metadataBase
-) => {
+export const resolveAlternates: FieldResolverWithMetadataBase<
+  'alternates',
+  { pathname: string }
+> = (alternates, metadataBase, { pathname }) => {
   if (!alternates) return null
 
-  const canonical = resolveCanonicalUrl(alternates.canonical, metadataBase)
+  const canonical = resolveCanonicalUrl(
+    alternates.canonical,
+    metadataBase,
+    pathname
+  )
   const languages = resolveUrlValuesOfObject(alternates.languages, metadataBase)
   const media = resolveUrlValuesOfObject(alternates.media, metadataBase)
   const types = resolveUrlValuesOfObject(alternates.types, metadataBase)

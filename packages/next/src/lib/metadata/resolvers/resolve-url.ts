@@ -39,4 +39,10 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-export { isStringOrURL, resolveUrl }
+// Return a string url without trailing slash
+const resolveStringUrl = (url: string | URL) => {
+  const href = typeof url === 'string' ? url : url.toString()
+  return href.endsWith('/') ? href.slice(0, -1) : href
+}
+
+export { isStringOrURL, resolveUrl, resolveStringUrl }

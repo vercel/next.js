@@ -260,8 +260,8 @@ createNextDescribe(
       })
 
       it('should support alternate tags', async () => {
-        const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
+        const browser = await next.browser('/alternates')
+        await checkLink(browser, 'canonical', 'https://example.com/alternates')
         await checkMeta(
           browser,
           'en-US',
@@ -296,6 +296,15 @@ createNextDescribe(
           type: 'application/rss+xml',
           href: '/blog.rss',
         })
+      })
+
+      it('should relative canonical url', async () => {
+        const browser = await next.browser('/alternates/child')
+        await checkLink(
+          browser,
+          'canonical',
+          'https://example.com/alternates/child'
+        )
       })
 
       it('should support robots tags', async () => {
