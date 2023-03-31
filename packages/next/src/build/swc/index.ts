@@ -383,6 +383,18 @@ function loadNative(isCustomTurbopack = false) {
   }
 
   if (bindings) {
+    // Initialize crash reporter, as earliest as possible from any point of import.
+    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
+    // we can't rely on explicit manual initialization as similar to trace reporter.
+    if (!swcCrashReporterFlushGuard) {
+      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
+      /* TODO: temporarily disable initialization while confirming logistics.
+      let telemetry = new Telemetry({ distDir: process.cwd() })
+      if (telemetry.isEnabled) {
+        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
+      }*/
+    }
+
     nativeBindings = {
       isWasm: false,
       transform(src: string, options: any) {
