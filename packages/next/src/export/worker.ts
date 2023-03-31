@@ -8,6 +8,7 @@ import type {
   ExportPathMap,
   NextConfigComplete,
 } from '../server/config-shared'
+import type { OutgoingHttpHeaders } from 'http'
 
 // `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
@@ -49,6 +50,7 @@ import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-erro
 import { mockRequest } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { toNodeHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 
 loadRequireHook()
@@ -98,7 +100,7 @@ interface ExportPageResults {
   fromBuildExportRevalidate?: number | false
   fromBuildExportMeta?: {
     status?: number
-    headers?: Record<string, string>
+    headers?: OutgoingHttpHeaders
   }
   error?: boolean
   ssgNotFound?: boolean
@@ -165,6 +167,7 @@ export default async function exportPage({
     try {
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
+      const pathname = normalizeAppPath(page)
       const isAppDir = (pathMap as any)._isAppDir
       const isDynamicError = (pathMap as any)._isDynamicError
       const filePath = normalizePagePath(path)
@@ -411,6 +414,8 @@ export default async function exportPage({
             // Call the handler with the request and context from the module.
             const response = await module.handle(request, context)
 
+            // TODO: (wyattjoh) if cookie headers are present, should we bail?
+
             // we don't consider error status for static generation
             // except for 404
             // TODO: do we want to cache other status codes?
@@ -423,7 +428,7 @@ export default async function exportPage({
                 context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = Object.fromEntries(response.headers)
+              const headers = toNodeHeaders(response.headers)
 
               if (!headers['content-type'] && body.type) {
                 headers['content-type'] = body.type
@@ -465,7 +470,7 @@ export default async function exportPage({
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              isNotFoundPage ? '/404' : page,
+              isNotFoundPage ? '/404' : pathname,
               query,
               curRenderOpts as any
             )
