@@ -167,6 +167,7 @@ export default async function exportPage({
     try {
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
+      const pathname = normalizeAppPath(page)
       const isAppDir = (pathMap as any)._isAppDir
       const isDynamicError = (pathMap as any)._isDynamicError
       const filePath = normalizePagePath(path)
@@ -469,7 +470,7 @@ export default async function exportPage({
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              isNotFoundPage ? '/404' : page,
+              isNotFoundPage ? '/404' : pathname,
               query,
               curRenderOpts as any
             )
