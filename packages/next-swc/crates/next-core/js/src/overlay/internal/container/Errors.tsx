@@ -190,9 +190,7 @@ const TABS: TabConfig[] = [
       many: 'Runtime Errors',
       short: 'Err',
     },
-    message: (
-      <>Unhandled errors that happened during execution of application code.</>
-    ),
+    message: <>Unhandled errors reported when running the application.</>,
     items: ({ readyErrors }) => {
       return readyErrors.filter((e) => !isRuntimeWarning(e))
     },
@@ -210,7 +208,7 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Error that happened during compilation of applications code.
+        Errors reported when compiling the application.
         <br />
         The application might work partially, but that's unlikely.
       </>
@@ -232,7 +230,7 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Unhandled errors that happened during execution of application code.
+        Unhandled errors reported when running the application.
         <br />
         The application might work partially, but that's unlikely.
       </>
@@ -254,10 +252,10 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Warnings that were found during compilation of applications code.
+        Warnings reported when compiling the application.
         <br />
-        The application probably work, but these issues should still be
-        addressed eventually.
+        The application will probably work regardless, but these issues should
+        be addressed eventually.
       </>
     ),
     items: ({ issues }) => {
@@ -277,8 +275,7 @@ const TABS: TabConfig[] = [
     },
     message: (
       <>
-        Errors or warnings that happened during compilation of non-application
-        code.
+        Errors or warnings reported while compiling external code.
         <br />
         The application might be affected by them.
       </>

@@ -3,8 +3,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "export": "next export -o build"
+    "start": "next start"
   },
   "dependencies": {
     "@ionic/core": "^5.4.1",

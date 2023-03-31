@@ -676,9 +676,9 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     if (process.env.NODE_ENV !== 'production') {
       if (config.output === 'export' && isDefaultLoader && !unoptimized) {
         throw new Error(
-          `Image Optimization using Next.js' default loader is not compatible with \`{ output: "export" }\`.
+          `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.
   Possible solutions:
-    - Configure \`{ output: "standalone" }\` or remove it to run server mode including the Image Optimization API.
+    - Remove \`{ output: 'export' }\` and run "next start" to run server mode including the Image Optimization API.
     - Configure \`{ images: { unoptimized: true } }\` in \`next.config.js\` to disable the Image Optimization API.
   Read more: https://nextjs.org/docs/messages/export-image-api`
         )

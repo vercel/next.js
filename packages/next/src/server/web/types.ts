@@ -1,6 +1,6 @@
 import type { I18NConfig } from '../config-shared'
-import type { NextRequest } from '../web/spec-extension/request'
-import type { NextFetchEvent } from '../web/spec-extension/fetch-event'
+import type { NextRequest } from './spec-extension/request'
+import type { NextFetchEvent } from './spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
 import type { CloneableBody } from '../body-streams'
 import type { OutgoingHttpHeaders } from 'http'
