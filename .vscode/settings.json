@@ -74,6 +74,5 @@
     "opentelemetry",
     "Threadsafe",
     "zipkin"
-  ],
-  "rust-analyzer.showUnlinkedFileNotification": false
+  ]
 }
