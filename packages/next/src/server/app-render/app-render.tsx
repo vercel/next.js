@@ -105,6 +105,9 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
+  // FIXME: (styfle) get from next config, maybe from renderOpts?
+  const isOutputExport = true || false
+
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
   const serverCSSManifest = renderOpts.serverCSSManifest!
 
@@ -154,6 +157,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  // TODO: (styfle) add the type
+  const staticGenerationBailout = ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -510,6 +515,9 @@ export async function renderToHTMLOrFlight(
         // otherwise
         if (layoutOrPageMod.dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (layoutOrPageMod.dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`dynamic = 'force-dynamic'`)
         } else {
           staticGenerationStore.dynamicShouldError = false
           if (layoutOrPageMod.dynamic === 'force-static') {
@@ -520,13 +528,28 @@ export async function renderToHTMLOrFlight(
         }
       }
 
+      if (isOutputExport) {
+        if (!layoutOrPageMod?.dynamic || layoutOrPageMod?.dynamic === 'auto') {
+          staticGenerationStore.dynamicShouldError = false
+        }
+        if (layoutOrPageMod?.dynamic === 'force-dynamic') {
+          throw new Error(
+            `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          )
+        }
+      }
+
       if (typeof layoutOrPageMod?.fetchCache === 'string') {
         staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
       }
 
       if (typeof layoutOrPageMod?.revalidate === 'number') {
+        // This is the "current" segment's revalidate value,
+        // staticGenerationStore.revalidate is the previous segment's
+        // revalidate value
         defaultRevalidate = layoutOrPageMod.revalidate as number
 
+        // Always use the lowest revalidate value found in the tree.
         if (
           typeof staticGenerationStore.revalidate === 'undefined' ||
           staticGenerationStore.revalidate > defaultRevalidate
@@ -534,18 +557,8 @@ export async function renderToHTMLOrFlight(
           staticGenerationStore.revalidate = defaultRevalidate
         }
 
-        if (
-          staticGenerationStore.isStaticGeneration &&
-          defaultRevalidate === 0
-        ) {
-          const { DynamicServerError } =
-            ComponentMod.serverHooks as typeof import('../../client/components/hooks-server-context')
-
-          const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-          staticGenerationStore.dynamicUsageDescription =
-            dynamicUsageDescription
-
-          throw new DynamicServerError(dynamicUsageDescription)
+        if (defaultRevalidate === 0) {
+          staticGenerationBailout(`revalidate: 0 configured ${segment}`)
         }
       }
 
