@@ -630,7 +630,8 @@ export default class DevServer extends Server {
               ? ((this.nextConfig as any)._originalRedirects || []).filter(
                   (r: any) => !r.internal
                 )
-              : []
+              : [],
+            this.nextConfig.experimental.clientRouterFilterAllowedRate
           )
 
           if (
