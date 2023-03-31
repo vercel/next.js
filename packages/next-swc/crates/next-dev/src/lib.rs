@@ -28,6 +28,10 @@ use next_core::{
 };
 use owo_colors::OwoColorize;
 use turbo_binding::turbo::malloc::TurboMalloc;
+use turbo_binding::turbo::tasks::{
+    util::{FormatBytes, FormatDuration},
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
+};
 use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_binding::turbo::tasks_memory::MemoryBackend;
 use turbo_binding::turbopack::cli_utils::issue::{ConsoleUiVc, LogOptions};
@@ -50,10 +54,6 @@ use turbo_binding::turbopack::dev_server::{
 };
 use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_binding::turbopack::turbopack::evaluate_context::node_build_environment;
-use turbo_binding::turbo::tasks
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
-};
 
 #[derive(Clone)]
 pub enum EntryRequest {

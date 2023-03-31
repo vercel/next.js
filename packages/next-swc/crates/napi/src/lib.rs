@@ -36,8 +36,8 @@ use std::{env, panic::set_hook, sync::Arc};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
-use napi::{bindgen_prelude::*, JsObject};
-use next_binding::swc::core::{
+use napi::bindgen_prelude::*;
+use turbo_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };

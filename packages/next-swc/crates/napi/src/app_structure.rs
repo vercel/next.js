@@ -1,32 +1,21 @@
 use anyhow::{anyhow, Result};
 use napi::bindgen_prelude::External;
 use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use napi::{CallContext, JsFunction, JsUndefined};
-use next_core::env::load_env;
+use napi::JsFunction;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::MAIN_SEPARATOR;
 use std::sync::Arc;
-use std::time::Duration;
 use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
 use turbo_binding::turbo::tasks::primitives::StringsVc;
 use turbo_binding::turbo::tasks::trace::TraceRawVcs;
-use turbopack_dev::DevChunkingContextVc;
+use turbo_binding::turbopack::core::PROJECT_FILESYSTEM_NAME;
 
-use next_core::app_structure::{
-    find_app_dir, Components, ComponentsVc, Entrypoint, EntrypointsVc, LoaderTree, LoaderTreeVc,
-};
-use next_core::next_config::load_next_config;
-use turbo_binding::turbo::tasks::{NothingVc, TryJoinIterExt};
-use turbo_binding::turbo::tasks::{TurboTasks, ValueToString};
+use turbo_binding::turbo::tasks::{NothingVc, TryJoinIterExt, TurboTasks, ValueToString};
 use turbo_binding::turbo::tasks_fs::{
     DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc,
 };
 use turbo_binding::turbo::tasks_memory::MemoryBackend;
-use turbopack::evaluate_context::node_build_environment;
-
-use turbopack_core::PROJECT_FILESYSTEM_NAME;
-use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::REGISTER;
 
@@ -218,7 +207,7 @@ async fn get_value(
         .replace(MAIN_SEPARATOR, "/");
     let project_path = fs.root().join(&project_relative);
 
-    let app_dir = find_app_dir(project_path);
+    let app_dir = next_core::app_structure::find_app_dir(project_path);
 
     let result = if let Some(app_dir) = *app_dir.await? {
         let entrypoints = next_core::app_structure::get_entrypoints(app_dir, page_extensions);

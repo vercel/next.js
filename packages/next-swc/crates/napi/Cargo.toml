@@ -34,6 +34,7 @@ napi-derive = "2"
 next-swc = { version = "0.0.0", path = "../core" }
 next-dev = { workspace = true }
 next-build = { workspace = true }
+next-core = { workspace = true }
 once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
@@ -45,6 +46,7 @@ turbo-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
   "__feature_node_file_trace",
   "__feature_mdx_rs",
+  "__turbo",
   "__turbo_tasks",
   "__turbo_tasks_memory",
   "__turbopack"

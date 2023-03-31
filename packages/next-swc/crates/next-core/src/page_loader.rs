@@ -4,13 +4,13 @@ use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_binding::turbo::tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbo_binding::turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
+use turbo_binding::turbopack::core::reference_type::{EntryReferenceSubType, ReferenceType};
 use turbo_binding::turbopack::core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc, ChunkingContextVc, ChunksVc},
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
-    reference_type::{EntryReferenceSubType, ReferenceType},
     virtual_asset::VirtualAssetVc,
 };
 use turbo_binding::turbopack::dev_server::source::{

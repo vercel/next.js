@@ -9,7 +9,6 @@ use turbo_binding::turbo::tasks::primitives::{StringVc, StringsVc};
 use turbo_binding::turbo::tasks::trace::TraceRawVcs;
 use turbo_binding::turbo::tasks::CompletionVc;
 use turbo_binding::turbo::tasks::CompletionsVc;
-use turbo_binding::turbo::tasks::ValueToString;
 use turbo_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
 };
