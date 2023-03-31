@@ -1,5 +1,6 @@
 use std::{
     any::Provider,
+    error::Error as StdError,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
     ops::Deref,
@@ -7,7 +8,8 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Error;
+use anyhow::{anyhow, Error};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use super::{id_factory::IdFactory, no_move_vec::NoMoveVec, once_map::*};
 
@@ -25,7 +27,7 @@ impl SharedError {
     }
 }
 
-impl std::error::Error for SharedError {
+impl StdError for SharedError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.inner.source()
     }
@@ -44,6 +46,41 @@ impl Display for SharedError {
 impl From<Error> for SharedError {
     fn from(e: Error) -> Self {
         Self::new(e)
+    }
+}
+
+impl PartialEq for SharedError {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+}
+
+impl Eq for SharedError {}
+
+impl Serialize for SharedError {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut v = vec![self.to_string()];
+        let mut source = self.source();
+        while let Some(s) = source {
+            v.push(s.to_string());
+            source = s.source();
+        }
+        Serialize::serialize(&v, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for SharedError {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let mut messages = <Vec<String>>::deserialize(deserializer)?;
+        let mut e = match messages.pop() {
+            Some(e) => anyhow!(e),
+            None => return Err(Error::custom("expected at least 1 error message")),
+        };
+        while let Some(message) = messages.pop() {
+            e = e.context(message);
+        }
+        Ok(SharedError::new(e))
     }
 }
 

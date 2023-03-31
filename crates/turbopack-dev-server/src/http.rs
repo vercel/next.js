@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use futures::{StreamExt, TryStreamExt};
 use hyper::{
     header::{HeaderName, CONTENT_ENCODING, CONTENT_LENGTH},
@@ -10,7 +10,7 @@ use hyper::{
 use mime::Mime;
 use mime_guess::mime;
 use tokio_util::io::{ReaderStream, StreamReader};
-use turbo_tasks::TransientInstance;
+use turbo_tasks::{util::SharedError, TransientInstance};
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
@@ -18,7 +18,7 @@ use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::Versi
 use crate::source::{
     request::SourceRequest,
     resolve::{resolve_source_request, ResolveSourceRequestResult},
-    Body, BodyError, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
+    Body, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -199,7 +199,7 @@ async fn http_request_to_source_request(request: Request<hyper::Body>) -> Result
     let bytes: Vec<_> = body
         .map(|bytes| {
             bytes.map_or_else(
-                |e| Err(BodyError::new(e.to_string())),
+                |e| Err(SharedError::new(anyhow!(e))),
                 // The outer Ok is consumed by try_collect, but the Body type requires a Result, so
                 // we need to double wrap.
                 |b| Ok(Ok(Bytes::from(b))),
