@@ -590,12 +590,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             !val.every((item, idx) => item === middlewareValue[idx])
           ) {
             val = [
-              ...(middlewareValue || []),
-              ...(typeof val === 'string'
-                ? [val]
-                : Array.isArray(val)
-                ? val
-                : []),
+              // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
+              ...new Set([
+                ...(middlewareValue || []),
+                ...(typeof val === 'string'
+                  ? [val]
+                  : Array.isArray(val)
+                  ? val
+                  : []),
+              ]),
             ]
           }
         }

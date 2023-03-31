@@ -70,7 +70,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
-import { fromNodeHeaders, splitCookiesString, toNodeHeaders } from './web/utils'
+import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -1873,25 +1873,6 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
     })
 
-    // Copy over the response headers from the original response. These headers
-    // could be set in middleware or by the Next.js router.
-    const allHeaders = new Headers(
-      fromNodeHeaders(params.response.getHeaders())
-    )
-
-    for (let [key, value] of result.response.headers) {
-      if (key === 'x-middleware-next') continue
-
-      // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
-      if (key.toLowerCase() === 'set-cookie') {
-        for (const setCookie of splitCookiesString(value)) {
-          allHeaders.append(key, setCookie)
-        }
-      } else {
-        allHeaders.append(key, value)
-      }
-    }
-
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
@@ -1901,19 +1882,24 @@ export default class NextNodeServer extends BaseServer {
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
       return { finished: true }
-    } else {
-      for (let [key, value] of allHeaders) {
-        result.response.headers.set(key, value)
-
-        if (key.toLowerCase() === 'set-cookie') {
-          addRequestMeta(
-            params.request,
-            '_nextMiddlewareCookie',
-            splitCookiesString(value)
-          )
-        }
-      }
     }
+
+    for (let [key, value] of result.response.headers) {
+      if (key.toLowerCase() !== 'set-cookie') continue
+
+      // Clear existing header.
+      result.response.headers.delete(key)
+
+      // Append each cookie individually.
+      const cookies = splitCookiesString(value)
+      for (const cookie of cookies) {
+        result.response.headers.append(key, cookie)
+      }
+
+      // Add cookies to request meta.
+      addRequestMeta(params.request, '_nextMiddlewareCookie', cookies)
+    }
+
     return result
   }
 
@@ -2258,7 +2244,9 @@ export default class NextNodeServer extends BaseServer {
     params.res.statusCode = result.response.status
     params.res.statusMessage = result.response.statusText
 
-    result.response.headers.forEach((value: string, key) => {
+    // TODO: (wyattjoh) investigate improving this
+
+    result.response.headers.forEach((value, key) => {
       // The append handling is special cased for `set-cookie`.
       if (key.toLowerCase() === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
