@@ -233,8 +233,8 @@ async fn get_directory_tree(
     let mut components = Components::default();
 
     for (basename, entry) in entries {
-        match entry {
-            &DirectoryEntry::File(file) => {
+        match *entry {
+            DirectoryEntry::File(file) => {
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions.await?.iter().any(|e| e == ext) {
                         match stem {
@@ -266,7 +266,7 @@ async fn get_directory_tree(
                     }
                 }
             }
-            &DirectoryEntry::Directory(dir) => {
+            DirectoryEntry::Directory(dir) => {
                 let result = get_directory_tree(dir, page_extensions);
                 subdirectories.insert(basename.to_string(), result);
             }
@@ -431,7 +431,7 @@ async fn directory_tree_to_entrypoints_internal(
     let subdirectories = &directory_tree.subdirectories;
     let components = directory_tree.components.await?;
 
-    let current_level_is_parallel_route = is_parallel_route(&directory_name);
+    let current_level_is_parallel_route = is_parallel_route(directory_name);
 
     if let Some(page) = components.page {
         add_app_page(
@@ -457,7 +457,7 @@ async fn directory_tree_to_entrypoints_internal(
                             segment: "__PAGE__".to_string(),
                             parallel_routes: IndexMap::new(),
                             components: Components {
-                                page: Some(page.clone()),
+                                page: Some(page),
                                 ..Default::default()
                             }
                             .cell(),
@@ -496,7 +496,7 @@ async fn directory_tree_to_entrypoints_internal(
                             segment: "__DEFAULT__".to_string(),
                             parallel_routes: IndexMap::new(),
                             components: Components {
-                                default: Some(default.clone()),
+                                default: Some(default),
                                 ..Default::default()
                             }
                             .cell(),
@@ -526,7 +526,7 @@ async fn directory_tree_to_entrypoints_internal(
                 "{}{}",
                 path_prefix,
                 if parallel_route_key.is_some() || optional_segment {
-                    format!("")
+                    String::new()
                 } else {
                     format!(
                         "{}{}",
@@ -545,7 +545,7 @@ async fn directory_tree_to_entrypoints_internal(
                     } else {
                         let key = parallel_route_key
                             .as_deref()
-                            .unwrap_or_else(|| "children")
+                            .unwrap_or("children")
                             .to_string();
                         let child_loader_tree = LoaderTree {
                             segment: directory_name.to_string(),

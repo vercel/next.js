@@ -23,7 +23,6 @@ use turbo_binding::turbo::tasks_fs::{
 use turbo_binding::turbo::tasks_memory::MemoryBackend;
 
 use crate::REGISTER;
-
 #[tasks::function]
 async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
     let disk_fs =
@@ -204,7 +203,7 @@ async fn get_value(
     watching: bool,
 ) -> Result<OptionEntrypointsForJsVc> {
     let page_extensions = StringsVc::cell(page_extensions);
-    let fs = project_fs(&root_dir, watching);
+    let fs = project_fs(root_dir, watching);
     let project_relative = project_dir.strip_prefix(root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -235,7 +234,6 @@ pub fn stream_entrypoints(
     func: JsFunction,
 ) -> napi::Result<()> {
     *REGISTER;
-
     let func: ThreadsafeFunction<Option<EntrypointsForJsReadRef>, ErrorStrategy::CalleeHandled> =
         func.create_threadsafe_function(0, |ctx| {
             let value = ctx.value;
@@ -252,15 +250,15 @@ pub fn stream_entrypoints(
         let page_extensions = page_extensions.clone();
         Box::pin(async move {
             if let Some(entrypoints) = &*get_value(
-                &*root_dir,
-                &*project_dir,
+                &root_dir,
+                &project_dir,
                 page_extensions.iter().map(|s| s.to_string()).collect(),
                 true,
             )
             .await?
             {
                 func.call(
-                    Ok(Some(entrypoints.clone().await?)),
+                    Ok(Some(entrypoints.await?)),
                     ThreadsafeFunctionCallMode::NonBlocking,
                 );
             } else {
@@ -281,18 +279,17 @@ pub async fn get_entrypoints(
     page_extensions: Vec<String>,
 ) -> napi::Result<serde_json::Value> {
     *REGISTER;
-
     let result = turbo_tasks
         .run_once(async move {
             let value = if let Some(entrypoints) = &*get_value(
-                &*root_dir,
-                &*project_dir,
+                &root_dir,
+                &project_dir,
                 page_extensions.iter().map(|s| s.to_string()).collect(),
                 false,
             )
             .await?
             {
-                Some(entrypoints.clone().await?)
+                Some(entrypoints.await?)
             } else {
                 None
             };

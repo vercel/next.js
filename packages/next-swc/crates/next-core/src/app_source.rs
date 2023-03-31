@@ -445,7 +445,7 @@ async fn create_app_page_source_for_route(
         fallback_page,
     );
 
-    return Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")));
+    Ok(source.issue_context(app_dir, &format!("Next.js App Page Route {pathname}")))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -485,7 +485,7 @@ async fn create_app_route_source_for_route(
         runtime_entries,
     );
 
-    return Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")));
+    Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")))
 }
 
 /// The renderer for pages in app directory
