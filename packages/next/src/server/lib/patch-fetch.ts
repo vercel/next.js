@@ -26,7 +26,7 @@ export function patchFetch({
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) => {
-    let url
+    let url: URL | undefined
     try {
       url = new URL(input instanceof Request ? input.url : input)
       url.username = ''
@@ -37,8 +37,6 @@ export function patchFetch({
     }
 
     const method = init?.method?.toUpperCase() || 'GET'
-    const originUrl = url?.toString() ?? ''
-    const fetchIdx = nextFetchIdx++
 
     return await getTracer().trace(
       AppRenderSpan.fetch,
@@ -224,6 +222,9 @@ export function patchFetch({
             init[field] = initialInit[field]
           }
         }
+
+        const originUrl = url?.toString() ?? ''
+        const fetchIdx = nextFetchIdx++
 
         const doOriginalFetch = async () => {
           // add metadata to init without editing the original
