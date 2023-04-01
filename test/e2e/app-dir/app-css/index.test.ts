@@ -514,9 +514,9 @@ createNextDescribe(
           const browser = await next.browser('/suspensey-css')
           await browser.elementByCss('#timeout').click()
           await check(() => browser.eval(`document.body.innerText`), 'Get back')
-          await check(async () => {
-            return await browser.eval(`window.__log`)
-          }, /background = rgb\(0, 0, 0\)/)
+          expect(await browser.eval(`window.__log`)).toEqual(
+            'background = rgba(0, 0, 0, 0)'
+          )
         })
       })
     }
