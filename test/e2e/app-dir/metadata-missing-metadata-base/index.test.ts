@@ -5,6 +5,10 @@ import { fetchViaHTTP } from 'next-test-utils'
 describe('app dir - metadata missing metadataBase', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    return it('should skip for deploy', () => {})
+  }
+
   beforeAll(async () => {
     next = await createNext({
       skipStart: true,
