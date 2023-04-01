@@ -14,6 +14,7 @@ use turbo_binding::{
     },
     turbopack::{
         core::{
+            asset::AssetsVc,
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
@@ -30,9 +31,8 @@ use turbo_binding::{
             },
         },
         ecmascript::{
-            chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::StringifyJs,
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            InnerAssetsVc,
+            magic_identifier, utils::StringifyJs, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -207,6 +207,7 @@ fn next_route_transition(
         get_client_assets_path(server_root, Value::new(ClientContextType::App { app_dir })),
         edge_compile_time_info.environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
@@ -366,8 +367,7 @@ pub async fn create_app_source(
     let injected_env = env_for_js(EnvMapVc::empty().into(), false, next_config);
     let env = CustomProcessEnvVc::new(env, next_config.env()).as_process_env();
 
-    let server_runtime_entries =
-        vec![ProcessEnvAssetVc::new(project_path, injected_env).as_ecmascript_chunk_placeable()];
+    let server_runtime_entries = vec![ProcessEnvAssetVc::new(project_path, injected_env).into()];
 
     let fallback_page = get_fallback_page(
         project_path,
@@ -385,7 +385,7 @@ pub async fn create_app_source(
         project_path,
         env,
         server_root,
-        EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
+        AssetsVc::cell(server_runtime_entries),
         fallback_page,
         output_path,
     );
@@ -401,7 +401,7 @@ async fn create_app_source_for_directory(
     project_path: FileSystemPathVc,
     env: ProcessEnvVc,
     server_root: FileSystemPathVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
@@ -665,6 +665,7 @@ import BOOTSTRAP from {};
         .build();
 
         Ok(NodeRenderingEntry {
+            context,
             module: EcmascriptModuleAssetVc::new(
                 asset.into(),
                 context,
@@ -744,6 +745,7 @@ impl AppRouteVc {
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
         Ok(NodeRenderingEntry {
+            context: this.context,
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 virtual_asset.into(),
                 this.context,

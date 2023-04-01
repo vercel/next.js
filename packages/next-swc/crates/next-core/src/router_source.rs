@@ -7,9 +7,9 @@ use turbo_binding::turbopack::{
         introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
     },
     dev_server::source::{
-        Body, BodyError, ContentSource, ContentSourceContent, ContentSourceData,
-        ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData,
-        ProxyResult, RewriteBuilder,
+        Body, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+        ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult,
+        RewriteBuilder,
     },
     node::execution_context::ExecutionContextVc,
 };
@@ -156,11 +156,7 @@ impl ContentSource for NextRouterContentSource {
                     ProxyResult {
                         status: data.status_code,
                         headers: data.headers.clone(),
-                        body: Body::from_stream(data.body.read().map(|chunk| {
-                            chunk.map_err(|e| {
-                                BodyError::new(format!("error streaming proxied contents: {}", e))
-                            })
-                        })),
+                        body: Body::from_stream(data.body.read()),
                     }
                     .cell(),
                 )
