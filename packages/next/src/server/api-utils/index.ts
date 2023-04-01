@@ -75,7 +75,7 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
-export function checkIsManualRevalidate(
+export function checkIsOnDemandRevalidate(
   req: IncomingMessage | BaseNextRequest,
   previewProps: __ApiPreviewProps
 ): {

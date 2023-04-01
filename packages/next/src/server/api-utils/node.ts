@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
 import {
-  checkIsManualRevalidate,
+  checkIsOnDemandRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   __ApiPreviewProps,
 } from '.'
@@ -44,7 +44,7 @@ export function tryGetPreviewData(
 ): PreviewData {
   // if an On-Demand revalidation is being done preview mode
   // is disabled
-  if (options && checkIsManualRevalidate(req, options).isManualRevalidate) {
+  if (options && checkIsOnDemandRevalidate(req, options).isManualRevalidate) {
     return false
   }
 

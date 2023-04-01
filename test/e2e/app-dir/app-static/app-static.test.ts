@@ -76,6 +76,49 @@ createNextDescribe(
       }
     })
 
+    it('should revalidate all fetches during on-demand revalidate', async () => {
+      const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+      const html = await initRes.text()
+      const $ = cheerio.load(html)
+      const initLayoutData = $('#layout-data').text()
+      const initPageData = $('#page-data').text()
+
+      expect(initLayoutData).toBeTruthy()
+      expect(initPageData).toBeTruthy()
+
+      const revalidateRes = await next.fetch(
+        '/api/revalidate?path=/variable-revalidate/revalidate-360'
+      )
+      expect((await revalidateRes.json()).revalidated).toBe(true)
+
+      const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+      const newHtml = await newRes.text()
+      const new$ = cheerio.load(newHtml)
+      const newLayoutData = new$('#layout-data').text()
+      const newPageData = new$('#page-data').text()
+
+      expect(newLayoutData).toBeTruthy()
+      expect(newPageData).toBeTruthy()
+      expect(newLayoutData).not.toBe(initLayoutData)
+      expect(newPageData).not.toBe(initPageData)
+    })
+
+    it('should correctly handle fetchCache = "force-no-store"', async () => {
+      const initRes = await next.fetch('/force-no-store')
+      const html = await initRes.text()
+      const $ = cheerio.load(html)
+      const initPageData = $('#page-data').text()
+      expect(initPageData).toBeTruthy()
+
+      const newRes = await next.fetch('/force-no-store')
+      const newHtml = await newRes.text()
+      const new$ = cheerio.load(newHtml)
+      const newPageData = new$('#page-data').text()
+
+      expect(newPageData).toBeTruthy()
+      expect(newPageData).not.toBe(initPageData)
+    })
+
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate correctly with config and fetch revalidate', async () => {
         const initial$ = await next.render$(
@@ -176,6 +219,7 @@ createNextDescribe(
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
+          'force-no-store/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -263,6 +307,9 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/revalidate-360.html',
+          'variable-revalidate/revalidate-360.rsc',
+          'variable-revalidate/revalidate-360/page.js',
           'variable-revalidate/status-code.html',
           'variable-revalidate/status-code.rsc',
           'variable-revalidate/status-code/page.js',
@@ -474,6 +521,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
+          },
+          '/variable-revalidate/revalidate-360': {
+            dataRoute: '/variable-revalidate/revalidate-360.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/revalidate-360',
           },
           '/variable-revalidate/status-code': {
             dataRoute: '/variable-revalidate/status-code.rsc',
