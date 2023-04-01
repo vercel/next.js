@@ -3,10 +3,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use turbo_binding::{
-    turbo::{
-        tasks_env::ProcessEnvVc,
-        tasks_fs::{FileSystemPathVc},
-    },
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
             chunk::ChunkingContextVc,
