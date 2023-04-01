@@ -1047,6 +1047,8 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g vercel@latest
+
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
