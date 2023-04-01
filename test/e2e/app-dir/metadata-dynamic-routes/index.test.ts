@@ -155,6 +155,8 @@ createNextDescribe(
         'content'
       )
 
+      expect($('link[rel="favicon"]')).toHaveLength(0)
+
       // non absolute urls
       expect($icon.attr('href')).toContain('/icon')
       expect($icon.attr('href')).toMatch(hashRegex)
