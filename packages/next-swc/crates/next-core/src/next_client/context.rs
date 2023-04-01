@@ -2,30 +2,38 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    chunk::ChunkingContextVc,
-    compile_time_defines,
-    compile_time_info::{
-        CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-        FreeVarReferencesVc,
+use turbo_binding::{
+    turbo::{
+        tasks_env::ProcessEnvVc,
+        tasks_fs::{FileSystemPathVc},
     },
-    context::AssetContextVc,
-    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    free_var_references,
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::env::ProcessEnvAssetVc;
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    module_options::{
-        module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        JsxTransformOptions, PostCssTransformOptions, WebpackLoadersOptions,
+    turbopack::{
+        core::{
+            chunk::ChunkingContextVc,
+            compile_time_defines,
+            compile_time_info::{
+                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
+                FreeVarReferencesVc,
+            },
+            context::AssetContextVc,
+            environment::{
+                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+            },
+            free_var_references,
+        },
+        dev::DevChunkingContextVc,
+        env::ProcessEnvAssetVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            module_options::{
+                module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+                JsxTransformOptions, PostCssTransformOptions, WebpackLoadersOptions,
+            },
+            resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+            transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
     },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-    transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
 };
 use turbo_tasks::{primitives::StringVc, Value};
 

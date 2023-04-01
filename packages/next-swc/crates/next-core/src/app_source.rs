@@ -6,43 +6,49 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use indexmap::indexmap;
-use turbo_binding::turbo::tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
-use turbo_binding::turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    compile_time_info::CompileTimeInfoVc,
-    context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentIntention, ServerAddrVc},
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    source_asset::SourceAssetVc,
-    virtual_asset::VirtualAssetVc,
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::dev_server::{
-    html::DevHtmlAssetVc,
-    source::{
-        combined::CombinedContentSource, ContentSourceData, ContentSourceVc, NoContentSourceVc,
-    },
-};
-use turbo_binding::turbopack::ecmascript::{
-    magic_identifier, utils::StringifyJs, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::env::ProcessEnvAssetVc;
-use turbo_binding::turbopack::node::{
-    execution_context::ExecutionContextVc,
-    render::{
-        node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
-    },
-    NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::EcmascriptInputTransform,
-    transition::{TransitionVc, TransitionsByNameVc},
-    ModuleAssetContextVc,
-};
 use turbo_binding::{
-    turbo::tasks::{primitives::OptionStringVc, TryJoinIterExt, Value, ValueToString},
-    turbopack::core::asset::AssetsVc,
+    turbo::{
+        tasks::{primitives::OptionStringVc, TryJoinIterExt, Value, ValueToString},
+        tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
+        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+    },
+    turbopack::{
+        core::{
+            asset::AssetsVc,
+            compile_time_info::CompileTimeInfoVc,
+            context::{AssetContext, AssetContextVc},
+            environment::{EnvironmentIntention, ServerAddrVc},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source_asset::SourceAssetVc,
+            virtual_asset::VirtualAssetVc,
+        },
+        dev::DevChunkingContextVc,
+        dev_server::{
+            html::DevHtmlAssetVc,
+            source::{
+                combined::CombinedContentSource, ContentSourceData, ContentSourceVc,
+                NoContentSourceVc,
+            },
+        },
+        ecmascript::{
+            magic_identifier, utils::StringifyJs, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+        env::ProcessEnvAssetVc,
+        node::{
+            execution_context::ExecutionContextVc,
+            render::{
+                node_api_source::create_node_api_source,
+                rendered_source::create_node_rendered_source,
+            },
+            NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
+        },
+        turbopack::{
+            ecmascript::EcmascriptInputTransform,
+            transition::{TransitionVc, TransitionsByNameVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
 
 use crate::{

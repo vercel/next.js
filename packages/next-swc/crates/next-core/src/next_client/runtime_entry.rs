@@ -1,15 +1,18 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::asset::{AssetVc, AssetsVc};
-use turbo_binding::turbopack::core::{
-    asset::Asset,
-    context::AssetContextVc,
-    resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
-};
-use turbo_binding::turbopack::ecmascript::process_runtime_entries;
-use turbo_binding::turbopack::ecmascript::{
-    chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
-    resolve::cjs_resolve,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            asset::{Asset, AssetVc, AssetsVc},
+            context::AssetContextVc,
+            resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+        },
+        ecmascript::{
+            chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
+            process_runtime_entries,
+            resolve::cjs_resolve,
+        },
+    },
 };
 use turbo_tasks::ValueToString;
 

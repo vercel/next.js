@@ -1,22 +1,24 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_binding::turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::Asset,
-    resolve::{
-        options::{
-            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
-            ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+use turbo_binding::{
+    turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::Asset,
+            resolve::{
+                options::{
+                    ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
+                    ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+                },
+                parse::RequestVc,
+                pattern::Pattern,
+                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+            },
         },
-        parse::RequestVc,
-        pattern::Pattern,
-        resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    resolve_options, resolve_options_context::ResolveOptionsContext,
 };
 use turbo_tasks::Value;
 
