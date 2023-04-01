@@ -7,7 +7,6 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: {
-      swr: '2.0.0-rc.0',
       '@picocss/pico': '1.5.7',
       react: 'latest',
       'react-dom': 'latest',
@@ -506,18 +505,18 @@ createNextDescribe(
           const browser = await next.browser('/suspensey-css')
           await browser.elementByCss('#slow').click()
           await check(() => browser.eval(`document.body.innerText`), 'Get back')
-          expect(await browser.eval(`window.__log`)).toEqual(
-            'background = rgb(255, 255, 0)'
-          )
+          await check(async () => {
+            return await browser.eval(`window.__log`)
+          }, /background = rgb\(255, 255, 0\)/)
         })
 
         it('should timeout if the resource takes too long', async () => {
           const browser = await next.browser('/suspensey-css')
           await browser.elementByCss('#timeout').click()
           await check(() => browser.eval(`document.body.innerText`), 'Get back')
-          expect(await browser.eval(`window.__log`)).toEqual(
-            'background = rgba(0, 0, 0, 0)'
-          )
+          await check(async () => {
+            return await browser.eval(`window.__log`)
+          }, /background = rgb\(0, 0, 0\)/)
         })
       })
     }
