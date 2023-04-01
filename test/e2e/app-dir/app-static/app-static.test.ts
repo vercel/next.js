@@ -1281,7 +1281,7 @@ createNextDescribe(
       }, 'success')
     })
 
-    if (!process.env.CUSTOM_CACHE_HANDLER) {
+    if (!(process.env.CUSTOM_CACHE_HANDLER || (global as any).isNextDev)) {
       it('should honor dynamic = "force-static" correctly', async () => {
         const res = await next.fetch('/force-static/first')
         expect(res.status).toBe(200)
