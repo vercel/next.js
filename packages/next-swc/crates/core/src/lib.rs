@@ -163,8 +163,8 @@ where
         "next/server".to_string(),
         turbo_binding::swc::custom_transform::modularize_imports::PackageConfig {
             transform: "next/dist/server/web/exports/{{ kebabCase member }}".to_string(),
-            prevent_full_import: true,
-            skip_default_conversion: true,
+            prevent_full_import: false,
+            skip_default_conversion: false,
         },
     );
 
