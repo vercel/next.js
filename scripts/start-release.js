@@ -2,6 +2,7 @@ const path = require('path')
 const execa = require('execa')
 const resolveFrom = require('resolve-from')
 const ansiEscapes = require('ansi-escapes')
+const fetch = require('node-fetch')
 
 async function main() {
   const args = process.argv
@@ -72,6 +73,41 @@ async function main() {
     child.stdin.write('\n')
   }
   await child
+
+  if (isCanary) {
+    try {
+      const ghHeaders = {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${githubToken}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+      }
+      const { version } = require('../lerna.json')
+      const releaseUrlRes = await fetch(
+        `https://api.github.com/repos/vercel/next.js/releases/tag/${version}`,
+        {
+          headers: ghHeaders,
+        }
+      )
+
+      const { url } = await releaseUrlRes.json()
+      const undraftRes = await fetch(url, {
+        headers: ghHeaders,
+        method: 'PATCH',
+        body: JSON.stringify({
+          draft: false,
+          name: version,
+        }),
+      })
+
+      if (undraftRes.ok) {
+        console.log('undrafted canary release successfuly')
+      } else {
+        console.log(`Failed to undraft`, await undraftRes.text())
+      }
+    } catch (err) {
+      console.error(`Failed to undraft release`, err)
+    }
+  }
 }
 
 main()
