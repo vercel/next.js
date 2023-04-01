@@ -1,22 +1,25 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    compile_time_defines,
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
-    environment::{
-        EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
-        ServerAddrVc,
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            compile_time_defines,
+            compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+            environment::{
+                EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
+                ServerAddrVc,
+            },
+        },
+        ecmascript::EcmascriptInputTransform,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            module_options::{
+                JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
+                ModuleOptionsContextVc, PostCssTransformOptions, WebpackLoadersOptions,
+            },
+            resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+        },
     },
-};
-use turbo_binding::turbopack::ecmascript::EcmascriptInputTransform;
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    module_options::{
-        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext, ModuleOptionsContextVc,
-        PostCssTransformOptions, WebpackLoadersOptions,
-    },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
 use turbo_tasks::{primitives::StringVc, Value};
 

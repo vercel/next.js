@@ -1,26 +1,30 @@
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_binding::turbo::tasks::{
-    primitives::{OptionStringVc, StringVc, U32Vc},
-    Value,
-};
-use turbo_binding::turbo::tasks_fs::{
-    json::parse_json_with_source_context, FileContent, FileSystemPathVc,
-};
-use turbo_binding::turbopack::core::{
-    resolve::{
-        options::{
-            ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
-            ImportMappingReplacementVc, ImportMappingVc,
+use turbo_binding::{
+    turbo::{
+        tasks::{
+            primitives::{OptionStringVc, StringVc, U32Vc},
+            Value,
         },
-        parse::{Request, RequestVc},
-        pattern::QueryMapVc,
-        ResolveResult,
+        tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc},
     },
-    virtual_asset::VirtualAssetVc,
+    turbopack::{
+        core::{
+            resolve::{
+                options::{
+                    ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
+                    ImportMappingReplacementVc, ImportMappingVc,
+                },
+                parse::{Request, RequestVc},
+                pattern::QueryMapVc,
+                ResolveResult,
+            },
+            virtual_asset::VirtualAssetVc,
+        },
+        node::execution_context::ExecutionContextVc,
+    },
 };
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 
 use self::{
     font_fallback::get_font_fallback,
@@ -205,8 +209,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 
         #[cfg(not(feature = "__internal_nextjs_integration_test"))]
         let stylesheet_str = {
-            use turbo_binding::turbo::tasks_fetch::fetch;
-            use turbo_binding::turbopack::core::issue::IssueSeverity;
+            use turbo_binding::{turbo::tasks_fetch::fetch, turbopack::core::issue::IssueSeverity};
 
             let stylesheet_res = fetch(
                 stylesheet_url,
@@ -393,16 +396,22 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<String>> {
     use std::{collections::HashMap, path::Path};
 
-    use turbo_binding::turbo::tasks::CompletionVc;
-    use turbo_binding::turbo::tasks_bytes::stream::SingleValue;
-    use turbo_binding::turbo::tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
-    use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, File, FileSystem};
-    use turbo_binding::turbopack::core::{context::AssetContext, ident::AssetIdentVc};
-    use turbo_binding::turbopack::ecmascript::{
-        EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+    use turbo_binding::{
+        turbo::{
+            tasks::CompletionVc,
+            tasks_bytes::stream::SingleValue,
+            tasks_env::{CommandLineProcessEnvVc, ProcessEnv},
+            tasks_fs::{DiskFileSystemVc, File, FileSystem},
+        },
+        turbopack::{
+            core::{context::AssetContext, ident::AssetIdentVc},
+            ecmascript::{
+                EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+            },
+            node::{evaluate::evaluate, execution_context::ExecutionContext},
+            turbopack::evaluate_context::node_evaluate_asset_context,
+        },
     };
-    use turbo_binding::turbopack::node::{evaluate::evaluate, execution_context::ExecutionContext};
-    use turbo_binding::turbopack::turbopack::evaluate_context::node_evaluate_asset_context;
 
     let env = CommandLineProcessEnvVc::new().as_process_env();
     let mocked_response_js = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES").await?;

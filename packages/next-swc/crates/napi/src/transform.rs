@@ -26,9 +26,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use std::fs::read_to_string;
 use std::{
     cell::RefCell,
+    fs::read_to_string,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
     sync::Arc,

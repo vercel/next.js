@@ -1,15 +1,18 @@
 use anyhow::{anyhow, Context, Result};
 use futures::stream::StreamExt;
 use indexmap::IndexSet;
-use turbo_binding::turbopack::core::{
-    environment::ServerAddrVc,
-    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+use turbo_binding::turbopack::{
+    core::{
+        environment::ServerAddrVc,
+        introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    },
+    dev_server::source::{
+        Body, BodyError, ContentSource, ContentSourceContent, ContentSourceData,
+        ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData,
+        ProxyResult, RewriteBuilder,
+    },
+    node::execution_context::ExecutionContextVc,
 };
-use turbo_binding::turbopack::dev_server::source::{
-    Body, BodyError, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult, RewriteBuilder,
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 
 use crate::{
