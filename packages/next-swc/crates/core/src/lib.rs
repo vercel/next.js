@@ -30,23 +30,18 @@ DEALINGS IN THE SOFTWARE.
 #![deny(clippy::all)]
 #![feature(box_patterns)]
 
+use std::{cell::RefCell, env::current_dir, path::PathBuf, rc::Rc, sync::Arc};
+
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
-
 use next_transform_font::next_font_loaders;
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::env::current_dir;
-use std::rc::Rc;
-use std::{path::PathBuf, sync::Arc};
-
 use turbo_binding::swc::core::{
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
-    ecma::ast::EsVersion,
-    ecma::parser::parse_file_as_module,
-    ecma::transforms::base::pass::noop,
-    ecma::visit::Fold,
+    ecma::{
+        ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+    },
 };
 
 pub mod amp_attributes;

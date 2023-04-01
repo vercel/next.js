@@ -1,12 +1,13 @@
+use std::sync::Arc;
+
 use anyhow::{Context, Error};
 use js_sys::JsString;
 use next_swc::{custom_before_pass, TransformOptions};
-use std::sync::Arc;
-use wasm_bindgen::{prelude::*, JsCast};
-use wasm_bindgen_futures::future_to_promise;
-
 use turbo_binding::swc::core::{
-    base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
+    base::{
+        config::{JsMinifyOptions, ParseOptions},
+        try_with_handler, Compiler,
+    },
     common::{
         comments::{Comments, SingleThreadedComments},
         errors::ColorConfig,
@@ -14,6 +15,8 @@ use turbo_binding::swc::core::{
     },
     ecma::transforms::base::pass::noop,
 };
+use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen_futures::future_to_promise;
 
 pub mod mdx;
 

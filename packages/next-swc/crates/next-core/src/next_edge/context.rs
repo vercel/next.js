@@ -1,20 +1,22 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    compile_time_defines,
-    compile_time_info::{
-        CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-        FreeVarReferencesVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            compile_time_defines,
+            compile_time_info::{
+                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
+                FreeVarReferencesVc,
+            },
+            environment::{
+                EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+                ServerAddrVc,
+            },
+            free_var_references,
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     },
-    environment::{
-        EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
-        ServerAddrVc,
-    },
-    free_var_references,
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::resolve_options_context::{
-    ResolveOptionsContext, ResolveOptionsContextVc,
 };
 use turbo_tasks::Value;
 
@@ -39,6 +41,11 @@ pub fn next_edge_free_vars(project_path: FileSystemPathVc) -> FreeVarReferencesV
             request: "next/dist/compiled/buffer".to_string(),
             context: Some(project_path),
             export: Some("Buffer".to_string()),
+        },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "next/dist/build/polyfills/process".to_string(),
+            context: Some(project_path),
+            export: Some("default".to_string()),
         },
     )
     .cell()

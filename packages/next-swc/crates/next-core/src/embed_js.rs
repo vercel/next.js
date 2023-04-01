@@ -1,5 +1,7 @@
-use turbo_binding::turbo::tasks_fs::{FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc};
-use turbo_binding::turbopack::core::{asset::AssetVc, source_asset::SourceAssetVc};
+use turbo_binding::{
+    turbo::tasks_fs::{FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc},
+    turbopack::core::{asset::AssetVc, source_asset::SourceAssetVc},
+};
 
 pub const VIRTUAL_PACKAGE_NAME: &str = "@vercel/turbopack-next";
 
