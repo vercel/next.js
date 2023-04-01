@@ -9,7 +9,7 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      swr: '2.0.0-rc.0',
+      swr: 'latest',
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',

@@ -17,7 +17,6 @@ if (!(globalThis as any).isNextStart) {
     {
       files: __dirname,
       dependencies: {
-        swr: '2.0.0-rc.0',
         react: 'latest',
         'react-dom': 'latest',
         sass: 'latest',
