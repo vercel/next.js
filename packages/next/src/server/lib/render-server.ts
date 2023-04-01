@@ -114,7 +114,6 @@ export async function initialize(opts: {
         await app.prepare()
         resolve(result)
       } catch (err) {
-        console.error(err)
         return reject(err)
       }
     })

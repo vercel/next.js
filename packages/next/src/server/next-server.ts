@@ -1540,7 +1540,23 @@ export default class NextNodeServer extends BaseServer {
                 ].includes(key) &&
                 value !== undefined
               ) {
-                res.setHeader(key, value as string | string[])
+                if (key === 'set-cookie') {
+                  const curValue = res.getHeader(key)
+                  const newValue: string[] = [] as string[]
+                  for (const cookie of splitCookiesString(curValue || '')) {
+                    newValue.push(cookie)
+                  }
+                  for (const val of (Array.isArray(value)
+                    ? value
+                    : value
+                    ? [value]
+                    : []) as string[]) {
+                    newValue.push(val)
+                  }
+                  res.setHeader(key, newValue)
+                } else {
+                  res.setHeader(key, value as string)
+                }
               }
             }
             res.statusCode = invokeRes.status
