@@ -394,7 +394,6 @@ export default class Router {
           JSON.parse(decodeURIComponent(invokeQuery))
         )
       }
-      parsedUrlUpdated.query._nextBubbleNoFallback = '1'
     }
 
     for (const route of curRoutes) {

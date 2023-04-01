@@ -1470,6 +1470,9 @@ export default class NextNodeServer extends BaseServer {
               }
               keptQuery[key] = query[key]
             }
+            if (query._nextBubbleNoFallback) {
+              keptQuery._nextBubbleNoFallback = '1'
+            }
             const invokeQuery = JSON.stringify(keptQuery)
 
             const invokeHeaders: typeof req.headers = {
