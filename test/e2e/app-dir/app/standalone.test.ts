@@ -16,11 +16,6 @@ if (!(globalThis as any).isNextStart) {
     'output: standalone with app dir',
     {
       files: __dirname,
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-        sass: 'latest',
-      },
       skipStart: true,
     },
     ({ next }) => {

@@ -16,12 +16,6 @@ describe('vercel analytics', () => {
     beforeAll(async () => {
       next = await createNext({
         files: __dirname,
-        dependencies: {
-          swr: 'latest',
-          react: 'latest',
-          'react-dom': 'latest',
-          sass: 'latest',
-        },
         skipStart: true,
         env: {
           VERCEL_ANALYTICS_ID: 'fake-analytics-id',

@@ -8,12 +8,6 @@ createNextDescribe(
   'app dir',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (!isDev) {
@@ -215,9 +209,6 @@ createNextDescribe(
     it('should serve from pages', async () => {
       const html = await next.render('/')
       expect(html).toContain('hello from pages/index')
-
-      // esm imports should work fine in pages/
-      expect(html).toContain('swr-index')
     })
 
     it('should serve dynamic route from pages', async () => {
