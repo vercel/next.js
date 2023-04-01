@@ -26,6 +26,10 @@ use chromiumoxide::{
 use dunce::canonicalize;
 use futures::StreamExt;
 use lazy_static::lazy_static;
+use next_core::turbopack::{
+    cli_utils::issue::{format_issue, LogOptions},
+    core::issue::IssueSeverity,
+};
 use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use regex::{Captures, Regex, Replacer};
@@ -524,10 +528,18 @@ impl IssueReporter for TestIssueReporter {
         captured_issues: TransientInstance<ReadRef<CapturedIssues>>,
         _source: TransientValue<RawVc>,
     ) -> Result<BoolVc> {
+        let log_options = LogOptions {
+            current_dir: PathBuf::new(),
+            project_dir: PathBuf::new(),
+            show_all: true,
+            log_detail: true,
+            log_level: IssueSeverity::Info,
+        };
         let issue_tx = self.issue_tx.get_untracked().clone();
         for (issue, path) in captured_issues.iter_with_shortest_path() {
             let plain = NormalizedIssue(issue).cell().as_issue().into_plain(path);
             issue_tx.send((plain.await?, plain.dbg().await?))?;
+            println!("{}", format_issue(&*plain.await?, None, &log_options));
         }
         Ok(BoolVc::cell(false))
     }
