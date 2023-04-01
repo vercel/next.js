@@ -892,7 +892,8 @@ export default async function build(
           appPageKeys,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
-            : []
+            : [],
+          config.experimental.clientRouterFilterAllowedRate
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters

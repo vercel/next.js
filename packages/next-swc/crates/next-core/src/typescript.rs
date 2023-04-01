@@ -1,14 +1,14 @@
 use anyhow::Result;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
-    source_asset::SourceAssetVc,
-};
-use turbo_binding::turbopack::ecmascript::typescript::resolve::{
-    read_from_tsconfigs, read_tsconfigs, tsconfig,
-};
-use turbo_binding::turbopack::turbopack::module_options::{
-    TypescriptTransformOptions, TypescriptTransformOptionsVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            resolve::{find_context_file, node::node_cjs_resolve_options, FindContextFileResult},
+            source_asset::SourceAssetVc,
+        },
+        ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
+        turbopack::module_options::{TypescriptTransformOptions, TypescriptTransformOptionsVc},
+    },
 };
 
 // Get the transform options for specifically for the typescript's runtime

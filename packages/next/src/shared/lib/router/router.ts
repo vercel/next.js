@@ -1052,7 +1052,12 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  async _bfl(as: string, resolvedAs?: string, locale?: string | false) {
+  async _bfl(
+    as: string,
+    resolvedAs?: string,
+    locale?: string | false,
+    skipNavigate?: boolean
+  ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
       let matchesBflStatic = false
       let matchesBflDynamic = false
@@ -1095,6 +1100,9 @@ export default class Router implements BaseRouter {
             // if the client router filter is matched then we trigger
             // a hard navigation
             if (matchesBflStatic || matchesBflDynamic) {
+              if (skipNavigate) {
+                return true
+              }
               handleHardNavigation({
                 url: addBasePath(
                   addLocale(as, locale || this.locale, this.defaultLocale)
@@ -1107,6 +1115,7 @@ export default class Router implements BaseRouter {
         }
       }
     }
+    return false
   }
 
   private async change(
@@ -1310,6 +1319,13 @@ export default class Router implements BaseRouter {
 
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url, router: this })
+      return new Promise(() => {})
+    }
 
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
@@ -2276,6 +2292,7 @@ export default class Router implements BaseRouter {
       return
     }
     let parsed = parseRelativeUrl(url)
+    const urlPathname = parsed.pathname
 
     let { pathname, query } = parsed
     const originalPathname = pathname
@@ -2411,6 +2428,10 @@ export default class Router implements BaseRouter {
     }
 
     const route = removeTrailingSlash(pathname)
+
+    if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
+      this.components[urlPathname] = { __appRouter: true } as any
+    }
 
     await Promise.all([
       this.pageLoader._isSsg(route).then((isSsg) => {

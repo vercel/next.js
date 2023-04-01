@@ -1,18 +1,22 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    chunk::ChunkGroupVc,
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContextVc,
-    resolve::{options::ImportMap, origin::PlainResolveOriginVc},
-};
-use turbo_binding::turbopack::dev_server::html::DevHtmlAssetVc;
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            chunk::ChunkGroupVc,
+            compile_time_info::CompileTimeInfoVc,
+            context::AssetContextVc,
+            resolve::{options::ImportMap, origin::PlainResolveOriginVc},
+        },
+        dev_server::html::DevHtmlAssetVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
+    },
 };
 use turbo_tasks::Value;
 

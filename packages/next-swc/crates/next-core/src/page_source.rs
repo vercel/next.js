@@ -1,40 +1,48 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
-use turbo_binding::turbo::tasks_fs::{FileContent, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::AssetVc,
-    chunk::ChunkingContextVc,
-    context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentIntention, ServerAddrVc},
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    source_asset::SourceAssetVc,
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::dev_server::{
-    html::DevHtmlAssetVc,
-    source::{
-        asset_graph::AssetGraphContentSourceVc,
-        combined::{CombinedContentSource, CombinedContentSourceVc},
-        specificity::SpecificityVc,
-        ContentSourceData, ContentSourceVc, NoContentSourceVc,
+use turbo_binding::{
+    turbo::{
+        tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
+        tasks_fs::{FileContent, FileSystemPathVc},
+    },
+    turbopack::{
+        core::{
+            asset::AssetVc,
+            chunk::ChunkingContextVc,
+            context::{AssetContext, AssetContextVc},
+            environment::{EnvironmentIntention, ServerAddrVc},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source_asset::SourceAssetVc,
+        },
+        dev::DevChunkingContextVc,
+        dev_server::{
+            html::DevHtmlAssetVc,
+            source::{
+                asset_graph::AssetGraphContentSourceVc,
+                combined::{CombinedContentSource, CombinedContentSourceVc},
+                specificity::SpecificityVc,
+                ContentSourceData, ContentSourceVc, NoContentSourceVc,
+            },
+        },
+        ecmascript::{
+            chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform,
+            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+            InnerAssetsVc,
+        },
+        env::ProcessEnvAssetVc,
+        node::{
+            execution_context::ExecutionContextVc,
+            render::{
+                node_api_source::create_node_api_source,
+                rendered_source::create_node_rendered_source,
+            },
+            route_matcher::RouteMatcherVc,
+            NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
+        },
+        turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc},
     },
 };
-use turbo_binding::turbopack::ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::env::ProcessEnvAssetVc;
-use turbo_binding::turbopack::node::{
-    execution_context::ExecutionContextVc,
-    render::{
-        node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
-    },
-    route_matcher::RouteMatcherVc,
-    NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
-};
-use turbo_binding::turbopack::turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbo_tasks::{
     primitives::{OptionStringVc, StringVc, StringsVc},
     trace::TraceRawVcs,
