@@ -99,7 +99,9 @@ export async function adapter(
 
   const request = new NextRequestHint({
     page: params.page,
-    input: String(requestUrl),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? params.request.url
+      : String(requestUrl),
     init: {
       body: params.request.body,
       geo: params.request.geo,
