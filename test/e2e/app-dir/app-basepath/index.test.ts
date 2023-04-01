@@ -6,7 +6,6 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
     dependencies: {
-      swr: '2.0.0-rc.0',
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',

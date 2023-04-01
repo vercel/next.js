@@ -4,12 +4,6 @@ createNextDescribe(
   'app dir - hooks',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDeploy }) => {
     describe('from pages', () => {
