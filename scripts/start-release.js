@@ -81,16 +81,28 @@ async function main() {
         Authorization: `Bearer ${githubToken}`,
         'X-GitHub-Api-Version': '2022-11-28',
       }
-      const { version } = require('../lerna.json')
+      let { version } = require('../lerna.json')
+      version = `v${version}`
+
       const releaseUrlRes = await fetch(
-        `https://api.github.com/repos/vercel/next.js/releases/tag/${version}`,
+        `https://api.github.com/repos/vercel/next.js/releases`,
         {
           headers: ghHeaders,
         }
       )
 
-      const { url } = await releaseUrlRes.json()
-      const undraftRes = await fetch(url, {
+      const releasesData = await releaseUrlRes.json()
+
+      const release = releasesData.find(
+        (release) => release.tag_name === version
+      )
+
+      if (!release) {
+        console.log(`Failed to find release`, releasesData)
+        return
+      }
+
+      const undraftRes = await fetch(release.url, {
         headers: ghHeaders,
         method: 'PATCH',
         body: JSON.stringify({
@@ -100,7 +112,7 @@ async function main() {
       })
 
       if (undraftRes.ok) {
-        console.log('undrafted canary release successfuly')
+        console.log('un-drafted canary release successfully')
       } else {
         console.log(`Failed to undraft`, await undraftRes.text())
       }
