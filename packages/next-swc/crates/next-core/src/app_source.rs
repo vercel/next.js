@@ -44,7 +44,7 @@ use turbo_binding::turbopack::turbopack::{
 };
 
 use crate::{
-    app_render::next_layout_entry_transition::NextLayoutEntryTransition,
+    app_render::next_layout_entry_transition::NextServerComponentTransition,
     app_structure::{
         get_entrypoints, Components, Entrypoint, LoaderTree, LoaderTreeVc, OptionAppDirVc,
     },
@@ -163,7 +163,7 @@ fn next_layout_entry_transition(
     let rsc_module_options_context =
         get_server_module_options_context(project_path, execution_context, ty, next_config);
 
-    NextLayoutEntryTransition {
+    NextServerComponentTransition {
         rsc_compile_time_info,
         rsc_module_options_context,
         rsc_resolve_options_context,

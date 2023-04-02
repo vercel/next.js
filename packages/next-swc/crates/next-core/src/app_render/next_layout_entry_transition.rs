@@ -12,7 +12,7 @@ use turbo_binding::turbopack::turbopack::{
 use crate::next_client_component::with_client_chunks::WithClientChunksAsset;
 
 #[turbo_tasks::value(shared)]
-pub struct NextLayoutEntryTransition {
+pub struct NextServerComponentTransition {
     pub rsc_compile_time_info: CompileTimeInfoVc,
     pub rsc_module_options_context: ModuleOptionsContextVc,
     pub rsc_resolve_options_context: ResolveOptionsContextVc,
@@ -20,7 +20,7 @@ pub struct NextLayoutEntryTransition {
 }
 
 #[turbo_tasks::value_impl]
-impl Transition for NextLayoutEntryTransition {
+impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
