@@ -16,7 +16,7 @@ qstring = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
 indoc = { workspace = true }
 allsorts = { workspace = true }
