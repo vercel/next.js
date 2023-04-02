@@ -119,6 +119,7 @@ import {
   teardownTraceSubscriber,
   teardownCrashReporter,
   loadBindings,
+  teardownHeapProfiler,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
@@ -891,7 +892,8 @@ export default async function build(
           appPageKeys,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
-            : []
+            : [],
+          config.experimental.clientRouterFilterAllowedRate
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters
@@ -1270,6 +1272,20 @@ export default async function build(
         },
         numWorkers: config.experimental.cpus,
         enableWorkerThreads: config.experimental.workerThreads,
+        computeWorkerKey(method, ...args) {
+          if (method === 'exportPage') {
+            const typedArgs = args as Parameters<
+              typeof import('./worker').exportPage
+            >
+            return typedArgs[0].pathMap.page
+          } else if (method === 'isPageStatic') {
+            const typedArgs = args as Parameters<
+              typeof import('./worker').isPageStatic
+            >
+            return typedArgs[0].originalAppPath || typedArgs[0].page
+          }
+          return method
+        },
         exposedMethods: sharedPool
           ? [
               'hasCustomGetInitialProps',
@@ -3144,6 +3160,7 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
+    teardownHeapProfiler()
     teardownCrashReporter()
   }
 }

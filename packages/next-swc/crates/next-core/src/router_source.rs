@@ -1,15 +1,17 @@
-use anyhow::{anyhow, bail, Context, Result};
-use futures::stream::StreamExt;
+use anyhow::{anyhow, Context, Result};
 use indexmap::IndexSet;
-use turbo_binding::turbopack::core::{
-    environment::ServerAddrVc,
-    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+use turbo_binding::turbopack::{
+    core::{
+        environment::ServerAddrVc,
+        introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    },
+    dev_server::source::{
+        Body, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+        ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult,
+        RewriteBuilder,
+    },
+    node::execution_context::ExecutionContextVc,
 };
-use turbo_binding::turbopack::dev_server::source::{
-    Body, BodyError, ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult, RewriteBuilder,
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
 use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 
 use crate::{
@@ -127,13 +129,15 @@ impl ContentSource for NextRouterContentSource {
 
         let res = res
             .await
-            .with_context(|| anyhow!("failed to fetch /{path}{}", formated_query(raw_query)))?;
+            .with_context(|| format!("failed to fetch /{path}{}", formated_query(raw_query)))?;
 
         Ok(match &*res {
-            RouterResult::Error => bail!(
-                "error during Next.js routing for /{path}{}",
-                formated_query(raw_query)
-            ),
+            RouterResult::Error(e) => {
+                return Err(anyhow!(e.clone()).context(format!(
+                    "error during Next.js routing for /{path}{}: {e}",
+                    formated_query(raw_query)
+                )))
+            }
             RouterResult::None => this
                 .inner
                 .get(path, Value::new(ContentSourceData::default())),
@@ -151,11 +155,7 @@ impl ContentSource for NextRouterContentSource {
                     ProxyResult {
                         status: data.status_code,
                         headers: data.headers.clone(),
-                        body: Body::from_stream(data.body.read().map(|chunk| {
-                            chunk.map_err(|e| {
-                                BodyError::new(format!("error streaming proxied contents: {}", e))
-                            })
-                        })),
+                        body: Body::from_stream(data.body.read()),
                     }
                     .cell(),
                 )

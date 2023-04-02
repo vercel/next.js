@@ -16,7 +16,7 @@ createNextDescribe(
     async function checkMeta(
       browser: BrowserInterface,
       queryValue: string,
-      expected: string | string[] | undefined | null,
+      expected: RegExp | string | string[] | undefined | null,
       queryKey: string = 'property',
       tag: string = 'meta',
       domAttributeField: string = 'content'
@@ -24,10 +24,14 @@ createNextDescribe(
       const values = await browser.eval(
         `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
       )
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
+      if (expected instanceof RegExp) {
+        expect(values[0]).toMatch(expected)
       } else {
-        expect(values[0]).toBe(expected)
+        if (Array.isArray(expected)) {
+          expect(values).toEqual(expected)
+        } else {
+          expect(values[0]).toBe(expected)
+        }
       }
     }
 
@@ -256,41 +260,47 @@ createNextDescribe(
       })
 
       it('should support alternate tags', async () => {
-        const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
-        await checkMeta(
-          browser,
-          'en-US',
-          'https://example.com/en-US',
-          'hreflang',
-          'link',
-          'href'
-        )
-        await checkMeta(
-          browser,
-          'de-DE',
-          'https://example.com/de-DE',
-          'hreflang',
-          'link',
-          'href'
-        )
-        await checkMeta(
-          browser,
-          'only screen and (max-width: 600px)',
-          '/mobile',
-          'media',
-          'link',
-          'href'
-        )
+        const browser = await next.browser('/alternates')
         const matchDom = createDomMatcher(browser)
 
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
         await matchDom('link', 'title="js title"', {
           type: 'application/rss+xml',
-          href: 'blog/js.rss',
+          href: 'https://example.com/blog/js.rss',
         })
         await matchDom('link', 'title="rss"', {
           type: 'application/rss+xml',
-          href: 'blog.rss',
+          href: 'https://example.com/blog.rss',
+        })
+        await matchDom('link', 'hreflang="en-US"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/en-US',
+        })
+        await matchDom('link', 'hreflang="de-DE"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/de-DE',
+        })
+        await matchDom('link', 'media="only screen and (max-width: 600px)"', {
+          rel: 'alternate',
+          href: 'https://example.com/mobile',
+        })
+      })
+
+      it('should relative canonical url', async () => {
+        const browser = await next.browser('/alternates/child')
+        const matchDom = createDomMatcher(browser)
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates/child',
+        })
+        await matchDom('link', 'hreflang="en-US"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/child/en-US',
+        })
+        await matchDom('link', 'hreflang="de-DE"', {
+          rel: 'alternate',
+          href: 'https://example.com/alternates/child/de-DE',
         })
       })
 
@@ -364,15 +374,22 @@ createNextDescribe(
         )
       })
 
-      it('should support notFound and redirect in generateMetadata', async () => {
-        const resNotFound = await next.fetch('/async/not-found')
-        expect(resNotFound.status).toBe(404)
-        const notFoundHtml = await resNotFound.text()
-        expect(notFoundHtml).not.toBe('not-found-text')
-        expect(notFoundHtml).toContain('This page could not be found.')
+      it('should support notFound in generateMetadata', async () => {
+        // TODO-APP: support custom not-found for generateMetadata
+        const res = await next.fetch('/async/not-found')
+        expect(res.status).toBe(404)
+        const html = await res.text()
+        expect(html).toContain('root not found page')
 
-        const resRedirect = await next.fetch('/async/redirect')
-        expect(resRedirect.status).toBe(307)
+        const browser = await next.browser('/async/not-found')
+        expect(await browser.elementByCss('h2').text()).toBe(
+          'root not found page'
+        )
+      })
+
+      it('should support redirect in generateMetadata', async () => {
+        const res = await next.fetch('/async/redirect')
+        expect(res.status).toBe(307)
       })
 
       it('should handle metadataBase for urls resolved as only URL type', async () => {
