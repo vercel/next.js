@@ -22,7 +22,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const { type, route, pageExtensions } = options
   const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
-  const { name: filename, ext } = path.parse(resourcePath)
+  const { name: fileNameBase, ext } = path.parse(resourcePath)
 
   let extension = ext.slice(1)
   if (extension === 'jpg') {
@@ -31,24 +31,27 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const opts = { context, content }
 
-  const interpolatedName = loaderUtils.interpolateName(
-    this,
-    '[name].[ext]',
-    opts
-  )
-
   // No hash query for favicon.ico
   const contentHash =
     type === 'favicon'
       ? ''
       : loaderUtils.interpolateName(this, '[contenthash]', opts)
 
-  const pageRoute = filename + (contentHash ? '?' + contentHash : '')
+  const interpolatedName = loaderUtils.interpolateName(
+    this,
+    '[name].[ext]',
+    opts
+  )
 
   const isDynamicResource = pageExtensions.includes(extension)
+  const pageRoute =
+    (isDynamicResource ? fileNameBase : interpolatedName) +
+    (contentHash ? '?' + contentHash : '')
+
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
+    import path from 'path'
     import * as exported from ${JSON.stringify(resourcePath)}
     import { interpolateDynamicPath } from 'next/dist/server/server-utils'
     import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
@@ -62,7 +65,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       const imageData = {
         alt: exportedImageData.alt,
         type: exportedImageData.contentType,
-        url: route + '/' + ${JSON.stringify(pageRoute)},
+        url: path.join(route, ${JSON.stringify(pageRoute)}),
       }
       const { size } = exportedImageData
       if (size) {
@@ -102,6 +105,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   }
 
   return `\
+  import path from 'path'
   import { interpolateDynamicPath } from 'next/dist/server/server-utils'
   import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
@@ -109,10 +113,12 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     const pathname = ${JSON.stringify(route)}
     const routeRegex = getNamedRouteRegex(pathname)
     const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+
     const imageData = ${JSON.stringify(imageData)};
+
     return {
       ...imageData,
-      url: route + '/' + ${JSON.stringify(pageRoute)},
+      url: path.join(route, ${JSON.stringify(pageRoute)}),
     }
   }`
 }
