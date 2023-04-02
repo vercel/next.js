@@ -335,8 +335,8 @@ fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
 }
 
-fn match_parallel_route(name: &str) -> Option<String> {
-    name.strip_prefix('@').map(|s| s.to_string())
+fn match_parallel_route(name: &str) -> Option<&str> {
+    name.strip_prefix('@')
 }
 
 fn is_optional_segment(name: &str) -> bool {
@@ -516,7 +516,7 @@ async fn directory_tree_to_entrypoints_internal(
     }
 
     for (subdir_name, &subdirectory) in subdirectories.iter() {
-        let parallel_route_key: Option<String> = match_parallel_route(subdir_name);
+        let parallel_route_key = match_parallel_route(subdir_name);
         let optional_segment = is_optional_segment(subdir_name);
         let map = directory_tree_to_entrypoints_internal(
             app_dir,
