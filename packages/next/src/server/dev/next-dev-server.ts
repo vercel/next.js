@@ -1260,7 +1260,12 @@ export default class DevServer extends Server {
       const res = await fetch(
         `http://${this.hostname}:${ipcPort}?method=${
           method as string
-        }&args=${encodeURIComponent(JSON.stringify(args))}`
+        }&args=${encodeURIComponent(JSON.stringify(args))}`,
+        {
+          next: {
+            hideOTelSpan: true,
+          } as any,
+        }
       )
       const body = await res.text()
 

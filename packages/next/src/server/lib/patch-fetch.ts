@@ -50,6 +50,8 @@ export function patchFetch({
           'net.peer.name': url?.hostname,
           'net.peer.port': url?.port || undefined,
         },
+        // Untyped option for internal use, to hide traces in dev mode
+        hideSpan: (init?.next as any)?.hideOTelSpan,
       },
       async () => {
         const staticGenerationStore = staticGenerationAsyncStorage.getStore()
