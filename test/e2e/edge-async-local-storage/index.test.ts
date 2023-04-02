@@ -70,7 +70,7 @@ describe('edge api can use async local storage', () => {
   afterEach(() => next.destroy())
 
   it.each(cases)(
-    'cans use $title per request',
+    'can use $title per request',
     async ({ code, expectResponse }) => {
       next = await createNext({
         files: {
