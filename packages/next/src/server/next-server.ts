@@ -258,106 +258,35 @@ export default class NextNodeServer extends BaseServer {
         hostname: this.hostname,
         dev: !!options.dev,
       }
+      const { createWorker, createIpcServer } =
+        require('./lib/server-ipc') as typeof import('./lib/server-ipc')
       this.renderWorkersPromises = new Promise<void>(async (resolveWorkers) => {
-        // we can't use process.send as jest-worker relies on
-        // it already and can cause unexpected message errors
-        const ipcServer = (
-          require('http') as typeof import('http')
-        ).createServer(async (req, res) => {
-          try {
-            const url = new URL(req.url || '/', 'http://n')
-            const method = url.searchParams.get('method')
-            const args: any[] = JSON.parse(url.searchParams.get('args') || '[]')
-
-            if (!method || !Array.isArray(args)) {
-              return res.end()
-            }
-
-            if (typeof (this as any)[method] === 'function') {
-              if (method === 'logErrorWithOriginalStack' && args[0]?.stack) {
-                args[0] = deserializeErr(args[0])
-              }
-              let result = await (this as any)[method](...args)
-
-              if (result && typeof result === 'object' && result.stack) {
-                result = errorToJSON(result)
-              }
-              res.end(JSON.stringify(result || ''))
-            }
-          } catch (err: any) {
-            console.error(err)
-            res.end(
-              JSON.stringify({
-                err: { name: err.name, message: err.message, stack: err.stack },
-              })
+        try {
+          this.renderWorkers = {}
+          const { ipcPort } = await createIpcServer(this)
+          if (this.hasAppDir) {
+            this.renderWorkers.app = createWorker(
+              this.port || 0,
+              ipcPort,
+              options.isNodeDebugging,
+              'app'
             )
           }
-        })
+          this.renderWorkers.pages = createWorker(
+            this.port || 0,
+            ipcPort,
+            options.isNodeDebugging,
+            'pages'
+          )
+          this.renderWorkers.middleware =
+            this.renderWorkers.pages || this.renderWorkers.app
 
-        const ipcPort = await new Promise((resolveIpc) => {
-          ipcServer.listen(0, this.hostname, () => {
-            const addr = ipcServer.address()
-
-            if (addr && typeof addr === 'object') {
-              resolveIpc(addr.port)
-            }
-          })
-        })
-
-        const createWorker = (type: string) => {
-          const { initialEnv } =
-            require('@next/env') as typeof import('@next/env')
-          const { Worker } = require('next/dist/compiled/jest-worker')
-          const worker = new Worker(require.resolve('./lib/render-server'), {
-            numWorkers: 1,
-            // TODO: do we want to allow more than 10 OOM restarts?
-            maxRetries: 10,
-            forkOptions: {
-              env: {
-                FORCE_COLOR: '1',
-                ...initialEnv,
-                // we don't pass down NODE_OPTIONS as it can
-                // extra memory usage
-                NODE_OPTIONS: getNodeOptionsWithoutInspect()
-                  .replace(/--max-old-space-size=[\d]{1,}/, '')
-                  .trim(),
-                __NEXT_PRIVATE_RENDER_WORKER: type,
-                __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
-                NODE_ENV: process.env.NODE_ENV,
-              },
-              execArgv: genExecArgv(
-                options.isNodeDebugging === undefined
-                  ? false
-                  : options.isNodeDebugging,
-                (this.port || 0) + 1
-              ),
-            },
-            exposedMethods: [
-              'initialize',
-              'deleteCache',
-              'deleteAppClientCache',
-            ],
-          }) as any as InstanceType<typeof Worker> & {
-            initialize: typeof import('./lib/render-server').initialize
-            deleteCache: typeof import('./lib/render-server').deleteCache
-            deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
-          }
-
-          worker.getStderr().pipe(process.stderr)
-          worker.getStdout().pipe(process.stdout)
-
-          return worker
+          resolveWorkers()
+        } catch (err) {
+          Log.error(`Invariant failed to initialize render workers`)
+          console.error(err)
+          process.exit(1)
         }
-        this.renderWorkers = {}
-
-        if (this.hasAppDir) {
-          this.renderWorkers.app = createWorker('app')
-        }
-        this.renderWorkers.pages = createWorker('pages')
-        this.renderWorkers.middleware =
-          this.renderWorkers.pages || this.renderWorkers.app
-
-        resolveWorkers()
       })
       ;(global as any)._nextDeleteCache = (filePath: string) => {
         this.renderWorkers?.pages?.deleteCache(filePath)

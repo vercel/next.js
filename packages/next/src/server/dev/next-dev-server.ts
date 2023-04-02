@@ -1254,19 +1254,31 @@ export default class DevServer extends Server {
     }
   }
 
-  private async logErrorWithOriginalStack(
+  private async invokeIpcMethod(method: string, args: any[]): Promise<any> {
+    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
+    if (ipcPort) {
+      const res = await fetch(
+        `http://${this.hostname}:${ipcPort}?method=${
+          method as string
+        }&args=${encodeURIComponent(JSON.stringify(args))}`
+      )
+      const body = await res.text()
+
+      if (body.startsWith('{') && body.endsWith('}')) {
+        return JSON.parse(body)
+      }
+    }
+  }
+
+  protected async logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
-    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-    if (ipcPort) {
-      await fetch(
-        `http://${
-          this.hostname
-        }:${ipcPort}?method=logErrorWithOriginalStack&args=${encodeURIComponent(
-          JSON.stringify([errorToJSON(err as Error), type])
-        )}`
-      )
+    if (this.isRenderWorker) {
+      await this.invokeIpcMethod('logErrorWithOriginalStack', [
+        errorToJSON(err as Error),
+        type,
+      ])
       return
     }
 
@@ -1695,15 +1707,8 @@ export default class DevServer extends Server {
     appPaths?: string[] | null
     match?: RouteMatch
   }) {
-    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-    if (ipcPort) {
-      await fetch(
-        `http://${
-          this.hostname
-        }:${ipcPort}?method=ensurePage&args=${encodeURIComponent(
-          JSON.stringify([opts])
-        )}`
-      )
+    if (this.isRenderWorker) {
+      await this.invokeIpcMethod('ensurePage', [opts])
       return
     }
     return this.hotReloader?.ensurePage(opts)
@@ -1767,15 +1772,8 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-    if (ipcPort) {
-      await fetch(
-        `http://${
-          this.hostname
-        }:${ipcPort}?method=getFallbackErrorComponents&args=${encodeURIComponent(
-          JSON.stringify([])
-        )}`
-      )
+    if (this.isRenderWorker) {
+      await this.invokeIpcMethod('getFallbackErrorComponents', [])
       return await loadDefaultErrorComponents(this.distDir)
     }
     await this.hotReloader?.buildFallbackError()
@@ -1812,22 +1810,9 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
-    if (ipcPort) {
-      const res = await fetch(
-        `http://${
-          this.hostname
-        }:${ipcPort}?method=getCompilationError&args=${encodeURIComponent(
-          JSON.stringify([page])
-        )}`
-      )
-      const body = await res.text()
-
-      if (body.startsWith('{') && body.endsWith('}')) {
-        const err = deserializeErr(JSON.parse(body))
-        return err
-      }
-      return
+    if (this.isRenderWorker) {
+      const err = await this.invokeIpcMethod('getCompilationError', [page])
+      return deserializeErr(err)
     }
     const errors = await this.hotReloader?.getCompilationErrors(page)
     if (!errors) return
