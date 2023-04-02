@@ -7,7 +7,8 @@ import { ReadonlyReducerState } from './router-reducer-types'
 export function applyFlightData(
   state: ReadonlyReducerState,
   cache: CacheNode,
-  flightDataPath: FlightDataPath
+  flightDataPath: FlightDataPath,
+  wasPrefetched?: boolean
 ): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
@@ -20,7 +21,13 @@ export function applyFlightData(
   if (flightDataPath.length === 3) {
     cache.status = CacheStates.READY
     cache.subTreeData = subTreeData
-    fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
+    fillLazyItemsTillLeafWithHead(
+      cache,
+      state.cache,
+      treePatch,
+      head,
+      wasPrefetched
+    )
   } else {
     // Copy subTreeData for the root node of the cache.
     cache.status = CacheStates.READY

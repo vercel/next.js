@@ -2,38 +2,40 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_binding::turbo::tasks::{primitives::StringVc, Value};
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::{FileSystem, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    chunk::ChunkingContextVc,
-    compile_time_defines,
-    compile_time_info::{
-        CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-        FreeVarReferencesVc,
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            chunk::ChunkingContextVc,
+            compile_time_defines,
+            compile_time_info::{
+                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
+                FreeVarReferencesVc,
+            },
+            context::AssetContextVc,
+            environment::{
+                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+            },
+            free_var_references,
+        },
+        dev::DevChunkingContextVc,
+        env::ProcessEnvAssetVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            module_options::{
+                module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+                JsxTransformOptions, PostCssTransformOptions, WebpackLoadersOptions,
+            },
+            resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+            transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
     },
-    context::AssetContextVc,
-    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    free_var_references,
-    resolve::{parse::RequestVc, pattern::Pattern},
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::env::ProcessEnvAssetVc;
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    module_options::{
-        module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        JsxTransformOptions, PostCssTransformOptions, WebpackLoadersOptions,
-    },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-    transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
 };
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
-    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -63,6 +65,11 @@ pub fn next_client_free_vars() -> FreeVarReferencesVc {
             context: None,
             export: Some("Buffer".to_string()),
         },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "node:process".to_string(),
+            context: None,
+            export: Some("default".to_string()),
+        }
     )
     .cell()
 }
@@ -240,10 +247,10 @@ pub fn get_client_chunking_context(
         project_path,
         server_root,
         match ty.into_value() {
-            ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-                server_root.join("/_next/static/chunks")
-            }
-            ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_chunks"),
+            ClientContextType::Pages { .. }
+            | ClientContextType::App { .. }
+            | ClientContextType::Fallback => server_root.join("/_next/static/chunks"),
+            ClientContextType::Other => server_root.join("/_chunks"),
         },
         get_client_assets_path(server_root, ty),
         environment,
@@ -258,10 +265,10 @@ pub fn get_client_assets_path(
     ty: Value<ClientContextType>,
 ) -> FileSystemPathVc {
     match ty.into_value() {
-        ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-            server_root.join("/_next/static/assets")
-        }
-        ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_assets"),
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => server_root.join("/_next/static/assets"),
+        ClientContextType::Other => server_root.join("/_assets"),
     }
 }
 
@@ -280,10 +287,19 @@ pub async fn get_client_runtime_entries(
             .await?
             .as_request();
 
-    let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
-        ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
-    )
-    .cell()];
+    let mut runtime_entries = vec![];
+
+    if matches!(
+        *ty,
+        ClientContextType::App { .. } | ClientContextType::Pages { .. },
+    ) {
+        runtime_entries.push(
+            RuntimeEntry::Source(
+                ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
+            )
+            .cell(),
+        );
+    }
 
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
@@ -291,17 +307,6 @@ pub async fn get_client_runtime_entries(
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };
-    if matches!(ty.into_value(), ClientContextType::Other) {
-        runtime_entries.push(
-            RuntimeEntry::Request(
-                RequestVc::parse(Value::new(Pattern::Constant(
-                    "./dev/bootstrap.ts".to_string(),
-                ))),
-                next_js_fs().root().join("_"),
-            )
-            .cell(),
-        );
-    }
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
 }

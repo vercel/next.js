@@ -1,5 +1,7 @@
-use turbo_binding::turbo::tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi};
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
+use turbo_binding::turbo::{
+    tasks::{NothingVc, StatsType, TurboTasks, TurboTasksBackendApi},
+    tasks_memory::MemoryBackend,
+};
 
 pub fn register() {
     turbo_binding::turbo::tasks::register();

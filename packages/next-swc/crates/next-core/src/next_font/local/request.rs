@@ -105,11 +105,12 @@ fn default_display() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{default_adjust_font_fallback, deserialize_adjust_font_fallback};
     use anyhow::Result;
     use serde::Deserialize;
 
-    use super::AdjustFontFallback;
+    use super::{
+        default_adjust_font_fallback, deserialize_adjust_font_fallback, AdjustFontFallback,
+    };
 
     #[derive(Debug, Deserialize, PartialEq)]
     #[serde(rename_all = "camelCase")]

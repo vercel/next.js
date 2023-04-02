@@ -52,12 +52,21 @@ type IpcIncomingMessage = {
   data: RenderData;
 };
 
-type IpcOutgoingMessage = {
-  type: "response";
-  statusCode: number;
-  headers: Array<[string, string]>;
-  body: string;
-};
+type IpcOutgoingMessage =
+  | {
+      type: "headers";
+      data: {
+        status: number;
+        headers: [string, string][];
+      };
+    }
+  | {
+      type: "bodyChunk";
+      data: number[];
+    }
+  | {
+      type: "bodyEnd";
+    };
 
 const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
 
@@ -84,10 +93,21 @@ const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
     }
 
     ipc.send({
-      type: "response",
-      statusCode: 200,
-      ...result,
+      type: "headers",
+      data: {
+        status: 200,
+        headers: result.headers,
+      },
     });
+
+    for await (const chunk of result.body) {
+      ipc.send({
+        type: "bodyChunk",
+        data: (chunk as Buffer).toJSON().data,
+      });
+    }
+
+    ipc.send({ type: "bodyEnd" });
   }
 })().catch((err) => {
   ipc.sendError(err);
@@ -123,10 +143,13 @@ async function runOperation(renderData: RenderData) {
         };
       },
     };
-  }
+  };
 
-  const proxyMethodsNested = (type: "ssrModuleMapping" | "clientModules"): ProxyHandler<
-    ClientReferenceManifest["ssrModuleMapping"] | ClientReferenceManifest["clientModules"]
+  const proxyMethodsNested = (
+    type: "ssrModuleMapping" | "clientModules"
+  ): ProxyHandler<
+    | ClientReferenceManifest["ssrModuleMapping"]
+    | ClientReferenceManifest["clientModules"]
   > => {
     return {
       get(_target, key: string) {
@@ -159,8 +182,14 @@ async function runOperation(renderData: RenderData) {
   };
 
   const proxyMethods = (): ProxyHandler<ClientReferenceManifest> => {
-    const clientModulesProxy = new Proxy({}, proxyMethodsNested("clientModules"));
-    const ssrModuleMappingProxy = new Proxy({}, proxyMethodsNested("ssrModuleMapping"));
+    const clientModulesProxy = new Proxy(
+      {},
+      proxyMethodsNested("clientModules")
+    );
+    const ssrModuleMappingProxy = new Proxy(
+      {},
+      proxyMethodsNested("ssrModuleMapping")
+    );
     return {
       get(_target: any, prop: string) {
         if (prop === "ssrModuleMapping") {
@@ -193,6 +222,7 @@ async function runOperation(renderData: RenderData) {
     }
   }
   const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods());
+
   const serverCSSManifest: ClientCSSReferenceManifest = {
     cssImports: new Proxy({} as any, cssImportProxyMethods),
     cssModules: {},
@@ -251,18 +281,11 @@ async function runOperation(renderData: RenderData) {
   if (!result || result.isNull())
     throw new Error("rendering was not successful");
 
-  let body;
+  const body = new PassThrough();
   if (result.isDynamic()) {
-    const stream = new PassThrough();
-    result.pipe(stream);
-
-    const chunks = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    body = Buffer.concat(chunks).toString();
+    result.pipe(body);
   } else {
-    body = result.toUnchunkedString();
+    body.write(result.toUnchunkedString());
   }
   return {
     headers: [

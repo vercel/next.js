@@ -1,11 +1,13 @@
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use turbo_binding::turbopack::core::introspect::{Introspectable, IntrospectableVc};
-use turbo_binding::turbopack::dev_server::source::{
-    query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
-    NeededData, ProxyResult,
+use turbo_binding::turbopack::{
+    core::introspect::{Introspectable, IntrospectableVc},
+    dev_server::source::{
+        query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
+        ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
+        NeededData, ProxyResult,
+    },
 };
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks::Value;

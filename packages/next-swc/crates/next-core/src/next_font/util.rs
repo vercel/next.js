@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
-use turbo_binding::turbo::tasks::primitives::{OptionStringVc, StringVc, U32Vc};
-use turbo_binding::turbo::tasks_hash::hash_xxh3_hash64;
-use turbo_binding::turbopack::core::resolve::pattern::QueryMapVc;
+use turbo_binding::{
+    turbo::tasks_hash::hash_xxh3_hash64, turbopack::core::resolve::pattern::QueryMapVc,
+};
+use turbo_tasks::primitives::{OptionStringVc, StringVc, U32Vc};
 
 /// CSS properties and values for a given font variation. These are rendered as
 /// values in both the returned JavaScript object and in the referenced css

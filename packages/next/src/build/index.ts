@@ -892,7 +892,8 @@ export default async function build(
           appPageKeys,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
-            : []
+            : [],
+          config.experimental.clientRouterFilterAllowedRate
         )
 
         NextBuildContext.clientRouterFilters = clientRouterFilters
@@ -1271,6 +1272,20 @@ export default async function build(
         },
         numWorkers: config.experimental.cpus,
         enableWorkerThreads: config.experimental.workerThreads,
+        computeWorkerKey(method, ...args) {
+          if (method === 'exportPage') {
+            const typedArgs = args as Parameters<
+              typeof import('./worker').exportPage
+            >
+            return typedArgs[0].pathMap.page
+          } else if (method === 'isPageStatic') {
+            const typedArgs = args as Parameters<
+              typeof import('./worker').isPageStatic
+            >
+            return typedArgs[0].originalAppPath || typedArgs[0].page
+          }
+          return method
+        },
         exposedMethods: sharedPool
           ? [
               'hasCustomGetInitialProps',
@@ -1768,79 +1783,7 @@ export default async function build(
         'next-server.js.nft.json'
       )
 
-      if (config.experimental.preCompiledNextServer) {
-        if (!ciEnvironment.hasNextSupport) {
-          Log.warn(
-            `"experimental.preCompiledNextServer" is currently optimized for environments with Next.js support, some features may not be supported`
-          )
-        }
-        const nextServerPath = require.resolve('next/dist/server/next-server')
-        await promises.rename(nextServerPath, `${nextServerPath}.bak`)
-
-        await promises.writeFile(
-          nextServerPath,
-          `module.exports = require('next/dist/compiled/next-server/next-server.js')`
-        )
-        const glob =
-          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
-        const compiledFiles: string[] = []
-        const compiledNextServerFolder = path.dirname(
-          require.resolve('next/dist/compiled/next-server/next-server.js')
-        )
-
-        for (const compiledFolder of [
-          compiledNextServerFolder,
-          path.join(compiledNextServerFolder, '../react'),
-          path.join(compiledNextServerFolder, '../react-dom'),
-          path.join(compiledNextServerFolder, '../scheduler'),
-        ]) {
-          const globResult = glob.sync('**/*', {
-            cwd: compiledFolder,
-            dot: true,
-          })
-
-          await Promise.all(
-            globResult.map(async (file) => {
-              const absolutePath = path.join(compiledFolder, file)
-              const statResult = await promises.stat(absolutePath)
-
-              if (statResult.isFile()) {
-                compiledFiles.push(absolutePath)
-              }
-            })
-          )
-        }
-
-        const externalLibFiles = [
-          'next/dist/shared/lib/server-inserted-html.js',
-          'next/dist/shared/lib/router-context.js',
-          'next/dist/shared/lib/loadable-context.js',
-          'next/dist/shared/lib/image-config-context.js',
-          'next/dist/shared/lib/image-config.js',
-          'next/dist/shared/lib/head-manager-context.js',
-          'next/dist/shared/lib/app-router-context.js',
-          'next/dist/shared/lib/amp-context.js',
-          'next/dist/shared/lib/hooks-client-context.js',
-          'next/dist/shared/lib/html-context.js',
-        ]
-        for (const file of externalLibFiles) {
-          compiledFiles.push(require.resolve(file))
-        }
-        compiledFiles.push(nextServerPath)
-
-        await promises.writeFile(
-          nextServerTraceOutput,
-          JSON.stringify({
-            version: 1,
-            files: [...new Set(compiledFiles)].map((file) =>
-              path.relative(distDir, file)
-            ),
-          } as {
-            version: number
-            files: string[]
-          })
-        )
-      } else if (config.outputFileTracing) {
+      if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
           if (!binding?.isWasm) {
@@ -2049,6 +1992,7 @@ export default async function build(
               '**/*.d.ts',
               '**/*.map',
               '**/next/dist/pages/**/*',
+              '**/next/dist/compiled/jest-worker/**/*',
               '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
               '**/node_modules/webpack5/**/*',
               '**/next/dist/server/lib/squoosh/**/*.wasm',
@@ -2067,7 +2011,14 @@ export default async function build(
               ...additionalIgnores,
             ]
             const ignoreFn = (pathname: string) => {
-              return isMatch(pathname, ignores, { contains: true, dot: true })
+              if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+                return true
+              }
+
+              return isMatch(pathname, ignores, {
+                contains: true,
+                dot: true,
+              })
             }
             const traceContext = path.join(nextServerEntry, '..', '..')
             const tracedFiles = new Set<string>()

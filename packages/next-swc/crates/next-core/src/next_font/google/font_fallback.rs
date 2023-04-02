@@ -2,12 +2,11 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks::{
+use turbo_binding::{turbo::tasks_fs::FileSystemPathVc, turbopack::core::issue::IssueSeverity};
+use turbo_tasks::{
     primitives::{StringVc, StringsVc, U32Vc},
     trace::TraceRawVcs,
 };
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::issue::IssueSeverity;
 
 use super::options::NextFontGoogleOptionsVc;
 use crate::{

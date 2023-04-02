@@ -1,24 +1,28 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_binding::turbo::tasks::{primitives::StringVc, TryJoinIterExt, Value};
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem,
-        ChunkItemVc, ChunkListReferenceVc, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContextVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            asset::{Asset, AssetContentVc, AssetVc},
+            chunk::{
+                availability_info::AvailabilityInfo, Chunk, ChunkGroupReferenceVc, ChunkGroupVc,
+                ChunkItem, ChunkItemVc, ChunkListReferenceVc, ChunkVc, ChunkableAsset,
+                ChunkableAssetVc, ChunkingContextVc,
+            },
+            ident::AssetIdentVc,
+            reference::AssetReferencesVc,
+        },
+        turbopack::ecmascript::{
+            chunk::{
+                EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+                EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+                EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports,
+                EcmascriptExportsVc,
+            },
+            utils::StringifyJs,
+        },
     },
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
-};
-use turbo_binding::turbopack::turbopack::ecmascript::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
-    },
-    utils::StringifyJs,
 };
 #[turbo_tasks::function]
 fn modifier() -> StringVc {

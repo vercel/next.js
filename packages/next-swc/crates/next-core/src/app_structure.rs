@@ -1,20 +1,18 @@
 use anyhow::{bail, Result};
-use indexmap::{indexmap, map::Entry, IndexMap};
-use once_cell::sync::Lazy;
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
-use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
-use turbo_binding::turbo::tasks::primitives::{StringVc, StringsVc};
-use turbo_binding::turbo::tasks::trace::TraceRawVcs;
-use turbo_binding::turbo::tasks::CompletionVc;
-use turbo_binding::turbo::tasks::CompletionsVc;
-use turbo_binding::turbo::tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc,
+use turbo_binding::{
+    turbo::tasks_fs::{
+        DirectoryContent, DirectoryEntry, File, FileContentVc, FileSystemEntryType,
+        FileSystemPathVc,
+    },
+    turbopack::{
+        core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+        dev_server::source::specificity::SpecificityVc,
+    },
 };
-
-use turbo_binding::turbopack::core::issue::{Issue, IssueSeverityVc, IssueVc};
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    CompletionVc, ValueToString,
+};
 
 use crate::next_config::NextConfigVc;
 

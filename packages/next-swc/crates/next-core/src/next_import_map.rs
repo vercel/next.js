@@ -1,24 +1,26 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_binding::turbo::tasks::Value;
-use turbo_binding::turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::Asset,
-    resolve::{
-        options::{
-            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
-            ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+use turbo_binding::{
+    turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::Asset,
+            resolve::{
+                options::{
+                    ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
+                    ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+                },
+                parse::RequestVc,
+                pattern::Pattern,
+                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+            },
         },
-        parse::RequestVc,
-        pattern::Pattern,
-        resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    resolve_options, resolve_options_context::ResolveOptionsContext,
-};
+use turbo_tasks::Value;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
@@ -101,20 +103,16 @@ pub async fn get_next_client_import_map(
     }
 
     match ty.into_value() {
-        ClientContextType::Pages {
-            pages_dir: context_dir,
-        }
-        | ClientContextType::App {
-            app_dir: context_dir,
-        } => {
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => {
             for (original, alias) in NEXT_ALIASES {
                 import_map.insert_exact_alias(
                     format!("node:{original}"),
-                    request_to_import_mapping(context_dir, alias),
+                    request_to_import_mapping(project_path, alias),
                 );
             }
         }
-        ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
 

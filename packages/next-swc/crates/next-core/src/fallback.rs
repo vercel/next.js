@@ -1,19 +1,22 @@
 use std::collections::HashMap;
 
 use anyhow::{bail, Result};
-use turbo_binding::turbo::tasks::Value;
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    chunk::ChunkGroupVc,
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContextVc,
-    resolve::{options::ImportMap, origin::PlainResolveOriginVc},
-};
-use turbo_binding::turbopack::dev_server::html::DevHtmlAssetVc;
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            chunk::ChunkGroupVc,
+            compile_time_info::CompileTimeInfoVc,
+            context::AssetContextVc,
+            resolve::{options::ImportMap, origin::PlainResolveOriginVc},
+        },
+        dev_server::html::DevHtmlAssetVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            ecmascript::EcmascriptModuleAssetVc, transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
+    },
 };
 
 use crate::{
@@ -22,7 +25,7 @@ use crate::{
         get_client_resolve_options_context, get_client_runtime_entries, ClientContextType,
     },
     next_config::NextConfigVc,
-    next_import_map::{insert_alias_option, insert_next_shared_aliases},
+    next_import_map::insert_next_shared_aliases,
     runtime::resolve_runtime_request,
 };
 
@@ -55,13 +58,6 @@ pub async fn get_fallback_page(
 
     let mut import_map = ImportMap::empty();
     insert_next_shared_aliases(&mut import_map, project_path, execution_context).await?;
-    insert_alias_option(
-        &mut import_map,
-        project_path,
-        next_config.resolve_alias_options(),
-        ["browser"],
-    )
-    .await?;
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),

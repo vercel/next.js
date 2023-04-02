@@ -1,12 +1,20 @@
-use anyhow::{bail, Result};
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc};
-use turbo_binding::turbopack::ecmascript::chunk::EcmascriptChunkPlaceableVc;
-use turbo_binding::turbopack::turbopack::{
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use anyhow::Result;
+use indexmap::indexmap;
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext},
+        ecmascript::{
+            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+            EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+        turbopack::{
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
 
 use crate::next_client_component::with_client_chunks::WithClientChunksAsset;

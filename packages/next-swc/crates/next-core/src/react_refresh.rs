@@ -1,16 +1,19 @@
 use anyhow::{anyhow, Result};
-use turbo_binding::turbo::tasks::{debug::ValueDebug, primitives::StringVc};
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc},
-};
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::{
-        chunk::EcmascriptChunkPlaceableVc,
-        resolve::{apply_cjs_specific_options, cjs_resolve},
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+            resolve::{origin::ResolveOriginVc, parse::RequestVc},
+        },
+        turbopack::{
+            ecmascript::{
+                chunk::EcmascriptChunkPlaceableVc,
+                resolve::{apply_cjs_specific_options, cjs_resolve},
+            },
+            resolve_options_context::ResolveOptionsContextVc,
+        },
     },
-    resolve_options_context::ResolveOptionsContextVc,
 };
 
 #[turbo_tasks::function]

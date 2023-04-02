@@ -14,7 +14,6 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use turbo_binding::turbo::tasks::UpdateInfo;
 
 use anyhow::{Context, Result};
 use devserver_options::DevServerOptions;
@@ -27,33 +26,39 @@ use next_core::{
     source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
-use turbo_binding::turbo::malloc::TurboMalloc;
-use turbo_binding::turbo::tasks::{
-    util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
-};
-use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
-use turbo_binding::turbopack::cli_utils::issue::{ConsoleUiVc, LogOptions};
-use turbo_binding::turbopack::core::{
-    environment::ServerAddr,
-    issue::{IssueReporterVc, IssueSeverity},
-    resolve::{parse::RequestVc, pattern::QueryMapVc},
-    server_fs::ServerFileSystemVc,
-    PROJECT_FILESYSTEM_NAME,
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::dev_server::{
-    introspect::IntrospectionSource,
-    source::{
-        combined::CombinedContentSourceVc, router::RouterContentSource,
-        source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
-        ContentSourceVc,
+use turbo_binding::{
+    turbo::{
+        malloc::TurboMalloc,
+        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc},
+        tasks_memory::MemoryBackend,
     },
-    DevServer, DevServerBuilder,
+    turbopack::{
+        cli_utils::issue::{ConsoleUiVc, LogOptions},
+        core::{
+            environment::ServerAddr,
+            issue::{IssueReporterVc, IssueSeverity},
+            resolve::{parse::RequestVc, pattern::QueryMapVc},
+            server_fs::ServerFileSystemVc,
+            PROJECT_FILESYSTEM_NAME,
+        },
+        dev::DevChunkingContextVc,
+        dev_server::{
+            introspect::IntrospectionSource,
+            source::{
+                combined::CombinedContentSourceVc, router::RouterContentSource,
+                source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
+                ContentSourceVc,
+            },
+            DevServer, DevServerBuilder,
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::evaluate_context::node_build_environment,
+    },
 };
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::evaluate_context::node_build_environment;
+use turbo_tasks::{
+    util::{FormatBytes, FormatDuration},
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
+};
 
 #[derive(Clone)]
 pub enum EntryRequest {
@@ -311,7 +316,6 @@ async fn source(
         execution_context,
         entry_requests,
         dev_server_root,
-        env,
         eager_compile,
         &browserslist_query,
         next_config,

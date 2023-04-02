@@ -1,18 +1,19 @@
 use anyhow::{Context, Result};
-use turbo_binding::turbo::tasks::{primitives::StringVc, Value};
-use turbo_binding::turbopack::core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContext, ChunkingContextVc,
+use turbo_binding::turbopack::{
+    core::{
+        asset::{Asset, AssetContentVc, AssetVc},
+        chunk::{
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            ChunkingContext, ChunkingContextVc,
+        },
+        ident::AssetIdentVc,
+        reference::AssetReferencesVc,
     },
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
-};
-use turbo_binding::turbopack::ecmascript::chunk::EcmascriptChunkingContextVc;
-use turbo_binding::turbopack::turbopack::ecmascript::chunk::{
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExportsVc,
+    ecmascript::chunk::EcmascriptChunkingContextVc,
+    turbopack::ecmascript::chunk::{
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExportsVc,
+    },
 };
 
 #[turbo_tasks::function]

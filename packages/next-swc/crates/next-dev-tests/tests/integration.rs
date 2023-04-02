@@ -1,8 +1,6 @@
 #![feature(min_specialization)]
 #![cfg(test)]
 
-use dunce::canonicalize;
-use regex::{Captures, Regex, Replacer};
 use std::{
     env,
     fmt::Write,
@@ -25,10 +23,16 @@ use chromiumoxide::{
     },
     error::CdpError::Ws,
 };
+use dunce::canonicalize;
 use futures::StreamExt;
 use lazy_static::lazy_static;
+use next_core::turbopack::{
+    cli_utils::issue::{format_issue, LogOptions},
+    core::issue::IssueSeverity,
+};
 use next_dev::{EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
+use regex::{Captures, Regex, Replacer};
 use serde::Deserialize;
 use tokio::{
     net::TcpSocket,
@@ -36,19 +40,25 @@ use tokio::{
     task::JoinSet,
 };
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_binding::turbo::tasks::{
-    debug::{ValueDebug, ValueDebugStringReadRef},
-    primitives::{BoolVc, StringVc},
-    NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+use turbo_binding::{
+    turbo::{
+        tasks::{
+            debug::{ValueDebug, ValueDebugStringReadRef},
+            primitives::{BoolVc, StringVc},
+            NothingVc, RawVc, ReadRef, State, TransientInstance, TransientValue, TurboTasks,
+        },
+        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc},
+        tasks_memory::MemoryBackend,
+        tasks_testing::retry::retry_async,
+    },
+    turbopack::{
+        core::issue::{
+            CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc,
+            IssuesVc, OptionIssueSourceVc, PlainIssueReadRef,
+        },
+        test_utils::snapshot::snapshot_issues,
+    },
 };
-use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc};
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
-use turbo_binding::turbo::tasks_testing::retry::retry_async;
-use turbo_binding::turbopack::core::issue::{
-    CapturedIssues, Issue, IssueReporter, IssueReporterVc, IssueSeverityVc, IssueVc, IssuesVc,
-    OptionIssueSourceVc, PlainIssueReadRef,
-};
-use turbo_binding::turbopack::test_utils::snapshot::snapshot_issues;
 
 fn register() {
     next_dev::register();
@@ -518,10 +528,18 @@ impl IssueReporter for TestIssueReporter {
         captured_issues: TransientInstance<ReadRef<CapturedIssues>>,
         _source: TransientValue<RawVc>,
     ) -> Result<BoolVc> {
+        let log_options = LogOptions {
+            current_dir: PathBuf::new(),
+            project_dir: PathBuf::new(),
+            show_all: true,
+            log_detail: true,
+            log_level: IssueSeverity::Info,
+        };
         let issue_tx = self.issue_tx.get_untracked().clone();
         for (issue, path) in captured_issues.iter_with_shortest_path() {
             let plain = NormalizedIssue(issue).cell().as_issue().into_plain(path);
             issue_tx.send((plain.await?, plain.dbg().await?))?;
+            println!("{}", format_issue(&*plain.await?, None, &log_options));
         }
         Ok(BoolVc::cell(false))
     }

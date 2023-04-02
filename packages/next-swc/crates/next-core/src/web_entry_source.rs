@@ -1,26 +1,102 @@
 use anyhow::{anyhow, Result};
-use turbo_binding::turbo::tasks::{TryJoinIterExt, Value};
-use turbo_binding::turbo::tasks_env::ProcessEnvVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkGroupVc, ChunkableAsset, ChunkableAssetVc,
+            },
+            compile_time_defines,
+            compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+            environment::{
+                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+            },
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
+            source_asset::SourceAssetVc,
+        },
+        dev_server::{
+            html::DevHtmlAssetVc,
+            source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::ecmascript::EcmascriptModuleAssetVc,
+    },
 };
-use turbo_binding::turbopack::dev_server::{
-    html::DevHtmlAssetVc,
-    source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
-};
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::ecmascript::EcmascriptModuleAssetVc;
+use turbo_tasks::{TryJoinIterExt, Value};
 
 use crate::{
-    next_client::context::{
-        get_client_asset_context, get_client_chunking_context, get_client_compile_time_info,
-        get_client_runtime_entries, ClientContextType,
+    embed_js::next_js_file_path,
+    next_client::{
+        context::{
+            get_client_asset_context, get_client_chunking_context,
+            get_client_resolve_options_context, ClientContextType,
+        },
+        runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
     },
     next_config::NextConfigVc,
+    react_refresh::assert_can_resolve_react_refresh,
 };
+
+pub fn web_defines() -> CompileTimeDefinesVc {
+    compile_time_defines!(
+        process.turbopack = true,
+        process.env.NODE_ENV = "development",
+    )
+    .cell()
+}
+
+#[turbo_tasks::function]
+pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Client),
+    ))
+    .defines(web_defines())
+    .cell()
+}
+
+#[turbo_tasks::function]
+pub async fn get_web_runtime_entries(
+    project_root: FileSystemPathVc,
+    next_config: NextConfigVc,
+    execution_context: ExecutionContextVc,
+) -> Result<RuntimeEntriesVc> {
+    let resolve_options_context = get_client_resolve_options_context(
+        project_root,
+        Value::new(ClientContextType::Other),
+        next_config,
+        execution_context,
+    );
+    let enable_react_refresh =
+        assert_can_resolve_react_refresh(project_root, resolve_options_context)
+            .await?
+            .as_request();
+
+    let mut runtime_entries = Vec::new();
+
+    // It's important that React Refresh come before the regular bootstrap file,
+    // because the bootstrap contains JSX which requires Refresh's global
+    // functions to be available.
+    if let Some(request) = enable_react_refresh {
+        runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
+    };
+
+    runtime_entries.push(
+        RuntimeEntry::Source(SourceAssetVc::new(next_js_file_path("dev/bootstrap.ts")).into())
+            .cell(),
+    );
+
+    Ok(RuntimeEntriesVc::cell(runtime_entries))
+}
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
@@ -28,13 +104,12 @@ pub async fn create_web_entry_source(
     execution_context: ExecutionContextVc,
     entry_requests: Vec<RequestVc>,
     server_root: FileSystemPathVc,
-    env: ProcessEnvVc,
     eager_compile: bool,
     browserslist_query: &str,
     next_config: NextConfigVc,
 ) -> Result<ContentSourceVc> {
     let ty = Value::new(ClientContextType::Other);
-    let compile_time_info = get_client_compile_time_info(browserslist_query);
+    let compile_time_info = get_compile_time_info(browserslist_query);
     let context = get_client_asset_context(
         project_path,
         execution_context,
@@ -48,7 +123,7 @@ pub async fn create_web_entry_source(
         compile_time_info.environment(),
         ty,
     );
-    let entries = get_client_runtime_entries(project_path, env, ty, next_config, execution_context);
+    let entries = get_web_runtime_entries(project_path, next_config, execution_context);
 
     let runtime_entries = entries.resolve_entries(context);
 
@@ -70,11 +145,9 @@ pub async fn create_web_entry_source(
     let chunk_groups: Vec<_> = entries
         .into_iter()
         .flatten()
-        .enumerate()
-        .map(|(i, module)| async move {
+        .map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                let chunk = ecmascript
-                    .as_evaluated_chunk(chunking_context, (i == 0).then_some(runtime_entries));
+                let chunk = ecmascript.as_evaluated_chunk(chunking_context, Some(runtime_entries));
                 let chunk_group = ChunkGroupVc::from_chunk(chunk);
                 Ok(chunk_group)
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
