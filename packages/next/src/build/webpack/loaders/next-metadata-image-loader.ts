@@ -43,8 +43,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       ? ''
       : loaderUtils.interpolateName(this, '[contenthash]', opts)
 
-  const outputPath =
-    route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
+  const pageRoute = filename + (contentHash ? '?' + contentHash : '')
 
   const isDynamicResource = pageExtensions.includes(extension)
   if (isDynamicResource) {
@@ -63,9 +62,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       const imageData = {
         alt: exportedImageData.alt,
         type: exportedImageData.contentType,
-        url: route + '/' + ${JSON.stringify(
-          filename + (contentHash ? '?' + contentHash : '')
-        )},
+        url: route + '/' + ${JSON.stringify(pageRoute)},
       }
       const { size } = exportedImageData
       if (size) {
@@ -90,8 +87,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     throw err
   }
 
-  const imageData: MetadataImageModule = {
-    url: outputPath,
+  const imageData: Omit<MetadataImageModule, 'url'> = {
     ...(extension in imageExtMimeTypeMap && {
       type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
@@ -105,9 +101,20 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         }),
   }
 
-  const stringifiedData = JSON.stringify(imageData)
+  return `\
+  import { interpolateDynamicPath } from 'next/dist/server/server-utils'
+  import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
-  return `export default ${stringifiedData};`
+  export default (props) => {
+    const pathname = ${JSON.stringify(route)}
+    const routeRegex = getNamedRouteRegex(pathname)
+    const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+    const imageData = ${JSON.stringify(imageData)};
+    return {
+      ...imageData,
+      url: route + '/' + ${JSON.stringify(pageRoute)},
+    }
+  }`
 }
 
 export const raw = true
