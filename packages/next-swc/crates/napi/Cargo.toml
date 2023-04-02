@@ -20,10 +20,24 @@ sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
 native-tls = ["next-dev/native-tls"]
 rustls-tls = ["next-dev/rustls-tls"]
 
+# Internal only. Enabled when building for the Next.js integration test suite.
+__internal_nextjs_integration_test = [
+  "next-dev/__internal_nextjs_integration_test",
+  "next-dev/serializable"
+]
+
+# Enable dhat profiling allocator for heap profiling.
+__internal_dhat-heap = ["dhat"]
+# Enable dhat profiling allocator for ad hoc profiling.
+# [Note]: we do not have any ad hoc event in the codebase yet, so enabling this
+# effectively does nothing.
+__internal_dhat-ad-hoc = ["dhat"]
+
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
 fxhash = "0.2.1"
+dhat = { workspace = true, optional = true }
 napi = { version = "2", default-features = false, features = [
   "napi3",
   "serde-json",
