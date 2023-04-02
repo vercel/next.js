@@ -83,7 +83,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getCloneableBody } from './body-streams'
-import { checkIsManualRevalidate } from './api-utils'
+import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -2071,8 +2071,8 @@ export default class NextNodeServer extends BaseServer {
   }) {
     // Middleware is skipped for on-demand revalidate requests
     if (
-      checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
-        .isManualRevalidate
+      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
+        .isOnDemandRevalidate
     ) {
       return { finished: false }
     }

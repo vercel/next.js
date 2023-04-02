@@ -264,6 +264,7 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   largePageDataBytes?: number
+  isOnDemandRevalidate?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
