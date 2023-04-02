@@ -76,32 +76,35 @@ createNextDescribe(
       }
     })
 
-    it('should revalidate all fetches during on-demand revalidate', async () => {
-      const initRes = await next.fetch('/variable-revalidate/revalidate-360')
-      const html = await initRes.text()
-      const $ = cheerio.load(html)
-      const initLayoutData = $('#layout-data').text()
-      const initPageData = $('#page-data').text()
+    // On-Demand Revalidate has not effect in dev
+    if (!(global as any).isNextDev) {
+      it('should revalidate all fetches during on-demand revalidate', async () => {
+        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const html = await initRes.text()
+        const $ = cheerio.load(html)
+        const initLayoutData = $('#layout-data').text()
+        const initPageData = $('#page-data').text()
 
-      expect(initLayoutData).toBeTruthy()
-      expect(initPageData).toBeTruthy()
+        expect(initLayoutData).toBeTruthy()
+        expect(initPageData).toBeTruthy()
 
-      const revalidateRes = await next.fetch(
-        '/api/revalidate?path=/variable-revalidate/revalidate-360'
-      )
-      expect((await revalidateRes.json()).revalidated).toBe(true)
+        const revalidateRes = await next.fetch(
+          '/api/revalidate?path=/variable-revalidate/revalidate-360'
+        )
+        expect((await revalidateRes.json()).revalidated).toBe(true)
 
-      const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-      const newHtml = await newRes.text()
-      const new$ = cheerio.load(newHtml)
-      const newLayoutData = new$('#layout-data').text()
-      const newPageData = new$('#page-data').text()
+        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const newHtml = await newRes.text()
+        const new$ = cheerio.load(newHtml)
+        const newLayoutData = new$('#layout-data').text()
+        const newPageData = new$('#page-data').text()
 
-      expect(newLayoutData).toBeTruthy()
-      expect(newPageData).toBeTruthy()
-      expect(newLayoutData).not.toBe(initLayoutData)
-      expect(newPageData).not.toBe(initPageData)
-    })
+        expect(newLayoutData).toBeTruthy()
+        expect(newPageData).toBeTruthy()
+        expect(newLayoutData).not.toBe(initLayoutData)
+        expect(newPageData).not.toBe(initPageData)
+      })
+    }
 
     it('should correctly handle fetchCache = "force-no-store"', async () => {
       const initRes = await next.fetch('/force-no-store')
@@ -1281,7 +1284,7 @@ createNextDescribe(
       }, 'success')
     })
 
-    if (!(process.env.CUSTOM_CACHE_HANDLER || (global as any).isNextDev)) {
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should honor dynamic = "force-static" correctly', async () => {
         const res = await next.fetch('/force-static/first')
         expect(res.status).toBe(200)
