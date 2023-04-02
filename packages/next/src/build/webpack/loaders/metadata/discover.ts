@@ -86,7 +86,10 @@ export async function createStaticMetadataFromRoute(
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
-      pageExtensions.concat(STATIC_METADATA_IMAGES[type].extensions),
+      [
+        ...STATIC_METADATA_IMAGES[type].extensions,
+        ...(type === 'favicon' ? [] : pageExtensions),
+      ],
       opts
     )
     resolvedMetadataFiles
