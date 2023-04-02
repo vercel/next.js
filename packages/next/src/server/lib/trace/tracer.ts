@@ -6,9 +6,9 @@ import type {
   SpanOptions,
   Tracer,
   AttributeValue,
-} from '@opentelemetry/api'
+} from 'next/dist/compiled/@opentelemetry/api'
 
-let api: typeof import('@opentelemetry/api')
+let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
 // we want to allow users to use their own version of @opentelemetry/api if they
 // want to, so we try to require it first, and if it fails we fall back to the
