@@ -45,7 +45,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   setLazyProp,
   getCookieParser,
-  checkIsManualRevalidate,
+  checkIsOnDemandRevalidate,
 } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config'
 import Router from './router'
@@ -1416,12 +1416,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
 
-    let isManualRevalidate = false
+    let isOnDemandRevalidate = false
     let revalidateOnlyGenerated = false
 
     if (isSSG) {
-      ;({ isManualRevalidate, revalidateOnlyGenerated } =
-        checkIsManualRevalidate(req, this.renderOpts.previewProps))
+      ;({ isOnDemandRevalidate, revalidateOnlyGenerated } =
+        checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
     }
 
     if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
@@ -1471,7 +1471,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let ssgCacheKey =
       isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, manual revalidate, flight request can bypass the cache
+        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1646,6 +1646,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             : resolvedUrl,
 
         supportsDynamicHTML,
+        isOnDemandRevalidate,
       }
 
       const renderResult = await this.renderHTML(
@@ -1732,10 +1733,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           fallbackMode = 'blocking'
         }
 
-        // skip manual revalidate if cache is not present and
+        // skip on-demand revalidate if cache is not present and
         // revalidate-if-generated is set
         if (
-          isManualRevalidate &&
+          isOnDemandRevalidate &&
           revalidateOnlyGenerated &&
           !hadCache &&
           !this.minimalMode
@@ -1744,9 +1745,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return null
         }
 
-        // only allow manual revalidate for fallback: true/blocking
+        // only allow on-demand revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
-        if (isManualRevalidate && (fallbackMode !== false || hadCache)) {
+        if (isOnDemandRevalidate && (fallbackMode !== false || hadCache)) {
           fallbackMode = 'blocking'
         }
 
@@ -1838,13 +1839,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       {
         incrementalCache,
-        isManualRevalidate,
+        isOnDemandRevalidate: isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
 
     if (!cacheEntry) {
-      if (ssgCacheKey && !(isManualRevalidate && revalidateOnlyGenerated)) {
+      if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up
@@ -1860,7 +1861,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // we set for the image-optimizer
       res.setHeader(
         'x-nextjs-cache',
-        isManualRevalidate
+        isOnDemandRevalidate
           ? 'REVALIDATED'
           : cacheEntry.isMiss
           ? 'MISS'

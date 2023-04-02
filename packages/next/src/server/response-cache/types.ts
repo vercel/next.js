@@ -6,7 +6,7 @@ export interface ResponseCacheBase {
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
-      isManualRevalidate?: boolean
+      isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
     }
