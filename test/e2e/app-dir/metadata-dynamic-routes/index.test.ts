@@ -114,6 +114,8 @@ createNextDescribe(
         const ogImageUrl = $('meta[property="og:image"]').attr('content')
         expect(ogImageUrl).toMatch(hashRegex)
         expect(ogImageUrl).toMatch('/dynamic/big/opengraph-image')
+        // should already normalize the parallel routes segment to url
+        expect(ogImageUrl).not.toContain('(group)')
       })
 
       it('should support params as argument in dynamic routes', async () => {
