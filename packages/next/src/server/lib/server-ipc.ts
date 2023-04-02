@@ -102,3 +102,25 @@ export const createWorker = (
 
   return worker
 }
+
+export const filterReqHeaders = (
+  headers: Record<string, undefined | string | string[]> | Headers
+) => {
+  const forbiddenHeaders = [
+    'content-length',
+    'keepalive',
+    'content-encoding',
+    'transfer-encoding',
+    // https://github.com/nodejs/undici/issues/1470
+    'connection',
+  ]
+
+  for (const key of forbiddenHeaders) {
+    if (headers instanceof Headers) {
+      headers.delete(key)
+    } else {
+      delete headers[key]
+    }
+  }
+  return headers
+}
