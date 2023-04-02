@@ -3,6 +3,7 @@ use indexmap::{indexmap, map::Entry, IndexMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
 use turbo_binding::turbo::tasks::primitives::{StringVc, StringsVc};
@@ -522,19 +523,14 @@ async fn directory_tree_to_entrypoints_internal(
             app_dir,
             subdir_name,
             subdirectory,
-            &format!(
-                "{}{}",
-                path_prefix,
-                if parallel_route_key.is_some() || optional_segment {
-                    String::new()
-                } else {
-                    format!(
-                        "{}{}",
-                        if path_prefix == "/" { "" } else { "/" },
-                        subdir_name
-                    )
-                },
-            ),
+            if parallel_route_key.is_some() || optional_segment {
+                Cow::Borrowed(path_prefix)
+            } else if path_prefix == "/" {
+                format!("/{subdir_name}").into()
+            } else {
+                format!("{path_prefix}/{subdir_name}").into()
+            }
+            .as_ref(),
         )
         .await?;
         for (full_path, &entrypoint) in map.iter() {
