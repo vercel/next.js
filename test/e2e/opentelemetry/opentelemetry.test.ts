@@ -10,21 +10,13 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     const getTraces = async (): Promise<SavedSpan[]> => {
       const traces = await next.readFile(traceFile)
       return traces
         .split('\n')
         .filter(Boolean)
         .map((line) => JSON.parse(line))
-    }
-
-    const waitForRootSpan = async (numberOfRootTraces: number) => {
-      await check(async () => {
-        const spans = await getTraces()
-        const rootSpans = spans.filter((span) => !span.parentId)
-        return String(rootSpans.length)
-      }, String(numberOfRootTraces))
     }
 
     /**
@@ -55,9 +47,33 @@ createNextDescribe(
         .map(sanitizeSpan)
     }
 
+    /**
+     * Routes can be executed multiple times per request in dev.
+     */
+    const removeDevDuplicateSpans = (spans: SavedSpan[]) => {
+      const spanNamesSet = new Set()
+      return spans.filter((span) => {
+        const spanName = span.attributes?.['next.span_name']
+        if (!spanName) return true
+        if (spanNamesSet.has(spanName)) return false
+        spanNamesSet.add(spanName)
+        return true
+      })
+    }
+
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
-      await waitForRootSpan(numberOfRootTraces)
-      return sanitizeSpans(await getTraces())
+      let traces
+      await check(async () => {
+        traces = sanitizeSpans(await getTraces())
+
+        if (isNextDev) {
+          traces = removeDevDuplicateSpans(traces)
+        }
+
+        const rootSpans = traces.filter((span) => !span.parentId)
+        return String(rootSpans.length)
+      }, String(numberOfRootTraces))
+      return traces
     }
 
     const cleanTraces = async () => {
