@@ -594,6 +594,8 @@ export default async function build(
         previewModeSigningKey: crypto.randomBytes(32).toString('hex'),
         previewModeEncryptionKey: crypto.randomBytes(32).toString('hex'),
       }
+      NextBuildContext.fetchCacheKeyPrefix =
+        config.experimental.fetchCacheKeyPrefix
       NextBuildContext.previewProps = previewProps
 
       const mappedPages = nextBuildSpan

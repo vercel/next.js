@@ -76,34 +76,117 @@ createNextDescribe(
       }
     })
 
-    // On-Demand Revalidate has not effect in dev
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it.each([
+        {
+          type: 'edge route handler',
+          revalidateApi: '/api/revalidate-tag-edge',
+        },
+        {
+          type: 'node route handler',
+          revalidateApi: '/api/revalidate-tag-node',
+        },
+        {
+          type: 'edge api handler',
+          revalidateApi: '/api/pages/revalidate-tag-edge',
+        },
+        {
+          type: 'node api handler',
+          revalidateApi: '/api/pages/revalidate-tag-node',
+        },
+      ])(
+        'it should revalidate tag correctly with $type',
+        async ({ revalidateApi }) => {
+          const initRes = await next.fetch(
+            '/variable-revalidate/revalidate-360'
+          )
+          const html = await initRes.text()
+          const $ = cheerio.load(html)
+          const initLayoutData = $('#layout-data').text()
+          const initPageData = $('#page-data').text()
+
+          expect(initLayoutData).toBeTruthy()
+          expect(initPageData).toBeTruthy()
+
+          const revalidateRes = await next.fetch(`${revalidateApi}`)
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          await check(async () => {
+            const newRes = await next.fetch(
+              '/variable-revalidate/revalidate-360'
+            )
+            const newHtml = await newRes.text()
+            const new$ = cheerio.load(newHtml)
+            const newLayoutData = new$('#layout-data').text()
+            const newPageData = new$('#page-data').text()
+
+            expect(newLayoutData).toBeTruthy()
+            expect(newPageData).toBeTruthy()
+            expect(newLayoutData).not.toBe(initLayoutData)
+            expect(newPageData).not.toBe(initPageData)
+            return 'success'
+          }, 'success')
+        }
+      )
+    }
+    return
+
+    // On-Demand Revalidate has not effect in dev since app routes
+    // aren't considered static until prerendering
     if (!(global as any).isNextDev) {
-      it('should revalidate all fetches during on-demand revalidate', async () => {
-        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const html = await initRes.text()
-        const $ = cheerio.load(html)
-        const initLayoutData = $('#layout-data').text()
-        const initPageData = $('#page-data').text()
+      it.each([
+        {
+          type: 'edge route handler',
+          revalidateApi: '/api/revalidate-path-edge',
+        },
+        {
+          type: 'node route handler',
+          revalidateApi: '/api/revalidate-path-node',
+        },
+        {
+          type: 'edge api handler',
+          revalidateApi: '/api/pages/revalidate-path-edge',
+        },
+        {
+          type: 'node api handler',
+          revalidateApi: '/api/pages/revalidate-path-node',
+        },
+      ])(
+        'it should revalidate correctly with $type',
+        async ({ revalidateApi }) => {
+          const initRes = await next.fetch(
+            '/variable-revalidate/revalidate-360'
+          )
+          const html = await initRes.text()
+          const $ = cheerio.load(html)
+          const initLayoutData = $('#layout-data').text()
+          const initPageData = $('#page-data').text()
 
-        expect(initLayoutData).toBeTruthy()
-        expect(initPageData).toBeTruthy()
+          expect(initLayoutData).toBeTruthy()
+          expect(initPageData).toBeTruthy()
 
-        const revalidateRes = await next.fetch(
-          '/api/revalidate?path=/variable-revalidate/revalidate-360'
-        )
-        expect((await revalidateRes.json()).revalidated).toBe(true)
+          const revalidateRes = await next.fetch(
+            `${revalidateApi}?path=/variable-revalidate/revalidate-360`
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const newHtml = await newRes.text()
-        const new$ = cheerio.load(newHtml)
-        const newLayoutData = new$('#layout-data').text()
-        const newPageData = new$('#page-data').text()
+          await check(async () => {
+            const newRes = await next.fetch(
+              '/variable-revalidate/revalidate-360'
+            )
+            const newHtml = await newRes.text()
+            const new$ = cheerio.load(newHtml)
+            const newLayoutData = new$('#layout-data').text()
+            const newPageData = new$('#page-data').text()
 
-        expect(newLayoutData).toBeTruthy()
-        expect(newPageData).toBeTruthy()
-        expect(newLayoutData).not.toBe(initLayoutData)
-        expect(newPageData).not.toBe(initPageData)
-      })
+            expect(newLayoutData).toBeTruthy()
+            expect(newPageData).toBeTruthy()
+            expect(newLayoutData).not.toBe(initLayoutData)
+            expect(newPageData).not.toBe(initPageData)
+            return 'success'
+          }, 'success')
+        }
+      )
     }
 
     it('should correctly handle fetchCache = "force-no-store"', async () => {

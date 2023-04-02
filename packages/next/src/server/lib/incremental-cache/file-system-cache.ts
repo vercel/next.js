@@ -62,12 +62,11 @@ export default class FileSystemCache implements CacheHandler {
         '..',
         'cache',
         'fetch-cache',
-        'tags-manifest-json'
+        'tags-manifest.json'
       )
       try {
         tagsManifest = JSON.parse(this.fs?.readFileSync(this.tagsManifestPath))
       } catch (err: any) {
-        if (err.code !== 'ENOENT') throw err
         tagsManifest = { version: 1, items: {} }
       }
     }
@@ -106,8 +105,10 @@ export default class FileSystemCache implements CacheHandler {
         this.tagsManifestPath,
         JSON.stringify(tagsManifest || {})
       )
-    } catch (err) {
-      console.warn('Failed to update tags manifest.', err)
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') {
+        console.warn('Failed to update tags manifest.', err)
+      }
     }
   }
 
@@ -198,7 +199,7 @@ export default class FileSystemCache implements CacheHandler {
       const innerData = data.value.data
       const isStale = innerData.tags?.some((tag) => {
         return (
-          tagsManifest?.items[tag].revalidatedAt &&
+          tagsManifest?.items[tag]?.revalidatedAt &&
           tagsManifest?.items[tag].revalidatedAt >=
             (data?.lastModified || Date.now())
         )

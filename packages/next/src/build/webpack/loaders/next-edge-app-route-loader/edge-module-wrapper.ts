@@ -13,6 +13,7 @@ enhanceGlobals()
 import { WebNextRequest } from '../../../../server/base-http/web'
 import { removeTrailingSlash } from '../../../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../../../../server/future/route-matchers/route-matcher'
+import { IncrementalCache } from '../../../../server/lib/incremental-cache'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -81,10 +82,44 @@ export class EdgeModuleWrapper {
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
+    const parsedUrl = new URL(request.url)
+
     const context: RouteHandlerManagerContext = {
       params: match.params,
       staticGenerationContext: {
         supportsDynamicHTML: true,
+        incrementalCache:
+          (globalThis as any).__incrementalCache ||
+          new IncrementalCache({
+            dev: process.env.NODE_ENV === 'development',
+            flushToDisk: false,
+            minimalMode: true,
+            appDir: true,
+            fetchCache: true,
+            fetchCacheKeyPrefix: process.env.__NEXT_PRIVATE_FETCH_KEY_PREFIX,
+            host: parsedUrl.hostname,
+            port: parsedUrl.port,
+            trustHostHeader: true,
+            // strip ending ":"
+            protocol: parsedUrl.protocol.substring(
+              0,
+              parsedUrl.protocol.length - 1
+            ),
+            getPrerenderManifest() {
+              return {
+                version: -1 as any,
+                notFoundRoutes: [],
+                routes: {},
+                dynamicRoutes: {},
+                preview: {
+                  previewModeEncryptionKey: '',
+                  previewModeSigningKey: '',
+                  previewModeId: process.env.__NEXT_PRIVATE_PREVIEW_ID || '',
+                },
+              }
+            },
+            requestHeaders: req.headers,
+          }),
       },
     }
 

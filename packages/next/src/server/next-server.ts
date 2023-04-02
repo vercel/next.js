@@ -172,6 +172,10 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
   416,
 ])
 
+// expose AsyncLocalStorage on global for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
   private compression?: ExpressMiddleware
@@ -222,10 +226,6 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    // expose AsyncLocalStorage on global for react usage
-    const { AsyncLocalStorage } = require('async_hooks')
-    ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
-
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
   }
@@ -264,11 +264,7 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log, forceReload)
   }
 
-  protected getIncrementalCache({
-    requestHeaders,
-  }: {
-    requestHeaders: IncrementalCache['requestHeaders']
-  }) {
+  protected getIncrementalCache({ req }: { req: BaseNextRequest }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
@@ -279,13 +275,29 @@ export default class NextNodeServer extends BaseServer {
         : incrementalCacheHandlerPath)
       CacheHandler = CacheHandler.default || CacheHandler
     }
+    const trustHostHeader = (this.nextConfig.experimental as any)
+      .trustHostHeader
+
+    const address = (
+      ((req as any).originalRequest || req) as IncomingMessage
+    ).socket?.address?.()
+
+    // use direct server address is available
+    // if not use trusted host header or configured hostname
+    const host =
+      trustHostHeader && req.headers['host']
+        ? req.headers['host']
+        : address && 'address' in address
+        ? address.address
+        : this.hostname || ''
+
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
-      requestHeaders,
+      requestHeaders: req.headers,
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
@@ -301,13 +313,22 @@ export default class NextNodeServer extends BaseServer {
             routes: {},
             dynamicRoutes: {},
             notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
+            preview: {
+              previewModeId: 'dev',
+              previewModeSigningKey: '',
+              previewModeEncryptionKey: '',
+            }, // `preview` is special case read in next-dev-server
           }
         } else {
           return this.getPrerenderManifest()
         }
       },
       CurCacheHandler: CacheHandler,
+      host,
+      port: this.port ? this.port + '' : '',
+      protocol:
+        getRequestMeta(req, '_protocol') ||
+        (trustHostHeader ? 'https' : 'http'),
     })
   }
 

@@ -320,7 +320,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): void
 
   protected abstract getIncrementalCache(options: {
-    requestHeaders: Record<string, undefined | string | string[]>
+    req: BaseNextRequest
   }): import('./lib/incremental-cache').IncrementalCache
 
   protected abstract getResponseCache(options: {
@@ -1005,18 +1005,43 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // set incremental cache to request meta so it can
     // be passed down for edge functions and the fetch disk
     // cache can be leveraged locally
-    if (
-      !(globalThis as any).__incrementalCache &&
-      !getRequestMeta(req, '_nextIncrementalCache')
-    ) {
-      const incrementalCache = this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
+    let incrementalCache =
+      (globalThis as any).__incrementalCache ||
+      getRequestMeta(req, '_nextIncrementalCache')
+
+    if (!incrementalCache) {
+      incrementalCache = this.getIncrementalCache({
+        req,
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
     }
 
     try {
-      const matched = await this.router.execute(req, res, parsedUrl)
+      // these must be loaded after the next-server constructor sets the
+      // AsyncLocalStorage global
+      const { StaticGenerationAsyncStorageWrapper } =
+        require('./async-storage/static-generation-async-storage-wrapper') as typeof import('./async-storage/static-generation-async-storage-wrapper')
+
+      const { staticGenerationAsyncStorage } =
+        require('../client/components/static-generation-async-storage') as typeof import('../client/components/static-generation-async-storage')
+      // provide a top-level static generation context for
+      // accessing current incremental cache from pages/api for
+      // revalidatePath/revalidateTag this is overridden with more
+      // specific context in app router
+      ;(globalThis as any).__nextStaticGenerationAsyncStorage =
+        staticGenerationAsyncStorage
+
+      const matched = await StaticGenerationAsyncStorageWrapper.wrap(
+        staticGenerationAsyncStorage,
+        {
+          pathname: parsedUrl.pathname || '/',
+          renderOpts: {
+            supportsDynamicHTML: true,
+            incrementalCache,
+          },
+        },
+        () => this.router.execute(req, res, parsedUrl)
+      )
       if (matched) {
         return
       }
@@ -1514,7 +1539,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const incrementalCache =
       (globalThis as any).__incrementalCache ||
       this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
+        req,
       })
 
     let isRevalidate = false

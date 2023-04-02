@@ -60,6 +60,11 @@ export class IncrementalCache {
   requestHeaders: Record<string, undefined | string | string[]>
   minimalMode?: boolean
   fetchCacheKeyPrefix?: string
+  host: string
+  port?: string
+  protocol?: string
+  trustHostHeader?: boolean
+  allowedRevalidateHeaderKeys?: string[]
 
   constructor({
     fs,
@@ -74,6 +79,11 @@ export class IncrementalCache {
     getPrerenderManifest,
     fetchCacheKeyPrefix,
     CurCacheHandler,
+    host,
+    port,
+    protocol,
+    trustHostHeader,
+    allowedRevalidateHeaderKeys,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -87,6 +97,11 @@ export class IncrementalCache {
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
+    host: string
+    port?: string
+    protocol?: string
+    trustHostHeader?: boolean
+    allowedRevalidateHeaderKeys?: string[]
   }) {
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
@@ -107,6 +122,11 @@ export class IncrementalCache {
     this.requestHeaders = requestHeaders
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
+    this.host = host
+    this.port = port
+    this.protocol = protocol
+    this.trustHostHeader = trustHostHeader
+    this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
 
     if (CurCacheHandler) {
       this.cacheHandler = new CurCacheHandler({
@@ -157,7 +177,7 @@ export class IncrementalCache {
   ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v1'
+    const MAIN_KEY_PREFIX = 'v2'
 
     let cacheKey: string
     const bodyChunks: string[] = []

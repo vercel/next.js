@@ -85,7 +85,7 @@ export default class FetchCache implements CacheHandler {
         throw new Error(`Request failed with status ${res.status}.`)
       }
     } catch (err) {
-      console.warn(`Failed to revalidate tag ${tag}.`, err)
+      console.warn(`Failed to revalidate tag ${tag}`, err)
     }
   }
 

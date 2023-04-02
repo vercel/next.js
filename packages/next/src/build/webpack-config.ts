@@ -184,6 +184,8 @@ export function getDefineEnv({
   hasRewrites,
   isNodeServer,
   isEdgeServer,
+  previewModeId,
+  fetchCacheKeyPrefix,
   middlewareMatchers,
   clientRouterFilters,
 }: {
@@ -193,6 +195,8 @@ export function getDefineEnv({
   hasRewrites?: boolean
   isNodeServer?: boolean
   isEdgeServer?: boolean
+  previewModeId?: string
+  fetchCacheKeyPrefix?: string
   middlewareMatchers?: MiddlewareMatcher[]
   config: NextConfigComplete
   clientRouterFilters: Parameters<
@@ -237,6 +241,9 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
     ),
+    'process.env.__NEXT_PRIVATE_PREVIEW_ID': JSON.stringify(previewModeId),
+    'process.env.__NEXT_PRIVATE_FETCH_KEY_PREFIX':
+      JSON.stringify(fetchCacheKeyPrefix),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
     ),
@@ -637,11 +644,15 @@ export default async function getBaseWebpackConfig(
     middlewareMatchers,
     noMangling = false,
     jsConfig,
+    previewModeId,
+    fetchCacheKeyPrefix,
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
   }: {
     buildId: string
+    previewModeId?: string
+    fetchCacheKeyPrefix?: string
     config: NextConfigComplete
     compilerType: CompilerNameValues
     dev?: boolean
@@ -2118,6 +2129,8 @@ export default async function getBaseWebpackConfig(
           hasRewrites,
           isNodeServer,
           isEdgeServer,
+          previewModeId,
+          fetchCacheKeyPrefix,
           middlewareMatchers,
           clientRouterFilters,
         })

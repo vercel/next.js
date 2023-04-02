@@ -3,7 +3,7 @@ import { cache, use } from 'react'
 export default function Page() {
   const getData = cache(() =>
     fetch('https://next-data-api-endpoint.vercel.app/api/random?page', {
-      next: { revalidate: 360 },
+      next: { revalidate: 360, tags: ['thankyounext'] },
     }).then((res) => res.text())
   )
   const dataPromise = getData()

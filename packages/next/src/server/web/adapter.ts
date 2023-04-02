@@ -16,6 +16,9 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
+import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import { IncrementalCache } from '../lib/incremental-cache'
 
 declare const _ENTRIES: any
 
@@ -125,7 +128,57 @@ export async function adapter(
   }
 
   const event = new NextFetchEvent({ request, page: params.page })
-  let response = await params.handler(request, event)
+
+  // provide a top-level static generation context for
+  // accessing current incremental cache info for
+  // revalidatePath/revalidateTag
+  ;(globalThis as any).__nextStaticGenerationAsyncStorage =
+    staticGenerationAsyncStorage
+
+  const incrementalCache =
+    (globalThis as any).__incrementalCache ||
+    new IncrementalCache({
+      dev: process.env.NODE_ENV === 'development',
+      flushToDisk: false,
+      minimalMode: true,
+      appDir: true,
+      fetchCache: true,
+      fetchCacheKeyPrefix: process.env.__NEXT_PRIVATE_FETCH_KEY_PREFIX,
+      host: requestUrl.hostname,
+      port: requestUrl.port,
+      trustHostHeader: true,
+      // strip ending ":"
+      protocol: requestUrl.protocol.substring(
+        0,
+        requestUrl.protocol.length - 1
+      ),
+      getPrerenderManifest() {
+        return {
+          version: -1 as any,
+          notFoundRoutes: [],
+          routes: {},
+          dynamicRoutes: {},
+          preview: {
+            previewModeEncryptionKey: '',
+            previewModeSigningKey: '',
+            previewModeId: process.env.__NEXT_PRIVATE_PREVIEW_ID || '',
+          },
+        }
+      },
+      requestHeaders: params.request.headers as any,
+    })
+
+  let response = await StaticGenerationAsyncStorageWrapper.wrap(
+    staticGenerationAsyncStorage,
+    {
+      pathname: params.page,
+      renderOpts: {
+        supportsDynamicHTML: true,
+        incrementalCache: incrementalCache as any,
+      },
+    },
+    () => params.handler(request, event)
+  )
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {

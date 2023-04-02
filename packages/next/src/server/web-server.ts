@@ -50,18 +50,14 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
-  protected getIncrementalCache({
-    requestHeaders,
-  }: {
-    requestHeaders: IncrementalCache['requestHeaders']
-  }) {
+  protected getIncrementalCache({ req }: { req: BaseNextRequest }) {
     const dev = !!this.renderOpts.dev
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
     return new IncrementalCache({
       dev,
-      requestHeaders,
+      requestHeaders: req.headers,
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
       fetchCache: this.nextConfig.experimental.appDir,
@@ -83,6 +79,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           return this.getPrerenderManifest()
         }
       },
+      host: req.headers['host'] || '',
     })
   }
   protected getResponseCache() {

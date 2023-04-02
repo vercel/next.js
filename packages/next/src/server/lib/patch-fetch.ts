@@ -291,7 +291,12 @@ export function patchFetch({
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
             if (!staticGenerationStore.isRevalidate || !entry.isStale) {
-              if (entry.isStale) {
+              const curTags = entry.value.data.tags || []
+              if (
+                entry.isStale ||
+                (Array.isArray(tags) &&
+                  !tags.every((tag) => curTags.includes(tag)))
+              ) {
                 if (!staticGenerationStore.pendingRevalidates) {
                   staticGenerationStore.pendingRevalidates = []
                 }
@@ -380,20 +385,4 @@ export function patchFetch({
     )
   }
   ;(fetch as any).__nextPatched = true
-  ;(fetch as any).revalidateTag = async (tag: string) => {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-
-    if (!staticGenerationStore) {
-      throw new Error(`invariant missing staticGenerationStore`)
-    }
-    const store = staticGenerationAsyncStorage.getStore()
-
-    const incrementalCache = store?.incrementalCache
-
-    if (!incrementalCache) {
-      throw new Error('invariant missing incrementalCache')
-    }
-
-    return incrementalCache.revalidateTag(tag)
-  }
 }

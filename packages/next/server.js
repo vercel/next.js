@@ -10,7 +10,11 @@ const serverExports = {
   userAgent: require('next/dist/server/web/spec-extension/user-agent')
     .userAgent,
 
-  revalidateTag: require('next/dist/server/revalidate').revalidateTag,
+  revalidateTag: require('next/dist/server/web/exports/revalidate-tag')
+    .revalidateTag,
+
+  revalidatePath: require('next/dist/server/web/exports/revalidate-path')
+    .revalidatePath,
 }
 
 if (typeof URLPattern !== 'undefined') {
@@ -30,3 +34,4 @@ exports.userAgentFromString = serverExports.userAgentFromString
 exports.userAgent = serverExports.userAgent
 exports.URLPattern = serverExports.URLPattern
 exports.revalidateTag = serverExports.revalidateTag
+exports.revalidatePath = serverExports.revalidatePath

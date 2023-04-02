@@ -1216,6 +1216,7 @@ export async function buildAppStaticPaths({
     }),
     CurCacheHandler: CacheHandler,
     requestHeaders,
+    host: '',
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(

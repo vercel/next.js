@@ -73,6 +73,7 @@ export const NextBuildContext: Partial<{
   originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
+  fetchCacheKeyPrefix?: string
   mappedPages:
     | {
         [page: string]: string

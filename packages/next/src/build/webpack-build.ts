@@ -108,6 +108,8 @@ async function webpackBuildImpl(
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
+    previewModeId: NextBuildContext.previewProps?.previewModeId,
+    fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix,
   }
 
   const configs = await runWebpackSpan
