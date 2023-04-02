@@ -1,4 +1,4 @@
-import { ImageResponse } from '@vercel/og'
+import { ImageResponse } from 'next/server'
 
 export const alt = 'Twitter'
 export const size = { width: 1600, height: 900 }

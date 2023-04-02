@@ -403,7 +403,7 @@ describe('should set-up next', () => {
     expect(props2.gspCalls).not.toBe(props.gspCalls)
   })
 
-  it('should not 404 for onlyGenerated manual revalidate in minimal mode', async () => {
+  it('should not 404 for onlyGenerated on-demand revalidate in minimal mode', async () => {
     const previewProps = JSON.parse(
       await next.readFile('standalone/.next/prerender-manifest.json')
     ).preview

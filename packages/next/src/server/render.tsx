@@ -264,6 +264,7 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   largePageDataBytes?: number
+  isOnDemandRevalidate?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -449,7 +450,7 @@ export async function renderToHTML(
   ) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
-        ` while running "next export". It's recommended to use getStaticProps` +
+        ` while running export. It's recommended to use getStaticProps` +
         ` which has a more correct behavior for static exporting.` +
         `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
     )

@@ -34,7 +34,7 @@ body:
   - type: input
     attributes:
       label: How are you deploying your application? (if relevant)
-      description: 'For example: next start, next export, Vercel, Other platform'
+      description: 'For example: next start, Vercel, Other platform'
   - type: textarea
     attributes:
       label: Describe the Bug

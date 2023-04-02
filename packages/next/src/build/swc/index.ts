@@ -76,6 +76,7 @@ let wasmBindings: any
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
+let swcHeapProfilerFlushGuard: any
 let swcCrashReporterFlushGuard: any
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
@@ -425,9 +426,13 @@ function loadNative(isCustomTurbopack = false) {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
+      initHeapProfiler: bindings.initHeapProfiler,
+      teardownHeapProfiler: bindings.teardownHeapProfiler,
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
         startDev: (options: any) => {
+          initHeapProfiler()
+
           const devOptions = {
             ...options,
             noOpen: options.noOpen ?? true,
@@ -504,13 +509,19 @@ function loadNative(isCustomTurbopack = false) {
           }
         },
         nextBuild: (options: unknown) => {
-          return bindings.nextBuild(options)
+          initHeapProfiler()
+          const ret = bindings.nextBuild(options)
+
+          return ret
         },
-        startTrace: (options = {}, turboTasks: unknown) =>
-          bindings.runTurboTracing(
+        startTrace: (options = {}, turboTasks: unknown) => {
+          initHeapProfiler()
+          const ret = bindings.runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
-          ),
+          )
+          return ret
+        },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
       },
@@ -588,6 +599,46 @@ export const initCustomTraceSubscriber = (traceFileName?: string): void => {
     swcTraceFlushGuard = bindings.initCustomTraceSubscriber(traceFileName)
   }
 }
+
+/**
+ * Initialize heap profiler, if possible.
+ * Note this is not available in release build of next-swc by default,
+ * only available by manually building next-swc with specific flags.
+ * Calling in release build will not do anything.
+ */
+export const initHeapProfiler = () => {
+  try {
+    if (!swcHeapProfilerFlushGuard) {
+      let bindings = loadNative()
+      swcHeapProfilerFlushGuard = bindings.initHeapProfiler()
+    }
+  } catch (_) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
+  }
+}
+
+/**
+ * Teardown heap profiler, if possible.
+ *
+ * Same as initialization, this is not available in release build of next-swc by default
+ * and calling it will not do anything.
+ */
+export const teardownHeapProfiler = (() => {
+  let flushed = false
+  return (): void => {
+    if (!flushed) {
+      flushed = true
+      try {
+        let bindings = loadNative()
+        if (swcHeapProfilerFlushGuard) {
+          bindings.teardownHeapProfiler(swcHeapProfilerFlushGuard)
+        }
+      } catch (e) {
+        // Suppress exceptions, this fn allows to fail to load native bindings
+      }
+    }
+  }
+})()
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.

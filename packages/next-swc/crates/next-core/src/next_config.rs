@@ -2,32 +2,35 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_binding::turbo::tasks_env::EnvMapVc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    asset::Asset,
-    changed::any_content_changed,
-    chunk::ChunkingContext,
-    context::AssetContext,
-    ident::AssetIdentVc,
-    issue::IssueContextExt,
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    resolve::{
-        find_context_file,
-        options::{ImportMap, ImportMapping},
-        FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
+use turbo_binding::{
+    turbo::{tasks_env::EnvMapVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::Asset,
+            changed::any_content_changed,
+            chunk::ChunkingContext,
+            context::AssetContext,
+            ident::AssetIdentVc,
+            issue::IssueContextExt,
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            resolve::{
+                find_context_file,
+                options::{ImportMap, ImportMapping},
+                FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
+            },
+            source_asset::SourceAssetVc,
+        },
+        ecmascript::{
+            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+        },
+        node::{
+            evaluate::evaluate,
+            execution_context::{ExecutionContext, ExecutionContextVc},
+            transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
+        },
+        turbopack::evaluate_context::node_evaluate_asset_context,
     },
-    source_asset::SourceAssetVc,
 };
-use turbo_binding::turbopack::ecmascript::{
-    EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-};
-use turbo_binding::turbopack::node::{
-    evaluate::evaluate,
-    execution_context::{ExecutionContext, ExecutionContextVc},
-    transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
-};
-use turbo_binding::turbopack::turbopack::evaluate_context::node_evaluate_asset_context;
 use turbo_tasks::{
     primitives::{BoolVc, StringsVc},
     trace::TraceRawVcs,
@@ -321,9 +324,12 @@ pub enum ImageFormat {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct RemotePattern {
-    pub protocol: Option<RemotePatternProtocal>,
     pub hostname: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<RemotePatternProtocal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pathname: Option<String>,
 }
 

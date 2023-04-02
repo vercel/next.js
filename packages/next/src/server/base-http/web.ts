@@ -1,4 +1,5 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import { toNodeHeaders } from '../web/utils'
 
 import { BaseNextRequest, BaseNextResponse } from './index'
 
@@ -75,7 +76,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   getHeaders(): OutgoingHttpHeaders {
-    return Object.fromEntries(this.headers.entries())
+    return toNodeHeaders(this.headers)
   }
 
   hasHeader(name: string): boolean {

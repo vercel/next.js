@@ -87,9 +87,18 @@ export function patchFetch({
             ? (input as any).next?.tags
             : undefined
 
+        const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
+        const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
+        const isDefaultNoStore =
+          staticGenerationStore.fetchCache === 'default-no-store'
+        const isOnlyNoStore =
+          staticGenerationStore.fetchCache === 'only-no-store'
+        const isForceNoStore =
+          staticGenerationStore.fetchCache === 'force-no-store'
+
         const _cache = getRequestMeta('cache')
 
-        if (_cache === 'force-cache') {
+        if (_cache === 'force-cache' || isForceCache) {
           curRevalidate = false
         }
         if (['no-cache', 'no-store'].includes(_cache || '')) {
@@ -109,15 +118,6 @@ export function patchFetch({
             ? _headers
             : new Headers(_headers || {})
 
-        // const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
-        // const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
-        // const isDefaultNoStore =
-        //   staticGenerationStore.fetchCache === 'default-no-store'
-        // const isOnlyNoStore =
-        //   staticGenerationStore.fetchCache === 'only-no-store'
-        // const isForceNoStore =
-        //   staticGenerationStore.fetchCache === 'force-no-store'
-
         const hasUnCacheableHeader =
           initHeaders.get('authorization') || initHeaders.get('cookie')
 
@@ -132,8 +132,28 @@ export function patchFetch({
           (hasUnCacheableHeader || isUnCacheableMethod) &&
           staticGenerationStore.revalidate === 0
 
+        if (isForceNoStore) {
+          revalidate = 0
+        }
+
         if (typeof revalidate === 'undefined') {
-          if (autoNoCache) {
+          if (isOnlyCache && _cache === 'no-store') {
+            throw new Error(
+              `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
+            )
+          }
+
+          if (isOnlyNoStore) {
+            revalidate = 0
+
+            if (_cache === 'force-cache') {
+              throw new Error(
+                `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
+              )
+            }
+          } else if (autoNoCache) {
+            revalidate = 0
+          } else if (isDefaultNoStore) {
             revalidate = 0
           } else {
             revalidate =
@@ -259,11 +279,13 @@ export function patchFetch({
         }
 
         if (cacheKey && staticGenerationStore?.incrementalCache) {
-          const entry = await staticGenerationStore.incrementalCache.get(
-            cacheKey,
-            true,
-            revalidate
-          )
+          const entry = staticGenerationStore.isOnDemandRevalidate
+            ? null
+            : await staticGenerationStore.incrementalCache.get(
+                cacheKey,
+                true,
+                revalidate
+              )
 
           if (entry?.value && entry.value.kind === 'FETCH') {
             // when stale and is revalidating we wait for fresh data

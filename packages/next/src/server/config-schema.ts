@@ -256,6 +256,9 @@ const configSchema = {
         clientRouterFilterRedirects: {
           type: 'boolean',
         },
+        clientRouterFilterAllowedRate: {
+          type: 'number',
+        },
         cpus: {
           type: 'number',
         },

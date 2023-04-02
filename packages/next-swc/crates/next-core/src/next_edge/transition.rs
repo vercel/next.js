@@ -1,28 +1,32 @@
 use anyhow::{anyhow, bail, Result};
 use indexmap::indexmap;
-use turbo_binding::turbo::tasks::Value;
-use turbo_binding::turbo::tasks_fs::{
-    rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc,
-};
-use turbo_binding::turbopack::core::{
-    asset::{Asset, AssetVc},
-    chunk::ChunkingContextVc,
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContext,
-    reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::parse::RequestVc,
-    virtual_asset::VirtualAssetVc,
-};
-use turbo_binding::turbopack::ecmascript::{
-    chunk_group_files_asset::ChunkGroupFilesAsset, resolve::esm_resolve, utils::StringifyJs,
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::{
+    turbo::{
+        tasks::Value,
+        tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc},
+    },
+    turbopack::{
+        core::{
+            asset::{Asset, AssetVc},
+            chunk::ChunkingContextVc,
+            compile_time_info::CompileTimeInfoVc,
+            context::AssetContext,
+            reference_type::EcmaScriptModulesReferenceSubType,
+            resolve::parse::RequestVc,
+            virtual_asset::VirtualAssetVc,
+        },
+        ecmascript::{
+            chunk_group_files_asset::ChunkGroupFilesAsset, resolve::esm_resolve,
+            utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+        turbopack::{
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
 
 #[turbo_tasks::value(shared)]
@@ -95,7 +99,7 @@ impl Transition for NextEdgeTransition {
         };
 
         // TODO: this is where you'd switch the route kind to the one you need
-        let kind = "app-route";
+        let route_module_kind = "app-route";
         let pathname = normalize_app_page_to_pathname(path);
 
         let mut new_content = RopeBuilder::from(
@@ -114,15 +118,15 @@ impl Transition for NextEdgeTransition {
             FileContent::Content(file).cell().into(),
         );
 
-        let resolved_route_asset = esm_resolve(
+        let resolved_route_module_asset = esm_resolve(
             resolve_origin,
             RequestVc::parse_string(format!(
-                "next/dist/build/webpack/loaders/next-app-loader/routes/{}",
-                kind
+                "next/dist/server/future/route-modules/{}/module",
+                route_module_kind
             )),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
         );
-        let route_asset = match &*resolved_route_asset.first_asset().await? {
+        let route_module_asset = match &*resolved_route_module_asset.first_asset().await? {
             Some(a) => *a,
             None => bail!("could not find app asset"),
         };
@@ -138,7 +142,7 @@ impl Transition for NextEdgeTransition {
             context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "ENTRY".to_string() => asset,
-                "ROUTE".to_string() => route_asset
+                "ROUTE_MODULE".to_string() => route_module_asset
             }),
         );
 

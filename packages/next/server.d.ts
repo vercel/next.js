@@ -12,3 +12,4 @@ export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-ag
 export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
 export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
 export { revalidateTag } from 'next/dist/server/revalidate'
+export { ImageResponse } from 'next/dist/server/web/spec-extension/image-response'

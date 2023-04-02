@@ -14,9 +14,6 @@ createNextDescribe(
   {
     files: __dirname,
     skipDeployment: true,
-    dependencies: {
-      '@vercel/og': '0.4.1',
-    },
   },
   ({ next, isNextDev, isNextDeploy }) => {
     describe('text routes', () => {
@@ -157,6 +154,8 @@ createNextDescribe(
       const twitterDescription = $('meta[name="twitter:description"]').attr(
         'content'
       )
+
+      expect($('link[rel="favicon"]')).toHaveLength(0)
 
       // non absolute urls
       expect($icon.attr('href')).toContain('/icon')

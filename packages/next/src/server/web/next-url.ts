@@ -1,13 +1,15 @@
+import type { OutgoingHttpHeaders } from 'http'
 import type { DomainLocale, I18NConfig } from '../config-shared'
+import type { I18NProvider } from '../future/helpers/i18n-provider'
+
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-pathname-info'
-import type { I18NProvider } from '../future/helpers/i18n-provider'
 
 interface Options {
   base?: string | URL
-  headers?: { [key: string]: string | string[] | undefined }
+  headers?: OutgoingHttpHeaders
   forceLocale?: boolean
   nextConfig?: {
     basePath?: string
