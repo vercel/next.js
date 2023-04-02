@@ -1416,6 +1416,9 @@ export default class NextNodeServer extends BaseServer {
               method: req.method,
               headers: invokeHeaders as any,
               redirect: 'manual',
+              next: {
+                hideOTelSpan: true,
+              } as any,
               ...(req.method !== 'GET' && req.method !== 'HEAD'
                 ? {
                     // @ts-ignore
@@ -2246,6 +2249,9 @@ export default class NextNodeServer extends BaseServer {
                   method: req.method,
                   headers: invokeHeaders as any,
                   redirect: 'manual',
+                  next: {
+                    hideOTelSpan: true,
+                  } as any,
                   ...(req.method !== 'GET' && req.method !== 'HEAD'
                     ? {
                         // @ts-ignore
