@@ -51,22 +51,32 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
     import * as exported from ${JSON.stringify(resourcePath)}
+    import { interpolateDynamicPath } from 'next/dist/server/server-utils'
+    import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
     const exportedImageData = { ...exported }
-    const imageData = {
-      alt: exportedImageData.alt,
-      type: exportedImageData.contentType,
-      url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
-    }
-    const { size } = exportedImageData
-    if (size) {
-      ${
-        type === 'twitter' || type === 'openGraph'
-          ? 'imageData.width = size.width; imageData.height = size.height;'
-          : 'imageData.sizes = size.width + "x" + size.height;'
+    export default (props) => {
+      const pathname = ${JSON.stringify(route)}
+      const routeRegex = getNamedRouteRegex(pathname)
+      const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+
+      const imageData = {
+        alt: exportedImageData.alt,
+        type: exportedImageData.contentType,
+        url: route + '/' + ${JSON.stringify(
+          filename + (contentHash ? '?' + contentHash : '')
+        )},
       }
-    }
-    export default imageData`
+      const { size } = exportedImageData
+      if (size) {
+        ${
+          type === 'twitter' || type === 'openGraph'
+            ? 'imageData.width = size.width; imageData.height = size.height;'
+            : 'imageData.sizes = size.width + "x" + size.height;'
+        }
+      }
+      return imageData
+    }`
   }
 
   const imageSize = await getImageSize(
