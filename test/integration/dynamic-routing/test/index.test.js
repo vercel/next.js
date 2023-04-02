@@ -1130,7 +1130,13 @@ function runTests({ dev }) {
         found++
       }
     }
-    expect(found).toBe(0)
+
+    try {
+      expect(found).toBe(0)
+    } catch (err) {
+      require('console').error(html)
+      throw err
+    }
   })
 
   if (dev) {
