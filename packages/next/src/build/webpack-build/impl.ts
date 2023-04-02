@@ -1,37 +1,36 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import chalk from 'next/dist/compiled/chalk'
-import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
-import { nonNullable } from '../lib/non-nullable'
+import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
+import { nonNullable } from '../../lib/non-nullable'
 import {
   COMPILER_NAMES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
   COMPILER_INDEXES,
-} from '../shared/lib/constants'
-import { runCompiler } from './compiler'
-import * as Log from './output/log'
-import getBaseWebpackConfig, { loadProjectInfo } from './webpack-config'
-import { NextError } from '../lib/is-error'
-import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
+} from '../../shared/lib/constants'
+import { runCompiler } from '../compiler'
+import * as Log from '../output/log'
+import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
+import { NextError } from '../../lib/is-error'
+import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
   resumePluginState,
   getPluginState,
-} from './build-context'
-import { createEntrypoints } from './entries'
-import loadConfig from '../server/config'
-import { trace } from '../trace'
-import { WEBPACK_LAYERS } from '../lib/constants'
+} from '../build-context'
+import { createEntrypoints } from '../entries'
+import loadConfig from '../../server/config'
+import { trace } from '../../trace'
+import { WEBPACK_LAYERS } from '../../lib/constants'
 import {
   TraceEntryPointsPlugin,
   TurbotraceContext,
-} from './webpack/plugins/next-trace-entrypoints-plugin'
-import { UnwrapPromise } from '../lib/coalesced-function'
-import * as pagesPluginModule from './webpack/plugins/pages-manifest-plugin'
-import { Worker } from 'next/dist/compiled/jest-worker'
+} from '../webpack/plugins/next-trace-entrypoints-plugin'
+import { UnwrapPromise } from '../../lib/coalesced-function'
+import * as pagesPluginModule from '../webpack/plugins/pages-manifest-plugin'
+
 import origDebug from 'next/dist/compiled/debug'
-import { ChildProcess } from 'child_process'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -57,7 +56,7 @@ function isTraceEntryPointsPlugin(
   return plugin instanceof TraceEntryPointsPlugin
 }
 
-async function webpackBuildImpl(
+export async function webpackBuildImpl(
   compilerName?: keyof typeof COMPILER_INDEXES
 ): Promise<{
   duration: number
@@ -366,109 +365,4 @@ export async function workerMain(workerData: {
     }
   }
   return result
-}
-
-async function webpackBuildWithWorker() {
-  const {
-    config,
-    telemetryPlugin,
-    buildSpinner,
-    nextBuildSpan,
-    ...prunedBuildContext
-  } = NextBuildContext
-
-  const getWorker = (compilerName: string) => {
-    const _worker = new Worker(__filename, {
-      exposedMethods: ['workerMain'],
-      numWorkers: 1,
-      maxRetries: 0,
-      forkOptions: {
-        env: {
-          ...process.env,
-          NEXT_PRIVATE_BUILD_WORKER: '1',
-        },
-      },
-    }) as Worker & { workerMain: typeof workerMain }
-    _worker.getStderr().pipe(process.stderr)
-    _worker.getStdout().pipe(process.stdout)
-
-    for (const worker of ((_worker as any)._workerPool?._workers || []) as {
-      _child: ChildProcess
-    }[]) {
-      worker._child.on('exit', (code, signal) => {
-        if (code || signal) {
-          console.error(
-            `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
-          )
-        }
-      })
-    }
-
-    return _worker
-  }
-
-  const combinedResult = {
-    duration: 0,
-    turbotraceContext: {} as TurbotraceContext,
-  }
-  // order matters here
-  const ORDERED_COMPILER_NAMES = [
-    'server',
-    'edge-server',
-    'client',
-  ] as (keyof typeof COMPILER_INDEXES)[]
-
-  for (const compilerName of ORDERED_COMPILER_NAMES) {
-    const worker = getWorker(compilerName)
-
-    const curResult = await worker.workerMain({
-      buildContext: prunedBuildContext,
-      compilerName,
-    })
-    // destroy worker so it's not sticking around using memory
-    await worker.end()
-
-    // Update plugin state
-    prunedBuildContext.pluginState = curResult.pluginState
-
-    prunedBuildContext.serializedPagesManifestEntries = {
-      edgeServerAppPaths:
-        curResult.serializedPagesManifestEntries?.edgeServerAppPaths,
-      edgeServerPages:
-        curResult.serializedPagesManifestEntries?.edgeServerPages,
-      nodeServerAppPaths:
-        curResult.serializedPagesManifestEntries?.nodeServerAppPaths,
-      nodeServerPages:
-        curResult.serializedPagesManifestEntries?.nodeServerPages,
-    }
-
-    combinedResult.duration += curResult.duration
-
-    if (curResult.turbotraceContext?.entriesTrace) {
-      combinedResult.turbotraceContext = curResult.turbotraceContext
-
-      const { entryNameMap } = combinedResult.turbotraceContext.entriesTrace!
-      if (entryNameMap) {
-        combinedResult.turbotraceContext.entriesTrace!.entryNameMap = new Map(
-          entryNameMap
-        )
-      }
-    }
-  }
-  buildSpinner?.stopAndPersist()
-  Log.info('Compiled successfully')
-
-  return combinedResult
-}
-
-export async function webpackBuild() {
-  const config = NextBuildContext.config!
-
-  if (config.experimental.webpackBuildWorker) {
-    debug('using separate compiler workers')
-    return await webpackBuildWithWorker()
-  } else {
-    debug('building all compilers in same process')
-    return await webpackBuildImpl()
-  }
 }
