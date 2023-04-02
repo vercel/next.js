@@ -1272,6 +1272,20 @@ export default async function build(
         },
         numWorkers: config.experimental.cpus,
         enableWorkerThreads: config.experimental.workerThreads,
+        computeWorkerKey(method, ...args) {
+          if (method === 'exportPage') {
+            const typedArgs = args as Parameters<
+              typeof import('./worker').exportPage
+            >
+            return typedArgs[0].pathMap.page
+          } else if (method === 'isPageStatic') {
+            const typedArgs = args as Parameters<
+              typeof import('./worker').isPageStatic
+            >
+            return typedArgs[0].originalAppPath || typedArgs[0].page
+          }
+          return method
+        },
         exposedMethods: sharedPool
           ? [
               'hasCustomGetInitialProps',
