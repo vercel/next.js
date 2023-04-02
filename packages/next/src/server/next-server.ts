@@ -102,6 +102,7 @@ import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
+import { filterReqHeaders } from './lib/server-ipc'
 
 export * from './base-server'
 
@@ -1409,26 +1410,7 @@ export default class NextNodeServer extends BaseServer {
               'x-invoke-path': invokePathname,
               'x-invoke-query': encodeURIComponent(invokeQuery),
             }
-
-            const forbiddenHeaders = (global as any).__NEXT_USE_UNDICI
-              ? [
-                  'content-length',
-                  'keepalive',
-                  'content-encoding',
-                  'transfer-encoding',
-                  // https://github.com/nodejs/undici/issues/1470
-                  'connection',
-                ]
-              : [
-                  'content-length',
-                  'keepalive',
-                  'content-encoding',
-                  'transfer-encoding',
-                ]
-
-            for (const key of forbiddenHeaders) {
-              delete invokeHeaders[key]
-            }
+            filterReqHeaders(invokeHeaders)
 
             const invokeRes = await fetch(renderUrl, {
               method: req.method,
@@ -2258,14 +2240,7 @@ export default class NextNodeServer extends BaseServer {
                   ...req.headers,
                   'x-middleware-invoke': '1',
                 }
-                for (const key of [
-                  'content-length',
-                  'keepalive',
-                  'content-encoding',
-                  'transfer-encoding',
-                ]) {
-                  delete invokeHeaders[key]
-                }
+                filterReqHeaders(invokeHeaders)
 
                 const invokeRes = await fetch(renderUrl, {
                   method: req.method,
