@@ -43,6 +43,11 @@ createNextDescribe(
     const sanitizeSpans = (spans: SavedSpan[]) => {
       return spans
         .sort((a, b) =>
+          (a.attributes?.['next.span_name'] ?? '').localeCompare(
+            b.attributes?.['next.span_name'] ?? ''
+          )
+        )
+        .sort((a, b) =>
           (a.attributes?.['next.span_type'] ?? '').localeCompare(
             b.attributes?.['next.span_type'] ?? ''
           )
@@ -115,12 +120,12 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
-                "next.route": "/app/[param]/rsc-fetch/page",
-                "next.span_name": "generateMetadata /app/[param]/rsc-fetch/page",
+                "next.route": "/app/[param]/layout",
+                "next.span_name": "generateMetadata /app/[param]/layout",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
               "kind": 0,
-              "name": "generateMetadata /app/[param]/rsc-fetch/page",
+              "name": "generateMetadata /app/[param]/layout",
               "parentId": "[parent-id]",
               "status": Object {
                 "code": 0,
@@ -128,12 +133,12 @@ createNextDescribe(
             },
             Object {
               "attributes": Object {
-                "next.route": "/app/[param]/layout",
-                "next.span_name": "generateMetadata /app/[param]/layout",
+                "next.route": "/app/[param]/rsc-fetch/page",
+                "next.span_name": "generateMetadata /app/[param]/rsc-fetch/page",
                 "next.span_type": "ResolveMetadata.generateMetadata",
               },
               "kind": 0,
-              "name": "generateMetadata /app/[param]/layout",
+              "name": "generateMetadata /app/[param]/rsc-fetch/page",
               "parentId": "[parent-id]",
               "status": Object {
                 "code": 0,
