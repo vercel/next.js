@@ -102,6 +102,7 @@ export async function loadStaticPaths({
                 dynamicParams: userland.dynamicParams,
               },
               generateStaticParams: userland.generateStaticParams,
+              generateImageMetadata: userland.generateImageMetadata,
               segmentPath: pathname,
             },
           ]

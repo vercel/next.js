@@ -47,7 +47,7 @@ async function nextMetadataImageLoader(this: any, content: string) {
     route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
 
   const isDynamicResource = pageExtensions.includes(extension)
-  const hasSSGImage = content.includes('generateImageData')
+  const shouldGenerateImages = content.includes('generateImageMetadata')
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
     const code = `\
@@ -74,17 +74,19 @@ async function nextMetadataImageLoader(this: any, content: string) {
     }
 
     ${
-      hasSSGImage
+      shouldGenerateImages
         ? `\
       export default async (props) => {
         const pathname = ${JSON.stringify(route)}
         const routeRegex = getNamedRouteRegex(pathname)
         const route = interpolateDynamicPath(pathname, props.params, routeRegex)
 
-        const generated = await exported.generateImageData(props)
-        return generated.map((imageData) => getImageData(imageData, route + '/' + ${JSON.stringify(
-          filename
-        )}))
+        const generated = await exported.generateImageMetadata(props)
+        return generated.map((imageData) =>
+          getImageData(imageData, route + '/' + ${JSON.stringify(
+            filename
+          )} + imageData.id
+        ))
       }
       `
         : `\

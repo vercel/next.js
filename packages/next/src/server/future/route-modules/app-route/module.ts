@@ -83,6 +83,7 @@ export type AppRouteUserlandModule = AppRouteHandlers &
   Pick<AppConfig, 'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'> & {
     // TODO: (wyattjoh) create a type for this
     generateStaticParams?: any
+    generateImageMetadata?: any
   }
 
 /**

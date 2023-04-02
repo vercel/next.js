@@ -203,7 +203,10 @@ export type GetStaticPathsContext = {
 export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  paths: Array<string | { params: Params; locale?: string }>
+  paths: Array<
+    | string
+    | { params: Params; id: string | number | undefined; locale?: string }
+  >
   fallback: boolean | 'blocking'
 }
 

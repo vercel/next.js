@@ -90,6 +90,12 @@ export async function GET() {
 `
 }
 
+// export async function generateStaticParams({ params }) {
+//   const results = await dynamicImageModule.generateImageMetadata({ params })
+//   console.log('generateStaticParams', { params }, 'results', results.map(({ id }) => ({ ...params, NEXT_IMAGE_ID: id })))
+//   return results.map(({ id }) => ({ ...params, NEXT_IMAGE_ID: id }))
+// }
+
 function getDynamicImageRouteCode(resourcePath: string, hasSSGImage: boolean) {
   return `\
 import { NextResponse } from 'next/server'
@@ -98,17 +104,13 @@ import * as dynamicImageModule from ${JSON.stringify(resourcePath)}
 ${
   hasSSGImage
     ? `\
-export async function generateStaticParams({ params }) {
-  const results = await dynamicImageModule.generateImageData({ params })
-  console.log('generateStaticParams', { params }, 'results', results.map(({ id }) => ({ ...params, NEXT_IMAGE_ID: id })))
-  return results.map(({ id }) => ({ ...params, NEXT_IMAGE_ID: id }))
-}
+export { generateImageMetadata } from ${JSON.stringify(resourcePath)}
 `
     : ''
 }
 
 export function GET(req, ctx) {
-  console.log('GET', 'ctx', ctx, 'req' , req.url)
+  console.log('GET', 'ctx', ctx)
   const { NEXT_IMAGE_ID: id, ...params } = ctx.params || {}
   return dynamicImageModule.default({ params, id })
 }
@@ -122,7 +124,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
   function (content: string) {
     const { resourcePath } = this
     const { pageExtensions } = this.getOptions()
-    const hasSSGImage = content.includes('generateImageData')
+    const hasSSGImage = content.includes('generateImageMetadata')
 
     const { name: fileBaseName, ext } = getFilenameAndExtension(resourcePath)
     const isDynamic = pageExtensions.includes(ext)

@@ -855,13 +855,18 @@ export async function buildStaticPaths({
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
-  staticPathsResult?: UnwrapPromise<ReturnType<GetStaticPaths>>
+  staticPathsResult?: UnwrapPromise<
+    ReturnType<GetStaticPaths> & { id: string | number | null }
+  >
   configFileName: string
   locales?: string[]
   defaultLocale?: string
   appDir?: boolean
 }): Promise<
-  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
+  Omit<
+    UnwrapPromise<ReturnType<GetStaticPaths> & { id: string | number | null }>,
+    'paths'
+  > & {
     paths: string[]
     encodedPaths: string[]
   }
@@ -970,7 +975,7 @@ export async function buildStaticPaths({
     // required keys.
     else {
       const invalidKeys = Object.keys(entry).filter(
-        (key) => key !== 'params' && key !== 'locale'
+        (key) => key !== 'params' && key !== 'locale' && key !== 'id'
       )
 
       if (invalidKeys.length) {
@@ -984,9 +989,11 @@ export async function buildStaticPaths({
         )
       }
 
-      const { params = {} } = entry
-      let builtPage = page
-      let encodedBuiltPage = page
+      const { id: entryId, params = {} } = entry
+      const idSuffix = typeof entryId !== 'undefined' ? entryId : ''
+      let builtPage = page + idSuffix
+      let encodedBuiltPage = page + idSuffix
+      console.log('builtPage', builtPage, '<--', page)
 
       _validParamKeys.forEach((validParamKey) => {
         const { repeat, optional } = _routeRegex.groups[validParamKey]
@@ -1089,6 +1096,7 @@ export type GenerateParams = Array<{
   segmentPath: string
   getStaticPaths?: GetStaticPaths
   generateStaticParams?: any
+  generateImageMetadata?: any
   isLayout?: boolean
 }>
 
@@ -1144,13 +1152,21 @@ export const collectGenerateParams = async (
     generateStaticParams: isClientComponent
       ? undefined
       : mod?.generateStaticParams,
+    generateImageMetadata: isClientComponent
+      ? undefined
+      : mod?.generateImageMetadata,
   }
 
   if (segment[0]) {
     parentSegments.push(segment[0])
   }
 
-  if (result.config || result.generateStaticParams || result.getStaticPaths) {
+  if (
+    result.config ||
+    result.generateStaticParams ||
+    result.getStaticPaths ||
+    result.generateImageMetadata
+  ) {
     generateParams.push(result)
   }
   return collectGenerateParams(
@@ -1242,42 +1258,61 @@ export async function buildAppStaticPaths({
       } else {
         // if generateStaticParams is being used we iterate over them
         // collecting them from each level
-        type Params = Array<Record<string, string | string[]>>
+        type PageParam = Record<string, string | string[]>
+        type ParamsItems = {
+          params: PageParam
+          id: number | string | undefined
+        }[]
         let hadGenerateParams = false
 
         const buildParams = async (
-          paramsItems: Params = [{}],
+          paramsItems: ParamsItems = [{ params: {}, id: undefined }],
           idx = 0
-        ): Promise<Params> => {
+        ): Promise<ParamsItems> => {
           const curGenerate = generateParams[idx]
 
           if (idx === generateParams.length) {
             return paramsItems
           }
+
           if (
             typeof curGenerate.generateStaticParams !== 'function' &&
+            typeof curGenerate.generateImageMetadata !== 'function' &&
             idx < generateParams.length
           ) {
             return buildParams(paramsItems, idx + 1)
           }
           hadGenerateParams = true
 
-          const newParams = []
+          const staticParams: ParamsItems = []
 
-          for (const params of paramsItems) {
-            const result = await curGenerate.generateStaticParams({ params })
-            // TODO: validate the result is valid here or wait for
-            // buildStaticPaths to validate?
-            for (const item of result) {
-              newParams.push({ ...params, ...item })
+          for (const { params } of paramsItems) {
+            let result
+            if (curGenerate.generateStaticParams) {
+              result = await curGenerate.generateStaticParams({ params })
+              // TODO: validate the result is valid here or wait for
+              // buildStaticPaths to validate?
+              for (const item of result) {
+                staticParams.push({
+                  params: { ...params, ...item },
+                  id: undefined,
+                })
+              }
+            } else if (curGenerate.generateImageMetadata) {
+              result = await curGenerate.generateImageMetadata({ params })
+              for (const item of result) {
+                const id: number | string = item.id
+                staticParams.push({ params, id })
+              }
             }
           }
 
           if (idx < generateParams.length) {
-            return buildParams(newParams, idx + 1)
+            return buildParams(staticParams, idx + 1)
           }
-          return newParams
+          return staticParams
         }
+
         const builtParams = await buildParams()
         const fallback = !generateParams.some(
           // TODO: dynamic params should be allowed
@@ -1301,7 +1336,7 @@ export async function buildAppStaticPaths({
         return buildStaticPaths({
           staticPathsResult: {
             fallback,
-            paths: builtParams.map((params) => ({ params })),
+            paths: builtParams.map(({ params, id }) => ({ params, id })),
           },
           page,
           configFileName,
@@ -1455,6 +1490,7 @@ export async function isPageStatic({
                   dynamicParams: userland.dynamicParams,
                 },
                 generateStaticParams: userland.generateStaticParams,
+                generateImageMetadata: userland.generateImageMetadata,
                 segmentPath: page,
               },
             ]
@@ -1512,7 +1548,10 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        if (isDynamicRoute(page)) {
+        if (
+          isDynamicRoute(page) ||
+          typeof userland?.generateImageMetadata === 'function'
+        ) {
           ;({
             paths: prerenderRoutes,
             fallback: prerenderFallback,
@@ -1530,6 +1569,7 @@ export async function isPageStatic({
             incrementalCacheHandlerPath,
           }))
         }
+        console.log('prerenderRoutes', prerenderRoutes)
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
           throw new Error('INVALID_DEFAULT_EXPORT')
