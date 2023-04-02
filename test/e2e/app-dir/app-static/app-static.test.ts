@@ -129,7 +129,6 @@ createNextDescribe(
         }
       )
     }
-    return
 
     // On-Demand Revalidate has not effect in dev since app routes
     // aren't considered static until prerendering
