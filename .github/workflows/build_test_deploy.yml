@@ -1047,6 +1047,8 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
+      - run: npm i -g vercel@latest
+
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
@@ -1220,14 +1222,10 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - name: Check non-docs only change
-        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type docs --exec echo 'yep')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
-        id: docs-change
-
-      - run: echo "${{ steps.docs-chang.outputs.DOCS_CHANGE }}"
+      - run: echo "${{needs.build.outputs.docsChange == 'nope'}}"
 
       - name: Install
-        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
@@ -1239,12 +1237,12 @@ jobs:
       - name: Build tests
         timeout-minutes: 60
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-run
-        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - name: Run tests
         timeout-minutes: 20
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-fail-fast
-        if: ${{ steps.docs-chang.outputs.DOCS_CHANGE != 'yep' }}
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   test-wasm:
     name: Test the wasm build
