@@ -1789,7 +1789,7 @@ export default class NextNodeServer extends BaseServer {
     // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
-        .isManualRevalidate
+        .isOnDemandRevalidate
     ) {
       return { finished: false }
     }

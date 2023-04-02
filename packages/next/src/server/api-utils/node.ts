@@ -44,7 +44,7 @@ export function tryGetPreviewData(
 ): PreviewData {
   // if an On-Demand revalidation is being done preview mode
   // is disabled
-  if (options && checkIsOnDemandRevalidate(req, options).isManualRevalidate) {
+  if (options && checkIsOnDemandRevalidate(req, options).isOnDemandRevalidate) {
     return false
   }
 

@@ -1420,7 +1420,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let revalidateOnlyGenerated = false
 
     if (isSSG) {
-      ;({ isManualRevalidate: isOnDemandRevalidate, revalidateOnlyGenerated } =
+      ;({ isOnDemandRevalidate, revalidateOnlyGenerated } =
         checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
     }
 
@@ -1471,7 +1471,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let ssgCacheKey =
       isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, manual revalidate, flight request can bypass the cache
+        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1733,7 +1733,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           fallbackMode = 'blocking'
         }
 
-        // skip manual revalidate if cache is not present and
+        // skip on-demand revalidate if cache is not present and
         // revalidate-if-generated is set
         if (
           isOnDemandRevalidate &&
@@ -1745,7 +1745,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return null
         }
 
-        // only allow manual revalidate for fallback: true/blocking
+        // only allow on-demand revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
         if (isOnDemandRevalidate && (fallbackMode !== false || hadCache)) {
           fallbackMode = 'blocking'
@@ -1839,7 +1839,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       {
         incrementalCache,
-        isManualRevalidate: isOnDemandRevalidate,
+        isOnDemandRevalidate: isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
