@@ -1,4 +1,4 @@
-import { promises } from 'fs'
+import fs, { promises } from 'fs'
 import { join } from 'path'
 import {
   FONT_MANIFEST,
@@ -13,18 +13,25 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 
-const pagePathCache =
-  process.env.NODE_ENV === 'development'
-    ? {
-        get: (_key: string) => {
-          return null
-        },
-        set: () => {},
-        has: () => false,
-      }
-    : new LRUCache<string, string | null>({
-        max: 1000,
-      })
+const isDev = process.env.NODE_ENV === 'development'
+const pagePathCache = isDev
+  ? {
+      get: (_key: string) => {
+        return null
+      },
+      set: () => {},
+      has: () => false,
+    }
+  : new LRUCache<string, string | null>({
+      max: 1000,
+    })
+
+const loadManifest = (manifestPath: string) => {
+  if (isDev) {
+    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  }
+  return require(manifestPath)
+}
 
 export function getMaybePagePath(
   page: string,
@@ -42,12 +49,11 @@ export function getMaybePagePath(
   let appPathsManifest: undefined | PagesManifest
 
   if (isAppPath) {
-    appPathsManifest = require(join(serverBuildPath, APP_PATHS_MANIFEST))
+    appPathsManifest = loadManifest(join(serverBuildPath, APP_PATHS_MANIFEST))
   }
-  const pagesManifest = require(join(
-    serverBuildPath,
-    PAGES_MANIFEST
-  )) as PagesManifest
+  const pagesManifest = loadManifest(
+    join(serverBuildPath, PAGES_MANIFEST)
+  ) as PagesManifest
 
   try {
     page = denormalizePagePath(normalizePagePath(page))

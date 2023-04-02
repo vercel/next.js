@@ -155,6 +155,11 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: import('http').Server
+
+  _routerWorker?: boolean
+  _renderWorker?: boolean
+
+  isNodeDebugging?: 'brk' | boolean
 }
 
 export interface BaseRequestHandler {
@@ -283,7 +288,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getCustomRoutes(): CustomRoutes
   protected abstract hasPage(pathname: string): Promise<boolean>
 
-  protected abstract generateRoutes(): RouterOptions
+  protected abstract generateRoutes(dev?: boolean): RouterOptions
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -337,6 +342,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly handlers: RouteHandlerManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
+  protected readonly isRouterWorker?: boolean
+  protected readonly isRenderWorker?: boolean
 
   public constructor(options: ServerOptions) {
     const {
@@ -350,6 +357,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       port,
     } = options
     this.serverOptions = options
+    this.isRouterWorker = options._routerWorker
+    this.isRenderWorker = options._renderWorker
 
     this.dir =
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
@@ -456,7 +465,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     matchers.reload()
 
     this.customRoutes = this.getCustomRoutes()
-    this.router = new Router(this.generateRoutes())
+    this.router = new Router(this.generateRoutes(dev))
     this.setAssetPrefix(assetPrefix)
 
     this.responseCache = this.getResponseCache({ dev })

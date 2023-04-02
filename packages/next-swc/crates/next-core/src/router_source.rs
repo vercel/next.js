@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use futures::stream::StreamExt;
 use indexmap::IndexSet;
 use turbo_binding::turbopack::{
     core::{
