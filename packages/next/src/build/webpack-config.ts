@@ -952,10 +952,10 @@ export default async function getBaseWebpackConfig(
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
   const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
-  let hasOptionalOTELAPIPackage = false
+  let hasExternalOtelApiPackage = false
   try {
-    require('@opentelemetry/api')
-    hasOptionalOTELAPIPackage = true
+    require.resolve('@opentelemetry/api')
+    hasExternalOtelApiPackage = true
   } catch {}
 
   const resolveConfig: webpack.Configuration['resolve'] = {
@@ -999,11 +999,13 @@ export default async function getBaseWebpackConfig(
               'next/dist/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
               'next/dist/client/components/headers',
-            '@opentelemetry/api': hasOptionalOTELAPIPackage
-              ? '@opentelemetry/api'
-              : 'next/dist/compiled/@opentelemetry/api',
           }
         : undefined),
+
+      // For RSC server bundle
+      ...(!hasExternalOtelApiPackage && {
+        '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
+      }),
 
       ...(config.images.loaderFile
         ? {

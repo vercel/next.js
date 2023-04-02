@@ -1818,7 +1818,7 @@ describe('Prerender', () => {
         })
       }
 
-      it('should not throw error for manual revalidate for SSR path', async () => {
+      it('should not throw error for on-demand revalidate for SSR path', async () => {
         const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
           pathname: '/ssr',
         })
@@ -1828,7 +1828,7 @@ describe('Prerender', () => {
         expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
       })
 
-      it('should revalidate manual revalidate with preview cookie', async () => {
+      it('should revalidate on-demand revalidate with preview cookie', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/preview')
         expect(initialRes.status).toBe(200)
 
@@ -2133,7 +2133,7 @@ describe('Prerender', () => {
     }
 
     if (!isDev) {
-      it('should handle manual revalidate for fallback: blocking', async () => {
+      it('should handle on-demand revalidate for fallback: blocking', async () => {
         const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
@@ -2247,7 +2247,7 @@ describe('Prerender', () => {
         )
       })
 
-      it('should not manual revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
+      it('should not on-demand revalidate for fallback: blocking with onlyGenerated if not generated', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/api/manual-revalidate',
@@ -2274,7 +2274,7 @@ describe('Prerender', () => {
         expect(next.cliOutput).toContain(`getStaticProps test-if-generated-1`)
       })
 
-      it('should manual revalidate for fallback: blocking with onlyGenerated if generated', async () => {
+      it('should on-demand revalidate for fallback: blocking with onlyGenerated if generated', async () => {
         const beforeRevalidate = Date.now()
         const res = await fetchViaHTTP(
           next.url,
@@ -2324,7 +2324,7 @@ describe('Prerender', () => {
         expect(res4.headers.get('x-nextjs-cache')).toMatch(/(HIT|STALE)/)
       })
 
-      it('should manual revalidate for revalidate: false', async () => {
+      it('should on-demand revalidate for revalidate: false', async () => {
         const html = await renderViaHTTP(
           next.url,
           '/blocking-fallback-once/test-manual-1'
@@ -2363,7 +2363,7 @@ describe('Prerender', () => {
         expect($4('#time').text()).not.toBe(initialTime)
       })
 
-      it('should manual revalidate that returns notFound: true', async () => {
+      it('should on-demand revalidate that returns notFound: true', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/blocking-fallback-once/404-on-manual-revalidate'
@@ -2404,7 +2404,7 @@ describe('Prerender', () => {
         expect(res3.headers.get('x-nextjs-cache')).toBe('HIT')
       })
 
-      it('should handle manual revalidate for fallback: false', async () => {
+      it('should handle on-demand revalidate for fallback: false', async () => {
         const res = await fetchViaHTTP(
           next.url,
           '/catchall-explicit/test-manual-1'
