@@ -1,11 +1,13 @@
 use anyhow::Result;
-use turbo_binding::turbopack::core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc};
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::chunk::EcmascriptChunkPlaceableVc,
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::turbopack::{
+    core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc},
+    turbopack::{
+        ecmascript::chunk::EcmascriptChunkPlaceableVc,
+        module_options::ModuleOptionsContextVc,
+        resolve_options_context::ResolveOptionsContextVc,
+        transition::{Transition, TransitionVc},
+        ModuleAssetContextVc,
+    },
 };
 
 use super::with_chunking_context_scope_asset::WithChunkingContextScopeAsset;

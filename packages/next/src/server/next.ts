@@ -147,7 +147,9 @@ export class NextServer {
     return loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
       resolve(this.options.dir || '.'),
-      this.options.conf
+      this.options.conf,
+      undefined,
+      !!this.options._renderWorker
     )
   }
 

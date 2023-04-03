@@ -322,6 +322,7 @@ export class AppRouteRouteModule extends RouteModule<
 
             // TODO: propagate this pathname from route matcher
             const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
+            getTracer().getRootSpanAttributes()?.set('next.route', route)
             return getTracer().trace(
               AppRouteRouteHandlersSpan.runHandler,
               {

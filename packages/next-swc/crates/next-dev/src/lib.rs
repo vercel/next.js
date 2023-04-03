@@ -14,45 +14,50 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use turbo_tasks::UpdateInfo;
 
 use anyhow::{Context, Result};
 use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use next_core::{
-    app_structure::find_app_structure, create_app_source, create_page_source,
+    app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
     create_web_entry_source, env::load_env, manifest::DevManifestContentSource,
     next_config::load_next_config, next_image::NextImageContentSourceVc,
     pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
     source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
-use turbo_binding::turbo::malloc::TurboMalloc;
-use turbo_binding::turbo::tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
-use turbo_binding::turbopack::cli_utils::issue::{ConsoleUiVc, LogOptions};
-use turbo_binding::turbopack::core::{
-    environment::ServerAddr,
-    issue::{IssueReporterVc, IssueSeverity},
-    resolve::{parse::RequestVc, pattern::QueryMapVc},
-    server_fs::ServerFileSystemVc,
-    PROJECT_FILESYSTEM_NAME,
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::dev_server::{
-    introspect::IntrospectionSource,
-    source::{
-        combined::CombinedContentSourceVc, router::RouterContentSource,
-        source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
-        ContentSourceVc,
+use turbo_binding::{
+    turbo::{
+        malloc::TurboMalloc,
+        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc},
+        tasks_memory::MemoryBackend,
     },
-    DevServer, DevServerBuilder,
+    turbopack::{
+        cli_utils::issue::{ConsoleUiVc, LogOptions},
+        core::{
+            environment::ServerAddr,
+            issue::{IssueReporterVc, IssueSeverity},
+            resolve::{parse::RequestVc, pattern::QueryMapVc},
+            server_fs::ServerFileSystemVc,
+            PROJECT_FILESYSTEM_NAME,
+        },
+        dev::DevChunkingContextVc,
+        dev_server::{
+            introspect::IntrospectionSource,
+            source::{
+                combined::CombinedContentSourceVc, router::RouterContentSource,
+                source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
+                ContentSourceVc,
+            },
+            DevServer, DevServerBuilder,
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::evaluate_context::node_build_environment,
+    },
 };
-use turbo_binding::turbopack::node::execution_context::ExecutionContextVc;
-use turbo_binding::turbopack::turbopack::evaluate_context::node_build_environment;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
 
 #[derive(Clone)]
@@ -311,7 +316,6 @@ async fn source(
         execution_context,
         entry_requests,
         dev_server_root,
-        env,
         eager_compile,
         &browserslist_query,
         next_config,
@@ -328,9 +332,9 @@ async fn source(
         next_config,
         server_addr,
     );
-    let app_structure = find_app_structure(project_path, dev_server_root, next_config);
+    let app_dir = find_app_dir_if_enabled(project_path, next_config);
     let app_source = create_app_source(
-        app_structure,
+        app_dir,
         project_path,
         execution_context,
         output_root.join("app"),
@@ -377,7 +381,7 @@ async fn source(
         execution_context,
         next_config,
         server_addr,
-        app_structure,
+        app_dir,
         pages_structure,
     )
     .into();

@@ -1,28 +1,32 @@
 use anyhow::{anyhow, bail, Result};
 use indexmap::indexmap;
-use turbo_binding::turbo::tasks::Value;
-use turbo_binding::turbo::tasks_fs::{
-    rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc,
-};
-use turbo_binding::turbopack::core::{
-    asset::{Asset, AssetVc},
-    chunk::ChunkingContextVc,
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContext,
-    reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::parse::RequestVc,
-    virtual_asset::VirtualAssetVc,
-};
-use turbo_binding::turbopack::ecmascript::{
-    chunk_group_files_asset::ChunkGroupFilesAsset, resolve::esm_resolve, utils::StringifyJs,
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::{
+    turbo::{
+        tasks::Value,
+        tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc},
+    },
+    turbopack::{
+        core::{
+            asset::{Asset, AssetVc},
+            chunk::ChunkingContextVc,
+            compile_time_info::CompileTimeInfoVc,
+            context::AssetContext,
+            reference_type::EcmaScriptModulesReferenceSubType,
+            resolve::parse::RequestVc,
+            virtual_asset::VirtualAssetVc,
+        },
+        ecmascript::{
+            chunk_group_files_asset::ChunkGroupFilesAsset, resolve::esm_resolve,
+            utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+        turbopack::{
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
 
 #[turbo_tasks::value(shared)]

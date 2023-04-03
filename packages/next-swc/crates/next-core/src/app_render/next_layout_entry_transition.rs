@@ -1,27 +1,22 @@
-use anyhow::Result;
-use indexmap::indexmap;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext,
+use anyhow::{bail, Result};
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc},
+        ecmascript::chunk::EcmascriptChunkPlaceableVc,
+        turbopack::{
+            module_options::ModuleOptionsContextVc,
+            resolve_options_context::ResolveOptionsContextVc,
+            transition::{Transition, TransitionVc},
+            ModuleAssetContextVc,
+        },
+    },
 };
-use turbo_binding::turbopack::ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
-};
-use turbo_tasks::{primitives::OptionStringVc, Value};
 
-use crate::{
-    embed_js::next_asset, next_client_component::with_client_chunks::WithClientChunksAsset,
-};
+use crate::next_client_component::with_client_chunks::WithClientChunksAsset;
 
 #[turbo_tasks::value(shared)]
-pub struct NextLayoutEntryTransition {
+pub struct NextServerComponentTransition {
     pub rsc_compile_time_info: CompileTimeInfoVc,
     pub rsc_module_options_context: ModuleOptionsContextVc,
     pub rsc_resolve_options_context: ResolveOptionsContextVc,
@@ -29,7 +24,7 @@ pub struct NextLayoutEntryTransition {
 }
 
 #[turbo_tasks::value_impl]
-impl Transition for NextLayoutEntryTransition {
+impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
@@ -58,33 +53,14 @@ impl Transition for NextLayoutEntryTransition {
     async fn process_module(
         &self,
         asset: AssetVc,
-        context: ModuleAssetContextVc,
+        _context: ModuleAssetContextVc,
     ) -> Result<AssetVc> {
-        let internal_asset = next_asset("entry/app/layout-entry.tsx");
-
-        let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
-            internal_asset,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::TypeScript {
-                    use_define_for_class_fields: false,
-                },
-                EcmascriptInputTransform::React {
-                    refresh: false,
-                    import_source: OptionStringVc::cell(None),
-                    runtime: OptionStringVc::cell(None),
-                },
-            ]),
-            Default::default(),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => asset
-            }),
-        );
+        let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
+            bail!("Not an ecmascript module");
+        };
 
         Ok(WithClientChunksAsset {
-            asset: asset.into(),
+            asset,
             // next.js code already adds _next prefix
             server_root: self.server_root.join("_next"),
         }

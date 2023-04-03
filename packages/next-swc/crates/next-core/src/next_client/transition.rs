@@ -1,21 +1,23 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_binding::turbopack::core::{
-    asset::AssetVc,
-    chunk::{ChunkingContext, ChunkingContextVc},
-    compile_time_info::CompileTimeInfoVc,
-    context::AssetContext,
-};
-use turbo_binding::turbopack::ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
-    module_options::ModuleOptionsContextVc,
-    resolve_options_context::ResolveOptionsContextVc,
-    transition::{Transition, TransitionVc},
-    ModuleAssetContextVc,
+use turbo_binding::turbopack::{
+    core::{
+        asset::AssetVc,
+        chunk::{ChunkingContext, ChunkingContextVc},
+        compile_time_info::CompileTimeInfoVc,
+        context::AssetContext,
+    },
+    ecmascript::{
+        chunk::EcmascriptChunkPlaceableVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+        EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+    },
+    turbopack::{
+        ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
+        module_options::ModuleOptionsContextVc,
+        resolve_options_context::ResolveOptionsContextVc,
+        transition::{Transition, TransitionVc},
+        ModuleAssetContextVc,
+    },
 };
 use turbo_tasks::{primitives::OptionStringVc, Value};
 
@@ -69,32 +71,36 @@ impl Transition for NextClientTransition {
         asset: AssetVc,
         context: ModuleAssetContextVc,
     ) -> Result<AssetVc> {
-        let internal_asset = if self.is_app {
-            next_asset("entry/app/hydrate.tsx")
-        } else {
-            next_asset("entry/next-hydrate.tsx")
-        };
+        let asset = if !self.is_app {
+            let internal_asset = next_asset("entry/next-hydrate.tsx");
 
-        let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
-            internal_asset,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::TypeScript {
-                    use_define_for_class_fields: false,
-                },
-                EcmascriptInputTransform::React {
-                    refresh: false,
-                    import_source: OptionStringVc::cell(None),
-                    runtime: OptionStringVc::cell(None),
-                },
-            ]),
-            Default::default(),
-            context.compile_time_info(),
-            InnerAssetsVc::cell(indexmap! {
-                "PAGE".to_string() => asset
-            }),
-        );
+            EcmascriptModuleAssetVc::new_with_inner_assets(
+                internal_asset,
+                context.into(),
+                Value::new(EcmascriptModuleAssetType::Typescript),
+                EcmascriptInputTransformsVc::cell(vec![
+                    EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: false,
+                    },
+                    EcmascriptInputTransform::React {
+                        refresh: false,
+                        import_source: OptionStringVc::cell(None),
+                        runtime: OptionStringVc::cell(None),
+                    },
+                ]),
+                Default::default(),
+                context.compile_time_info(),
+                InnerAssetsVc::cell(indexmap! {
+                    "PAGE".to_string() => asset
+                }),
+            )
+            .into()
+        } else {
+            let Some(asset) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? else {
+                bail!("Not an ecmascript module");
+            };
+            asset
+        };
 
         let runtime_entries = self.runtime_entries.resolve_entries(context.into());
 

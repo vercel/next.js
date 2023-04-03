@@ -3,8 +3,10 @@ use allsorts::{
     Font,
 };
 use anyhow::{bail, Context, Result};
-use turbo_tasks::primitives::{StringVc, StringsVc, U32Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPathVc};
+use turbo_binding::turbo::{
+    tasks::primitives::{StringVc, StringsVc, U32Vc},
+    tasks_fs::{FileContent, FileSystemPathVc},
+};
 
 use super::{
     options::{FontDescriptor, FontDescriptors, FontWeight, NextFontLocalOptionsVc},
