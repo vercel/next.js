@@ -11,8 +11,10 @@ If you are not using Next.js in a serverless environment, and understand the per
 ```js
 export const config = {
   api: {
-    responseLimit: false,
-  },
+    bodyParser: {
+      sizeLimit: false
+    }
+  }
 }
 ```
 
@@ -22,7 +24,9 @@ This value will be the maximum response size before a warning is displayed. The 
 ```js
 export const config = {
   api: {
-    responseLimit: '8mb',
-  },
+    bodyParser: {
+      sizeLimit: '8mb'
+    }
+  }
 }
 ```
