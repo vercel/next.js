@@ -32,6 +32,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{

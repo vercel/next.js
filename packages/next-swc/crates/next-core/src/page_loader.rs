@@ -21,6 +21,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_route};
 

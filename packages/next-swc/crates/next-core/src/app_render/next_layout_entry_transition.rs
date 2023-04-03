@@ -1,13 +1,9 @@
-use anyhow::Result;
-use indexmap::indexmap;
+use anyhow::{bail, Result};
 use turbo_binding::{
     turbo::tasks_fs::FileSystemPathVc,
     turbopack::{
-        core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc, context::AssetContext},
-        ecmascript::{
-            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-            EcmascriptModuleAssetVc, InnerAssetsVc,
-        },
+        core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc},
+        ecmascript::chunk::EcmascriptChunkPlaceableVc,
         turbopack::{
             module_options::ModuleOptionsContextVc,
             resolve_options_context::ResolveOptionsContextVc,

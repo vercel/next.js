@@ -24,6 +24,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
     StringVc::cell("chunks".to_string())

@@ -1,15 +1,11 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-    iter::once,
-};
+use std::{collections::HashMap, io::Write};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
 use turbo_binding::{
     turbo::{
-        tasks::{primitives::OptionStringVc, TryJoinIterExt, Value, ValueToString},
+        tasks::{primitives::OptionStringVc, Value},
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     },
@@ -34,9 +30,8 @@ use turbo_binding::{
             },
         },
         ecmascript::{
-            chunk::EcmascriptChunkPlaceablesVc, magic_identifier, utils::StringifyJs,
-            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-            InnerAssetsVc,
+            magic_identifier, utils::StringifyJs, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -382,7 +377,7 @@ pub async fn create_app_source(
         next_config,
     );
 
-    let server_runtime_entries = EcmascriptChunkPlaceablesVc::cell(server_runtime_entries);
+    let server_runtime_entries = AssetsVc::cell(server_runtime_entries);
 
     let sources = entrypoints
         .await?
@@ -410,6 +405,7 @@ pub async fn create_app_source(
                 env,
                 server_root,
                 server_runtime_entries,
+                fallback_page,
                 output_path,
             ),
         })
@@ -429,7 +425,7 @@ async fn create_app_page_source_for_route(
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
     server_root: FileSystemPathVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {

@@ -13,6 +13,10 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{
+    primitives::{BoolVc, StringVc},
+    Value,
+};
 
 const BABEL_CONFIG_FILES: &[&str] = &[
     ".babelrc",

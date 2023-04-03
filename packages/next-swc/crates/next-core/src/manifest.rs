@@ -15,6 +15,10 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{
+    graph::{GraphTraversal, NonDeterministic},
+    primitives::{StringVc, StringsVc},
+};
 
 use crate::{
     embed_js::next_js_file,

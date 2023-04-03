@@ -16,6 +16,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::primitives::{BoolVc, StringsVc};
 
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {

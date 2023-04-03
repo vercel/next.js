@@ -15,6 +15,7 @@ use turbo_binding::turbopack::{
         ModuleAssetContextVc,
     },
 };
+use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use crate::embed_js::next_asset;
 

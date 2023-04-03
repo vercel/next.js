@@ -13,6 +13,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::Value;
 
 use super::with_chunks::WithChunksAsset;
 use crate::{

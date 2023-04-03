@@ -8,8 +8,8 @@ use turbo_binding::turbopack::{
         context::AssetContext,
     },
     ecmascript::{
-        EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-        EcmascriptModuleAssetVc, InnerAssetsVc,
+        chunk::EcmascriptChunkPlaceableVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+        EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
     },
     turbopack::{
         ecmascript::chunk_group_files_asset::ChunkGroupFilesAsset,
@@ -19,6 +19,7 @@ use turbo_binding::turbopack::{
         ModuleAssetContextVc,
     },
 };
+use turbo_tasks::{primitives::OptionStringVc, Value};
 
 use super::runtime_entry::RuntimeEntriesVc;
 use crate::embed_js::next_asset;

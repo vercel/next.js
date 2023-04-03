@@ -15,6 +15,7 @@ use turbo_binding::turbopack::{
         EcmascriptChunkVc, EcmascriptExportsVc,
     },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {

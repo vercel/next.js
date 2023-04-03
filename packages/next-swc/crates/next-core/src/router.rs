@@ -37,6 +37,12 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
+    CompletionVc, CompletionsVc, Value,
+};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     embed_js::{next_asset, next_js_file},

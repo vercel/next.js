@@ -21,6 +21,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 use super::{
     resolve::ExternalCjsModulesResolvePluginVc, transforms::get_next_server_transforms_rules,

@@ -18,6 +18,7 @@ use turbo_binding::{
         turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     },
 };
+use turbo_tasks::Value;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,

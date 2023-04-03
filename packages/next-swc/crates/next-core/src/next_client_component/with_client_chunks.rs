@@ -26,6 +26,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
