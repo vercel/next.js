@@ -1054,13 +1054,18 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    let route = pathname
+    if (isAppPath) {
+      // When in App we get page instead of route
+      route = pathname.replace(/\/[^/]*$/, '')
+    }
+
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {
         spanName: `resolving page into components`,
         attributes: {
-          'next.route': pathname,
+          'next.route': route,
         },
       },
       () => this.findPageComponentsImpl({ pathname, query, params, isAppPath })

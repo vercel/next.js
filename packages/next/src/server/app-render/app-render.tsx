@@ -1226,6 +1226,7 @@ export async function renderToHTMLOrFlight(
       )
     }
 
+    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
