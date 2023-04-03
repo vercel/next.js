@@ -91,6 +91,7 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
+import { PageNotFoundError } from '../shared/lib/utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -339,7 +340,13 @@ export const deserializeErr = (serializedErr: any) => {
   ) {
     return serializedErr
   }
-  const err = new Error(serializedErr.message)
+  let ErrorType: any = Error
+
+  if (serializedErr.name === 'PageNotFoundError') {
+    ErrorType = PageNotFoundError
+  }
+
+  const err = new ErrorType(serializedErr.message)
   err.stack = serializedErr.stack
   err.name = serializedErr.name
   ;(err as any).digest = serializedErr.digest

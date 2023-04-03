@@ -1265,7 +1265,17 @@ export default class DevServer extends Server {
       const body = await res.text()
 
       if (body.startsWith('{') && body.endsWith('}')) {
-        return JSON.parse(body)
+        const parsedBody = JSON.parse(body)
+
+        if (
+          parsedBody &&
+          typeof parsedBody === 'object' &&
+          'err' in parsedBody &&
+          'stack' in parsedBody.err
+        ) {
+          throw deserializeErr(parsedBody.err)
+        }
+        return parsedBody
       }
     }
   }

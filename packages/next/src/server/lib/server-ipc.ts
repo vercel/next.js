@@ -35,7 +35,6 @@ export async function createIpcServer(
           res.end(JSON.stringify(result || ''))
         }
       } catch (err: any) {
-        console.error(err)
         res.end(
           JSON.stringify({
             err: { name: err.name, message: err.message, stack: err.stack },

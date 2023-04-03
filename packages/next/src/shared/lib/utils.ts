@@ -417,6 +417,7 @@ export class PageNotFoundError extends Error {
   constructor(page: string) {
     super()
     this.code = 'ENOENT'
+    this.name = 'PageNotFoundError'
     this.message = `Cannot find module for page: ${page}`
   }
 }

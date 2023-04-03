@@ -1458,10 +1458,11 @@ export default class NextNodeServer extends BaseServer {
             }
             res.statusCode = invokeRes.statusCode
             res.statusMessage = invokeRes.statusMessage
-            invokeRes.pipe((res as NodeNextResponse).originalResponse)
-            invokeRes.on('close', () => {
-              res.send()
-            })
+
+            for await (const chunk of invokeRes) {
+              this.streamResponseChunk(res as NodeNextResponse, chunk)
+            }
+            ;(res as NodeNextResponse).originalResponse.end()
             return {
               finished: true,
             }
@@ -2459,15 +2460,10 @@ export default class NextNodeServer extends BaseServer {
               res.statusCode = result.response.status
 
               if ((result.response as any).invokeRes) {
-                ;((result.response as any).invokeRes as ServerResponse).pipe(
-                  (res as NodeNextResponse).originalResponse
-                )
-                ;((result.response as any).invokeRes as ServerResponse).on(
-                  'close',
-                  () => {
-                    res.send()
-                  }
-                )
+                for await (const chunk of (result.response as any).invokeRes) {
+                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+                }
+                ;(res as NodeNextResponse).originalResponse.end()
               } else {
                 for await (const chunk of result.response.body || ([] as any)) {
                   this.streamResponseChunk(res as NodeNextResponse, chunk)
