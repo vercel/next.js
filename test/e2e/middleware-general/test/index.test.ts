@@ -494,6 +494,11 @@ describe('Middleware Runtime', () => {
               : {
                   NEXT_RUNTIME: 'edge',
                 }),
+            ...((global as any).isNextDev
+              ? {
+                  JEST_WORKER_ID: '1',
+                }
+              : {}),
           },
         },
       })

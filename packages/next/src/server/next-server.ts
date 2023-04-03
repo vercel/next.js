@@ -102,7 +102,7 @@ import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
-import { filterReqHeaders } from './lib/server-ipc'
+import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
 
 export * from './base-server'
 
@@ -1410,25 +1410,16 @@ export default class NextNodeServer extends BaseServer {
               'x-invoke-path': invokePathname,
               'x-invoke-query': encodeURIComponent(invokeQuery),
             }
-            filterReqHeaders(invokeHeaders)
 
-            const invokeRes = await fetch(renderUrl, {
-              method: req.method,
-              headers: invokeHeaders as any,
-              redirect: 'manual',
-              ...(req.method !== 'GET' && req.method !== 'HEAD'
-                ? {
-                    // @ts-ignore
-                    duplex: 'half',
-                    body: getRequestMeta(
-                      req,
-                      '__NEXT_CLONABLE_BODY'
-                    )?.cloneBodyStream() as any as ReadableStream,
-                  }
-                : {}),
-            })
-
-            const noFallback = invokeRes.headers.get('x-no-fallback')
+            const invokeRes = await invokeRequest(
+              renderUrl.toString(),
+              {
+                headers: invokeHeaders,
+                method: req.method,
+              },
+              getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+            )
+            const noFallback = invokeRes.headers['x-no-fallback']
 
             if (noFallback) {
               if (bubbleNoFallback) {
@@ -1442,17 +1433,9 @@ export default class NextNodeServer extends BaseServer {
             }
 
             for (const [key, value] of Object.entries(
-              toNodeHeaders(invokeRes.headers)
+              filterReqHeaders({ ...invokeRes.headers })
             )) {
-              if (
-                ![
-                  'content-encoding',
-                  'transfer-encoding',
-                  'keep-alive',
-                  'connection',
-                ].includes(key) &&
-                value !== undefined
-              ) {
+              if (value !== undefined) {
                 if (key === 'set-cookie') {
                   const curValue = res.getHeader(key)
                   const newValue: string[] = [] as string[]
@@ -1472,12 +1455,12 @@ export default class NextNodeServer extends BaseServer {
                 }
               }
             }
-            res.statusCode = invokeRes.status
-            res.statusMessage = invokeRes.statusText
-            for await (const chunk of invokeRes.body || ([] as any)) {
-              this.streamResponseChunk(res as NodeNextResponse, chunk)
-            }
-            res.send()
+            res.statusCode = invokeRes.statusCode
+            res.statusMessage = invokeRes.statusMessage
+            invokeRes.pipe((res as NodeNextResponse).originalResponse)
+            invokeRes.on('close', () => {
+              res.send()
+            })
             return {
               finished: true,
             }
@@ -2240,29 +2223,23 @@ export default class NextNodeServer extends BaseServer {
                   ...req.headers,
                   'x-middleware-invoke': '1',
                 }
-                filterReqHeaders(invokeHeaders)
-
-                const invokeRes = await fetch(renderUrl, {
-                  method: req.method,
-                  headers: invokeHeaders as any,
-                  redirect: 'manual',
-                  ...(req.method !== 'GET' && req.method !== 'HEAD'
-                    ? {
-                        // @ts-ignore
-                        duplex: 'half',
-                        body: getRequestMeta(
-                          req,
-                          '__NEXT_CLONABLE_BODY'
-                        )?.cloneBodyStream() as any as ReadableStream,
-                      }
-                    : {}),
+                const invokeRes = await invokeRequest(
+                  renderUrl.toString(),
+                  {
+                    headers: invokeHeaders,
+                    method: req.method,
+                  },
+                  getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+                )
+                const webResponse = new Response(null, {
+                  status: invokeRes.statusCode,
+                  headers: new Headers(invokeRes.headers as HeadersInit),
                 })
 
+                ;(webResponse as any).invokeRes = invokeRes
+
                 result = {
-                  response: new Response(invokeRes.body, {
-                    status: invokeRes.status,
-                    headers: new Headers(invokeRes.headers),
-                  }),
+                  response: webResponse,
                   waitUntil: Promise.resolve(),
                 }
                 for (const key of [...result.response.headers.keys()]) {
@@ -2479,10 +2456,23 @@ export default class NextNodeServer extends BaseServer {
 
             if (result.response.headers.has('x-middleware-refresh')) {
               res.statusCode = result.response.status
-              for await (const chunk of result.response.body || ([] as any)) {
-                this.streamResponseChunk(res as NodeNextResponse, chunk)
+
+              if ((result.response as any).invokeRes) {
+                ;((result.response as any).invokeRes as ServerResponse).pipe(
+                  (res as NodeNextResponse).originalResponse
+                )
+                ;((result.response as any).invokeRes as ServerResponse).on(
+                  'close',
+                  () => {
+                    res.send()
+                  }
+                )
+              } else {
+                for await (const chunk of result.response.body || ([] as any)) {
+                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+                }
+                res.send()
               }
-              res.send()
               return {
                 finished: true,
               }
