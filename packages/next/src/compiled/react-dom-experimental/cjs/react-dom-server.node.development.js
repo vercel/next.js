@@ -19,7 +19,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-1308e49a6-20230330';
+var ReactVersion = '18.3.0-experimental-b14f8da15-20230403';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -842,9 +842,9 @@ function validateProperties$1(type, props) {
   }
 }
 
-function isCustomComponent(tagName, props) {
+function isCustomElement(tagName, props) {
   if (tagName.indexOf('-') === -1) {
-    return typeof props.is === 'string';
+    return false;
   }
 
   switch (tagName) {
@@ -1600,7 +1600,7 @@ function warnUnknownProperties(type, props, eventRegistry) {
 }
 
 function validateProperties(type, props, eventRegistry) {
-  if (isCustomComponent(type, props)) {
+  if (isCustomElement(type) || typeof props.is === 'string') {
     return;
   }
 
@@ -4041,7 +4041,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
     }
 
     if (formatContext.insertionMode !== SVG_MODE && formatContext.insertionMode !== MATHML_MODE) {
-      if (type.indexOf('-') === -1 && typeof props.is !== 'string' && type.toLowerCase() !== type) {
+      if (type.indexOf('-') === -1 && type.toLowerCase() !== type) {
         error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
       }
     }
@@ -4128,7 +4128,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
 
     default:
       {
-        if (type.indexOf('-') === -1 && typeof props.is !== 'string') {
+        if (type.indexOf('-') === -1) {
           // Generic element
           return pushStartGenericElement(target, props, type);
         } else {

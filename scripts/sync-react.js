@@ -12,25 +12,26 @@ const fetch = require('node-fetch')
 // Basic usage (defaults to most recent React canary version):
 //   pnpm run sync-react
 //
-// Specify a canary version:
-//   pnpm run sync-react --version 18.3.0-next-41110021f-20230301
-//
-// Sync experimental channel:
-//   pnpm run sync-react --experimental
-//
 // Update package.json but skip installing the dependencies automatically:
 //   pnpm run sync-react --no-install
 
-async function main() {
+async function sync(channel = 'next') {
   const noInstall = readBoolArg(process.argv, 'no-install')
-  const useExperimental = readBoolArg(process.argv, 'experimental')
+  const useExperimental = channel === 'experimental'
   let newVersionStr = readStringArg(process.argv, 'version')
   if (newVersionStr === null) {
-    const { stdout, stderr } = await execa('npm', [
-      'view',
-      useExperimental ? 'react@experimental' : 'react@next',
-      'version',
-    ])
+    const { stdout, stderr } = await execa(
+      'npm',
+      [
+        'view',
+        useExperimental ? 'react@experimental' : 'react@next',
+        'version',
+      ],
+      {
+        // Avoid "Usage Error: This project is configured to use pnpm".
+        cwd: '/tmp',
+      }
+    )
     if (stderr) {
       console.error(stderr)
       throw new Error(`Failed to read latest React canary version from npm.`)
@@ -67,7 +68,7 @@ Or, run this command with no arguments to use the most recently published versio
   const { sha: newSha, dateString: newDateString } = newVersionInfo
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
 
-  console.log(`Updating React to ${newSha}...\n`)
+  console.log(`Updating "react@${channel}" to ${newSha}...\n`)
   if (newSha === baseSha) {
     console.log('Already up to date.')
     return
@@ -102,7 +103,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
 
     console.log('Building vendored React files...\n')
-    const nccSubprocess = execa('pnpm', ['taskr', 'ncc'], {
+    const nccSubprocess = execa('pnpm', ['taskr', 'copy_vendor_react'], {
       cwd: path.join(cwd, 'packages', 'next'),
     })
     if (nccSubprocess.stdout) {
@@ -201,7 +202,9 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-main().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+sync('next')
+  .then(() => sync('experimental'))
+  .catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
