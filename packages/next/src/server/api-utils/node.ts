@@ -529,6 +529,7 @@ export async function apiResolver(
       res.once('pipe', () => (wasPiped = true))
     }
 
+    getTracer().getRootSpanAttributes()?.set('next.route', page)
     // Call API route method
     const apiRouteResult = await getTracer().trace(
       NodeSpan.runHandler,

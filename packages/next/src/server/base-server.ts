@@ -543,6 +543,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.method': method,
           'http.target': req.url,
         },
+        // We will fire this from the renderer worker
+        hideSpan: this.serverOptions.dev && this.isRouterWorker,
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
@@ -568,11 +570,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const route = rootSpanAttributes.get('next.route')
           if (route) {
+            const newName = `${method} ${route}`
             span.setAttributes({
               'next.route': route,
               'http.route': route,
+              'next.span_name': newName,
             })
-            span.updateName(`${method} ${route}`)
+            span.updateName(newName)
           }
         })
     )
