@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   .dialog-left-right {
@@ -25,11 +25,11 @@ const styles = css`
     transition: background-color 0.25s ease;
   }
 
-  .dialog-left-right[data-severity='error'] > button {
+  .dialog-left-right[data-severity="error"] > button {
     --color-base: var(--color-error-bright-hsl);
   }
 
-  .dialog-left-right[data-severity='warning'] > button {
+  .dialog-left-right[data-severity="warning"] > button {
     --color-base: var(--color-warning-bright-hsl);
   }
 
@@ -56,6 +56,6 @@ const styles = css`
     width: auto;
     height: var(--size-icon-small);
   }
-`
+`;
 
-export { styles }
+export { styles };

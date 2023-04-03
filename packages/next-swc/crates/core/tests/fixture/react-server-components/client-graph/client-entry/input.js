@@ -14,15 +14,13 @@
 
 "use client";
 
-import "fs"
-
-"bar";
+import "fs";
+("bar");
 
 // This is a comment.
 
 1 + 1;
-
-"baz";
+("baz");
 
 export default function () {
   return null;

@@ -1,10 +1,10 @@
-import { useEffect } from 'react'
-import { select, selectAll } from 'd3-selection'
+import { useEffect } from "react";
+import { select, selectAll } from "d3-selection";
 
 export default function Home() {
   useEffect(() => {
-    new MyClass()
-  }, [])
+    new MyClass();
+  }, []);
 
   return (
     <svg>
@@ -18,13 +18,13 @@ export default function Home() {
         <path />
       </g>
     </svg>
-  )
+  );
 }
 
 class MyClass {
   constructor() {
-    selectAll('.group').each(function () {
-      select(this).selectAll('path')
-    })
+    selectAll(".group").each(function () {
+      select(this).selectAll("path");
+    });
   }
 }

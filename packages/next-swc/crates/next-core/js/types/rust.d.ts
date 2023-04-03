@@ -52,7 +52,7 @@ declare module "ENTRY" {
   // TODO: (wyattjoh) support other types of userland modules
   import type { AppRouteUserlandModule } from "next/dist/server/future/route-modules/app-route/module";
 
-  const module: AppRouteUserlandModule
+  const module: AppRouteUserlandModule;
   export = module;
 }
 

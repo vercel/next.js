@@ -1,4 +1,14 @@
 {
   "singleQuote": true,
-  "semi": false
+  "semi": false,
+
+  "overrides": [
+    {
+      "files": "packages/next-swc/crates/**",
+      "options": {
+        "singleQuote": false,
+        "semi": true
+      }
+    }
+  ]
 }

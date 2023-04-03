@@ -6,7 +6,7 @@
  * This is a comment.
  */
 
-import "client-only"
+import "client-only";
 
 export default function () {
   return null;

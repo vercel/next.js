@@ -8,13 +8,15 @@ export default function Home() {
   });
 
   // Only the jpg is approved in the NextConfig's image.remotePatterns.
-  return <Image
-    id="external"
-    alt="test src image"
-    src="https://image-optimization-test.vercel.app/test.jpg"
-    width="100"
-    height="100"
-  />;
+  return (
+    <Image
+      id="external"
+      alt="test src image"
+      src="https://image-optimization-test.vercel.app/test.jpg"
+      width="100"
+      height="100"
+    />
+  );
 }
 
 function runTests() {
@@ -24,8 +26,8 @@ function runTests() {
   });
 
   it("it should not link to unapproved external image", async () => {
-    const res = await fetch('/invalid');
+    const res = await fetch("/invalid");
     const text = await res.text();
-    expect(text).toMatch(/Error: Invalid src prop/)
+    expect(text).toMatch(/Error: Invalid src prop/);
   });
 }

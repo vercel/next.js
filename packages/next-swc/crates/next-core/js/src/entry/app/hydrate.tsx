@@ -3,7 +3,7 @@ import React, { use } from "react";
 import type { ReactElement } from "react";
 import { version } from "next/package.json";
 import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack/client";
-import { callServer } from 'next/dist/client/app-call-server';
+import { callServer } from "next/dist/client/app-call-server";
 
 import { HeadManagerContext } from "next/dist/shared/lib/head-manager-context";
 

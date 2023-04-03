@@ -1,3 +1,3 @@
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const DynamicComponent = dynamic(() => import('../components/hello'))
+const DynamicComponent = dynamic(() => import("../components/hello"));

@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
-const [foo] = [null]
-export default foo
+const [foo] = [null];
+export default foo;

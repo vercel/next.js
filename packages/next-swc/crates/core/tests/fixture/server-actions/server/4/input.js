@@ -7,6 +7,6 @@ function d() {}
 
 function Foo() {
   async function e() {
-    "use server"
+    "use server";
   }
 }

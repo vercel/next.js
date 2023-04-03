@@ -1,44 +1,44 @@
-import { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
+import { Issue } from "@vercel/turbopack-dev-runtime/types/protocol";
 
-import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
-import { DialogBody, DialogBodyProps } from '../components/Dialog'
-import { Terminal } from '../components/Terminal'
-import { noop as css } from '../helpers/noop-template'
-import { clsx } from '../helpers/clsx'
-import { usePagination } from '../hooks/usePagination'
+import { LeftRightDialogHeader } from "../components/LeftRightDialogHeader";
+import { DialogBody, DialogBodyProps } from "../components/Dialog";
+import { Terminal } from "../components/Terminal";
+import { noop as css } from "../helpers/noop-template";
+import { clsx } from "../helpers/clsx";
+import { usePagination } from "../hooks/usePagination";
 
 type TurbopackIssuesDialogBodyProps = {
-  items: Issue[]
-  message: string
-  severity: 'error' | 'warning'
-  'data-hidden'?: boolean
-}
+  items: Issue[];
+  message: string;
+  severity: "error" | "warning";
+  "data-hidden"?: boolean;
+};
 
 export function TurbopackIssuesDialogBody({
   items: issues,
   message,
   severity,
-  'data-hidden': hidden = false,
+  "data-hidden": hidden = false,
   className,
   ...rest
-}: TurbopackIssuesDialogBodyProps & Omit<DialogBodyProps, 'children'>) {
-  const [activeIssue, { previous, next }, activeIdx] = usePagination(issues)
+}: TurbopackIssuesDialogBodyProps & Omit<DialogBodyProps, "children">) {
+  const [activeIssue, { previous, next }, activeIdx] = usePagination(issues);
 
-  const hasIssues = issues.length > 0
+  const hasIssues = issues.length > 0;
 
   if (!hasIssues || !activeIssue) {
-    return null
+    return null;
   }
 
-  const activeIssueIsError = ['bug', 'fatal', 'error'].includes(
+  const activeIssueIsError = ["bug", "fatal", "error"].includes(
     activeIssue.severity
-  )
+  );
 
   return (
     <DialogBody
       {...rest}
       data-hidden={hidden}
-      className={clsx('issues-body', className)}
+      className={clsx("issues-body", className)}
     >
       <div className="title-pagination">
         <h1 id="nextjs__container_errors_label">{message}</h1>
@@ -56,7 +56,7 @@ export function TurbopackIssuesDialogBody({
 
       <h2
         id="nextjs__container_errors_desc"
-        data-severity={activeIssueIsError ? 'error' : 'warning'}
+        data-severity={activeIssueIsError ? "error" : "warning"}
       >
         {activeIssue.title}
       </h2>
@@ -73,7 +73,7 @@ export function TurbopackIssuesDialogBody({
         </footer>
       )}
     </DialogBody>
-  )
+  );
 }
 
 export const styles = css`
@@ -92,4 +92,4 @@ export const styles = css`
   .issues-body > footer > small {
     color: #757575;
   }
-`
+`;

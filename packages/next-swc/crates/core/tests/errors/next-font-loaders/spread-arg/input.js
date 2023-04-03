@@ -1,4 +1,4 @@
-import { Inter } from '@next/font/google'
+import { Inter } from "@next/font/google";
 
-const a = fn(...{}, ...[])
-const inter = Inter(...{}, ...[])
+const a = fn(...{}, ...[]);
+const inter = Inter(...{}, ...[]);

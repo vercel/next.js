@@ -1,3 +1,3 @@
-'use server'
-async function foo () {}
-export default foo
+"use server";
+async function foo() {}
+export default foo;

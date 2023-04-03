@@ -9,8 +9,8 @@ export const getStaticProps = async () => {
 
 export default function Home({}) {
   return (
-      <div>
-          <p>Hello World</p>
-      </div>
-  )
+    <div>
+      <p>Hello World</p>
+    </div>
+  );
 }

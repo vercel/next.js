@@ -1,53 +1,53 @@
-import * as React from 'react'
+import * as React from "react";
 
-import { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
+import { Issue } from "@vercel/turbopack-dev-runtime/types/protocol";
 
 import {
   TYPE_UNHANDLED_ERROR,
   TYPE_UNHANDLED_REJECTION,
   UnhandledError,
   UnhandledRejection,
-} from '../bus'
+} from "../bus";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogHeaderTabList,
   DialogProps,
-} from '../components/Dialog'
-import { Overlay } from '../components/Overlay'
-import { Tab, TabPanel, Tabs } from '../components/Tabs'
+} from "../components/Dialog";
+import { Overlay } from "../components/Overlay";
+import { Tab, TabPanel, Tabs } from "../components/Tabs";
 import {
   getErrorByType,
   getUnresolvedErrorByType,
   ReadyRuntimeError,
-} from '../helpers/getErrorByType'
-import { noop as css } from '../helpers/noop-template'
-import { AlertOctagon, PackageX } from '../icons'
-import { RuntimeErrorsDialogBody } from './RuntimeError'
-import { TurbopackIssuesDialogBody } from '../container/TurbopackIssue'
-import { ErrorsToast } from '../container/ErrorsToast'
+} from "../helpers/getErrorByType";
+import { noop as css } from "../helpers/noop-template";
+import { AlertOctagon, PackageX } from "../icons";
+import { RuntimeErrorsDialogBody } from "./RuntimeError";
+import { TurbopackIssuesDialogBody } from "../container/TurbopackIssue";
+import { ErrorsToast } from "../container/ErrorsToast";
 
 export type SupportedErrorEvent = {
-  id: number
-  event: UnhandledError | UnhandledRejection
-}
+  id: number;
+  event: UnhandledError | UnhandledRejection;
+};
 export type ErrorsProps = {
-  issues: Issue[]
-  errors: SupportedErrorEvent[]
-}
+  issues: Issue[];
+  errors: SupportedErrorEvent[];
+};
 
-type ReadyErrorEvent = ReadyRuntimeError
+type ReadyErrorEvent = ReadyRuntimeError;
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
-  const { event } = ev
+  const { event } = ev;
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
+      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`;
     }
     default: {
-      return ''
+      return "";
     }
   }
 }
@@ -57,48 +57,48 @@ function useResolvedErrors(
 ): [ReadyRuntimeError[], boolean] {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
-  )
+  );
 
   const [readyErrors, nextError] = React.useMemo<
     [ReadyErrorEvent[], SupportedErrorEvent | null]
   >(() => {
-    const ready: ReadyErrorEvent[] = []
-    let next: SupportedErrorEvent | null = null
+    const ready: ReadyErrorEvent[] = [];
+    let next: SupportedErrorEvent | null = null;
 
     // Ensure errors are displayed in the order they occurred in:
     for (let idx = 0; idx < errors.length; ++idx) {
-      const e = errors[idx]
-      const { id } = e
+      const e = errors[idx];
+      const { id } = e;
       if (id in lookups) {
-        ready.push(lookups[id])
-        continue
+        ready.push(lookups[id]);
+        continue;
       }
 
       // Check for duplicate errors
       if (idx > 0) {
-        const prev = errors[idx - 1]
+        const prev = errors[idx - 1];
         if (getErrorSignature(prev) === getErrorSignature(e)) {
-          continue
+          continue;
         }
       }
 
       // Show unresolved errors as fallback
-      ready.push(getUnresolvedErrorByType(e))
+      ready.push(getUnresolvedErrorByType(e));
 
-      next = e
-      break
+      next = e;
+      break;
     }
 
-    return [ready, next]
-  }, [errors, lookups])
+    return [ready, next];
+  }, [errors, lookups]);
 
-  const isLoading = readyErrors.length === 0 && errors.length > 1
+  const isLoading = readyErrors.length === 0 && errors.length > 1;
 
   React.useEffect(() => {
     if (nextError == null) {
-      return
+      return;
     }
-    let mounted = true
+    let mounted = true;
 
     getErrorByType(nextError).then(
       (resolved) => {
@@ -106,79 +106,79 @@ function useResolvedErrors(
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
         if (mounted) {
-          setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+          setLookups((m) => ({ ...m, [resolved.id]: resolved }));
         }
       },
       () => {
         // TODO: handle this, though an edge case
       }
-    )
+    );
 
     return () => {
-      mounted = false
-    }
-  }, [nextError])
+      mounted = false;
+    };
+  }, [nextError]);
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but let's handle it.
   React.useEffect(() => {
     if (errors.length === 0) {
-      setLookups({})
+      setLookups({});
     }
-  }, [errors.length])
+  }, [errors.length]);
 
-  return [readyErrors, isLoading]
+  return [readyErrors, isLoading];
 }
 
 const enum TabId {
-  TurbopackErrors = 'turbopack-issues',
-  TurbopackWarnings = 'turbopack-warnings',
-  TurbopackExternal = 'turbopack-external',
-  RuntimeErrors = 'runtime-errors',
-  RuntimeWarnings = 'runtime-warnings',
+  TurbopackErrors = "turbopack-issues",
+  TurbopackWarnings = "turbopack-warnings",
+  TurbopackExternal = "turbopack-external",
+  RuntimeErrors = "runtime-errors",
+  RuntimeWarnings = "runtime-warnings",
 }
 
 const TAB_PRIORITY = [
   TabId.TurbopackErrors,
   TabId.RuntimeErrors,
   TabId.TurbopackWarnings,
-]
+];
 
 function isWarning(issue: Issue) {
-  return !['bug', 'fatal', 'error'].includes(issue.severity)
+  return !["bug", "fatal", "error"].includes(issue.severity);
 }
 
 function isUserCode(issue: Issue) {
-  return !issue.context || !issue.context.includes('node_modules')
+  return !issue.context || !issue.context.includes("node_modules");
 }
 
 function isRuntimeWarning(error: ReadyRuntimeError) {
   return [
-    'This Suspense boundary received an update before it finished hydrating.',
-    'Hydration failed because the initial UI does not match what was rendered on the server.',
-    'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
-  ].some((message) => error.error.message.includes(message))
+    "This Suspense boundary received an update before it finished hydrating.",
+    "Hydration failed because the initial UI does not match what was rendered on the server.",
+    "There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.",
+  ].some((message) => error.error.message.includes(message));
 }
 
 interface TabBase {
-  id: TabId
-  icon: any
+  id: TabId;
+  icon: any;
   title: {
-    one: string
-    many: string
-    short: string
-  }
-  message: any
-  autoOpen: boolean
-  severity: 'error' | 'warning' | 'none'
-  as: any
+    one: string;
+    many: string;
+    short: string;
+  };
+  message: any;
+  autoOpen: boolean;
+  severity: "error" | "warning" | "none";
+  as: any;
 }
 
 interface TabConfig extends TabBase {
   items: (input: {
-    readyErrors: ReadyRuntimeError[]
-    issues: Issue[]
-  }) => ReadyRuntimeError[] | Issue[]
+    readyErrors: ReadyRuntimeError[];
+    issues: Issue[];
+  }) => ReadyRuntimeError[] | Issue[];
 }
 
 const TABS: TabConfig[] = [
@@ -186,15 +186,15 @@ const TABS: TabConfig[] = [
     id: TabId.RuntimeErrors,
     icon: <AlertOctagon />,
     title: {
-      one: 'Runtime Error',
-      many: 'Runtime Errors',
-      short: 'Err',
+      one: "Runtime Error",
+      many: "Runtime Errors",
+      short: "Err",
     },
     message: <>Unhandled errors reported when running the application.</>,
     items: ({ readyErrors }) => {
-      return readyErrors.filter((e) => !isRuntimeWarning(e))
+      return readyErrors.filter((e) => !isRuntimeWarning(e));
     },
-    severity: 'error',
+    severity: "error",
     autoOpen: true,
     as: RuntimeErrorsDialogBody,
   },
@@ -202,9 +202,9 @@ const TABS: TabConfig[] = [
     id: TabId.TurbopackErrors,
     icon: <PackageX />,
     title: {
-      one: 'Turbopack Error',
-      many: 'Turbopack Errors',
-      short: 'Err',
+      one: "Turbopack Error",
+      many: "Turbopack Errors",
+      short: "Err",
     },
     message: (
       <>
@@ -214,9 +214,9 @@ const TABS: TabConfig[] = [
       </>
     ),
     items: ({ issues }) => {
-      return issues.filter((i) => isUserCode(i) && !isWarning(i))
+      return issues.filter((i) => isUserCode(i) && !isWarning(i));
     },
-    severity: 'error',
+    severity: "error",
     autoOpen: true,
     as: TurbopackIssuesDialogBody,
   },
@@ -224,9 +224,9 @@ const TABS: TabConfig[] = [
     id: TabId.RuntimeWarnings,
     icon: <AlertOctagon />,
     title: {
-      one: 'Runtime Warnings',
-      many: 'Runtime Warnings',
-      short: 'Warn',
+      one: "Runtime Warnings",
+      many: "Runtime Warnings",
+      short: "Warn",
     },
     message: (
       <>
@@ -236,9 +236,9 @@ const TABS: TabConfig[] = [
       </>
     ),
     items: ({ readyErrors }) => {
-      return readyErrors.filter((e) => isRuntimeWarning(e))
+      return readyErrors.filter((e) => isRuntimeWarning(e));
     },
-    severity: 'warning',
+    severity: "warning",
     autoOpen: false,
     as: RuntimeErrorsDialogBody,
   },
@@ -246,9 +246,9 @@ const TABS: TabConfig[] = [
     id: TabId.TurbopackWarnings,
     icon: <PackageX />,
     title: {
-      one: 'Turbopack Warning',
-      many: 'Turbopack Warnings',
-      short: 'Warn',
+      one: "Turbopack Warning",
+      many: "Turbopack Warnings",
+      short: "Warn",
     },
     message: (
       <>
@@ -259,9 +259,9 @@ const TABS: TabConfig[] = [
       </>
     ),
     items: ({ issues }) => {
-      return issues.filter((i) => isUserCode(i) && isWarning(i))
+      return issues.filter((i) => isUserCode(i) && isWarning(i));
     },
-    severity: 'warning',
+    severity: "warning",
     autoOpen: false,
     as: TurbopackIssuesDialogBody,
   },
@@ -269,9 +269,9 @@ const TABS: TabConfig[] = [
     id: TabId.TurbopackExternal,
     icon: <PackageX />,
     title: {
-      one: 'Turbopack External Problem',
-      many: 'Turbopack External Problems',
-      short: 'Ext',
+      one: "Turbopack External Problem",
+      many: "Turbopack External Problems",
+      short: "Ext",
     },
     message: (
       <>
@@ -281,16 +281,16 @@ const TABS: TabConfig[] = [
       </>
     ),
     items: ({ issues }) => {
-      return issues.filter((i) => !isUserCode(i) && !isWarning(i))
+      return issues.filter((i) => !isUserCode(i) && !isWarning(i));
     },
-    severity: 'none',
+    severity: "none",
     autoOpen: false,
     as: TurbopackIssuesDialogBody,
   },
-]
+];
 
 interface Tab extends TabBase {
-  items: ReadyRuntimeError[] | Issue[]
+  items: ReadyRuntimeError[] | Issue[];
 }
 
 // "instantiates" all tabs, filters out the ones that don't have any items
@@ -298,80 +298,80 @@ function createTabs({
   issues,
   readyErrors,
 }: {
-  issues: Issue[]
-  readyErrors: ReadyRuntimeError[]
+  issues: Issue[];
+  readyErrors: ReadyRuntimeError[];
 }): Tab[] {
   const tabs = TABS.map((tab) => ({
     ...tab,
     items: tab.items({ issues, readyErrors }),
-  }))
+  }));
 
-  return tabs.filter((tab) => tab.items.length > 0)
+  return tabs.filter((tab) => tab.items.length > 0);
 }
 
 function itemHash(item: object) {
-  return JSON.stringify(item)
+  return JSON.stringify(item);
 }
 
 type DisplayState =
   | {
-      type: 'fullscreen'
-      tab: TabId
+      type: "fullscreen";
+      tab: TabId;
     }
   | {
-      type: 'minimized'
+      type: "minimized";
     }
   | {
-      type: 'hidden'
-    }
+      type: "hidden";
+    };
 
 type ErrorsState = {
-  tabs: Tab[]
-  display: DisplayState
-  errorCount: number
-  warningCount: number
+  tabs: Tab[];
+  display: DisplayState;
+  errorCount: number;
+  warningCount: number;
 
-  seenIds: Set<string>
-  issues: Issue[]
-  readyErrors: ReadyRuntimeError[]
-  lastSelectedTab: TabId | null
-}
+  seenIds: Set<string>;
+  issues: Issue[];
+  readyErrors: ReadyRuntimeError[];
+  lastSelectedTab: TabId | null;
+};
 
 enum ErrorsActionType {
-  UpdateIssues = 'update-issues',
-  UpdateErrors = 'update-errors',
-  SelectTab = 'select-tab',
-  Fullscreen = 'fullscreen',
-  Minimize = 'minimize',
-  Hide = 'hide',
+  UpdateIssues = "update-issues",
+  UpdateErrors = "update-errors",
+  SelectTab = "select-tab",
+  Fullscreen = "fullscreen",
+  Minimize = "minimize",
+  Hide = "hide",
 }
 
 type UpdateIssuesAction = {
-  type: typeof ErrorsActionType.UpdateIssues
-  issues: Issue[]
-}
+  type: typeof ErrorsActionType.UpdateIssues;
+  issues: Issue[];
+};
 
 type UpdateErrorsAction = {
-  type: typeof ErrorsActionType.UpdateErrors
-  readyErrors: ReadyRuntimeError[]
-}
+  type: typeof ErrorsActionType.UpdateErrors;
+  readyErrors: ReadyRuntimeError[];
+};
 
 type SelectTabAction = {
-  type: typeof ErrorsActionType.SelectTab
-  tabId: TabId
-}
+  type: typeof ErrorsActionType.SelectTab;
+  tabId: TabId;
+};
 
 type FullscreenAction = {
-  type: typeof ErrorsActionType.Fullscreen
-}
+  type: typeof ErrorsActionType.Fullscreen;
+};
 
 type MinimizeAction = {
-  type: typeof ErrorsActionType.Minimize
-}
+  type: typeof ErrorsActionType.Minimize;
+};
 
 type HideAction = {
-  type: typeof ErrorsActionType.Hide
-}
+  type: typeof ErrorsActionType.Hide;
+};
 
 type ErrorsAction =
   | UpdateIssuesAction
@@ -379,36 +379,36 @@ type ErrorsAction =
   | SelectTabAction
   | FullscreenAction
   | MinimizeAction
-  | HideAction
+  | HideAction;
 
 // puts item
 function prependNewItems<T extends object>(
   items: T[],
   seenIds: Set<string>
 ): T[] {
-  const newItems = []
-  let newIdx = 0
+  const newItems = [];
+  let newIdx = 0;
 
   for (const item of items) {
     if (seenIds.has(itemHash(item))) {
-      newItems.push(item)
+      newItems.push(item);
     } else {
-      newItems.splice(newIdx, 0, item)
+      newItems.splice(newIdx, 0, item);
     }
   }
 
-  return newItems
+  return newItems;
 }
 
 function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
-  let state = oldState
+  let state = oldState;
   switch (action.type) {
     case ErrorsActionType.UpdateIssues: {
       if (action.issues == oldState.issues) {
-        return oldState
+        return oldState;
       }
 
-      const issues = prependNewItems(action.issues, oldState.seenIds)
+      const issues = prependNewItems(action.issues, oldState.seenIds);
 
       state = {
         ...oldState,
@@ -417,15 +417,15 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
           issues,
           readyErrors: oldState.readyErrors,
         }),
-      }
-      break
+      };
+      break;
     }
     case ErrorsActionType.UpdateErrors: {
       if (action.readyErrors == oldState.readyErrors) {
-        return oldState
+        return oldState;
       }
 
-      const readyErrors = prependNewItems(action.readyErrors, oldState.seenIds)
+      const readyErrors = prependNewItems(action.readyErrors, oldState.seenIds);
 
       state = {
         ...oldState,
@@ -434,83 +434,83 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
           issues: oldState.issues,
           readyErrors,
         }),
-      }
-      break
+      };
+      break;
     }
     case ErrorsActionType.SelectTab: {
       state = {
         ...oldState,
         display: {
-          type: 'fullscreen',
+          type: "fullscreen",
           tab: action.tabId,
         },
-      }
-      break
+      };
+      break;
     }
     case ErrorsActionType.Fullscreen: {
       state = {
         ...oldState,
         display: {
-          type: 'fullscreen',
+          type: "fullscreen",
           tab: oldState.lastSelectedTab || TabId.TurbopackErrors,
         },
-      }
-      break
+      };
+      break;
     }
     case ErrorsActionType.Minimize: {
       return {
         ...oldState,
         display: {
-          type: 'minimized',
+          type: "minimized",
         },
-      }
+      };
     }
     case ErrorsActionType.Hide: {
       return {
         ...oldState,
         display: {
-          type: 'hidden',
+          type: "hidden",
         },
-      }
+      };
     }
   }
 
-  let autoOpen = false
+  let autoOpen = false;
 
   // When the selected tab disappears we will go to another important tab or close the overlay
   if (
-    state.display.type == 'fullscreen' &&
+    state.display.type == "fullscreen" &&
     !state.tabs.map((tab) => tab.id).includes(state.display.tab)
   ) {
-    const otherImportantTab = state.tabs.find((tab) => tab.autoOpen)
+    const otherImportantTab = state.tabs.find((tab) => tab.autoOpen);
     if (otherImportantTab) {
-      state.display.tab = otherImportantTab.id
+      state.display.tab = otherImportantTab.id;
     } else {
       state.display = {
-        type: 'hidden',
-      }
+        type: "hidden",
+      };
     }
   } else {
-    autoOpen = true
+    autoOpen = true;
   }
 
-  state.seenIds = new Set()
+  state.seenIds = new Set();
   // When there is a new item we open the overlay when autoOpen is set
   for (const tab of state.tabs) {
     for (const item of tab.items) {
-      state.seenIds.add(itemHash(item))
+      state.seenIds.add(itemHash(item));
       if (!oldState.seenIds.has(itemHash(item))) {
-        if (state.display.type == 'hidden') {
+        if (state.display.type == "hidden") {
           state.display = {
-            type: 'minimized',
-          }
+            type: "minimized",
+          };
         }
 
         if (autoOpen && tab.autoOpen) {
           state.display = {
-            type: 'fullscreen',
+            type: "fullscreen",
             tab: tab.id,
-          }
+          };
         }
       }
     }
@@ -518,13 +518,13 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
 
   if (state.tabs !== oldState.tabs) {
     state.errorCount = state.tabs.reduce(
-      (sum, tab) => sum + (tab.severity === 'error' ? tab.items.length : 0),
+      (sum, tab) => sum + (tab.severity === "error" ? tab.items.length : 0),
       0
-    )
+    );
     state.warningCount = state.tabs.reduce(
-      (sum, tab) => sum + (tab.severity === 'warning' ? tab.items.length : 0),
+      (sum, tab) => sum + (tab.severity === "warning" ? tab.items.length : 0),
       0
-    )
+    );
   }
 
   if (
@@ -532,19 +532,19 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
     (state.errorCount === 0 && state.warningCount === 0)
   ) {
     state.display = {
-      type: 'hidden',
-    }
+      type: "hidden",
+    };
   }
 
-  if (state.display.type === 'fullscreen') {
-    state.lastSelectedTab = state.display.tab
+  if (state.display.type === "fullscreen") {
+    state.lastSelectedTab = state.display.tab;
   }
 
-  return state
+  return state;
 }
 
 export function Errors({ issues, errors }: ErrorsProps) {
-  const [readyErrors, _isLoading] = useResolvedErrors(errors)
+  const [readyErrors, _isLoading] = useResolvedErrors(errors);
 
   const [{ tabs, display, errorCount, warningCount }, dispatch] =
     React.useReducer<React.Reducer<ErrorsState, ErrorsAction>, null>(
@@ -557,7 +557,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
             tabs: [],
             lastSelectedTab: null,
             display: {
-              type: 'hidden',
+              type: "hidden",
             },
             issues: [],
             readyErrors,
@@ -566,36 +566,36 @@ export function Errors({ issues, errors }: ErrorsProps) {
           },
           { type: ErrorsActionType.UpdateIssues, issues }
         )
-    )
+    );
 
   React.useEffect(() => {
-    dispatch({ type: ErrorsActionType.UpdateIssues, issues })
-  }, [issues])
+    dispatch({ type: ErrorsActionType.UpdateIssues, issues });
+  }, [issues]);
   React.useEffect(() => {
-    dispatch({ type: ErrorsActionType.UpdateErrors, readyErrors })
-  }, [readyErrors])
+    dispatch({ type: ErrorsActionType.UpdateErrors, readyErrors });
+  }, [readyErrors]);
 
   function setSelectedTab(tabId: string) {
     dispatch({
       type: ErrorsActionType.SelectTab,
       tabId: tabId as TabId,
-    })
+    });
   }
 
-  if (display.type == 'hidden') {
-    return null
+  if (display.type == "hidden") {
+    return null;
   }
 
-  if (display.type == 'minimized') {
+  if (display.type == "minimized") {
     return (
       <ErrorsToast
         errorCount={errorCount}
         warningCount={warningCount}
-        severity={errorCount > 0 ? 'error' : 'warning'}
+        severity={errorCount > 0 ? "error" : "warning"}
         onClick={() => setSelectedTab(tabs[0].id)}
         onClose={() => dispatch({ type: ErrorsActionType.Hide })}
       />
-    )
+    );
   }
 
   return (
@@ -622,7 +622,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
                 prev={tabs[(i + tabs.length - 1) % tabs.length].id}
                 data-severity={tab.severity}
               >
-                {tab.icon} {tab.items.length}{' '}
+                {tab.icon} {tab.items.length}{" "}
                 {tabs.length > 3
                   ? tab.title.short
                   : tab.items.length > 1
@@ -645,7 +645,7 @@ export function Errors({ issues, errors }: ErrorsProps) {
         ))}
       </Tabs>
     </ErrorsDialog>
-  )
+  );
 }
 
 function ErrorsDialog({ children, ...props }: DialogProps) {
@@ -655,7 +655,7 @@ function ErrorsDialog({ children, ...props }: DialogProps) {
         <DialogContent>{children}</DialogContent>
       </Dialog>
     </Overlay>
-  )
+  );
 }
 
 export const styles = css`
@@ -665,11 +665,11 @@ export const styles = css`
     margin-right: var(--size-gap);
   }
 
-  .errors-header > .tab-list > .tab[data-severity='error'] > svg {
+  .errors-header > .tab-list > .tab[data-severity="error"] > svg {
     color: var(--color-error);
   }
 
-  .errors-header > .tab-list > .tab[data-severity='warning'] > svg {
+  .errors-header > .tab-list > .tab[data-severity="warning"] > svg {
     color: var(--color-warning);
   }
 
@@ -677,11 +677,11 @@ export const styles = css`
     position: relative;
   }
 
-  .errors-header > .tab-list > .tab[data-severity='error']::after {
+  .errors-header > .tab-list > .tab[data-severity="error"]::after {
     border-top-color: var(--color-error);
   }
 
-  .errors-header > .tab-list > .tab[data-severity='warning']::after {
+  .errors-header > .tab-list > .tab[data-severity="warning"]::after {
     border-top-color: var(--color-warning);
   }
 
@@ -731,11 +731,11 @@ export const styles = css`
     overflow-wrap: break-word;
   }
 
-  .errors-body > h2[data-severity='error'] {
+  .errors-body > h2[data-severity="error"] {
     color: var(--color-error);
   }
 
-  .errors-body > h2[data-severity='warning'] {
+  .errors-body > h2[data-severity="warning"] {
     color: var(--color-warning);
   }
 
@@ -755,4 +755,4 @@ export const styles = css`
   .errors-body > h5 {
     margin-bottom: var(--size-gap);
   }
-`
+`;

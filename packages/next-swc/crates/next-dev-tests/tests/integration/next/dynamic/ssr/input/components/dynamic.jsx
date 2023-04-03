@@ -1,7 +1,7 @@
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const Nested = dynamic(() => import('./nested'))
-const NestedLoaded = dynamic(() => import('./nested-loaded'))
+const Nested = dynamic(() => import("./nested"));
+const NestedLoaded = dynamic(() => import("./nested-loaded"));
 
 export default function Dynamic() {
   return (
@@ -10,5 +10,5 @@ export default function Dynamic() {
       <Nested />
       <NestedLoaded />
     </div>
-  )
+  );
 }

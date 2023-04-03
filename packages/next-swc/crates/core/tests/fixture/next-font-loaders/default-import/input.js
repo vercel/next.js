@@ -1,3 +1,3 @@
-import cool from 'cool-fonts'
+import cool from "cool-fonts";
 
-const font = cool({ prop: true })
+const font = cool({ prop: true });

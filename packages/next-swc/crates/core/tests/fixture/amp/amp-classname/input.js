@@ -1,2 +1,2 @@
-import React from 'react'
-const comp = () => <amp-something className="something" />
+import React from "react";
+const comp = () => <amp-something className="something" />;

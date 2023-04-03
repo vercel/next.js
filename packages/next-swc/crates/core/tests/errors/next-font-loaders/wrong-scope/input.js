@@ -1,24 +1,24 @@
-import { Aladin } from '@next/font/google'
+import { Aladin } from "@next/font/google";
 
-Aladin({})
+Aladin({});
 
-let b
-const a = (b = Aladin({ variant: '400' }))
+let b;
+const a = (b = Aladin({ variant: "400" }));
 
 function Hello() {
   const a = Aladin({
-    variant: '400',
-  })
+    variant: "400",
+  });
 }
 
 class C {
   constructor() {
     Aladin({
-      variant: '400',
-    })
+      variant: "400",
+    });
   }
 }
 
 {
-  Aladin({})
+  Aladin({});
 }

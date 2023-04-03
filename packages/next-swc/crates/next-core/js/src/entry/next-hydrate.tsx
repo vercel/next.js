@@ -14,9 +14,7 @@ import {
 } from "next/dist/shared/lib/router/utils/querystring";
 import { formatWithValidation } from "next/dist/shared/lib/router/utils/format-url";
 import { initializeHMR } from "@vercel/turbopack-next/dev/client";
-import {
-  subscribeToUpdate,
-} from "@vercel/turbopack-next/dev/hmr-client";
+import { subscribeToUpdate } from "@vercel/turbopack-next/dev/hmr-client";
 
 import * as _app from "@vercel/turbopack-next/pages/_app";
 import * as page from "PAGE";

@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 export default class Component {
   render() {

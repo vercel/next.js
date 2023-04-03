@@ -1,3 +1,3 @@
-import { Fira_Code } from '@next/font/google'
+import { Fira_Code } from "@next/font/google";
 
-const fira = Fira_Code()
+const fira = Fira_Code();

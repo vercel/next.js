@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   .terminal {
@@ -33,6 +33,6 @@ const styles = css`
     word-break: break-word;
     overflow-y: scroll;
   }
-`
+`;
 
-export { styles }
+export { styles };

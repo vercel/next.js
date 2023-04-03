@@ -34,8 +34,9 @@ import { parse, ParsedUrlQuery } from "node:querystring";
 
 ("TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }");
 // @ts-ignore
-import layoutEntry, { chunks as layoutEntryClientChunks } from "@vercel/turbopack-next/entry/app/layout-entry";
-
+import layoutEntry, {
+  chunks as layoutEntryClientChunks,
+} from "@vercel/turbopack-next/entry/app/layout-entry";
 
 globalThis.__next_require__ = (data) => {
   const [, , , ssr_id] = JSON.parse(data);
@@ -209,19 +210,20 @@ async function runOperation(renderData: RenderData) {
       const chunks = JSON.parse(prop);
       const cssChunks = chunks.filter((path: string) => path.endsWith(".css"));
       return cssChunks;
-    }
+    },
   };
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {
       const chunks = JSON.parse(prop.replace(/\.js$/, ""));
 
       const cssChunks = chunks.filter((path: string) => path.endsWith(".css"));
-      return cssChunks.map((chunk: string) =>
-        JSON.stringify([chunk, [chunk]])
-      )
-    }
-  }
-  const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods());
+      return cssChunks.map((chunk: string) => JSON.stringify([chunk, [chunk]]));
+    },
+  };
+  const manifest: ClientReferenceManifest = new Proxy(
+    {} as any,
+    proxyMethods()
+  );
 
   const serverCSSManifest: ClientCSSReferenceManifest = {
     cssImports: new Proxy({} as any, cssImportProxyMethods),

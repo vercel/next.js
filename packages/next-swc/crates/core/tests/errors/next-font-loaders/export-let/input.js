@@ -1,5 +1,5 @@
-import React from 'react'
-import { Abel, Inter } from '@next/font/google'
+import React from "react";
+import { Abel, Inter } from "@next/font/google";
 
-export let firaCode = Abel()
-export var inter = Inter()
+export let firaCode = Abel();
+export var inter = Inter();

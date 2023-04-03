@@ -1,6 +1,5 @@
-import "react"
-
-"use client"
+import "react";
+("use client");
 
 export default function () {
   return null;

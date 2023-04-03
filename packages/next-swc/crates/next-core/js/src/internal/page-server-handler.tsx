@@ -189,7 +189,7 @@ export default function startHandler({
         formats: [],
         dangerouslyAllowSVG: false,
         contentSecurityPolicy: "",
-        contentDispositionType: 'inline',
+        contentDispositionType: "inline",
         remotePatterns: [],
         unoptimized: true,
       },
