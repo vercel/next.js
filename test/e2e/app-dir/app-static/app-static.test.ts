@@ -282,6 +282,10 @@ createNextDescribe(
 
         expect(files).toEqual([
           '(new)/custom/page.js',
+          'api/revalidate-path-edge/route.js',
+          'api/revalidate-path-node/route.js',
+          'api/revalidate-tag-edge/route.js',
+          'api/revalidate-tag-node/route.js',
           'blog/[author]/[slug]/page.js',
           'blog/[author]/page.js',
           'blog/seb.html',
@@ -392,6 +396,7 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/revalidate-30/page.js',
           'variable-revalidate/revalidate-360.html',
           'variable-revalidate/revalidate-360.rsc',
           'variable-revalidate/revalidate-360/page.js',
