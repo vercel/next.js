@@ -521,7 +521,7 @@ export async function imageOptimizer(
   ) => Promise<void>
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
   let upstreamBuffer: Buffer
-  let upstreamType: string | null
+  let upstreamType: string | null | undefined
   let maxAge: number
   const { isAbsolute, href, width, mimeType, quality } = paramsResult
 
@@ -568,7 +568,8 @@ export async function imageOptimizer(
       upstreamBuffer = Buffer.concat(resBuffers)
       upstreamType =
         detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+      const cacheControl = mockRes.getHeader('Cache-Control')
+      maxAge = cacheControl ? getMaxAge(cacheControl) : 0
     } catch (err) {
       console.error('upstream image response failed for', href, err)
       throw new ImageError(
