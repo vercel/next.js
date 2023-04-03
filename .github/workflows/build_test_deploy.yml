@@ -1244,6 +1244,46 @@ jobs:
         run: cd packages/next-swc && cargo nextest run -p next-dev-tests --release --no-fail-fast
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+  test-bench-native-integration:
+    name: Bench Integration Test Native Code
+    runs-on: ubuntu-latest-16-core-oss
+    needs: build
+
+    env:
+      CARGO_PROFILE_RELEASE_LTO: false
+      TURBOPACK_BENCH_COUNTS: 10
+      TURBOPACK_BENCH_CACHED: 1
+
+    steps:
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - run: echo "${{needs.build.outputs.docsChange == 'nope'}}"
+
+      - name: Install
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          profile: minimal
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Build tests
+        timeout-minutes: 60
+        run: cd packages/next-swc && cargo test --benches -p next-dev --release --no-run
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - name: Run tests
+        timeout-minutes: 60
+        run: cd packages/next-swc && cargo test --benches -p next-dev --release --no-fail-fast
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
   test-wasm:
     name: Test the wasm build
     runs-on: ubuntu-latest
