@@ -184,15 +184,13 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
-                "http.route": "/api/app/[param]/data",
                 "http.status_code": 200,
                 "http.target": "/api/app/param/data",
-                "next.route": "/api/app/[param]/data",
                 "next.span_name": "GET /api/app/param/data",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /api/app/[param]/data",
+              "name": "GET /api/app/param/data",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -312,13 +310,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
+                "http.route": "/api/pages/[param]/basic",
                 "http.status_code": 200,
                 "http.target": "/api/pages/param/basic",
+                "next.route": "/api/pages/[param]/basic",
                 "next.span_name": "GET /api/pages/param/basic",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /api/pages/param/basic",
+              "name": "GET /api/pages/[param]/basic",
               "parentId": undefined,
               "status": Object {
                 "code": 0,

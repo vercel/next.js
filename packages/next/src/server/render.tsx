@@ -1361,6 +1361,7 @@ export async function renderToHTML(
     }
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {

@@ -1060,7 +1060,6 @@ export default class NextNodeServer extends BaseServer {
       route = pathname.replace(/\/[^/]*$/, '')
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', route)
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {
