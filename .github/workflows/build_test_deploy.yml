@@ -1,6 +1,6 @@
 on:
   push:
-    branches: ['**']
+    branches: ['canary', 'trunk-merge/*']
   pull_request:
     types: [opened, synchronize]
 
