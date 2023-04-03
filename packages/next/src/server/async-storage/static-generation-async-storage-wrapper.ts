@@ -9,6 +9,7 @@ export type StaticGenerationContext = {
     incrementalCache?: IncrementalCache
     supportsDynamicHTML: boolean
     isRevalidate?: boolean
+    isOnDemandRevalidate?: boolean
     isBot?: boolean
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
@@ -57,6 +58,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isRevalidate: renderOpts.isRevalidate,
       isPrerendering: renderOpts.nextExport,
       fetchCache: renderOpts.fetchCache,
+      isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context
