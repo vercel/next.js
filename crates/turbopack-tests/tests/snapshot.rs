@@ -19,9 +19,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     condition::ContextCondition,
-    ecmascript::{
-        chunk::EcmascriptChunkPlaceablesVc, process_runtime_entries, EcmascriptModuleAssetVc,
-    },
+    ecmascript::{process_runtime_entries, EcmascriptModuleAssetVc},
     module_options::{JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext},
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
@@ -315,7 +313,7 @@ async fn walk_asset(
 }
 
 async fn maybe_load_env(
-    context: AssetContextVc,
+    _context: AssetContextVc,
     path: FileSystemPathVc,
 ) -> Result<Option<AssetsVc>> {
     let dotenv_path = path.join("input/.env");
