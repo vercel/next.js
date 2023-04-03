@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::{tasks::ValueToString, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetVc, AssetsVc},
@@ -14,7 +14,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::ValueToString;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {

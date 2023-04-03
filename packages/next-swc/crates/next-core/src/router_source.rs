@@ -15,7 +15,7 @@ use turbo_binding::turbopack::{
 use turbo_tasks::{primitives::StringVc, CompletionVc, CompletionsVc, Value};
 
 use crate::{
-    app_structure::OptionAppStructureVc,
+    app_structure::OptionAppDirVc,
     next_config::NextConfigVc,
     pages_structure::OptionPagesStructureVc,
     router::{route, RouterRequest, RouterResult},
@@ -28,7 +28,7 @@ pub struct NextRouterContentSource {
     execution_context: ExecutionContextVc,
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
-    app_structure: OptionAppStructureVc,
+    app_dir: OptionAppDirVc,
     pages_structure: OptionPagesStructureVc,
 }
 
@@ -40,7 +40,7 @@ impl NextRouterContentSourceVc {
         execution_context: ExecutionContextVc,
         next_config: NextConfigVc,
         server_addr: ServerAddrVc,
-        app_structure: OptionAppStructureVc,
+        app_dir: OptionAppDirVc,
         pages_structure: OptionPagesStructureVc,
     ) -> NextRouterContentSourceVc {
         NextRouterContentSource {
@@ -48,7 +48,7 @@ impl NextRouterContentSourceVc {
             execution_context,
             next_config,
             server_addr,
-            app_structure,
+            app_dir,
             pages_structure,
         }
         .cell()
@@ -74,11 +74,12 @@ fn need_data(source: ContentSourceVc, path: &str) -> ContentSourceResultVc {
 
 #[turbo_tasks::function]
 fn routes_changed(
-    app_structure: OptionAppStructureVc,
+    app_dir: OptionAppDirVc,
     pages_structure: OptionPagesStructureVc,
+    next_config: NextConfigVc,
 ) -> CompletionVc {
     CompletionsVc::all(vec![
-        app_structure.routes_changed(),
+        app_dir.routes_changed(next_config),
         pages_structure.routes_changed(),
     ])
 }
@@ -96,7 +97,7 @@ impl ContentSource for NextRouterContentSource {
         // The next-dev server can currently run against projects as simple as
         // `index.js`. If this isn't a Next.js project, don't try to use the Next.js
         // router.
-        if this.app_structure.await?.is_none() && this.pages_structure.await?.is_none() {
+        if this.app_dir.await?.is_none() && this.pages_structure.await?.is_none() {
             return Ok(this
                 .inner
                 .get(path, Value::new(ContentSourceData::default())));
@@ -124,7 +125,7 @@ impl ContentSource for NextRouterContentSource {
             request,
             this.next_config,
             this.server_addr,
-            routes_changed(this.app_structure, this.pages_structure),
+            routes_changed(this.app_dir, this.pages_structure, this.next_config),
         );
 
         let res = res
