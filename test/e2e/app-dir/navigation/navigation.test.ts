@@ -6,12 +6,6 @@ createNextDescribe(
   'app dir - navigation',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDeploy }) => {
     describe('query string', () => {

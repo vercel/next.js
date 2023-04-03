@@ -19,7 +19,7 @@ type IpcIncomingMessage =
     }
   | {
       type: "bodyChunk";
-      data: Array<number>;
+      data: number[];
     }
   | { type: "bodyEnd" };
 
@@ -29,8 +29,11 @@ type IpcOutgoingMessage =
       data: ResponseHeaders;
     }
   | {
-      type: "body";
-      data: Array<number>;
+      type: "bodyChunk";
+      data: number[];
+    }
+  | {
+      type: "bodyEnd";
     };
 
 type ResponseHeaders = {
@@ -137,7 +140,6 @@ export default function startHandler(handler: Handler): void {
     server: Server,
     clientResponse: IncomingMessage
   ) {
-    const responseData: Buffer[] = [];
     const responseHeaders: ResponseHeaders = {
       status: clientResponse.statusCode!,
       headers: toPairs(clientResponse.rawHeaders),
@@ -149,14 +151,14 @@ export default function startHandler(handler: Handler): void {
     });
 
     clientResponse.on("data", (chunk) => {
-      responseData.push(chunk);
+      ipc.send({
+        type: "bodyChunk",
+        data: chunk.toJSON().data,
+      });
     });
 
     clientResponse.once("end", () => {
-      ipc.send({
-        type: "body",
-        data: Buffer.concat(responseData).toJSON().data,
-      });
+      ipc.send({ type: "bodyEnd" });
       server.close();
     });
 

@@ -256,6 +256,9 @@ const configSchema = {
         clientRouterFilterRedirects: {
           type: 'boolean',
         },
+        clientRouterFilterAllowedRate: {
+          type: 'number',
+        },
         cpus: {
           type: 'number',
         },
@@ -361,9 +364,6 @@ const configSchema = {
           type: 'object',
         },
         pageEnv: {
-          type: 'boolean',
-        },
-        preCompiledNextServer: {
           type: 'boolean',
         },
         proxyTimeout: {

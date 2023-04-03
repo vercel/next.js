@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use next_swc::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
     next_dynamic::next_dynamic,
@@ -6,7 +8,6 @@ use next_swc::{
     server_actions::{self, server_actions},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use std::path::PathBuf;
 use turbo_binding::swc::{
     core::{
         common::{chain, FileName, Mark},

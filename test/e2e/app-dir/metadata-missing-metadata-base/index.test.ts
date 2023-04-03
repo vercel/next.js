@@ -5,6 +5,10 @@ import { fetchViaHTTP } from 'next-test-utils'
 describe('app dir - metadata missing metadataBase', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    return it('should skip for deploy', () => {})
+  }
+
   beforeAll(async () => {
     next = await createNext({
       skipStart: true,
@@ -19,7 +23,7 @@ describe('app dir - metadata missing metadataBase', () => {
   if (globalThis.isNextDev) {
     it('should warning in development', async () => {
       await next.start()
-      await fetchViaHTTP(next.url, '/')
+      await fetchViaHTTP(next.url, '/blog')
       expect(next.cliOutput).toInclude(
         'metadata.metadataBase is not set and fallbacks to "http://localhost:'
       )
@@ -31,7 +35,7 @@ describe('app dir - metadata missing metadataBase', () => {
     it('should error in production', async () => {
       await expect(next.start()).rejects.toThrow('next build failed')
       expect(next.cliOutput).toInclude(
-        'metadata.metadataBase needs to be provided for resolving absolute URL: /opengraph-image?'
+        'metadata.metadataBase needs to be provided for resolving absolute URL: /blog/opengraph-image?'
       )
     })
   }

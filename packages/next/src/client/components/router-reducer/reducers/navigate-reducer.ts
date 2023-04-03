@@ -107,7 +107,7 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
-      const applied = applyFlightData(state, cache, flightDataPath)
+      const applied = applyFlightData(state, cache, flightDataPath, true)
 
       const hardNavigate = shouldHardNavigate(
         // TODO-APP: remove ''

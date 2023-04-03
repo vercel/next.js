@@ -86,7 +86,10 @@ export async function createStaticMetadataFromRoute(
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       STATIC_METADATA_IMAGES[type].filename,
-      pageExtensions.concat(STATIC_METADATA_IMAGES[type].extensions),
+      [
+        ...STATIC_METADATA_IMAGES[type].extensions,
+        ...(type === 'favicon' ? [] : pageExtensions),
+      ],
       opts
     )
     resolvedMetadataFiles
@@ -100,9 +103,9 @@ export async function createStaticMetadataFromRoute(
           }
         )}!${filepath}${METADATA_RESOURCE_QUERY}`
 
-        const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+        const imageModule = `(async (props) => (await import(/* webpackMode: "eager" */ ${JSON.stringify(
           imageModuleImportSource
-        )})`
+        )})).default(props))`
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)

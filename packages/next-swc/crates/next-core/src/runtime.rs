@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbopack::core::resolve::{origin::ResolveOriginVc, parse::RequestVc};
-use turbo_binding::turbopack::turbopack::ecmascript::{
-    chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve,
+use turbo_binding::turbopack::{
+    core::resolve::{origin::ResolveOriginVc, parse::RequestVc},
+    turbopack::ecmascript::{chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve},
 };
 
 /// Resolves the turbopack runtime module from the given [AssetContextVc].
