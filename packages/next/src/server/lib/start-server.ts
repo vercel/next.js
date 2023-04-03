@@ -1,10 +1,14 @@
 import http from 'http'
+import { resolve } from 'path'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
+import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+import { PHASE_PRODUCTION_SERVER } from '../../shared/lib/constants'
+import loadConfig from '../config'
 
 export interface StartServerOptions {
   dir: string
@@ -162,8 +166,19 @@ export async function startServer({
     server.listen(port, hostname)
   })
 
+  const config = await loadConfig(
+    isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+    resolve(dir || '.'),
+    undefined,
+    undefined,
+    false
+  )
+
+  // Always use workers when `appDir` is enabled.
+  const shouldUseWorkers = useWorkers || config.experimental.appDir
+
   try {
-    if (useWorkers) {
+    if (shouldUseWorkers) {
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
@@ -295,6 +310,7 @@ export async function startServer({
         httpServer: server,
         customServer: false,
         port: addr && typeof addr === 'object' ? addr.port : port,
+        preloadedConfig: config,
       })
       // handle in process
       requestHandler = app.getRequestHandler()

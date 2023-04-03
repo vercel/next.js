@@ -1,6 +1,8 @@
 import type { Options as DevServerOptions } from './dev/next-dev-server'
 import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
+import type { NextConfigComplete } from './config-shared'
+
 import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
@@ -29,7 +31,9 @@ const getServerImpl = async () => {
   return ServerImpl
 }
 
-export type NextServerOptions = Partial<DevServerOptions>
+export type NextServerOptions = Partial<DevServerOptions> & {
+  preloadedConfig?: NextConfigComplete
+}
 
 export interface RequestHandler {
   (
@@ -144,12 +148,15 @@ export class NextServer {
   }
 
   private async loadConfig() {
-    return loadConfig(
-      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-      resolve(this.options.dir || '.'),
-      this.options.conf,
-      undefined,
-      !!this.options._renderWorker
+    return (
+      this.options.preloadedConfig ||
+      loadConfig(
+        this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+        resolve(this.options.dir || '.'),
+        this.options.conf,
+        undefined,
+        !!this.options._renderWorker
+      )
     )
   }
 
