@@ -9,8 +9,7 @@ use turbo_binding::turbopack::{
         NeededData, ProxyResult,
     },
 };
-use turbo_tasks::primitives::StringVc;
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::StringVc, Value};
 
 /// Serves, resizes, optimizes, and re-encodes images to be used with
 /// next/image.

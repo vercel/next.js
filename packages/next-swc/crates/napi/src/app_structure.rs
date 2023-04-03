@@ -1,26 +1,28 @@
+use std::{collections::HashMap, path::MAIN_SEPARATOR, sync::Arc};
+
 use anyhow::{anyhow, Result};
-use napi::bindgen_prelude::External;
-use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
-use napi::JsFunction;
+use napi::{
+    bindgen_prelude::External,
+    threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    JsFunction,
+};
 use next_core::app_structure::{
     find_app_dir, get_entrypoints as get_entrypoints_impl, Components, ComponentsVc, Entrypoint,
     EntrypointsVc, LoaderTree, LoaderTreeVc,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::MAIN_SEPARATOR;
-use std::sync::Arc;
-use turbo_binding::turbo::tasks;
-use turbo_binding::turbo::tasks::debug::ValueDebugFormat;
-use turbo_binding::turbo::tasks::primitives::StringsVc;
-use turbo_binding::turbo::tasks::trace::TraceRawVcs;
-use turbo_binding::turbopack::core::PROJECT_FILESYSTEM_NAME;
-
-use turbo_binding::turbo::tasks::{NothingVc, TryJoinIterExt, TurboTasks, ValueToString};
-use turbo_binding::turbo::tasks_fs::{
-    DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc,
+use turbo_binding::{
+    turbo::{
+        tasks,
+        tasks::{
+            debug::ValueDebugFormat, primitives::StringsVc, trace::TraceRawVcs, NothingVc,
+            TryJoinIterExt, TurboTasks, ValueToString,
+        },
+        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc},
+        tasks_memory::MemoryBackend,
+    },
+    turbopack::core::PROJECT_FILESYSTEM_NAME,
 };
-use turbo_binding::turbo::tasks_memory::MemoryBackend;
 
 use crate::REGISTER;
 #[tasks::function]
