@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::{tasks::TryJoinIterExt, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc},
@@ -24,7 +24,7 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
+use turbo_tasks::{primitives::StringVc, Value};
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
     StringVc::cell("chunks".to_string())

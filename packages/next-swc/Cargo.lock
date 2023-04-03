@@ -3127,6 +3127,7 @@ version = "0.1.0"
 dependencies = [
  "allsorts",
  "anyhow",
+ "async-recursion",
  "futures",
  "indexmap",
  "indoc",
@@ -3240,6 +3241,7 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "next-build",
+ "next-core",
  "next-dev",
  "next-swc",
  "once_cell",
@@ -3251,6 +3253,7 @@ dependencies = [
  "tracing-futures",
  "tracing-subscriber",
  "turbo-binding",
+ "turbo-tasks",
 ]
 
 [[package]]
