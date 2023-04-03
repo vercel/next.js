@@ -72,16 +72,23 @@ function mergeStaticMetadata(
 }
 
 // Merge the source metadata into the resolved target metadata.
-function merge(
-  target: ResolvedMetadata,
-  source: Metadata | null,
-  staticFilesMetadata: StaticMetadata,
+function merge({
+  pathname,
+  target,
+  source,
+  staticFilesMetadata,
+  titleTemplates,
+}: {
+  pathname: string
+  target: ResolvedMetadata
+  source: Metadata | null
+  staticFilesMetadata: StaticMetadata
   titleTemplates: {
     title: string | null
     twitter: string | null
     openGraph: string | null
   }
-) {
+}) {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
     typeof source?.metadataBase !== 'undefined'
@@ -96,7 +103,9 @@ function merge(
         break
       }
       case 'alternates': {
-        target.alternates = resolveAlternates(source.alternates, metadataBase)
+        target.alternates = resolveAlternates(source.alternates, metadataBase, {
+          pathname,
+        })
         break
       }
       case 'openGraph': {
@@ -212,26 +221,27 @@ async function getDefinedMetadata(
 
 async function collectStaticImagesFiles(
   metadata: ComponentsType['metadata'],
+  props: any,
   type: keyof NonNullable<ComponentsType['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (iconResolver: () => Promise<MetadataImageModule>) =>
-      interopDefault(await iconResolver())
+    async (imageModule: (p: any) => Promise<MetadataImageModule>) =>
+      interopDefault(await imageModule(props))
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
 
-async function resolveStaticMetadata(components: ComponentsType) {
+async function resolveStaticMetadata(components: ComponentsType, props: any) {
   const { metadata } = components
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([
-    collectStaticImagesFiles(metadata, 'icon'),
-    collectStaticImagesFiles(metadata, 'apple'),
-    collectStaticImagesFiles(metadata, 'openGraph'),
-    collectStaticImagesFiles(metadata, 'twitter'),
+    collectStaticImagesFiles(metadata, props, 'icon'),
+    collectStaticImagesFiles(metadata, props, 'apple'),
+    collectStaticImagesFiles(metadata, props, 'openGraph'),
+    collectStaticImagesFiles(metadata, props, 'twitter'),
   ])
 
   const staticMetadata = {
@@ -262,7 +272,7 @@ export async function collectMetadata({
     route += `/${modType}`
   }
 
-  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2], props)
   const metadataExport = mod
     ? await getDefinedMetadata(mod, props, route)
     : null
@@ -271,7 +281,8 @@ export async function collectMetadata({
 }
 
 export async function accumulateMetadata(
-  metadataItems: MetadataItems
+  metadataItems: MetadataItems,
+  pathname: string
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
 
@@ -339,7 +350,13 @@ export async function accumulateMetadata(
       metadata = metadataExport
     }
 
-    merge(resolvedMetadata, metadata, staticFilesMetadata, titleTemplates)
+    merge({
+      pathname,
+      target: resolvedMetadata,
+      source: metadata,
+      staticFilesMetadata,
+      titleTemplates,
+    })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
     // The leaf layout and page are the last two items

@@ -8,14 +8,26 @@ createNextDescribe(
   'app dir',
   {
     files: __dirname,
-    dependencies: {
-      swr: '2.0.0-rc.0',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (!isDev) {
+      it('should successfully detect app route during prefetch', async () => {
+        const browser = await next.browser('/')
+
+        await check(async () => {
+          const found = await browser.eval(
+            '!!window.next.router.components["/dashboard"]'
+          )
+          return found
+            ? 'success'
+            : await browser.eval('Object.keys(window.next.router.components)')
+        }, 'success')
+
+        await browser.elementByCss('a').click()
+        await browser.waitForElementByCss('#from-dashboard')
+      })
+    }
+
     it('should encode chunk path correctly', async () => {
       await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')
@@ -172,7 +184,9 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+        isNextDeploy || isNextStart
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
       )
     })
 
@@ -197,9 +211,6 @@ createNextDescribe(
     it('should serve from pages', async () => {
       const html = await next.render('/')
       expect(html).toContain('hello from pages/index')
-
-      // esm imports should work fine in pages/
-      expect(html).toContain('swr-index')
     })
 
     it('should serve dynamic route from pages', async () => {

@@ -1,40 +1,47 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
-use turbo_binding::turbo::tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc};
-use turbo_binding::turbo::tasks_fs::{FileContent, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::AssetVc,
-    chunk::ChunkingContextVc,
-    context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentIntention, ServerAddrVc},
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    source_asset::SourceAssetVc,
-};
-use turbo_binding::turbopack::dev::DevChunkingContextVc;
-use turbo_binding::turbopack::dev_server::{
-    html::DevHtmlAssetVc,
-    source::{
-        asset_graph::AssetGraphContentSourceVc,
-        combined::{CombinedContentSource, CombinedContentSourceVc},
-        specificity::SpecificityVc,
-        ContentSourceData, ContentSourceVc, NoContentSourceVc,
+use turbo_binding::{
+    turbo::{
+        tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
+        tasks_fs::{FileContent, FileSystemPathVc},
+    },
+    turbopack::{
+        core::{
+            asset::{AssetVc, AssetsVc},
+            chunk::ChunkingContextVc,
+            context::{AssetContext, AssetContextVc},
+            environment::{EnvironmentIntention, ServerAddrVc},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source_asset::SourceAssetVc,
+        },
+        dev::DevChunkingContextVc,
+        dev_server::{
+            html::DevHtmlAssetVc,
+            source::{
+                asset_graph::AssetGraphContentSourceVc,
+                combined::{CombinedContentSource, CombinedContentSourceVc},
+                specificity::SpecificityVc,
+                ContentSourceData, ContentSourceVc, NoContentSourceVc,
+            },
+        },
+        ecmascript::{
+            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+            EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+        env::ProcessEnvAssetVc,
+        node::{
+            execution_context::ExecutionContextVc,
+            render::{
+                node_api_source::create_node_api_source,
+                rendered_source::create_node_rendered_source,
+            },
+            route_matcher::RouteMatcherVc,
+            NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
+        },
+        turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc},
     },
 };
-use turbo_binding::turbopack::ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
-};
-use turbo_binding::turbopack::env::ProcessEnvAssetVc;
-use turbo_binding::turbopack::node::{
-    execution_context::ExecutionContextVc,
-    render::{
-        node_api_source::create_node_api_source, rendered_source::create_node_rendered_source,
-    },
-    route_matcher::RouteMatcherVc,
-    NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
-};
-use turbo_binding::turbopack::turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbo_tasks::{
     primitives::{OptionStringVc, StringVc, StringsVc},
     trace::TraceRawVcs,
@@ -145,6 +152,7 @@ pub async fn create_page_source(
         ),
         edge_compile_time_info.environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config, execution_context);
@@ -223,8 +231,10 @@ pub async fn create_page_source(
     let env = CustomProcessEnvVc::new(env, next_config.env()).as_process_env();
 
     let server_runtime_entries =
-        vec![ProcessEnvAssetVc::new(project_path, injected_env).as_ecmascript_chunk_placeable()];
-    let server_runtime_entries = EcmascriptChunkPlaceablesVc::cell(server_runtime_entries);
+        AssetsVc::cell(vec![
+            ProcessEnvAssetVc::new(project_path, injected_env).into()
+        ]);
+    let fallback_runtime_entries = AssetsVc::cell(vec![]);
 
     let fallback_page = get_fallback_page(
         project_path,
@@ -243,7 +253,7 @@ pub async fn create_page_source(
         client_context,
         pages_dir,
         page_extensions,
-        server_runtime_entries,
+        fallback_runtime_entries,
         fallback_page,
         server_root,
         output_path.join("force_not_found"),
@@ -257,7 +267,7 @@ pub async fn create_page_source(
         client_context,
         pages_dir,
         page_extensions,
-        server_runtime_entries,
+        fallback_runtime_entries,
         fallback_page,
         server_root,
         output_path.join("fallback_not_found"),
@@ -308,7 +318,7 @@ async fn create_page_source_for_file(
     pages_dir: FileSystemPathVc,
     specificity: SpecificityVc,
     page_asset: AssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
@@ -462,7 +472,7 @@ async fn create_not_found_page_source(
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
     page_extensions: StringsVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -557,7 +567,7 @@ async fn create_page_source_for_directory(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: AssetsVc,
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     output_root: FileSystemPathVc,
@@ -724,6 +734,7 @@ impl SsrEntryVc {
         };
 
         Ok(NodeRenderingEntry {
+            context: this.context,
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 internal_asset,
                 this.context,

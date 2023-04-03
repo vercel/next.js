@@ -27,15 +27,15 @@ export default class ResponseCache {
     key: string | null,
     responseGenerator: ResponseGenerator,
     context: {
-      isManualRevalidate?: boolean
+      isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
     }
   ): Promise<ResponseCacheEntry | null> {
     const { incrementalCache } = context
-    // ensure manual revalidate doesn't block normal requests
+    // ensure on-demand revalidate doesn't block normal requests
     const pendingResponseKey = key
-      ? `${key}-${context.isManualRevalidate ? '1' : '0'}`
+      ? `${key}-${context.isOnDemandRevalidate ? '1' : '0'}`
       : null
 
     const pendingResponse = pendingResponseKey
@@ -95,7 +95,7 @@ export default class ResponseCache {
         cachedResponse =
           key && !this.minimalMode ? await incrementalCache.get(key) : null
 
-        if (cachedResponse && !context.isManualRevalidate) {
+        if (cachedResponse && !context.isOnDemandRevalidate) {
           if (cachedResponse.value?.kind === 'FETCH') {
             throw new Error(
               `invariant: unexpected cachedResponse of kind fetch in response cache`
@@ -130,8 +130,8 @@ export default class ResponseCache {
                 isMiss: !cachedResponse,
               }
 
-        // for manual revalidate wait to resolve until cache is set
-        if (!context.isManualRevalidate) {
+        // for on-demand revalidate wait to resolve until cache is set
+        if (!context.isOnDemandRevalidate) {
           resolve(resolveValue)
         }
 
@@ -159,7 +159,7 @@ export default class ResponseCache {
           this.previousCacheItem = undefined
         }
 
-        if (context.isManualRevalidate) {
+        if (context.isOnDemandRevalidate) {
           resolve(resolveValue)
         }
       } catch (err) {
