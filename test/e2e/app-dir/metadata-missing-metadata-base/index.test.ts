@@ -25,17 +25,21 @@ describe('app dir - metadata missing metadataBase', () => {
       await next.start()
       await fetchViaHTTP(next.url, '/blog')
       expect(next.cliOutput).toInclude(
-        'metadata.metadataBase is not set and fallbacks to "http://localhost:'
+        'metadata.metadataBase is not set for resolving url "/blog/opengraph-image?'
       )
+      expect(next.cliOutput).toInclude(', fallbacks to "http://localhost:')
       expect(next.cliOutput).toInclude(
-        'please specify it in root layout to resolve absolute urls.'
+        '. See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase'
       )
     })
   } else {
     it('should error in production', async () => {
       await expect(next.start()).rejects.toThrow('next build failed')
       expect(next.cliOutput).toInclude(
-        'metadata.metadataBase needs to be provided for resolving absolute URL: /blog/opengraph-image?'
+        'metadata.metadataBase needs to be set for resolving url "/blog/opengraph-image?'
+      )
+      expect(next.cliOutput).toInclude(
+        '. See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase'
       )
     })
   }
