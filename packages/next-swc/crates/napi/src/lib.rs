@@ -32,7 +32,11 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::{env, panic::set_hook, sync::Arc};
+use std::{
+    env,
+    panic::set_hook,
+    sync::{Arc, Once},
+};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
@@ -42,6 +46,7 @@ use turbo_binding::swc::core::{
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod app_structure;
 pub mod mdx;
 pub mod minify;
 pub mod parse;
@@ -105,6 +110,15 @@ pub fn complete_output(
 }
 
 pub type ArcCompiler = Arc<Compiler>;
+
+static REGISTER_ONCE: Once = Once::new();
+
+fn register() {
+    REGISTER_ONCE.call_once(|| {
+        next_core::register();
+        include!(concat!(env!("OUT_DIR"), "/register.rs"));
+    });
+}
 
 #[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
 compile_error!("You can't enable both `native-tls` and `rustls-tls`");

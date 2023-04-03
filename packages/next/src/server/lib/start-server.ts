@@ -305,7 +305,6 @@ export async function startServer({
   } catch (err) {
     // fatal error if we can't setup
     handlersError()
-    Log.error(`Failed to setup request handlers`)
     console.error(err)
     process.exit(1)
   }

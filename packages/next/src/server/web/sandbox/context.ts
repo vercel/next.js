@@ -41,20 +41,36 @@ interface ModuleContext {
  */
 const moduleContexts = new Map<string, ModuleContext>()
 
+const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+
 /**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
  */
-export function clearModuleContext(path: string, content: Buffer | string) {
-  for (const [key, cache] of moduleContexts) {
+export async function clearModuleContext(
+  path: string,
+  content: Buffer | string
+) {
+  const handleContext = (
+    key: string,
+    cache: ReturnType<typeof moduleContexts['get']>,
+    context: typeof moduleContexts | typeof pendingModuleCaches
+  ) => {
     const prev = cache?.paths.get(path)?.replace(WEBPACK_HASH_REGEX, '')
     if (
       typeof prev !== 'undefined' &&
       prev !== content.toString().replace(WEBPACK_HASH_REGEX, '')
     ) {
-      moduleContexts.delete(key)
+      context.delete(key)
     }
+  }
+
+  for (const [key, cache] of moduleContexts) {
+    handleContext(key, cache, moduleContexts)
+  }
+  for (const [key, cache] of pendingModuleCaches) {
+    handleContext(key, await cache, pendingModuleCaches)
   }
 }
 
@@ -403,8 +419,6 @@ interface ModuleContextOptions {
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
-
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 function getModuleContextShared(options: ModuleContextOptions) {
   let deferredModuleContext = pendingModuleCaches.get(options.moduleName)

@@ -84,18 +84,30 @@ async function main() {
       let { version } = require('../lerna.json')
       version = `v${version}`
 
-      const releaseUrlRes = await fetch(
-        `https://api.github.com/repos/vercel/next.js/releases`,
-        {
-          headers: ghHeaders,
+      let release
+      let releasesData
+
+      // The release might take a minute to show up in
+      // the list so retry a bit
+      for (let i = 0; i < 6; i++) {
+        try {
+          const releaseUrlRes = await fetch(
+            `https://api.github.com/repos/vercel/next.js/releases`,
+            {
+              headers: ghHeaders,
+            }
+          )
+          releasesData = await releaseUrlRes.json()
+
+          release = releasesData.find((release) => release.tag_name === version)
+        } catch (err) {
+          console.log(`Fetching release failed`, err)
         }
-      )
-
-      const releasesData = await releaseUrlRes.json()
-
-      const release = releasesData.find(
-        (release) => release.tag_name === version
-      )
+        if (!release) {
+          console.log(`Retrying in 10s...`)
+          await new Promise((resolve) => setTimeout(resolve, 10 * 1000))
+        }
+      }
 
       if (!release) {
         console.log(`Failed to find release`, releasesData)

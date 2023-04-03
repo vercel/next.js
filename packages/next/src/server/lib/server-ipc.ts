@@ -1,6 +1,7 @@
 import type NextServer from '../next-server'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
 import { deserializeErr, errorToJSON } from '../render'
+import { IncomingMessage } from 'http'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -34,7 +35,6 @@ export async function createIpcServer(
           res.end(JSON.stringify(result || ''))
         }
       } catch (err: any) {
-        console.error(err)
         res.end(
           JSON.stringify({
             err: { name: err.name, message: err.message, stack: err.stack },
@@ -90,7 +90,12 @@ export const createWorker = (
         (serverPort || 0) + 1
       ),
     },
-    exposedMethods: ['initialize', 'deleteCache', 'deleteAppClientCache'],
+    exposedMethods: [
+      'initialize',
+      'deleteCache',
+      'deleteAppClientCache',
+      'clearModuleContext',
+    ],
   }) as any as InstanceType<typeof Worker> & {
     initialize: typeof import('./render-server').initialize
     deleteCache: typeof import('./render-server').deleteCache
@@ -101,4 +106,78 @@ export const createWorker = (
   worker.getStdout().pipe(process.stdout)
 
   return worker
+}
+
+const forbiddenHeaders = [
+  'accept-encoding',
+  'content-length',
+  'keepalive',
+  'content-encoding',
+  'transfer-encoding',
+  // https://github.com/nodejs/undici/issues/1470
+  'connection',
+]
+
+export const filterReqHeaders = (
+  headers: Record<string, undefined | string | string[]>
+) => {
+  for (const [key, value] of Object.entries(headers)) {
+    if (
+      forbiddenHeaders.includes(key) ||
+      !(Array.isArray(value) || typeof value === 'string')
+    ) {
+      delete headers[key]
+    }
+  }
+  return headers
+}
+
+export const invokeRequest = async (
+  targetUrl: string,
+  requestInit: {
+    headers: IncomingMessage['headers']
+    method: IncomingMessage['method']
+  },
+  readableBody?: import('stream').Readable
+) => {
+  const invokeHeaders = filterReqHeaders({
+    ...requestInit.headers,
+  }) as IncomingMessage['headers']
+
+  const invokeRes = await new Promise<IncomingMessage>(
+    (resolveInvoke, rejectInvoke) => {
+      const http = require('http') as typeof import('http')
+
+      try {
+        const invokeReq = http.request(
+          targetUrl,
+          {
+            headers: invokeHeaders,
+            method: requestInit.method,
+          },
+          (res) => {
+            resolveInvoke(res)
+          }
+        )
+        invokeReq.on('error', (err) => {
+          rejectInvoke(err)
+        })
+
+        if (requestInit.method !== 'GET' && requestInit.method !== 'HEAD') {
+          if (readableBody) {
+            readableBody.pipe(invokeReq)
+            readableBody.on('close', () => {
+              invokeReq.end()
+            })
+          }
+        } else {
+          invokeReq.end()
+        }
+      } catch (err) {
+        rejectInvoke(err)
+      }
+    }
+  )
+
+  return invokeRes
 }
