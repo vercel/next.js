@@ -120,15 +120,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
-                "http.route": "/app/[param]/rsc-fetch/page",
+                "http.route": "/app/[param]/rsc-fetch",
                 "http.status_code": 200,
                 "http.target": "/app/param/rsc-fetch",
-                "next.route": "/app/[param]/rsc-fetch/page",
+                "next.route": "/app/[param]/rsc-fetch",
                 "next.span_name": "GET /app/param/rsc-fetch",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /app/[param]/rsc-fetch/page",
+              "name": "GET /app/[param]/rsc-fetch",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
@@ -184,15 +184,15 @@ createNextDescribe(
             Object {
               "attributes": Object {
                 "http.method": "GET",
-                "http.route": "/api/app/[param]/data/route",
+                "http.route": "/api/app/[param]/data",
                 "http.status_code": 200,
                 "http.target": "/api/app/param/data",
-                "next.route": "/api/app/[param]/data/route",
+                "next.route": "/api/app/[param]/data",
                 "next.span_name": "GET /api/app/param/data",
                 "next.span_type": "BaseServer.handleRequest",
               },
               "kind": 1,
-              "name": "GET /api/app/[param]/data/route",
+              "name": "GET /api/app/[param]/data",
               "parentId": undefined,
               "status": Object {
                 "code": 0,
