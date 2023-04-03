@@ -81,7 +81,12 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
       PLUGIN_NAME,
       (_file, { targetPath, content }) => {
         deleteCache(targetPath)
-        clearModuleContext(targetPath, content.toString('utf-8'))
+        const contentStr = content.toString('utf-8')
+
+        if ((global as any)._nextClearModuleContext) {
+          ;(global as any)._nextClearModuleContext(targetPath, contentStr)
+        }
+        clearModuleContext(targetPath, contentStr)
       }
     )
 

@@ -183,6 +183,7 @@ type RenderWorker = Worker & {
   initialize: typeof import('./lib/render-server').initialize
   deleteCache: typeof import('./lib/render-server').deleteCache
   deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
+  clearModuleContext: typeof import('./lib/render-server').clearModuleContext
 }
 
 export default class NextNodeServer extends BaseServer {
@@ -289,12 +290,31 @@ export default class NextNodeServer extends BaseServer {
         }
       })
       ;(global as any)._nextDeleteCache = (filePath: string) => {
-        this.renderWorkers?.pages?.deleteCache(filePath)
-        this.renderWorkers?.app?.deleteCache(filePath)
+        try {
+          this.renderWorkers?.pages?.deleteCache(filePath)
+          this.renderWorkers?.app?.deleteCache(filePath)
+        } catch (err) {
+          console.error(err)
+        }
       }
       ;(global as any)._nextDeleteAppClientCache = () => {
-        this.renderWorkers?.pages?.deleteAppClientCache()
-        this.renderWorkers?.app?.deleteAppClientCache()
+        try {
+          this.renderWorkers?.pages?.deleteAppClientCache()
+          this.renderWorkers?.app?.deleteAppClientCache()
+        } catch (err) {
+          console.error(err)
+        }
+      }
+      ;(global as any)._nextClearModuleContext = (
+        targetPath: any,
+        content: any
+      ) => {
+        try {
+          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+        } catch (err) {
+          console.error(err)
+        }
       }
     }
 
@@ -2118,7 +2138,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.renderOpts.dev,
+      useCache: true,
       onWarning: params.onWarning,
     })
 
@@ -2596,7 +2616,7 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.renderOpts.dev,
+      useCache: true,
       onWarning: params.onWarning,
       incrementalCache: getRequestMeta(params.req, '_nextIncrementalCache'),
     })
