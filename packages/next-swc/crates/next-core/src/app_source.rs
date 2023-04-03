@@ -89,19 +89,22 @@ use crate::{
 fn pathname_to_specificity(pathname: &str) -> SpecificityVc {
     let mut current = Specificity::new();
     let mut position = 0;
-    // TODO(sokra) might be off by one^^
     for segment in pathname.split('/') {
         if segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@') {
             // ignore
+        } else if segment.starts_with("[[...") && segment.ends_with("]]") {
+            // optional catch all segment
+            current.add(position - 1, SpecificityElementType::CatchAll);
+            position += 1;
         } else if segment.starts_with("[...") && segment.ends_with(']') {
             // catch all segment
-            current.add(position, SpecificityElementType::CatchAll);
+            current.add(position - 1, SpecificityElementType::CatchAll);
             position += 1;
         } else if segment.starts_with("[[") || segment.ends_with("]]") {
-            // escaped segment
+            // optional segment
             position += 1;
         } else if segment.starts_with('[') || segment.ends_with(']') {
-            current.add(position, SpecificityElementType::DynamicSegment);
+            current.add(position - 1, SpecificityElementType::DynamicSegment);
             position += 1;
         } else {
             // normal segment
