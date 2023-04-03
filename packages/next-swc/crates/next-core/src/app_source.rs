@@ -92,12 +92,10 @@ fn pathname_to_specificity(pathname: &str) -> SpecificityVc {
     for segment in pathname.split('/') {
         if segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@') {
             // ignore
-        } else if segment.starts_with("[[...") && segment.ends_with("]]") {
+        } else if segment.starts_with("[[...") && segment.ends_with("]]")
+            || segment.starts_with("[...") && segment.ends_with(']')
+        {
             // optional catch all segment
-            current.add(position - 1, SpecificityElementType::CatchAll);
-            position += 1;
-        } else if segment.starts_with("[...") && segment.ends_with(']') {
-            // catch all segment
             current.add(position - 1, SpecificityElementType::CatchAll);
             position += 1;
         } else if segment.starts_with("[[") || segment.ends_with("]]") {
