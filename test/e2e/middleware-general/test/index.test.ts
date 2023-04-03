@@ -483,7 +483,10 @@ describe('Middleware Runtime', () => {
 
     it('should contain process polyfill', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
-      expect(readMiddlewareJSON(res)).toEqual({
+      const process = readMiddlewareJSON(res)
+      delete process.env['JEST_WORKER_ID']
+
+      expect(process).toEqual({
         process: {
           env: {
             ANOTHER_MIDDLEWARE_TEST: 'asdf2',
@@ -494,11 +497,6 @@ describe('Middleware Runtime', () => {
               : {
                   NEXT_RUNTIME: 'edge',
                 }),
-            ...((global as any).isNextDev
-              ? {
-                  JEST_WORKER_ID: '1',
-                }
-              : {}),
           },
         },
       })

@@ -1348,6 +1348,7 @@ export default class NextNodeServer extends BaseServer {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
+                break
               }
             }
           }

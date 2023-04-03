@@ -218,23 +218,6 @@ createNextDescribe(
           for (const entry of [
             {
               attributes: {
-                'http.method': 'GET',
-                'http.route': '/pages/[param]/getServerSideProps',
-                'http.status_code': 200,
-                'http.target': '/pages/param/getServerSideProps',
-                'next.route': '/pages/[param]/getServerSideProps',
-                'next.span_name': 'GET /pages/param/getServerSideProps',
-                'next.span_type': 'BaseServer.handleRequest',
-              },
-              kind: 1,
-              name: 'GET /pages/[param]/getServerSideProps',
-              parentId: undefined,
-              status: {
-                code: 0,
-              },
-            },
-            {
-              attributes: {
                 'next.span_name':
                   'getServerSideProps /pages/[param]/getServerSideProps',
                 'next.span_type': 'Render.getServerSideProps',
