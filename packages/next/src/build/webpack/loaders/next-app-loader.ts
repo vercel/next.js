@@ -20,6 +20,7 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 export type AppLoaderOptions = {
   name: string
@@ -254,7 +255,7 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
-          route: segmentPath,
+          route: normalizeAppPath(segmentPath),
           resolvePath,
           isRootLayer,
           loaderContext,

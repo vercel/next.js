@@ -1,22 +1,26 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
-use turbo_binding::turbopack::core::{
-    resolve::{
-        options::{
-            ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
-            ImportMappingReplacementVc, ImportMappingVc,
+use turbo_binding::{
+    turbo::{
+        tasks::{
+            primitives::{OptionStringVc, U32Vc},
+            Value,
         },
-        parse::{Request, RequestVc},
-        pattern::QueryMapVc,
-        ResolveResult,
+        tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc},
     },
-    virtual_asset::VirtualAssetVc,
+    turbopack::core::{
+        resolve::{
+            options::{
+                ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
+                ImportMappingReplacementVc, ImportMappingVc,
+            },
+            parse::{Request, RequestVc},
+            pattern::QueryMapVc,
+            ResolveResult,
+        },
+        virtual_asset::VirtualAssetVc,
+    },
 };
-use turbo_tasks::{
-    primitives::{OptionStringVc, U32Vc},
-    Value,
-};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc};
 
 use self::{
     font_fallback::get_font_fallbacks,
