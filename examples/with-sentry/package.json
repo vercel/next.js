@@ -3,10 +3,11 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@sentry/nextjs": "^7.30.0",
+    "@sentry/nextjs": "^7.42.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

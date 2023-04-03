@@ -14,7 +14,7 @@ Preview the example live on [StackBlitz](http://stackblitz.com/):
 
 ## Deploy your own
 
-It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/personal-accounts/login-connections), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
+It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/teams-and-accounts#existing-login-connection), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
 
 ### Option 1: Deploy directly to Vercel
 

@@ -1,4 +1,5 @@
-export default function App({ Component, pageProps, err }) {
-  // Workaround for https://github.com/vercel/next.js/issues/8592
-  return <Component {...pageProps} err={err} />
+import '../styles/globals.css'
+
+export default function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
 }
