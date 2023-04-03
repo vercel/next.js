@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [canary]
+    branches: ['*']
   pull_request:
     types: [opened, synchronize]
 
