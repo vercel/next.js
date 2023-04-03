@@ -10,7 +10,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc},
-    turbopack::core::issue::{Issue, IssueSeverityVc, IssueVc},
+    turbopack::core::issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
 };
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -377,8 +377,12 @@ async fn add_app_page(
         Entry::Occupied(mut e) => {
             let value = e.get_mut();
             let Entrypoint::AppPage { loader_tree: value } = value else {
-                 // TODO better error message
-                bail!("Conflicting route")
+                DirectoryTreeIssue {
+                    app_dir,
+                    message: StringVc::cell(format!("Conflicting route at {}", e.key())),
+                    severity: IssueSeverity::Error.cell(),
+                }.cell().as_issue().emit();
+                return Ok(());
             };
             *value = merge_loader_trees(app_dir, *value, loader_tree)
                 .resolve()
@@ -392,14 +396,22 @@ async fn add_app_page(
 }
 
 async fn add_app_route(
+    app_dir: FileSystemPathVc,
     result: &mut IndexMap<String, Entrypoint>,
     key: String,
     path: FileSystemPathVc,
 ) -> Result<()> {
     match result.entry(key) {
-        Entry::Occupied(_) => {
-            // TODO better error message
-            bail!("Conflicting route")
+        Entry::Occupied(mut e) => {
+            DirectoryTreeIssue {
+                app_dir,
+                message: StringVc::cell(format!("Conflicting route at {}", e.key())),
+                severity: IssueSeverity::Error.cell(),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+            *e.get_mut() = Entrypoint::AppRoute { path };
         }
         Entry::Vacant(e) => {
             e.insert(Entrypoint::AppRoute { path });
@@ -516,7 +528,7 @@ async fn directory_tree_to_entrypoints_internal(
     }
 
     if let Some(route) = components.route {
-        add_app_route(&mut result, path_prefix.to_string(), route).await?;
+        add_app_route(app_dir, &mut result, path_prefix.to_string(), route).await?;
     }
 
     for (subdir_name, &subdirectory) in subdirectories.iter() {
@@ -542,10 +554,7 @@ async fn directory_tree_to_entrypoints_internal(
                     if current_level_is_parallel_route {
                         add_app_page(app_dir, &mut result, full_path.clone(), loader_tree).await?;
                     } else {
-                        let key = parallel_route_key
-                            .as_deref()
-                            .unwrap_or("children")
-                            .to_string();
+                        let key = parallel_route_key.unwrap_or("children").to_string();
                         let child_loader_tree = LoaderTree {
                             segment: directory_name.to_string(),
                             parallel_routes: indexmap! {
@@ -559,7 +568,7 @@ async fn directory_tree_to_entrypoints_internal(
                     }
                 }
                 Entrypoint::AppRoute { path } => {
-                    add_app_route(&mut result, full_path.clone(), path).await?;
+                    add_app_route(app_dir, &mut result, full_path.clone(), path).await?;
                 }
             }
         }

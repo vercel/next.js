@@ -24,7 +24,8 @@ use turbo_binding::{
     turbopack::core::PROJECT_FILESYSTEM_NAME,
 };
 
-use crate::REGISTER;
+use crate::register;
+
 #[tasks::function]
 async fn project_fs(project_dir: &str, watching: bool) -> Result<FileSystemVc> {
     let disk_fs =
@@ -235,7 +236,7 @@ pub fn stream_entrypoints(
     page_extensions: Vec<String>,
     func: JsFunction,
 ) -> napi::Result<()> {
-    *REGISTER;
+    register();
     let func: ThreadsafeFunction<Option<EntrypointsForJsReadRef>, ErrorStrategy::CalleeHandled> =
         func.create_threadsafe_function(0, |ctx| {
             let value = ctx.value;
@@ -280,7 +281,7 @@ pub async fn get_entrypoints(
     project_dir: String,
     page_extensions: Vec<String>,
 ) -> napi::Result<serde_json::Value> {
-    *REGISTER;
+    register();
     let result = turbo_tasks
         .run_once(async move {
             let value = if let Some(entrypoints) = &*get_value(

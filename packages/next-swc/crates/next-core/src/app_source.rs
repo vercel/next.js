@@ -25,8 +25,9 @@ use turbo_binding::{
         dev_server::{
             html::DevHtmlAssetVc,
             source::{
-                combined::CombinedContentSource, specificity::SpecificityVc, ContentSourceData,
-                ContentSourceVc, NoContentSourceVc,
+                combined::CombinedContentSource,
+                specificity::{Specificity, SpecificityElementType, SpecificityVc},
+                ContentSourceData, ContentSourceVc, NoContentSourceVc,
             },
         },
         ecmascript::{
@@ -83,6 +84,32 @@ use crate::{
         get_server_resolve_options_context, ServerContextType,
     },
 };
+
+#[turbo_tasks::function]
+fn pathname_to_specificity(pathname: &str) -> SpecificityVc {
+    let mut current = Specificity::new();
+    let mut position = 0;
+    // TODO(sokra) might be off by one^^
+    for segment in pathname.split('/') {
+        if segment.starts_with('(') && segment.ends_with(')') || segment.starts_with('@') {
+            // ignore
+        } else if segment.starts_with("[...") && segment.ends_with(']') {
+            // catch all segment
+            current.add(position, SpecificityElementType::CatchAll);
+            position += 1;
+        } else if segment.starts_with("[[") || segment.ends_with("]]") {
+            // escaped segment
+            position += 1;
+        } else if segment.starts_with('[') || segment.ends_with(']') {
+            current.add(position, SpecificityElementType::DynamicSegment);
+            position += 1;
+        } else {
+            // normal segment
+            position += 1;
+        }
+    }
+    SpecificityVc::cell(current)
+}
 
 #[turbo_tasks::function]
 async fn next_client_transition(
@@ -435,7 +462,7 @@ async fn create_app_page_source_for_route(
     let source = create_node_rendered_source(
         project_path,
         env,
-        SpecificityVc::exact(),
+        pathname_to_specificity(pathname),
         server_root,
         params_matcher.into(),
         pathname_vc,
@@ -476,7 +503,7 @@ async fn create_app_route_source_for_route(
     let source = create_node_api_source(
         project_path,
         env,
-        SpecificityVc::exact(),
+        pathname_to_specificity(pathname),
         server_root,
         params_matcher.into(),
         pathname_vc,
