@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.15.11",
+    "@types/react": "18.0.32",
+    "autoprefixer": "^10.4.4",
+    "postcss": "^8.4.12",
+    "tailwindcss": "2.1.4",
+    "typescript": "5.0.3"
+  }
+}
