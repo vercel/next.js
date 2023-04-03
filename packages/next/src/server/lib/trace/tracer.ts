@@ -41,6 +41,7 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
   parentSpan?: Span
   spanName?: string
   attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
+  hideSpan?: boolean
 }
 
 interface NextTracer {
@@ -201,8 +202,9 @@ class NextTracerImpl implements NextTracer {
           }
 
     if (
-      !NextVanillaSpanAllowlist.includes(type) &&
-      process.env.NEXT_OTEL_VERBOSE !== '1'
+      (!NextVanillaSpanAllowlist.includes(type) &&
+        process.env.NEXT_OTEL_VERBOSE !== '1') ||
+      options.hideSpan
     ) {
       return fn()
     }
