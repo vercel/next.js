@@ -9,9 +9,9 @@ Using Next.js' [built-in Sass support](https://nextjs.org/docs/basic-features/bu
 Please install the `sass` package in your project.
 
 ```bash
-npm i sass
+npm i --save-dev sass
 # or
-yarn add sass
+yarn add --dev sass
 ```
 
 ### Useful Links

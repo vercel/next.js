@@ -38,7 +38,7 @@ describe('SCSS Support', () => {
         '\n\n' +
         './styles/global.scss\n' +
         "To use Next.js' built-in Sass support, you first need to install `sass`.\n" +
-        'Run `npm i sass` or `yarn add sass` inside your workspace.\n' +
+        'Run `npm i --save-dev sass` or `yarn add --dev sass` inside your workspace.\n' +
         '\n' +
         'Learn more: https://nextjs.org/docs/messages/install-sass\n'
 

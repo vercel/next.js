@@ -136,7 +136,8 @@ function formatMessage(
 
     lines[1] =
       "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
-    lines[1] += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
+    lines[1] +=
+      'Run `npm i --save-dev sass` or `yarn add --dev sass` inside your workspace.\n'
     lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
 
     // dispose of unhelpful stack trace
