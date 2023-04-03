@@ -386,7 +386,6 @@ describe('CLI Usage', () => {
     })
 
     test('PORT=0', async () => {
-      const port = await findPort()
       let output = ''
       const app = await runNextCommandDev([dir], undefined, {
         env: {
