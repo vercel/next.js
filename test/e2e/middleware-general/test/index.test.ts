@@ -483,10 +483,10 @@ describe('Middleware Runtime', () => {
 
     it('should contain process polyfill', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
-      const process = readMiddlewareJSON(res)
-      delete process.env['JEST_WORKER_ID']
+      const json = readMiddlewareJSON(res)
+      delete json.process.env['JEST_WORKER_ID']
 
-      expect(process).toEqual({
+      expect(json).toEqual({
         process: {
           env: {
             ANOTHER_MIDDLEWARE_TEST: 'asdf2',
