@@ -52,6 +52,7 @@ import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
+import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
 
 loadRequireHook()
 
@@ -383,12 +384,10 @@ export default async function exportPage({
           isRedirectError(err)
 
         if (isRouteHandler) {
-          const request = new NodeNextRequest(req)
-
-          addRequestMeta(
-            request.originalRequest,
-            '__NEXT_INIT_URL',
-            `http://localhost:3000${req.url}`
+          // Ensure that the url for the page is absolute.
+          req.url = `http://localhost:3000${req.url}`
+          const request = NextRequestAdapter.fromNodeNextRequest(
+            new NodeNextRequest(req)
           )
 
           // Create the context for the handler. This contains the params from

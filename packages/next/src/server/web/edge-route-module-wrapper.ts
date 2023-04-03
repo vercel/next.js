@@ -1,12 +1,12 @@
 import type { RouteHandlerManagerContext } from '../future/route-handler-managers/route-handler-manager'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import type { RouteModule } from '../future/route-modules/route-module'
+import type { NextRequest } from './spec-extension/request'
 
 import { adapter, enhanceGlobals, type AdapterOptions } from './adapter'
 
 enhanceGlobals()
 
-import { WebNextRequest } from '../base-http/web'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { RouteMatcher } from '../future/route-matchers/route-matcher'
 
@@ -60,13 +60,10 @@ export class EdgeRouteModuleWrapper {
     }
   }
 
-  private async handler(request: Request): Promise<Response> {
+  private async handler(request: NextRequest): Promise<Response> {
     // Setup the handler if it hasn't been setup yet. It is the responsibility
     // of the module to ensure that this is only called once.
     this.routeModule.setup()
-
-    // TODO: (wyattjoh) replace with the unified request type
-    const req = new WebNextRequest(request)
 
     // Get the pathname for the matcher. Pathnames should not have trailing
     // slashes for matching.
@@ -90,6 +87,6 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the response from the handler.
-    return await this.routeModule.handle(req, context)
+    return await this.routeModule.handle(request, context)
   }
 }
