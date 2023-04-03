@@ -90,7 +90,12 @@ export const createWorker = (
         (serverPort || 0) + 1
       ),
     },
-    exposedMethods: ['initialize', 'deleteCache', 'deleteAppClientCache'],
+    exposedMethods: [
+      'initialize',
+      'deleteCache',
+      'deleteAppClientCache',
+      'clearModuleContext',
+    ],
   }) as any as InstanceType<typeof Worker> & {
     initialize: typeof import('./render-server').initialize
     deleteCache: typeof import('./render-server').deleteCache
