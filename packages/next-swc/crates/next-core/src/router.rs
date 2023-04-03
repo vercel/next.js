@@ -120,7 +120,7 @@ enum RouterIncomingMessage {
     Error { error: StructuredError },
 }
 
-#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
+#[turbo_tasks::value]
 #[derive(Debug, Clone, Default)]
 pub struct MiddlewareResponse {
     pub status_code: u16,
@@ -129,8 +129,8 @@ pub struct MiddlewareResponse {
     pub body: Stream<Result<Bytes, SharedError>>,
 }
 
-#[turbo_tasks::value(eq = "manual", cell = "new", serialization = "none")]
 #[derive(Debug)]
+#[turbo_tasks::value]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),

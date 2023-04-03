@@ -3,13 +3,11 @@
 import arg from 'next/dist/compiled/arg/index.js'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
-import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
-import { isIPv6 } from 'net'
 
-const nextStart: CliCommand = (argv) => {
+const nextStart: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -73,22 +71,14 @@ const nextStart: CliCommand = (argv) => {
     ? Math.ceil(keepAliveTimeoutArg)
     : undefined
 
-  startServer({
+  await startServer({
     dir,
+    isDev: false,
     hostname: host,
     port,
     keepAliveTimeout,
+    useWorkers: false,
   })
-    .then(async (app) => {
-      const appUrl = `http://${app.hostname}:${app.port}`
-      const hostname = isIPv6(host) ? `[${host}]` : host
-      Log.ready(`started server on ${hostname}:${app.port}, url: ${appUrl}`)
-      await app.prepare()
-    })
-    .catch((err) => {
-      console.error(err)
-      process.exit(1)
-    })
 }
 
 export { nextStart }
