@@ -568,11 +568,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const route = rootSpanAttributes.get('next.route')
           if (route) {
+            const newName = `${method} ${route}`
             span.setAttributes({
               'next.route': route,
               'http.route': route,
+              'next.span_name': newName,
             })
-            span.updateName(`${method} ${route}`)
+            span.updateName(newName)
           }
         })
     )
