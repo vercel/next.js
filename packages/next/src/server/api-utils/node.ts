@@ -26,7 +26,6 @@ import {
   clearPreviewData,
   sendError,
   ApiError,
-  NextApiRequestCookies,
   PRERENDER_REVALIDATE_HEADER,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
@@ -36,9 +35,11 @@ import {
 import { mockRequest } from '../lib/mock-request'
 import { getTracer } from '../lib/trace/tracer'
 import { NodeSpan } from '../lib/trace/constants'
+import { RequestCookies } from '../web/spec-extension/cookies'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 
 export function tryGetPreviewData(
-  req: IncomingMessage | BaseNextRequest,
+  req: IncomingMessage | BaseNextRequest | Request,
   res: ServerResponse | BaseNextResponse,
   options: __ApiPreviewProps
 ): PreviewData {
@@ -49,40 +50,33 @@ export function tryGetPreviewData(
   }
 
   // Read cached preview data if present
+  // TODO: use request metadata instead of a symbol
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
   }
 
-  const getCookies = getCookieParser(req.headers)
-  let cookies: NextApiRequestCookies
-  try {
-    cookies = getCookies()
-  } catch {
-    // TODO: warn
-    return false
-  }
+  const headers = HeadersAdapter.from(req.headers)
+  const cookies = new RequestCookies(headers)
 
-  const hasBypass = COOKIE_NAME_PRERENDER_BYPASS in cookies
-  const hasData = COOKIE_NAME_PRERENDER_DATA in cookies
+  const previewModeId = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
+  const tokenPreviewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
 
   // Case: neither cookie is set.
-  if (!(hasBypass || hasData)) {
+  if (!previewModeId && !tokenPreviewData) {
     return false
   }
 
   // Case: one cookie is set, but not the other.
-  if (hasBypass !== hasData) {
+  if (!previewModeId || !tokenPreviewData) {
     clearPreviewData(res as NextApiResponse)
     return false
   }
 
   // Case: preview session is for an old build.
-  if (cookies[COOKIE_NAME_PRERENDER_BYPASS] !== options.previewModeId) {
+  if (previewModeId !== options.previewModeId) {
     clearPreviewData(res as NextApiResponse)
     return false
   }
-
-  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA] as string
 
   let encryptedPreviewData: {
     data: string
