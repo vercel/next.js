@@ -129,8 +129,6 @@ describe('tsconfig.json verifier', () => {
     const { code } = await nextBuild(appDir)
     expect(code).toBe(0)
 
-    // Weird comma placement until this issue is resolved:
-    // https://github.com/kaelzhang/node-comment-json/issues/21
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "// top-level comment
       {

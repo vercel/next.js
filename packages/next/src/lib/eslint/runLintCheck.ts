@@ -4,7 +4,7 @@ import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
-import * as CommentJson from 'next/dist/compiled/comment-json'
+import JSON5 from 'next/dist/compiled/json5'
 
 import { LintResult, formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
@@ -321,7 +321,7 @@ export async function runLintCheck(
       const pkgJsonContent = await fs.readFile(pkgJsonPath, {
         encoding: 'utf8',
       })
-      packageJsonConfig = CommentJson.parse(pkgJsonContent)
+      packageJsonConfig = JSON5.parse(pkgJsonContent)
     }
 
     const config = await hasEslintConfiguration(eslintrcFile, packageJsonConfig)

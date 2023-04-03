@@ -2,7 +2,7 @@ import path from 'path'
 import isError from '../is-error'
 import { promises as fs } from 'fs'
 import * as Log from '../../build/output/log'
-import * as CommentJson from 'next/dist/compiled/comment-json'
+import JSON5 from 'next/dist/compiled/json5'
 
 // Write .vscode settings to enable Next.js typescript plugin.
 export async function writeVscodeConfigurations(
@@ -17,7 +17,7 @@ export async function writeVscodeConfigurations(
 
     try {
       currentContent = await fs.readFile(vscodeSettings, 'utf8')
-      settings = CommentJson.parse(currentContent)
+      settings = JSON5.parse(currentContent)
       configExists = true
     } catch (err) {
       if (isError(err) && err.code !== 'ENOENT') {
@@ -37,7 +37,7 @@ export async function writeVscodeConfigurations(
     settings['typescript.tsdk'] = libPath
     settings['typescript.enablePromptUseWorkspaceTsdk'] = true
 
-    const content = CommentJson.stringify(settings, null, 2)
+    const content = JSON5.stringify(settings, null, 2)
     const vscodeFolder = path.join(baseDir, '.vscode')
 
     try {

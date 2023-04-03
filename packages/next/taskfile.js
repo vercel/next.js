@@ -1238,13 +1238,6 @@ export async function ncc_cli_select(task, opts) {
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
 }
-externals['comment-json'] = 'next/dist/compiled/comment-json'
-export async function ncc_comment_json(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('comment-json')))
-    .ncc({ packageName: 'comment-json', externals })
-    .target('src/compiled/comment-json')
-}
 // eslint-disable-next-line camelcase
 externals['compression'] = 'next/dist/compiled/compression'
 export async function ncc_compression(task, opts) {
@@ -2132,7 +2125,6 @@ export async function ncc(task, opts) {
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
-        'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',
         'ncc_content_disposition',

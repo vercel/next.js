@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
-import * as CommentJson from 'next/dist/compiled/comment-json'
+import JSON5 from 'next/dist/compiled/json5'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
@@ -123,7 +123,7 @@ export async function writeConfigurationDefaults(
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
   })
-  const userTsConfig = CommentJson.parse(userTsConfigContent)
+  const userTsConfig = JSON5.parse(userTsConfigContent)
   if (userTsConfig.compilerOptions == null && !('extends' in rawConfig)) {
     userTsConfig.compilerOptions = {}
     isFirstTimeSetup = true
@@ -260,7 +260,7 @@ export async function writeConfigurationDefaults(
 
   await fs.writeFile(
     tsConfigPath,
-    CommentJson.stringify(userTsConfig, null, 2) + os.EOL
+    JSON5.stringify(userTsConfig, null, 2) + os.EOL
   )
 
   if (isFirstTimeSetup) {

@@ -337,11 +337,6 @@ declare module 'next/dist/compiled/ws' {
   export = m
 }
 
-declare module 'next/dist/compiled/comment-json' {
-  import m from 'comment-json'
-  export = m
-}
-
 declare module 'next/dist/compiled/process' {
   import m from 'process'
   export = m

@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import os from 'os'
 import path from 'path'
-import * as CommentJson from 'next/dist/compiled/comment-json'
+import JSON5 from 'next/dist/compiled/json5'
 import { ConfigAvailable } from './hasEslintConfiguration'
 
 import * as Log from '../../build/output/log'
@@ -22,7 +22,7 @@ export async function writeDefaultConfig(
     if (ext === '.yaml' || ext === '.yml') {
       newFileContent = "extends: 'next'"
     } else {
-      newFileContent = CommentJson.stringify(selectedConfig, null, 2)
+      newFileContent = JSON5.stringify(selectedConfig, null, 2)
 
       if (ext === '.js') {
         newFileContent = 'module.exports = ' + newFileContent
@@ -42,7 +42,7 @@ export async function writeDefaultConfig(
     if (pkgJsonPath)
       await fs.writeFile(
         pkgJsonPath,
-        CommentJson.stringify(packageJsonConfig, null, 2) + os.EOL
+        JSON5.stringify(packageJsonConfig, null, 2) + os.EOL
       )
 
     Log.info(
@@ -53,7 +53,7 @@ export async function writeDefaultConfig(
   } else if (!exists) {
     await fs.writeFile(
       path.join(baseDir, '.eslintrc.json'),
-      CommentJson.stringify(selectedConfig, null, 2) + os.EOL
+      JSON5.stringify(selectedConfig, null, 2) + os.EOL
     )
 
     console.log(
