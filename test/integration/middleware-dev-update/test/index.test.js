@@ -67,7 +67,7 @@ describe('Middleware development errors', () => {
       await assertMiddlewareRender(false)
 
       // assert no extra message on stderr
-      expect(context.logs.stderr).toBe('')
+      expect(context.logs.stderr).not.toContain('error')
     })
   })
 

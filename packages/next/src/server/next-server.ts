@@ -102,7 +102,7 @@ import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
-import { filterReqHeaders } from './lib/server-ipc'
+import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
 
 export * from './base-server'
 
@@ -183,6 +183,7 @@ type RenderWorker = Worker & {
   initialize: typeof import('./lib/render-server').initialize
   deleteCache: typeof import('./lib/render-server').deleteCache
   deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
+  clearModuleContext: typeof import('./lib/render-server').clearModuleContext
 }
 
 export default class NextNodeServer extends BaseServer {
@@ -289,12 +290,31 @@ export default class NextNodeServer extends BaseServer {
         }
       })
       ;(global as any)._nextDeleteCache = (filePath: string) => {
-        this.renderWorkers?.pages?.deleteCache(filePath)
-        this.renderWorkers?.app?.deleteCache(filePath)
+        try {
+          this.renderWorkers?.pages?.deleteCache(filePath)
+          this.renderWorkers?.app?.deleteCache(filePath)
+        } catch (err) {
+          console.error(err)
+        }
       }
       ;(global as any)._nextDeleteAppClientCache = () => {
-        this.renderWorkers?.pages?.deleteAppClientCache()
-        this.renderWorkers?.app?.deleteAppClientCache()
+        try {
+          this.renderWorkers?.pages?.deleteAppClientCache()
+          this.renderWorkers?.app?.deleteAppClientCache()
+        } catch (err) {
+          console.error(err)
+        }
+      }
+      ;(global as any)._nextClearModuleContext = (
+        targetPath: any,
+        content: any
+      ) => {
+        try {
+          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+        } catch (err) {
+          console.error(err)
+        }
       }
     }
 
@@ -1348,6 +1368,7 @@ export default class NextNodeServer extends BaseServer {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
+                break
               }
             }
           }
@@ -1410,28 +1431,16 @@ export default class NextNodeServer extends BaseServer {
               'x-invoke-path': invokePathname,
               'x-invoke-query': encodeURIComponent(invokeQuery),
             }
-            filterReqHeaders(invokeHeaders)
 
-            const invokeRes = await fetch(renderUrl, {
-              method: req.method,
-              headers: invokeHeaders as any,
-              redirect: 'manual',
-              next: {
-                hideOTelSpan: true,
-              } as any,
-              ...(req.method !== 'GET' && req.method !== 'HEAD'
-                ? {
-                    // @ts-ignore
-                    duplex: 'half',
-                    body: getRequestMeta(
-                      req,
-                      '__NEXT_CLONABLE_BODY'
-                    )?.cloneBodyStream() as any as ReadableStream,
-                  }
-                : {}),
-            })
-
-            const noFallback = invokeRes.headers.get('x-no-fallback')
+            const invokeRes = await invokeRequest(
+              renderUrl.toString(),
+              {
+                headers: invokeHeaders,
+                method: req.method,
+              },
+              getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+            )
+            const noFallback = invokeRes.headers['x-no-fallback']
 
             if (noFallback) {
               if (bubbleNoFallback) {
@@ -1445,17 +1454,9 @@ export default class NextNodeServer extends BaseServer {
             }
 
             for (const [key, value] of Object.entries(
-              toNodeHeaders(invokeRes.headers)
+              filterReqHeaders({ ...invokeRes.headers })
             )) {
-              if (
-                ![
-                  'content-encoding',
-                  'transfer-encoding',
-                  'keep-alive',
-                  'connection',
-                ].includes(key) &&
-                value !== undefined
-              ) {
+              if (value !== undefined) {
                 if (key === 'set-cookie') {
                   const curValue = res.getHeader(key)
                   const newValue: string[] = [] as string[]
@@ -1475,12 +1476,13 @@ export default class NextNodeServer extends BaseServer {
                 }
               }
             }
-            res.statusCode = invokeRes.status
-            res.statusMessage = invokeRes.statusText
-            for await (const chunk of invokeRes.body || ([] as any)) {
+            res.statusCode = invokeRes.statusCode
+            res.statusMessage = invokeRes.statusMessage
+
+            for await (const chunk of invokeRes) {
               this.streamResponseChunk(res as NodeNextResponse, chunk)
             }
-            res.send()
+            ;(res as NodeNextResponse).originalResponse.end()
             return {
               finished: true,
             }
@@ -2136,7 +2138,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.renderOpts.dev,
+      useCache: true,
       onWarning: params.onWarning,
     })
 
@@ -2243,32 +2245,23 @@ export default class NextNodeServer extends BaseServer {
                   ...req.headers,
                   'x-middleware-invoke': '1',
                 }
-                filterReqHeaders(invokeHeaders)
-
-                const invokeRes = await fetch(renderUrl, {
-                  method: req.method,
-                  headers: invokeHeaders as any,
-                  redirect: 'manual',
-                  next: {
-                    hideOTelSpan: true,
-                  } as any,
-                  ...(req.method !== 'GET' && req.method !== 'HEAD'
-                    ? {
-                        // @ts-ignore
-                        duplex: 'half',
-                        body: getRequestMeta(
-                          req,
-                          '__NEXT_CLONABLE_BODY'
-                        )?.cloneBodyStream() as any as ReadableStream,
-                      }
-                    : {}),
+                const invokeRes = await invokeRequest(
+                  renderUrl.toString(),
+                  {
+                    headers: invokeHeaders,
+                    method: req.method,
+                  },
+                  getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+                )
+                const webResponse = new Response(null, {
+                  status: invokeRes.statusCode,
+                  headers: new Headers(invokeRes.headers as HeadersInit),
                 })
 
+                ;(webResponse as any).invokeRes = invokeRes
+
                 result = {
-                  response: new Response(invokeRes.body, {
-                    status: invokeRes.status,
-                    headers: new Headers(invokeRes.headers),
-                  }),
+                  response: webResponse,
                   waitUntil: Promise.resolve(),
                 }
                 for (const key of [...result.response.headers.keys()]) {
@@ -2485,10 +2478,18 @@ export default class NextNodeServer extends BaseServer {
 
             if (result.response.headers.has('x-middleware-refresh')) {
               res.statusCode = result.response.status
-              for await (const chunk of result.response.body || ([] as any)) {
-                this.streamResponseChunk(res as NodeNextResponse, chunk)
+
+              if ((result.response as any).invokeRes) {
+                for await (const chunk of (result.response as any).invokeRes) {
+                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+                }
+                ;(res as NodeNextResponse).originalResponse.end()
+              } else {
+                for await (const chunk of result.response.body || ([] as any)) {
+                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+                }
+                res.send()
               }
-              res.send()
               return {
                 finished: true,
               }
@@ -2615,7 +2616,7 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.renderOpts.dev,
+      useCache: true,
       onWarning: params.onWarning,
       incrementalCache: getRequestMeta(params.req, '_nextIncrementalCache'),
     })
