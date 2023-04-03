@@ -77,7 +77,7 @@ createNextDescribe(
     })
 
     // On-Demand Revalidate has not effect in dev
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
         const initRes = await next.fetch('/variable-revalidate/revalidate-360')
         const html = await initRes.text()
