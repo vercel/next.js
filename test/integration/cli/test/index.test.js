@@ -114,22 +114,20 @@ describe('CLI Usage', () => {
     })
 
     test('should exit when SIGINT is signalled', async () => {
-      const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 1000)
+      const killSigint = (instance) => () => instance.kill('SIGINT')
       const { code, signal } = await runNextCommand(['build', dir], {
         ignoreFail: true,
         instance: killSigint,
       })
       // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
       // See: https://nodejs.org/api/process.html#process_signal_events
-      const expectedExitCode = process.platform === `win32` ? null : 0
       const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
-      expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
+      expect(code).toBe(0)
     })
+
     test('should exit when SIGTERM is signalled', async () => {
-      const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 1000)
+      const killSigterm = (instance) => instance.kill('SIGTERM')
       const { code, signal } = await runNextCommand(['build', dir], {
         ignoreFail: true,
         instance: killSigterm,
