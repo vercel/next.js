@@ -435,6 +435,8 @@ declare module 'next/link' {
 }`
 }
 
+const appTypesBasePath = path.join('types', 'app')
+
 export class NextTypesPlugin {
   dir: string
   distDir: string
@@ -461,6 +463,28 @@ export class NextTypesPlugin {
         options.originalRedirects
       )
     }
+  }
+
+  get distDirAbsolutePath() {
+    return path.join(this.dir, this.distDir)
+  }
+
+  getRelativePathFromAppTypesDir(moduleRelativePathToAppDir: string) {
+    const moduleAbsolutePath = path.join(
+      this.appDir,
+      moduleRelativePathToAppDir
+    )
+
+    const moduleInAppTypesAbsolutePath = path.join(
+      this.distDirAbsolutePath,
+      appTypesBasePath,
+      moduleRelativePathToAppDir
+    )
+
+    return path.relative(
+      moduleInAppTypesAbsolutePath + '/..',
+      moduleAbsolutePath
+    )
   }
 
   collectPage(filePath: string) {
@@ -503,9 +527,6 @@ export class NextTypesPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    // From dist root to project root
-    const distDirRelative = path.relative(this.distDir + '/..', '.')
-
     // From asset root to dist root
     const assetDirRelative = this.dev
       ? '..'
@@ -533,7 +554,6 @@ export class NextTypesPlugin {
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
-      const relativePathToRoot = path.relative(this.dir, mod.resource)
 
       if (!this.dev) {
         if (IS_PAGE || IS_ROUTE) {
@@ -542,16 +562,12 @@ export class NextTypesPlugin {
       }
 
       const typePath = path.join(
-        'types',
-        'app',
+        appTypesBasePath,
         relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
       )
       const relativeImportPath = path
-        .join(
-          distDirRelative,
-          path.relative(typePath, ''),
-          relativePathToRoot.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
-        )
+        .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
+        .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
         .replace(/\\/g, '/')
       const assetPath = assetDirRelative + '/' + normalizePathSep(typePath)
 
