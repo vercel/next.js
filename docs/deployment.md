@@ -121,7 +121,7 @@ You can also manually deploy the output from [`output: 'export'`](/docs/advanced
 - [Firebase](https://firebase.google.com/docs/hosting/nextjs)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
-- [SST](https://sst.dev/)
+- [SST](https://docs.sst.dev/start/nextjs)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 

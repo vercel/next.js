@@ -22,7 +22,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   const { type, route, pageExtensions } = options
   const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
-  const { name: filename, ext } = path.parse(resourcePath)
+  const { name: fileNameBase, ext } = path.parse(resourcePath)
 
   let extension = ext.slice(1)
   if (extension === 'jpg') {
@@ -31,42 +31,52 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const opts = { context, content }
 
-  const interpolatedName = loaderUtils.interpolateName(
-    this,
-    '[name].[ext]',
-    opts
-  )
-
   // No hash query for favicon.ico
   const contentHash =
     type === 'favicon'
       ? ''
       : loaderUtils.interpolateName(this, '[contenthash]', opts)
 
-  const outputPath =
-    route + '/' + interpolatedName + (contentHash ? `?${contentHash}` : '')
+  const interpolatedName = loaderUtils.interpolateName(
+    this,
+    '[name].[ext]',
+    opts
+  )
 
   const isDynamicResource = pageExtensions.includes(extension)
+  const pageRoute =
+    (isDynamicResource ? fileNameBase : interpolatedName) +
+    (contentHash ? '?' + contentHash : '')
+
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
+    import path from 'path'
     import * as exported from ${JSON.stringify(resourcePath)}
+    import { interpolateDynamicPath } from 'next/dist/server/server-utils'
+    import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
     const exportedImageData = { ...exported }
-    const imageData = {
-      alt: exportedImageData.alt,
-      type: exportedImageData.contentType,
-      url: ${JSON.stringify(route + '/' + filename + '?' + contentHash)},
-    }
-    const { size } = exportedImageData
-    if (size) {
-      ${
-        type === 'twitter' || type === 'openGraph'
-          ? 'imageData.width = size.width; imageData.height = size.height;'
-          : 'imageData.sizes = size.width + "x" + size.height;'
+    export default (props) => {
+      const pathname = ${JSON.stringify(route)}
+      const routeRegex = getNamedRouteRegex(pathname)
+      const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+
+      const imageData = {
+        alt: exportedImageData.alt,
+        type: exportedImageData.contentType,
+        url: path.join(route, ${JSON.stringify(pageRoute)}),
       }
-    }
-    export default imageData`
+      const { size } = exportedImageData
+      if (size) {
+        ${
+          type === 'twitter' || type === 'openGraph'
+            ? 'imageData.width = size.width; imageData.height = size.height;'
+            : 'imageData.sizes = size.width + "x" + size.height;'
+        }
+      }
+      return imageData
+    }`
   }
 
   const imageSize = await getImageSize(
@@ -80,8 +90,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     throw err
   }
 
-  const imageData: MetadataImageModule = {
-    url: outputPath,
+  const imageData: Omit<MetadataImageModule, 'url'> = {
     ...(extension in imageExtMimeTypeMap && {
       type: imageExtMimeTypeMap[extension as keyof typeof imageExtMimeTypeMap],
     }),
@@ -95,9 +104,23 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         }),
   }
 
-  const stringifiedData = JSON.stringify(imageData)
+  return `\
+  import path from 'path'
+  import { interpolateDynamicPath } from 'next/dist/server/server-utils'
+  import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
-  return `export default ${stringifiedData};`
+  export default (props) => {
+    const pathname = ${JSON.stringify(route)}
+    const routeRegex = getNamedRouteRegex(pathname)
+    const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+
+    const imageData = ${JSON.stringify(imageData)};
+
+    return {
+      ...imageData,
+      url: path.join(route, ${JSON.stringify(pageRoute)}),
+    }
+  }`
 }
 
 export const raw = true

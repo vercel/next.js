@@ -100,79 +100,6 @@ export async function capsize_metrics() {
   await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 
-export async function ncc_next_server(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('next/dist/server/next-server'))
-    )
-    .ncc({
-      bundleName: 'next-server',
-      // minify: false,
-      externals: {
-        ...externals,
-
-        '/(.*)route-resolver/': '$1route-resolver',
-
-        sharp: 'sharp',
-        react: 'react',
-        'react-dom': 'react-dom',
-
-        'next/dist/compiled/compression': 'next/dist/compiled/compression',
-
-        critters: 'critters',
-
-        'next/dist/compiled/jest-worker': 'next/dist/compiled/jest-worker',
-
-        'next/dist/compiled/react': 'next/dist/compiled/react',
-        '/next/dist/compiled/react(/.+)/': 'next/dist/compiled/react$1',
-        'next/dist/compiled/react-dom': 'next/dist/compiled/react-dom',
-        '/next/dist/compiled/react-dom(/.+)/': 'next/dist/compiled/react-dom$1',
-
-        // react contexts must be external
-        '/(.*)server-inserted-html/':
-          'next/dist/shared/lib/server-inserted-html.js',
-
-        '/(.+/)router-context/': 'next/dist/shared/lib/router-context.js',
-
-        '/(.*)loadable-context/': 'next/dist/shared/lib/loadable-context.js',
-
-        '/(.*)image-config-context/':
-          'next/dist/shared/lib/image-config-context.js',
-
-        '/(.*)head-manager-context/':
-          'next/dist/shared/lib/head-manager-context.js',
-
-        '/(.*)app-router-context/':
-          'next/dist/shared/lib/app-router-context.js',
-
-        '/(.*)amp-context/': 'next/dist/shared/lib/amp-context.js',
-
-        '/(.*)hooks-client-context/':
-          'next/dist/shared/lib/hooks-client-context.js',
-
-        '/(.*)html-context/': 'next/dist/shared/lib/html-context.js',
-
-        // 'next/dist/compiled/undici': 'next/dist/compiled/undici',
-        // 'next/dist/compiled/node-fetch': 'next/dist/compiled/node-fetch',
-
-        // '/(.*)google-font-metrics.json/': '$1google-font-metrics.json',
-        '/(.*)next-config-validate.js/': '$1/next-config-validate.js',
-
-        '/(.*)server/web(.*)/': '$1server/web$2',
-        './web/sandbox': './web/sandbox',
-        'next/dist/compiled/edge-runtime': 'next/dist/compiled/edge-runtime',
-        '(.*)@edge-runtime/primitives': '$1@edge-runtime/primitives',
-
-        '/(.*)compiled/webpack(/.*)/': '$1webpack$2',
-        './image-optimizer': './image-optimizer',
-        '/(.*)@ampproject/toolbox-optimizer/':
-          '$1@ampproject/toolbox-optimizer',
-      },
-    })
-    .target('dist/compiled/next-server')
-}
-
 // eslint-disable-next-line camelcase
 externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
 export async function copy_babel_runtime(task, opts) {
@@ -2328,7 +2255,6 @@ export async function compile(task, opts) {
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
-    'ncc_next_server',
     'capsize_metrics',
   ])
 }

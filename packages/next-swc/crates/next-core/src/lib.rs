@@ -35,8 +35,7 @@ mod web_entry_source;
 
 pub use app_source::create_app_source;
 pub use page_source::create_page_source;
-pub use turbo_binding::turbopack::node::source_map;
-pub use turbo_binding::*;
+pub use turbo_binding::{turbopack::node::source_map, *};
 pub use web_entry_source::create_web_entry_source;
 
 pub fn register() {

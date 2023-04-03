@@ -159,10 +159,14 @@ type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ?
 type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
 type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
 
-type ParamCheck<T> = {
+${
+  options.type === 'route'
+    ? `type ParamCheck<T> = {
   __tag__: string
   __param_position__: string
   __param_type__: T
+}`
+    : ''
 }
 
 function checkFields<_ extends { [k in keyof any]: never }>() {}

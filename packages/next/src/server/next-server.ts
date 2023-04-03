@@ -19,7 +19,10 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import {
+  getRouteMatcher,
+  Params,
+} from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 
 import fs from 'fs'
@@ -80,7 +83,7 @@ import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getCloneableBody } from './body-streams'
-import { checkIsManualRevalidate } from './api-utils'
+import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -95,7 +98,11 @@ import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
+import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
+import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
+import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
 
 export * from './base-server'
 
@@ -172,9 +179,30 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
   416,
 ])
 
+type RenderWorker = Worker & {
+  initialize: typeof import('./lib/render-server').initialize
+  deleteCache: typeof import('./lib/render-server').deleteCache
+  deleteAppClientCache: typeof import('./lib/render-server').deleteAppClientCache
+  clearModuleContext: typeof import('./lib/render-server').clearModuleContext
+}
+
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
   private compression?: ExpressMiddleware
+  protected renderWorkersPromises?: Promise<void>
+  protected renderWorkers?: {
+    middleware?: RenderWorker
+    pages?: RenderWorker
+    app?: RenderWorker
+  }
+  protected renderWorkerOpts?: Parameters<
+    typeof import('./lib/render-server').initialize
+  >[0]
+  protected dynamicRoutes?: {
+    match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
+    page: string
+    re: RegExp
+  }[]
 
   constructor(options: Options) {
     // Initialize super class
@@ -222,6 +250,74 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
+    if (this.isRouterWorker) {
+      this.renderWorkers = {}
+      this.renderWorkerOpts = {
+        port: this.port || 0,
+        dir: this.dir,
+        workerType: 'render',
+        hostname: this.hostname,
+        dev: !!options.dev,
+      }
+      const { createWorker, createIpcServer } =
+        require('./lib/server-ipc') as typeof import('./lib/server-ipc')
+      this.renderWorkersPromises = new Promise<void>(async (resolveWorkers) => {
+        try {
+          this.renderWorkers = {}
+          const { ipcPort } = await createIpcServer(this)
+          if (this.hasAppDir) {
+            this.renderWorkers.app = createWorker(
+              this.port || 0,
+              ipcPort,
+              options.isNodeDebugging,
+              'app'
+            )
+          }
+          this.renderWorkers.pages = createWorker(
+            this.port || 0,
+            ipcPort,
+            options.isNodeDebugging,
+            'pages'
+          )
+          this.renderWorkers.middleware =
+            this.renderWorkers.pages || this.renderWorkers.app
+
+          resolveWorkers()
+        } catch (err) {
+          Log.error(`Invariant failed to initialize render workers`)
+          console.error(err)
+          process.exit(1)
+        }
+      })
+      ;(global as any)._nextDeleteCache = (filePath: string) => {
+        try {
+          this.renderWorkers?.pages?.deleteCache(filePath)
+          this.renderWorkers?.app?.deleteCache(filePath)
+        } catch (err) {
+          console.error(err)
+        }
+      }
+      ;(global as any)._nextDeleteAppClientCache = () => {
+        try {
+          this.renderWorkers?.pages?.deleteAppClientCache()
+          this.renderWorkers?.app?.deleteAppClientCache()
+        } catch (err) {
+          console.error(err)
+        }
+      }
+      ;(global as any)._nextClearModuleContext = (
+        targetPath: any,
+        content: any
+      ) => {
+        try {
+          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+        } catch (err) {
+          console.error(err)
+        }
+      }
+    }
+
     // expose AsyncLocalStorage on global for react usage
     const { AsyncLocalStorage } = require('async_hooks')
     ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
@@ -257,11 +353,18 @@ export default class NextNodeServer extends BaseServer {
   protected loadEnvConfig({
     dev,
     forceReload,
+    silent,
   }: {
     dev: boolean
     forceReload?: boolean
+    silent?: boolean
   }) {
-    loadEnvConfig(this.dir, dev, Log, forceReload)
+    loadEnvConfig(
+      this.dir,
+      dev,
+      silent ? { info: () => {}, error: () => {} } : Log,
+      forceReload
+    )
   }
 
   protected getIncrementalCache({
@@ -1069,10 +1172,31 @@ export default class NextNodeServer extends BaseServer {
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
-  protected generateRoutes(): RouterOptions {
+  protected generateRoutes(dev?: boolean): RouterOptions {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
+
+    if (!dev) {
+      const routesManifest = this.getRoutesManifest() as {
+        dynamicRoutes: {
+          page: string
+          regex: string
+          namedRegex?: string
+          routeKeys?: { [key: string]: string }
+        }[]
+      }
+      this.dynamicRoutes = routesManifest.dynamicRoutes.map((r) => {
+        const regex = getRouteRegex(r.page)
+        const match = getRouteMatcher(regex)
+
+        return {
+          match,
+          page: r.page,
+          regex: regex.re,
+        }
+      }) as any
+    }
 
     const fsRoutes: Route[] = [
       ...this.generateFsStaticRoutes(),
@@ -1198,17 +1322,19 @@ export default class NextNodeServer extends BaseServer {
       : ['/_next']
 
     // Headers come very first
-    const headers = this.minimalMode
-      ? []
-      : this.customRoutes.headers.map((rule) =>
-          createHeaderRoute({ rule, restrictedRedirectPaths })
-        )
+    const headers =
+      this.minimalMode || this.isRenderWorker
+        ? []
+        : this.customRoutes.headers.map((rule) =>
+            createHeaderRoute({ rule, restrictedRedirectPaths })
+          )
 
-    const redirects = this.minimalMode
-      ? []
-      : this.customRoutes.redirects.map((rule) =>
-          createRedirectRoute({ rule, restrictedRedirectPaths })
-        )
+    const redirects =
+      this.minimalMode || this.isRenderWorker
+        ? []
+        : this.customRoutes.redirects.map((rule) =>
+            createRedirectRoute({ rule, restrictedRedirectPaths })
+          )
 
     const rewrites = this.generateRewrites({ restrictedRedirectPaths })
     const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
@@ -1234,6 +1360,138 @@ export default class NextNodeServer extends BaseServer {
         }
 
         const match = await this.matchers.match(pathname, options)
+
+        if (this.isRouterWorker) {
+          let page = pathname
+
+          if (!(await this.hasPage(page))) {
+            for (const route of this.dynamicRoutes || []) {
+              if (route.match(pathname)) {
+                page = route.page
+                break
+              }
+            }
+          }
+
+          const renderKind = this.appPathRoutes?.[page] ? 'app' : 'pages'
+
+          if (this.renderWorkersPromises) {
+            await this.renderWorkersPromises
+            this.renderWorkersPromises = undefined
+          }
+          const renderWorker = this.renderWorkers?.[renderKind]
+
+          if (renderWorker) {
+            const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+            const { port, hostname } = await renderWorker.initialize(
+              this.renderWorkerOpts!
+            )
+            const renderUrl = new URL(initUrl)
+            renderUrl.hostname = hostname
+            renderUrl.port = port + ''
+
+            let invokePathname = pathname
+            const normalizedInvokePathname =
+              this.localeNormalizer?.normalize(pathname)
+
+            if (normalizedInvokePathname?.startsWith('/api')) {
+              invokePathname = normalizedInvokePathname
+            } else if (
+              query.__nextLocale &&
+              !pathHasPrefix(invokePathname, `/${query.__nextLocale}`)
+            ) {
+              invokePathname = `/${query.__nextLocale}${
+                invokePathname === '/' ? '' : invokePathname
+              }`
+            }
+
+            if (query.__nextDataReq) {
+              invokePathname = `/_next/data/${this.buildId}${invokePathname}.json`
+            }
+            invokePathname = addPathPrefix(
+              invokePathname,
+              this.nextConfig.basePath
+            )
+            const keptQuery: ParsedUrlQuery = {}
+
+            for (const key of Object.keys(query)) {
+              if (key.startsWith('__next') || key.startsWith('_next')) {
+                continue
+              }
+              keptQuery[key] = query[key]
+            }
+            if (query._nextBubbleNoFallback) {
+              keptQuery._nextBubbleNoFallback = '1'
+            }
+            const invokeQuery = JSON.stringify(keptQuery)
+
+            const invokeHeaders: typeof req.headers = {
+              'cache-control': '',
+              ...req.headers,
+              'x-invoke-path': invokePathname,
+              'x-invoke-query': encodeURIComponent(invokeQuery),
+            }
+
+            const invokeRes = await invokeRequest(
+              renderUrl.toString(),
+              {
+                headers: invokeHeaders,
+                method: req.method,
+              },
+              getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+            )
+            const noFallback = invokeRes.headers['x-no-fallback']
+
+            if (noFallback) {
+              if (bubbleNoFallback) {
+                return { finished: false }
+              } else {
+                await this.render404(req, res, parsedUrl)
+                return {
+                  finished: true,
+                }
+              }
+            }
+
+            for (const [key, value] of Object.entries(
+              filterReqHeaders({ ...invokeRes.headers })
+            )) {
+              if (value !== undefined) {
+                if (key === 'set-cookie') {
+                  const curValue = res.getHeader(key)
+                  const newValue: string[] = [] as string[]
+                  for (const cookie of splitCookiesString(curValue || '')) {
+                    newValue.push(cookie)
+                  }
+                  for (const val of (Array.isArray(value)
+                    ? value
+                    : value
+                    ? [value]
+                    : []) as string[]) {
+                    newValue.push(val)
+                  }
+                  res.setHeader(key, newValue)
+                } else {
+                  res.setHeader(key, value as string)
+                }
+              }
+            }
+            res.statusCode = invokeRes.statusCode
+            res.statusMessage = invokeRes.statusMessage
+
+            for await (const chunk of invokeRes) {
+              this.streamResponseChunk(res as NodeNextResponse, chunk)
+            }
+            ;(res as NodeNextResponse).originalResponse.end()
+            return {
+              finished: true,
+            }
+          }
+        }
+
+        if (match) {
+          addRequestMeta(req, '_nextMatch', match)
+        }
 
         // Try to handle the given route with the configured handlers.
         if (match) {
@@ -1300,6 +1558,14 @@ export default class NextNodeServer extends BaseServer {
           }
         } catch (err) {
           if (err instanceof NoFallbackError && bubbleNoFallback) {
+            if (this.isRenderWorker) {
+              res.setHeader('x-no-fallback', '1')
+              res.send()
+              return {
+                finished: true,
+              }
+            }
+
             return {
               finished: false,
             }
@@ -1485,6 +1751,9 @@ export default class NextNodeServer extends BaseServer {
       ) {
         res.statusCode = err.statusCode
         return this.renderError(err, req, res, path)
+      } else if ((err as any).expose === false) {
+        res.statusCode = 400
+        return this.renderError(null, req, res, path)
       } else {
         throw err
       }
@@ -1562,7 +1831,7 @@ export default class NextNodeServer extends BaseServer {
     let afterFiles: Route[] = []
     let fallback: Route[] = []
 
-    if (!this.minimalMode) {
+    if (!this.minimalMode && !this.isRenderWorker) {
       const buildRewrite = (rewrite: Rewrite, check = true): Route => {
         const rewriteRoute = getCustomRoute({
           type: 'rewrite',
@@ -1788,8 +2057,8 @@ export default class NextNodeServer extends BaseServer {
   }) {
     // Middleware is skipped for on-demand revalidate requests
     if (
-      checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
-        .isManualRevalidate
+      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
+        .isOnDemandRevalidate
     ) {
       return { finished: false }
     }
@@ -1869,7 +2138,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.renderOpts.dev,
+      useCache: true,
       onWarning: params.onWarning,
     })
 
@@ -1915,9 +2184,25 @@ export default class NextNodeServer extends BaseServer {
           type: 'route',
           name: 'middleware catchall',
           fn: async (req, res, _params, parsed) => {
+            const isMiddlewareInvoke =
+              this.isRenderWorker && req.headers['x-middleware-invoke']
+
+            const handleFinished = (finished: boolean = false) => {
+              if (isMiddlewareInvoke && !finished) {
+                res.setHeader('x-middleware-invoke', '1')
+                res.body('').send()
+                return { finished: true }
+              }
+              return { finished }
+            }
+
+            if (this.isRenderWorker && !isMiddlewareInvoke) {
+              return { finished: false }
+            }
+
             const middleware = this.getMiddleware()
             if (!middleware) {
-              return { finished: false }
+              return handleFinished()
             }
 
             const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
@@ -1932,7 +2217,7 @@ export default class NextNodeServer extends BaseServer {
               parsed.pathname || ''
             )
             if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
-              return { finished: false }
+              return handleFinished()
             }
 
             let result: Awaited<
@@ -1940,12 +2225,97 @@ export default class NextNodeServer extends BaseServer {
             >
 
             try {
-              result = await this.runMiddleware({
-                request: req,
-                response: res,
-                parsedUrl: parsedUrl,
-                parsed: parsed,
-              })
+              await this.ensureMiddleware()
+
+              if (this.isRouterWorker && this.renderWorkers?.middleware) {
+                if (this.renderWorkersPromises) {
+                  await this.renderWorkersPromises
+                  this.renderWorkersPromises = undefined
+                }
+
+                const { port, hostname } =
+                  await this.renderWorkers.middleware.initialize(
+                    this.renderWorkerOpts!
+                  )
+                const renderUrl = new URL(initUrl)
+                renderUrl.hostname = hostname
+                renderUrl.port = port + ''
+
+                const invokeHeaders: typeof req.headers = {
+                  ...req.headers,
+                  'x-middleware-invoke': '1',
+                }
+                const invokeRes = await invokeRequest(
+                  renderUrl.toString(),
+                  {
+                    headers: invokeHeaders,
+                    method: req.method,
+                  },
+                  getRequestMeta(req, '__NEXT_CLONABLE_BODY')?.cloneBodyStream()
+                )
+                const webResponse = new Response(null, {
+                  status: invokeRes.statusCode,
+                  headers: new Headers(invokeRes.headers as HeadersInit),
+                })
+
+                ;(webResponse as any).invokeRes = invokeRes
+
+                result = {
+                  response: webResponse,
+                  waitUntil: Promise.resolve(),
+                }
+                for (const key of [...result.response.headers.keys()]) {
+                  if (
+                    [
+                      'content-encoding',
+                      'transfer-encoding',
+                      'keep-alive',
+                      'connection',
+                    ].includes(key)
+                  ) {
+                    result.response.headers.delete(key)
+                  } else {
+                    const value = result.response.headers.get(key)
+                    // propagate this to req headers so it's
+                    // passed to the render worker for the page
+                    req.headers[key] = value || undefined
+
+                    if (key.toLowerCase() === 'set-cookie' && value) {
+                      addRequestMeta(
+                        req,
+                        '_nextMiddlewareCookie',
+                        splitCookiesString(value)
+                      )
+                    }
+                  }
+                }
+              } else {
+                result = await this.runMiddleware({
+                  request: req,
+                  response: res,
+                  parsedUrl: parsedUrl,
+                  parsed: parsed,
+                })
+
+                if (isMiddlewareInvoke && 'response' in result) {
+                  for (const [key, value] of Object.entries(
+                    toNodeHeaders(result.response.headers)
+                  )) {
+                    if (key !== 'content-encoding' && value !== undefined) {
+                      res.setHeader(key, value as string | string[])
+                    }
+                  }
+                  res.statusCode = result.response.status
+                  for await (const chunk of result.response.body ||
+                    ([] as any)) {
+                    this.streamResponseChunk(res as NodeNextResponse, chunk)
+                  }
+                  res.send()
+                  return {
+                    finished: true,
+                  }
+                }
+              }
             } catch (err) {
               if (isError(err) && err.code === 'ENOENT') {
                 await this.render404(req, res, parsed)
@@ -2097,19 +2467,29 @@ export default class NextNodeServer extends BaseServer {
               addRequestMeta(req, '_nextRewroteUrl', newUrl)
               addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
-              return {
-                finished: false,
-                pathname: newUrl,
-                query: parsedDestination.query,
+              if (!isMiddlewareInvoke) {
+                return {
+                  finished: false,
+                  pathname: newUrl,
+                  query: parsedDestination.query,
+                }
               }
             }
 
             if (result.response.headers.has('x-middleware-refresh')) {
               res.statusCode = result.response.status
-              for await (const chunk of result.response.body || ([] as any)) {
-                this.streamResponseChunk(res as NodeNextResponse, chunk)
+
+              if ((result.response as any).invokeRes) {
+                for await (const chunk of (result.response as any).invokeRes) {
+                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+                }
+                ;(res as NodeNextResponse).originalResponse.end()
+              } else {
+                for await (const chunk of result.response.body || ([] as any)) {
+                  this.streamResponseChunk(res as NodeNextResponse, chunk)
+                }
+                res.send()
               }
-              res.send()
               return {
                 finished: true,
               }
@@ -2236,7 +2616,7 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: !this.renderOpts.dev,
+      useCache: true,
       onWarning: params.onWarning,
       incrementalCache: getRequestMeta(params.req, '_nextIncrementalCache'),
     })
