@@ -290,19 +290,31 @@ export default class NextNodeServer extends BaseServer {
         }
       })
       ;(global as any)._nextDeleteCache = (filePath: string) => {
-        this.renderWorkers?.pages?.deleteCache(filePath)
-        this.renderWorkers?.app?.deleteCache(filePath)
+        try {
+          this.renderWorkers?.pages?.deleteCache(filePath)
+          this.renderWorkers?.app?.deleteCache(filePath)
+        } catch (err) {
+          console.error(err)
+        }
       }
       ;(global as any)._nextDeleteAppClientCache = () => {
-        this.renderWorkers?.pages?.deleteAppClientCache()
-        this.renderWorkers?.app?.deleteAppClientCache()
+        try {
+          this.renderWorkers?.pages?.deleteAppClientCache()
+          this.renderWorkers?.app?.deleteAppClientCache()
+        } catch (err) {
+          console.error(err)
+        }
       }
       ;(global as any)._nextClearModuleContext = (
         targetPath: any,
         content: any
       ) => {
-        this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
-        this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+        try {
+          this.renderWorkers?.pages?.clearModuleContext(targetPath, content)
+          this.renderWorkers?.app?.clearModuleContext(targetPath, content)
+        } catch (err) {
+          console.error(err)
+        }
       }
     }
 
