@@ -257,10 +257,12 @@ function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode && childNode.status === CacheStates.LAZY_INITIALIZED) {
-      // @ts-expect-error TODO-APP: handle changing of the type
+    if (
+      childNode &&
+      (childNode.status === CacheStates.LAZY_INITIALIZED ||
+        childNode.status === CacheStates.READY)
+    ) {
       childNode.status = CacheStates.READY
-      // @ts-expect-error TODO-APP: handle changing of the type
       childNode.subTreeData = childProp.current
       // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
       childProp.current = null
@@ -365,7 +367,6 @@ function InnerLayoutRouter({
       {childNode.subTreeData}
     </LayoutRouterContext.Provider>
   )
-
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return (
     <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
