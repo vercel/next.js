@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::{tasks::TryJoinIterExt, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc},

@@ -405,7 +405,6 @@ pub async fn create_app_source(
                 env,
                 server_root,
                 server_runtime_entries,
-                fallback_page,
                 output_path,
             ),
         })
@@ -468,7 +467,6 @@ async fn create_app_route_source_for_route(
     env: ProcessEnvVc,
     server_root: FileSystemPathVc,
     runtime_entries: AssetsVc,
-    fallback_page: DevHtmlAssetVc,
     intermediate_output_path_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
     let pathname_vc = StringVc::cell(pathname.to_string());
@@ -677,7 +675,8 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         .build();
 
         Ok(NodeRenderingEntry {
-            module: EcmascriptModuleAssetVc::new(
+            context,
+            module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 asset.into(),
                 context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
@@ -757,6 +756,7 @@ impl AppRouteVc {
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
         Ok(NodeRenderingEntry {
+            context: this.context,
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 virtual_asset.into(),
                 this.context,

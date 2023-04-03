@@ -23,6 +23,7 @@ use turbo_binding::{
         EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
     },
 };
+use turbo_tasks::util::FormatDuration;
 
 use self::env::read_env_bool;
 use crate::bundlers::{Bundler, RenderType};

@@ -15,7 +15,7 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::primitives::StringVc;
+use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 
 #[turbo_tasks::function]
 fn react_refresh_request() -> RequestVc {

@@ -18,6 +18,7 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{get_invalidator, TurboTasks, TurboTasksBackendApi, Value};
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
 pub struct TurboTasksSource {
