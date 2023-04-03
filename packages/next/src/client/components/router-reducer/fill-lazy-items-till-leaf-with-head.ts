@@ -46,7 +46,7 @@ export function fillLazyItemsTillLeafWithHead(
         // Traverse deeper to apply the head / fill lazy items till the head.
         fillLazyItemsTillLeafWithHead(
           newCacheNode,
-          wasPrefetched ? existingCacheNode : undefined,
+          existingCacheNode,
           parallelRouteState,
           head,
           wasPrefetched
