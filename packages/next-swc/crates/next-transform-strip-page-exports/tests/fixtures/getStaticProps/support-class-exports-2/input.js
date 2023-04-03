@@ -1,11 +1,11 @@
 export function getStaticProps() {
-  return { props: {} };
+  return { props: {} }
 }
 
 class Test extends React.Component {
   render() {
-    return <div />;
+    return <div />
   }
 }
 
-export default Test;
+export default Test

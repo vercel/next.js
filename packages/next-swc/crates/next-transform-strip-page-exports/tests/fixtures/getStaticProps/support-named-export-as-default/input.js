@@ -1,9 +1,9 @@
 export function getStaticProps() {
-  return { props: {} };
+  return { props: {} }
 }
 
 function El() {
-  return <div />;
+  return <div />
 }
 
-export { El as default };
+export { El as default }

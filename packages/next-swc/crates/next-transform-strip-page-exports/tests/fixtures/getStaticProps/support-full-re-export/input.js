@@ -1,1 +1,1 @@
-export { getStaticProps, default } from "a";
+export { getStaticProps, default } from 'a'
