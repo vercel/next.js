@@ -14,6 +14,7 @@ import { promises, writeFileSync } from 'fs'
 import os from 'os'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
+import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -1246,10 +1247,13 @@ export default async function build(
       // each worker will consume ~1GB of memory in a production build.
       // For example, if the system has 10 CPU cores and 8GB of remaining memory
       // we will use 8 workers.
-      const numWorkers = Math.min(
-        config.experimental.cpus || 1,
-        Math.floor(os.freemem() / 1e9)
-      )
+      const numWorkers =
+        config.experimental.cpus !== defaultConfig.experimental!.cpus
+          ? config.experimental.cpus
+          : Math.min(
+              config.experimental.cpus || 1,
+              Math.floor(os.freemem() / 1e9)
+            )
 
       const staticWorkers = new Worker(staticWorker, {
         timeout: timeout * 1000,
