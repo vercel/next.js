@@ -446,6 +446,7 @@ export class NextTypesPlugin {
   pageExtensions: string[]
   pagesDir: string
   typedRoutes: boolean
+  distDirAbsolutePath: string
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -456,6 +457,7 @@ export class NextTypesPlugin {
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
+    this.distDirAbsolutePath = path.join(this.dir, this.distDir)
     if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
       redirectsRewritesTypesProcessed = true
       addRedirectsRewritesRouteTypes(
@@ -463,10 +465,6 @@ export class NextTypesPlugin {
         options.originalRedirects
       )
     }
-  }
-
-  get distDirAbsolutePath() {
-    return path.join(this.dir, this.distDir)
   }
 
   getRelativePathFromAppTypesDir(moduleRelativePathToAppDir: string) {
