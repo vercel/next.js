@@ -158,12 +158,12 @@ function getSelectedParams(
  */
 export function useParams(): Params {
   clientHookInServerComponentError('useParams')
-  const globalLayoutRouterContext = useContext(GlobalLayoutRouterContext)
-  if (!globalLayoutRouterContext) {
+  const { tree } = useContext(GlobalLayoutRouterContext)
+  if (!tree) {
     // This only happens in `pages`. Type is overwritten in navigation.d.ts
     return null!
   }
-  return getSelectedParams(globalLayoutRouterContext.tree)
+  return getSelectedParams(tree)
 }
 
 // TODO-APP: handle parallel routes
