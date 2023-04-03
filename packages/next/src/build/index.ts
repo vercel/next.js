@@ -11,8 +11,10 @@ import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
 import { promises, writeFileSync } from 'fs'
+import os from 'os'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Worker } from '../lib/worker'
+import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -1239,6 +1241,20 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
+      // We limit the number of workers used based on the number of CPUs and
+      // the current available memory. This is to prevent the system from
+      // running out of memory as well as maximize speed. We assume that
+      // each worker will consume ~1GB of memory in a production build.
+      // For example, if the system has 10 CPU cores and 8GB of remaining memory
+      // we will use 8 workers.
+      const numWorkers =
+        config.experimental.cpus !== defaultConfig.experimental!.cpus
+          ? config.experimental.cpus
+          : Math.min(
+              config.experimental.cpus || 1,
+              Math.floor(os.freemem() / 1e9)
+            )
+
       const staticWorkers = new Worker(staticWorker, {
         timeout: timeout * 1000,
         onRestart: (method, [arg], attempts) => {
@@ -1270,7 +1286,7 @@ export default async function build(
             infoPrinted = true
           }
         },
-        numWorkers: config.experimental.cpus,
+        numWorkers,
         enableWorkerThreads: config.experimental.workerThreads,
         computeWorkerKey(method, ...args) {
           if (method === 'exportPage') {
