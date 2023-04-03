@@ -155,6 +155,15 @@ impl Pattern {
         Self::Alternatives(list)
     }
 
+    pub fn concat(items: impl IntoIterator<Item = Pattern>) -> Self {
+        let mut items = items.into_iter();
+        let mut current = items.next().unwrap_or_default();
+        for item in items {
+            current.push(item);
+        }
+        current
+    }
+
     /// Order into Alternatives -> Concatenation -> Constant/Dynamic
     /// Merge when possible
     pub fn normalize(&mut self) {

@@ -925,6 +925,39 @@ async fn resolve_module_request(
     path: &Pattern,
     _: &QueryMapVc,
 ) -> Result<ResolveResultVc> {
+    // Check alias field for module aliases first
+    for in_package in options_value.in_package.iter() {
+        match in_package {
+            ResolveInPackage::AliasField(field) => {
+                if let FindContextFileResult::Found(package_json, refs) =
+                    &*find_context_file(context, package_json()).await?
+                {
+                    if let FileJsonContent::Content(package) = &*package_json.read_json().await? {
+                        if let Some(field_value) = package[field].as_object() {
+                            let package_path = package_json.parent();
+                            let full_pattern =
+                                Pattern::concat([module.to_string().into(), path.clone()]);
+                            if let Some(request) = full_pattern.into_string() {
+                                if let Some(value) = field_value.get(&request) {
+                                    return resolve_alias_field_result(
+                                        value,
+                                        refs.clone(),
+                                        package_path,
+                                        options,
+                                        *package_json,
+                                        &request,
+                                        field,
+                                    )
+                                    .await;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let result = find_package(
         context,
         module.to_string(),
