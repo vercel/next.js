@@ -8,7 +8,7 @@ import {
   deleteCache as _deleteCache,
   deleteAppClientCache as _deleteAppClientCache,
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
-
+import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
@@ -20,6 +20,10 @@ let result:
       port: number
       hostname: string
     }
+
+export function clearModuleContext(target: string, content: string) {
+  _clearModuleContext(target, content)
+}
 
 export function deleteAppClientCache() {
   _deleteAppClientCache()
