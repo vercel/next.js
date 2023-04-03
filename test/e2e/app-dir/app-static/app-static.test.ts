@@ -93,16 +93,19 @@ createNextDescribe(
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const newHtml = await newRes.text()
-        const new$ = cheerio.load(newHtml)
-        const newLayoutData = new$('#layout-data').text()
-        const newPageData = new$('#page-data').text()
+        await check(async () => {
+          const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+          const newHtml = await newRes.text()
+          const new$ = cheerio.load(newHtml)
+          const newLayoutData = new$('#layout-data').text()
+          const newPageData = new$('#page-data').text()
 
-        expect(newLayoutData).toBeTruthy()
-        expect(newPageData).toBeTruthy()
-        expect(newLayoutData).not.toBe(initLayoutData)
-        expect(newPageData).not.toBe(initPageData)
+          expect(newLayoutData).toBeTruthy()
+          expect(newPageData).toBeTruthy()
+          expect(newLayoutData).not.toBe(initLayoutData)
+          expect(newPageData).not.toBe(initPageData)
+          return 'success'
+        }, 'success')
       })
     }
 

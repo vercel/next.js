@@ -1,14 +1,11 @@
 import http from 'http'
-import { resolve } from 'path'
 import { isIPv6 } from 'net'
 import * as Log from '../../build/output/log'
 import { getNodeOptionsWithoutInspect } from './utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ChildProcess } from 'child_process'
 import { normalizeRepeatedSlashes } from '../../shared/lib/utils'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
-import { PHASE_PRODUCTION_SERVER } from '../../shared/lib/constants'
-import loadConfig from '../config'
+import { initialEnv } from '@next/env'
 
 export interface StartServerOptions {
   dir: string
@@ -166,19 +163,8 @@ export async function startServer({
     server.listen(port, hostname)
   })
 
-  const config = await loadConfig(
-    isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    resolve(dir || '.'),
-    undefined,
-    undefined,
-    false
-  )
-
-  // Always use workers when `appDir` is enabled.
-  const shouldUseWorkers = useWorkers || config.experimental.appDir
-
   try {
-    if (shouldUseWorkers) {
+    if (useWorkers) {
       const httpProxy =
         require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
 
@@ -200,7 +186,7 @@ export async function startServer({
         forkOptions: {
           env: {
             FORCE_COLOR: '1',
-            ...process.env,
+            ...((initialEnv || process.env) as typeof process.env),
             // we don't pass down NODE_OPTIONS as it can
             // extra memory usage
             NODE_OPTIONS: getNodeOptionsWithoutInspect()
@@ -257,8 +243,9 @@ export async function startServer({
       didInitialize = true
 
       const getProxyServer = (pathname: string) => {
-        const targetUrl = `http://${targetHost}:${routerPort}${pathname}`
-
+        const targetUrl = `http://${
+          targetHost === 'localhost' ? '127.0.0.1' : targetHost
+        }:${routerPort}${pathname}`
         const proxyServer = httpProxy.createProxy({
           target: targetUrl,
           changeOrigin: false,
@@ -268,7 +255,7 @@ export async function startServer({
           followRedirects: false,
         })
 
-        proxyServer.on('error', () => {
+        proxyServer.on('error', (_err) => {
           // TODO?: enable verbose error logs with --debug flag?
         })
         return proxyServer
@@ -310,7 +297,6 @@ export async function startServer({
         httpServer: server,
         customServer: false,
         port: addr && typeof addr === 'object' ? addr.port : port,
-        preloadedConfig: config,
       })
       // handle in process
       requestHandler = app.getRequestHandler()
