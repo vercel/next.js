@@ -136,9 +136,7 @@ export class NextServer {
     } else {
       ServerImplementation = await getServerImpl()
     }
-    const server = new ServerImplementation(options)
-    await server.prepare()
-    return server
+    return new ServerImplementation(options)
   }
 
   private async loadConfig() {
