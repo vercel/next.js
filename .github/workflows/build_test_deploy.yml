@@ -831,7 +831,8 @@ jobs:
       TEST_FILES_LIST: |
         test/development/acceptance-app/dynamic-error.test.ts \
         test/development/acceptance-app/unsupported-app-features.test.ts \
-        test/development/acceptance-app/ReactRefresh.test.ts
+        test/development/acceptance-app/ReactRefresh.test.ts \
+        test/development/basic/emotion-swc.test.ts
     strategy:
       fail-fast: false
     steps:
