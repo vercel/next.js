@@ -115,7 +115,6 @@ export async function initialize(opts: {
 
         requestHandler = app.getRequestHandler()
         upgradeHandler = app.getUpgradeHandler()
-        await app.prepare()
         resolve(result)
       } catch (err) {
         return reject(err)

@@ -124,23 +124,21 @@ export class NextServer {
     return server.serveStatic(...args)
   }
 
-  async prepare() {
-    const server = await this.getServer()
-    return server.prepare()
-  }
-
   async close() {
     const server = await this.getServer()
     return (server as any).close()
   }
 
   private async createServer(options: DevServerOptions): Promise<Server> {
+    let ServerImplementation: typeof Server
     if (options.dev) {
-      const DevServer = require('./dev/next-dev-server').default
-      return new DevServer(options)
+      ServerImplementation = require('./dev/next-dev-server').default
+    } else {
+      ServerImplementation = await getServerImpl()
     }
-    const ServerImplementation = await getServerImpl()
-    return new ServerImplementation(options)
+    const server = new ServerImplementation(options)
+    await server.prepare()
+    return server
   }
 
   private async loadConfig() {

@@ -299,7 +299,6 @@ export async function startServer({
       // handle in process
       requestHandler = app.getRequestHandler()
       upgradeHandler = app.getUpgradeHandler()
-      await app.prepare()
       handlersReady()
     }
   } catch (err) {

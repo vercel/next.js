@@ -326,8 +326,8 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
-  public async prepare() {
-    await super.prepare()
+  protected async prepareImpl() {
+    await super.prepareImpl()
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook

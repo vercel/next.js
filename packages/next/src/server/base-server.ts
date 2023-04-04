@@ -966,8 +966,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
-  // Backwards compatibility
-  public async prepare(): Promise<void> {}
+  protected preparedPromise: Promise<void> | null = null
+  /**
+   * Runs async initialization of server.
+   * It is idempotent, won't fire underlying initialization more than once.
+   */
+  public async prepare(): Promise<void> {
+    if (this.preparedPromise === null) {
+      this.preparedPromise = this.prepareImpl()
+    }
+    return this.preparedPromise
+  }
+  protected async prepareImpl(): Promise<void> {}
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
