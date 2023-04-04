@@ -1624,11 +1624,36 @@ export async function copy_vendor_react(task) {
     const channel = opts.experimental ? `experimental-builtin` : `builtin`
     const packageSuffix = opts.experimental ? `-experimental` : ``
 
+    // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
+    // "The name `react` was looked up in the Haste module map" warnings.
+    // TODO-APP: remove unused fields from package.json and unused files
+    function overridePackageName(source) {
+      const json = JSON.parse(source)
+      json.name = json.name + '-' + channel
+      return JSON.stringify(
+        {
+          name: json.name,
+          main: json.main,
+          exports: json.exports,
+          dependencies: json.dependencies,
+          peerDependencies: json.peerDependencies,
+        },
+        null,
+        2
+      )
+    }
+
     const schedulerDir = dirname(
       relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
     )
     yield task
       .source(join(schedulerDir, '*.{json,js}'))
+      // eslint-disable-next-line require-yield
+      .run({ every: true }, function* (file) {
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data.toString())
+        }
+      })
       .target(`src/compiled/scheduler${packageSuffix}`)
     yield task
       .source(join(schedulerDir, 'cjs/**/*.js'))
@@ -1644,9 +1669,14 @@ export async function copy_vendor_react(task) {
       relative(__dirname, require.resolve(`react-dom-${channel}/package.json`))
     )
 
-    // TODO-APP: remove unused fields from package.json and unused files
     yield task
       .source(join(reactDir, '*.{json,js}'))
+      // eslint-disable-next-line require-yield
+      .run({ every: true }, function* (file) {
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data.toString())
+        }
+      })
       .target(`src/compiled/react${packageSuffix}`)
     yield task
       .source(join(reactDir, 'LICENSE'))
@@ -1657,6 +1687,12 @@ export async function copy_vendor_react(task) {
 
     yield task
       .source(join(reactDomDir, '*.{json,js}'))
+      // eslint-disable-next-line require-yield
+      .run({ every: true }, function* (file) {
+        if (file.base === 'package.json') {
+          file.data = overridePackageName(file.data.toString())
+        }
+      })
       .target(`src/compiled/react-dom${packageSuffix}`)
     yield task
       .source(join(reactDomDir, 'LICENSE'))
