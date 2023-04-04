@@ -61,7 +61,6 @@ export default function startHandler({
 }) {
   (async () => {
     while (true) {
-      console.log('recv');
       const msg = await ipc.recv();
 
       let renderData: RenderData;
@@ -78,9 +77,7 @@ export default function startHandler({
 
       const { Component, namespace } = await mod();
 
-      console.log('run');
       const res = await runOperation(renderData, Component, namespace);
-      console.log('send');
 
       ipc.send(res);
     }
