@@ -64,6 +64,7 @@ export type CacheNode =
       parallelRoutes: Map<string, ChildSegmentMap>
     }
 interface NavigateOptions {
+  /** @internal */
   forceOptimisticNavigation?: boolean
 }
 
