@@ -102,6 +102,7 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
+import { invokeRequest } from '../lib/server-ipc'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -1257,12 +1258,23 @@ export default class DevServer extends Server {
   private async invokeIpcMethod(method: string, args: any[]): Promise<any> {
     const ipcPort = process.env.__NEXT_PRIVATE_ROUTER_IPC_PORT
     if (ipcPort) {
-      const res = await this.originalFetch(
+      const res = await invokeRequest(
         `http://${this.hostname}:${ipcPort}?method=${
           method as string
-        }&args=${encodeURIComponent(JSON.stringify(args))}`
+        }&args=${encodeURIComponent(JSON.stringify(args))}`,
+        {
+          method: 'GET',
+          headers: {},
+        }
       )
-      const body = await res.text()
+      const chunks = []
+
+      for await (const chunk of res) {
+        if (chunk) {
+          chunks.push(chunk)
+        }
+      }
+      const body = Buffer.concat(chunks).toString()
 
       if (body.startsWith('{') && body.endsWith('}')) {
         const parsedBody = JSON.parse(body)

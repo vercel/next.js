@@ -32,13 +32,14 @@ body:
         - 'Data fetching (gS(S)P, getInitialProps)'
         - 'Dynamic imports (next/dynamic)'
         - 'ESLint (eslint-config-next)'
-        - 'Font optimization (@next/font)'
+        - 'Font optimization (next/font)'
         - 'Image optimization (next/image, next/legacy/image)'
         - 'Internationalization (i18n)'
         - 'Jest (next/jest)'
         - 'MDX (@next/mdx)'
         - 'Metadata (metadata, generateMetadata, next/head, head.js)'
         - 'Middleware / Edge (API routes, runtime)'
+        - 'Operating System (Windows, MacOS, Linux)'
         - 'Package manager (npm, pnpm, Yarn)'
         - 'Routing (next/router, next/navigation, next/link)'
         - 'Script optimization (next/script)'
@@ -47,7 +48,7 @@ body:
         - 'SWC minifier (swcMinify: true)'
         - 'SWC transpilation'
         - 'Turbopack (--turbo)'
-        - 'TypeScript'
+        - 'TypeScript (plugin, built-in types)'
   - type: input
     attributes:
       label: Link to the code that reproduces this issue
