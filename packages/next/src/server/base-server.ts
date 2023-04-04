@@ -533,6 +533,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    await this.prepare()
     const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
