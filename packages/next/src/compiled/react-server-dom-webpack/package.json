@@ -1,7 +1,7 @@
 {
   "name": "react-server-dom-webpack",
   "description": "React Server Components bindings for DOM using Webpack. This is intended to be integrated into meta-frameworks. It is not intended to be imported directly.",
-  "version": "18.3.0-next-3706edb81-20230308",
+  "version": "18.3.0-next-85de6fde5-20230328",
   "keywords": [
     "react"
   ],
@@ -78,8 +78,8 @@
     "node": ">=0.10.0"
   },
   "peerDependencies": {
-    "react": "18.3.0-next-3706edb81-20230308",
-    "react-dom": "18.3.0-next-3706edb81-20230308",
+    "react": "18.3.0-next-85de6fde5-20230328",
+    "react-dom": "18.3.0-next-85de6fde5-20230328",
     "webpack": "^5.59.0"
   },
   "dependencies": {

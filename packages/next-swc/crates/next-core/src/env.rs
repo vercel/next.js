@@ -1,11 +1,15 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks_env::{
-    CommandLineProcessEnvVc, CustomProcessEnvVc, EnvMapVc, FilterProcessEnvVc, ProcessEnv,
-    ProcessEnvVc,
+use turbo_binding::{
+    turbo::{
+        tasks_env::{
+            CommandLineProcessEnvVc, CustomProcessEnvVc, EnvMapVc, FilterProcessEnvVc, ProcessEnv,
+            ProcessEnvVc,
+        },
+        tasks_fs::FileSystemPathVc,
+    },
+    turbopack::env::{EmbeddableProcessEnvVc, TryDotenvProcessEnvVc},
 };
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_env::{EmbeddableProcessEnvVc, TryDotenvProcessEnvVc};
 
 use crate::next_config::NextConfigVc;
 

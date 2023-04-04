@@ -2,33 +2,41 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
-use turbopack::{
-    module_options::{
-        module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        PostCssTransformOptions, WebpackLoadersOptions,
+use turbo_binding::{
+    turbo::{tasks_env::ProcessEnvVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            chunk::ChunkingContextVc,
+            compile_time_defines,
+            compile_time_info::{
+                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
+                FreeVarReferencesVc,
+            },
+            context::AssetContextVc,
+            environment::{
+                BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
+            },
+            free_var_references,
+        },
+        dev::DevChunkingContextVc,
+        env::ProcessEnvAssetVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{
+            module_options::{
+                module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
+                PostCssTransformOptions, WebpackLoadersOptions,
+            },
+            resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
+            transition::TransitionsByNameVc,
+            ModuleAssetContextVc,
+        },
     },
-    resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
-    transition::TransitionsByNameVc,
-    ModuleAssetContextVc,
 };
-use turbopack_core::{
-    chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
-    compile_time_defines,
-    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
-    context::AssetContextVc,
-    environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    resolve::{parse::RequestVc, pattern::Pattern},
-};
-use turbopack_env::ProcessEnvAssetVc;
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_tasks::{primitives::StringVc, Value};
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
     babel::maybe_add_babel_loader,
-    embed_js::next_js_fs,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
@@ -38,7 +46,10 @@ use crate::{
         get_next_client_resolved_map,
     },
     react_refresh::assert_can_resolve_react_refresh,
-    typescript::get_typescript_transform_options,
+    transform_options::{
+        get_decorators_transform_options, get_jsx_transform_options,
+        get_typescript_transform_options,
+    },
     util::foreign_code_context_condition,
 };
 
@@ -51,23 +62,38 @@ pub fn next_client_defines() -> CompileTimeDefinesVc {
     .cell()
 }
 
+pub fn next_client_free_vars() -> FreeVarReferencesVc {
+    free_var_references!(
+        Buffer = FreeVarReference::EcmaScriptModule {
+            request: "node:buffer".to_string(),
+            context: None,
+            export: Some("Buffer".to_string()),
+        },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "node:process".to_string(),
+            context: None,
+            export: Some("default".to_string()),
+        }
+    )
+    .cell()
+}
+
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
-    CompileTimeInfo {
-        environment: EnvironmentVc::new(
-            Value::new(ExecutionEnvironment::Browser(
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: browserslist_query.to_owned(),
-                }
-                .into(),
-            )),
-            Value::new(EnvironmentIntention::Client),
-        ),
-        defines: next_client_defines(),
-    }
+    CompileTimeInfo::builder(EnvironmentVc::new(
+        Value::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .into(),
+        )),
+        Value::new(EnvironmentIntention::Client),
+    ))
+    .defines(next_client_defines())
+    .free_var_references(next_client_free_vars())
     .cell()
 }
 
@@ -130,6 +156,8 @@ pub async fn get_client_module_options_context(
             .is_found();
 
     let tsconfig = get_typescript_transform_options(project_path);
+    let decorators_options = get_decorators_transform_options(project_path);
+    let jsx_runtime_options = get_jsx_transform_options(project_path);
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
@@ -156,7 +184,7 @@ pub async fn get_client_module_options_context(
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
         // the modules.
-        enable_jsx: true,
+        enable_jsx: Some(jsx_runtime_options),
         enable_emotion: true,
         enable_react_refresh,
         enable_styled_components: true,
@@ -167,6 +195,7 @@ pub async fn get_client_module_options_context(
         }),
         enable_webpack_loaders,
         enable_typescript_transform: Some(tsconfig),
+        decorators: Some(decorators_options),
         rules: vec![(
             foreign_code_context_condition(next_config).await?,
             module_options_context.clone().cell(),
@@ -219,10 +248,10 @@ pub fn get_client_chunking_context(
         project_path,
         server_root,
         match ty.into_value() {
-            ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-                server_root.join("/_next/static/chunks")
-            }
-            ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_chunks"),
+            ClientContextType::Pages { .. }
+            | ClientContextType::App { .. }
+            | ClientContextType::Fallback => server_root.join("/_next/static/chunks"),
+            ClientContextType::Other => server_root.join("/_chunks"),
         },
         get_client_assets_path(server_root, ty),
         environment,
@@ -237,10 +266,10 @@ pub fn get_client_assets_path(
     ty: Value<ClientContextType>,
 ) -> FileSystemPathVc {
     match ty.into_value() {
-        ClientContextType::Pages { .. } | ClientContextType::App { .. } => {
-            server_root.join("/_next/static/assets")
-        }
-        ClientContextType::Fallback | ClientContextType::Other => server_root.join("/_assets"),
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => server_root.join("/_next/static/assets"),
+        ClientContextType::Other => server_root.join("/_assets"),
     }
 }
 
@@ -259,10 +288,19 @@ pub async fn get_client_runtime_entries(
             .await?
             .as_request();
 
-    let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
-        ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
-    )
-    .cell()];
+    let mut runtime_entries = vec![];
+
+    if matches!(
+        *ty,
+        ClientContextType::App { .. } | ClientContextType::Pages { .. },
+    ) {
+        runtime_entries.push(
+            RuntimeEntry::Source(
+                ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
+            )
+            .cell(),
+        );
+    }
 
     // It's important that React Refresh come before the regular bootstrap file,
     // because the bootstrap contains JSX which requires Refresh's global
@@ -270,17 +308,6 @@ pub async fn get_client_runtime_entries(
     if let Some(request) = enable_react_refresh {
         runtime_entries.push(RuntimeEntry::Request(request, project_root.join("_")).cell())
     };
-    if matches!(ty.into_value(), ClientContextType::Other) {
-        runtime_entries.push(
-            RuntimeEntry::Request(
-                RequestVc::parse(Value::new(Pattern::Constant(
-                    "./dev/bootstrap.ts".to_string(),
-                ))),
-                next_js_fs().root().join("_"),
-            )
-            .cell(),
-        );
-    }
 
     Ok(RuntimeEntriesVc::cell(runtime_entries))
 }

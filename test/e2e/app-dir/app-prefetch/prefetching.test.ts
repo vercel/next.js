@@ -75,6 +75,43 @@ createNextDescribe(
       ).toBe(1)
     })
 
+    it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
+      const browser = await next.browser('/404')
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+      await browser.eval('location.href = "/"')
+
+      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await check(() => {
+        return requests.some((req) => req.includes('static-page'))
+          ? 'success'
+          : JSON.stringify(requests)
+      }, 'success')
+
+      await browser
+        .elementByCss('#to-static-page')
+        .click()
+        .waitForElementByCss('#static-page')
+
+      await browser
+        .elementByCss('#to-home')
+        // Go back to home page
+        .click()
+        // Wait for homepage to load
+        .waitForElementByCss('#to-static-page')
+        // Click on the link to the static page again
+        .click()
+        // Wait for the static page to load again
+        .waitForElementByCss('#static-page')
+
+      expect(
+        requests.filter((request) => request === '/static-page').length
+      ).toBe(1)
+    })
+
     it('should not prefetch for a bot user agent', async () => {
       const browser = await next.browser('/404')
       let requests: string[] = []

@@ -1,18 +1,19 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
+import { Readable } from 'stream'
+
 import {
   withRequestMeta,
   getRequestMeta,
   cookieWithRequestMeta,
 } from './helpers'
-import { Readable } from 'stream'
-import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDeploy, isNextDev, isNextStart }) => {
     describe('works with api prefix correctly', () => {
       it('statically generates correctly with no dynamic usage', async () => {
         if (isNextStart) {
@@ -188,7 +189,7 @@ createNextDescribe(
 
     describe('body', () => {
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can handle handle a streaming request and streaming response', async () => {
           const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
           let index = 0
@@ -257,7 +258,7 @@ createNextDescribe(
       })
 
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can read a streamed JSON encoded body', async () => {
           const body = { ping: 'pong' }
           const encoded = JSON.stringify(body)
@@ -444,7 +445,7 @@ createNextDescribe(
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
 
-        if (!(global as any).isNextDeploy) {
+        if (!isNextDeploy) {
           await check(() => {
             expect(next.cliOutput).toContain(error)
             return 'yes'
@@ -521,6 +522,17 @@ createNextDescribe(
       })
     })
 
+    describe('customized metadata routes', () => {
+      it('should work if conflict with metadata routes convention', async () => {
+        const res = await next.fetch('/robots.txt')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toBe(
+          'User-agent: *\nAllow: /\n\nSitemap: https://www.example.com/sitemap.xml'
+        )
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
@@ -550,6 +562,26 @@ createNextDescribe(
             }, 'yes')
           }
         )
+      })
+
+      describe('invalid exports', () => {
+        it('should print an error when exporting a default handler in dev', async () => {
+          const res = await next.fetch('/default')
+
+          // Ensure we get a 405 (Method Not Allowed) response when there is no
+          // exported handler for the GET method.
+          expect(res.status).toEqual(405)
+
+          await check(() => {
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
+            )
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            return 'yes'
+          }, 'yes')
+        })
       })
     }
   }

@@ -1,36 +1,28 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { startServer, WORKER_SELF_EXIT_CODE } from '../server/lib/start-server'
+import { startServer, StartServerOptions } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { startedDevelopmentServer } from '../build/output'
 import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import type { NextConfig } from '../../types'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
-import { isIPv6 } from 'net'
-import { ChildProcess, fork } from 'child_process'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists } from '../lib/file-exists'
+import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { warn } from '../build/output/log'
-import { getPossibleInstrumentationHookFilenames } from '../build/utils'
-import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { getPossibleInstrumentationHookFilenames } from '../build/worker'
 
+let dir: string
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
-let dir: string
-let unwatchConfigFiles: () => void
-
-const isChildProcess = !!process.env.__NEXT_DEV_CHILD_PROCESS
 
 const handleSessionStop = async () => {
   if (sessionStopHandled) return
@@ -91,13 +83,10 @@ const handleSessionStop = async () => {
   process.exit(0)
 }
 
-if (!isChildProcess) {
-  process.on('SIGINT', handleSessionStop)
-  process.on('SIGTERM', handleSessionStop)
-} else {
-  process.on('SIGINT', () => process.exit(0))
-  process.on('SIGTERM', () => process.exit(0))
-}
+process.on('SIGINT', handleSessionStop)
+process.on('SIGTERM', handleSessionStop)
+
+let unwatchConfigFiles: () => void
 
 function watchConfigFiles(dirToWatch: string) {
   if (unwatchConfigFiles) {
@@ -113,7 +102,7 @@ function watchConfigFiles(dirToWatch: string) {
       )}. Restart the server to see the changes in effect.`
     )
   })
-  return () => wp.close()
+  unwatchConfigFiles = () => wp.close()
 }
 
 const nextDev: CliCommand = async (argv) => {
@@ -162,9 +151,7 @@ const nextDev: CliCommand = async (argv) => {
     `)
     process.exit(0)
   }
-
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
-  unwatchConfigFiles = watchConfigFiles(dir)
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, 'directory'))) {
@@ -216,212 +203,20 @@ const nextDev: CliCommand = async (argv) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const devServerOptions = {
-    allowRetry,
-    dev: true,
+  const devServerOptions: StartServerOptions = {
     dir,
-    hostname: host,
-    isNextDevCommand: true,
     port,
-  }
-
-  const supportedTurbopackNextConfigOptions = [
-    'configFileName',
-    'env',
-    'experimental.appDir',
-    'experimental.serverComponentsExternalPackages',
-    'experimental.turbo',
-    'images',
-    'pageExtensions',
-    'onDemandEntries',
-    'rewrites',
-    'redirects',
-    'headers',
-    'reactStrictMode',
-    'swcMinify',
-    'transpilePackages',
-  ]
-
-  // check for babelrc, swc plugins
-  async function validateNextConfig(isCustomTurbopack: boolean) {
-    const { getPkgManager } =
-      require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
-    const { getBabelConfigFile } =
-      require('../build/webpack-config') as typeof import('../build/webpack-config')
-    const { defaultConfig } =
-      require('../server/config-shared') as typeof import('../server/config-shared')
-    const chalk =
-      require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
-    const { interopDefault } =
-      require('../lib/interop-default') as typeof import('../lib/interop-default')
-
-    // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
-    const isTTY = process.stdout.isTTY
-
-    const turbopackGradient = `${chalk.bold(
-      isTTY
-        ? '\x1B[38;2;0;0;255m>\x1B[39m\x1B[38;2;23;0;232m>\x1B[39m\x1B[38;2;46;0;209m>\x1B[39m \x1B[38;2;70;0;185mT\x1B[39m\x1B[38;2;93;0;162mU\x1B[39m\x1B[38;2;116;0;139mR\x1B[39m\x1B[38;2;139;0;116mB\x1B[39m\x1B[38;2;162;0;93mO\x1B[39m\x1B[38;2;185;0;70mP\x1B[39m\x1B[38;2;209;0;46mA\x1B[39m\x1B[38;2;232;0;23mC\x1B[39m\x1B[38;2;255;0;0mK\x1B[39m'
-        : '>>> TURBOPACK'
-    )} ${chalk.dim('(alpha)')}\n\n`
-
-    let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
-
-    let unsupportedParts = ''
-    let babelrc = await getBabelConfigFile(dir)
-    if (babelrc) babelrc = path.basename(babelrc)
-
-    let unsupportedConfig: string[] = []
-    let rawNextConfig: NextConfig = {}
-
-    try {
-      rawNextConfig = interopDefault(
-        await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, undefined, true)
-      ) as NextConfig
-
-      if (typeof rawNextConfig === 'function') {
-        rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
-          defaultConfig,
-        })
-      }
-
-      const checkUnsupportedCustomConfig = (
-        configKey = '',
-        parentUserConfig: any,
-        parentDefaultConfig: any
-      ): boolean => {
-        try {
-          // these should not error
-          if (
-            // we only want the key after the dot for experimental options
-            supportedTurbopackNextConfigOptions
-              .map((key) => key.split('.').splice(-1)[0])
-              .includes(configKey)
-          ) {
-            return false
-          }
-
-          // experimental options are checked separately
-          if (configKey === 'experimental') {
-            return false
-          }
-
-          let userValue = parentUserConfig?.[configKey]
-          let defaultValue = parentDefaultConfig?.[configKey]
-
-          if (typeof defaultValue !== 'object') {
-            return defaultValue !== userValue
-          }
-          return Object.keys(userValue || {}).some((key: string) => {
-            return checkUnsupportedCustomConfig(key, userValue, defaultValue)
-          })
-        } catch (e) {
-          console.error(
-            `Unexpected error occurred while checking ${configKey}`,
-            e
-          )
-          return false
-        }
-      }
-
-      unsupportedConfig = [
-        ...Object.keys(rawNextConfig).filter((key) =>
-          checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
-        ),
-        ...Object.keys(rawNextConfig.experimental ?? {})
-          .filter((key) =>
-            checkUnsupportedCustomConfig(
-              key,
-              rawNextConfig?.experimental,
-              defaultConfig?.experimental
-            )
-          )
-          .map((key) => `experimental.${key}`),
-      ]
-    } catch (e) {
-      console.error('Unexpected error occurred while checking config', e)
-    }
-
-    const hasWarningOrError = babelrc || unsupportedConfig.length
-    if (!hasWarningOrError) {
-      thankYouMsg = chalk.dim(thankYouMsg)
-    }
-    if (!isCustomTurbopack) {
-      console.log(turbopackGradient + thankYouMsg)
-    }
-
-    let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
-      'https://nextjs.link/with-turbopack'
-    )}\nPlease direct feedback to: ${chalk.underline(
-      'https://nextjs.link/turbopack-feedback'
-    )}\n`
-
-    if (!hasWarningOrError) {
-      feedbackMessage = chalk.dim(feedbackMessage)
-    }
-
-    if (babelrc) {
-      unsupportedParts += `\n- Babel detected (${chalk.cyan(
-        babelrc
-      )})\n  ${chalk.dim(
-        `Babel is not yet supported. To use Turbopack at the moment,\n  you'll need to remove your usage of Babel.`
-      )}`
-    }
-    if (unsupportedConfig.length) {
-      unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
-        'next.config.js'
-      )})\n  ${chalk.dim(
-        `To use Turbopack, remove the following configuration options:\n${unsupportedConfig
-          .map((name) => `    - ${chalk.red(name)}\n`)
-          .join(
-            ''
-          )}  The only supported configurations options are:\n${supportedTurbopackNextConfigOptions
-          .map((name) => `    - ${chalk.cyan(name)}\n`)
-          .join('')}  `
-      )}   `
-    }
-
-    if (unsupportedParts && !isCustomTurbopack) {
-      const pkgManager = getPkgManager(dir)
-
-      console.error(
-        `${chalk.bold.red(
-          'Error:'
-        )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
-If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
-
-  ${chalk.bold.cyan(
-    `${
-      pkgManager === 'npm'
-        ? 'npx create-next-app'
-        : `${pkgManager} create next-app`
-    } --example with-turbopack with-turbopack-app`
-  )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
-        `
-      )
-
-      if (!isCustomTurbopack) {
-        console.warn(feedbackMessage)
-
-        process.exit(1)
-      } else {
-        console.warn(
-          `\n${chalk.bold.yellow(
-            'Warning:'
-          )} Unsupported config found; but continuing with custom Turbopack binary.\n`
-        )
-      }
-    }
-
-    if (!isCustomTurbopack) {
-      console.log(feedbackMessage)
-    }
-
-    return rawNextConfig
+    allowRetry,
+    isDev: true,
+    hostname: host,
+    useWorkers: !process.env.__NEXT_DISABLE_MEMORY_WATCHER,
   }
 
   if (args['--turbo']) {
     isTurboSession = true
 
+    const { validateTurboNextConfig } =
+      require('../lib/turbopack-warning') as typeof import('../lib/turbopack-warning')
     const { loadBindings, __isCustomTurbopackBinary } =
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
@@ -432,7 +227,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
     const isCustomTurbopack = await __isCustomTurbopackBinary()
-    const rawNextConfig = await validateNextConfig(isCustomTurbopack)
+    const rawNextConfig = await validateTurboNextConfig({
+      isCustomTurbopack,
+      ...devServerOptions,
+    })
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')
     const { pagesDir, appDir } = findPagesDir(
@@ -487,87 +285,44 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     }
     return server
   } else {
-    // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
-    // this is a temporary solution until we can fix the memory leaks.
-    // the logic for the worker killing itself is in `packages/next/server/lib/start-server.ts`
-    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && !isChildProcess) {
-      let config: NextConfig
-      let childProcess: ChildProcess | null = null
+    try {
+      let shouldFilter = false
+      let devServerTeardown: (() => Promise<void>) | undefined
+      let config: NextConfig | undefined
 
-      const isDebugging =
-        process.execArgv.some((localArg) => localArg.startsWith('--inspect')) ||
-        process.env.NODE_OPTIONS?.match?.(/--inspect(=\S+)?( |$)/)
+      watchConfigFiles(devServerOptions.dir)
 
-      const isDebuggingWithBrk =
-        process.execArgv.some((localArg) =>
-          localArg.startsWith('--inspect-brk')
-        ) || process.env.NODE_OPTIONS?.match?.(/--inspect-brk(=\S+)?( |$)/)
-
-      const debugPort = (() => {
-        const debugPortStr =
-          process.execArgv
-            .find(
-              (localArg) =>
-                localArg.startsWith('--inspect') ||
-                localArg.startsWith('--inspect-brk')
-            )
-            ?.split('=')[1] ??
-          process.env.NODE_OPTIONS?.match?.(
-            /--inspect(-brk)?(=(\S+))?( |$)/
-          )?.[3]
-        return debugPortStr ? parseInt(debugPortStr, 10) : 9229
-      })()
-
-      if (isDebugging || isDebuggingWithBrk) {
-        warn(
-          `the --inspect${
-            isDebuggingWithBrk ? '-brk' : ''
-          } option was detected, the Next.js server should be inspected at port ${
-            debugPort + 1
-          }.`
-        )
-      }
-
-      const genExecArgv = () => {
-        const execArgv = process.execArgv.filter((localArg) => {
-          return (
-            !localArg.startsWith('--inspect') &&
-            !localArg.startsWith('--inspect-brk')
+      const setupFork = async (newDir?: string) => {
+        // if we're using workers we can auto restart on config changes
+        if (!devServerOptions.useWorkers && devServerTeardown) {
+          Log.info(
+            `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
           )
-        })
-
-        if (isDebugging || isDebuggingWithBrk) {
-          execArgv.push(
-            `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
-          )
+          return
         }
 
-        return execArgv
-      }
-      let childProcessExitUnsub: (() => void) | null = null
-
-      const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
-        childProcessExitUnsub?.()
-        childProcess?.kill()
-
         const startDir = dir
-        const [, script, ...nodeArgs] = process.argv
-        let shouldFilter = false
-        childProcess = fork(
-          newDir ? script.replace(startDir, newDir) : script,
-          nodeArgs,
-          {
-            env: {
-              ...(env ? env : process.env),
-              FORCE_COLOR: '1',
-              __NEXT_DEV_CHILD_PROCESS: '1',
-            },
-            // @ts-ignore TODO: remove ignore when types are updated
-            windowsHide: true,
-            stdio: ['ipc', 'pipe', 'pipe'],
-            execArgv: genExecArgv(),
-          }
-        )
+        if (newDir) {
+          dir = newDir
+        }
+
+        if (devServerTeardown) {
+          await devServerTeardown()
+          devServerTeardown = undefined
+        }
+
+        if (newDir) {
+          dir = newDir
+          process.env = Object.keys(process.env).reduce((newEnv, key) => {
+            newEnv[key] = process.env[key]?.replace(startDir, newDir)
+            return newEnv
+          }, {} as typeof process.env)
+
+          process.chdir(newDir)
+
+          devServerOptions.dir = newDir
+          devServerOptions.prevDir = startDir
+        }
 
         // since errors can start being logged from the fork
         // before we detect the project directory rename
@@ -576,7 +331,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           const cleanChunk = stripAnsi(chunk + '')
           if (
             cleanChunk.match(
-              /(ENOENT|Module build failed|Module not found|Cannot find module)/
+              /(ENOENT|Module build failed|Module not found|Cannot find module|Can't resolve)/
             )
           ) {
             if (startDir === dir) {
@@ -584,7 +339,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
                 // check if start directory is still valid
                 const result = findPagesDir(
                   startDir,
-                  !!config.experimental?.appDir
+                  !!config?.experimental?.appDir
                 )
                 shouldFilter = !Boolean(result.pagesDir || result.appDir)
               } catch (_) {
@@ -599,54 +354,33 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           process[fd].write(chunk)
         }
 
-        childProcess?.stdout?.on('data', (chunk) => {
+        devServerOptions.onStdout = (chunk) => {
           filterForkErrors(chunk, 'stdout')
-        })
-        childProcess?.stderr?.on('data', (chunk) => {
-          filterForkErrors(chunk, 'stderr')
-        })
-
-        const callback = async (code: number | null) => {
-          if (code === WORKER_SELF_EXIT_CODE) {
-            setupFork()
-          } else if (!sessionStopHandled) {
-            await handleSessionStop()
-            process.exit(1)
-          }
         }
-        childProcess?.addListener('exit', callback)
-        childProcessExitUnsub = () =>
-          childProcess?.removeListener('exit', callback)
+        devServerOptions.onStderr = (chunk) => {
+          filterForkErrors(chunk, 'stderr')
+        }
+        shouldFilter = false
+        devServerTeardown = await startServer(devServerOptions)
+
+        if (!config) {
+          config = await loadConfig(
+            PHASE_DEVELOPMENT_SERVER,
+            dir,
+            undefined,
+            undefined,
+            true
+          )
+        }
       }
 
-      setupFork()
+      await setupFork()
+      await preflight()
 
-      config = await loadConfig(
-        PHASE_DEVELOPMENT_SERVER,
-        dir,
-        undefined,
-        undefined,
-        true
-      )
-
-      const handleProjectDirRename = (newDir: string) => {
-        process.chdir(newDir)
-        setupFork(
-          {
-            ...Object.keys(process.env).reduce((newEnv, key) => {
-              newEnv[key] = process.env[key]?.replace(dir, newDir)
-              return newEnv
-            }, {} as typeof process.env),
-            NEXT_PRIVATE_DEV_DIR: newDir,
-          },
-          newDir
-        )
-      }
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1
       const previousItems = new Set<string>()
-
-      const instrumentationFilePaths = !!config.experimental
+      const instrumentationFilePaths = !!config?.experimental
         ?.instrumentationHook
         ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
         : []
@@ -679,7 +413,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             instrumentationFileLastHash &&
             instrumentationFileHash !== instrumentationFileLastHash
           ) {
-            warn(
+            Log.warn(
               `The instrumentation file has changed, restarting the server to apply changes.`
             )
             return setupFork()
@@ -688,7 +422,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
               !instrumentationFileLastHash &&
               previousInstrumentationFiles.size !== 0
             ) {
-              warn(
+              Log.warn(
                 'The instrumentation file was added, restarting the server to apply changes.'
               )
               return setupFork()
@@ -700,7 +434,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             instrumentationFilePaths.includes(key)
           )
         ) {
-          warn(
+          Log.warn(
             `The instrumentation file has been removed, restarting the server to apply changes.`
           )
           instrumentationFileLastHash = undefined
@@ -726,7 +460,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
         // if the dir still exists nothing to check
         try {
-          const result = findPagesDir(dir, !!config.experimental?.appDir)
+          const result = findPagesDir(dir, !!config?.experimental?.appDir)
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
         } catch (err) {
           // if findPagesDir throws validation error let this be
@@ -760,7 +494,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         try {
           const result = findPagesDir(
             newFiles[0],
-            !!config.experimental?.appDir
+            !!config?.experimental?.appDir
           )
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
         } catch (_) {}
@@ -769,9 +503,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           Log.info(
             `Detected project directory rename, restarting in new location`
           )
-          handleProjectDirRename(newFiles[0])
+          setupFork(newFiles[0])
           watchConfigFiles(newFiles[0])
-          dir = newFiles[0]
         } else {
           Log.error(
             `Project directory could not be found, restart Next.js in your new directory`
@@ -779,44 +512,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           process.exit(0)
         }
       })
-    } else {
-      startServer(devServerOptions)
-        .then(async (app) => {
-          const appUrl = `http://${app.hostname}:${app.port}`
-          const hostname = host || '0.0.0.0'
-          startedDevelopmentServer(
-            appUrl,
-            `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
-          )
-          // Start preflight after server is listening and ignore errors:
-          preflight().catch(() => {})
-          // Finalize server bootup:
-          await app.prepare()
-        })
-        .catch((err) => {
-          if (err.code === 'EADDRINUSE') {
-            let errorMessage = `Port ${port} is already in use.`
-            const pkgAppPath = require('next/dist/compiled/find-up').sync(
-              'package.json',
-              {
-                cwd: dir,
-              }
-            )
-            const appPackage = require(pkgAppPath)
-            if (appPackage.scripts) {
-              const nextScript = Object.entries(appPackage.scripts).find(
-                (scriptLine) => scriptLine[1] === 'next'
-              )
-              if (nextScript) {
-                errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
-              }
-            }
-            console.error(errorMessage)
-          } else {
-            console.error(err)
-          }
-          process.nextTick(() => process.exit(1))
-        })
+    } catch (err) {
+      console.error(err)
+      process.exit(1)
     }
   }
 }

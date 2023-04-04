@@ -1,5 +1,6 @@
-import { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
-import { LocaleRouteMatch } from '../route-matches/locale-route-match'
+import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
+import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
+import type { LocaleRouteMatch } from '../route-matches/locale-route-match'
 import { RouteMatcher } from './route-matcher'
 
 export type LocaleMatcherMatchOptions = {
@@ -8,18 +9,7 @@ export type LocaleMatcherMatchOptions = {
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
-  i18n?: {
-    /**
-     * The locale that was detected on the incoming route. If undefined it means
-     * that the locale should be considered to be the default one.
-     */
-    detectedLocale?: string
-
-    /**
-     * The pathname that has had it's locale information stripped from.
-     */
-    pathname: string
-  }
+  i18n?: LocaleAnalysisResult
 }
 
 export class LocaleRouteMatcher<
@@ -34,6 +24,14 @@ export class LocaleRouteMatcher<
     return `${this.definition.pathname}?__nextLocale=${this.definition.i18n?.locale}`
   }
 
+  /**
+   * Match will attempt to match the given pathname against this route while
+   * also taking into account the locale information.
+   *
+   * @param pathname The pathname to match against.
+   * @param options The options to use when matching.
+   * @returns The match result, or `null` if there was no match.
+   */
   public match(
     pathname: string,
     options?: LocaleMatcherMatchOptions
@@ -47,12 +45,23 @@ export class LocaleRouteMatcher<
       definition: this.definition,
       params: result.params,
       detectedLocale:
+        // If the options have a detected locale, then use that, otherwise use
+        // the route's locale.
         options?.i18n?.detectedLocale ?? this.definition.i18n?.locale,
     }
   }
 
+  /**
+   * Test will attempt to match the given pathname against this route while
+   * also taking into account the locale information.
+   *
+   * @param pathname The pathname to match against.
+   * @param options The options to use when matching.
+   * @returns The match result, or `null` if there was no match.
+   */
   public test(pathname: string, options?: LocaleMatcherMatchOptions) {
-    // If this route has locale information...
+    // If this route has locale information and we have detected a locale, then
+    // we need to compare the detected locale to the route's locale.
     if (this.definition.i18n && options?.i18n) {
       // If we have detected a locale and it does not match this route's locale,
       // then this isn't a match!
@@ -69,6 +78,8 @@ export class LocaleRouteMatcher<
       return super.test(options.i18n.pathname)
     }
 
+    // If we don't have locale information, then we can just perform regular
+    // matching.
     return super.test(pathname)
   }
 }

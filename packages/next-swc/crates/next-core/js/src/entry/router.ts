@@ -1,9 +1,9 @@
-import type { Ipc } from "@vercel/turbopack-next/ipc/index";
+import type { Ipc, StructuredError } from "@vercel/turbopack-next/ipc/index";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
 import { toPairs } from "@vercel/turbopack-next/internal/headers";
-import { makeResolver } from "next/dist/server/lib/route-resolver";
+import { makeResolver, RouteResult } from "next/dist/server/lib/route-resolver";
 import loadConfig from "next/dist/server/config";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
@@ -19,31 +19,21 @@ type RouterRequest = {
   rawQuery: string;
 };
 
-type RouteResult =
-  | {
-      type: "rewrite";
-      url: string;
-      headers: Record<string, string>;
-    }
-  | {
-      type: "none";
-    };
-
 type IpcOutgoingMessage = {
-  type: "jsonValue";
-  data: string;
+  type: "value";
+  data: string | Buffer;
 };
 
 type MessageData =
   | { type: "middleware-headers"; data: MiddlewareHeadersResponse }
   | { type: "middleware-body"; data: Uint8Array }
   | {
-      type: "full-middleware";
-      data: { headers: MiddlewareHeadersResponse; body: number[] };
-    }
-  | {
       type: "rewrite";
       data: RewriteResponse;
+    }
+  | {
+      type: "error";
+      error: StructuredError;
     }
   | { type: "none" };
 
@@ -136,9 +126,9 @@ export default async function route(
 }
 
 async function handleClientResponse(
-  _ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
+  ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
   clientResponse: IncomingMessage
-): Promise<MessageData> {
+): Promise<MessageData | void> {
   if (clientResponse.headers["x-nextjs-route-result"] === "1") {
     clientResponse.setEncoding("utf8");
     // We're either a redirect or a rewrite
@@ -154,15 +144,24 @@ async function handleClientResponse(
         return {
           type: "none",
         };
+      case "error":
+        return {
+          type: "error",
+          error: data.error,
+        };
       case "rewrite":
-      default:
         return {
           type: "rewrite",
           data: {
             url: data.url,
-            headers: Object.entries(data.headers),
+            headers: Object.entries(data.headers)
+              .filter(([, val]) => val != null)
+              .map(([name, value]) => [name, value!.toString()]),
           },
         };
+      default:
+        // @ts-expect-error data.type is never
+        throw new Error(`unknown route result type: ${data.type}`);
     }
   }
 
@@ -171,31 +170,21 @@ async function handleClientResponse(
     headers: toPairs(clientResponse.rawHeaders),
   };
 
-  // TODO: support streaming middleware
-  // ipc.send({
-  //   type: "jsonValue",
-  //   data: JSON.stringify({
-  //     type: "middleware-headers",
-  //     data: responseHeaders,
-  //   }),
-  // });
-  // ipc.send({
-  //   type: "jsonValue",
-  //   data: JSON.stringify({
-  //     type: "middleware-body",
-  //     data: chunk as Buffer,
-  //   }),
-  // });
+  await ipc.send({
+    type: "value",
+    data: JSON.stringify({
+      type: "middleware-headers",
+      data: responseHeaders,
+    }),
+  });
 
-  const buffers = [];
   for await (const chunk of clientResponse) {
-    buffers.push(chunk as Buffer);
+    await ipc.send({
+      type: "value",
+      data: JSON.stringify({
+        type: "middleware-body",
+        data: (chunk as Buffer).toJSON().data,
+      }),
+    });
   }
-  return {
-    type: "full-middleware",
-    data: {
-      headers: responseHeaders,
-      body: Buffer.concat(buffers).toJSON().data,
-    },
-  };
 }

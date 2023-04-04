@@ -4,13 +4,13 @@ members = [
   "crates/core",
   "crates/napi",
   "crates/wasm",
-  "crates/next-binding",
+  "crates/next-build",
   "crates/next-core",
   "crates/next-dev",
   "crates/next-dev-tests",
-  # "crates/next-font",
-  # "crates/next-transform-dynamic",
-  # "crates/next-transform-strip-page-exports",
+  "crates/next-transform-font",
+  "crates/next-transform-dynamic",
+  "crates/next-transform-strip-page-exports",
 ]
 
 [profile.dev.package.swc_css_prefixer]
@@ -25,56 +25,33 @@ lto = true
 
 [workspace.dependencies]
 # Workspace crates
-next-binding = { path = "crates/next-binding" }
-next-core = { path = "crates/next-core" }
-next-dev = { path = "crates/next-dev" }
+next-build = { path = "crates/next-build" }
+next-core = { path = "crates/next-core", default-features = false }
+next-dev = { path = "crates/next-dev", default-features = false, features = [
+  "serializable",
+] }
 next-dev-tests = { path = "crates/next-dev-tests" }
-# next-font = { path = "crates/next-font" }
-# next-transform-dynamic = { path = "crates/next-transform-dynamic" }
-# next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-exports" }
+next-transform-font = { path = "crates/next-transform-font" }
+next-transform-dynamic = { path = "crates/next-transform-dynamic" }
+next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-exports" }
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.12.2" }
-mdxjs = { version = "0.1.6" }
-modularize_imports = { version = "0.26.4" }
-styled_components = { version = "0.53.4" }
-styled_jsx = { version = "0.30.4" }
-swc_core = { version = "0.59.26" }
-swc_emotion = { version = "0.29.4" }
+mdxjs = { version = "0.1.8" }
+modularize_imports = { version = "0.26.10" }
+styled_components = { version = "0.53.10" }
+styled_jsx = { version = "0.30.10" }
+swc_core = { version = "0.69.6" }
+swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-auto-hash-map = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-swc-ast-explorer = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-malloc = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94", default-features = false }
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-build = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-env = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-fetch = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-hash = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-macros = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-macros-shared = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-tasks-testing = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbo-updater = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-cli-utils = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-core = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-create-test-app = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-css = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-dev-server = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-ecmascript = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-env = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-json = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-mdx = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-node = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-static = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-swc-utils = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-test-utils = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
-turbopack-tests = { git = "https://github.com/vercel/turbo.git", rev = "8a8038f94" }
+turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230331.3" }
+# [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230331.3" }
+# [TODO]: need to refactor embed_directory! macro usage in next-core
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230331.3" }
 
 # General Deps
 
@@ -91,6 +68,11 @@ chromiumoxide = { version = "0.4.0", features = [
 # sync with chromiumoxide's tungstenite requirement.
 tungstenite = "0.17.3"
 
+# flate2_zlib requires zlib, use flate2_rust
+allsorts = { version = "0.14.0", default_features = false, features = [
+  "outline",
+  "flate2_rust",
+] }
 anyhow = "1.0.69"
 assert_cmd = "2.0.8"
 async-compression = { version = "0.3.13", default-features = false, features = [
@@ -111,7 +93,7 @@ dialoguer = "0.10.3"
 dunce = "1.0.3"
 futures = "0.3.26"
 futures-retry = "0.6.0"
-httpmock = "0.6.7"
+httpmock = { version = "0.6.7", default-features = false }
 indexmap = "1.9.2"
 indicatif = "0.17.3"
 indoc = "2.0.0"
@@ -141,7 +123,6 @@ serde_qs = "0.11.0"
 serde_yaml = "0.9.17"
 syn = "1.0.107"
 tempfile = "3.3.0"
-test-generator = "0.3.1"
 thiserror = "1.0.38"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
@@ -150,3 +131,4 @@ tracing = "0.1.37"
 url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
+dhat = { version = "0.3.2" }

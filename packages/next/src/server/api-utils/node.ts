@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
 import {
-  checkIsManualRevalidate,
+  checkIsOnDemandRevalidate,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
   __ApiPreviewProps,
 } from '.'
@@ -34,6 +34,8 @@ import {
   RESPONSE_LIMIT_DEFAULT,
 } from './index'
 import { mockRequest } from '../lib/mock-request'
+import { getTracer } from '../lib/trace/tracer'
+import { NodeSpan } from '../lib/trace/constants'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest,
@@ -42,7 +44,7 @@ export function tryGetPreviewData(
 ): PreviewData {
   // if an On-Demand revalidation is being done preview mode
   // is disabled
-  if (options && checkIsManualRevalidate(req, options).isManualRevalidate) {
+  if (options && checkIsOnDemandRevalidate(req, options).isOnDemandRevalidate) {
     return false
   }
 
@@ -527,18 +529,33 @@ export async function apiResolver(
       res.once('pipe', () => (wasPiped = true))
     }
 
+    getTracer().getRootSpanAttributes()?.set('next.route', page)
     // Call API route method
-    await resolver(req, res)
+    const apiRouteResult = await getTracer().trace(
+      NodeSpan.runHandler,
+      {
+        spanName: `executing api route (pages) ${page}`,
+      },
+      () => resolver(req, res)
+    )
 
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !externalResolver &&
-      !isResSent(res) &&
-      !wasPiped
-    ) {
-      console.warn(
-        `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
-      )
+    if (process.env.NODE_ENV !== 'production') {
+      if (typeof apiRouteResult !== 'undefined') {
+        if (apiRouteResult instanceof Response) {
+          throw new Error(
+            'API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: "edge"` instead: https://nextjs.org/docs/api-routes/edge-api-routes'
+          )
+        }
+        console.warn(
+          `API handler should not return a value, received ${typeof apiRouteResult}.`
+        )
+      }
+
+      if (!externalResolver && !isResSent(res) && !wasPiped) {
+        console.warn(
+          `API resolved without sending a response for ${req.url}, this may result in stalled requests.`
+        )
+      }
     }
   } catch (err) {
     if (err instanceof ApiError) {

@@ -34,6 +34,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/font/README.md',
     'packages/next-env/README.md',
   ],
+  'deploy-examples': ['examples/image-component'],
   cna: ['packages/create-next-app', 'test/integration/create-next-app'],
   'next-codemod': ['packages/next-codemod'],
   'next-swc': [
@@ -94,15 +95,20 @@ async function main() {
     )
   }
   const execArgIndex = process.argv.indexOf('--exec')
+  const listChangedDirectories = process.argv.includes(
+    '--listChangedDirectories'
+  )
 
-  if (execArgIndex < 0) {
-    throw new Error('no "--exec" flag provided')
+  if (execArgIndex < 0 && !listChangedDirectories) {
+    throw new Error(
+      'Invalid: must provide either "--exec" or "--listChangedDirectories" flag'
+    )
   }
   let hasMatchingChange = false
   const changeItems = CHANGE_ITEM_GROUPS[type]
   const execArgs = process.argv.slice(execArgIndex + 1)
 
-  if (execArgs.length < 1) {
+  if (execArgs.length < 1 && !listChangedDirectories) {
     throw new Error('Missing exec arguments after "--exec"')
   }
 
@@ -114,6 +120,7 @@ async function main() {
     )
   }
   let changedFilesCount = 0
+  let changedDirectories = []
 
   // always run for canary if flag is enabled
   if (alwaysCanary && branchName === 'canary') {
@@ -130,7 +137,13 @@ async function main() {
       // if --not flag is provided we execute for any file changed
       // not included in the change items otherwise we only execute
       // if a change item is changed
-      const matchesItem = changeItems.some((item) => file.startsWith(item))
+      const matchesItem = changeItems.some((item) => {
+        const found = file.startsWith(item)
+        if (found) {
+          changedDirectories.push(item)
+        }
+        return found
+      })
 
       if (!matchesItem && isNegated) {
         hasMatchingChange = true
@@ -151,6 +164,10 @@ async function main() {
   }
 
   if (hasMatchingChange) {
+    if (listChangedDirectories) {
+      console.log(changedDirectories.join('\n'))
+      return
+    }
     const cmd = spawn(execArgs[0], execArgs.slice(1))
     cmd.stdout.pipe(process.stdout)
     cmd.stderr.pipe(process.stderr)
@@ -164,7 +181,7 @@ async function main() {
       })
       cmd.on('error', (err) => reject(err))
     })
-  } else {
+  } else if (!listChangedDirectories) {
     console.log(
       `No matching changed files for ${isNegated ? 'not ' : ''}"${type}":\n` +
         changedFilesOutput.trim()

@@ -1,24 +1,28 @@
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
-use turbo_tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc};
-use turbopack::condition::ContextCondition;
-use turbopack_core::{
-    asset::{Asset, AssetVc},
-    ident::AssetIdentVc,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{
-        self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
-        pattern::QueryMapVc, PrimaryResolveResult,
+use turbo_binding::{
+    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::{Asset, AssetVc},
+            ident::AssetIdentVc,
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            resolve::{
+                self, handle_resolve_error, node::node_cjs_resolve_options, parse::RequestVc,
+                pattern::QueryMapVc, PrimaryResolveResult,
+            },
+        },
+        ecmascript::{
+            analyzer::{JsValue, ObjectPart},
+            parse::ParseResult,
+            EcmascriptModuleAssetVc,
+        },
+        turbopack::condition::ContextCondition,
     },
 };
-use turbopack_ecmascript::{
-    analyzer::{JsValue, ObjectPart},
-    parse::ParseResult,
-    EcmascriptModuleAssetVc,
-};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, Value, ValueToString};
 
 use crate::next_config::NextConfigVc;
 

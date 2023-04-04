@@ -28,6 +28,7 @@ import type {
   Verification,
   ThemeColorDescriptor,
 } from './metadata-types'
+import type { Manifest as ManifestFile } from './manifest-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
@@ -538,7 +539,7 @@ type RobotsFile = {
   // Apply rules for all
   rules:
     | {
-        userAgent?: undefined | '*'
+        userAgent?: string | string[]
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
@@ -559,5 +560,11 @@ type SitemapFile = Array<{
   lastModified?: string | Date
 }>
 
-export type ResolvingMetadata = Promise<ResolvedMetadata>
-export { Metadata, ResolvedMetadata, RobotsFile, SitemapFile }
+type ResolvingMetadata = Promise<ResolvedMetadata>
+declare namespace MetadataRoute {
+  export type Robots = RobotsFile
+  export type Sitemap = SitemapFile
+  export type Manifest = ManifestFile
+}
+
+export { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }

@@ -29,5 +29,5 @@ rustflags = [
   "--cfg",
   "tokio_unstable",
   "-Csymbol-mangling-version=v0",
-  "-Aclippy::too_many_arguments"
+  "-Aclippy::too_many_arguments",
 ]

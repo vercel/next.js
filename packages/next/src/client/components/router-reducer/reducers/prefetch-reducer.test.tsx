@@ -1,6 +1,6 @@
 import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
-import type { FlightData } from '../../../../server/app-render'
+import type { FlightData } from '../../../../server/app-render/types'
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
@@ -32,7 +32,7 @@ jest.mock('../fetch-server-response', () => {
     },
   }
 })
-import { FlightRouterState } from '../../../../server/app-render'
+import { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -41,6 +41,7 @@ import { createInitialRouterState } from '../create-initial-router-state'
 import { PrefetchAction, ACTION_PREFETCH } from '../router-reducer-types'
 import { prefetchReducer } from './prefetch-reducer'
 import { fetchServerResponse } from '../fetch-server-response'
+import { createRecordFromThenable } from '../create-record-from-thenable'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -127,33 +128,29 @@ describe('prefetchReducer', () => {
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      tree: initialTree,
-      serverResponse,
     }
 
     const newState = await runPromiseThrowChain(() =>
       prefetchReducer(state, action)
     )
 
+    const prom = Promise.resolve(serverResponse)
+    const record = createRecordFromThenable(prom)
+    await prom
+
     const expectedState: ReturnType<typeof prefetchReducer> = {
       prefetchCache: new Map([
         [
           '/linking/about',
           {
-            canonicalUrlOverride: undefined,
-            flightData: serverResponse[0],
-            tree: [
+            data: record,
+            treeAtTimeOfPrefetch: [
               '',
               {
                 children: [
                   'linking',
                   {
-                    children: [
-                      'about',
-                      {
-                        children: ['', {}],
-                      },
-                    ],
+                    children: ['', {}],
                   },
                 ],
               },
@@ -269,8 +266,6 @@ describe('prefetchReducer', () => {
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      tree: initialTree,
-      serverResponse,
     }
 
     await runPromiseThrowChain(() => prefetchReducer(state, action))
@@ -279,25 +274,23 @@ describe('prefetchReducer', () => {
       prefetchReducer(state2, action)
     )
 
+    const prom = Promise.resolve(serverResponse)
+    const record = createRecordFromThenable(prom)
+    await prom
+
     const expectedState: ReturnType<typeof prefetchReducer> = {
       prefetchCache: new Map([
         [
           '/linking/about',
           {
-            canonicalUrlOverride: undefined,
-            flightData: serverResponse[0],
-            tree: [
+            data: record,
+            treeAtTimeOfPrefetch: [
               '',
               {
                 children: [
                   'linking',
                   {
-                    children: [
-                      'about',
-                      {
-                        children: ['', {}],
-                      },
-                    ],
+                    children: ['', {}],
                   },
                 ],
               },

@@ -2,22 +2,26 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
+use turbo_binding::{
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::{Asset, AssetContentVc, AssetVc},
+            chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc, ChunkingContextVc, ChunksVc},
+            context::{AssetContext, AssetContextVc},
+            ident::AssetIdentVc,
+            reference::AssetReferencesVc,
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            virtual_asset::VirtualAssetVc,
+        },
+        dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
+        ecmascript::{
+            utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+    },
+};
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
-use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc, ChunkingContextVc, ChunksVc},
-    context::{AssetContext, AssetContextVc},
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    virtual_asset::VirtualAssetVc,
-};
-use turbopack_dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc};
-use turbopack_ecmascript::{
-    utils::stringify_js, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
-};
 
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_route};
 
@@ -60,7 +64,7 @@ impl PageLoaderAssetVc {
         writeln!(
             result,
             "const PAGE_PATH = {};\n",
-            stringify_js(&format!("/{}", &*this.pathname.await?))
+            StringifyJs(&format_args!("/{}", &*this.pathname.await?))
         )?;
 
         let page_loader_path = next_js_file_path("entry/page-loader.ts");
@@ -89,6 +93,7 @@ impl PageLoaderAssetVc {
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
                 use_define_for_class_fields: false,
             }]),
+            Default::default(),
             this.client_context.compile_time_info(),
             InnerAssetsVc::cell(indexmap! {
                 "PAGE".to_string() => this.client_context.process(this.entry_asset, Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)))
@@ -137,9 +142,9 @@ impl Asset for PageLoaderAsset {
             .collect();
 
         let content = format!(
-            "__turbopack_load_page_chunks__({}, {})\n",
-            stringify_js(&this.pathname.await?),
-            stringify_js(&chunk_paths)
+            "__turbopack_load_page_chunks__({}, {:#})\n",
+            StringifyJs(&this.pathname.await?),
+            StringifyJs(&chunk_paths)
         );
 
         Ok(AssetContentVc::from(File::from(content)))

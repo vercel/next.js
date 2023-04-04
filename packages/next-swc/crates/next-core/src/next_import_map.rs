@@ -1,28 +1,35 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
-use turbo_tasks::Value;
-use turbo_tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc};
-use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
-use turbopack_core::{
-    asset::Asset,
-    resolve::{
-        options::{
-            ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
-            ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+use turbo_binding::{
+    turbo::tasks_fs::{glob::GlobVc, FileSystem, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::Asset,
+            resolve::{
+                options::{
+                    ConditionValue, ImportMap, ImportMapVc, ImportMapping, ImportMappingVc,
+                    ResolveOptionsVc, ResolvedMap, ResolvedMapVc,
+                },
+                parse::RequestVc,
+                pattern::Pattern,
+                resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+            },
         },
-        parse::RequestVc,
-        pattern::Pattern,
-        resolve, AliasPattern, ExportsValue, ResolveAliasMapVc,
+        node::execution_context::ExecutionContextVc,
+        turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     },
 };
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbo_tasks::Value;
 
 use crate::{
     embed_js::{next_js_fs, VIRTUAL_PACKAGE_NAME},
     next_client::context::ClientContextType,
     next_config::NextConfigVc,
-    next_font_google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
+    next_font::{
+        google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
+        local::{NextFontLocalCssModuleReplacerVc, NextFontLocalReplacerVc},
+    },
     next_server::context::ServerContextType,
 };
 
@@ -96,20 +103,16 @@ pub async fn get_next_client_import_map(
     }
 
     match ty.into_value() {
-        ClientContextType::Pages {
-            pages_dir: context_dir,
-        }
-        | ClientContextType::App {
-            app_dir: context_dir,
-        } => {
+        ClientContextType::Pages { .. }
+        | ClientContextType::App { .. }
+        | ClientContextType::Fallback => {
             for (original, alias) in NEXT_ALIASES {
                 import_map.insert_exact_alias(
                     format!("node:{original}"),
-                    request_to_import_mapping(context_dir, alias),
+                    request_to_import_mapping(project_path, alias),
                 );
             }
         }
-        ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
 
@@ -254,7 +257,7 @@ pub fn get_next_client_resolved_map(
     let glob_mappings = vec![
         // Temporary hack to replace the hot reloader until this is passable by props in next.js
         (
-            context,
+            context.root(),
             GlobVc::new("**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"),
             ImportMapping::PrimaryAlternative(
                 "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
@@ -393,6 +396,23 @@ pub async fn insert_next_shared_aliases(
             NextFontGoogleCssModuleReplacerVc::new(project_path, execution_context).into(),
         )
         .into(),
+    );
+
+    import_map.insert_alias(
+        // Request path from js via next-font swc transform
+        AliasPattern::exact("next/font/local/target.css"),
+        ImportMapping::Dynamic(NextFontLocalReplacerVc::new(project_path).into()).into(),
+    );
+
+    import_map.insert_alias(
+        // Request path from js via next-font swc transform
+        AliasPattern::exact("@next/font/local/target.css"),
+        ImportMapping::Dynamic(NextFontLocalReplacerVc::new(project_path).into()).into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
+        ImportMapping::Dynamic(NextFontLocalCssModuleReplacerVc::new(project_path).into()).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

@@ -26,6 +26,7 @@ import type {
 } from 'next/types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './node-web-streams-helper'
+import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import React from 'react'
@@ -90,6 +91,7 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
+import { PageNotFoundError } from '../shared/lib/utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -246,7 +248,7 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  serverComponentManifest?: any
+  clientReferenceManifest?: ClientReferenceManifest
   serverCSSManifest?: any
   nextFontManifest?: NextFontManifest
   distDir?: string
@@ -263,6 +265,7 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   largePageDataBytes?: number
+  isOnDemandRevalidate?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -329,7 +332,34 @@ function checkRedirectValues(
   }
 }
 
-function errorToJSON(err: Error) {
+export const deserializeErr = (serializedErr: any) => {
+  if (
+    !serializedErr ||
+    typeof serializedErr !== 'object' ||
+    !serializedErr.stack
+  ) {
+    return serializedErr
+  }
+  let ErrorType: any = Error
+
+  if (serializedErr.name === 'PageNotFoundError') {
+    ErrorType = PageNotFoundError
+  }
+
+  const err = new ErrorType(serializedErr.message)
+  err.stack = serializedErr.stack
+  err.name = serializedErr.name
+  ;(err as any).digest = serializedErr.digest
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { decorateServerError } =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+    decorateServerError(err, serializedErr.source || 'server')
+  }
+  return err
+}
+
+export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
 
@@ -345,6 +375,7 @@ function errorToJSON(err: Error) {
     source,
     message: stripAnsi(err.message),
     stack: err.stack,
+    digest: (err as any).digest,
   }
 }
 
@@ -448,7 +479,7 @@ export async function renderToHTML(
   ) {
     warn(
       `Detected getInitialProps on page '${pathname}'` +
-        ` while running "next export". It's recommended to use getStaticProps` +
+        ` while running export. It's recommended to use getStaticProps` +
         ` which has a more correct behavior for static exporting.` +
         `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
     )
@@ -565,7 +596,7 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  let isPreview
+  let isPreview: boolean | undefined = undefined
   let previewData: PreviewData
 
   if (
@@ -575,7 +606,7 @@ export async function renderToHTML(
   ) {
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
-    // invoke, where we'd have to consider server & serverless.
+    // invoke.
     previewData = tryGetPreviewData(req, res, previewProps)
     isPreview = previewData !== false
   }
@@ -760,15 +791,24 @@ export async function renderToHTML(
     let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
     try {
-      data = await getStaticProps!({
-        ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-        ...(isPreview
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
+      data = await getTracer().trace(
+        RenderSpan.getStaticProps,
+        {
+          spanName: `getStaticProps ${pathname}`,
+        },
+        () =>
+          getStaticProps!({
+            ...(pageIsDynamic
+              ? { params: query as ParsedUrlQuery }
+              : undefined),
+            ...(isPreview
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
+      )
     } catch (staticPropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -961,22 +1001,29 @@ export async function renderToHTML(
     }
 
     try {
-      data = await getTracer().trace(RenderSpan.getServerSideProps, async () =>
-        getServerSideProps({
-          req: req as IncomingMessage & {
-            cookies: NextApiRequestCookies
-          },
-          res: resOrProxy,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
+      data = await getTracer().trace(
+        RenderSpan.getServerSideProps,
+        {
+          spanName: `getServerSideProps ${pathname}`,
+        },
+        async () =>
+          getServerSideProps({
+            req: req as IncomingMessage & {
+              cookies: NextApiRequestCookies
+            },
+            res: resOrProxy,
+            query,
+            resolvedUrl: renderOpts.resolvedUrl as string,
+            ...(pageIsDynamic
+              ? { params: params as ParsedUrlQuery }
+              : undefined),
+            ...(previewData !== false
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
       )
       canAccessRes = false
     } catch (serverSidePropsError: any) {
@@ -1131,19 +1178,11 @@ export async function renderToHTML(
     if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       // In the Edge runtime, `Document.getInitialProps` isn't supported.
       // We throw an error here if it's customized.
-      if (!BuiltinFunctionalDocument) {
-        throw new Error(
-          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
-        )
-      }
-    }
-
-    if (process.env.NEXT_RUNTIME === 'edge' && Document.getInitialProps) {
       if (BuiltinFunctionalDocument) {
         Document = BuiltinFunctionalDocument
       } else {
         throw new Error(
-          '`getInitialProps` in Document component is not supported with React Server Components.'
+          '`getInitialProps` in Document component is not supported with the Edge Runtime.'
         )
       }
     }
@@ -1322,8 +1361,12 @@ export async function renderToHTML(
     }
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
+    {
+      spanName: `render route (pages) ${renderOpts.pathname}`,
+    },
     async () => renderDocument()
   )
   if (!documentResult) {

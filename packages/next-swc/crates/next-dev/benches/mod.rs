@@ -21,7 +21,7 @@ use tokio::{
     runtime::Runtime,
     time::{sleep, timeout},
 };
-use turbo_tasks::util::FormatDuration;
+use turbo_binding::turbo::tasks::util::FormatDuration;
 use util::{
     build_test, create_browser,
     env::{read_env, read_env_bool, read_env_list},

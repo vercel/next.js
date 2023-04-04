@@ -1,37 +1,42 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use turbo_binding::{
+    turbo::{tasks_env::EnvMapVc, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::Asset,
+            changed::any_content_changed,
+            chunk::ChunkingContext,
+            context::AssetContext,
+            ident::AssetIdentVc,
+            issue::IssueContextExt,
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            resolve::{
+                find_context_file,
+                options::{ImportMap, ImportMapping},
+                FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
+            },
+            source_asset::SourceAssetVc,
+        },
+        ecmascript::{
+            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+        },
+        node::{
+            evaluate::evaluate,
+            execution_context::{ExecutionContext, ExecutionContextVc},
+            transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
+        },
+        turbopack::evaluate_context::node_evaluate_asset_context,
+    },
+};
 use turbo_tasks::{
     primitives::{BoolVc, StringsVc},
     trace::TraceRawVcs,
     CompletionVc, Value,
 };
-use turbo_tasks_env::EnvMapVc;
-use turbo_tasks_fs::{json::parse_json_rope_with_source_context, FileSystemPathVc};
-use turbopack::evaluate_context::node_evaluate_asset_context;
-use turbopack_core::{
-    asset::Asset,
-    changed::any_content_changed,
-    context::AssetContext,
-    ident::AssetIdentVc,
-    issue::IssueContextExt,
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    resolve::{
-        find_context_file,
-        options::{ImportMap, ImportMapping},
-        FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
-    },
-    source_asset::SourceAssetVc,
-};
-use turbopack_ecmascript::{
-    EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
-};
-use turbopack_node::{
-    evaluate::{evaluate, JavaScriptValue},
-    execution_context::{ExecutionContext, ExecutionContextVc},
-    transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
-};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::embed_js::next_asset;
 
@@ -319,9 +324,12 @@ pub enum ImageFormat {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct RemotePattern {
-    pub protocol: Option<RemotePatternProtocal>,
     pub hostname: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<RemotePatternProtocal>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pathname: Option<String>,
 }
 
@@ -558,7 +566,7 @@ pub async fn load_next_config_internal(
 ) -> Result<NextConfigVc> {
     let ExecutionContext {
         project_path,
-        intermediate_output_path,
+        chunking_context,
         env,
     } = *execution_context.await?;
     let mut import_map = ImportMap::default();
@@ -579,6 +587,7 @@ pub async fn load_next_config_internal(
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
+            Default::default(),
             context.compile_time_info(),
         );
         any_content_changed(config_asset.into())
@@ -587,32 +596,27 @@ pub async fn load_next_config_internal(
         next_asset("entry/config/next.js"),
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
     );
+
     let config_value = evaluate(
-        project_path,
         load_next_config_asset,
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdentVc::from_path(project_path), |c| c.ident()),
         context,
-        intermediate_output_path,
+        chunking_context.with_layer("next_config"),
         None,
         vec![],
         config_changed,
         /* debug */ false,
     )
     .await?;
-    match &*config_value {
-        JavaScriptValue::Value(val) => {
-            let next_config: NextConfig = parse_json_rope_with_source_context(val)?;
-            let next_config = next_config.cell();
 
-            Ok(next_config)
-        }
-        JavaScriptValue::Error => Ok(NextConfig::default().cell()),
-        JavaScriptValue::Stream(_) => {
-            unimplemented!("Stream not supported now");
-        }
-    }
+    let turbo_binding::turbo::tasks_bytes::stream::SingleValue::Single(val) = config_value.try_into_single().await.context("Evaluation of Next.js config failed")? else {
+        return Ok(NextConfig::default().cell());
+    };
+    let next_config: NextConfig = parse_json_with_source_context(val.to_str()?)?;
+
+    Ok(next_config.cell())
 }
 
 #[turbo_tasks::function]

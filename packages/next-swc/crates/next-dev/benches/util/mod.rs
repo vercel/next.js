@@ -17,11 +17,13 @@ use parking_lot::Mutex;
 pub use prepared_app::PreparedApp;
 use regex::Regex;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::util::FormatDuration;
-use turbo_tasks_testing::retry::{retry, retry_async};
-use turbopack_create_test_app::test_app_builder::{
-    EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
+use turbo_binding::{
+    turbo::tasks_testing::retry::{retry, retry_async},
+    turbopack::create_test_app::test_app_builder::{
+        EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
+    },
 };
+use turbo_tasks::util::FormatDuration;
 
 use self::env::read_env_bool;
 use crate::bundlers::{Bundler, RenderType};

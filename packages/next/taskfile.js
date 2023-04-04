@@ -87,77 +87,17 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
-export async function ncc_next_server(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('next/dist/server/next-server'))
-    )
-    .ncc({
-      bundleName: 'next-server',
-      // minify: false,
-      externals: {
-        ...externals,
+export async function capsize_metrics() {
+  const {
+    entireMetricsCollection,
+    // eslint-disable-next-line import/no-extraneous-dependencies
+  } = require('@capsizecss/metrics/entireMetricsCollection')
+  const outputPathDist = join(
+    __dirname,
+    'dist/server/capsize-font-metrics.json'
+  )
 
-        '/(.*)route-resolver/': '$1route-resolver',
-
-        sharp: 'sharp',
-        react: 'react',
-        'react-dom': 'react-dom',
-
-        'next/dist/compiled/compression': 'next/dist/compiled/compression',
-
-        critters: 'critters',
-
-        'next/dist/compiled/jest-worker': 'next/dist/compiled/jest-worker',
-
-        'next/dist/compiled/react': 'next/dist/compiled/react',
-        '/next/dist/compiled/react(/.+)/': 'next/dist/compiled/react$1',
-        'next/dist/compiled/react-dom': 'next/dist/compiled/react-dom',
-        '/next/dist/compiled/react-dom(/.+)/': 'next/dist/compiled/react-dom$1',
-
-        // react contexts must be external
-        '/(.*)server-inserted-html/':
-          'next/dist/shared/lib/server-inserted-html.js',
-
-        '/(.+/)router-context/': 'next/dist/shared/lib/router-context.js',
-
-        '/(.*)loadable-context/': 'next/dist/shared/lib/loadable-context.js',
-
-        '/(.*)image-config-context/':
-          'next/dist/shared/lib/image-config-context.js',
-
-        '/(.*)head-manager-context/':
-          'next/dist/shared/lib/head-manager-context.js',
-
-        '/(.*)app-router-context/':
-          'next/dist/shared/lib/app-router-context.js',
-
-        '/(.*)amp-context/': 'next/dist/shared/lib/amp-context.js',
-
-        '/(.*)hooks-client-context/':
-          'next/dist/shared/lib/hooks-client-context.js',
-
-        '/(.*)html-context/': 'next/dist/shared/lib/html-context.js',
-
-        // 'next/dist/compiled/undici': 'next/dist/compiled/undici',
-        // 'next/dist/compiled/node-fetch': 'next/dist/compiled/node-fetch',
-
-        // '/(.*)google-font-metrics.json/': '$1google-font-metrics.json',
-        '/(.*)next-config-validate.js/': '$1/next-config-validate.js',
-
-        '/(.*)server/web(.*)/': '$1server/web$2',
-        './web/sandbox': './web/sandbox',
-        'next/dist/compiled/edge-runtime': 'next/dist/compiled/edge-runtime',
-        '(.*)@edge-runtime/primitives': '$1@edge-runtime/primitives',
-
-        '/(.*)compiled/webpack(/.*)/': '$1webpack$2',
-        './image-optimizer': './image-optimizer',
-        '/(.*)@ampproject/toolbox-optimizer/':
-          '$1@ampproject/toolbox-optimizer',
-      },
-    })
-    .target('dist/compiled/next-server')
+  await fs.outputJson(outputPathDist, entireMetricsCollection, { spaces: 2 })
 }
 
 // eslint-disable-next-line camelcase
@@ -198,6 +138,77 @@ export async function copy_babel_runtime(task, opts) {
     fs.mkdirSync(dirname(outputPath), { recursive: true })
     fs.writeFileSync(outputPath, contents)
   }
+}
+
+externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
+export async function copy_vercel_og(task, opts) {
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        '{LICENSE,./dist/*.+(js|ttf|wasm)}'
+      )
+    )
+    .target('src/compiled/@vercel/og')
+
+  // Types are not bundled, include satori types here
+  await task
+    .source(
+      join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Ignore yoga-wasm-web types
+      file.data = source.replace(
+        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
+        'type Yoga = any'
+      )
+    })
+    .target('src/compiled/@vercel/og/satori')
+  await task
+    .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
+    .target('src/compiled/@vercel/og/satori')
+
+  await task
+    .source(
+      join(
+        dirname(require.resolve('@vercel/og/package.json')),
+        'dist/**/*.d.ts'
+      )
+    )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Refers to copied satori types
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
+    })
+    .target('src/compiled/@vercel/og')
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/@vercel/og/package.json'),
+    JSON.stringify(
+      {
+        name: '@vercel/og',
+        LICENSE: 'MLP-2.0',
+        type: 'module',
+        main: './index.node.js',
+        exports: {
+          '.': {
+            'edge-light': './index.edge.js',
+            import: './index.node.js',
+            node: './index.node.js',
+            default: './index.node.js',
+          },
+        },
+      },
+      null,
+      2
+    )
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -259,7 +270,7 @@ export async function ncc_node_platform(task, opts) {
   const clientFile = join(__dirname, 'src/compiled/platform/platform.js')
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless/client mode
+  // be treated as commonjs
   fs.writeFileSync(
     clientFile,
     content.replace(
@@ -509,7 +520,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
   )
   const content = fs.readFileSync(clientFile, 'utf8')
   // remove AMD define branch as this forces the module to not
-  // be treated as commonjs in serverless/client mode
+  // be treated as commonjs
   fs.writeFileSync(
     clientFile,
     content.replace(
@@ -1607,7 +1618,7 @@ export async function ncc_icss_utils(task, opts) {
 }
 
 externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function ncc_react(task, opts) {
+export async function copy_vendor_react(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('scheduler')))
     .ncc({ packageName: 'scheduler', externals })
@@ -1671,20 +1682,8 @@ export async function ncc_react(task, opts) {
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
   )
-}
 
-// eslint-disable-next-line camelcase
-export async function ncc_rsc_poison_packages(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('server-only')), '*'))
-    .target('src/compiled/server-only')
-  await task
-    .source(join(dirname(require.resolve('client-only')), '*'))
-    .target('src/compiled/client-only')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_react_server_dom_webpack(task, opts) {
+  // react-server-dom-webpack
   const reactServerDomDir = dirname(
     relative(
       __dirname,
@@ -1707,6 +1706,16 @@ export async function ncc_react_server_dom_webpack(task, opts) {
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
     .target(`src/compiled/react-server-dom-webpack`)
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_rsc_poison_packages(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('server-only')), '*'))
+    .target('src/compiled/server-only')
+  await task
+    .source(join(dirname(require.resolve('client-only')), '*'))
+    .target('src/compiled/client-only')
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -2198,9 +2207,9 @@ export async function ncc(task, opts) {
       'ncc_cssnano_simple_bundle',
       'copy_regenerator_runtime',
       'copy_babel_runtime',
+      'copy_vercel_og',
       'copy_constants_browserify',
-      'ncc_react',
-      'ncc_react_server_dom_webpack',
+      'copy_vendor_react',
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
@@ -2246,7 +2255,7 @@ export async function compile(task, opts) {
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
     'ncc_next_font',
-    'ncc_next_server',
+    'capsize_metrics',
   ])
 }
 

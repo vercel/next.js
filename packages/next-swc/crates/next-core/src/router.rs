@@ -1,37 +1,48 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use futures::StreamExt;
 use indexmap::indexmap;
 use serde::Deserialize;
 use serde_json::json;
+use turbo_binding::{
+    turbo::{
+        tasks_bytes::{Bytes, Stream},
+        tasks_fs::{to_sys_path, File, FileSystemPathVc},
+    },
+    turbopack::{
+        core::{
+            asset::AssetVc,
+            changed::any_content_changed,
+            chunk::ChunkingContext,
+            context::{AssetContext, AssetContextVc},
+            environment::{EnvironmentIntention::Middleware, ServerAddrVc},
+            ident::AssetIdentVc,
+            issue::IssueVc,
+            reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+            resolve::{find_context_file, FindContextFileResult},
+            source_asset::SourceAssetVc,
+            virtual_asset::VirtualAssetVc,
+        },
+        dev::DevChunkingContextVc,
+        ecmascript::{
+            EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
+            EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
+        },
+        node::{
+            evaluate::evaluate,
+            execution_context::{ExecutionContext, ExecutionContextVc},
+            source_map::{trace_stack, StructuredError},
+        },
+        turbopack::{
+            evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc,
+        },
+    },
+};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
+    util::SharedError,
     CompletionVc, CompletionsVc, Value,
 };
-use turbo_tasks_fs::{
-    json::parse_json_rope_with_source_context, to_sys_path, File, FileSystemPathVc,
-};
-use turbopack::{evaluate_context::node_evaluate_asset_context, transition::TransitionsByNameVc};
-use turbopack_core::{
-    asset::AssetVc,
-    changed::any_content_changed,
-    chunk::dev::DevChunkingContextVc,
-    context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentIntention::Middleware, ServerAddrVc},
-    ident::AssetIdentVc,
-    issue::IssueVc,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{find_context_file, FindContextFileResult},
-    source_asset::SourceAssetVc,
-    virtual_asset::VirtualAssetVc,
-};
-use turbopack_ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc, OptionEcmascriptModuleAssetVc,
-};
-use turbopack_node::{
-    evaluate::{evaluate, JavaScriptValue},
-    execution_context::{ExecutionContext, ExecutionContextVc},
-    StructuredError,
-};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
     embed_js::{next_asset, next_js_file},
@@ -60,7 +71,11 @@ async fn middleware_files(page_extensions: StringsVc) -> Result<StringsVc> {
     let extensions = page_extensions.await?;
     let files = ["middleware.", "src/middleware."]
         .into_iter()
-        .flat_map(|f| extensions.iter().map(move |ext| String::from(f) + ext))
+        .flat_map(|f| {
+            extensions
+                .iter()
+                .map(move |ext| String::from(f) + ext.as_str())
+        })
         .collect();
     Ok(StringsVc::cell(files))
 }
@@ -93,56 +108,34 @@ pub struct MiddlewareHeadersResponse {
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
-pub struct MiddlewareBodyResponse(pub Vec<u8>);
+pub struct MiddlewareBodyResponse(Bytes);
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Default)]
-pub struct FullMiddlewareResponse {
-    pub headers: MiddlewareHeadersResponse,
-    pub body: Vec<u8>,
-}
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 enum RouterIncomingMessage {
-    Rewrite {
-        data: RewriteResponse,
-    },
-    // TODO: Implement
-    #[allow(dead_code)]
-    MiddlewareHeaders {
-        data: MiddlewareHeadersResponse,
-    },
-    // TODO: Implement
-    #[allow(dead_code)]
-    MiddlewareBody {
-        data: MiddlewareBodyResponse,
-    },
-    FullMiddleware {
-        data: FullMiddlewareResponse,
-    },
+    Rewrite { data: RewriteResponse },
+    MiddlewareHeaders { data: MiddlewareHeadersResponse },
+    MiddlewareBody { data: Vec<u8> },
     None,
-    Error(StructuredError),
+    Error { error: StructuredError },
+}
+
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Default)]
+pub struct MiddlewareResponse {
+    pub status_code: u16,
+    pub headers: Vec<(String, String)>,
+    #[turbo_tasks(trace_ignore)]
+    pub body: Stream<Result<Bytes, SharedError>>,
 }
 
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
-    FullMiddleware(FullMiddlewareResponse),
+    Middleware(MiddlewareResponse),
     None,
-    Error,
-}
-
-impl From<RouterIncomingMessage> for RouterResult {
-    fn from(value: RouterIncomingMessage) -> Self {
-        match value {
-            RouterIncomingMessage::Rewrite { data } => Self::Rewrite(data),
-            RouterIncomingMessage::FullMiddleware { data } => Self::FullMiddleware(data),
-            RouterIncomingMessage::None => Self::None,
-            _ => Self::Error,
-        }
-    }
+    Error(#[turbo_tasks(trace_ignore)] SharedError),
 }
 
 #[turbo_tasks::function]
@@ -170,6 +163,7 @@ fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModu
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
         }]),
+        Default::default(),
         context.compile_time_info(),
     )
 }
@@ -255,6 +249,7 @@ fn route_executor(context: AssetContextVc, configs: InnerAssetsVc) -> AssetVc {
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
         }]),
+        Default::default(),
         context.compile_time_info(),
         configs,
     )
@@ -269,7 +264,8 @@ fn edge_transition_map(
     next_config: NextConfigVc,
     execution_context: ExecutionContextVc,
 ) -> TransitionsByNameVc {
-    let edge_compile_time_info = get_edge_compile_time_info(server_addr, Value::new(Middleware));
+    let edge_compile_time_info =
+        get_edge_compile_time_info(project_path, server_addr, Value::new(Middleware));
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -278,6 +274,7 @@ fn edge_transition_map(
         output_path.join("edge/assets"),
         edge_compile_time_info.environment(),
     )
+    .reference_chunk_source_maps(false)
     .build();
 
     let edge_resolve_options_context = get_edge_resolve_options_context(
@@ -340,6 +337,18 @@ pub async fn route(
     .await
 }
 
+macro_rules! shared_anyhow {
+    ($msg:literal $(,)?) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($msg))
+    };
+    ($err:expr $(,)?) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($err))
+    };
+    ($fmt:expr, $($arg:tt)*) => {
+        turbo_tasks::util::SharedError::new(anyhow::anyhow!($fmt, $($arg)*))
+    };
+}
+
 #[turbo_tasks::function]
 async fn route_internal(
     execution_context: ExecutionContextVc,
@@ -350,10 +359,9 @@ async fn route_internal(
 ) -> Result<RouterResultVc> {
     let ExecutionContext {
         project_path,
-        intermediate_output_path,
+        chunking_context,
         env,
     } = *execution_context.await?;
-    let intermediate_output_path = intermediate_output_path.join("router");
 
     let context = node_evaluate_asset_context(
         project_path,
@@ -361,7 +369,7 @@ async fn route_internal(
         Some(edge_transition_map(
             server_addr,
             project_path,
-            intermediate_output_path,
+            chunking_context.output_root(),
             next_config,
             execution_context,
         )),
@@ -378,13 +386,12 @@ async fn route_internal(
         bail!("Next.js requires a disk path to check for valid routes");
     };
     let result = evaluate(
-        project_path,
         router_asset,
         project_path,
         env,
         AssetIdentVc::from_path(project_path),
         context,
-        intermediate_output_path,
+        chunking_context.with_layer("router"),
         None,
         vec![
             JsonValueVc::cell(request),
@@ -395,14 +402,85 @@ async fn route_internal(
     )
     .await?;
 
-    match &*result {
-        JavaScriptValue::Value(val) => {
-            let result: RouterIncomingMessage = parse_json_rope_with_source_context(val)?;
-            Ok(RouterResult::from(result).cell())
+    let mut read = result.read();
+
+    let first = match read.next().await {
+        Some(Ok(first)) => first,
+        Some(Err(e)) => {
+            return Ok(RouterResult::Error(SharedError::new(
+                anyhow!(e)
+                    .context("router evaluation failed: received error from javascript stream"),
+            ))
+            .cell())
         }
-        JavaScriptValue::Error => Ok(RouterResult::Error.cell()),
-        JavaScriptValue::Stream(_) => {
-            unimplemented!("Stream not supported now");
+        None => {
+            return Ok(RouterResult::Error(shared_anyhow!(
+                "router evaluation failed: no message received from javascript stream"
+            ))
+            .cell())
+        }
+    };
+    let first = first.to_str()?;
+    let first: RouterIncomingMessage = parse_json_with_source_context(first)
+        .with_context(|| format!("parsing incoming message ({})", first))?;
+
+    let (res, read) = match first {
+        RouterIncomingMessage::Rewrite { data } => (RouterResult::Rewrite(data), Some(read)),
+
+        RouterIncomingMessage::MiddlewareHeaders { data } => {
+            // The double encoding here is annoying. It'd be a lot nicer if we could embed
+            // a buffer directly into the IPC message without having to wrap it in an
+            // object.
+            let body = read.map(|data| {
+                let chunk: RouterIncomingMessage = data?
+                    .to_str()
+                    .context("error decoding string")
+                    .and_then(parse_json_with_source_context)?;
+                match chunk {
+                    RouterIncomingMessage::MiddlewareBody { data } => Ok(Bytes::from(data)),
+                    m => Err(shared_anyhow!("unexpected message type: {:#?}", m)),
+                }
+            });
+            let middleware = MiddlewareResponse {
+                status_code: data.status_code,
+                headers: data.headers,
+                body: Stream::from(body),
+            };
+
+            (RouterResult::Middleware(middleware), None)
+        }
+
+        RouterIncomingMessage::None => (RouterResult::None, Some(read)),
+
+        RouterIncomingMessage::Error { error } => (
+            RouterResult::Error(shared_anyhow!(
+                trace_stack(
+                    error,
+                    router_asset,
+                    chunking_context.output_root(),
+                    project_path
+                )
+                .await?
+            )),
+            Some(read),
+        ),
+
+        RouterIncomingMessage::MiddlewareBody { .. } => (
+            RouterResult::Error(shared_anyhow!(
+                "unexpected incoming middleware body without middleware headers"
+            )),
+            Some(read),
+        ),
+    };
+
+    // Middleware will naturally drain the full stream, but the rest only take a
+    // single item. In order to free the NodeJsOperation, we must pull another
+    // value out of the stream.
+    if let Some(mut read) = read {
+        if let Some(v) = read.next().await {
+            bail!("unexpected message type: {:#?}", v);
         }
     }
+
+    Ok(res.cell())
 }

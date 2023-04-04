@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
-use turbopack::ecmascript::{chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve};
-use turbopack_core::resolve::{origin::ResolveOriginVc, parse::RequestVc};
+use turbo_binding::turbopack::{
+    core::resolve::{origin::ResolveOriginVc, parse::RequestVc},
+    turbopack::ecmascript::{chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve},
+};
 
 /// Resolves the turbopack runtime module from the given [AssetContextVc].
 #[turbo_tasks::function]
@@ -18,7 +20,7 @@ pub async fn resolve_runtime_request(
             bail!("turbopack runtime asset is not placeable")
         }
     } else {
-        // The @vercel/turbopack-runtime module is not installed.
+        // The @vercel/turbopack-dev-runtime module is not installed.
         bail!("could not resolve the `{}` module", runtime_request_path)
     }
 }

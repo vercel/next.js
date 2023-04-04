@@ -1,27 +1,30 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::ecmascript::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
+use turbo_binding::{
+    turbo::{tasks::TryJoinIterExt, tasks_fs::FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::{Asset, AssetContentVc, AssetVc},
+            chunk::{
+                availability_info::AvailabilityInfo, Chunk, ChunkGroupReferenceVc, ChunkGroupVc,
+                ChunkItem, ChunkItemVc, ChunkListReferenceVc, ChunkVc, ChunkableAsset,
+                ChunkableAssetVc, ChunkingContextVc,
+            },
+            ident::AssetIdentVc,
+            reference::AssetReferencesVc,
+        },
+        turbopack::ecmascript::{
+            chunk::{
+                EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+                EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+                EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports,
+                EcmascriptExportsVc,
+            },
+            utils::StringifyJs,
+        },
     },
-    utils::stringify_js,
 };
-use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem,
-        ChunkItemVc, ChunkListReferenceVc, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContextVc,
-    },
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
-};
-use turbopack_ecmascript::utils::stringify_js_pretty;
-
+use turbo_tasks::{primitives::StringVc, Value};
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
     StringVc::cell("chunks".to_string())
@@ -79,7 +82,7 @@ impl EcmascriptChunkPlaceable for WithChunksAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self_vc: WithChunksAssetVc,
-        context: ChunkingContextVc,
+        context: EcmascriptChunkingContextVc,
     ) -> Result<EcmascriptChunkItemVc> {
         Ok(WithChunksChunkItem {
             context,
@@ -113,20 +116,24 @@ impl WithChunksAssetVc {
 
 #[turbo_tasks::value]
 struct WithChunksChunkItem {
-    context: ChunkingContextVc,
+    context: EcmascriptChunkingContextVc,
     inner: WithChunksAssetVc,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for WithChunksChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> ChunkingContextVc {
+    fn chunking_context(&self) -> EcmascriptChunkingContextVc {
         self.context
     }
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let inner = self.inner.await?;
+        let Some(inner_chunking_context) = EcmascriptChunkingContextVc::resolve_from(inner.chunking_context).await? else {
+            bail!("the chunking context is not an EcmascriptChunkingContextVc");
+        };
+
         let group = self.inner.chunk_group();
         let chunks = group.chunks().await?;
         let server_root = inner.server_root.await?;
@@ -144,25 +151,24 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
                 client_chunks.push(serde_json::Value::String(path.to_string()));
             }
         }
-        let module_id = stringify_js(
-            &*inner
-                .asset
-                .as_chunk_item(inner.chunking_context)
-                .id()
-                .await?,
-        );
+        let module_id = &*inner
+            .asset
+            .as_chunk_item(inner_chunking_context)
+            .id()
+            .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc! {
                 r#"
                 __turbopack_esm__({{
                     default: () => {},
-                    chunks: () => {},
+                    chunks: () => chunks,
                     chunkListPath: () => {},
                 }});
+                const chunks = {:#};
                 "#,
-                module_id,
-                stringify_js_pretty(&client_chunks),
-                stringify_js(&chunk_list_path),
+                StringifyJs(&module_id),
+                StringifyJs(&chunk_list_path),
+                StringifyJs(&client_chunks),
             }
             .into(),
             ..Default::default()

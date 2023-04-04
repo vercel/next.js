@@ -2,19 +2,22 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
+use turbo_binding::{
+    turbo::{tasks::TryJoinIterExt, tasks_fs::File},
+    turbopack::{
+        core::asset::AssetContentVc,
+        dev_server::source::{
+            ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
+            ContentSourceVc,
+        },
+        node::render::{
+            node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
+        },
+    },
+};
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     primitives::{StringVc, StringsVc},
-    TryJoinIterExt,
-};
-use turbo_tasks_fs::File;
-use turbopack_core::asset::AssetContentVc;
-use turbopack_dev_server::source::{
-    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
-    ContentSourceVc,
-};
-use turbopack_node::render::{
-    node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
 };
 
 use crate::{

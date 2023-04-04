@@ -11,6 +11,8 @@ import type {
 } from '../lib/load-custom-routes'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -54,7 +56,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { isClientReference } from './is-client-reference'
+import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { patchFetch } from '../server/lib/patch-fetch'
@@ -1189,6 +1191,7 @@ export async function buildAppStaticPaths({
     staticGenerationAsyncStorage,
     serverHooks,
   })
+
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
@@ -1215,9 +1218,7 @@ export async function buildAppStaticPaths({
     requestHeaders,
   })
 
-  const wrapper = new StaticGenerationAsyncStorageWrapper()
-
-  return wrapper.wrap(
+  return StaticGenerationAsyncStorageWrapper.wrap(
     staticGenerationAsyncStorage,
     {
       pathname: page,
@@ -1329,6 +1330,7 @@ export async function isPageStatic({
   isrFlushToDisk,
   maxMemoryCacheSize,
   incrementalCacheHandlerPath,
+  nextConfigOutput,
 }: {
   page: string
   distDir: string
@@ -1347,6 +1349,7 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   incrementalCacheHandlerPath?: string
+  nextConfigOutput: 'standalone' | 'export'
 }): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -1423,20 +1426,35 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-        const handlers = componentsResult.ComponentMod.handlers
-        const staticGenerationAsyncStorage =
-          componentsResult.ComponentMod.staticGenerationAsyncStorage
-        const serverHooks = componentsResult.ComponentMod.serverHooks
 
-        const generateParams: GenerateParams = handlers
+        // This is present on the new route modules.
+        const userland: AppRouteUserlandModule | undefined =
+          componentsResult.ComponentMod.routeModule?.userland
+
+        const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+          componentsResult.ComponentMod.staticGenerationAsyncStorage
+        if (!staticGenerationAsyncStorage) {
+          throw new Error(
+            'Invariant: staticGenerationAsyncStorage should be defined on the module'
+          )
+        }
+
+        const serverHooks = componentsResult.ComponentMod.serverHooks
+        if (!serverHooks) {
+          throw new Error(
+            'Invariant: serverHooks should be defined on the module'
+          )
+        }
+
+        const generateParams: GenerateParams = userland
           ? [
               {
                 config: {
-                  revalidate: handlers.revalidate,
-                  dynamic: handlers.dynamic,
-                  dynamicParams: handlers.dynamicParams,
+                  revalidate: userland.revalidate,
+                  dynamic: userland.dynamic,
+                  dynamicParams: userland.dynamicParams,
                 },
-                generateStaticParams: handlers.generateStaticParams,
+                generateStaticParams: userland.generateStaticParams,
                 segmentPath: page,
               },
             ]
@@ -1479,6 +1497,16 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (nextConfigOutput === 'export') {
+          if (!appConfig.dynamic || appConfig.dynamic === 'auto') {
+            appConfig.dynamic = 'error'
+          } else if (appConfig.dynamic === 'force-dynamic') {
+            throw new Error(
+              `export const dynamic = "force-dynamic" on page "${page}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+            )
+          }
+        }
 
         if (appConfig.dynamic === 'force-dynamic') {
           appConfig.revalidate = 0
@@ -1923,7 +1951,15 @@ const server = http.createServer(async (req, res) => {
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || 'localhost'
+const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
 
+if (
+  !Number.isNaN(keepAliveTimeout) &&
+    Number.isFinite(keepAliveTimeout) &&
+    keepAliveTimeout >= 0
+) {
+  server.keepAliveTimeout = keepAliveTimeout
+}
 server.listen(currentPort, (err) => {
   if (err) {
     console.error("Failed to start server", err)

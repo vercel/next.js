@@ -1,13 +1,24 @@
+import type {
+  AppRouteRouteModule,
+  AppRouteRouteHandlerContext,
+} from '../server/future/route-modules/app-route/module'
 import type { FontManifest, FontConfig } from '../server/font-utils'
-import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
-import { NextParsedUrlQuery } from '../server/request-meta'
+import type {
+  DomainLocale,
+  ExportPathMap,
+  NextConfigComplete,
+} from '../server/config-shared'
+import type { OutgoingHttpHeaders } from 'http'
 
 // `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
 if (process.env.NEXT_PREBUNDLED_REACT) {
   require('../build/webpack/require-hook').overrideBuiltInReactPackages()
 }
+
+// Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
+
 import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep, posix } from 'path'
@@ -37,10 +48,10 @@ import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { mockRequest } from '../server/lib/mock-request'
-import { RouteKind } from '../server/future/route-kind'
-import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
-import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
+import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { toNodeHeaders } from '../server/web/utils'
+import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 
 loadRequireHook()
 
@@ -58,10 +69,7 @@ interface AmpValidation {
   }
 }
 
-interface PathMap {
-  page: string
-  query?: NextParsedUrlQuery
-}
+type PathMap = ExportPathMap[keyof ExportPathMap]
 
 interface ExportPageInput {
   path: string
@@ -79,12 +87,12 @@ interface ExportPageInput {
   parentSpanId: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   serverComponents?: boolean
-  appPaths: string[]
   enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  nextConfigOutput?: NextConfigComplete['output']
 }
 
 interface ExportPageResults {
@@ -92,7 +100,7 @@ interface ExportPageResults {
   fromBuildExportRevalidate?: number | false
   fromBuildExportMeta?: {
     status?: number
-    headers?: Record<string, string>
+    headers?: OutgoingHttpHeaders
   }
   error?: boolean
   ssgNotFound?: boolean
@@ -115,7 +123,7 @@ interface RenderOpts {
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
-  incrementalCache?: import('../server/lib/incremental-cache').IncrementalCache
+  incrementalCache?: IncrementalCache
 }
 
 // expose AsyncLocalStorage on globalThis for react usage
@@ -159,6 +167,7 @@ export default async function exportPage({
     try {
       const { query: originalQuery = {} } = pathMap
       const { page } = pathMap
+      const pathname = normalizeAppPath(page)
       const isAppDir = (pathMap as any)._isAppDir
       const isDynamicError = (pathMap as any)._isDynamicError
       const filePath = normalizePagePath(path)
@@ -374,41 +383,39 @@ export default async function exportPage({
           isRedirectError(err)
 
         if (isRouteHandler) {
-          const { AppRouteRouteHandler } =
-            require('../server/future/route-handlers/app-route-route-handler') as typeof import('../server/future/route-handlers/app-route-route-handler')
-
-          const nodeReq = new NodeNextRequest(req)
-          const nodeRes = new NodeNextResponse(res)
+          const request = new NodeNextRequest(req)
 
           addRequestMeta(
-            nodeReq.originalRequest,
+            request.originalRequest,
             '__NEXT_INIT_URL',
             `http://localhost:3000${req.url}`
           )
-          const staticContext: StaticGenerationContext = {
-            nextExport: true,
-            supportsDynamicHTML: false,
-            incrementalCache: curRenderOpts.incrementalCache,
+
+          // Create the context for the handler. This contains the params from
+          // the route and the context for the request.
+          const context: AppRouteRouteHandlerContext = {
+            // Query contains the route parameters.
+            params: query,
+            staticGenerationContext: {
+              nextExport: true,
+              supportsDynamicHTML: false,
+              incrementalCache: curRenderOpts.incrementalCache,
+            },
           }
 
           try {
-            const routeHandler = new AppRouteRouteHandler()
-            const response: Response = await routeHandler.handle(
-              {
-                params: query,
-                definition: {
-                  filename: posix.join(distDir, 'server', 'app', page),
-                  bundlePath: posix.join('app', page),
-                  kind: RouteKind.APP_ROUTE,
-                  page,
-                  pathname: path,
-                },
-              },
-              nodeReq,
-              nodeRes,
-              staticContext,
-              true
-            )
+            // This is a route handler, which means it has it's handler in the
+            // bundled file already, we should just use that.
+            const filename = posix.join(distDir, 'server', 'app', page)
+
+            // Load the module for the route.
+            const module = RouteModuleLoader.load<AppRouteRouteModule>(filename)
+
+            // Call the handler with the request and context from the module.
+            const response = await module.handle(request, context)
+
+            // TODO: (wyattjoh) if cookie headers are present, should we bail?
+
             // we don't consider error status for static generation
             // except for 404
             // TODO: do we want to cache other status codes?
@@ -418,11 +425,10 @@ export default async function exportPage({
             if (isValidStatus) {
               const body = await response.blob()
               const revalidate =
-                ((staticContext as any).store as any as { revalidate?: number })
-                  .revalidate || false
+                context.staticGenerationContext.store?.revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
-              const headers = Object.fromEntries(response.headers)
+              const headers = toNodeHeaders(response.headers)
 
               if (!headers['content-type'] && body.type) {
                 headers['content-type'] = body.type
@@ -455,15 +461,16 @@ export default async function exportPage({
           }
         } else {
           const { renderToHTMLOrFlight } =
-            require('../server/app-render') as typeof import('../server/app-render')
+            require('../server/app-render/app-render') as typeof import('../server/app-render/app-render')
 
           try {
             curRenderOpts.params ||= {}
 
+            const isNotFoundPage = page === '/_not-found'
             const result = await renderToHTMLOrFlight(
               req as any,
               res as any,
-              page,
+              isNotFoundPage ? '/404' : pathname,
               query,
               curRenderOpts as any
             )
@@ -536,7 +543,6 @@ export default async function exportPage({
         return { ...results, duration: Date.now() - start }
       }
 
-      // TODO: de-dupe the logic here between serverless and server mode
       if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
         // make sure it ends with .html if the name contains a dot
         htmlFilepath += '.html'
@@ -549,7 +555,7 @@ export default async function exportPage({
       } else {
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
-         * Using this from process.env allows targeting both serverless and SSR by calling
+         * Using this from process.env allows targeting SSR by calling
          * `process.env.__NEXT_OPTIMIZE_FONTS`.
          * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
          */

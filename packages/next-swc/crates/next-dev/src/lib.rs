@@ -19,37 +19,46 @@ use anyhow::{Context, Result};
 use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use next_core::{
-    app_structure::find_app_structure, create_app_source, create_page_source,
+    app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
     create_web_entry_source, env::load_env, manifest::DevManifestContentSource,
     next_config::load_next_config, next_image::NextImageContentSourceVc,
     pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
     source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
-use turbo_malloc::TurboMalloc;
+use turbo_binding::{
+    turbo::{
+        malloc::TurboMalloc,
+        tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc},
+        tasks_memory::MemoryBackend,
+    },
+    turbopack::{
+        cli_utils::issue::{ConsoleUiVc, LogOptions},
+        core::{
+            environment::ServerAddr,
+            issue::{IssueReporterVc, IssueSeverity},
+            resolve::{parse::RequestVc, pattern::QueryMapVc},
+            server_fs::ServerFileSystemVc,
+            PROJECT_FILESYSTEM_NAME,
+        },
+        dev::DevChunkingContextVc,
+        dev_server::{
+            introspect::IntrospectionSource,
+            source::{
+                combined::CombinedContentSourceVc, router::RouterContentSource,
+                source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
+                ContentSourceVc,
+            },
+            DevServer, DevServerBuilder,
+        },
+        node::execution_context::ExecutionContextVc,
+        turbopack::evaluate_context::node_build_environment,
+    },
+};
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, Value,
+    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
-use turbo_tasks_memory::MemoryBackend;
-use turbopack_cli_utils::issue::{ConsoleUiVc, LogOptions};
-use turbopack_core::{
-    environment::ServerAddr,
-    issue::{IssueReporterVc, IssueSeverity},
-    resolve::{parse::RequestVc, pattern::QueryMapVc},
-    server_fs::ServerFileSystemVc,
-};
-use turbopack_dev_server::{
-    introspect::IntrospectionSource,
-    source::{
-        combined::CombinedContentSourceVc, router::RouterContentSource,
-        source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
-        ContentSourceVc,
-    },
-    DevServer, DevServerBuilder,
-};
-use turbopack_node::execution_context::ExecutionContextVc;
 
 #[derive(Clone)]
 pub enum EntryRequest {
@@ -238,8 +247,9 @@ impl NextDevServerBuilder {
 
 #[turbo_tasks::function]
 async fn project_fs(project_dir: &str) -> Result<FileSystemVc> {
-    let disk_fs = DiskFileSystemVc::new("project".to_string(), project_dir.to_string());
-    disk_fs.await?.start_watching()?;
+    let disk_fs =
+        DiskFileSystemVc::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
+    disk_fs.await?.start_watching_with_invalidation_reason()?;
     Ok(disk_fs.into())
 }
 
@@ -273,9 +283,18 @@ async fn source(
     let env = load_env(project_path);
     let build_output_root = output_fs.root().join(".next/build");
 
-    let execution_context = ExecutionContextVc::new(project_path, build_output_root, env);
+    let build_chunking_context = DevChunkingContextVc::builder(
+        project_path,
+        build_output_root,
+        build_output_root.join("chunks"),
+        build_output_root.join("assets"),
+        node_build_environment(),
+    )
+    .build();
 
-    let next_config = load_next_config(execution_context.join("next_config"));
+    let execution_context = ExecutionContextVc::new(project_path, build_chunking_context, env);
+
+    let next_config = load_next_config(execution_context.with_layer("next_config"));
 
     let output_root = output_fs.root().join(".next/server");
     let server_addr = ServerAddr::new(*server_addr).cell();
@@ -297,7 +316,6 @@ async fn source(
         execution_context,
         entry_requests,
         dev_server_root,
-        env,
         eager_compile,
         &browserslist_query,
         next_config,
@@ -314,9 +332,9 @@ async fn source(
         next_config,
         server_addr,
     );
-    let app_structure = find_app_structure(project_path, dev_server_root, next_config);
+    let app_dir = find_app_dir_if_enabled(project_path, next_config);
     let app_source = create_app_source(
-        app_structure,
+        app_dir,
         project_path,
         execution_context,
         output_root.join("app"),
@@ -363,7 +381,7 @@ async fn source(
         execution_context,
         next_config,
         server_addr,
-        app_structure,
+        app_dir,
         pages_structure,
     )
     .into();
@@ -470,14 +488,14 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let stats_future = async move {
         if options.log_detail {
             println!(
-                "{event_type} - initial compilation {start} ({memory})",
+                "{event_type} - startup {start} ({memory})",
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
                 memory = FormatBytes(TurboMalloc::memory_usage())
             );
         } else {
             println!(
-                "{event_type} - initial compilation {start}",
+                "{event_type} - startup {start}",
                 event_type = "event".purple(),
                 start = FormatDuration(start.elapsed()),
             );
@@ -487,37 +505,64 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         loop {
             let update_future = profile_timeout(
                 tt_clone.as_ref(),
-                tt_clone.update_info(Duration::from_millis(100), Duration::MAX),
+                tt_clone.aggregated_update_info(Duration::from_millis(100), Duration::MAX),
             );
 
-            if let Some((elapsed, count)) = update_future.await {
+            if let Some(UpdateInfo {
+                duration: elapsed,
+                tasks: count,
+                reasons,
+                ..
+            }) = update_future.await
+            {
                 progress_counter = 0;
-                if options.log_detail {
-                    println!(
-                        "\x1b[2K{event_type} - updated in {elapsed} ({tasks} tasks, {memory})",
-                        event_type = "event".purple(),
-                        elapsed = FormatDuration(elapsed),
-                        tasks = count,
-                        memory = FormatBytes(TurboMalloc::memory_usage())
-                    );
-                } else {
-                    println!(
-                        "\x1b[2K{event_type} - updated in {elapsed}",
-                        event_type = "event".purple(),
-                        elapsed = FormatDuration(elapsed),
-                    );
+                match (options.log_detail, !reasons.is_empty()) {
+                    (true, true) => {
+                        println!(
+                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks, {memory})",
+                            event_type = "event".purple(),
+                            elapsed = FormatDuration(elapsed),
+                            tasks = count,
+                            memory = FormatBytes(TurboMalloc::memory_usage())
+                        );
+                    }
+                    (true, false) => {
+                        println!(
+                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks, {memory})",
+                            event_type = "event".purple(),
+                            elapsed = FormatDuration(elapsed),
+                            tasks = count,
+                            memory = FormatBytes(TurboMalloc::memory_usage())
+                        );
+                    }
+                    (false, true) => {
+                        println!(
+                            "\x1b[2K{event_type} - {reasons} {elapsed}",
+                            event_type = "event".purple(),
+                            elapsed = FormatDuration(elapsed),
+                        );
+                    }
+                    (false, false) => {
+                        if elapsed > Duration::from_secs(1) {
+                            println!(
+                                "\x1b[2K{event_type} - compilation {elapsed}",
+                                event_type = "event".purple(),
+                                elapsed = FormatDuration(elapsed),
+                            );
+                        }
+                    }
                 }
             } else {
                 progress_counter += 1;
                 if options.log_detail {
                     print!(
-                        "\x1b[2K{event_type} - updating for {progress_counter}s... ({memory})\r",
+                        "\x1b[2K{event_type} - {progress_counter}s... ({memory})\r",
                         event_type = "event".purple(),
                         memory = FormatBytes(TurboMalloc::memory_usage())
                     );
                 } else {
                     print!(
-                        "\x1b[2K{event_type} - updating for {progress_counter}s...\r",
+                        "\x1b[2K{event_type} - {progress_counter}s...\r",
                         event_type = "event".purple(),
                     );
                 }

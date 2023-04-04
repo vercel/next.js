@@ -19,7 +19,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-3706edb81-20230308';
+var ReactVersion = '18.3.0-next-85de6fde5-20230328';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -247,7 +247,7 @@ function clonePrecomputedChunk(precomputedChunk) {
   return precomputedChunk.length > VIEW_SIZE ? precomputedChunk.slice() : precomputedChunk;
 }
 function closeWithError(destination, error) {
-  // $FlowFixMe: This is an Error object or the destination accepts other types.
+  // $FlowFixMe[incompatible-call]: This is an Error object or the destination accepts other types.
   destination.destroy(error);
 }
 
@@ -277,16 +277,16 @@ var assign = Object.assign;
  * problem. (Instead of a confusing exception thrown inside the implementation
  * of the `value` object).
  */
-// $FlowFixMe only called in DEV, so void return is not possible.
+// $FlowFixMe[incompatible-return] only called in DEV, so void return is not possible.
 function typeName(value) {
   {
     // toStringTag is needed for namespaced types like Temporal.Instant
     var hasToStringTag = typeof Symbol === 'function' && Symbol.toStringTag;
-    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe
+    var type = hasToStringTag && value[Symbol.toStringTag] || value.constructor.name || 'Object'; // $FlowFixMe[incompatible-return]
 
     return type;
   }
-} // $FlowFixMe only called in DEV, so void return is not possible.
+} // $FlowFixMe[incompatible-return] only called in DEV, so void return is not possible.
 
 
 function willCoercionThrow(value) {
@@ -361,9 +361,6 @@ var enableFloat = true;
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
-// It is handled by React separately and shouldn't be written to the DOM.
-
-var RESERVED = 0; // A simple string attribute.
 // Attributes that aren't in the filter are presumed to have this type.
 
 var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
@@ -418,35 +415,6 @@ function isAttributeNameSafe(attributeName) {
 
   return false;
 }
-function shouldRemoveAttributeWithWarning(name, value, propertyInfo, isCustomComponentTag) {
-  if (propertyInfo !== null && propertyInfo.type === RESERVED) {
-    return false;
-  }
-
-  switch (typeof value) {
-    case 'function':
-    case 'symbol':
-      // eslint-disable-line
-      return true;
-
-    case 'boolean':
-      {
-        if (isCustomComponentTag) {
-          return false;
-        }
-
-        if (propertyInfo !== null) {
-          return !propertyInfo.acceptsBooleans;
-        } else {
-          var prefix = name.toLowerCase().slice(0, 5);
-          return prefix !== 'data-' && prefix !== 'aria-';
-        }
-      }
-
-    default:
-      return false;
-  }
-}
 function getPropertyInfo(name) {
   return properties.hasOwnProperty(name) ? properties[name] : null;
 } // $FlowFixMe[missing-this-annot]
@@ -465,21 +433,7 @@ function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attribut
 // name warnings.
 
 
-var properties = {}; // These props are reserved by React. They shouldn't be written to the DOM.
-
-var reservedProps = ['children', 'dangerouslySetInnerHTML', // TODO: This prevents the assignment of defaultValue to regular
-// elements (not just inputs). Now that ReactDOMInput assigns to the
-// defaultValue property -- do we need this?
-'defaultValue', 'defaultChecked', 'innerHTML', 'suppressContentEditableWarning', 'suppressHydrationWarning', 'style'];
-
-reservedProps.forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(name, RESERVED, false, // mustUseProperty
-  name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // A few React string attributes have a different name.
+var properties = {}; // A few React string attributes have a different name.
 // This is a mapping from React prop names to the attribute names.
 
 [['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
@@ -638,7 +592,14 @@ var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer s
 properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
 false);
-['src', 'href', 'action', 'formAction'].forEach(function (attributeName) {
+var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+properties[formAction] = new PropertyInfoRecord('formAction', STRING, false, // mustUseProperty
+'formaction', // attributeName
+null, // attributeNamespace
+true, // sanitizeURL
+false);
+['src', 'href', 'action'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
   properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
   attributeName.toLowerCase(), // attributeName
@@ -1429,16 +1390,14 @@ var possibleStandardNames = {
   zoomandpan: 'zoomAndPan'
 };
 
-var validateProperty = function () {};
+var warnedProperties = {};
+var EVENT_NAME_REGEX = /^on./;
+var INVALID_EVENT_NAME_REGEX = /^on[^A-Z]/;
+var rARIA = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$') ;
+var rARIACamel = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$') ;
 
-{
-  var warnedProperties = {};
-  var EVENT_NAME_REGEX = /^on./;
-  var INVALID_EVENT_NAME_REGEX = /^on[^A-Z]/;
-  var rARIA = new RegExp('^(aria)-[' + ATTRIBUTE_NAME_CHAR + ']*$');
-  var rARIACamel = new RegExp('^(aria)[A-Z][' + ATTRIBUTE_NAME_CHAR + ']*$');
-
-  validateProperty = function (tagName, name, value, eventRegistry) {
+function validateProperty(tagName, name, value, eventRegistry) {
+  {
     if (hasOwnProperty.call(warnedProperties, name) && warnedProperties[name]) {
       return true;
     }
@@ -1521,8 +1480,7 @@ var validateProperty = function () {};
       return true;
     }
 
-    var propertyInfo = getPropertyInfo(name);
-    var isReserved = propertyInfo !== null && propertyInfo.type === RESERVED; // Known attributes should match the casing specified in the property config.
+    var propertyInfo = getPropertyInfo(name); // Known attributes should match the casing specified in the property config.
 
     if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
       var standardName = possibleStandardNames[lowerCasedName];
@@ -1533,21 +1491,10 @@ var validateProperty = function () {};
         warnedProperties[name] = true;
         return true;
       }
-    } else if (!isReserved && name !== lowerCasedName) {
+    } else if (name !== lowerCasedName) {
       // Unknown attributes should have lowercase casing since that's how they
       // will be cased anyway with server rendering.
       error('React does not recognize the `%s` prop on a DOM element. If you ' + 'intentionally want it to appear in the DOM as a custom ' + 'attribute, spell it as lowercase `%s` instead. ' + 'If you accidentally passed it from a parent component, remove ' + 'it from the DOM element.', name, lowerCasedName);
-
-      warnedProperties[name] = true;
-      return true;
-    }
-
-    if (typeof value === 'boolean' && shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
-      if (value) {
-        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
-      } else {
-        error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
-      }
 
       warnedProperties[name] = true;
       return true;
@@ -1555,14 +1502,45 @@ var validateProperty = function () {};
     // data types for reserved props
 
 
-    if (isReserved) {
+    switch (name) {
+      case 'dangerouslySetInnerHTML':
+      case 'children':
+      case 'style':
+      case 'suppressContentEditableWarning':
+      case 'suppressHydrationWarning':
+      case 'defaultValue': // Reserved
+
+      case 'defaultChecked':
+      case 'innerHTML':
+        {
+          return true;
+        }
+
+    }
+
+    if (typeof value === 'boolean') {
+      var prefix = name.toLowerCase().slice(0, 5);
+      var acceptsBooleans = propertyInfo !== null ? propertyInfo.acceptsBooleans : prefix === 'data-' || prefix === 'aria-';
+
+      if (!acceptsBooleans) {
+        if (value) {
+          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+        } else {
+          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
+        }
+      }
+
+      warnedProperties[name] = true;
       return true;
     } // Warn when a known attribute is a bad type
 
 
-    if (shouldRemoveAttributeWithWarning(name, value, propertyInfo, false)) {
-      warnedProperties[name] = true;
-      return false;
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        // eslint-disable-line
+        warnedProperties[name] = true;
+        return false;
     } // Warn when passing the strings 'false' or 'true' into a boolean prop
 
 
@@ -1574,10 +1552,10 @@ var validateProperty = function () {};
     }
 
     return true;
-  };
+  }
 }
 
-var warnUnknownProperties = function (type, props, eventRegistry) {
+function warnUnknownProperties(type, props, eventRegistry) {
   {
     var unknownProps = [];
 
@@ -1599,7 +1577,7 @@ var warnUnknownProperties = function (type, props, eventRegistry) {
       error('Invalid values for props %s on <%s> tag. Either remove them from the element, ' + 'or pass a string or number value to keep them in the DOM. ' + 'For details, see https://reactjs.org/link/attribute-behavior ', unknownPropString, type);
     }
   }
-};
+}
 
 function validateProperties(type, props, eventRegistry) {
   if (isCustomComponent(type, props)) {
@@ -1609,27 +1587,25 @@ function validateProperties(type, props, eventRegistry) {
   warnUnknownProperties(type, props, eventRegistry);
 }
 
-var warnValidStyle = function () {};
+// 'msTransform' is correct, but the other prefixes should be capitalized
+var badVendoredStyleNamePattern = /^(?:webkit|moz|o)[A-Z]/;
+var msPattern$1 = /^-ms-/;
+var hyphenPattern = /-(.)/g; // style values shouldn't contain a semicolon
 
-{
-  // 'msTransform' is correct, but the other prefixes should be capitalized
-  var badVendoredStyleNamePattern = /^(?:webkit|moz|o)[A-Z]/;
-  var msPattern$1 = /^-ms-/;
-  var hyphenPattern = /-(.)/g; // style values shouldn't contain a semicolon
+var badStyleValueWithSemicolonPattern = /;\s*$/;
+var warnedStyleNames = {};
+var warnedStyleValues = {};
+var warnedForNaNValue = false;
+var warnedForInfinityValue = false;
 
-  var badStyleValueWithSemicolonPattern = /;\s*$/;
-  var warnedStyleNames = {};
-  var warnedStyleValues = {};
-  var warnedForNaNValue = false;
-  var warnedForInfinityValue = false;
+function camelize(string) {
+  return string.replace(hyphenPattern, function (_, character) {
+    return character.toUpperCase();
+  });
+}
 
-  var camelize = function (string) {
-    return string.replace(hyphenPattern, function (_, character) {
-      return character.toUpperCase();
-    });
-  };
-
-  var warnHyphenatedStyleName = function (name) {
+function warnHyphenatedStyleName(name) {
+  {
     if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
       return;
     }
@@ -1640,9 +1616,11 @@ var warnValidStyle = function () {};
     // (http://www.andismith.com/blog/2012/02/modernizr-prefixed/), an `-ms` prefix
     // is converted to lowercase `ms`.
     camelize(name.replace(msPattern$1, 'ms-')));
-  };
+  }
+}
 
-  var warnBadVendoredStyleName = function (name) {
+function warnBadVendoredStyleName(name) {
+  {
     if (warnedStyleNames.hasOwnProperty(name) && warnedStyleNames[name]) {
       return;
     }
@@ -1650,9 +1628,11 @@ var warnValidStyle = function () {};
     warnedStyleNames[name] = true;
 
     error('Unsupported vendor-prefixed style property %s. Did you mean %s?', name, name.charAt(0).toUpperCase() + name.slice(1));
-  };
+  }
+}
 
-  var warnStyleValueWithSemicolon = function (name, value) {
+function warnStyleValueWithSemicolon(name, value) {
+  {
     if (warnedStyleValues.hasOwnProperty(value) && warnedStyleValues[value]) {
       return;
     }
@@ -1660,9 +1640,11 @@ var warnValidStyle = function () {};
     warnedStyleValues[value] = true;
 
     error("Style property values shouldn't contain a semicolon. " + 'Try "%s: %s" instead.', name, value.replace(badStyleValueWithSemicolonPattern, ''));
-  };
+  }
+}
 
-  var warnStyleValueIsNaN = function (name, value) {
+function warnStyleValueIsNaN(name, value) {
+  {
     if (warnedForNaNValue) {
       return;
     }
@@ -1670,9 +1652,11 @@ var warnValidStyle = function () {};
     warnedForNaNValue = true;
 
     error('`NaN` is an invalid value for the `%s` css style property.', name);
-  };
+  }
+}
 
-  var warnStyleValueIsInfinity = function (name, value) {
+function warnStyleValueIsInfinity(name, value) {
+  {
     if (warnedForInfinityValue) {
       return;
     }
@@ -1680,9 +1664,11 @@ var warnValidStyle = function () {};
     warnedForInfinityValue = true;
 
     error('`Infinity` is an invalid value for the `%s` css style property.', name);
-  };
+  }
+}
 
-  warnValidStyle = function (name, value) {
+function warnValidStyle(name, value) {
+  {
     if (name.indexOf('-') > -1) {
       warnHyphenatedStyleName(name);
     } else if (badVendoredStyleNamePattern.test(name)) {
@@ -1693,15 +1679,13 @@ var warnValidStyle = function () {};
 
     if (typeof value === 'number') {
       if (isNaN(value)) {
-        warnStyleValueIsNaN(name, value);
+        warnStyleValueIsNaN(name);
       } else if (!isFinite(value)) {
-        warnStyleValueIsInfinity(name, value);
+        warnStyleValueIsInfinity(name);
       }
     }
-  };
+  }
 }
-
-var warnValidStyle$1 = warnValidStyle;
 
 // code copied and modified from escape-html
 var matchHtmlRegExp = /["'&<>]/;
@@ -1845,7 +1829,7 @@ function isArray(a) {
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(t,u,y){function v(n){this.s=n}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=y[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var e=f[m++];if(a=p.get(e)){var d=a._p;c=!0}else{a=r.createElement("link");a.href=e;a.rel=\n"stylesheet";for(a.dataset.precedence=l=f[m++];d=f[m++];)a.setAttribute(d,f[m++]);d=a._p=new Promise(function(n,z){a.onload=n;a.onerror=z});d.then(v.bind(d,"l"),v.bind(d,"e"));p.set(e,a)}e=a.getAttribute("media");!d||"l"===d.s||e&&!matchMedia(e).matches||h.push(d);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};';
+var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
 
 function getValueDescriptorExpectingObjectForWarning(thing) {
@@ -2495,7 +2479,7 @@ function pushStyleAttribute(target, style) {
       valueChunk = stringToChunk(escapeTextForBrowser(('' + styleValue).trim()));
     } else {
       {
-        warnValidStyle$1(styleName, styleValue);
+        warnValidStyle(styleName, styleValue);
       }
 
       nameChunk = processStyleName(styleName);
@@ -6149,7 +6133,7 @@ function disableLogs() {
         enumerable: true,
         value: disabledLog,
         writable: true
-      }; // $FlowFixMe Flow thinks console is immutable.
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
 
       Object.defineProperties(console, {
         info: props,
@@ -6176,7 +6160,7 @@ function reenableLogs() {
         configurable: true,
         enumerable: true,
         writable: true
-      }; // $FlowFixMe Flow thinks console is immutable.
+      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
 
       Object.defineProperties(console, {
         log: assign({}, props, {
@@ -6252,7 +6236,7 @@ function describeNativeComponentFrame(fn, construct) {
 
   var control;
   reentry = true;
-  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe It does accept undefined.
+  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
   Error.prepareStackTrace = undefined;
   var previousDispatcher;
@@ -6271,7 +6255,7 @@ function describeNativeComponentFrame(fn, construct) {
       // Something should be setting the props in the constructor.
       var Fake = function () {
         throw Error();
-      }; // $FlowFixMe
+      }; // $FlowFixMe[prop-missing]
 
 
       Object.defineProperty(Fake.prototype, 'props', {
@@ -6483,7 +6467,7 @@ function setCurrentlyValidatingElement(element) {
 
 function checkPropTypes(typeSpecs, values, location, componentName, element) {
   {
-    // $FlowFixMe This is okay but Flow doesn't know it.
+    // $FlowFixMe[incompatible-use] This is okay but Flow doesn't know it.
     var has = Function.call.bind(hasOwnProperty);
 
     for (var typeSpecName in typeSpecs) {
@@ -6723,7 +6707,7 @@ function switchContext(newSnapshot) {
 
   if (prev !== next) {
     if (prev === null) {
-      // $FlowFixMe: This has to be non-null since it's not equal to prev.
+      // $FlowFixMe[incompatible-call]: This has to be non-null since it's not equal to prev.
       pushAllNext(next);
     } else if (next === null) {
       popAllPrevious(prev);
@@ -6828,11 +6812,10 @@ var didWarnAboutUninitializedState;
 var didWarnAboutGetSnapshotBeforeUpdateWithoutDidUpdate;
 var didWarnAboutLegacyLifecyclesAndDerivedState;
 var didWarnAboutUndefinedDerivedState;
-var warnOnUndefinedDerivedState;
-var warnOnInvalidCallback;
 var didWarnAboutDirectlyAssigningPropsToState;
 var didWarnAboutContextTypeAndContextTypes;
 var didWarnAboutInvalidateContextType;
+var didWarnOnInvalidCallback;
 
 {
   didWarnAboutUninitializedState = new Set();
@@ -6842,9 +6825,11 @@ var didWarnAboutInvalidateContextType;
   didWarnAboutUndefinedDerivedState = new Set();
   didWarnAboutContextTypeAndContextTypes = new Set();
   didWarnAboutInvalidateContextType = new Set();
-  var didWarnOnInvalidCallback = new Set();
+  didWarnOnInvalidCallback = new Set();
+}
 
-  warnOnInvalidCallback = function (callback, callerName) {
+function warnOnInvalidCallback(callback, callerName) {
+  {
     if (callback === null || typeof callback === 'function') {
       return;
     }
@@ -6856,9 +6841,11 @@ var didWarnAboutInvalidateContextType;
 
       error('%s(...): Expected the last optional `callback` argument to be a ' + 'function. Instead received: %s.', callerName, callback);
     }
-  };
+  }
+}
 
-  warnOnUndefinedDerivedState = function (type, partialState) {
+function warnOnUndefinedDerivedState(type, partialState) {
+  {
     if (partialState === undefined) {
       var componentName = getComponentNameFromType(type) || 'Component';
 
@@ -6868,7 +6855,7 @@ var didWarnAboutInvalidateContextType;
         error('%s.getDerivedStateFromProps(): A valid state object (or null) must be returned. ' + 'You have returned undefined.', componentName);
       }
     }
-  };
+  }
 }
 
 function warnNoop(publicInstance, callerName) {
@@ -7723,7 +7710,7 @@ function useContext(context) {
 }
 
 function basicStateReducer(state, action) {
-  // $FlowFixMe: Flow doesn't like mixed types
+  // $FlowFixMe[incompatible-use]: Flow doesn't like mixed types
   return typeof action === 'function' ? action(state) : action;
 }
 
@@ -7879,14 +7866,6 @@ function useRef(initialValue) {
   }
 }
 
-function useLayoutEffect(create, inputs) {
-  {
-    currentHookNameInDev = 'useLayoutEffect';
-
-    error('useLayoutEffect does nothing on the server, because its effect cannot ' + "be encoded into the server renderer's output format. This will lead " + 'to a mismatch between the initial, non-hydrated UI and the intended ' + 'UI. To avoid this, useLayoutEffect should only be used in ' + 'components that render exclusively on the client. ' + 'See https://reactjs.org/link/uselayouteffect-ssr for common fixes.');
-  }
-}
-
 function dispatchAction(componentIdentity, queue, action) {
   if (numberOfReRenders >= RE_RENDER_LIMIT) {
     throw new Error('Too many re-renders. React limits the number of renders to prevent ' + 'an infinite loop.');
@@ -7977,16 +7956,8 @@ function use(usable) {
     // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
-      var thenable = usable; // Track the position of the thenable within this fiber.
-
-      var index = thenableIndexCounter;
-      thenableIndexCounter += 1;
-
-      if (thenableState === null) {
-        thenableState = createThenableState();
-      }
-
-      return trackUsedThenable(thenableState, thenable, index);
+      var thenable = usable;
+      return unwrapThenable(thenable);
     } else if (usable.$$typeof === REACT_CONTEXT_TYPE || usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext(context);
@@ -7995,6 +7966,17 @@ function use(usable) {
 
 
   throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
+function unwrapThenable(thenable) {
+  var index = thenableIndexCounter;
+  thenableIndexCounter += 1;
+
+  if (thenableState === null) {
+    thenableState = createThenableState();
+  }
+
+  return trackUsedThenable(thenableState, thenable, index);
 }
 
 function unsupportedRefresh() {
@@ -8015,7 +7997,7 @@ var HooksDispatcher = {
   useRef: useRef,
   useState: useState,
   useInsertionEffect: noop$1,
-  useLayoutEffect: useLayoutEffect,
+  useLayoutEffect: noop$1,
   useCallback: useCallback,
   // useImperativeHandle is not run in the server environment
   useImperativeHandle: noop$1,
@@ -8872,8 +8854,7 @@ function validateIterable(iterable, iteratorFn) {
   {
     // We don't support rendering Generators because it's a mutation.
     // See https://github.com/facebook/react/issues/12995
-    if (typeof Symbol === 'function' && // $FlowFixMe Flow doesn't know about toStringTag
-    iterable[Symbol.toStringTag] === 'Generator') {
+    if (typeof Symbol === 'function' && iterable[Symbol.toStringTag] === 'Generator') {
       if (!didWarnAboutGenerators) {
         error('Using Generators as children is unsupported and will likely yield ' + 'unexpected results because enumerating a generator mutates it. ' + 'You may convert it to an array with `Array.from()` or the ' + '`[...spread]` operator before rendering. Keep in mind ' + 'you might need to polyfill these features for older browsers.');
       }
@@ -9000,6 +8981,27 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
         return;
       }
+    } // Usables are a valid React node type. When React encounters a Usable in
+    // a child position, it unwraps it using the same algorithm as `use`. For
+    // example, for promises, React will throw an exception to unwind the
+    // stack, then replay the component once the promise resolves.
+    //
+    // A difference from `use` is that React will keep unwrapping the value
+    // until it reaches a non-Usable type.
+    //
+    // e.g. Usable<Usable<Usable<T>>> should resolve to T
+
+
+    var maybeUsable = node;
+
+    if (typeof maybeUsable.then === 'function') {
+      var thenable = maybeUsable;
+      return renderNodeDestructiveImpl(request, task, null, unwrapThenable(thenable));
+    }
+
+    if (maybeUsable.$$typeof === REACT_CONTEXT_TYPE || maybeUsable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
+      var context = maybeUsable;
+      return renderNodeDestructiveImpl(request, task, null, readContext$1(context));
     } // $FlowFixMe[method-unbinding]
 
 

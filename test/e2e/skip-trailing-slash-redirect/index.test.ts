@@ -16,6 +16,17 @@ describe('skip-trailing-slash-redirect', () => {
   })
   afterAll(() => next.destroy())
 
+  it.each(['EN', 'JA-JP'])(
+    'should be able to redirect locale casing $1',
+    async (locale) => {
+      const res = await next.fetch(`/${locale}`, { redirect: 'manual' })
+      expect(res.status).toBe(307)
+      expect(new URL(res.headers.get('location'), 'http://n').pathname).toBe(
+        `/${locale.toLowerCase()}`
+      )
+    }
+  )
+
   it.each([
     { pathname: '/chained-rewrite-ssg' },
     { pathname: '/chained-rewrite-static' },

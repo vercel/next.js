@@ -1,5 +1,8 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context'
-import type { FlightRouterState, FlightData } from '../../../server/app-render'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../../server/app-render/types'
 import { fetchServerResponse } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -16,6 +19,7 @@ export interface Mutable {
   applyFocusAndScroll?: boolean
   pendingPush?: boolean
   cache?: CacheNode
+  prefetchCache?: AppRouterState['prefetchCache']
   hashFragment?: string
 }
 
@@ -113,8 +117,6 @@ export interface ServerPatchAction {
 export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
-  tree: FlightRouterState
-  serverResponse: Awaited<ReturnType<typeof fetchServerResponse>>
 }
 
 interface PushRef {
@@ -161,9 +163,8 @@ export type AppRouterState = {
   prefetchCache: Map<
     string,
     {
-      flightData: FlightData
-      tree: FlightRouterState
-      canonicalUrlOverride: URL | undefined
+      treeAtTimeOfPrefetch: FlightRouterState
+      data: ReturnType<typeof fetchServerResponse> | null
     }
   >
   /**

@@ -1,5 +1,5 @@
 import React from 'react'
-import { FlightRouterState } from '../../../../server/app-render'
+import type { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -95,10 +95,7 @@ describe('findHeadInCache', () => {
       ]),
     }
 
-    const result = findHeadInCache(
-      cache.parallelRoutes.get('children')!,
-      routerTree[1]
-    )
+    const result = findHeadInCache(cache, routerTree[1])
 
     expect(result).toMatchObject(
       <>

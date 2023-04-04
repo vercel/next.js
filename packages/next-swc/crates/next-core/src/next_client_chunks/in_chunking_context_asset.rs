@@ -1,18 +1,21 @@
-use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, Value};
-use turbopack::ecmascript::chunk::{
-    EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
-    EcmascriptExportsVc,
-};
-use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
-        ChunkingContextVc,
+use anyhow::{bail, Result};
+use turbo_binding::turbopack::{
+    core::{
+        asset::{Asset, AssetContentVc, AssetVc},
+        chunk::{
+            availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+            ChunkingContextVc,
+        },
+        ident::AssetIdentVc,
+        reference::AssetReferencesVc,
     },
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
+    ecmascript::chunk::EcmascriptChunkingContextVc,
+    turbopack::ecmascript::chunk::{
+        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+        EcmascriptChunkVc, EcmascriptExportsVc,
+    },
 };
+use turbo_tasks::{primitives::StringVc, Value};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -58,8 +61,14 @@ impl ChunkableAsset for InChunkingContextAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for InChunkingContextAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(&self, _context: ChunkingContextVc) -> EcmascriptChunkItemVc {
-        self.asset.as_chunk_item(self.chunking_context)
+    async fn as_chunk_item(
+        &self,
+        _context: EcmascriptChunkingContextVc,
+    ) -> Result<EcmascriptChunkItemVc> {
+        let Some(chunking_context) = EcmascriptChunkingContextVc::resolve_from(&self.chunking_context).await? else {
+            bail!("chunking context is not an EcmascriptChunkingContext")
+        };
+        Ok(self.asset.as_chunk_item(chunking_context))
     }
 
     #[turbo_tasks::function]

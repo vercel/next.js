@@ -7,13 +7,8 @@ type FileType =
   | "not-found"
   | "head";
 declare global {
-  // an array of all layouts and the page
-  const LAYOUT_INFO: ({
-    segment: string;
-    page?: { module: any; chunks: string[] };
-  } & {
-    [componentKey in FileType]?: { module: any; chunks: string[] };
-  })[];
+  // an tree of all layouts and the page
+  const LOADER_TREE: LoaderTree;
   // array of chunks for the bootstrap script
   const BOOTSTRAP: string[];
   const IPC: Ipc<unknown, unknown>;
@@ -22,19 +17,25 @@ declare global {
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
-  FlightCSSManifest,
-  FlightManifest,
+  ClientCSSReferenceManifest,
+  ClientReferenceManifest,
 } from "next/dist/build/webpack/plugins/flight-manifest-plugin";
 import type { RenderData } from "types/turbopack";
+import type { RenderOpts } from "next/dist/server/app-render/types";
 
 import "next/dist/server/node-polyfill-fetch";
 import "next/dist/server/node-polyfill-web-streams";
 import "@vercel/turbopack-next/polyfill/async-local-storage";
-import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
+import { renderToHTMLOrFlight } from "next/dist/server/app-render/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import { parse, ParsedUrlQuery } from "node:querystring";
+
+("TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }");
+// @ts-ignore
+import layoutEntry, { chunks as layoutEntryClientChunks } from "@vercel/turbopack-next/entry/app/layout-entry";
+
 
 globalThis.__next_require__ = (data) => {
   const [, , , ssr_id] = JSON.parse(data);
@@ -51,12 +52,21 @@ type IpcIncomingMessage = {
   data: RenderData;
 };
 
-type IpcOutgoingMessage = {
-  type: "response";
-  statusCode: number;
-  headers: Array<[string, string]>;
-  body: string;
-};
+type IpcOutgoingMessage =
+  | {
+      type: "headers";
+      data: {
+        status: number;
+        headers: [string, string][];
+      };
+    }
+  | {
+      type: "bodyChunk";
+      data: number[];
+    }
+  | {
+      type: "bodyEnd";
+    };
 
 const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
 
@@ -83,10 +93,21 @@ const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
     }
 
     ipc.send({
-      type: "response",
-      statusCode: 200,
-      ...result,
+      type: "headers",
+      data: {
+        status: 200,
+        headers: result.headers,
+      },
     });
+
+    for await (const chunk of result.body) {
+      ipc.send({
+        type: "bodyChunk",
+        data: (chunk as Buffer).toJSON().data,
+      });
+    }
+
+    ipc.send({ type: "bodyEnd" });
   }
 })().catch((err) => {
   ipc.sendError(err);
@@ -106,107 +127,105 @@ type LoaderTree = [
   components: ComponentsType
 ];
 
-type ServerComponentsManifest = {
-  [id: string]: ServerComponentsManifestModule;
-};
-type ServerComponentsManifestModule = {
-  [exportName: string]: { id: string; chunks: string[]; name: string };
-};
-
 async function runOperation(renderData: RenderData) {
   const layoutInfoChunks: Record<string, string[]> = {};
-  const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
-  const pageModule = pageItem.page!.module;
-  let tree: LoaderTree = [
-    "",
-    {},
-    { page: [() => pageModule.module, "page.js"] },
-  ];
-  layoutInfoChunks["page"] = pageItem.page!.chunks;
-  for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
-    const info = LAYOUT_INFO[i];
-    const components: ComponentsType = {};
-    for (const key of Object.keys(info)) {
-      if (key === "segment") {
-        continue;
-      }
-      const k = key as FileType;
-      components[k] = [() => info[k]!.module.module, `${k}${i}.js`];
-      layoutInfoChunks[`${k}${i}`] = info[k]!.chunks;
-    }
-    tree = [info.segment, { children: tree }, components];
-  }
+  let tree: LoaderTree = LOADER_TREE;
 
   const proxyMethodsForModule = (
     id: string
-  ): ProxyHandler<FlightManifest["__ssr_module_mapping__"][""]> => ({
-    get(_target, name) {
-      return {
-        id,
-        chunks: JSON.parse(id)[1],
-        name,
-      };
-    },
-  });
-  const proxyMethodsNested = (): ProxyHandler<
-    FlightManifest["__ssr_module_mapping__"]
-  > => {
+  ): ProxyHandler<ClientReferenceManifest["ssrModuleMapping"]> => {
     return {
-      get(target, name, receiver) {
-        if (name === "__ssr_module_mapping__") {
-          return manifest;
-        }
-        if (name === "__entry_css_files__") {
-          return __entry_css_files__;
-        }
-        return new Proxy({}, proxyMethodsForModule(name as string));
-      },
-    };
-  };
-  const proxyMethods = (): ProxyHandler<FlightManifest> => {
-    return {
-      get(_target, key: string) {
-        if (key === "__ssr_module_mapping__") {
-          return new Proxy({} as any, proxyMethodsNested());
-        }
-        if (key === "__entry_css_files__") {
-          return __entry_css_files__;
-        }
-
-        // The key is a `${file}#${name}`, but `file` can contain `#` itself.
-        // There are 2 possibilities:
-        //   "file#"    => id = "file", name = ""
-        //   "file#foo" => id = "file", name = "foo"
-        const pos = key.lastIndexOf("#");
-        let id = key;
-        let name = "";
-        if (pos === -1) {
-          throw new Error("key need to be in format of ${file}#${name}");
-        } else {
-          id = key.slice(0, pos);
-          name = key.slice(pos + 1);
-        }
-
+      get(_target, prop: string) {
         return {
           id,
-          name,
           chunks: JSON.parse(id)[1],
+          name: prop,
         };
       },
     };
   };
-  const manifest: FlightManifest = new Proxy({} as any, proxyMethods());
-  const serverCSSManifest: FlightCSSManifest = {};
-  const __entry_css_files__: FlightManifest["__entry_css_files__"] = {};
-  for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
-    const cssChunks = chunks.filter((path) => path.endsWith(".css"));
-    serverCSSManifest[`${key}.js`] = cssChunks.map((chunk) =>
-      JSON.stringify([chunk, [chunk]])
+
+  const proxyMethodsNested = (
+    type: "ssrModuleMapping" | "clientModules"
+  ): ProxyHandler<
+    | ClientReferenceManifest["ssrModuleMapping"]
+    | ClientReferenceManifest["clientModules"]
+  > => {
+    return {
+      get(_target, key: string) {
+        if (type === "ssrModuleMapping") {
+          return new Proxy({}, proxyMethodsForModule(key as string));
+        }
+        if (type === "clientModules") {
+          // The key is a `${file}#${name}`, but `file` can contain `#` itself.
+          // There are 2 possibilities:
+          //   "file#"    => id = "file", name = ""
+          //   "file#foo" => id = "file", name = "foo"
+          const pos = key.lastIndexOf("#");
+          let id = key;
+          let name = "";
+          if (pos !== -1) {
+            id = key.slice(0, pos);
+            name = key.slice(pos + 1);
+          } else {
+            throw new Error("key need to be in format of ${file}#${name}");
+          }
+
+          return {
+            id,
+            name,
+            chunks: JSON.parse(id)[1],
+          };
+        }
+      },
+    };
+  };
+
+  const proxyMethods = (): ProxyHandler<ClientReferenceManifest> => {
+    const clientModulesProxy = new Proxy(
+      {},
+      proxyMethodsNested("clientModules")
     );
-    __entry_css_files__[key] = cssChunks;
+    const ssrModuleMappingProxy = new Proxy(
+      {},
+      proxyMethodsNested("ssrModuleMapping")
+    );
+    return {
+      get(_target: any, prop: string) {
+        if (prop === "ssrModuleMapping") {
+          return ssrModuleMappingProxy;
+        }
+        if (prop === "clientModules") {
+          return clientModulesProxy;
+        }
+        if (prop === "cssFiles") {
+          return new Proxy({} as any, cssFilesProxyMethods);
+        }
+      },
+    };
+  };
+  const cssFilesProxyMethods = {
+    get(_target: any, prop: string) {
+      const chunks = JSON.parse(prop);
+      const cssChunks = chunks.filter((path: string) => path.endsWith(".css"));
+      return cssChunks;
+    }
+  };
+  const cssImportProxyMethods = {
+    get(_target: any, prop: string) {
+      const chunks = JSON.parse(prop.replace(/\.js$/, ""));
+
+      const cssChunks = chunks.filter((path: string) => path.endsWith(".css"));
+      return cssChunks.map((chunk: string) =>
+        JSON.stringify([chunk, [chunk]])
+      )
+    }
   }
-  serverCSSManifest.__entry_css_mods__ = {
-    page: serverCSSManifest["page.js"],
+  const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods());
+
+  const serverCSSManifest: ClientCSSReferenceManifest = {
+    cssImports: new Proxy({} as any, cssImportProxyMethods),
+    cssModules: {},
   };
   const req: IncomingMessage = {
     url: renderData.url,
@@ -238,17 +257,17 @@ async function runOperation(renderData: RenderData) {
       ampFirstPages: [],
     },
     ComponentMod: {
-      ...pageModule,
+      ...layoutEntry,
       default: undefined,
-      tree,
+      tree: LOADER_TREE,
       pages: ["page.js"],
     },
-    serverComponentManifest: manifest,
+    clientReferenceManifest: manifest,
     serverCSSManifest,
     runtime: "nodejs",
     serverComponents: true,
     assetPrefix: "",
-    pageConfig: pageModule.config,
+    pageConfig: {},
     reactLoadableManifest: {},
   };
   const result = await renderToHTMLOrFlight(
@@ -262,18 +281,11 @@ async function runOperation(renderData: RenderData) {
   if (!result || result.isNull())
     throw new Error("rendering was not successful");
 
-  let body;
+  const body = new PassThrough();
   if (result.isDynamic()) {
-    const stream = new PassThrough();
-    result.pipe(stream);
-
-    const chunks = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    body = Buffer.concat(chunks).toString();
+    result.pipe(body);
   } else {
-    body = result.toUnchunkedString();
+    body.write(result.toUnchunkedString());
   }
   return {
     headers: [

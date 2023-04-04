@@ -1,9 +1,9 @@
 import ReactDOMClient from "react-dom/client";
 import React, { use } from "react";
 import type { ReactElement } from "react";
-// @ts-expect-error
 import { version } from "next/package.json";
 import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack/client";
+import { callServer } from 'next/dist/client/app-call-server';
 
 import { HeadManagerContext } from "next/dist/shared/lib/head-manager-context";
 
@@ -109,7 +109,7 @@ function useInitialServerResponse(cacheKey: string) {
     },
   });
 
-  const newResponse = createFromReadableStream(readable);
+  const newResponse = createFromReadableStream(readable, { callServer });
 
   rscCache.set(cacheKey, newResponse);
   return newResponse;

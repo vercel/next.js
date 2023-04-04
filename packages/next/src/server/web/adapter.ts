@@ -51,11 +51,15 @@ const FLIGHT_PARAMETERS = [
   [FETCH_CACHE_HEADER],
 ] as const
 
-export async function adapter(params: {
+export type AdapterOptions = {
   handler: NextMiddleware
   page: string
   request: RequestData
-}): Promise<FetchEventResult> {
+}
+
+export async function adapter(
+  params: AdapterOptions
+): Promise<FetchEventResult> {
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
 
@@ -95,7 +99,9 @@ export async function adapter(params: {
 
   const request = new NextRequestHint({
     page: params.page,
-    input: String(requestUrl),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? params.request.url
+      : String(requestUrl),
     init: {
       body: params.request.body,
       geo: params.request.geo,
