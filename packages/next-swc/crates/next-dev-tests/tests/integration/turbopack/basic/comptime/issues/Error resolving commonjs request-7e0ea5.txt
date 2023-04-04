@@ -16,8 +16,8 @@ PlainIssue {
                 column: 5,
             },
             end: SourcePos {
-                line: 3,
-                column: 35,
+                line: 4,
+                column: 0,
             },
         },
     ),

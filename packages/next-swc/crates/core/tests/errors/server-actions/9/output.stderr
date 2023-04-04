@@ -1,7 +1,7 @@
 
-  x The "use server" directive must be at the top of the file.
-   ,-[input.js:2:1]
- 2 | 
- 3 | 'use server'
-   : ^^^^^^^^^^^^
+  x The "use server" directive must be at the top of the file, and cannot be wrapped in parentheses.
+   ,-[input.js:1:1]
+ 1 | import 'my-module'
+ 2 | ;('use server')
+   :  ^^^^^^^^^^^^^^
    `----

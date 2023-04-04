@@ -1,6 +1,6 @@
 /* __next_internal_action_entry_do_not_use__ $$ACTION_0 */ async function myAction(a, b, c) {
     // comment
-    "use strict";
+    'use strict';
     console.log('a');
 }
 myAction.$$typeof = Symbol.for("react.server.reference");
