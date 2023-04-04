@@ -1619,7 +1619,7 @@ export async function ncc_icss_utils(task, opts) {
 
 externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
 externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function copy_vendor_react(task) {
+export async function copy_vendor_react(task_) {
   function* copy_vendor_react_impl(task, opts) {
     const channel = opts.experimental ? `experimental-builtin` : `builtin`
     const packageSuffix = opts.experimental ? `-experimental` : ``
@@ -1762,10 +1762,10 @@ export async function copy_vendor_react(task) {
 
   // As taskr transpiles async functions into generators, to reuse the same logic
   // we need to directly write this iteration logic here.
-  for (const res of copy_vendor_react_impl(task, { experimental: false })) {
+  for (const res of copy_vendor_react_impl(task_, { experimental: false })) {
     await res
   }
-  for (const res of copy_vendor_react_impl(task, { experimental: true })) {
+  for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
     await res
   }
 }
