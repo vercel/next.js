@@ -1242,7 +1242,10 @@ export default async function getBaseWebpackConfig(
         ) {
           request = `react-dom${channel}/server-rendering-stub`
         } else {
-          request = `react${channel}`
+          // `react` -> `react-experimental`
+          // `react-dom` -> `react-dom-experimental`
+          // `react/jsx-runtime` -> `react-experimental/jsx-runtime`
+          request = request.replace(/^(react|react-dom)/, (m) => m + channel)
         }
         return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
