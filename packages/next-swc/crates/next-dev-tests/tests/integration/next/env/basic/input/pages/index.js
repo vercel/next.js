@@ -16,9 +16,17 @@ export default function Home() {
 }
 
 function runTests() {
-  it('test', function () {
-    const json = JSON.parse(document.body.textContent)
-    expect(json).toEqual({
+  it('should have access to ENV on server', function () {
+    const json = JSON.parse(document.body.innerText)
+    expect(json).toMatchObject({
+      NEXT_PUBLIC_ENV: '.env',
+      NEXT_PUBLIC_ENV_DEV: '.env.development',
+      NEXT_PUBLIC_ENV_LOCAL: '.env.local',
+    })
+  })
+
+  it('should expose NEXT_PUBLIC_ ENV on client', function () {
+    expect(process.env).toMatchObject({
       NEXT_PUBLIC_ENV: '.env',
       NEXT_PUBLIC_ENV_DEV: '.env.development',
       NEXT_PUBLIC_ENV_LOCAL: '.env.local',
