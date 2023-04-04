@@ -29,7 +29,7 @@ const packages = [
   {
     name: 'css.escape',
     type: 'cjs',
-    types: 'export = CSS.escape;',
+    types: 'export = CSS.escape',
   },
   {
     name: 'platform',
@@ -134,17 +134,17 @@ async function main() {
 
     await writePackageManifest(pkg.name, 'index.js')
 
-    types += `\ndeclare module "@vercel/turbopack-next/compiled/${pkg.name}" {\n`
+    types += `\ndeclare module '@vercel/turbopack-next/compiled/${pkg.name}' {\n`
     if (pkg.types) {
       types += `  ${pkg.types}\n`
     } else if (pkg.type === 'module-default') {
-      types += `  import m from "${pkg.name}";\n`
-      types += `  export default m;\n`
+      types += `  import m from '${pkg.name}'\n`
+      types += `  export default m\n`
     } else if (pkg.type === 'module') {
-      types += `  export * from "${pkg.name}";\n`
+      types += `  export * from '${pkg.name}'\n`
     } else if (pkg.type === 'cjs') {
-      types += `  import m from "${pkg.name}";\n`
-      types += `  export = m;\n`
+      types += `  import m from '${pkg.name}'\n`
+      types += `  export = m\n`
     } else {
       throw new Error(`unknown package type ${pkg.type} for ${pkg.name}`)
     }
