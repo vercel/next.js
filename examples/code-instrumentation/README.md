@@ -31,3 +31,5 @@ pnpm create next-app --example code-intrumentation code-intrumentation-app
 ```bash
 npm run dev:instrument
 ```
+
+In the current setup using the `babel-plugin-istanbul`, coverage information can be accessed via the `/api/__coverage__` endpoint. See the `src/app/api/__coverage__/route.ts` file for more information.

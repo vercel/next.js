@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 
 /*
- * This route is used to retrieve the coverage data from the application.
- * It is only available when the server is running in coverage mode.
- * The instrumentation is done by the babel-plugin-istanbul.
- * See the babel.config.js file for more details.
+ * This path enables the extraction of coverage information from the
+ * application and is accessible exclusively when the server operates
+ * in coverage mode. The babel-plugin-istanbul carries out the instrumentation.
+ * For further information, refer to the babel.config.js file.
  * */
 export async function GET() {
   if ('__coverage__' in global) {
