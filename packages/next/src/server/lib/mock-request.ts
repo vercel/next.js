@@ -8,6 +8,7 @@ import type {
 import type { Socket } from 'net'
 
 import Stream from 'stream'
+import { TLSSocket } from 'tls'
 import { toNodeHeaders } from '../web/utils'
 
 interface MockRequestResult {
@@ -20,27 +21,34 @@ interface MockRequestResult {
 class MockedRequest extends Stream.Writable implements IncomingMessage {
   public readonly statusCode?: number | undefined
   public readonly statusMessage?: string | undefined
+  public connection: Socket = new Proxy<TLSSocket>({} as TLSSocket, {
+    get: (_target, prop) => {
+      if (prop !== 'encrypted') {
+        throw new Error('Method not implemented')
+      }
+
+      // For this mock request, always ensure we just respond with the encrypted
+      // set to false to ensure there's no odd leakages.
+      return false
+    },
+  })
 
   constructor(
     public url: string,
     public readonly headers: IncomingHttpHeaders,
     public readonly method: string,
-    public readonly _connection: Socket | null = null
+    connection: Socket | null = null
   ) {
     super()
+
+    if (connection) {
+      this.connection = connection
+    }
   }
 
   public _read(): void {
     this.emit('end')
     this.emit('close')
-  }
-
-  public get connection(): Socket {
-    if (!this._connection) {
-      throw new Error('No connection available')
-    }
-
-    return this._connection
   }
 
   public get socket(): Socket {
