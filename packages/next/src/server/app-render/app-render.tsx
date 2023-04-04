@@ -1304,6 +1304,9 @@ export async function renderToHTMLOrFlight(
       AppRenderSpan.getBodyResult,
       {
         spanName: `render route (app) ${pathname}`,
+        attributes: {
+          'next.route': pathname,
+        },
       },
       async ({
         asNotFound,
