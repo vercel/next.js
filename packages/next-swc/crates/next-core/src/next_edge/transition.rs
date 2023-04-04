@@ -11,6 +11,7 @@ use turbo_binding::{
             chunk::ChunkingContextVc,
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
+            issue::{IssueSeverity, OptionIssueSourceVc},
             reference_type::EcmaScriptModulesReferenceSubType,
             resolve::parse::RequestVc,
             virtual_asset::VirtualAssetVc,
@@ -125,6 +126,8 @@ impl Transition for NextEdgeTransition {
                 route_module_kind
             )),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            OptionIssueSourceVc::none(),
+            IssueSeverity::Error.cell(),
         );
         let route_module_asset = match &*resolved_route_module_asset.first_asset().await? {
             Some(a) => *a,
