@@ -136,7 +136,14 @@ export class NextServer {
     } else {
       ServerImplementation = await getServerImpl()
     }
-    return new ServerImplementation(options)
+    const server = new ServerImplementation(options)
+
+    if (options.dev) {
+      // Try preparing the dev server as early as possible
+      await server.prepare()
+    }
+
+    return server
   }
 
   private async loadConfig() {
