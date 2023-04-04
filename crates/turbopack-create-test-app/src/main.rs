@@ -30,6 +30,10 @@ struct Args {
     /// Generate a package.json with required dependencies
     #[clap(long)]
     package_json: bool,
+
+    /// How to communicate changes to the consumer (none | hook | component)
+    #[clap(long)]
+    effect_mode: EffectMode,
 }
 
 fn main() -> Result<()> {
@@ -48,7 +52,7 @@ fn main() -> Result<()> {
             } else {
                 None
             },
-            effect_mode: EffectMode::Hook
+            effect_mode: args.effect_mode,
         }
         .build()?
         .path()

@@ -3,9 +3,10 @@ use std::{
     fs::{create_dir_all, File},
     io::prelude::*,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use indoc::{formatdoc, indoc};
 use serde_json::json;
 use tempfile::TempDir;
@@ -40,14 +41,30 @@ fn write_file<P: AsRef<Path>>(name: &str, path: P, content: &[u8]) -> Result<()>
 }
 
 /// How to run effects in components.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum EffectMode {
+    /// No effects at all.
+    #[default]
+    None,
     /// As a direct `useEffect` hook in the component's body.
     Hook,
     /// Rendering an <Effect /> client-side component that has the `useEffect`
     /// hook instead. Good for testing React Server Components, as they can't
     /// use `useEffect` hooks directly.
     Component,
+}
+
+impl FromStr for EffectMode {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "none" => Ok(EffectMode::None),
+            "hook" => Ok(EffectMode::Hook),
+            "component" => Ok(EffectMode::Component),
+            _ => Err(anyhow!("unknown effect mode: {}", s)),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -121,6 +138,7 @@ impl TestAppBuilder {
         let mut is_root = true;
 
         let (additional_body, additional_elements) = match self.effect_mode {
+            EffectMode::None => ("", ""),
             EffectMode::Component => ("", EFFECT_ELEMENT),
             EffectMode::Hook => (USE_EFFECT, ""),
         };
@@ -129,7 +147,7 @@ impl TestAppBuilder {
             modules.push((file.clone(), depth));
 
             let setup_imports = match self.effect_mode {
-                EffectMode::Hook => SETUP_IMPORTS.to_string(),
+                EffectMode::Hook | EffectMode::None => SETUP_IMPORTS.to_string(),
                 EffectMode::Component => {
                     let relative_effect = if src == file.parent().unwrap() {
                         "./effect.jsx".to_string()
