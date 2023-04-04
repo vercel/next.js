@@ -18,9 +18,17 @@ interface MockRequestResult {
   streamPromise: Promise<boolean>
 }
 
-class MockedRequest extends Stream.Writable implements IncomingMessage {
+class MockedRequest extends Stream.Readable implements IncomingMessage {
   public readonly statusCode?: number | undefined
   public readonly statusMessage?: string | undefined
+
+  // This is hardcoded for now, but can be updated to be configurable if needed.
+  public readonly httpVersion = '1.0'
+  public readonly httpVersionMajor = 1
+  public readonly httpVersionMinor = 0
+
+  // If we don't actually have a connection, we'll just use a mock one that
+  // always returns false for the `encrypted` property.
   public connection: Socket = new Proxy<TLSSocket>({} as TLSSocket, {
     get: (_target, prop) => {
       if (prop !== 'encrypted') {
@@ -51,23 +59,15 @@ class MockedRequest extends Stream.Writable implements IncomingMessage {
     this.emit('close')
   }
 
+  // The socket is just an alias for the connection.
   public get socket(): Socket {
     return this.connection
   }
 
+  // The following methods are not implemented as they are not used in the
+  // Next.js codebase.
+
   public get aborted(): boolean {
-    throw new Error('Method not implemented')
-  }
-
-  public get httpVersion(): string {
-    throw new Error('Method not implemented')
-  }
-
-  public get httpVersionMajor(): number {
-    throw new Error('Method not implemented')
-  }
-
-  public get httpVersionMinor(): number {
     throw new Error('Method not implemented')
   }
 
@@ -83,79 +83,11 @@ class MockedRequest extends Stream.Writable implements IncomingMessage {
     throw new Error('Method not implemented')
   }
 
-  public get readable(): boolean {
-    throw new Error('Method not implemented')
-  }
-
-  public get readableEncoding(): BufferEncoding | null {
-    throw new Error('Method not implemented')
-  }
-
-  public get readableEnded(): boolean {
-    throw new Error('Method not implemented')
-  }
-
-  public get readableFlowing(): boolean | null {
-    throw new Error('Method not implemented')
-  }
-
-  public get readableHighWaterMark(): number {
-    throw new Error('Method not implemented')
-  }
-
-  public get readableLength(): number {
-    throw new Error('Method not implemented')
-  }
-
-  public get readableObjectMode(): boolean {
-    throw new Error('Method not implemented')
-  }
-
   public get rawHeaders(): string[] {
     throw new Error('Method not implemented.')
   }
 
-  public read() {
-    throw new Error('Method not implemented.')
-  }
-
-  public setEncoding(): this {
-    throw new Error('Method not implemented.')
-  }
-
-  public pause(): this {
-    throw new Error('Method not implemented.')
-  }
-
-  public resume(): this {
-    throw new Error('Method not implemented.')
-  }
-
-  public isPaused(): boolean {
-    throw new Error('Method not implemented.')
-  }
-
-  public unpipe(): this {
-    throw new Error('Method not implemented.')
-  }
-
-  public unshift(): void {
-    throw new Error('Method not implemented.')
-  }
-
-  public wrap(): this {
-    throw new Error('Method not implemented.')
-  }
-
-  public push(): boolean {
-    throw new Error('Method not implemented.')
-  }
-
   public setTimeout(): this {
-    throw new Error('Method not implemented.')
-  }
-
-  public [Symbol.asyncIterator](): AsyncIterableIterator<any> {
     throw new Error('Method not implemented.')
   }
 }
@@ -163,11 +95,11 @@ class MockedRequest extends Stream.Writable implements IncomingMessage {
 class MockedResponse extends Stream.Writable implements ServerResponse {
   public statusCode: number = 200
   public statusMessage: string = ''
-  public finished = false
+  public readonly finished = false
+  public readonly headersSent = false
 
   public readonly stream: Promise<boolean>
   public readonly buffers: Buffer[] = []
-
   private readonly headers = new Headers()
 
   constructor(public readonly connection: Socket | null = null) {
@@ -212,8 +144,6 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
     callback()
   }
 
-  private hasHeadersBeenSent = false
-
   public writeHead(
     statusCode: number,
     reasonPhrase?: string | undefined,
@@ -228,8 +158,6 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
     reasonPhrase?: unknown,
     headers?: unknown
   ): this {
-    this.hasHeadersBeenSent = true
-
     if (!headers && reasonPhrase) {
       headers = reasonPhrase
     }
@@ -293,13 +221,12 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
     this.headers.delete(name)
   }
 
-  public get headersSent(): boolean {
-    return this.hasHeadersBeenSent
-  }
-
   public get socket(): Socket | null {
     return this.connection
   }
+
+  // The following methods are not implemented as they are not used in the
+  // Next.js codebase.
 
   public assignSocket() {
     throw new Error('Method not implemented.')
