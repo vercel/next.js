@@ -327,8 +327,8 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
-  public async prepare() {
-    await super.prepare()
+  protected async prepareImpl() {
+    await super.prepareImpl()
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook
@@ -1639,6 +1639,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   public getRequestHandler(): NodeRequestHandler {
+    // This is just optimization to fire prepare as soon as possible
+    // It will be properly awaited later
+    void this.prepare()
     const handler = super.getRequestHandler()
     return async (req, res, parsedUrl) => {
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)

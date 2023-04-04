@@ -873,7 +873,7 @@ export default class DevServer extends Server {
     }
   }
 
-  async prepare(): Promise<void> {
+  protected async prepareImpl(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
@@ -907,7 +907,7 @@ export default class DevServer extends Server {
         telemetry,
       })
     }
-    await super.prepare()
+    await super.prepareImpl()
     await this.addExportPathMapRoutes()
     await this.hotReloader?.start()
     await this.startWatcher()
