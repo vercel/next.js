@@ -783,25 +783,23 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, '_nextDidRewrite', true)
           }
 
+          for (const key of Object.keys(parsedUrl.query)) {
+            const value = parsedUrl.query[key]
+
+            if (key.startsWith(NEXT_QUERY_PARAM_PREFIX)) {
+              parsedUrl.query[key.substring(NEXT_QUERY_PARAM_PREFIX.length)] =
+                value
+              delete parsedUrl.query[key]
+            }
+          }
+
           // interpolate dynamic params and normalize URL if needed
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            const queryRouteParams: Record<string, string | string[]> = {}
-
-            for (const key of Object.keys(parsedUrl.query)) {
-              const value = parsedUrl.query[key]
-
-              if (key.startsWith(NEXT_QUERY_PARAM_PREFIX) && value) {
-                queryRouteParams[
-                  key.substring(NEXT_QUERY_PARAM_PREFIX.length)
-                ] = value
-                delete parsedUrl.query[key]
-              }
-            }
-
-            let paramsResult =
-              utils.normalizeDynamicRouteParams(queryRouteParams)
+            let paramsResult = utils.normalizeDynamicRouteParams(
+              parsedUrl.query
+            )
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not

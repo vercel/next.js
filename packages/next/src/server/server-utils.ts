@@ -23,6 +23,7 @@ import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
 import { addRequestMeta } from './request-meta'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscPath } from '../shared/lib/router/utils/app-paths'
+import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest | IncomingMessage,
@@ -37,8 +38,13 @@ export function normalizeVercelUrl(
     const _parsedUrl = parseUrl(req.url!, true)
     delete (_parsedUrl as any).search
 
-    for (const param of paramKeys || Object.keys(defaultRouteRegex.groups)) {
-      delete _parsedUrl.query[param]
+    for (const key of Object.keys(_parsedUrl.query)) {
+      if (
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX) ||
+        (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
+      ) {
+        delete _parsedUrl.query[key]
+      }
     }
     req.url = formatUrl(_parsedUrl)
   }
