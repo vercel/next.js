@@ -1,6 +1,6 @@
 # Example with Server Side Rendered portals
 
-An example of Server Side Rendered React [Portals](https://reactjs.org/docs/portals.html) with [`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal) and Next.js.
+An example of Server Side Rendered React [Portals](https://react.dev/reference/react-dom/createPortal) with [`@jesstelford/react-portal-universal`](https://www.npmjs.com/package/@jesstelford/react-portal-universal) and Next.js.
 
 ## Deploy your own
 
