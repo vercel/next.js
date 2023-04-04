@@ -496,6 +496,26 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
+
+        it('should not break HMR when CSS is imported in a server component', async () => {
+          const filePath = 'app/hmr/page.js'
+          const origContent = await next.readFile(filePath)
+
+          const browser = await next.browser('/hmr')
+          await browser.eval(`window.__v = 1`)
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello!', 'hmr!')
+            )
+            await check(() => browser.elementByCss('body').text(), 'hmr!')
+
+            // Make sure it doesn't reload the page
+            expect(await browser.eval(`window.__v`)).toBe(1)
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
       }
     })
 
