@@ -49,7 +49,7 @@ const expectedManifestRoutes = () => [
     ),
     page: '/blog/[post]',
     routeKeys: {
-      post: 'post',
+      nextPrivpost: 'nextPrivpost',
     },
   },
   {
@@ -63,8 +63,8 @@ const expectedManifestRoutes = () => [
     ),
     page: '/blog/[post]/[comment]',
     routeKeys: {
-      post: 'post',
-      comment: 'comment',
+      nextPrivpost: 'nextPrivpost',
+      nextPrivcomment: 'nextPrivcomment',
     },
   },
   {
@@ -76,7 +76,7 @@ const expectedManifestRoutes = () => [
     ),
     page: '/catchall/[...path]',
     routeKeys: {
-      path: 'path',
+      nextPrivpath: 'nextPrivpath',
     },
   },
   {
@@ -130,7 +130,7 @@ const expectedManifestRoutes = () => [
     )}/not\\-found/(?<slug>[^/]+?)\\.json$`,
     page: '/not-found/[slug]',
     routeKeys: {
-      slug: 'slug',
+      nextPrivslug: 'nextPrivslug',
     },
   },
   {
@@ -190,7 +190,7 @@ const expectedManifestRoutes = () => [
     ),
     page: '/user/[user]/profile',
     routeKeys: {
-      user: 'user',
+      nextPrivuser: 'nextPrivuser',
     },
   },
 ]

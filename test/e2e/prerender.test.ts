@@ -1319,7 +1319,7 @@ describe('Prerender', () => {
               )}/api\\-docs/(?<slug>.+?)\\.json$`,
               page: '/api-docs/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nextPrivslug: 'nextPrivslug',
               },
             },
             {
@@ -1348,7 +1348,7 @@ describe('Prerender', () => {
                 next.buildId
               )}/blocking\\-fallback/(?<slug>[^/]+?)\\.json$`,
               page: '/blocking-fallback/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nextPrivslug: 'nextPrivslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1360,7 +1360,7 @@ describe('Prerender', () => {
                 next.buildId
               )}/blocking\\-fallback\\-once/(?<slug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-once/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nextPrivslug: 'nextPrivslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1372,7 +1372,7 @@ describe('Prerender', () => {
                 next.buildId
               )}/blocking\\-fallback\\-some/(?<slug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-some/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nextPrivslug: 'nextPrivslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1391,7 +1391,7 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]',
               routeKeys: {
-                post: 'post',
+                nextPrivpost: 'nextPrivpost',
               },
             },
             {
@@ -1405,8 +1405,8 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]/[comment]',
               routeKeys: {
-                post: 'post',
-                comment: 'comment',
+                nextPrivpost: 'nextPrivpost',
+                nextPrivcomment: 'nextPrivcomment',
               },
             },
             {
@@ -1420,7 +1420,7 @@ describe('Prerender', () => {
               ),
               page: '/catchall/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nextPrivslug: 'nextPrivslug',
               },
             },
             {
@@ -1434,7 +1434,7 @@ describe('Prerender', () => {
               ),
               page: '/catchall-explicit/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nextPrivslug: 'nextPrivslug',
               },
             },
             {
@@ -1448,7 +1448,7 @@ describe('Prerender', () => {
               ),
               page: '/catchall-optional/[[...slug]]',
               routeKeys: {
-                slug: 'slug',
+                nextPrivslug: 'nextPrivslug',
               },
             },
             {
@@ -1470,7 +1470,7 @@ describe('Prerender', () => {
               )}/dynamic/(?<slug>[^/]+?)\\.json$`,
               page: '/dynamic/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nextPrivslug: 'nextPrivslug',
               },
             },
             {
@@ -1484,7 +1484,7 @@ describe('Prerender', () => {
               )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
               page: '/fallback-only/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nextPrivslug: 'nextPrivslug',
               },
             },
             // TODO: investigate index/index
@@ -1507,7 +1507,7 @@ describe('Prerender', () => {
               ),
               page: '/lang/[lang]/about',
               routeKeys: {
-                lang: 'lang',
+                nextPrivlang: 'nextPrivlang',
               },
             },
             {
@@ -1533,7 +1533,7 @@ describe('Prerender', () => {
               ),
               page: '/non-json/[p]',
               routeKeys: {
-                p: 'p',
+                nextPrivp: 'nextPrivp',
               },
             },
             {
@@ -1547,7 +1547,7 @@ describe('Prerender', () => {
               ),
               page: '/non-json-blocking/[p]',
               routeKeys: {
-                p: 'p',
+                nextPrivp: 'nextPrivp',
               },
             },
             {
@@ -1583,7 +1583,7 @@ describe('Prerender', () => {
               ),
               page: '/user/[user]/profile',
               routeKeys: {
-                user: 'user',
+                nextPrivuser: 'nextPrivuser',
               },
             },
           ])

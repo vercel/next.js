@@ -1547,7 +1547,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
           {
@@ -1559,7 +1559,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             )}/overridden/(?<slug>[^/]+?)\\.json$`,
             page: '/overridden/[slug]',
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
         ],
@@ -2468,7 +2468,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/_sport/[slug]',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
           {
@@ -2476,7 +2476,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/_sport/[slug]/test',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
           {
@@ -2484,7 +2484,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              id: 'id',
+              nextPrivid: 'nextPrivid',
             },
           },
           {
@@ -2492,7 +2492,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
           {
@@ -2500,7 +2500,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/auto-export/[slug]',
             regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
           {
@@ -2508,7 +2508,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              post: 'post',
+              nextPrivpost: 'nextPrivpost',
             },
           },
           {
@@ -2516,7 +2516,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
           {
@@ -2524,7 +2524,7 @@ const runTests = (isDev = false, isTurbo = false) => {
             page: '/overridden/[slug]',
             regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
-              slug: 'slug',
+              nextPrivslug: 'nextPrivslug',
             },
           },
         ],

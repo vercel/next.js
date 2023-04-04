@@ -143,7 +143,7 @@ describe('edge-render-getserversideprops', () => {
           )}/(?<id>[^/]+?)\\.json$`,
           page: '/[id]',
           routeKeys: {
-            id: 'id',
+            nextPrivid: 'nextPrivid',
           },
         },
       ])

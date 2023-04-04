@@ -1,3 +1,4 @@
+import { NEXT_QUERY_PARAM_PREFIX } from '../../../../lib/constants'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 
@@ -88,7 +89,7 @@ function buildGetSafeRouteKey() {
   }
 }
 
-function getNamedParametrizedRoute(route: string) {
+function getNamedParametrizedRoute(route: string, prefixRouteKeys?: boolean) {
   const segments = removeTrailingSlash(route).slice(1).split('/')
   const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
@@ -115,7 +116,13 @@ function getNamedParametrizedRoute(route: string) {
             cleanedKey = getSafeRouteKey()
           }
 
-          routeKeys[cleanedKey] = key
+          if (prefixRouteKeys) {
+            cleanedKey = `${NEXT_QUERY_PARAM_PREFIX}${cleanedKey}`
+            routeKeys[cleanedKey] = `${NEXT_QUERY_PARAM_PREFIX}${key}`
+          } else {
+            routeKeys[cleanedKey] = `${key}`
+          }
+
           return repeat
             ? optional
               ? `(?:/(?<${cleanedKey}>.+?))?`
@@ -135,8 +142,11 @@ function getNamedParametrizedRoute(route: string) {
  * each group is named along with a routeKeys object that indexes the assigned
  * named group with its corresponding key.
  */
-export function getNamedRouteRegex(normalizedRoute: string) {
-  const result = getNamedParametrizedRoute(normalizedRoute)
+export function getNamedRouteRegex(
+  normalizedRoute: string,
+  prefixRouteKey?: boolean
+) {
+  const result = getNamedParametrizedRoute(normalizedRoute, prefixRouteKey)
   return {
     ...getRouteRegex(normalizedRoute),
     namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,

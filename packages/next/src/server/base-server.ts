@@ -101,6 +101,7 @@ import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { fromNodeHeaders, toNodeHeaders } from './web/utils'
+import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -786,9 +787,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (pageIsDynamic) {
             let params: ParsedUrlQuery | false = {}
 
-            let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query
-            )
+            const queryRouteParams: Record<string, string | string[]> = {}
+
+            for (const key of Object.keys(parsedUrl.query)) {
+              const value = parsedUrl.query[key]
+
+              if (key.startsWith(NEXT_QUERY_PARAM_PREFIX) && value) {
+                queryRouteParams[
+                  key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+                ] = value
+                delete parsedUrl.query[key]
+              }
+            }
+
+            let paramsResult =
+              utils.normalizeDynamicRouteParams(queryRouteParams)
 
             // for prerendered ISR paths we attempt parsing the route
             // params from the URL directly as route-matches may not
@@ -859,7 +872,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
-            Object.assign(parsedUrl.query, params)
           }
 
           if (pageIsDynamic || didRewrite) {

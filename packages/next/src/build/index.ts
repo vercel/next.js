@@ -244,7 +244,7 @@ function generateClientSsgManifest(
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getNamedRouteRegex(page)
+  const routeRegex = getNamedRouteRegex(page, true)
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
@@ -2116,7 +2116,8 @@ export default async function build(
 
           if (isDynamicRoute(page)) {
             const routeRegex = getNamedRouteRegex(
-              dataRoute.replace(/\.json$/, '')
+              dataRoute.replace(/\.json$/, ''),
+              true
             )
 
             dataRouteRegex = normalizeRouteRegex(
