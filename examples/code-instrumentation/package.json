@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:instrument": "NODE_ENV=devCoverage next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "typescript": "5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "18.15.11",
+    "@types/react": "18.0.33",
+    "@types/react-dom": "18.0.11",
+    "babel-plugin-istanbul": "6.1.1"
+  }
+}
