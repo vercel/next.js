@@ -1,10 +1,11 @@
 use anyhow::{bail, Result};
 use turbo_binding::{
-    turbo::tasks_fs::FileSystemPathVc,
+    turbo::{tasks::ValueToString, tasks_fs::FileSystemPathVc},
     turbopack::{
         core::{
             asset::{Asset, AssetVc, AssetsVc},
             context::AssetContextVc,
+            issue::{IssueSeverity, OptionIssueSourceVc},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
         },
         ecmascript::{
@@ -14,7 +15,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::ValueToString;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
@@ -41,9 +41,14 @@ impl RuntimeEntryVc {
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
-        let assets = cjs_resolve(PlainResolveOriginVc::new(context, path).into(), request)
-            .primary_assets()
-            .await?;
+        let assets = cjs_resolve(
+            PlainResolveOriginVc::new(context, path).into(),
+            request,
+            OptionIssueSourceVc::none(),
+            IssueSeverity::Error.cell(),
+        )
+        .primary_assets()
+        .await?;
 
         let mut runtime_entries = Vec::with_capacity(assets.len());
         for asset in &assets {

@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
 use turbo_binding::{
-    turbo::tasks_fs::File,
+    turbo::{tasks::TryJoinIterExt, tasks_fs::File},
     turbopack::{
         core::asset::AssetContentVc,
         dev_server::source::{
@@ -18,7 +18,6 @@ use turbo_binding::{
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     primitives::{StringVc, StringsVc},
-    TryJoinIterExt,
 };
 
 use crate::{
