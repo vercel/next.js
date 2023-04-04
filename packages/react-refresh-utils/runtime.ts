@@ -27,7 +27,7 @@ self.$RefreshInterceptModuleExecution$ = function (webpackModuleId) {
   self.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform
 
   // Modeled after `useEffect` cleanup pattern:
-  // https://reactjs.org/docs/hooks-effect.html#effects-with-cleanup
+  // https://react.dev/learn/synchronizing-with-effects#step-3-add-cleanup-if-needed
   return function () {
     self.$RefreshReg$ = prevRefreshReg
     self.$RefreshSig$ = prevRefreshSig
