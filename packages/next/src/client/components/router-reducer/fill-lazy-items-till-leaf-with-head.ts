@@ -22,6 +22,9 @@ export function fillLazyItemsTillLeafWithHead(
       : segmentForParallelRoute
 
     if (existingCache) {
+      if (cacheKey === '__DEFAULT__') {
+        continue
+      }
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {
@@ -46,7 +49,7 @@ export function fillLazyItemsTillLeafWithHead(
         // Traverse deeper to apply the head / fill lazy items till the head.
         fillLazyItemsTillLeafWithHead(
           newCacheNode,
-          wasPrefetched ? existingCacheNode : undefined,
+          existingCacheNode,
           parallelRouteState,
           head,
           wasPrefetched

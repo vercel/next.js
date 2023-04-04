@@ -100,6 +100,7 @@ import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
@@ -1362,6 +1363,7 @@ export default class NextNodeServer extends BaseServer {
 
         const options: MatchOptions = {
           i18n: this.i18nProvider?.fromQuery(pathname, query),
+          referrer: parseNextReferrerFromHeaders(req.headers),
         }
 
         const match = await this.matchers.match(pathname, options)
@@ -2076,7 +2078,9 @@ export default class NextNodeServer extends BaseServer {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(normalizedPathname),
+      referrer: parseNextReferrerFromHeaders(params.request.headers),
     }
+
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
     } else {
