@@ -19,6 +19,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import { reducer } from './router-reducer/router-reducer'
 import {
+  ACTION_FAST_REFRESH,
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   ACTION_REFRESH,
@@ -236,6 +237,29 @@ function Router({
             origin: window.location.origin,
           })
         })
+      },
+      // @ts-ignore we don't want to expose this method at all
+      fastRefresh: () => {
+        if (process.env.NODE_ENV !== 'development') {
+          throw new Error(
+            'fastRefresh can only be used in development mode. Please use refresh instead.'
+          )
+        } else {
+          // @ts-ignore startTransition exists
+          React.startTransition(() => {
+            dispatch({
+              type: ACTION_FAST_REFRESH,
+              cache: {
+                status: CacheStates.LAZY_INITIALIZED,
+                data: null,
+                subTreeData: null,
+                parallelRoutes: new Map(),
+              },
+              mutable: {},
+              origin: window.location.origin,
+            })
+          })
+        }
       },
     }
 
