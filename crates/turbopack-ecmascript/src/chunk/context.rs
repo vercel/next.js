@@ -1,23 +1,22 @@
 use anyhow::Result;
-use turbo_tasks::ValueToString;
-use turbopack_core::chunk::{ChunkItem, ChunkingContext, ChunkingContextVc, ModuleId, ModuleIdVc};
+use turbo_tasks::{Value, ValueToString};
+use turbopack_core::chunk::{
+    availability_info::AvailabilityInfo, ChunkItem, ChunkableAssetVc, ChunkingContext,
+    ChunkingContextVc, ModuleId, ModuleIdVc,
+};
 
-use super::{item::EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkRuntimeVc};
+use super::item::EcmascriptChunkItemVc;
 
 /// [`EcmascriptChunkingContext`] must be implemented by [`ChunkingContext`]
 /// implementors that want to operate on [`EcmascriptChunk`]s.
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkingContext: ChunkingContext {
-    /// Returns an EcmascriptChunkRuntime implementation that registers a
-    /// chunk's contents when executed.
-    fn ecmascript_runtime(&self) -> EcmascriptChunkRuntimeVc;
-
-    /// Returns an EcmascriptChunkRuntime implementation that registers a
-    /// chunk's contents and evaluates its main entries when executed.
-    fn evaluated_ecmascript_runtime(
+    /// Returns the loader item that is used to load the given manifest asset.
+    fn manifest_loader_item(
         &self,
-        evaluated_entries: EcmascriptChunkPlaceablesVc,
-    ) -> EcmascriptChunkRuntimeVc;
+        asset: ChunkableAssetVc,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> EcmascriptChunkItemVc;
 
     async fn chunk_item_id(&self, chunk_item: EcmascriptChunkItemVc) -> Result<ModuleIdVc> {
         let layer = self.layer();

@@ -9,9 +9,12 @@ use turbo_tasks::{mark_finished, primitives::StringVc, util::SharedError, RawVc}
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{chunk::ChunkingContextVc, error::PrettyPrintError};
+use turbopack_core::{
+    chunk::{ChunkingContextVc, EvaluatableAssetsVc},
+    error::PrettyPrintError,
+};
 use turbopack_dev_server::source::{Body, BodyVc, ProxyResult, ProxyResultVc};
-use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
+use turbopack_ecmascript::EcmascriptModuleAssetVc;
 
 use super::{
     issue::RenderingIssue, RenderDataVc, RenderProxyIncomingMessage, RenderProxyOutgoingMessage,
@@ -29,7 +32,7 @@ pub async fn render_proxy(
     env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
@@ -145,7 +148,7 @@ fn render_stream(
     env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
@@ -205,7 +208,7 @@ async fn render_stream_internal(
     env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
@@ -222,8 +225,9 @@ async fn render_stream_internal(
 
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
-            module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
-            intermediate_output_path,
+            chunking_context,
+            module.into(),
+            runtime_entries,
         );
         let pool = get_renderer_pool(
             cwd,

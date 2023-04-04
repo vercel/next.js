@@ -11,14 +11,14 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc},
-    chunk::ChunkingContextVc,
+    chunk::{ChunkingContextVc, EvaluatableAssetsVc},
     error::PrettyPrintError,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{Body, HeaderListVc, RewriteBuilder, RewriteVc},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
+use turbopack_ecmascript::EcmascriptModuleAssetVc;
 
 use super::{
     issue::RenderingIssue, RenderDataVc, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
@@ -69,7 +69,7 @@ pub async fn render_static(
     env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
@@ -194,7 +194,7 @@ fn render_stream(
     env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
@@ -254,7 +254,7 @@ async fn render_stream_internal(
     env: ProcessEnvVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
@@ -271,8 +271,9 @@ async fn render_stream_internal(
 
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
-            module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
-            intermediate_output_path,
+            chunking_context,
+            module.into(),
+            runtime_entries,
         );
         let renderer_pool = get_renderer_pool(
             cwd,

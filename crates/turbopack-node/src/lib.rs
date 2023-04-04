@@ -15,15 +15,16 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
 use turbo_tasks_fs::{to_sys_path, File, FileContent, FileSystemPathVc};
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsSetVc},
-    chunk::{ChunkGroupVc, ChunkVc, ChunkingContextVc},
+    chunk::{
+        ChunkGroupVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc,
+    },
     reference::primary_referenced_assets,
     source_map::GenerateSourceMapVc,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
+use turbopack_ecmascript::EcmascriptModuleAssetVc;
 
 use self::{
     bootstrap::NodeJsBootstrapAsset,
@@ -114,17 +115,14 @@ async fn internal_assets_for_source_mapping(
 #[turbo_tasks::function]
 pub async fn external_asset_entrypoints(
     module: EcmascriptModuleAssetVc,
-    runtime_entries: EcmascriptChunkPlaceablesVc,
+    runtime_entries: EvaluatableAssetsVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<AssetsSetVc> {
     Ok(separate_assets(
-        get_intermediate_asset(
-            module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
-            intermediate_output_path,
-        )
-        .resolve()
-        .await?,
+        get_intermediate_asset(chunking_context, module.into(), runtime_entries)
+            .resolve()
+            .await?,
         intermediate_output_path,
     )
     .strongly_consistent()
@@ -262,16 +260,13 @@ pub async fn get_renderer_pool(
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
 pub async fn get_intermediate_asset(
-    entry_chunk: ChunkVc,
-    intermediate_output_path: FileSystemPathVc,
+    chunking_context: ChunkingContextVc,
+    main_entry: EvaluatableAssetVc,
+    other_entries: EvaluatableAssetsVc,
 ) -> Result<AssetVc> {
-    let chunk_group = ChunkGroupVc::from_chunk(entry_chunk);
-    let mut hash = encode_hex(hash_xxh3_hash64(
-        entry_chunk.ident().path().to_string().await?.as_str(),
-    ));
-    hash.push_str(".js");
+    let chunk_group = ChunkGroupVc::evaluated(chunking_context, main_entry, other_entries);
     Ok(NodeJsBootstrapAsset {
-        path: intermediate_output_path.join(&hash),
+        path: chunking_context.chunk_path(main_entry.ident(), ".js"),
         chunk_group,
     }
     .cell()

@@ -12,5 +12,4 @@ function foo(value) {
 })()),
 }]);
 
-
 //# sourceMappingURL=39e84_foo_index_4427e1.js.map

@@ -34,7 +34,6 @@ turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-turbo-tasks-hash = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-dev-server = { workspace = true }

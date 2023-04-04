@@ -12,5 +12,4 @@ function bar(value) {
 })()),
 }]);
 
-
 //# sourceMappingURL=20803_bar_index_c8a3ce.js.map

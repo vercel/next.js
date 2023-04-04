@@ -10,5 +10,4 @@ const __TURBOPACK__default__export__ = "turbopack";
 })()),
 }]);
 
-
 //# sourceMappingURL=a587c_tests_snapshot_imports_static-and-dynamic_input_vercel.mjs_26aaf6._.js.map

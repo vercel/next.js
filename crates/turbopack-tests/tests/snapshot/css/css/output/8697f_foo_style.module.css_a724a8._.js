@@ -9,5 +9,4 @@ __turbopack_export_value__({
 })()),
 }]);
 
-
 //# sourceMappingURL=8697f_foo_style.module.css_a724a8._.js.map

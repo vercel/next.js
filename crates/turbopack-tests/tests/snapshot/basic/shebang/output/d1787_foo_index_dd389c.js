@@ -12,5 +12,4 @@ function foo(value) {
 })()),
 }]);
 
-
 //# sourceMappingURL=d1787_foo_index_dd389c.js.map

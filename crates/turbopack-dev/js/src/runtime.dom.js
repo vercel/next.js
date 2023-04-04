@@ -1,5 +1,5 @@
 /** @typedef {import('../types/backend').RuntimeBackend} RuntimeBackend */
-/** @typedef {import('../types/dom').ChunkResolver} ChunkResolver */
+/** @typedef {import('../types/runtime.dom').ChunkResolver} ChunkResolver */
 /** @typedef {import('../types').ChunkPath} ChunkPath */
 /** @typedef {import('../types').SourceInfo} SourceInfo */
 
@@ -16,11 +16,16 @@ let BACKEND;
         return;
       }
 
+      registerChunkListAndMarkAsRuntime(params.chunkListPath, [
+        chunkPath,
+        ...params.otherChunks,
+      ]);
+
       const chunksToWaitFor = [];
       for (const otherChunkPath of params.otherChunks) {
         if (otherChunkPath.endsWith(".css")) {
           // Mark all CSS chunks within the same chunk group as this chunk as loaded.
-          const cssResolver = getOrCreateResolver(chunkPath);
+          const cssResolver = getOrCreateResolver(otherChunkPath);
           cssResolver.resolve();
         } else if (otherChunkPath.endsWith(".js")) {
           // Only wait for JS chunks to load.

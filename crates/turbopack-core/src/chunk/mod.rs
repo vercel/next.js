@@ -1,7 +1,6 @@
 pub mod availability_info;
 pub mod available_assets;
-pub mod chunk_in_group;
-pub(crate) mod list;
+pub(crate) mod evaluate;
 pub mod optimize;
 
 use std::{
@@ -26,10 +25,11 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::DeterministicHash;
 
-pub use self::list::reference::{ChunkListReference, ChunkListReferenceVc};
-use self::{
-    availability_info::AvailabilityInfo, chunk_in_group::ChunkInGroupVc, optimize::optimize,
+pub use self::evaluate::{
+    EvaluatableAsset, EvaluatableAssetVc, EvaluatableAssets, EvaluatableAssetsVc,
+    EvaluateChunkingContext, EvaluateChunkingContextVc,
 };
+use self::{availability_info::AvailabilityInfo, optimize::optimize};
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     environment::EnvironmentVc,
@@ -87,14 +87,15 @@ pub trait ChunkingContext {
     // environment since this can change due to transitions in the module graph
     fn environment(&self) -> EnvironmentVc;
 
+    // TODO(alexkirsz) Remove this from the chunking context. This should be at the
+    // discretion of chunking context implementors. However, we currently use this
+    // in a couple of places in `turbopack-css`, so we need to remove that
+    // dependency first.
     fn chunk_path(&self, ident: AssetIdentVc, extension: &str) -> FileSystemPathVc;
 
-    /// Returns the path to the chunk list file for the given unoptimized entry
-    /// chunk path.
-    fn chunk_list_path(&self, entry_chunk_path: FileSystemPathVc) -> FileSystemPathVc;
-
+    // TODO(alexkirsz) Remove this from the chunking context.
     /// Reference Source Map Assets for chunks
-    fn reference_chunk_source_maps(&self, chunk: ChunkVc) -> BoolVc;
+    fn reference_chunk_source_maps(&self, chunk: AssetVc) -> BoolVc;
 
     fn can_be_in_same_chunk(&self, asset_a: AssetVc, asset_b: AssetVc) -> BoolVc;
 
@@ -109,6 +110,9 @@ pub trait ChunkingContext {
     }
 
     fn with_layer(&self, layer: &str) -> ChunkingContextVc;
+
+    /// Generates an output chunk asset from an intermediate chunk asset.
+    fn generate_chunk(&self, chunk: ChunkVc) -> AssetVc;
 }
 
 /// An [Asset] that can be converted into a [Chunk].
@@ -119,11 +123,22 @@ pub trait ChunkableAsset: Asset {
         context: ChunkingContextVc,
         availability_info: Value<AvailabilityInfo>,
     ) -> ChunkVc;
+
+    fn as_root_chunk(self_vc: ChunkableAssetVc, context: ChunkingContextVc) -> ChunkVc {
+        self_vc.as_chunk(
+            context,
+            Value::new(AvailabilityInfo::Root {
+                current_availability_root: self_vc.into(),
+            }),
+        )
+    }
 }
 
 #[turbo_tasks::value]
 pub struct ChunkGroup {
+    chunking_context: ChunkingContextVc,
     entry: ChunkVc,
+    evaluatable_assets: EvaluatableAssetsVc,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -135,16 +150,43 @@ impl ChunkGroupVc {
     #[turbo_tasks::function]
     pub fn from_asset(
         asset: ChunkableAssetVc,
-        context: ChunkingContextVc,
+        chunking_context: ChunkingContextVc,
         availability_info: Value<AvailabilityInfo>,
     ) -> Self {
-        Self::from_chunk(asset.as_chunk(context, availability_info))
+        Self::from_chunk(
+            chunking_context,
+            asset.as_chunk(chunking_context, availability_info),
+        )
     }
 
-    /// Creates a chunk group from an chunk as entrypoint
+    /// Creates a chunk group from a chunk as entrypoint
     #[turbo_tasks::function]
-    pub fn from_chunk(chunk: ChunkVc) -> Self {
-        Self::cell(ChunkGroup { entry: chunk })
+    pub fn from_chunk(chunking_context: ChunkingContextVc, entry: ChunkVc) -> Self {
+        Self::cell(ChunkGroup {
+            chunking_context,
+            entry,
+            evaluatable_assets: EvaluatableAssetsVc::empty(),
+        })
+    }
+
+    /// Creates a chunk group from a chunk as entrypoint, with the given
+    /// evaluated entries to be appended.
+    ///
+    /// `main_entry` will always be evaluated after all entries in
+    /// `other_entries` are evaluated.
+    #[turbo_tasks::function]
+    pub fn evaluated(
+        chunking_context: ChunkingContextVc,
+        main_entry: EvaluatableAssetVc,
+        other_entries: EvaluatableAssetsVc,
+    ) -> Self {
+        Self::cell(ChunkGroup {
+            chunking_context,
+            entry: main_entry.as_root_chunk(chunking_context),
+            // The main entry should always be *appended* to other entries, in order to ensure
+            // it's only evaluated once all other entries are evaluated.
+            evaluatable_assets: other_entries.with_entry(main_entry),
+        })
     }
 
     /// Returns the entry chunk of this chunk group.
@@ -153,23 +195,34 @@ impl ChunkGroupVc {
         Ok(self.await?.entry)
     }
 
-    /// Returns the chunk list path for this chunk group.
-    #[turbo_tasks::function]
-    pub async fn chunk_list_path(self) -> Result<FileSystemPathVc> {
-        let this = self.await?;
-        Ok(this
-            .entry
-            .chunking_context()
-            .chunk_list_path(this.entry.ident().path()))
-    }
-
     /// Lists all chunks that are in this chunk group.
     /// These chunks need to be loaded to fulfill that chunk group.
     /// All chunks should be loaded in parallel.
     #[turbo_tasks::function]
-    pub async fn chunks(self) -> Result<ChunksVc> {
+    pub async fn chunks(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        let evaluatable_assets = this.evaluatable_assets.await?;
+
+        let mut entry_chunks: HashSet<_> = evaluatable_assets
+            .iter()
+            .map({
+                let chunking_context = this.chunking_context;
+                move |evaluatable_asset| async move {
+                    Ok(evaluatable_asset
+                        .as_root_chunk(chunking_context)
+                        .resolve()
+                        .await?)
+                }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+
+        entry_chunks.insert(this.entry.resolve().await?);
+
         let chunks: Vec<_> = GraphTraversal::<SkipDuplicates<ReverseTopological<_>, _>>::visit(
-            [self.await?.entry],
+            entry_chunks.into_iter(),
             get_chunk_children,
         )
         .await
@@ -180,15 +233,25 @@ impl ChunkGroupVc {
 
         let chunks = ChunksVc::cell(chunks);
         let chunks = optimize(chunks, self);
-        let chunks = ChunksVc::cell(
-            chunks
-                .await?
-                .iter()
-                .map(|&chunk| chunk.in_group(self))
-                .collect(),
-        );
+        let mut assets: Vec<AssetVc> = chunks
+            .await?
+            .iter()
+            .map(|chunk| this.chunking_context.generate_chunk(*chunk))
+            .collect();
 
-        Ok(chunks)
+        if !evaluatable_assets.is_empty() {
+            if let Some(evaluate_chunking_context) =
+                EvaluateChunkingContextVc::resolve_from(&this.chunking_context).await?
+            {
+                assets.push(evaluate_chunking_context.evaluate_chunk(
+                    this.entry,
+                    AssetsVc::cell(assets.clone()),
+                    this.evaluatable_assets,
+                ));
+            }
+        }
+
+        Ok(AssetsVc::cell(assets))
     }
 }
 
@@ -257,11 +320,6 @@ pub trait Chunk: Asset {
     /// The path of the chunk.
     fn path(&self) -> FileSystemPathVc {
         self.ident().path()
-    }
-    /// Returns a variant of the chunk which is placed in a certain chunk group.
-    /// Should return the same chunk type.
-    fn in_group(&self, _chunk_group: ChunkGroupVc) -> ChunkVc {
-        ChunkInGroupVc::new(*self).into()
     }
 }
 
@@ -386,13 +444,7 @@ impl ChunkGroupReferenceVc {
 impl AssetReference for ChunkGroupReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let set = self
-            .chunk_group
-            .chunks()
-            .await?
-            .iter()
-            .map(|c| c.as_asset())
-            .collect();
+        let set = self.chunk_group.chunks().await?.clone_value();
         Ok(ResolveResult::assets(set).into())
     }
 }

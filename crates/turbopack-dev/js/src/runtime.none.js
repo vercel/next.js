@@ -14,7 +14,6 @@ let BACKEND;
     // use promises here.
     registerChunk(chunkPath, params) {
       registeredChunks.add(chunkPath);
-
       instantiateDependentChunks(chunkPath);
 
       if (params == null) {
