@@ -42,7 +42,8 @@ export type MetadataItems = [
 
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
-  staticFilesMetadata: StaticMetadata
+  staticFilesMetadata: StaticMetadata,
+  options: MetadataAccumulationOptions
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter } = staticFilesMetadata
@@ -73,13 +74,12 @@ function mergeStaticMetadata(
 
 // Merge the source metadata into the resolved target metadata.
 function merge({
-  pathname,
   target,
   source,
   staticFilesMetadata,
   titleTemplates,
+  options,
 }: {
-  pathname: string
   target: ResolvedMetadata
   source: Metadata | null
   staticFilesMetadata: StaticMetadata
@@ -88,6 +88,7 @@ function merge({
     twitter: string | null
     openGraph: string | null
   }
+  options: MetadataAccumulationOptions
 }) {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -104,7 +105,7 @@ function merge({
       }
       case 'alternates': {
         target.alternates = resolveAlternates(source.alternates, metadataBase, {
-          pathname,
+          pathname: options.pathname,
         })
         break
       }
@@ -189,7 +190,7 @@ function merge({
         break
     }
   }
-  mergeStaticMetadata(target, staticFilesMetadata)
+  mergeStaticMetadata(target, staticFilesMetadata, options)
 }
 
 async function getDefinedMetadata(
@@ -280,11 +281,18 @@ export async function collectMetadata({
   array.push([metadataExport, staticFilesMetadata])
 }
 
+type MetadataAccumulationOptions = {
+  pathname: string
+  allowFallbackMetadataBase: boolean
+}
+
 export async function accumulateMetadata(
   metadataItems: MetadataItems,
-  pathname: string
+  options: MetadataAccumulationOptions
 ): Promise<ResolvedMetadata> {
-  const resolvedMetadata = createDefaultMetadata()
+  const resolvedMetadata = createDefaultMetadata({
+    allowFallbackMetadataBase: options.allowFallbackMetadataBase,
+  })
 
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
@@ -351,7 +359,7 @@ export async function accumulateMetadata(
     }
 
     merge({
-      pathname,
+      options,
       target: resolvedMetadata,
       source: metadata,
       staticFilesMetadata,

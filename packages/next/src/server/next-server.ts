@@ -104,6 +104,7 @@ import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
+import { hasVercelConfigFiles } from './lib/find-vercel-config'
 
 export * from './base-server'
 
@@ -329,6 +330,7 @@ export default class NextNodeServer extends BaseServer {
 
   protected async prepareImpl() {
     await super.prepareImpl()
+    this.renderOpts.hasVercelConfig = await hasVercelConfigFiles(this.dir)
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook

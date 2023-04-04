@@ -248,6 +248,11 @@ export async function renderToHTMLOrFlight(
         ? crypto.randomUUID()
         : require('next/dist/compiled/nanoid').nanoid()
 
+    // Allow to use fallback metadataBase if local vercel settings are detected,
+    // And it doesn't output with standalone or export mode
+    const allowFallbackMetadataBase =
+      !renderOpts.nextConfigOutput && !!renderOpts.hasVercelConfig
+
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../../client/components/layout-router').default
     const RenderFromTemplateContext =
@@ -1100,6 +1105,7 @@ export async function renderToHTMLOrFlight(
                   key={requestId}
                   metadata={metadataItems}
                   pathname={pathname}
+                  allowFallbackMetadataBase={allowFallbackMetadataBase}
                 />
               </>
             ),
@@ -1239,6 +1245,7 @@ export async function renderToHTMLOrFlight(
                     key={requestId}
                     metadata={metadataItems}
                     pathname={pathname}
+                    allowFallbackMetadataBase={allowFallbackMetadataBase}
                   />
                 </>
               }
@@ -1434,6 +1441,7 @@ export async function renderToHTMLOrFlight(
                     key={requestId}
                     metadata={[]}
                     pathname={pathname}
+                    allowFallbackMetadataBase={allowFallbackMetadataBase}
                   />
                 </head>
                 <body></body>

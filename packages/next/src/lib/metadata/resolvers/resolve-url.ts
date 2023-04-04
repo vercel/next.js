@@ -25,17 +25,18 @@ function resolveUrl(
   } catch (_) {}
 
   if (!metadataBase) {
-    if (process.env.NODE_ENV !== 'production') {
-      metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
-      // Development mode warning
-      Log.warn(
-        `metadata.metadataBase is not set for resolving url "${url}", fallbacks to "${metadataBase.origin}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase`
-      )
-    } else {
-      throw new Error(
-        `metadata.metadataBase needs to be set for resolving url "${url}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase\n`
-      )
-    }
+    throw new Error(
+      `metadata.metadataBase needs to be set for resolving url "${url}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase\n`
+    )
+  }
+
+  if (metadataBase.origin === 'http://n') {
+    metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
+    // Development mode warning, add new line prefix for worker output
+    console.log()
+    Log.warn(
+      `metadata.metadataBase is not set for resolving url "${url}", fallbacks to "${metadataBase.origin}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase`
+    )
   }
 
   // Handle relative or absolute paths
