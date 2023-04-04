@@ -83,6 +83,9 @@ function createIpc<TIncoming, TOutgoing>(
       }
     })
   })
+  socket.once('close', () => {
+    process.exit(0)
+  })
 
   function send(message: any): Promise<void> {
     const packet = Buffer.from(JSON.stringify(message), 'utf8')
