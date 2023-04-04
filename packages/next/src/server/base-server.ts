@@ -534,6 +534,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    await this.prepare()
     const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
@@ -544,6 +545,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.method': method,
           'http.target': req.url,
         },
+        // We will fire this from the renderer worker
+        hideSpan: this.serverOptions.dev && this.isRouterWorker,
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
@@ -569,11 +572,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const route = rootSpanAttributes.get('next.route')
           if (route) {
+            const newName = `${method} ${route}`
             span.setAttributes({
               'next.route': route,
               'http.route': route,
+              'next.span_name': newName,
             })
-            span.updateName(`${method} ${route}`)
+            span.updateName(newName)
           }
         })
     )
@@ -964,8 +969,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
-  // Backwards compatibility
-  public async prepare(): Promise<void> {}
+  protected preparedPromise: Promise<void> | null = null
+  /**
+   * Runs async initialization of server.
+   * It is idempotent, won't fire underlying initialization more than once.
+   */
+  public async prepare(): Promise<void> {
+    if (this.preparedPromise === null) {
+      this.preparedPromise = this.prepareImpl()
+    }
+    return this.preparedPromise
+  }
+  protected async prepareImpl(): Promise<void> {}
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
