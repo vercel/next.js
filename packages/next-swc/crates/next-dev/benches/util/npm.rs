@@ -9,24 +9,24 @@ use serde_json::json;
 
 use crate::util::command;
 
-pub struct NpmPackage {
-    pub name: &'static str,
-    pub version: &'static str,
+pub struct NpmPackage<'a> {
+    pub name: &'a str,
+    pub version: &'a str,
 }
 
-impl NpmPackage {
-    pub fn new(name: &'static str, version: &'static str) -> Self {
+impl<'a> NpmPackage<'a> {
+    pub fn new(name: &'a str, version: &'a str) -> Self {
         NpmPackage { name, version }
     }
 }
 
-impl std::fmt::Display for NpmPackage {
+impl<'a> std::fmt::Display for NpmPackage<'a> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         fmt.write_fmt(format_args!("{}@{}", self.name, self.version))
     }
 }
 
-pub fn install(install_dir: &Path, packages: &[NpmPackage]) -> Result<()> {
+pub fn install(install_dir: &Path, packages: &[NpmPackage<'_>]) -> Result<()> {
     if !fs::metadata(install_dir.join("package.json"))
         .map(|metadata| metadata.is_file())
         .unwrap_or(false)
