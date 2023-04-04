@@ -29,7 +29,6 @@
 /** @typedef {import('../types/protocol').EcmascriptModuleEntry} EcmascriptModuleEntry */
 
 /** @typedef {import('../types/runtime').ModuleEffect} ModuleEffect */
-/** @typedef {import('../types/runtime').DevRuntimeParams} DevRuntimeParams */
 
 /** @type {Object.<ModuleId, ModuleFactory>} */
 const moduleFactories = { __proto__: null };
@@ -469,17 +468,18 @@ function _eval({ code, url, map }) {
 }
 
 /**
- * @param {Map<ModuleId, EcmascriptModuleEntry>} added
+ * @param {Map<ModuleId, EcmascriptModuleEntry | undefined>} added
  * @param {Map<ModuleId, EcmascriptModuleEntry>} modified
- * @param {Record<ModuleId, EcmascriptModuleEntry>} code
  * @returns {{outdatedModules: Set<any>, newModuleFactories: Map<any, any>}}
  */
-function computeOutdatedModules(added, modified, code) {
+function computeOutdatedModules(added, modified) {
   const outdatedModules = new Set();
   const newModuleFactories = new Map();
 
   for (const [moduleId, entry] of added) {
-    newModuleFactories.set(moduleId, _eval(entry));
+    if (entry != null) {
+      newModuleFactories.set(moduleId, _eval(entry));
+    }
   }
 
   for (const [moduleId, entry] of modified) {
@@ -774,8 +774,7 @@ function applyEcmascriptMergedUpdate(chunkPath, update) {
     computeChangedModules(entries, chunks);
   const { outdatedModules, newModuleFactories } = computeOutdatedModules(
     added,
-    modified,
-    entries
+    modified
   );
   const outdatedSelfAcceptedModules =
     computeOutdatedSelfAcceptedModules(outdatedModules);
@@ -1282,13 +1281,6 @@ function markChunkListAsRuntime(chunkListPath) {
  * @param {ChunkRegistration} chunkRegistration
  */
 async function registerChunk([chunkPath, chunkModules, runtimeParams]) {
-  if (runtimeParams != null) {
-    registerChunkListAndMarkAsRuntime(runtimeParams.chunkListPath, [
-      chunkPath,
-      ...runtimeParams.otherChunks,
-    ]);
-  }
-
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
     if (!moduleFactories[moduleId]) {
       moduleFactories[moduleId] = moduleFactory;
@@ -1301,9 +1293,3 @@ async function registerChunk([chunkPath, chunkModules, runtimeParams]) {
 
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS =
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
-
-const chunksToRegister = globalThis.TURBOPACK;
-globalThis.TURBOPACK = {
-  push: registerChunk,
-};
-chunksToRegister.forEach(registerChunk);

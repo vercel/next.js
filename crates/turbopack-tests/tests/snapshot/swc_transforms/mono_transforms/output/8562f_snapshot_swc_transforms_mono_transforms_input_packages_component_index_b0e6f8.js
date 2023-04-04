@@ -21,5 +21,4 @@ function MyApp() {
 })()),
 }]);
 
-
 //# sourceMappingURL=8562f_snapshot_swc_transforms_mono_transforms_input_packages_component_index_b0e6f8.js.map

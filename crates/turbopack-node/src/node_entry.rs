@@ -1,13 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{chunk::ChunkingContextVc, context::AssetContextVc};
+use turbopack_core::chunk::{ChunkingContextVc, EvaluatableAssetsVc};
 use turbopack_dev_server::source::ContentSourceData;
 use turbopack_ecmascript::EcmascriptModuleAssetVc;
 
 #[turbo_tasks::value(shared)]
 pub struct NodeRenderingEntry {
-    pub context: AssetContextVc,
+    pub runtime_entries: EvaluatableAssetsVc,
     pub module: EcmascriptModuleAssetVc,
     pub chunking_context: ChunkingContextVc,
     pub intermediate_output_path: FileSystemPathVc,

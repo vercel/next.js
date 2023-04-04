@@ -12,5 +12,4 @@ function ThirdPartyComponent() {
 })()),
 }]);
 
-
 //# sourceMappingURL=7b7bf_third_party_component_index_8e9ad8.js.map

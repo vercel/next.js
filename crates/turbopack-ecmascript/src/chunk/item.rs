@@ -11,9 +11,7 @@ use turbopack_core::{
 };
 
 use super::{
-    context::EcmascriptChunkingContextVc,
-    manifest::{chunk_asset::ManifestChunkAssetVc, loader_item::ManifestLoaderItemVc},
-    placeable::EcmascriptChunkPlaceableVc,
+    context::EcmascriptChunkingContextVc, placeable::EcmascriptChunkPlaceableVc,
     EcmascriptChunkPlaceable, EcmascriptChunkingContext,
 };
 use crate::ParseResultSourceMapVc;
@@ -95,10 +93,10 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
                 current_availability_root: asset.as_asset(),
             },
         };
-        let manifest_asset =
-            ManifestChunkAssetVc::new(asset, context, Value::new(next_availability_info));
-        let manifest_loader = ManifestLoaderItemVc::new(manifest_asset);
-        Ok(Some(manifest_loader.into()))
+        Ok(Some(context.manifest_loader_item(
+            asset,
+            Value::new(next_availability_info),
+        )))
     }
 }
 

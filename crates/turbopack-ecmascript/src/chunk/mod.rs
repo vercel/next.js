@@ -1,11 +1,8 @@
 pub(crate) mod content;
 pub(crate) mod context;
 pub(crate) mod item;
-pub(crate) mod manifest;
 pub(crate) mod optimize;
 pub(crate) mod placeable;
-pub(crate) mod runtime;
-pub(crate) mod source_map;
 
 use std::fmt::Write;
 
@@ -21,8 +18,7 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
-        Chunk, ChunkGroupReferenceVc, ChunkItem, ChunkReferenceVc, ChunkVc, ChunkingContext,
-        ChunkingContextVc,
+        Chunk, ChunkGroupReferenceVc, ChunkItem, ChunkReferenceVc, ChunkVc, ChunkingContextVc,
     },
     ident::{AssetIdent, AssetIdentVc},
     introspect::{
@@ -30,14 +26,9 @@ use turbopack_core::{
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
     reference::AssetReferencesVc,
-    source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
-    version::{VersionedContent, VersionedContentVc},
 };
 
-use self::{
-    content::ecmascript_chunk_content, optimize::EcmascriptChunkOptimizerVc,
-    source_map::EcmascriptChunkSourceMapAssetReferenceVc,
-};
+use self::{content::ecmascript_chunk_content, optimize::EcmascriptChunkOptimizerVc};
 pub use self::{
     content::{EcmascriptChunkContent, EcmascriptChunkContentVc},
     context::{EcmascriptChunkingContext, EcmascriptChunkingContextVc},
@@ -49,10 +40,6 @@ pub use self::{
         EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceables,
         EcmascriptChunkPlaceablesVc, EcmascriptExports, EcmascriptExportsVc,
     },
-    runtime::{
-        EcmascriptChunkRuntime, EcmascriptChunkRuntimeContent, EcmascriptChunkRuntimeContentVc,
-        EcmascriptChunkRuntimeVc,
-    },
 };
 use crate::utils::FormatIter;
 
@@ -61,7 +48,6 @@ pub struct EcmascriptChunk {
     context: EcmascriptChunkingContextVc,
     main_entries: EcmascriptChunkPlaceablesVc,
     omit_entries: Option<EcmascriptChunkPlaceablesVc>,
-    runtime: EcmascriptChunkRuntimeVc,
     availability_info: AvailabilityInfo,
 }
 
@@ -72,14 +58,12 @@ impl EcmascriptChunkVc {
         context: EcmascriptChunkingContextVc,
         main_entries: EcmascriptChunkPlaceablesVc,
         omit_entries: Option<EcmascriptChunkPlaceablesVc>,
-        runtime: EcmascriptChunkRuntimeVc,
         availability_info: Value<AvailabilityInfo>,
     ) -> Self {
         EcmascriptChunk {
             context,
             main_entries,
             omit_entries,
-            runtime,
             availability_info: availability_info.into_value(),
         }
         .cell()
@@ -92,35 +76,49 @@ impl EcmascriptChunkVc {
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Self> {
         let Some(context) = EcmascriptChunkingContextVc::resolve_from(&context).await? else {
-            bail!("Ecmascript runtime not found");
+            bail!("Ecmascript chunking context not found");
         };
 
         Ok(Self::new_normalized(
             context,
             EcmascriptChunkPlaceablesVc::cell(vec![main_entry]),
             None,
-            context.ecmascript_runtime(),
             availability_info,
         ))
     }
 
     #[turbo_tasks::function]
-    pub async fn new_with_entries_and_runtime(
+    pub async fn new_root(
+        context: ChunkingContextVc,
+        main_entry: EcmascriptChunkPlaceableVc,
+    ) -> Result<Self> {
+        let Some(context) = EcmascriptChunkingContextVc::resolve_from(&context).await? else {
+            bail!("Ecmascript chunking context not found");
+        };
+
+        Ok(Self::new_normalized(
+            context,
+            EcmascriptChunkPlaceablesVc::cell(vec![main_entry]),
+            None,
+            Value::new(AvailabilityInfo::Root {
+                current_availability_root: main_entry.as_asset(),
+            }),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_root_with_entries(
         context: EcmascriptChunkingContextVc,
         main_entry: EcmascriptChunkPlaceableVc,
         other_entries: EcmascriptChunkPlaceablesVc,
-        runtime: EcmascriptChunkRuntimeVc,
     ) -> Result<Self> {
         let mut main_entries = other_entries.await?.clone_value();
-        // The main entry must always be the last entry, so all other entries
-        // have been executed first.
         main_entries.push(main_entry);
 
         Ok(Self::new_normalized(
             context,
             EcmascriptChunkPlaceablesVc::cell(main_entries),
             None,
-            runtime,
             Value::new(AvailabilityInfo::Root {
                 current_availability_root: main_entry.as_asset(),
             }),
@@ -244,13 +242,10 @@ impl ValueToString for EcmascriptChunk {
         let omit_entry_strings = entries_to_string(self.omit_entries).await?;
         let omit_entry_strs = || omit_entry_strings.iter().flat_map(|s| [" - ", s.as_str()]);
 
-        let runtime_string = self.runtime.to_string().await?;
-
         Ok(StringVc::cell(format!(
-            "chunk {}{} (runtime {})",
+            "chunk {}{}",
             FormatIter(entry_strs),
             FormatIter(omit_entry_strs),
-            runtime_string
         )))
     }
 }
@@ -277,12 +272,6 @@ impl EcmascriptChunkVc {
     #[turbo_tasks::function]
     async fn chunk_items_count(self) -> Result<UsizeVc> {
         Ok(UsizeVc::cell(self.chunk_content().await?.chunk_items.len()))
-    }
-
-    #[turbo_tasks::function]
-    async fn runtime_content(self) -> Result<EcmascriptChunkRuntimeContentVc> {
-        let this = self.await?;
-        Ok(this.runtime.content(self))
     }
 }
 
@@ -358,17 +347,12 @@ impl Asset for EcmascriptChunk {
             }))
         };
 
-        // Decorate with runtime modifiers.
-        let ident = this.runtime.decorate_asset_ident(self_vc, ident);
-
-        Ok(AssetIdentVc::from_path(
-            this.context.chunk_path(ident, ".js"),
-        ))
+        Ok(ident)
     }
 
     #[turbo_tasks::function]
-    fn content(self_vc: EcmascriptChunkVc) -> AssetContentVc {
-        self_vc.runtime_content().content()
+    fn content(_self_vc: EcmascriptChunkVc) -> Result<AssetContentVc> {
+        bail!("EcmascriptChunkVc::content() is not implemented")
     }
 
     #[turbo_tasks::function]
@@ -391,21 +375,8 @@ impl Asset for EcmascriptChunk {
         for chunk_group in content.async_chunk_groups.iter() {
             references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
         }
-        references.extend(this.runtime.references(self_vc).await?.iter().copied());
-        if *this
-            .context
-            .reference_chunk_source_maps(self_vc.into())
-            .await?
-        {
-            references.push(EcmascriptChunkSourceMapAssetReferenceVc::new(self_vc).into());
-        }
 
         Ok(AssetReferencesVc::cell(references))
-    }
-
-    #[turbo_tasks::function]
-    fn versioned_content(self_vc: EcmascriptChunkVc) -> VersionedContentVc {
-        self_vc.runtime_content().into()
     }
 }
 
@@ -461,13 +432,5 @@ impl Introspectable for EcmascriptChunk {
             children.insert((entry_module_key(), IntrospectableAssetVc::new(entry.into())));
         }
         Ok(IntrospectableChildrenVc::cell(children))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl GenerateSourceMap for EcmascriptChunk {
-    #[turbo_tasks::function]
-    fn generate_source_map(self_vc: EcmascriptChunkVc) -> OptionSourceMapVc {
-        self_vc.runtime_content().generate_source_map()
     }
 }

@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/basic/shebang/input/index.js"],"sourcesContent":["#!/usr/bin/env node\n\nimport { foo } from \"foo\";\n\nfoo(true);\n"],"names":[],"mappings":";;;AAIA,kMAAI,IAAI"}},
-    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

@@ -5,9 +5,9 @@ use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc},
+    chunk::ChunkGroupVc,
     ident::AssetIdentVc,
-    reference::AssetReferencesVc,
+    reference::{AssetReferencesVc, SingleAssetReferenceVc},
     version::{Version, VersionVc, VersionedContent, VersionedContentVc},
 };
 
@@ -20,6 +20,11 @@ pub struct DevHtmlAsset {
     path: FileSystemPathVc,
     chunk_groups: Vec<ChunkGroupVc>,
     body: Option<String>,
+}
+
+#[turbo_tasks::function]
+fn dev_html_chunk_reference_description() -> StringVc {
+    StringVc::cell("dev html chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
@@ -40,7 +45,10 @@ impl Asset for DevHtmlAsset {
         for chunk_group in &self.chunk_groups {
             let chunks = chunk_group.chunks().await?;
             for chunk in chunks.iter() {
-                references.push(ChunkReferenceVc::new(*chunk).into());
+                references.push(
+                    SingleAssetReferenceVc::new(*chunk, dev_html_chunk_reference_description())
+                        .into(),
+                );
             }
         }
         Ok(AssetReferencesVc::cell(references))
@@ -105,7 +113,7 @@ impl DevHtmlAssetVc {
         let mut chunk_paths = vec![];
         for chunk_group in &this.chunk_groups {
             for chunk in chunk_group.chunks().await?.iter() {
-                let chunk_path = &*chunk.path().await?;
+                let chunk_path = &*chunk.ident().path().await?;
                 if let Some(relative_path) = context_path.get_path_to(chunk_path) {
                     chunk_paths.push(format!("/{relative_path}"));
                 }

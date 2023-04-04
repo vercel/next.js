@@ -6,7 +6,8 @@ use serde::Serialize;
 use turbo_tasks::{IntoTraitRef, TryJoinIterExt};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
-    chunk::{Chunk, ChunkingContext, ModuleId, ModuleIdReadRef},
+    asset::Asset,
+    chunk::{ChunkingContext, ModuleId, ModuleIdReadRef},
     code_builder::CodeReadRef,
     version::{PartialUpdate, TotalUpdate, Update, VersionVc},
 };
@@ -162,7 +163,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
         .map(|content| async move {
             let content_ref = content.await?;
             let output_root = content_ref.chunking_context.output_root().await?;
-            let path = content_ref.chunk.path().await?;
+            let path = content_ref.chunk.ident().path().await?;
             Ok((*content, content_ref, output_root, path))
         })
         .try_join()
