@@ -11,8 +11,8 @@ export default function Home() {
     <main className={styles.main}>
       <div className={styles.description}>
         <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>pages/index.js</code>
+          New users instrument with:&nbsp;
+          <code className={styles.code}>npx @sentry/wizard -s -i nextjs</code>
         </p>
         <div>
           <a
@@ -77,7 +77,7 @@ export default function Home() {
       </div>
       <br />
       <div className={styles.grid}>
-        <a className={styles.card} target="_blank" rel="noopener noreferrer">
+        <div className={styles.card} target="_blank" rel="noopener noreferrer">
           <h2 className={inter.className}>
             API routes <span>-&gt;</span>
           </h2>
@@ -88,35 +88,36 @@ export default function Home() {
           <p className={inter.className}>
             Top-of-module promise that rejects, but its result is not awaited.
             {'  '}
-            <a href="/api/test1" target="_blank">
-              API Test 1
-            </a>
+            <code className={styles.code}>
+            <a href="/api/test1" target="_blank">API Test 1</a>
+            </code>
           </p>
           <p className={inter.className}>
             API has a top-of-module exception.{' '}
-            <a href="/api/test2" target="_blank">
-              API Test 2
-            </a>
+            <br/>
+            <code className={styles.code}>
+            <a href="/api/test2" target="_blank">API Test 2</a>
+            </code>
           </p>
           <p className={inter.className}>
             API with an exception in its request handler.{' '}
-            <a href="/api/test3" target="_blank">
-              API Test 3
-            </a>
+            <code className={styles.code}>
+            <a href="/api/test3" target="_blank">API Test 3</a>
+            </code>
           </p>
           <p className={inter.className}>
             API uses a try/catch to handle an exception and records it.{' '}
-            <a href="/api/test4" target="_blank">
-              API Test 4
-            </a>
+            <code className={styles.code}>
+            <a href="/api/test4" target="_blank">API Test 4</a>
+            </code>
           </p>
-        </a>
-        <a className={styles.card} target="_blank" rel="noopener noreferrer">
+        </div>
+        <div className={styles.card} target="_blank" rel="noopener noreferrer">
           <h2 className={inter.className}>
             SSR <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            Note that there are currently two known bugs with respect to SSR
+            There are currently two known bugs with respect to SSR
             transactions: they don't get recorded on Vercel, and ones that are
             recorded and have an error are grouped in the Sentry UI by the error
             page name rather than the requested page name.
@@ -124,89 +125,86 @@ export default function Home() {
 
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
-            &nbsp;throws an Error. This should cause _error.js to render and
-            record Error('SSR Test 1') in Sentry.{' '}
-            <a href="/ssr/test1" target="_blank">
-              or open a new one
-            </a>{' '}
-            or <Link href="/ssr/test1">Navigate in this tab</Link>
+            &nbsp;throws an Error. This should cause _error.js 
+            {' '}to render and record and Error in Sentry.{' '}
+            <code className={styles.code}>
+            <Link href="/ssr/test1">SSR Test 1</Link>
+            </code>
           </p>
           <p className={inter.className}>
-            getServerSideProps returns a Promise that rejects. This should cause
-            _error.js to render and record Error('SSR Test 2') in Sentry.{' '}
-            <a href="/ssr/test2" target="_blank">
-              or open a new one
-            </a>
+            <code className={styles.code}>getServerSideProps </code> 
+            returns a Promise that rejects. This should cause
+            _error.js to render and record an Error in Sentry.{' '}
+            <code className={styles.code}>
+            <Link href="/ssr/test2">SSR Test 2</Link>
+            </code>
           </p>
           <p className={inter.className}>
-            getServerSideProps calls a Promise that rejects, but does not handle
+          <code className={styles.code}>getServerSideProps </code> 
+            calls a Promise that rejects, but does not handle
             the rejection or await its result (returning synchronously). Sentry
-            should record Error('SSR Test 3'), but <strong>will not</strong>{' '}
+            records an Error but <strong>will not</strong>{' '}
             when deployed to Vercel because the serverless function will already
             have exited.{' '}
-            <a href="/ssr/test3" target="_blank">
-              or open a new one
-            </a>
+            <code className={styles.code}>
+            <Link href="/ssr/test3">SSR Test 3</Link>
+            </code>
           </p>
           <p className={inter.className}>
-            getServerSideProps manually captures an exception from a try/catch.
-            This should record Error('SSR Test 4') in Sentry.{' '}
-            <a href="/ssr/test4" target="_blank">
-              or open a new one
-            </a>
+            <code className={styles.code}>getServerSideProps </code>  
+            manually captures an exception from a try/catch.
+            This should record Error in Sentry.{' '}
+            <code className={styles.code}>
+            <Link href="/ssr/test4">SSR Test 4</Link>
+            </code>
           </p>
-        </a>
+        </div>
 
-        <a className={styles.card} target="_blank" rel="noopener noreferrer">
+        <div className={styles.card} target="_blank" rel="noopener noreferrer">
           <h2 className={inter.className}>
             Client exceptions <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
             There is a top-of-module Promise that rejects, but its result is not
-            awaited. Sentry should record Error('Client Test 1').{' '}
-            <Link href="/client/test1">Navigate in this tab</Link> or{' '}
-            <a href="/client/test1" target="_blank">
-              or open a new one
-            </a>
+            awaited. Sentry records an Error.{' '}
+            <code className={styles.code}>
+            <Link href="/client/test1">Client Test 1</Link> 
+            </code>
           </p>
           <p className={inter.className}>
             There is a top-of-module exception. _error.js should render and
             record ReferenceError('process is not defined') in Sentry.{' '}
-            <Link href="/client/test2">Navigate in this tab</Link> or{' '}
-            <a href="/client/test2" target="_blank">
-              or open a new one
-            </a>
+            <code className={styles.code}>
+            <Link href="/client/test2">Client Test 2</Link>
+            </code>
           </p>
           <p className={inter.className}>
             There is an exception during React lifecycle that is caught by
             Next.js's React Error Boundary. In this case, when the component
-            mounts. This should cause _error.js to render and record
-            Error('Client Test 3') in Sentry.{' '}
-            <Link href="/client/test3">Navigate in this tab</Link> or{' '}
-            <a href="/client/test3" target="_blank">
-              or open a new one
-            </a>
+            mounts. This causes _error.js to render and records
+            Error in Sentry.{' '}
+            <code className={styles.code}>
+            <Link href="/client/test3">Client Test 3</Link>
+            </code>
           </p>
           <p className={inter.className}>
             There is an unhandled Promise rejection during React lifecycle. In
-            this case, when the component mounts. Sentry should record
-            Error('Client Test 4').{' '}
-            <Link href="/client/test4"> Navigate in this tab</Link> or{' '}
-            <a href="/client/test4" target="_blank">
-              or open a new one
-            </a>
+            this case, when the component mounts. Sentry records an
+            Error.{' '}
+            <code className={styles.code}>
+            <Link href="/client/test4"> Client Test 4</Link>
+            </code>
           </p>
           <p className={inter.className}>
-            An Error is thrown from an event handler. Sentry should record
-            Error('Client Test 5'). (This page also demonstrates how to manually
+            An Error is thrown from an event handler. Sentry records an
+            Error. (This page also demonstrates how to manually
             instrument your code for performance monitoring.){' '}
-            <Link href="/client/test5">Navigate in this tab</Link> or{' '}
-            <a href="/client/test5" target="_blank">
-              or open a new one
-            </a>
+            <code className={styles.code}>
+            <Link href="/client/test5">Client Test 5</Link>
+            </code>
           </p>
-        </a>
-        <a className={styles.card} target="_blank" rel="noopener noreferrer">
+        </div>
+        <div className={styles.card} target="_blank" rel="noopener noreferrer">
           <h2 className={inter.className}>
             NextJS 13 Features <span>-&gt;</span>
           </h2>
@@ -222,13 +220,13 @@ export default function Home() {
               or open a new one
             </a>
           </p>
-        </a>
-        <a className={styles.card} target="_blank" rel="noopener noreferrer">
+        </div>
+        <div className={styles.card} target="_blank" rel="noopener noreferrer">
           <h2 className={inter.className}>
             Performance <span>-&gt;</span>
           </h2>
           <p className={inter.className}>
-            Why should I care about Performance?
+            <strong>Why should I care about Performance?</strong>
           </p>
           <p className={inter.className}>
             Front-end transactions are recorded for each pageload or navigation.
@@ -238,8 +236,14 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             Sentry creates links between errors and transactions, and can be
-            seen in the [trace
-            navigator](https://docs.sentry.io/product/sentry-basics/tracing/trace-view/).
+            seen in the {' '}
+            <strong>
+            <Link 
+              href="https://docs.sentry.io/product/sentry-basics/tracing/trace-view/"
+              >
+              trace navigator docs
+            </Link></strong>.
+
           </p>
           <p className={inter.className}>
             Manual performance instrumentation is demonstrated in the final
@@ -247,12 +251,12 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             Add Edge Function example){' '}
-            <Link href="/client/test5">Navigate in this tab</Link> or{' '}
-            <a href="/client/test5" target="_blank">
-              or open a new one
-            </a>
+            <br/>
+            <code className={styles.code}>
+            <Link href="/client/test5">Trigger Edge Function</Link> 
+            </code>
           </p>
-        </a>
+        </div>
       </div>
       <div style={{ maxWidth: 700, margin: '0 auto' }}></div>
     </main>

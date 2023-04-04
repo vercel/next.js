@@ -27,6 +27,14 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+
+# yarn
+.yarn
+
+# pnp
+.pnp.cjs
+.pnp.loader.mjs
 
 # vercel
 .vercel
