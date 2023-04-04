@@ -508,28 +508,32 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
-      if (nextConfigOutput === 'export' && layoutOrPageMod) {
-        if (!layoutOrPageMod.dynamic || layoutOrPageMod.dynamic === 'auto') {
-          layoutOrPageMod.dynamic = 'error'
-        } else if (layoutOrPageMod.dynamic === 'force-dynamic') {
-          throw new Error(
-            `export const dynamic = "force-dynamic" on page "${pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
-          )
+      let dynamic = layoutOrPageMod?.dynamic
+
+      if (nextConfigOutput === 'export') {
+        if (!dynamic || dynamic === 'auto') {
+          dynamic = 'error'
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`output: export`, {
+            dynamic,
+            link: 'https://nextjs.org/docs/advanced-features/static-html-export',
+          })
         }
       }
 
-      if (typeof layoutOrPageMod?.dynamic === 'string') {
+      if (typeof dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'error') {
+        if (dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
-        } else if (layoutOrPageMod.dynamic === 'force-dynamic') {
+        } else if (dynamic === 'force-dynamic') {
           staticGenerationStore.forceDynamic = true
           staticGenerationBailout(`dynamic = 'force-dynamic'`)
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod.dynamic === 'force-static') {
+          if (dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
@@ -1361,6 +1365,15 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (
+            err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+            err.message?.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          ) {
+            // Ensure that "next dev" prints the red error overlay
+            throw err
+          }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
               `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
