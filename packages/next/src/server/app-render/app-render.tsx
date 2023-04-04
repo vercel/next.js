@@ -515,6 +515,7 @@ export async function renderToHTMLOrFlight(
           dynamic = 'error'
         } else if (dynamic === 'force-dynamic') {
           staticGenerationStore.forceDynamic = true
+          staticGenerationStore.dynamicShouldError = true
           staticGenerationBailout(`output: export`, {
             dynamic,
             link: 'https://nextjs.org/docs/advanced-features/static-html-export',

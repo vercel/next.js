@@ -206,7 +206,7 @@ describe('app dir with output export', () => {
     }
     expect(result.code).toBe(1)
     expect(result.stderr).toContain(
-      'export const dynamic = "force-dynamic" on page "/another/[slug]" cannot be used with "output: export".'
+      'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.'
     )
   })
   it.each([
