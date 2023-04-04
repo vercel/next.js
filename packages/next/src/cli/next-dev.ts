@@ -90,7 +90,12 @@ let unwatchConfigFiles: () => void
 
 function watchConfigFiles(
   dirToWatch: string,
-  onChange?: (filename: string) => void
+  onChange = (filename: string) =>
+    Log.warn(
+      `\n> Found a change in ${path.basename(
+        filename
+      )}. Restart the server to see the changes in effect.`
+    )
 ) {
   if (unwatchConfigFiles) {
     unwatchConfigFiles()
@@ -98,16 +103,7 @@ function watchConfigFiles(
 
   const wp = new Watchpack()
   wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
-  wp.on('change', (filename) => {
-    if (onChange) onChange(filename)
-    else {
-      console.log(
-        `\n> Found a change in ${path.basename(
-          filename
-        )}. Restart the server to see the changes in effect.`
-      )
-    }
-  })
+  wp.on('change', onChange)
   unwatchConfigFiles = () => wp.close()
 }
 
@@ -303,7 +299,7 @@ const nextDev: CliCommand = async (argv) => {
         let config: NextConfig | undefined
 
         watchConfigFiles(devServerOptions.dir, (filename) => {
-          console.log(
+          Log.warn(
             `\n> Found a change in ${path.basename(
               filename
             )}. Restarting the server to apply the changes...`
