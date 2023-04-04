@@ -12,6 +12,7 @@ use turbopack_core::{
         ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
         ModuleId,
     },
+    issue::{IssueSeverity, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
@@ -119,12 +120,8 @@ impl EsmAssetReferenceVc {
     pub(super) async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
         let this = self.await?;
 
-        let ty = Value::new(match &this.export_name {
-            Some(part) => EcmaScriptModulesReferenceSubType::ImportPart(*part),
-            None => EcmaScriptModulesReferenceSubType::Undefined,
-        });
         Ok(ReferencedAssetVc::from_resolve_result(
-            esm_resolve(this.get_origin(), this.request, ty),
+            self.resolve_reference(),
             this.request,
         ))
     }
@@ -154,7 +151,13 @@ impl AssetReference for EsmAssetReference {
             None => EcmaScriptModulesReferenceSubType::Undefined,
         });
 
-        esm_resolve(self.get_origin(), self.request, ty)
+        esm_resolve(
+            self.get_origin(),
+            self.request,
+            ty,
+            OptionIssueSourceVc::none(),
+            IssueSeverity::Error.cell(),
+        )
     }
 }
 

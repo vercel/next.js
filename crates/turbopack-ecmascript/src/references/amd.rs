@@ -16,6 +16,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
@@ -29,7 +30,7 @@ use crate::{
         pattern_mapping::{PatternMapping, PatternMappingReadRef},
         AstPathVc,
     },
-    resolve::cjs_resolve,
+    resolve::{cjs_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]
@@ -37,13 +38,25 @@ use crate::{
 pub struct AmdDefineAssetReference {
     origin: ResolveOriginVc,
     request: RequestVc,
+    issue_source: IssueSourceVc,
+    in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl AmdDefineAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, request: RequestVc) -> Self {
-        Self::cell(AmdDefineAssetReference { origin, request })
+    pub fn new(
+        origin: ResolveOriginVc,
+        request: RequestVc,
+        issue_source: IssueSourceVc,
+        in_try: bool,
+    ) -> Self {
+        Self::cell(AmdDefineAssetReference {
+            origin,
+            request,
+            issue_source,
+            in_try,
+        })
     }
 }
 
@@ -51,7 +64,12 @@ impl AmdDefineAssetReferenceVc {
 impl AssetReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.origin, self.request)
+        cjs_resolve(
+            self.origin,
+            self.request,
+            OptionIssueSourceVc::some(self.issue_source),
+            try_to_severity(self.in_try),
+        )
     }
 }
 
@@ -95,6 +113,8 @@ pub struct AmdDefineWithDependenciesCodeGen {
     origin: ResolveOriginVc,
     path: AstPathVc,
     factory_type: AmdDefineFactoryType,
+    issue_source: IssueSourceVc,
+    in_try: bool,
 }
 
 impl AmdDefineWithDependenciesCodeGenVc {
@@ -103,12 +123,16 @@ impl AmdDefineWithDependenciesCodeGenVc {
         origin: ResolveOriginVc,
         path: AstPathVc,
         factory_type: AmdDefineFactoryType,
+        issue_source: IssueSourceVc,
+        in_try: bool,
     ) -> Self {
         Self::cell(AmdDefineWithDependenciesCodeGen {
             dependencies_requests,
             origin,
             path,
             factory_type,
+            issue_source,
+            in_try,
         })
     }
 }
@@ -133,7 +157,12 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                                 *request,
                                 self.origin,
                                 context.into(),
-                                cjs_resolve(self.origin, *request),
+                                cjs_resolve(
+                                    self.origin,
+                                    *request,
+                                    OptionIssueSourceVc::some(self.issue_source),
+                                    try_to_severity(self.in_try),
+                                ),
                                 Value::new(Cjs),
                             )
                             .await?,

@@ -83,6 +83,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -170,6 +171,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Call(
@@ -265,6 +267,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -356,6 +359,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -449,6 +453,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -534,6 +539,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -621,6 +627,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Call(
@@ -716,6 +723,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -807,6 +815,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -900,6 +909,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1012,6 +1022,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1114,6 +1125,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Conditional {
         condition: Binary(
@@ -1265,6 +1277,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Conditional {
                         condition: Logical(
@@ -1441,6 +1454,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1575,6 +1589,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                 ],
                                 ast_path: [
@@ -1797,6 +1812,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1931,6 +1947,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                 ],
                                 ast_path: [
@@ -2114,6 +2131,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -2312,6 +2330,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Conditional {
                         condition: Call(
@@ -2483,6 +2502,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     Member {
                                         obj: Member(
@@ -2629,6 +2649,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -2771,6 +2792,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: FreeVar(
@@ -2912,6 +2934,7 @@
                                             ),
                                             ctxt: #1,
                                         },
+                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: Member(
@@ -3072,6 +3095,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                 ],
                                 ast_path: [
@@ -3291,6 +3315,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: FreeVar(
@@ -3420,6 +3445,7 @@
                                             ),
                                             ctxt: #1,
                                         },
+                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -3551,6 +3577,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     Conditional {
                                         condition: Not(
@@ -3718,6 +3745,7 @@
                                                             ),
                                                             ctxt: #0,
                                                         },
+                                                        in_try: false,
                                                     },
                                                     MemberCall {
                                                         obj: Variable(
@@ -3849,6 +3877,7 @@
                                                             ),
                                                             ctxt: #0,
                                                         },
+                                                        in_try: false,
                                                     },
                                                 ],
                                                 ast_path: [
@@ -4044,6 +4073,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                 ],
                                 ast_path: [
@@ -4227,6 +4257,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -4398,6 +4429,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4521,6 +4553,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -4645,6 +4678,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4765,6 +4799,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4877,6 +4912,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5008,6 +5044,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5175,6 +5212,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5342,6 +5380,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5509,6 +5548,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5676,6 +5716,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5788,6 +5829,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5915,6 +5957,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6029,6 +6072,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6143,6 +6187,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6257,6 +6302,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6371,6 +6417,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6483,6 +6530,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6631,6 +6679,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -6828,6 +6877,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6976,6 +7026,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -7173,6 +7224,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -7321,6 +7373,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -7521,6 +7574,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -7669,6 +7723,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -7866,6 +7921,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -8014,6 +8070,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -8211,6 +8268,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -8359,6 +8417,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -8559,6 +8618,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -8707,6 +8767,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -8904,6 +8965,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -9052,6 +9114,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -9249,6 +9312,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -9397,6 +9461,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -9597,6 +9662,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -9745,6 +9811,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -9942,6 +10009,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -10090,6 +10158,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -10287,6 +10356,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -10435,6 +10505,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -10632,6 +10703,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -10780,6 +10852,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -10980,6 +11053,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -11128,6 +11202,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -11325,6 +11400,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -11473,6 +11549,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -11670,6 +11747,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -11818,6 +11896,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -12018,6 +12097,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -12166,6 +12246,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -12363,6 +12444,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -12511,6 +12593,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -12708,6 +12791,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -12856,6 +12940,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -13056,6 +13141,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -13204,6 +13290,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -13401,6 +13488,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -13549,6 +13637,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -13746,6 +13835,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -13894,6 +13984,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -14094,6 +14185,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -14242,6 +14334,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -14439,6 +14532,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -14587,6 +14681,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -14784,6 +14879,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -14932,6 +15028,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -15132,6 +15229,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -15280,6 +15378,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -15477,6 +15576,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -15625,6 +15725,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -15822,6 +15923,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -15970,6 +16072,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -16170,6 +16273,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -16318,6 +16422,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -16515,6 +16620,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -16663,6 +16769,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -16860,6 +16967,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -17008,6 +17116,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -17208,6 +17317,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -17356,6 +17466,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -17553,6 +17664,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -17701,6 +17813,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -17898,6 +18011,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -18046,6 +18160,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -18243,6 +18358,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -18391,6 +18507,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -18591,6 +18708,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -18739,6 +18857,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -18936,6 +19055,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -19084,6 +19204,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -19281,6 +19402,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -19429,6 +19551,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -19629,6 +19752,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -19777,6 +19901,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -19974,6 +20099,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -20122,6 +20248,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -20319,6 +20446,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -20467,6 +20595,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -20667,6 +20796,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -20815,6 +20945,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -21012,6 +21143,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -21160,6 +21292,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -21357,6 +21490,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -21505,6 +21639,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -21705,6 +21840,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -21853,6 +21989,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -22050,6 +22187,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -22198,6 +22336,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -22395,6 +22534,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -22543,6 +22683,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -22743,6 +22884,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -22891,6 +23033,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -23088,6 +23231,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -23236,6 +23380,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -23433,6 +23578,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -23581,6 +23727,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -23781,6 +23928,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -23929,6 +24077,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -24126,6 +24275,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -24274,6 +24424,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -24471,6 +24622,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -24619,6 +24771,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -24819,6 +24972,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -24967,6 +25121,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -25164,6 +25319,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -25312,6 +25468,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -25509,6 +25666,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -25657,6 +25815,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -25854,6 +26013,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -26002,6 +26162,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -26202,6 +26363,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -26350,6 +26512,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -26547,6 +26710,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -26695,6 +26859,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -26892,6 +27057,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -27040,6 +27206,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -27240,6 +27407,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -27388,6 +27556,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -27585,6 +27754,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -27733,6 +27903,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -27930,6 +28101,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -28078,6 +28250,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -28278,6 +28451,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -28426,6 +28600,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -28623,6 +28798,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -28738,6 +28914,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -28878,6 +29055,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -28968,6 +29146,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -29058,6 +29237,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -29148,6 +29328,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -29238,6 +29419,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -29328,6 +29510,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -29418,6 +29601,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -29505,6 +29689,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -29591,6 +29776,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -29697,6 +29883,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Conditional {
         condition: Logical(
@@ -29839,6 +30026,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -30006,6 +30194,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -30127,6 +30316,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -30261,6 +30451,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -30400,6 +30591,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -30516,6 +30708,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -30638,6 +30831,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -30763,6 +30957,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -30889,6 +31084,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -31014,6 +31210,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -31140,5 +31337,6 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
 ]

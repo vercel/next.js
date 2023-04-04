@@ -40,6 +40,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -102,6 +103,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -169,5 +171,6 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
 ]

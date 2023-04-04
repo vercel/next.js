@@ -9,7 +9,7 @@ use turbopack_core::{
         ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ChunkingTypeOptionVc,
     },
     environment::{Rendering, RenderingVc},
-    issue::{code_gen::CodeGenerationIssue, IssueSeverity},
+    issue::{code_gen::CodeGenerationIssue, IssueSeverity, IssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::UrlReferenceSubType,
     resolve::{
@@ -25,7 +25,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,
-    resolve::url_resolve,
+    resolve::{try_to_severity, url_resolve},
     utils::module_id_to_lit,
 };
 
@@ -40,6 +40,8 @@ pub struct UrlAssetReference {
     request: RequestVc,
     rendering: RenderingVc,
     ast_path: AstPathVc,
+    issue_source: IssueSourceVc,
+    in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -50,12 +52,16 @@ impl UrlAssetReferenceVc {
         request: RequestVc,
         rendering: RenderingVc,
         ast_path: AstPathVc,
+        issue_source: IssueSourceVc,
+        in_try: bool,
     ) -> Self {
         UrlAssetReference {
             origin,
             request,
             rendering,
             ast_path,
+            issue_source,
+            in_try,
         }
         .cell()
     }
@@ -64,11 +70,7 @@ impl UrlAssetReferenceVc {
     pub(super) async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
         let this = self.await?;
         Ok(ReferencedAssetVc::from_resolve_result(
-            url_resolve(
-                this.origin,
-                this.request,
-                Value::new(UrlReferenceSubType::EcmaScriptNewUrl),
-            ),
+            self.resolve_reference(),
             this.request,
         ))
     }
@@ -82,6 +84,8 @@ impl AssetReference for UrlAssetReference {
             self.origin,
             self.request,
             Value::new(UrlReferenceSubType::EcmaScriptNewUrl),
+            self.issue_source,
+            try_to_severity(self.in_try),
         )
     }
 }

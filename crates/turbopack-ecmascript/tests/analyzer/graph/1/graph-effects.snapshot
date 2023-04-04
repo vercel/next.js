@@ -63,6 +63,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -129,5 +130,6 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
 ]

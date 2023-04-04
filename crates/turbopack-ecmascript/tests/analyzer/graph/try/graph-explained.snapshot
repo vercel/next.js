@@ -1,0 +1,7 @@
+e = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+pkg = (???*0* | FreeVar(require)("packages/not-found") | FreeVar(require)("packages/found"))
+- *0* pkg
+  ⚠️  pattern without value

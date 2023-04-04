@@ -48,6 +48,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -100,6 +101,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -150,6 +152,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -202,6 +205,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -243,6 +247,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -293,6 +298,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -360,6 +366,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -426,6 +433,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -490,6 +498,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -554,6 +563,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -658,6 +668,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -708,6 +719,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -772,6 +784,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -836,6 +849,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -900,6 +914,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1001,6 +1016,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1051,6 +1067,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -1115,6 +1132,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1182,6 +1200,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1248,6 +1267,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -1312,6 +1332,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1416,6 +1437,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1466,6 +1488,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1533,6 +1556,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1599,6 +1623,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1666,6 +1691,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1732,6 +1758,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -1796,6 +1823,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1903,6 +1931,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1953,6 +1982,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2023,6 +2053,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2093,6 +2124,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -2157,6 +2189,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2270,6 +2303,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -2320,6 +2354,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2390,6 +2425,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -2454,6 +2490,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -2557,5 +2594,6 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
 ]

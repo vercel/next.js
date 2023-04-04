@@ -13,7 +13,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContext,
     ident::AssetIdentVc,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
@@ -297,7 +297,16 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
         resolve(context_path, request, options)
     };
     let result = origin.context().process_resolve_result(result, ty.clone());
-    handle_resolve_error(result, ty, origin.origin_path(), request, options).await
+    handle_resolve_error(
+        result,
+        ty,
+        origin.origin_path(),
+        request,
+        options,
+        OptionIssueSourceVc::none(),
+        IssueSeverity::Error.cell(),
+    )
+    .await
 }
 
 #[turbo_tasks::value]

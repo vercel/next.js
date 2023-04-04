@@ -9,6 +9,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, ChunkableAssetReference, ChunkableAssetReferenceVc,
         ChunkingType, ChunkingTypeOptionVc,
     },
+    issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
@@ -23,7 +24,7 @@ use crate::{
     },
     create_visitor,
     references::AstPathVc,
-    resolve::esm_resolve,
+    resolve::{esm_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]
@@ -32,16 +33,26 @@ pub struct EsmAsyncAssetReference {
     pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
+    pub issue_source: IssueSourceVc,
+    pub in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmAsyncAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(
+        origin: ResolveOriginVc,
+        request: RequestVc,
+        path: AstPathVc,
+        issue_source: IssueSourceVc,
+        in_try: bool,
+    ) -> Self {
         Self::cell(EsmAsyncAssetReference {
             origin,
             request,
             path,
+            issue_source,
+            in_try,
         })
     }
 }
@@ -50,7 +61,13 @@ impl EsmAsyncAssetReferenceVc {
 impl AssetReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        esm_resolve(self.origin, self.request, Default::default())
+        esm_resolve(
+            self.origin,
+            self.request,
+            Default::default(),
+            OptionIssueSourceVc::some(self.issue_source),
+            try_to_severity(self.in_try),
+        )
     }
 }
 
@@ -89,6 +106,8 @@ impl CodeGenerateableWithAvailabilityInfo for EsmAsyncAssetReference {
                 self.origin,
                 self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+                OptionIssueSourceVc::some(self.issue_source),
+                try_to_severity(self.in_try),
             ),
             Value::new(EsmAsync(availability_info.into_value())),
         )

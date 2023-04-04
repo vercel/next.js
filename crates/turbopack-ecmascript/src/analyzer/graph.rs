@@ -115,6 +115,7 @@ pub enum Effect {
         /// The ast path to the condition.
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     /// A function call.
     Call {
@@ -122,6 +123,7 @@ pub enum Effect {
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     /// A function call of a property of an object.
     MemberCall {
@@ -130,6 +132,7 @@ pub enum Effect {
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     /// A property access.
     Member {
@@ -137,6 +140,7 @@ pub enum Effect {
         prop: JsValue,
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     /// A reference to an imported binding.
     ImportedBinding {
@@ -144,24 +148,28 @@ pub enum Effect {
         export: Option<String>,
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     /// A reference to a free var access.
     FreeVar {
         var: JsValue,
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
     ImportMeta {
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
     /// A reference to `new URL(..., import.meta.url)`.
     Url {
         input: JsValue,
         ast_path: Vec<AstParentKind>,
         span: Span,
+        in_try: bool,
     },
 }
 
@@ -170,31 +178,19 @@ impl Effect {
     pub fn normalize(&mut self) {
         match self {
             Effect::Conditional {
-                condition,
-                kind,
-                ast_path: _,
-                span: _,
+                condition, kind, ..
             } => {
                 condition.normalize();
                 kind.normalize();
             }
-            Effect::Call {
-                func,
-                args,
-                ast_path: _,
-                span: _,
-            } => {
+            Effect::Call { func, args, .. } => {
                 func.normalize();
                 for arg in args.iter_mut() {
                     arg.normalize();
                 }
             }
             Effect::MemberCall {
-                obj,
-                prop,
-                args,
-                ast_path: _,
-                span: _,
+                obj, prop, args, ..
             } => {
                 obj.normalize();
                 prop.normalize();
@@ -202,37 +198,16 @@ impl Effect {
                     arg.normalize();
                 }
             }
-            Effect::Member {
-                obj,
-                prop,
-                ast_path: _,
-                span: _,
-            } => {
+            Effect::Member { obj, prop, .. } => {
                 obj.normalize();
                 prop.normalize();
             }
-            Effect::FreeVar {
-                var,
-                ast_path: _,
-                span: _,
-            } => {
+            Effect::FreeVar { var, .. } => {
                 var.normalize();
             }
-            Effect::ImportedBinding {
-                esm_reference_index: _,
-                export: _,
-                ast_path: _,
-                span: _,
-            } => {}
-            Effect::ImportMeta {
-                ast_path: _,
-                span: _,
-            } => {}
-            Effect::Url {
-                input,
-                ast_path: _,
-                span: _,
-            } => {
+            Effect::ImportedBinding { .. } => {}
+            Effect::ImportMeta { .. } => {}
+            Effect::Url { input, .. } => {
                 input.normalize();
             }
         }
@@ -629,6 +604,7 @@ struct Analyzer<'a> {
 pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
     ast_path.iter().map(|n| n.kind()).collect()
 }
+
 pub fn as_parent_path_with(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
     additional: AstParentKind,
@@ -638,6 +614,19 @@ pub fn as_parent_path_with(
         .map(|n| n.kind())
         .chain([additional].into_iter())
         .collect()
+}
+
+pub fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    ast_path
+        .iter()
+        .rev()
+        .find_map(|ast_ref| match ast_ref.kind() {
+            AstParentKind::ArrowExpr(ArrowExprField::Body) => Some(false),
+            AstParentKind::Function(FunctionField::Body) => Some(false),
+            AstParentKind::TryStmt(TryStmtField::Block) => Some(true),
+            _ => None,
+        })
+        .unwrap_or(false)
 }
 
 impl Analyzer<'_> {
@@ -874,6 +863,7 @@ impl Analyzer<'_> {
                     args,
                     ast_path: as_parent_path(ast_path),
                     span: n.span(),
+                    in_try: is_in_try(ast_path),
                 });
             }
             Callee::Expr(box expr) => {
@@ -895,6 +885,7 @@ impl Analyzer<'_> {
                         args,
                         ast_path: as_parent_path(ast_path),
                         span: n.span(),
+                        in_try: is_in_try(ast_path),
                     });
                 } else {
                     let fn_value = self.eval_context.eval(expr);
@@ -903,6 +894,7 @@ impl Analyzer<'_> {
                         args,
                         ast_path: as_parent_path(ast_path),
                         span: n.span(),
+                        in_try: is_in_try(ast_path),
                     });
                 }
             }
@@ -929,6 +921,7 @@ impl Analyzer<'_> {
             prop: prop_value,
             ast_path: as_parent_path(ast_path),
             span: member_expr.span(),
+            in_try: is_in_try(ast_path),
         });
     }
 
@@ -1111,6 +1104,7 @@ impl VisitAstPath for Analyzer<'_> {
                                     input: self.eval_context.eval(&args[0].expr),
                                     ast_path: as_parent_path(ast_path),
                                     span: new_expr.span(),
+                                    in_try: is_in_try(ast_path),
                                 });
                             }
                         }
@@ -1443,12 +1437,14 @@ impl VisitAstPath for Analyzer<'_> {
                 export,
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
+                in_try: is_in_try(ast_path),
             })
         } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
             self.add_effect(Effect::FreeVar {
                 var: JsValue::FreeVar(ident.sym.clone()),
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
+                in_try: is_in_try(ast_path),
             })
         }
     }
@@ -1464,6 +1460,7 @@ impl VisitAstPath for Analyzer<'_> {
             self.add_effect(Effect::ImportMeta {
                 span: expr.span,
                 ast_path: as_parent_path(ast_path),
+                in_try: is_in_try(ast_path),
             })
         }
     }
@@ -1575,6 +1572,7 @@ impl<'a> Analyzer<'a> {
                 kind: box cond_kind,
                 ast_path: as_parent_path_with(ast_path, ast_kind),
                 span,
+                in_try: is_in_try(ast_path),
             });
         }
     }

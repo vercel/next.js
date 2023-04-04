@@ -48,6 +48,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -100,6 +101,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -150,6 +152,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -202,6 +205,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -252,6 +256,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -304,6 +309,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -377,6 +383,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -449,6 +456,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -534,6 +542,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -611,6 +620,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -696,6 +706,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -773,6 +784,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -852,6 +864,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -937,6 +950,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1013,6 +1027,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1063,6 +1078,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Conditional {
         condition: FreeVar(
@@ -1134,6 +1150,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -1213,6 +1230,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -1275,6 +1293,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1358,6 +1377,7 @@
             ),
             ctxt: #0,
         },
+        in_try: true,
     },
     FreeVar {
         var: FreeVar(
@@ -1440,6 +1460,7 @@
             ),
             ctxt: #1,
         },
+        in_try: true,
     },
     MemberCall {
         obj: FreeVar(
@@ -1542,6 +1563,7 @@
             ),
             ctxt: #0,
         },
+        in_try: true,
     },
     FreeVar {
         var: FreeVar(
@@ -1621,6 +1643,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -1709,6 +1732,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1795,6 +1819,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -1880,6 +1905,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -1967,6 +1993,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Conditional {
         condition: Not(
@@ -2100,6 +2127,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: true,
                     },
                     FreeVar {
                         var: FreeVar(
@@ -2204,6 +2232,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: true,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -2310,6 +2339,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: true,
                     },
                     FreeVar {
                         var: FreeVar(
@@ -2408,6 +2438,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -2515,6 +2546,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -2585,6 +2617,7 @@
             ),
             ctxt: #1,
         },
+        in_try: true,
     },
     Call {
         func: FreeVar(
@@ -2657,6 +2690,7 @@
             ),
             ctxt: #0,
         },
+        in_try: true,
     },
     Conditional {
         condition: Variable(
@@ -2758,6 +2792,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Member {
                         obj: FreeVar(
@@ -2857,6 +2892,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     FreeVar {
                         var: FreeVar(
@@ -2955,6 +2991,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3056,6 +3093,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -3164,6 +3202,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Member {
                         obj: Variable(
@@ -3255,6 +3294,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Member {
                         obj: Variable(
@@ -3365,6 +3405,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -3476,6 +3517,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -3619,6 +3661,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Member {
                         obj: FreeVar(
@@ -3705,6 +3748,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     FreeVar {
                         var: FreeVar(
@@ -3790,6 +3834,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                     MemberCall {
                         obj: FreeVar(
@@ -3877,6 +3922,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     Conditional {
                         condition: Not(
@@ -3999,6 +4045,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: FreeVar(
@@ -4092,6 +4139,7 @@
                                             ),
                                             ctxt: #1,
                                         },
+                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -4195,6 +4243,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -4289,6 +4338,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                     FreeVar {
                                         var: FreeVar(
@@ -4382,6 +4432,7 @@
                                             ),
                                             ctxt: #1,
                                         },
+                                        in_try: false,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -4486,6 +4537,7 @@
                                             ),
                                             ctxt: #0,
                                         },
+                                        in_try: false,
                                     },
                                 ],
                                 ast_path: [
@@ -4593,6 +4645,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -4672,6 +4725,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -4757,6 +4811,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -4861,6 +4916,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -4957,6 +5013,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -5059,6 +5116,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -5163,6 +5221,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -5259,6 +5318,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -5361,6 +5421,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Conditional {
         condition: Logical(
@@ -5537,6 +5598,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                     FreeVar {
                         var: FreeVar(
@@ -5631,6 +5693,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -5732,6 +5795,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -5855,6 +5919,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                     FreeVar {
                         var: FreeVar(
@@ -5963,6 +6028,7 @@
                             ),
                             ctxt: #1,
                         },
+                        in_try: false,
                     },
                     MemberCall {
                         obj: Variable(
@@ -6104,6 +6170,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -6205,6 +6272,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -6281,6 +6349,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Call {
         func: Variable(
@@ -6326,6 +6395,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     Member {
         obj: Variable(
@@ -6386,6 +6456,7 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
     MemberCall {
         obj: Variable(
@@ -6457,5 +6528,6 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
 ]

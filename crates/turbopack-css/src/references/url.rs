@@ -8,6 +8,7 @@ use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkingContext, ChunkingContextVc},
     ident::AssetIdentVc,
+    issue::{IssueSeverity, IssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::UrlReferenceSubType,
     resolve::{
@@ -37,16 +38,23 @@ pub struct UrlAssetReference {
     pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
+    pub issue_source: IssueSourceVc,
 }
 
 #[turbo_tasks::value_impl]
 impl UrlAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(
+        origin: ResolveOriginVc,
+        request: RequestVc,
+        path: AstPathVc,
+        issue_source: IssueSourceVc,
+    ) -> Self {
         Self::cell(UrlAssetReference {
             origin,
             request,
             path,
+            issue_source,
         })
     }
 
@@ -74,6 +82,8 @@ impl AssetReference for UrlAssetReference {
             self.origin,
             self.request,
             Value::new(UrlReferenceSubType::CssUrl),
+            self.issue_source,
+            IssueSeverity::Error.cell(),
         )
     }
 }
