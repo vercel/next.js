@@ -22,10 +22,6 @@ const NextServerCSSLoader = function (this: any, content: string) {
 
   // Only add the checksum during development.
   if (process.env.NODE_ENV !== 'production') {
-    // Server CSS modules are always available for HMR, so we attach
-    // `module.hot.accept()` to the generated module.
-    const hmrCode = 'if (module.hot) { module.hot.accept() }'
-
     const isCSSModule = this.resourcePath.match(/\.module\.(css|sass|scss)$/)
     const checksum = crypto
       .createHash('sha256')
@@ -41,9 +37,12 @@ const NextServerCSSLoader = function (this: any, content: string) {
       return `\
 ${content}
 module.exports.__checksum = ${JSON.stringify(checksum)}
-${hmrCode}
 `
     }
+
+    // Server CSS imports are always available for HMR, so we attach
+    // `module.hot.accept()` to the generated module.
+    const hmrCode = 'if (module.hot) { module.hot.accept() }'
 
     return `\
 export default ${JSON.stringify(checksum)}
