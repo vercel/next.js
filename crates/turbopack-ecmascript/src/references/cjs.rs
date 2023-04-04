@@ -6,6 +6,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc},
+    issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
@@ -16,7 +17,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::{util::throw_module_not_found_expr, AstPathVc},
-    resolve::cjs_resolve,
+    resolve::{cjs_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]
@@ -24,13 +25,25 @@ use crate::{
 pub struct CjsAssetReference {
     pub origin: ResolveOriginVc,
     pub request: RequestVc,
+    pub issue_source: IssueSourceVc,
+    pub in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, request: RequestVc) -> Self {
-        Self::cell(CjsAssetReference { origin, request })
+    pub fn new(
+        origin: ResolveOriginVc,
+        request: RequestVc,
+        issue_source: IssueSourceVc,
+        in_try: bool,
+    ) -> Self {
+        Self::cell(CjsAssetReference {
+            origin,
+            request,
+            issue_source,
+            in_try,
+        })
     }
 }
 
@@ -38,7 +51,12 @@ impl CjsAssetReferenceVc {
 impl AssetReference for CjsAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.origin, self.request)
+        cjs_resolve(
+            self.origin,
+            self.request,
+            OptionIssueSourceVc::some(self.issue_source),
+            try_to_severity(self.in_try),
+        )
     }
 }
 
@@ -62,16 +80,26 @@ pub struct CjsRequireAssetReference {
     pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
+    pub issue_source: IssueSourceVc,
+    pub in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsRequireAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(
+        origin: ResolveOriginVc,
+        request: RequestVc,
+        path: AstPathVc,
+        issue_source: IssueSourceVc,
+        in_try: bool,
+    ) -> Self {
         Self::cell(CjsRequireAssetReference {
             origin,
             request,
             path,
+            issue_source,
+            in_try,
         })
     }
 }
@@ -80,7 +108,12 @@ impl CjsRequireAssetReferenceVc {
 impl AssetReference for CjsRequireAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.origin, self.request)
+        cjs_resolve(
+            self.origin,
+            self.request,
+            OptionIssueSourceVc::some(self.issue_source),
+            try_to_severity(self.in_try),
+        )
     }
 }
 
@@ -109,7 +142,12 @@ impl CodeGenerateable for CjsRequireAssetReference {
             self.request,
             self.origin,
             context.into(),
-            cjs_resolve(self.origin, self.request),
+            cjs_resolve(
+                self.origin,
+                self.request,
+                OptionIssueSourceVc::some(self.issue_source),
+                try_to_severity(self.in_try),
+            ),
             Value::new(Cjs),
         )
         .await?;
@@ -166,16 +204,26 @@ pub struct CjsRequireResolveAssetReference {
     pub origin: ResolveOriginVc,
     pub request: RequestVc,
     pub path: AstPathVc,
+    pub issue_source: IssueSourceVc,
+    pub in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsRequireResolveAssetReferenceVc {
     #[turbo_tasks::function]
-    pub fn new(origin: ResolveOriginVc, request: RequestVc, path: AstPathVc) -> Self {
+    pub fn new(
+        origin: ResolveOriginVc,
+        request: RequestVc,
+        path: AstPathVc,
+        issue_source: IssueSourceVc,
+        in_try: bool,
+    ) -> Self {
         Self::cell(CjsRequireResolveAssetReference {
             origin,
             request,
             path,
+            issue_source,
+            in_try,
         })
     }
 }
@@ -184,7 +232,12 @@ impl CjsRequireResolveAssetReferenceVc {
 impl AssetReference for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        cjs_resolve(self.origin, self.request)
+        cjs_resolve(
+            self.origin,
+            self.request,
+            OptionIssueSourceVc::some(self.issue_source),
+            try_to_severity(self.in_try),
+        )
     }
 }
 
@@ -213,7 +266,12 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             self.request,
             self.origin,
             context.into(),
-            cjs_resolve(self.origin, self.request),
+            cjs_resolve(
+                self.origin,
+                self.request,
+                OptionIssueSourceVc::some(self.issue_source),
+                try_to_severity(self.in_try),
+            ),
             Value::new(Cjs),
         )
         .await?;

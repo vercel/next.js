@@ -40,6 +40,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 3,
@@ -82,6 +83,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 4,
@@ -124,6 +126,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 6,
@@ -164,6 +167,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -209,6 +213,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 3,
@@ -254,6 +259,7 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 6,
@@ -297,5 +303,6 @@
             ),
             ctxt: #2,
         },
+        in_try: false,
     },
 ]

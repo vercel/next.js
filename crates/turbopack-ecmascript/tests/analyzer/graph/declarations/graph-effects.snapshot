@@ -39,5 +39,6 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
 ]

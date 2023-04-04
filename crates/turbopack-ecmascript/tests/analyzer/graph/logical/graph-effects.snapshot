@@ -45,6 +45,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -110,6 +111,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -169,6 +171,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -222,6 +225,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -269,6 +273,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     FreeVar {
         var: FreeVar(
@@ -316,5 +321,6 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
 ]

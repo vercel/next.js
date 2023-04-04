@@ -1,0 +1,65 @@
+[
+    (
+        "e",
+        Unknown(
+            Some(
+                Variable(
+                    (
+                        Atom('e' type=static),
+                        #4,
+                    ),
+                ),
+            ),
+            "pattern without value",
+        ),
+    ),
+    (
+        "pkg",
+        Alternatives(
+            8,
+            [
+                Unknown(
+                    Some(
+                        Variable(
+                            (
+                                Atom('pkg' type=inline),
+                                #2,
+                            ),
+                        ),
+                    ),
+                    "pattern without value",
+                ),
+                Call(
+                    3,
+                    FreeVar(
+                        Atom('require' type=static),
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('packages/not-found' type=dynamic),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+                Call(
+                    3,
+                    FreeVar(
+                        Atom('require' type=static),
+                    ),
+                    [
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('packages/found' type=dynamic),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+]

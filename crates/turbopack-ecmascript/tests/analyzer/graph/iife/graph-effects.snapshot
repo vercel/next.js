@@ -39,6 +39,7 @@
             ),
             ctxt: #1,
         },
+        in_try: false,
     },
     Conditional {
         condition: Constant(
@@ -142,6 +143,7 @@
                             ),
                             ctxt: #0,
                         },
+                        in_try: false,
                     },
                 ],
                 ast_path: [
@@ -257,5 +259,6 @@
             ),
             ctxt: #0,
         },
+        in_try: false,
     },
 ]

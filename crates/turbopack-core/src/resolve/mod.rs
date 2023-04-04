@@ -55,6 +55,8 @@ pub use alias_map::{
 };
 pub use exports::{ExportsValue, ResolveAliasMap, ResolveAliasMapVc};
 
+use crate::issue::{IssueSeverity, IssueSeverityVc, OptionIssueSourceVc};
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum PrimaryResolveResult {
@@ -775,6 +777,7 @@ async fn resolve_internal(
             let relative = RequestVc::relative(Value::new(new_pat), true);
 
             let issue: ResolvingIssueVc = ResolvingIssue {
+                severity: IssueSeverity::Error.cell(),
                 request_type: "server relative import: not implemented yet".to_string(),
                 request,
                 context,
@@ -784,6 +787,7 @@ async fn resolve_internal(
                      relative to the file you are importing from."
                         .to_string(),
                 ),
+                source: OptionIssueSourceVc::none(),
             }
             .into();
             issue.as_issue().emit();
@@ -792,11 +796,13 @@ async fn resolve_internal(
         }
         Request::Windows { path: _ } => {
             let issue: ResolvingIssueVc = ResolvingIssue {
+                severity: IssueSeverity::Error.cell(),
                 request_type: "windows import: not implemented yet".to_string(),
                 request,
                 context,
                 resolve_options: options,
                 error_message: Some("windows imports are not implemented yet".to_string()),
+                source: OptionIssueSourceVc::none(),
             }
             .into();
             issue.as_issue().emit();
@@ -806,11 +812,13 @@ async fn resolve_internal(
         Request::Empty => ResolveResult::unresolveable().into(),
         Request::PackageInternal { path: _ } => {
             let issue: ResolvingIssueVc = ResolvingIssue {
+                severity: IssueSeverity::Error.cell(),
                 request_type: "package internal import: not implemented yet".to_string(),
                 request,
                 context,
                 resolve_options: options,
                 error_message: Some("package internal imports are not implemented yet".to_string()),
+                source: OptionIssueSourceVc::none(),
             }
             .into();
             issue.as_issue().emit();
@@ -825,11 +833,13 @@ async fn resolve_internal(
         .into(),
         Request::Unknown { path } => {
             let issue: ResolvingIssueVc = ResolvingIssue {
+                severity: IssueSeverity::Error.cell(),
                 request_type: format!("unknown import: `{}`", path),
                 request,
                 context,
                 resolve_options: options,
                 error_message: None,
+                source: OptionIssueSourceVc::none(),
             }
             .into();
             issue.as_issue().emit();
@@ -1124,11 +1134,13 @@ async fn resolve_alias_field_result(
         .add_references(refs));
     }
     let issue: ResolvingIssueVc = ResolvingIssue {
+        severity: IssueSeverity::Error.cell(),
         context: issue_context,
         request_type: format!("alias field ({field_name})"),
         request: RequestVc::parse(Value::new(Pattern::Constant(issue_request.to_string()))),
         resolve_options,
         error_message: Some(format!("invalid alias field value: {}", result)),
+        source: OptionIssueSourceVc::none(),
     }
     .cell();
     issue.as_issue().emit();
@@ -1287,16 +1299,20 @@ pub async fn handle_resolve_error(
     origin_path: FileSystemPathVc,
     request: RequestVc,
     resolve_options: ResolveOptionsVc,
+    source: OptionIssueSourceVc,
+    severity: IssueSeverityVc,
 ) -> Result<ResolveResultVc> {
     Ok(match result.is_unresolveable().await {
         Ok(unresolveable) => {
             if *unresolveable {
                 let issue: ResolvingIssueVc = ResolvingIssue {
+                    severity,
                     context: origin_path,
                     request_type: format!("{} request", reference_type.into_value()),
                     request,
                     resolve_options,
                     error_message: None,
+                    source,
                 }
                 .into();
                 issue.as_issue().emit();
@@ -1305,11 +1321,13 @@ pub async fn handle_resolve_error(
         }
         Err(err) => {
             let issue: ResolvingIssueVc = ResolvingIssue {
+                severity,
                 context: origin_path,
                 request_type: format!("{} request", reference_type.into_value()),
                 request,
                 resolve_options,
                 error_message: Some(err.to_string()),
+                source,
             }
             .into();
             issue.as_issue().emit();

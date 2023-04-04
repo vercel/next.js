@@ -2,7 +2,8 @@ use anyhow::Result;
 use swc_core::{
     common::{
         errors::{Handler, HANDLER},
-        Globals, GLOBALS,
+        source_map::Pos,
+        Globals, Spanned, GLOBALS,
     },
     css::{
         ast::{ImportHref, ImportPrelude, Url, UrlValue},
@@ -12,6 +13,7 @@ use swc_core::{
 use turbo_tasks::Value;
 use turbopack_core::{
     asset::AssetVc,
+    issue::{IssueSeverity, IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReferenceVc, AssetReferencesVc},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{
@@ -66,7 +68,7 @@ pub async fn analyze_css_stylesheet(
         HANDLER.set(&handler, || {
             GLOBALS.set(&globals, || {
                 // TODO migrate to effects
-                let mut visitor = AssetReferencesVisitor::new(origin, &mut references);
+                let mut visitor = AssetReferencesVisitor::new(source, origin, &mut references);
                 stylesheet.visit_with_path(&mut visitor, &mut Default::default());
             })
         });
@@ -75,14 +77,20 @@ pub async fn analyze_css_stylesheet(
 }
 
 struct AssetReferencesVisitor<'a> {
+    source: AssetVc,
     origin: ResolveOriginVc,
     references: &'a mut Vec<AssetReferenceVc>,
     is_import: bool,
 }
 
 impl<'a> AssetReferencesVisitor<'a> {
-    fn new(origin: ResolveOriginVc, references: &'a mut Vec<AssetReferenceVc>) -> Self {
+    fn new(
+        source: AssetVc,
+        origin: ResolveOriginVc,
+        references: &'a mut Vec<AssetReferenceVc>,
+    ) -> Self {
         Self {
+            source,
             origin,
             references,
             is_import: false,
@@ -117,12 +125,19 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
             box ImportHref::Url(ref u) => url_string(u),
         };
 
+        let issue_span = i.href.span();
+
         self.references.push(
             ImportAssetReferenceVc::new(
                 self.origin,
                 RequestVc::parse(Value::new(src.to_string().into())),
                 AstPathVc::cell(as_parent_path(ast_path)),
                 ImportAttributes::new_from_prelude(i).into(),
+                IssueSourceVc::from_byte_offset(
+                    self.source,
+                    issue_span.lo.to_usize(),
+                    issue_span.hi.to_usize(),
+                ),
             )
             .into(),
         );
@@ -139,11 +154,17 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
         let src = url_string(u);
 
+        let issue_span = u.span;
         self.references.push(
             UrlAssetReferenceVc::new(
                 self.origin,
                 RequestVc::parse(Value::new(src.to_string().into())),
                 AstPathVc::cell(as_parent_path(ast_path)),
+                IssueSourceVc::from_byte_offset(
+                    self.source,
+                    issue_span.lo.to_usize(),
+                    issue_span.hi.to_usize(),
+                ),
             )
             .into(),
         );
@@ -157,12 +178,22 @@ pub async fn css_resolve(
     origin: ResolveOriginVc,
     request: RequestVc,
     ty: Value<CssReferenceSubType>,
+    issue_source: OptionIssueSourceVc,
 ) -> Result<ResolveResultVc> {
     let ty = Value::new(ReferenceType::Css(ty.into_value()));
     let options = origin.resolve_options(ty.clone());
     let result = origin.resolve_asset(request, options, ty.clone());
 
-    handle_resolve_error(result, ty, origin.origin_path(), request, options).await
+    handle_resolve_error(
+        result,
+        ty,
+        origin.origin_path(),
+        request,
+        options,
+        issue_source,
+        IssueSeverity::Error.cell(),
+    )
+    .await
 }
 
 // TODO enable serialization

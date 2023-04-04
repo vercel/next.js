@@ -12,6 +12,7 @@ use swc_core::{
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
+    issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::CssReferenceSubType,
     resolve::{
@@ -190,6 +191,7 @@ pub struct ImportAssetReference {
     pub request: RequestVc,
     pub path: AstPathVc,
     pub attributes: ImportAttributesVc,
+    pub issue_source: IssueSourceVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -200,12 +202,14 @@ impl ImportAssetReferenceVc {
         request: RequestVc,
         path: AstPathVc,
         attributes: ImportAttributesVc,
+        issue_source: IssueSourceVc,
     ) -> Self {
         Self::cell(ImportAssetReference {
             origin,
             request,
             path,
             attributes,
+            issue_source,
         })
     }
 }
@@ -218,6 +222,7 @@ impl AssetReference for ImportAssetReference {
             self.origin,
             self.request,
             Value::new(CssReferenceSubType::AtImport),
+            OptionIssueSourceVc::some(self.issue_source),
         )
     }
 }
