@@ -12,7 +12,7 @@ use tokio::select;
 use tokio_stream::StreamMap;
 use turbo_tasks::{TransientInstance, TurboTasksApi};
 use turbo_tasks_fs::json::parse_json_with_source_context;
-use turbopack_core::{issue::IssueReporterVc, version::Update};
+use turbopack_core::{error::PrettyPrintError, issue::IssueReporterVc, version::Update};
 
 use super::{
     protocol::{ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier},
@@ -72,8 +72,17 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                                     )
                                 }
                             };
-                            let stream = UpdateStream::new(TransientInstance::new(Box::new(get_content))).await?;
-                            streams.insert(resource, stream);
+                            match UpdateStream::new(TransientInstance::new(Box::new(get_content))).await {
+                                Ok(stream) => {
+                                    streams.insert(resource, stream);
+                                }
+                                Err(err) => {
+                                    eprintln!("Failed to create update stream for {resource}: {}", PrettyPrintError(&err));
+                                    client
+                                        .send(ClientUpdateInstruction::not_found(&resource))
+                                        .await?;
+                                }
+                            }
                         }
                         Some(ClientMessage::Unsubscribe { resource }) => {
                             streams.remove(&resource);
@@ -116,11 +125,11 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                     .collect::<Vec<Issue<'_>>>();
                 match &**update {
                     Update::Partial(partial) => {
-                        let partial_instruction = partial.instruction.await?;
+                        let partial_instruction = &partial.instruction;
                         client
                             .send(ClientUpdateInstruction::partial(
                                 &resource,
-                                &partial_instruction,
+                                &**partial_instruction,
                                 &issues,
                             ))
                             .await?;

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::Deref, path::PathBuf};
+use std::{collections::BTreeMap, fmt::Display, ops::Deref, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,6 +13,18 @@ use turbopack_core::{
 pub struct ResourceIdentifier {
     pub path: String,
     pub headers: Option<BTreeMap<String, String>>,
+}
+
+impl Display for ResourceIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.path)?;
+        if let Some(headers) = &self.headers {
+            for (key, value) in headers.iter() {
+                write!(f, " [{}: {}]", key, value)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]

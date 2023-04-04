@@ -1,10 +1,9 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::Serialize;
-use turbo_tasks::{
-    primitives::{JsonValueReadRef, JsonValueVc},
-    TraitRef,
-};
+use turbo_tasks::{IntoTraitRef, TraitRef};
 
 use super::{content::ChunkListContentVc, version::ChunkListVersionVc};
 use crate::version::{
@@ -22,7 +21,7 @@ struct ChunkListUpdate<'a> {
     chunks: IndexMap<&'a str, ChunkUpdate>,
     /// List of merged updates since the last version.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    merged: Vec<JsonValueReadRef>,
+    merged: Vec<Arc<serde_json::Value>>,
 }
 
 /// Update of a chunk from one version to another.
@@ -33,7 +32,7 @@ enum ChunkUpdate {
     /// The chunk was updated and must be reloaded.
     Total,
     /// The chunk was updated and can be merged with the previous version.
-    Partial { instruction: JsonValueReadRef },
+    Partial { instruction: Arc<serde_json::Value> },
     /// The chunk was added.
     Added,
     /// The chunk was deleted.
@@ -60,7 +59,7 @@ pub(super) async fn update_chunk_list(
     } else {
         // It's likely `from_version` is `NotFoundVersion`.
         return Ok(Update::Total(TotalUpdate {
-            to: to_version.into(),
+            to: to_version.as_version().into_trait_ref().await?,
         })
         .cell());
     };
@@ -112,7 +111,7 @@ pub(super) async fn update_chunk_list(
                     chunks.insert(
                         chunk_path.as_ref(),
                         ChunkUpdate::Partial {
-                            instruction: partial.instruction.await?,
+                            instruction: partial.instruction.clone(),
                         },
                     );
                 }
@@ -141,12 +140,12 @@ pub(super) async fn update_chunk_list(
                 // the update.
                 Update::Total(_) => {
                     return Ok(Update::Total(TotalUpdate {
-                        to: to_version.into(),
+                        to: to_version.as_version().into_trait_ref().await?,
                     })
                     .cell());
                 }
                 Update::Partial(partial) => {
-                    merged.push(partial.instruction.await?);
+                    merged.push(partial.instruction.clone());
                 }
                 Update::None => {}
             }
@@ -158,8 +157,8 @@ pub(super) async fn update_chunk_list(
         Update::None
     } else {
         Update::Partial(PartialUpdate {
-            to: to_version.into(),
-            instruction: JsonValueVc::cell(serde_json::to_value(&update)?),
+            to: to_version.as_version().into_trait_ref().await?,
+            instruction: Arc::new(serde_json::to_value(&update)?),
         })
     };
 

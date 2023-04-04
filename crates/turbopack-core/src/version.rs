@@ -1,10 +1,9 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat,
-    primitives::{JsonValueVc, StringVc},
-    trace::TraceRawVcs,
-    IntoTraitRef,
+    debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs, IntoTraitRef, TraitRef,
 };
 use turbo_tasks_fs::{FileContent, FileContentReadRef, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -46,7 +45,7 @@ pub trait VersionedContent {
         Ok(if *from_id == *to_id {
             Update::None.into()
         } else {
-            Update::Total(TotalUpdate { to }).into()
+            Update::Total(TotalUpdate { to: to_ref }).into()
         })
     }
 }
@@ -186,17 +185,20 @@ pub enum Update {
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
-    pub to: VersionVc,
+    #[turbo_tasks(trace_ignore)]
+    pub to: TraitRef<VersionVc>,
 }
 
 /// A partial update to a versioned object.
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
-    pub to: VersionVc,
+    #[turbo_tasks(trace_ignore)]
+    pub to: TraitRef<VersionVc>,
     /// The instructions to be passed to a remote system in order to update the
     /// versioned object.
-    pub instruction: JsonValueVc,
+    #[turbo_tasks(trace_ignore)]
+    pub instruction: Arc<serde_json::Value>,
 }
 
 /// [`Version`] implementation that hashes a file at a given path and returns

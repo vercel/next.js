@@ -13,7 +13,10 @@ use turbopack_core::{
     },
 };
 
-use crate::source::resolve::{ResolveSourceRequestResult, ResolveSourceRequestResultVc};
+use crate::source::{
+    resolve::{ResolveSourceRequestResult, ResolveSourceRequestResultVc},
+    ProxyResultVc,
+};
 
 type GetContentFn = Box<dyn Fn() -> ResolveSourceRequestResultVc + Send + Sync>;
 
@@ -40,7 +43,7 @@ async fn get_update_stream_item(
 ) -> Result<UpdateStreamItemVc> {
     let content = get_content();
 
-    match &*content.await? {
+    match *content.await? {
         ResolveSourceRequestResult::Static(static_content_vc, _) => {
             let static_content = static_content_vc.await?;
 
@@ -64,6 +67,36 @@ async fn get_update_stream_item(
             }
             .cell())
         }
+        ResolveSourceRequestResult::HttpProxy(proxy_result) => {
+            let proxy_result_value = proxy_result.await?;
+
+            if proxy_result_value.status == 404 {
+                return Ok(UpdateStreamItem::NotFound.cell());
+            }
+
+            let plain_issues = peek_issues(proxy_result).await?;
+
+            let from = from.get();
+            if let Some(from) = ProxyResultVc::resolve_from(from).await? {
+                if from.await? == proxy_result_value {
+                    return Ok(UpdateStreamItem::Found {
+                        update: Update::None.cell().await?,
+                        issues: plain_issues,
+                    }
+                    .cell());
+                }
+            }
+
+            Ok(UpdateStreamItem::Found {
+                update: Update::Total(TotalUpdate {
+                    to: proxy_result.as_version().into_trait_ref().await?,
+                })
+                .cell()
+                .await?,
+                issues: plain_issues,
+            }
+            .cell())
+        }
         _ => {
             let plain_issues = peek_issues(content).await?;
 
@@ -73,7 +106,10 @@ async fn get_update_stream_item(
                 // TODO add special instructions for removed assets to handled it in a better
                 // way
                 Update::Total(TotalUpdate {
-                    to: NotFoundVersionVc::new().into(),
+                    to: NotFoundVersionVc::new()
+                        .as_version()
+                        .into_trait_ref()
+                        .await?,
                 })
                 .cell()
             } else {
@@ -123,15 +159,15 @@ impl VersionStateVc {
 }
 
 impl VersionStateVc {
-    async fn new(version: VersionVc) -> Result<Self> {
+    async fn new(version: TraitRef<VersionVc>) -> Result<Self> {
         Ok(Self::cell(VersionState {
-            version: State::new(version.into_trait_ref().await?),
+            version: State::new(version),
         }))
     }
 
-    async fn set(&self, new_version: VersionVc) -> Result<()> {
+    async fn set(&self, new_version: TraitRef<VersionVc>) -> Result<()> {
         let this = self.await?;
-        this.version.set(new_version.into_trait_ref().await?);
+        this.version.set(new_version);
         Ok(())
     }
 }
@@ -145,13 +181,14 @@ impl UpdateStream {
         let content = get_content();
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
-        let version = match &*content.await? {
+        let version = match *content.await? {
             ResolveSourceRequestResult::Static(static_content, _) => {
                 static_content.await?.content.version()
             }
+            ResolveSourceRequestResult::HttpProxy(proxy_result) => proxy_result.into(),
             _ => NotFoundVersionVc::new().into(),
         };
-        let version_state = VersionStateVc::new(version).await?;
+        let version_state = VersionStateVc::new(version.into_trait_ref().await?).await?;
 
         compute_update_stream(version_state, get_content, TransientInstance::new(sx));
 
@@ -179,7 +216,7 @@ impl UpdateStream {
                             Update::Partial(PartialUpdate { to, .. })
                             | Update::Total(TotalUpdate { to }) => {
                                 version_state
-                                    .set(*to)
+                                    .set(to.clone())
                                     .await
                                     .expect("failed to update version");
 

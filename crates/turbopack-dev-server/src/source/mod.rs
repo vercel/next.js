@@ -16,12 +16,13 @@ pub mod wrapping_source;
 use std::collections::BTreeSet;
 
 use anyhow::Result;
-use futures::stream::Stream as StreamTrait;
+use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, util::SharedError, Value};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, util::SharedError, Value};
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::version::VersionedContentVc;
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, Xxh3Hash64Hasher};
+use turbopack_core::version::{Version, VersionVc, VersionedContentVc};
 
 use self::{
     headers::Headers, issue_context::IssueContextContentSourceVc, query::Query,
@@ -37,6 +38,24 @@ pub struct ProxyResult {
     pub headers: Vec<(String, String)>,
     /// The body to return.
     pub body: Body,
+}
+
+#[turbo_tasks::value_impl]
+impl Version for ProxyResult {
+    #[turbo_tasks::function]
+    async fn id(&self) -> Result<StringVc> {
+        let mut hash = Xxh3Hash64Hasher::new();
+        hash.write_u16(self.status);
+        for (name, value) in &self.headers {
+            name.deterministic_hash(&mut hash);
+            value.deterministic_hash(&mut hash);
+        }
+        let mut read = self.body.read();
+        while let Some(chunk) = read.try_next().await? {
+            hash.write_bytes(&chunk);
+        }
+        Ok(StringVc::cell(hash.finish().to_string()))
+    }
 }
 
 /// The return value of a content source when getting a path. A specificity is
