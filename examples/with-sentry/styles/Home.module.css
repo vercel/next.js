@@ -72,10 +72,21 @@
 
 .card p {
   margin: 0;
-  opacity: 0.6;
+  opacity: 1;
+  color: rgba(var(--text-rgb), 0.8);
   font-size: 0.9rem;
   line-height: 1.5;
   margin-top: 16px;
+}
+
+.justCenter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 4rem 0;
+  position: static;
+  z-index: 10;
 }
 
 .center {
@@ -92,6 +103,7 @@
   width: 480px;
   height: 360px;
   margin-left: -400px;
+  z-index: -1;
 }
 
 .center::after {
@@ -267,6 +279,10 @@
 @media (prefers-color-scheme: dark) {
   .vercelLogo {
     filter: invert(1);
+  }
+
+  .link {
+    color: #ad6caa;
   }
 
   .logo,
