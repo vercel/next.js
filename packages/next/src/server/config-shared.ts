@@ -137,6 +137,7 @@ export interface ExperimentalConfig {
   cpus?: number
   sharedPool?: boolean
   proxyTimeout?: number
+  proxyPreserveOrigin?: boolean
   isrFlushToDisk?: boolean
   workerThreads?: boolean
   pageEnv?: boolean

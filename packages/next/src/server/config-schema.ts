@@ -370,6 +370,9 @@ const configSchema = {
           minimum: 0,
           type: 'number',
         },
+        proxyPreserveOrigin: {
+          type: 'boolean',
+        },
         runtime: {
           // automatic typing doesn't like enum
           enum: Object.values(SERVER_RUNTIME) as any,
