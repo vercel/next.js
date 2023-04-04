@@ -6,30 +6,33 @@ import type {
   IncomingHttpHeaders,
 } from 'http'
 import type { Socket } from 'net'
+import type { TLSSocket } from 'tls'
 
 import Stream from 'stream'
-import { TLSSocket } from 'tls'
 import { toNodeHeaders } from '../web/utils'
 
-interface MockRequestResult {
-  req: MockedRequest
-  res: MockedResponse
-  resBuffers: Buffer[]
-  streamPromise: Promise<boolean>
+interface MockedRequestOptions {
+  url: string
+  headers: IncomingHttpHeaders
+  method: string
+  socket?: Socket | null
 }
 
-class MockedRequest extends Stream.Readable implements IncomingMessage {
+export class MockedRequest extends Stream.Readable implements IncomingMessage {
+  public url: string
   public readonly statusCode?: number | undefined
   public readonly statusMessage?: string | undefined
+  public readonly headers: IncomingHttpHeaders
+  public readonly method: string
 
   // This is hardcoded for now, but can be updated to be configurable if needed.
   public readonly httpVersion = '1.0'
   public readonly httpVersionMajor = 1
   public readonly httpVersionMinor = 0
 
-  // If we don't actually have a connection, we'll just use a mock one that
+  // If we don't actually have a socket, we'll just use a mock one that
   // always returns false for the `encrypted` property.
-  public connection: Socket = new Proxy<TLSSocket>({} as TLSSocket, {
+  public socket: Socket = new Proxy<TLSSocket>({} as TLSSocket, {
     get: (_target, prop) => {
       if (prop !== 'encrypted') {
         throw new Error('Method not implemented')
@@ -41,16 +44,15 @@ class MockedRequest extends Stream.Readable implements IncomingMessage {
     },
   })
 
-  constructor(
-    public url: string,
-    public readonly headers: IncomingHttpHeaders,
-    public readonly method: string,
-    connection: Socket | null = null
-  ) {
+  constructor({ url, headers, method, socket = null }: MockedRequestOptions) {
     super()
 
-    if (connection) {
-      this.connection = connection
+    this.url = url
+    this.headers = headers
+    this.method = method
+
+    if (socket) {
+      this.socket = socket
     }
   }
 
@@ -59,9 +61,13 @@ class MockedRequest extends Stream.Readable implements IncomingMessage {
     this.emit('close')
   }
 
-  // The socket is just an alias for the connection.
-  public get socket(): Socket {
-    return this.connection
+  /**
+   * The `connection` property is just an alias for the `socket` property.
+   *
+   * @deprecated — since v13.0.0 - Use socket instead.
+   */
+  public get connection(): Socket {
+    return this.socket
   }
 
   // The following methods are not implemented as they are not used in the
@@ -92,26 +98,50 @@ class MockedRequest extends Stream.Readable implements IncomingMessage {
   }
 }
 
-class MockedResponse extends Stream.Writable implements ServerResponse {
+interface MockedResponseOptions {
+  socket?: Socket | null
+}
+
+export class MockedResponse extends Stream.Writable implements ServerResponse {
   public statusCode: number = 200
   public statusMessage: string = ''
   public readonly finished = false
   public readonly headersSent = false
+  public readonly socket: Socket | null
 
-  public readonly stream: Promise<boolean>
+  /**
+   * A promise that resolves to `true` when the response has been streamed.
+   */
+  public readonly hasStreamed: Promise<boolean>
+
+  /**
+   * A list of buffers that have been written to the response.
+   */
   public readonly buffers: Buffer[] = []
+
   private readonly headers = new Headers()
 
-  constructor(public readonly connection: Socket | null = null) {
+  constructor({ socket = null }: MockedResponseOptions) {
     super()
+
+    this.socket = socket
 
     // Attach listeners for the `finish`, `end`, and `error` events to the
     // `MockedResponse` instance.
-    this.stream = new Promise<boolean>((resolve, reject) => {
+    this.hasStreamed = new Promise<boolean>((resolve, reject) => {
       this.on('finish', () => resolve(true))
       this.on('end', () => resolve(true))
       this.on('error', (err) => reject(err))
     })
+  }
+
+  /**
+   * The `connection` property is just an alias for the `socket` property.
+   *
+   * @deprecated — since v13.0.0 - Use socket instead.
+   */
+  public get connection(): Socket | null {
+    return this.socket
   }
 
   public write(chunk: Buffer | string) {
@@ -146,7 +176,7 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
 
   public writeHead(
     statusCode: number,
-    reasonPhrase?: string | undefined,
+    statusMessage?: string | undefined,
     headers?: OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined
   ): this
   public writeHead(
@@ -155,31 +185,43 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
   ): this
   public writeHead(
     statusCode: number,
-    reasonPhrase?: unknown,
-    headers?: unknown
+    statusMessage?:
+      | string
+      | OutgoingHttpHeaders
+      | OutgoingHttpHeader[]
+      | undefined,
+    headers?: OutgoingHttpHeaders | OutgoingHttpHeader[] | undefined
   ): this {
-    if (!headers && reasonPhrase) {
-      headers = reasonPhrase
+    if (!headers && typeof statusMessage !== 'string') {
+      headers = statusMessage
+    } else if (typeof statusMessage === 'string' && statusMessage.length > 0) {
+      this.statusMessage = statusMessage
     }
 
     if (headers) {
-      // headers may be an Array where the keys and values are in the same list.
-      // It is not a list of tuples. So, the even-numbered offsets are key
-      // values, and the odd-numbered offsets are the associated values. The
-      // array is in the same format as request.rawHeaders.
+      // When headers have been set with response.setHeader(), they will be
+      // merged with any headers passed to response.writeHead(), with the
+      // headers passed to response.writeHead() given precedence.
+      //
+      // https://nodejs.org/api/http.html#responsewriteheadstatuscode-statusmessage-headers
+      //
+      // For this reason, we need to only call `set` to ensure that this will
+      // overwrite any existing headers.
       if (Array.isArray(headers)) {
+        // headers may be an Array where the keys and values are in the same list.
+        // It is not a list of tuples. So, the even-numbered offsets are key
+        // values, and the odd-numbered offsets are the associated values. The
+        // array is in the same format as request.rawHeaders.
         for (let i = 0; i < headers.length; i += 2) {
-          this.headers.append(headers[i], headers[i + 1])
+          // The header key is always a string according to the spec.
+          this.setHeader(headers[i] as string, headers[i + 1])
         }
       } else {
         for (const [key, value] of Object.entries(headers)) {
-          if (Array.isArray(value)) {
-            for (const v of value) {
-              this.headers.append(key, v)
-            }
-          } else {
-            this.headers.append(key, value)
-          }
+          // Skip undefined values
+          if (typeof value === 'undefined') continue
+
+          this.setHeader(key, value)
         }
       }
     }
@@ -205,13 +247,17 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
     return Array.from(this.headers.keys())
   }
 
-  public setHeader(name: string, value: string | string[]): void {
+  public setHeader(name: string, value: OutgoingHttpHeader): void {
     if (Array.isArray(value)) {
+      // Because `set` here should override any existing values, we need to
+      // delete the existing values before setting the new ones via `append`.
       this.headers.delete(name)
 
       for (const v of value) {
         this.headers.append(name, v)
       }
+    } else if (typeof value === 'number') {
+      this.headers.set(name, value.toString())
     } else {
       this.headers.set(name, value)
     }
@@ -219,10 +265,6 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
 
   public removeHeader(name: string): void {
     this.headers.delete(name)
-  }
-
-  public get socket(): Socket | null {
-    return this.connection
   }
 
   // The following methods are not implemented as they are not used in the
@@ -277,25 +319,21 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 }
 
-export function mockRequest(
-  requestUrl: string,
-  requestHeaders: Record<string, string | string[] | undefined>,
-  requestMethod: string,
-  requestConnection: Socket | null = null
-): MockRequestResult {
-  const req = new MockedRequest(
-    requestUrl,
-    requestHeaders,
-    requestMethod,
-    requestConnection
-  )
+interface RequestResponseMockerOptions {
+  url: string
+  headers?: IncomingHttpHeaders
+  method?: string
+  socket?: Socket | null
+}
 
-  const res = new MockedResponse(requestConnection)
-
+export function createRequestResponseMocks({
+  url,
+  headers = {},
+  method = 'GET',
+  socket = null,
+}: RequestResponseMockerOptions) {
   return {
-    req,
-    res,
-    resBuffers: res.buffers,
-    streamPromise: res.stream,
+    req: new MockedRequest({ url, headers, method, socket }),
+    res: new MockedResponse({ socket }),
   }
 }

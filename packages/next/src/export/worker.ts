@@ -47,7 +47,7 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
-import { mockRequest } from '../server/lib/mock-request'
+import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { NodeNextRequest } from '../server/base-http/node'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeHeaders } from '../server/web/utils'
@@ -236,7 +236,7 @@ export default async function exportPage({
         }
       }
 
-      const { req, res } = mockRequest(updatedPath, {}, 'GET')
+      const { req, res } = createRequestResponseMocks({ url: updatedPath })
 
       for (const statusCode of [404, 500]) {
         if (

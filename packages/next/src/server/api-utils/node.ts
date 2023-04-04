@@ -32,7 +32,7 @@ import {
   SYMBOL_PREVIEW_DATA,
   RESPONSE_LIMIT_DEFAULT,
 } from './index'
-import { mockRequest } from '../lib/mock-request'
+import { createRequestResponseMocks } from '../lib/mock-request'
 import { getTracer } from '../lib/trace/tracer'
 import { NodeSpan } from '../lib/trace/constants'
 import { RequestCookies } from '../web/spec-extension/cookies'
@@ -403,19 +403,19 @@ async function revalidate(
         throw new Error(`Invalid response ${res.status}`)
       }
     } else if (context.revalidate) {
-      const {
-        req: mockReq,
-        res: mockRes,
-        streamPromise,
-      } = mockRequest(urlPath, revalidateHeaders, 'GET')
-      await context.revalidate(mockReq, mockRes)
-      await streamPromise
+      const mocked = createRequestResponseMocks({
+        url: urlPath,
+        headers: revalidateHeaders,
+      })
+
+      await context.revalidate(mocked.req, mocked.res)
+      await mocked.res.hasStreamed
 
       if (
-        mockRes.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
-        !(mockRes.statusCode === 404 && opts.unstable_onlyGenerated)
+        mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+        !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
       ) {
-        throw new Error(`Invalid response ${mockRes.statusCode}`)
+        throw new Error(`Invalid response ${mocked.res.statusCode}`)
       }
     } else {
       throw new Error(

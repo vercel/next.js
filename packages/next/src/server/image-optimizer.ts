@@ -20,7 +20,7 @@ import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
-import { mockRequest } from './lib/mock-request'
+import { createRequestResponseMocks } from './lib/mock-request'
 import { hasMatch } from '../shared/lib/match-remote-pattern'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import { ImageConfigComplete } from '../shared/lib/image-config'
@@ -547,28 +547,29 @@ export async function imageOptimizer(
     maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   } else {
     try {
-      const {
-        resBuffers,
-        req: mockReq,
-        res: mockRes,
-        streamPromise: isStreamFinished,
-      } = mockRequest(href, _req.headers, _req.method || 'GET', _req.connection)
+      const mocked = createRequestResponseMocks({
+        url: href,
+        method: _req.method || 'GET',
+        headers: _req.headers,
+        socket: _req.socket,
+      })
 
-      await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
-      await isStreamFinished
+      await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+      await mocked.res.hasStreamed
 
-      if (!mockRes.statusCode) {
-        console.error('image response failed for', href, mockRes.statusCode)
+      if (!mocked.res.statusCode) {
+        console.error('image response failed for', href, mocked.res.statusCode)
         throw new ImageError(
-          mockRes.statusCode,
+          mocked.res.statusCode,
           '"url" parameter is valid but internal response is invalid'
         )
       }
 
-      upstreamBuffer = Buffer.concat(resBuffers)
+      upstreamBuffer = Buffer.concat(mocked.res.buffers)
       upstreamType =
-        detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-      const cacheControl = mockRes.getHeader('Cache-Control')
+        detectContentType(upstreamBuffer) ||
+        mocked.res.getHeader('Content-Type')
+      const cacheControl = mocked.res.getHeader('Cache-Control')
       maxAge = cacheControl ? getMaxAge(cacheControl) : 0
     } catch (err) {
       console.error('upstream image response failed for', href, err)
