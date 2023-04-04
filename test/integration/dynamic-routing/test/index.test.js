@@ -1257,7 +1257,7 @@ function runTests({ dev }) {
             )}\\/b\\/([^\\/]+?)\\.json$`,
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/b/(?<a>[^/]+?)\\.json$`,
+            )}/b/(?<nextPriva>[^/]+?)\\.json$`,
             page: '/b/[123]',
             routeKeys: {
               nextPriva: 'nextPriv123',
@@ -1269,7 +1269,7 @@ function runTests({ dev }) {
             )}\\/c\\/([^\\/]+?)\\.json$`,
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/c/(?<a>[^/]+?)\\.json$`,
+            )}/c/(?<nextPriva>[^/]+?)\\.json$`,
             page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
             routeKeys: {
               nextPriva: 'nextPrivalongparamnameshouldbeallowedeventhoughweird',
@@ -1278,7 +1278,7 @@ function runTests({ dev }) {
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/p1/p2/all\\-ssg/(?<rest>.+?)\\.json$`,
+            )}/p1/p2/all\\-ssg/(?<nextPrivrest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
@@ -1292,7 +1292,7 @@ function runTests({ dev }) {
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)\\.json$`,
+            )}/p1/p2/nested\\-all\\-ssg/(?<nextPrivrest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
@@ -1306,7 +1306,7 @@ function runTests({ dev }) {
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/p1/p2/predefined\\-ssg/(?<rest>.+?)\\.json$`,
+            )}/p1/p2/predefined\\-ssg/(?<nextPrivrest>.+?)\\.json$`,
             dataRouteRegex: normalizeRegEx(
               `^\\/_next\\/data\\/${escapeRegex(
                 buildId
@@ -1320,7 +1320,7 @@ function runTests({ dev }) {
         ],
         dynamicRoutes: [
           {
-            namedRegex: '^/b/(?<a>[^/]+?)(?:/)?$',
+            namedRegex: '^/b/(?<nextPriva>[^/]+?)(?:/)?$',
             page: '/b/[123]',
             regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
@@ -1328,7 +1328,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
+            namedRegex: `^/blog/(?<nextPrivname>[^/]+?)/comment/(?<nextPrivid>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
               '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
@@ -1339,7 +1339,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
+            namedRegex: '^/c/(?<nextPriva>[^/]+?)(?:/)?$',
             page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
             regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
@@ -1347,7 +1347,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: '^/catchall\\-dash/(?<helloworld>.+?)(?:/)?$',
+            namedRegex: '^/catchall\\-dash/(?<nextPrivhelloworld>.+?)(?:/)?$',
             page: '/catchall-dash/[...hello-world]',
             regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
             routeKeys: {
@@ -1355,7 +1355,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: '^/d/(?<id>[^/]+?)(?:/)?$',
+            namedRegex: '^/d/(?<nextPrivid>[^/]+?)(?:/)?$',
             page: '/d/[id]',
             regex: normalizeRegEx('^\\/d\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
@@ -1363,7 +1363,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: '^/dash/(?<helloworld>[^/]+?)(?:/)?$',
+            namedRegex: '^/dash/(?<nextPrivhelloworld>[^/]+?)(?:/)?$',
             page: '/dash/[hello-world]',
             regex: normalizeRegEx('^\\/dash\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
@@ -1371,7 +1371,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: '^/index/(?<slug>.+?)(?:/)?$',
+            namedRegex: '^/index/(?<nextPrivslug>.+?)(?:/)?$',
             page: '/index/[...slug]',
             regex: normalizeRegEx('^/index/(.+?)(?:/)?$'),
             routeKeys: {
@@ -1379,7 +1379,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/on\\-mount/(?<post>[^/]+?)(?:/)?$`,
+            namedRegex: `^/on\\-mount/(?<nextPrivpost>[^/]+?)(?:/)?$`,
             page: '/on-mount/[post]',
             regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
@@ -1387,7 +1387,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/p1/p2/all\\-ssg/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/all\\-ssg/(?<nextPrivrest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssg/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
             routeKeys: {
@@ -1395,7 +1395,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/p1/p2/all\\-ssr/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/all\\-ssr/(?<nextPrivrest>.+?)(?:/)?$`,
             page: '/p1/p2/all-ssr/[...rest]',
             regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
             routeKeys: {
@@ -1403,7 +1403,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<nextPrivrest>.+?)(?:/)?$`,
             page: '/p1/p2/nested-all-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
@@ -1413,7 +1413,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/p1/p2/predefined\\-ssg/(?<rest>.+?)(?:/)?$`,
+            namedRegex: `^/p1/p2/predefined\\-ssg/(?<nextPrivrest>.+?)(?:/)?$`,
             page: '/p1/p2/predefined-ssg/[...rest]',
             regex: normalizeRegEx(
               '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
@@ -1423,7 +1423,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)(?:/)?$`,
+            namedRegex: `^/(?<nextPrivname>[^/]+?)(?:/)?$`,
             page: '/[name]',
             regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
@@ -1431,7 +1431,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)/comments(?:/)?$`,
+            namedRegex: `^/(?<nextPrivname>[^/]+?)/comments(?:/)?$`,
             page: '/[name]/comments',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
             routeKeys: {
@@ -1439,7 +1439,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
+            namedRegex: `^/(?<nextPrivname>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
             page: '/[name]/on-mount-redir',
             regex: normalizeRegEx(
               '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
@@ -1449,7 +1449,7 @@ function runTests({ dev }) {
             },
           },
           {
-            namedRegex: `^/(?<name>[^/]+?)/(?<comment>[^/]+?)(?:/)?$`,
+            namedRegex: `^/(?<nextPrivname>[^/]+?)/(?<nextPrivcomment>[^/]+?)(?:/)?$`,
             page: '/[name]/[comment]',
             regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
