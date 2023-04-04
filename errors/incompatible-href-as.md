@@ -15,7 +15,7 @@ export default function Page(props) {
   return (
     <>
       <Link href="/[post]" as="/post-1/comments">
-        <a>Invalid link</a>
+        Invalid link
       </Link>
     </>
   )
@@ -31,7 +31,7 @@ export default function Page(props) {
   return (
     <>
       <Link href="/[post]" as="/post-1">
-        <a>Valid link</a>
+        Valid link
       </Link>
     </>
   )
