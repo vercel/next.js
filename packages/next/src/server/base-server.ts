@@ -101,7 +101,6 @@ import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { fromNodeHeaders, toNodeHeaders } from './web/utils'
-import { hasVercelConfigFiles } from './lib/find-vercel-config'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType

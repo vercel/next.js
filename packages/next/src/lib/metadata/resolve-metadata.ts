@@ -42,8 +42,7 @@ export type MetadataItems = [
 
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
-  staticFilesMetadata: StaticMetadata,
-  options: MetadataAccumulationOptions
+  staticFilesMetadata: StaticMetadata
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter } = staticFilesMetadata
@@ -190,7 +189,7 @@ function merge({
         break
     }
   }
-  mergeStaticMetadata(target, staticFilesMetadata, options)
+  mergeStaticMetadata(target, staticFilesMetadata)
 }
 
 async function getDefinedMetadata(
