@@ -88,7 +88,7 @@ async function runTests({
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)
-  const delay = isDev ? 500 : 100
+  const delay = isDev ? 700 : 100
   const port = await findPort()
   let stopOrKill: () => Promise<void>
   let result = { code: 0, stdout: '', stderr: '' }
@@ -204,34 +204,44 @@ describe('app dir with output export', () => {
     { isDev: false, trailingSlash: true },
   ])(
     "should work with isDev '$isDev' and trailingSlash '$trailingSlash'",
-    async ({ trailingSlash }) => {
-      await runTests({ trailingSlash })
+    async ({ isDev, trailingSlash }) => {
+      await runTests({ isDev, trailingSlash })
     }
   )
   it.each([
-    { dynamic: 'undefined' },
-    { dynamic: "'error'" },
-    { dynamic: "'force-static'" },
-  ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
-    await runTests({ dynamicPage: dynamic })
-  })
+    { isDev: true, dynamic: 'undefined' },
+    { isDev: true, dynamic: "'error'" },
+    { isDev: true, dynamic: "'force-static'" },
+    { isDev: false, dynamic: 'undefined' },
+    { isDev: false, dynamic: "'error'" },
+    { isDev: false, dynamic: "'force-static'" },
+  ])(
+    "should work with with isDev '$isDev' and dynamic $dynamic on page",
+    async ({ isDev, dynamic }) => {
+      await runTests({ isDev, dynamicPage: dynamic })
+    }
+  )
   it("should throw when dynamic 'force-dynamic' on page", async () => {
     await fs.remove(distDir)
     await fs.remove(exportDir)
     await runTests({
+      isDev: false,
       dynamicPage: `'force-dynamic'`,
       expectedErrMsg:
         'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
     })
   })
   it.each([
-    { dynamic: 'undefined' },
-    { dynamic: "'error'" },
-    { dynamic: "'force-static'" },
+    { isDev: true, dynamic: 'undefined' },
+    { isDev: true, dynamic: "'error'" },
+    { isDev: true, dynamic: "'force-static'" },
+    { isDev: false, dynamic: 'undefined' },
+    { isDev: false, dynamic: "'error'" },
+    { isDev: false, dynamic: "'force-static'" },
   ])(
-    'should work with dynamic $dynamic on route handler',
-    async ({ dynamic }) => {
-      await runTests({ dynamicApiRoute: dynamic })
+    "should work with with isDev '$isDev' and dynamic $dynamic on route handler",
+    async ({ isDev, dynamic }) => {
+      await runTests({ isDev, dynamicApiRoute: dynamic })
     }
   )
   it("should throw when dynamic 'force-dynamic' on route handler", async () => {
