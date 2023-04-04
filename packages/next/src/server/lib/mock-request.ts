@@ -43,6 +43,10 @@ class MockedRequest extends Stream.Writable implements IncomingMessage {
     return this._connection
   }
 
+  public get socket(): Socket {
+    return this.connection
+  }
+
   public get aborted(): boolean {
     throw new Error('Method not implemented')
   }
@@ -60,10 +64,6 @@ class MockedRequest extends Stream.Writable implements IncomingMessage {
   }
 
   public get complete(): boolean {
-    throw new Error('Method not implemented')
-  }
-
-  public get socket(): Socket {
     throw new Error('Method not implemented')
   }
 
