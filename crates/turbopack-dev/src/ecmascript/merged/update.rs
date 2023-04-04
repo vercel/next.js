@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
-use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt};
+use turbo_tasks::{IntoTraitRef, TryJoinIterExt};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{Chunk, ChunkingContext, ModuleId, ModuleIdReadRef},
@@ -131,7 +133,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
         } else {
             // It's likely `from_version` is `NotFoundVersion`.
             return Ok(Update::Total(TotalUpdate {
-                to: to_merged_version.into(),
+                to: to_merged_version.as_version().into_trait_ref().await?,
             }));
         };
 
@@ -248,8 +250,8 @@ pub(super) async fn update_ecmascript_merged_chunk(
         Update::None
     } else {
         Update::Partial(PartialUpdate {
-            to: to_merged_version.into(),
-            instruction: JsonValueVc::cell(serde_json::to_value(&merged_update)?),
+            to: to_merged_version.as_version().into_trait_ref().await?,
+            instruction: Arc::new(serde_json::to_value(&merged_update)?),
         })
     };
 
