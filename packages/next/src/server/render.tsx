@@ -795,6 +795,9 @@ export async function renderToHTML(
         RenderSpan.getStaticProps,
         {
           spanName: `getStaticProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         () =>
           getStaticProps!({
@@ -1005,6 +1008,9 @@ export async function renderToHTML(
         RenderSpan.getServerSideProps,
         {
           spanName: `getServerSideProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         async () =>
           getServerSideProps({
@@ -1366,6 +1372,9 @@ export async function renderToHTML(
     RenderSpan.renderDocument,
     {
       spanName: `render route (pages) ${renderOpts.pathname}`,
+      attributes: {
+        'next.route': renderOpts.pathname,
+      },
     },
     async () => renderDocument()
   )
