@@ -1247,13 +1247,16 @@ export default async function build(
       // each worker will consume ~1GB of memory in a production build.
       // For example, if the system has 10 CPU cores and 8GB of remaining memory
       // we will use 8 workers.
-      const numWorkers =
+      const numWorkers = Math.max(
         config.experimental.cpus !== defaultConfig.experimental!.cpus
-          ? config.experimental.cpus
+          ? (config.experimental.cpus as number)
           : Math.min(
               config.experimental.cpus || 1,
               Math.floor(os.freemem() / 1e9)
-            )
+            ),
+        // enforce a minimum of 4 workers
+        4
+      )
 
       const staticWorkers = new Worker(staticWorker, {
         timeout: timeout * 1000,
