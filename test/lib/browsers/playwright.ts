@@ -110,6 +110,12 @@ export class Playwright extends BrowserInterface {
       await oldPage.close()
     }
     page = await context.newPage()
+
+    // in development compilation can take longer due to
+    // lower CPU availability in GH actions
+    page.setDefaultTimeout(60 * 1000)
+    page.setDefaultNavigationTimeout(60 * 1000)
+
     pageLogs = []
     websocketFrames = []
 
