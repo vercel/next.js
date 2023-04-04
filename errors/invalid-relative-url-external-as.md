@@ -15,7 +15,7 @@ export default function Page(props) {
   return (
     <>
       <Link href="/invalid" as="mailto:john@example.com">
-        <a>Invalid link</a>
+        Invalid link
       </Link>
     </>
   )
@@ -31,7 +31,7 @@ export default function Page(props) {
   return (
     <>
       <Link href="mailto:john@example.com">
-        <a>Invalid link</a>
+        Invalid link
       </Link>
     </>
   )
