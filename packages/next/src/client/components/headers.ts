@@ -1,4 +1,5 @@
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
+import { actionAsyncStorage } from './action-async-storage'
 import { requestAsyncStorage } from './request-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
 
@@ -38,6 +39,11 @@ export function cookies() {
     throw new Error(
       `Invariant: Method expects to have requestAsyncStorage, none available`
     )
+  }
+
+  const asyncActionStore = actionAsyncStorage.getStore()
+  if (asyncActionStore && asyncActionStore.isAction) {
+    return requestStore.mutableCookies
   }
 
   return requestStore.cookies

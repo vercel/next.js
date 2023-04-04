@@ -32,12 +32,29 @@ export class ReadonlyRequestCookies {
     return (this[INTERNAL_COOKIES_INSTANCE] as any)[Symbol.iterator]()
   }
 
+  /**
+   * This method is only allowed in Server Actions. Cookies are readonly in
+   * components.
+   * @link https://nextjs.org/api-reference/cookies
+   */
   clear() {
     throw new ReadonlyRequestCookiesError()
   }
+
+  /**
+   * This method is only allowed in Server Actions. Cookies are readonly in
+   * components.
+   * @link https://nextjs.org/api-reference/cookies
+   */
   delete() {
     throw new ReadonlyRequestCookiesError()
   }
+
+  /**
+   * This method is only allowed in Server Actions. Cookies are readonly in
+   * components.
+   * @link https://nextjs.org/api-reference/cookies
+   */
   set() {
     throw new ReadonlyRequestCookiesError()
   }

@@ -10,6 +10,8 @@ import type { AsyncStorageWrapper } from './async-storage-wrapper'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import { ReadonlyHeaders } from '../app-render/readonly-headers'
 import { ReadonlyRequestCookies } from '../app-render/readonly-request-cookies'
+import { actionAsyncStorage } from '../../client/components/action-async-storage'
+import { MutableRequestCookies } from '../app-render/mutable-request-cookies'
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
   const newHeaders = { ...headers }
@@ -63,6 +65,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
     let cachedHeadersInstance: ReadonlyHeaders
     let cachedCookiesInstance: ReadonlyRequestCookies
+    let cachedMutableCookiesInstance: MutableRequestCookies
 
     const store: RequestStore = {
       get headers() {
@@ -87,6 +90,36 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
           })
         }
         return cachedCookiesInstance
+      },
+      get mutableCookies() {
+        if (!cachedMutableCookiesInstance) {
+          cachedMutableCookiesInstance = new MutableRequestCookies({
+            headers: {
+              get: (key) => {
+                if (key !== 'cookie') {
+                  throw new Error('Only cookie header is supported')
+                }
+                return req.headers.cookie
+              },
+              set: (key, value) => {
+                if (key !== 'cookie') {
+                  throw new Error('Only cookie header is supported')
+                }
+                if (!res) {
+                  throw new Error('Cannot set cookie without response')
+                }
+                req.headers.cookie = value
+              },
+            },
+            onSetCookie: (values: string[]) => {
+              if (!res) {
+                throw new Error('Cannot set cookie without response')
+              }
+              res.setHeader('Set-Cookie', values)
+            },
+          })
+        }
+        return cachedMutableCookiesInstance
       },
       previewData,
     }

@@ -37,72 +37,81 @@ export async function handleAction({
   if (isFetchAction || isFormAction || isMultipartAction) {
     if (process.env.NEXT_RUNTIME !== 'edge') {
       try {
-        let bound = []
+        let bound: any[] = []
 
         const workerName = 'app' + pathname
-        const { decodeReply } = ComponentMod
+        const { decodeReply, actionAsyncStorage } = ComponentMod
 
-        if (isMultipartAction) {
-          const formFields: any[] = []
+        let actionResult: ActionRenderResult
 
-          const busboy = require('busboy')
-          const bb = busboy({ headers: req.headers })
-          let innerResolvor: () => void, innerRejector: (e: any) => void
-          const promise = new Promise<void>((resolve, reject) => {
-            innerResolvor = resolve
-            innerRejector = reject
-          })
-          bb.on('file', () =>
-            innerRejector(new Error('File upload is not supported.'))
-          )
-          bb.on('error', (err: any) => innerRejector(err))
-          bb.on('field', (id: any, val: any) => (formFields[+id] = val))
-          bb.on('finish', () => innerResolvor())
-          req.pipe(bb)
-          await promise
+        await actionAsyncStorage.run({ isAction: true }, async () => {
+          if (isMultipartAction) {
+            const formFields: any[] = []
 
-          bound = await decodeReply(
-            formFields,
-            new Proxy(
-              {},
-              {
-                get: (_, id: string) => {
-                  return {
-                    id: serverActionsManifest[id].workers[workerName],
-                    name: id,
-                    chunks: [],
-                  }
-                },
-              }
+            const busboy = require('busboy')
+            const bb = busboy({ headers: req.headers })
+            let innerResolvor: () => void, innerRejector: (e: any) => void
+            const promise = new Promise<void>((resolve, reject) => {
+              innerResolvor = resolve
+              innerRejector = reject
+            })
+            bb.on('file', () =>
+              innerRejector(new Error('File upload is not supported.'))
             )
-          )
-        } else {
-          const { parseBody } =
-            require('../api-utils/node') as typeof import('../api-utils/node')
-          const actionData = (await parseBody(req, '1mb')) || ''
+            bb.on('error', (err: any) => innerRejector(err))
+            bb.on('field', (id: any, val: any) => (formFields[+id] = val))
+            bb.on('finish', () => innerResolvor())
+            req.pipe(bb)
+            await promise
 
-          if (isFormAction) {
-            actionId = actionData.$$id as string
-            if (!actionId) {
-              throw new Error('Invariant: missing action ID.')
-            }
-            const formData = new URLSearchParams(actionData)
-            formData.delete('$$id')
-            bound = [formData]
+            bound = await decodeReply(
+              formFields,
+              new Proxy(
+                {},
+                {
+                  get: (_, id: string) => {
+                    return {
+                      id: serverActionsManifest[id].workers[workerName],
+                      name: id,
+                      chunks: [],
+                    }
+                  },
+                }
+              )
+            )
           } else {
-            bound = await decodeReply(actionData)
+            const { parseBody } =
+              require('../api-utils/node') as typeof import('../api-utils/node')
+            const actionData = (await parseBody(req, '1mb')) || ''
+
+            if (isFormAction) {
+              actionId = actionData.$$id as string
+              if (!actionId) {
+                throw new Error('Invariant: missing action ID.')
+              }
+              const formData = new URLSearchParams(actionData)
+              formData.delete('$$id')
+              bound = [formData]
+            } else {
+              bound = await decodeReply(actionData)
+            }
           }
-        }
 
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
-        const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
+          const actionModId =
+            serverActionsManifest[actionId].workers[workerName]
+          const actionHandler =
+            ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
 
-        const returnVal = await actionHandler.apply(null, bound)
-        const result = new ActionRenderResult(JSON.stringify([returnVal]))
-        // For form actions, we need to continue rendering the page.
-        if (isFetchAction) {
-          return result
+          const returnVal = await actionHandler.apply(null, bound)
+          const result = new ActionRenderResult(JSON.stringify([returnVal]))
+          // For form actions, we need to continue rendering the page.
+          if (isFetchAction) {
+            actionResult = result
+          }
+        })
+
+        if (actionResult!) {
+          return actionResult
         }
       } catch (err) {
         if (isRedirectError(err)) {
@@ -121,14 +130,17 @@ export async function handleAction({
           return 'not-found'
         }
 
+        // To avoid exposing internal error messages to the client, we throw a
+        // generic error message and log the original error here.
+        console.error(err)
+        const publicError = new Error('Internal Server Error')
+
         if (isFetchAction) {
           res.statusCode = 500
-          return new RenderResult(
-            (err as Error)?.message ?? 'Internal Server Error'
-          )
+          return new RenderResult(publicError.message)
         }
 
-        throw err
+        throw publicError
       }
     } else {
       throw new Error('Not implemented in Edge Runtime.')
