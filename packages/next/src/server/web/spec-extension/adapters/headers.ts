@@ -23,10 +23,88 @@ export class ReadonlyHeadersError extends Error {
 export type ReadonlyHeaders = Omit<Headers, 'append' | 'delete' | 'set'>
 
 export class HeadersAdapter extends Headers {
-  constructor(private readonly headers: IncomingHttpHeaders) {
+  private readonly headers: IncomingHttpHeaders
+
+  constructor(headers: IncomingHttpHeaders) {
     // We've already overridden the methods that would be called, so we're just
     // calling the super constructor to ensure that the instanceof check works.
     super()
+
+    this.headers = new Proxy(headers, {
+      get(target, prop, receiver) {
+        // Because this is just an object, we expect that all "get" operations
+        // are for properties. If it's a "get" for a symbol, we'll just return
+        // the symbol.
+        if (typeof prop === 'symbol') return Reflect.get(target, prop, receiver)
+
+        const lowercased = prop.toLowerCase()
+
+        // Let's find the original casing of the key. This assumes that there is
+        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
+        // headers object.
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
+
+        // If the original casing doesn't exist, return undefined.
+        if (typeof original === 'undefined') return
+
+        // If the original casing exists, return the value.
+        return Reflect.get(target, original, receiver)
+      },
+      set(target, prop, value) {
+        if (typeof prop === 'symbol') return Reflect.set(target, prop, value)
+
+        const lowercased = prop.toLowerCase()
+
+        // Let's find the original casing of the key. This assumes that there is
+        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
+        // headers object.
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
+
+        // If the original casing doesn't exist, use the prop as the key.
+        return Reflect.set(target, original ?? prop, value)
+      },
+      has(target, prop) {
+        if (typeof prop === 'symbol') return Reflect.has(target, prop)
+
+        const lowercased = prop.toLowerCase()
+
+        // Let's find the original casing of the key. This assumes that there is
+        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
+        // headers object.
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
+
+        // If the original casing doesn't exist, return false.
+        if (typeof original === 'undefined') return false
+
+        // If the original casing exists, return true.
+        return Reflect.has(target, original)
+      },
+      deleteProperty(target, prop) {
+        if (typeof prop === 'symbol')
+          return Reflect.deleteProperty(target, prop)
+
+        const lowercased = prop.toLowerCase()
+
+        // Let's find the original casing of the key. This assumes that there is
+        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
+        // headers object.
+        const original = Object.keys(headers).find(
+          (o) => o.toLowerCase() === lowercased
+        )
+
+        // If the original casing doesn't exist, return true.
+        if (typeof original === 'undefined') return true
+
+        // If the original casing exists, delete the property.
+        return Reflect.deleteProperty(target, original)
+      },
+    })
   }
 
   /**
@@ -35,17 +113,30 @@ export class HeadersAdapter extends Headers {
    */
   public static seal(headers: Headers): ReadonlyHeaders {
     return new Proxy(headers, {
-      get(target, prop) {
+      get(target, prop, receiver) {
         switch (prop) {
           case 'append':
           case 'delete':
           case 'set':
             return ReadonlyHeadersError.callable
           default:
-            return Reflect.get(target, prop)
+            return Reflect.get(target, prop, receiver)
         }
       },
     })
+  }
+
+  /**
+   * Merges a header value into a string. This stores multiple values as an
+   * array, so we need to merge them into a string.
+   *
+   * @param value a header value
+   * @returns a merged header value (a string)
+   */
+  private merge(value: string | string[]): string {
+    if (Array.isArray(value)) return value.join(', ')
+
+    return value
   }
 
   /**
@@ -67,9 +158,9 @@ export class HeadersAdapter extends Headers {
       this.headers[name] = [existing, value]
     } else if (Array.isArray(existing)) {
       existing.push(value)
+    } else {
+      this.headers[name] = value
     }
-
-    this.headers[name] = value
   }
 
   public delete(name: string): void {
@@ -78,8 +169,7 @@ export class HeadersAdapter extends Headers {
 
   public get(name: string): string | null {
     const value = this.headers[name]
-    if (typeof value === 'string') return value
-    if (Array.isArray(value)) return value.join(', ')
+    if (typeof value !== 'undefined') return this.merge(value)
 
     return null
   }
@@ -93,31 +183,29 @@ export class HeadersAdapter extends Headers {
   }
 
   public forEach(
-    callbackfn: (value: string, key: string, parent: Headers) => void,
+    callbackfn: (value: string, name: string, parent: Headers) => void,
     thisArg?: any
   ): void {
-    for (const key of Object.keys(this.headers)) {
-      // We assert here that this is a string because we got it from the
-      // Object.keys() call above.
-      const value = this.get(key) as string
-
-      callbackfn.call(thisArg, value, key, this)
+    for (const [name, value] of this.entries()) {
+      callbackfn.call(thisArg, value, name, this)
     }
   }
 
   public *entries(): IterableIterator<[string, string]> {
     for (const key of Object.keys(this.headers)) {
+      const name = key.toLowerCase()
       // We assert here that this is a string because we got it from the
       // Object.keys() call above.
-      const value = this.get(key) as string
+      const value = this.get(name) as string
 
-      yield [key, value] as [string, string]
+      yield [name, value] as [string, string]
     }
   }
 
   public *keys(): IterableIterator<string> {
     for (const key of Object.keys(this.headers)) {
-      yield key
+      const name = key.toLowerCase()
+      yield name
     }
   }
 
@@ -133,32 +221,5 @@ export class HeadersAdapter extends Headers {
 
   public [Symbol.iterator](): IterableIterator<[string, string]> {
     return this.entries()
-  }
-}
-
-export function getHeaderValue(
-  headers: IncomingHttpHeaders | Headers,
-  key: string
-): string | null {
-  if (isHeaders(headers)) {
-    return headers.get(key)
-  }
-
-  const value = headers[key]
-  if (typeof value !== 'undefined' && !Array.isArray(value)) {
-    return value
-  }
-
-  return null
-}
-
-export function deleteHeader(
-  headers: IncomingHttpHeaders | Headers,
-  key: string
-): void {
-  if (isHeaders(headers)) {
-    headers.delete(key)
-  } else {
-    delete headers[key]
   }
 }
