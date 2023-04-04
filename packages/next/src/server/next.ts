@@ -124,6 +124,16 @@ export class NextServer {
     return server.serveStatic(...args)
   }
 
+  async prepare() {
+    const server = await this.getServer()
+
+    // We shouldn't prepare the server in production,
+    // because this code won't be executed when deployed
+    if (this.options.dev) {
+      await server.prepare()
+    }
+  }
+
   async close() {
     const server = await this.getServer()
     return (server as any).close()
@@ -137,11 +147,6 @@ export class NextServer {
       ServerImplementation = await getServerImpl()
     }
     const server = new ServerImplementation(options)
-
-    if (options.dev) {
-      // Try preparing the dev server as early as possible
-      await server.prepare()
-    }
 
     return server
   }
