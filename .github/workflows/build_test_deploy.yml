@@ -1253,6 +1253,7 @@ jobs:
       CARGO_PROFILE_RELEASE_LTO: false
       TURBOPACK_BENCH_COUNTS: 10
       TURBOPACK_BENCH_CACHED: 1
+      TURBOPACK_BENCH_PROGRESS: 1
 
     steps:
       - uses: actions/cache@v3
