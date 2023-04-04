@@ -56,15 +56,17 @@ async function getFiles(cwd = exportDir) {
   return files
 }
 async function runTests({
-  isDev,
-  trailingSlash,
+  isDev = false,
+  trailingSlash = true,
   dynamicPage,
   dynamicApiRoute,
+  expectedErrMsg,
 }: {
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
+  expectedErrMsg?: string
 }) {
   if (trailingSlash) {
     nextConfig.replace(
@@ -87,80 +89,105 @@ async function runTests({
   await fs.remove(distDir)
   await fs.remove(exportDir)
   const delay = isDev ? 500 : 100
-  const appPort = await findPort()
+  const port = await findPort()
   let stopOrKill: () => Promise<void>
+  let result = { code: 0, stdout: '', stderr: '' }
   if (isDev) {
-    const app = await launchApp(appDir, appPort)
+    const app = await launchApp(appDir, port, {
+      stdout: false,
+      onStdout(msg: string) {
+        result.stdout += msg || ''
+      },
+      stderr: false,
+      onStderr(msg: string) {
+        result.stderr += msg || ''
+      },
+    })
     stopOrKill = async () => await killApp(app)
   } else {
-    await nextBuild(appDir)
-    const app = await startStaticServer(exportDir, null, appPort)
+    result = await nextBuild(appDir, [], { stdout: true, stderr: true })
+    const app = await startStaticServer(exportDir, null, port)
     stopOrKill = async () => await stopApp(app)
   }
+
   try {
-    const a = (n: number) => `li:nth-child(${n}) a`
-    const browser = await webdriver(appPort, '/')
-    expect(await browser.elementByCss('h1').text()).toBe('Home')
-    expect(await browser.elementByCss(a(1)).text()).toBe(
-      'another no trailingslash'
-    )
-    await browser.elementByCss(a(1)).click()
-    await waitFor(delay)
+    if (expectedErrMsg) {
+      expect(result.stderr).toContain(expectedErrMsg)
+    } else {
+      const a = (n: number) => `li:nth-child(${n}) a`
+      const browser = await webdriver(port, '/')
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      expect(await browser.elementByCss(a(1)).text()).toBe(
+        'another no trailingslash'
+      )
+      await browser.elementByCss(a(1)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Another')
-    expect(await browser.elementByCss(a(1)).text()).toBe('Visit the home page')
-    await browser.elementByCss(a(1)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('Another')
+      expect(await browser.elementByCss(a(1)).text()).toBe(
+        'Visit the home page'
+      )
+      await browser.elementByCss(a(1)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Home')
-    expect(await browser.elementByCss(a(2)).text()).toBe(
-      'another has trailingslash'
-    )
-    await browser.elementByCss(a(2)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      expect(await browser.elementByCss(a(2)).text()).toBe(
+        'another has trailingslash'
+      )
+      await browser.elementByCss(a(2)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Another')
-    expect(await browser.elementByCss(a(1)).text()).toBe('Visit the home page')
-    await browser.elementByCss(a(1)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('Another')
+      expect(await browser.elementByCss(a(1)).text()).toBe(
+        'Visit the home page'
+      )
+      await browser.elementByCss(a(1)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Home')
-    expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
-    await browser.elementByCss(a(3)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('Home')
+      expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
+      await browser.elementByCss(a(3)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('first')
-    expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
-    await browser.elementByCss(a(1)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('first')
+      expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
+      await browser.elementByCss(a(1)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Another')
-    expect(await browser.elementByCss(a(4)).text()).toBe('another second page')
-    await browser.elementByCss(a(4)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('Another')
+      expect(await browser.elementByCss(a(4)).text()).toBe(
+        'another second page'
+      )
+      await browser.elementByCss(a(4)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('second')
-    expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
-    await browser.elementByCss(a(1)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('second')
+      expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
+      await browser.elementByCss(a(1)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Another')
-    expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
-    await browser.elementByCss(a(5)).click()
-    await waitFor(delay)
+      expect(await browser.elementByCss('h1').text()).toBe('Another')
+      expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
+      await browser.elementByCss(a(5)).click()
+      await waitFor(delay)
 
-    expect(await browser.elementByCss('h1').text()).toBe('Image Import')
-    expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
-    expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
-      '/test.3f1a293b.png'
-    )
-    const res1 = await fetchViaHTTP(appPort, '/api/json')
-    expect(res1.status).toBe(200)
-    expect(await res1.json()).toEqual({ answer: 42 })
+      expect(await browser.elementByCss('h1').text()).toBe('Image Import')
+      expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
+      expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
+        '/test.3f1a293b.png'
+      )
+      const res1 = await fetchViaHTTP(port, '/api/json')
+      expect(res1.status).toBe(200)
+      expect(await res1.json()).toEqual({ answer: 42 })
 
-    const res2 = await fetchViaHTTP(appPort, '/api/txt')
-    expect(res2.status).toBe(200)
-    expect(await res2.text()).toEqual('this is plain text')
+      const res2 = await fetchViaHTTP(port, '/api/txt')
+      expect(res2.status).toBe(200)
+      expect(await res2.text()).toEqual('this is plain text')
+
+      if (!isDev && trailingSlash) {
+        expect(await getFiles()).toEqual(expectedFiles)
+      }
+    }
   } finally {
     await stopOrKill()
     nextConfig.restore()
@@ -187,27 +214,15 @@ describe('app dir with output export', () => {
     { dynamic: "'force-static'" },
   ])('should work with dynamic $dynamic on page', async ({ dynamic }) => {
     await runTests({ dynamicPage: dynamic })
-    expect(await getFiles()).toEqual(expectedFiles)
   })
   it("should throw when dynamic 'force-dynamic' on page", async () => {
-    slugPage.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = 'force-dynamic'`
-    )
     await fs.remove(distDir)
     await fs.remove(exportDir)
-    let result = { code: 0, stderr: '' }
-    try {
-      result = await nextBuild(appDir, [], { stderr: true })
-    } finally {
-      nextConfig.restore()
-      slugPage.restore()
-      apiJson.restore()
-    }
-    expect(result.code).toBe(1)
-    expect(result.stderr).toContain(
-      'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.'
-    )
+    await runTests({
+      dynamicPage: `'force-dynamic'`,
+      expectedErrMsg:
+        'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
+    })
   })
   it.each([
     { dynamic: 'undefined' },
