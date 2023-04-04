@@ -188,6 +188,15 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
     return true
   }
 
+  /**
+   * This method is a no-op because the `MockedResponse` instance is not
+   * actually connected to a socket. This method is not specified on the
+   * interface type for `ServerResponse` but is called by Node.js.
+   *
+   * @see https://github.com/nodejs/node/pull/7949
+   */
+  public _implicitHeader() {}
+
   public _write(
     chunk: Buffer | string,
     _encoding: string,
@@ -284,6 +293,14 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
     this.headers.delete(name)
   }
 
+  public get headersSent(): boolean {
+    return this.hasHeadersBeenSent
+  }
+
+  public get socket(): Socket | null {
+    return this.connection
+  }
+
   public assignSocket() {
     throw new Error('Method not implemented.')
   }
@@ -317,14 +334,6 @@ class MockedResponse extends Stream.Writable implements ServerResponse {
   }
 
   public get sendDate(): boolean {
-    throw new Error('Method not implemented.')
-  }
-
-  public get headersSent(): boolean {
-    return this.hasHeadersBeenSent
-  }
-
-  public get socket(): Socket | null {
     throw new Error('Method not implemented.')
   }
 
