@@ -7,11 +7,11 @@ use turbo_binding::{
     },
     turbopack::{
         core::{
-            issue::{IssueSeverity, OptionIssueSourceVc},
             asset::{Asset, AssetVc},
             chunk::ChunkingContextVc,
             compile_time_info::CompileTimeInfoVc,
             context::AssetContext,
+            issue::{IssueSeverity, OptionIssueSourceVc},
             reference_type::EcmaScriptModulesReferenceSubType,
             resolve::parse::RequestVc,
             virtual_asset::VirtualAssetVc,

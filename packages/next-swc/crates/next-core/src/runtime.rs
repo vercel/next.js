@@ -1,7 +1,9 @@
 use anyhow::{bail, Result};
-use turbo_binding::turbopack::core::issue::{IssueSeverity, OptionIssueSourceVc};
 use turbo_binding::turbopack::{
-    core::resolve::{origin::ResolveOriginVc, parse::RequestVc},
+    core::{
+        issue::{IssueSeverity, OptionIssueSourceVc},
+        resolve::{origin::ResolveOriginVc, parse::RequestVc},
+    },
     turbopack::ecmascript::{chunk::EcmascriptChunkPlaceableVc, resolve::cjs_resolve},
 };
 
