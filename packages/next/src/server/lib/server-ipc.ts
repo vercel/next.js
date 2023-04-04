@@ -36,7 +36,7 @@ export async function createIpcServer(
           res.end(JSON.stringify(result || ''))
         }
       } catch (err: any) {
-        if (isError(err) && err.code === 'ENOENT') {
+        if (isError(err) && err.code !== 'ENOENT') {
           console.error(err)
         }
         res.end(
