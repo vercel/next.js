@@ -1,0 +1,19 @@
+PlainIssue {
+    severity: Error,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/env/parse-error/input/.env",
+    category: "parse",
+    title: "Error loading dotenv file",
+    description: "Error parsing line: 'foo bar', error at line index: 4",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: None,
+                description: "Next.js Routing for GET /_next/static/development/_buildManifest.js",
+            },
+        ],
+    ),
+}
