@@ -10,6 +10,7 @@ export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
+export const ACTION_FAST_REFRESH = 'fast-refresh'
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -30,6 +31,13 @@ export interface Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
+  cache: CacheNode
+  mutable: Mutable
+  origin: Location['origin']
+}
+
+export interface FastRefreshAction {
+  type: typeof ACTION_FAST_REFRESH
   cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
@@ -190,4 +198,5 @@ export type ReducerActions = Readonly<
   | RestoreAction
   | ServerPatchAction
   | PrefetchAction
+  | FastRefreshAction
 >

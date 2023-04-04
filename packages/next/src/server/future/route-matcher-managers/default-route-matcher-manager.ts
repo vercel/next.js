@@ -10,6 +10,7 @@ import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { AppPageInterceptingRouteMatcher } from '../route-matchers/app-intercepting-route-matcher'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -163,7 +164,21 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           throw new Error('Invariant: expected to find identity in indexes map')
         }
 
-        for (const index of indexes) sortedDynamicMatchers.push(dynamic[index])
+        // Sort the dynamic matches by the type of matcher. This ensures that
+        // intercepting matchers are always first for each pathname.
+        const dynamicMatches = indexes
+          .map((index) => dynamic[index])
+          .sort((a, b) => {
+            if (a instanceof AppPageInterceptingRouteMatcher) {
+              return -1
+            }
+            if (b instanceof AppPageInterceptingRouteMatcher) {
+              return 1
+            }
+            return 0
+          })
+
+        sortedDynamicMatchers.push(...dynamicMatches)
       }
 
       this.matchers.dynamic = sortedDynamicMatchers
@@ -224,7 +239,10 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     matcher: RouteMatcher,
     options: MatchOptions
   ): RouteMatch | null {
-    if (matcher instanceof LocaleRouteMatcher) {
+    if (
+      matcher instanceof LocaleRouteMatcher ||
+      matcher instanceof AppPageInterceptingRouteMatcher
+    ) {
       return matcher.match(pathname, options)
     }
 

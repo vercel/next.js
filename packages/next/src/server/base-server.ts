@@ -99,6 +99,7 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { fromNodeHeaders, toNodeHeaders } from './web/utils'
 
 export type FindComponentsResult = {
@@ -740,6 +741,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath, {
             i18n: localeAnalysisResult,
+            referrer: parseNextReferrerFromHeaders(req.headers),
           })
 
           // Update the source pathname to the matched page's pathname.
@@ -2058,13 +2060,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponseImpl(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    const { res, query, pathname } = ctx
+    const { res, query, pathname, req } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromQuery(pathname, query),
+      referrer: parseNextReferrerFromHeaders(req.headers),
     }
 
     try {
@@ -2072,7 +2075,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.definition.pathname,
+            // Use the overridden pathname if available, otherwise use the
+            // original pathname.
+            pathname:
+              match.definition.pathnameOverride || match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,
