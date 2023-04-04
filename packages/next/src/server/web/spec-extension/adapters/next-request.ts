@@ -18,16 +18,10 @@ export class NextRequestAdapter {
 
   public static fromNodeNextRequest(request: NodeNextRequest): NextRequest {
     // HEAD and GET requests can not have a body.
-    let body: ReadableStream | null = null
+    let body: BodyInit | null = null
     if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
-      // Create a new stream from the request body.
-      body = new ReadableStream({
-        start(controller) {
-          // TODO: enqueue the body in chunks.
-          controller.enqueue(request.body)
-          controller.close()
-        },
-      })
+      // @ts-expect-error - this is handled by undici, when streams/web land use it instead
+      body = request.body
     }
 
     let url: URL
