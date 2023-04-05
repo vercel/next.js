@@ -114,6 +114,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
   // decimal for percent for possible false positives

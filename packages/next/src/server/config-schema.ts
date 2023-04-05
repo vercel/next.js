@@ -399,6 +399,9 @@ const configSchema = {
           },
           type: 'object',
         },
+        strictNextHead: {
+          type: 'boolean',
+        },
         swcFileReading: {
           type: 'boolean',
         },

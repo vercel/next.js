@@ -319,6 +319,9 @@ export function getDefineEnv({
         : {}),
     }),
     'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
+    'process.env.__NEXT_STRICT_NEXT_HEAD': JSON.stringify(
+      config.experimental.strictNextHead
+    ),
     'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
     'process.env.__NEXT_CONFIG_OUTPUT': JSON.stringify(config.output),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
