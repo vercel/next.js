@@ -61,7 +61,7 @@ impl ModuleOptionsVc {
     ) -> Result<ModuleOptionsVc> {
         let ModuleOptionsContext {
             enable_jsx,
-            enable_emotion,
+            ref enable_emotion,
             enable_react_refresh,
             enable_styled_jsx,
             enable_styled_components,
@@ -96,8 +96,24 @@ impl ModuleOptionsVc {
         if enable_styled_jsx {
             transforms.push(EcmascriptInputTransform::StyledJsx);
         }
-        if enable_emotion {
-            transforms.push(EcmascriptInputTransform::Emotion);
+        if let Some(enable_emotion) = enable_emotion {
+            let emotion_transform = enable_emotion.await?;
+            if emotion_transform.enabled {
+                transforms.push(EcmascriptInputTransform::Emotion {
+                    sourcemap: emotion_transform.sourcemap.unwrap_or(false),
+                    label_format: OptionStringVc::cell(emotion_transform.label_format.clone()),
+                    auto_label: if let Some(auto_label) = emotion_transform.auto_label.as_ref() {
+                        match auto_label {
+                            EmotionLabelKind::Always => Some(true),
+                            EmotionLabelKind::Never => Some(false),
+                            // [TODO]: this is not correct coerece, need to be fixed
+                            EmotionLabelKind::DevOnly => None,
+                        }
+                    } else {
+                        None
+                    },
+                });
+            }
         }
         if enable_styled_components {
             transforms.push(EcmascriptInputTransform::StyledComponents);

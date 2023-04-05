@@ -89,6 +89,38 @@ impl Default for TypescriptTransformOptionsVc {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub enum EmotionLabelKind {
+    DevOnly,
+    Always,
+    Never,
+}
+
+//[TODO]: need to support importmap, there are type mismatch between
+//[TODO]: next.config.js to swc's emotion options
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone, Debug)]
+pub struct EmotionTransformOptions {
+    pub enabled: bool,
+    pub sourcemap: Option<bool>,
+    pub label_format: Option<String>,
+    pub auto_label: Option<EmotionLabelKind>,
+}
+
+#[turbo_tasks::value_impl]
+impl EmotionTransformOptionsVc {
+    #[turbo_tasks::function]
+    pub fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
+impl Default for EmotionTransformOptionsVc {
+    fn default() -> Self {
+        Self::default()
+    }
+}
+
 impl WebpackLoadersOptions {
     pub fn is_empty(&self) -> bool {
         self.extension_to_loaders.is_empty()
@@ -117,7 +149,7 @@ pub struct ModuleOptionsContext {
     #[serde(default)]
     pub enable_jsx: Option<JsxTransformOptionsVc>,
     #[serde(default)]
-    pub enable_emotion: bool,
+    pub enable_emotion: Option<EmotionTransformOptionsVc>,
     #[serde(default)]
     pub enable_react_refresh: bool,
     #[serde(default)]
