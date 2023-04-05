@@ -19,6 +19,7 @@ use turbo_binding::{
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
             reference_type::{
                 EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
             },
@@ -35,8 +36,10 @@ use turbo_binding::{
             },
         },
         ecmascript::{
-            magic_identifier, utils::StringifyJs, EcmascriptInputTransformsVc,
-            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+            magic_identifier,
+            utils::{FormatIter, StringifyJs},
+            EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
+            InnerAssetsVc,
         },
         env::ProcessEnvAssetVc,
         node::{
@@ -54,11 +57,12 @@ use turbo_binding::{
         },
     },
 };
+use turbo_tasks::{TryJoinIterExt, ValueToString};
 
 use crate::{
     app_render::next_layout_entry_transition::NextServerComponentTransition,
     app_structure::{
-        get_entrypoints, Components, Entrypoint, LoaderTree, LoaderTreeVc, OptionAppDirVc,
+        get_entrypoints, Components, Entrypoint, LoaderTree, LoaderTreeVc, Metadata, OptionAppDirVc,
     },
     embed_js::{next_js_file, next_js_file_path},
     env::env_for_js,
@@ -473,6 +477,7 @@ async fn create_app_page_source_for_route(
         pathname_vc,
         AppRenderer {
             runtime_entries,
+            app_dir,
             context_ssr,
             context,
             server_root,
@@ -532,6 +537,7 @@ async fn create_app_route_source_for_route(
 #[turbo_tasks::value]
 struct AppRenderer {
     runtime_entries: AssetsVc,
+    app_dir: FileSystemPathVc,
     context_ssr: AssetContextVc,
     context: AssetContextVc,
     project_path: FileSystemPathVc,
@@ -546,6 +552,7 @@ impl AppRendererVc {
     async fn entry(self, is_rsc: bool) -> Result<NodeRenderingEntryVc> {
         let AppRenderer {
             runtime_entries,
+            app_dir,
             context_ssr,
             context,
             project_path,
@@ -566,6 +573,7 @@ impl AppRendererVc {
             imports: Vec<String>,
             loader_tree_code: String,
             context: AssetContextVc,
+            unsupported_metadata: Vec<FileSystemPathVc>,
         }
 
         let mut state = State {
@@ -574,6 +582,7 @@ impl AppRendererVc {
             imports: Vec::new(),
             loader_tree_code: String::new(),
             context,
+            unsupported_metadata: Vec::new(),
         };
 
         fn write_component(
@@ -613,6 +622,12 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             Ok(())
         }
 
+        fn emit_metadata_warning(state: &mut State, files: &[FileSystemPathVc]) {
+            for file in files {
+                state.unsupported_metadata.push(*file);
+            }
+        }
+
         #[async_recursion]
         async fn walk_tree(state: &mut State, loader_tree: LoaderTreeVc) -> Result<()> {
             use std::fmt::Write;
@@ -643,7 +658,14 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 layout,
                 loading,
                 template,
-                metadata: _,
+                metadata:
+                    Metadata {
+                        icon,
+                        apple,
+                        twitter,
+                        open_graph,
+                        favicon,
+                    },
                 route: _,
             } = &*components.await?;
             write_component(state, "page", *page)?;
@@ -652,7 +674,12 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             write_component(state, "layout", *layout)?;
             write_component(state, "loading", *loading)?;
             write_component(state, "template", *template)?;
-            // TODO something for metadata
+            // TODO something useful for metadata
+            emit_metadata_warning(state, icon);
+            emit_metadata_warning(state, apple);
+            emit_metadata_warning(state, twitter);
+            emit_metadata_warning(state, open_graph);
+            emit_metadata_warning(state, favicon);
             write!(state.loader_tree_code, "}}]")?;
             Ok(())
         }
@@ -663,8 +690,19 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             mut inner_assets,
             imports,
             loader_tree_code,
+            unsupported_metadata,
             ..
         } = state;
+
+        if !unsupported_metadata.is_empty() {
+            UnsupportedImplicitMetadataIssue {
+                app_dir,
+                files: unsupported_metadata,
+            }
+            .cell()
+            .as_issue()
+            .emit();
+        }
 
         // IPC need to be the first import to allow it to catch errors happening during
         // the other imports
@@ -832,5 +870,47 @@ impl NodeEntry for AppRoute {
     fn entry(self_vc: AppRouteVc, _data: Value<ContentSourceData>) -> NodeRenderingEntryVc {
         // Call without being keyed by data
         self_vc.entry()
+    }
+}
+
+#[turbo_tasks::value]
+struct UnsupportedImplicitMetadataIssue {
+    app_dir: FileSystemPathVc,
+    files: Vec<FileSystemPathVc>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for UnsupportedImplicitMetadataIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        IssueSeverity::Warning.into()
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.app_dir
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        StringVc::cell(
+            "Implicit metadata from filesystem is currently not supported in Turbopack".to_string(),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        let mut files = self
+            .files
+            .iter()
+            .map(|file| file.to_string())
+            .try_join()
+            .await?;
+        files.sort();
+        Ok(StringVc::cell(format!(
+            "The following files were found in the app directory, but are not supported by \
+             Turbopack. They are ignored:\n{}",
+            FormatIter(|| files.iter().flat_map(|file| vec!["\n- ", file]))
+        )))
     }
 }
