@@ -5,6 +5,7 @@ use turbo_binding::{
         core::{
             asset::{Asset, AssetVc, AssetsVc},
             context::AssetContextVc,
+            issue::{IssueSeverity, OptionIssueSourceVc},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
         },
         ecmascript::{
@@ -40,9 +41,14 @@ impl RuntimeEntryVc {
             RuntimeEntry::Request(r, path) => (r, path),
         };
 
-        let assets = cjs_resolve(PlainResolveOriginVc::new(context, path).into(), request)
-            .primary_assets()
-            .await?;
+        let assets = cjs_resolve(
+            PlainResolveOriginVc::new(context, path).into(),
+            request,
+            OptionIssueSourceVc::none(),
+            IssueSeverity::Error.cell(),
+        )
+        .primary_assets()
+        .await?;
 
         let mut runtime_entries = Vec::with_capacity(assets.len());
         for asset in &assets {

@@ -66,7 +66,7 @@ import {
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
+import { getSortedRoutes } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
@@ -797,7 +797,6 @@ export default class DevServer extends Server {
 
           this.dynamicRoutes = sortedRoutes
             .map((page) => {
-              if (!isDynamicRoute) return null
               const regex = getRouteRegex(page)
               return {
                 match: getRouteMatcher(regex),
@@ -873,7 +872,7 @@ export default class DevServer extends Server {
     }
   }
 
-  async prepare(): Promise<void> {
+  protected async prepareImpl(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
@@ -907,7 +906,7 @@ export default class DevServer extends Server {
         telemetry,
       })
     }
-    await super.prepare()
+    await super.prepareImpl()
     await this.addExportPathMapRoutes()
     await this.hotReloader?.start()
     await this.startWatcher()
