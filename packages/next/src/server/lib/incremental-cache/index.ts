@@ -15,6 +15,34 @@ function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
 }
 
+/**
+ * Copy chunks from a ReadableStream to an array. This will consume the reader
+ * so you should use `tee()` if you want to re-use the original reader.
+ *
+ * @param reader the reader to copy from
+ * @returns an array of chunks from the reader
+ */
+async function copyChunks(
+  reader: ReadableStream<ArrayBuffer | string>
+): Promise<string[]> {
+  const chunks: string[] = []
+
+  // Stream the reader to the chunks array, wait for it to finish.
+  await reader.pipeTo(
+    new WritableStream<ArrayBuffer | string>({
+      write(chunk) {
+        if (typeof chunk === 'string') {
+          chunks.push(chunk)
+        } else {
+          chunks.push(encode(chunk))
+        }
+      },
+    })
+  )
+
+  return chunks
+}
+
 export interface CacheHandlerContext {
   fs?: CacheFs
   dev?: boolean
@@ -151,8 +179,27 @@ export class IncrementalCache {
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(
     url: string,
-    init: RequestInit | Request = {}
-  ): Promise<string> {
+    init: RequestInit | Request | undefined,
+    options: { returnBody: true }
+  ): Promise<{
+    cacheKey: string
+    body: Blob | ReadableStream | FormData | string | undefined
+  }>
+  async fetchCacheKey(
+    url: string,
+    init?: RequestInit | Request
+  ): Promise<string>
+  async fetchCacheKey(
+    url: string,
+    init: RequestInit | Request = {},
+    options?: { returnBody: true }
+  ): Promise<
+    | string
+    | {
+        cacheKey: string
+        body: Blob | ReadableStream | FormData | string | undefined
+      }
+  > {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
     const MAIN_KEY_PREFIX = 'v1'
@@ -160,49 +207,51 @@ export class IncrementalCache {
     let cacheKey: string
     const bodyChunks: string[] = []
 
+    let body: Blob | ReadableStream | FormData | string | undefined
     if (init.body) {
+      // handle string body
+      if (typeof init.body === 'string') {
+        bodyChunks.push(init.body)
+        body = init.body
+      }
       // handle ReadableStream body
-      if (typeof (init.body as any).getReader === 'function') {
-        const readableBody = init.body as ReadableStream
-        const reader = readableBody.getReader()
-        let arrayBuffer = new Uint8Array()
+      else if (
+        'getReader' in init.body &&
+        typeof init.body.getReader === 'function'
+      ) {
+        // We need to tee() the stream to get two readers. One for collecting
+        // the body for the cache key and one for passing back for fetch.
+        const [ogBodyReader, cacheKeyReader] = init.body.tee()
 
-        function processValue({
-          done,
-          value,
-        }: {
-          done?: boolean
-          value?: ArrayBuffer | string
-        }): any {
-          if (done) {
-            return
-          }
-          if (value) {
-            try {
-              bodyChunks.push(typeof value === 'string' ? value : encode(value))
-              const curBuffer: Uint8Array =
-                typeof value === 'string'
-                  ? encodeText(value)
-                  : new Uint8Array(value)
+        // Assign the body output.
+        body = ogBodyReader
 
-              const prevBuffer = arrayBuffer
-              arrayBuffer = new Uint8Array(
-                prevBuffer.byteLength + curBuffer.byteLength
-              )
-              arrayBuffer.set(prevBuffer)
-              arrayBuffer.set(curBuffer, prevBuffer.byteLength)
-            } catch (err) {
-              console.error(err)
-            }
-          }
-          reader.read().then(processValue)
-        }
-        await reader.read().then(processValue)
-        ;(init as any)._ogBody = arrayBuffer
-      } // handle FormData or URLSearchParams bodies
-      else if (typeof (init.body as any).keys === 'function') {
-        const formData = init.body as FormData
-        ;(init as any)._ogBody = init.body
+        // Collect the chunks and add them to the body for the cache key.
+        bodyChunks.concat(await copyChunks(cacheKeyReader))
+      }
+      // handle blob body
+      else if (
+        'stream' in init.body &&
+        typeof init.body.stream === 'function'
+      ) {
+        // We need to tee() the stream to get two readers. One for collecting
+        // the body for the cache key and one for passing back for fetch.
+        const [ogBodyReader, cacheKeyReader] = init.body.stream().tee()
+
+        // Assign the body output.
+        body = ogBodyReader
+
+        // Collect the chunks and add them to the body for the cache key.
+        bodyChunks.concat(await copyChunks(cacheKeyReader))
+      }
+      // handle FormData or URLSearchParams bodies
+      else if ('keys' in init.body && typeof init.body.keys === 'function') {
+        const formData = init.body
+
+        // Unlike ReadableStream, FormData and URLSearchParams are not
+        // streams, so we can just assign them to the body output to copy it.
+        body = formData
+
         for (const key of new Set([...formData.keys()])) {
           const values = formData.getAll(key)
           bodyChunks.push(
@@ -219,15 +268,6 @@ export class IncrementalCache {
             ).join(',')}`
           )
         }
-        // handle blob body
-      } else if (typeof (init.body as any).arrayBuffer === 'function') {
-        const blob = init.body as Blob
-        const arrayBuffer = await blob.arrayBuffer()
-        bodyChunks.push(encode(await (init.body as Blob).arrayBuffer()))
-        ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
-      } else if (typeof init.body === 'string') {
-        bodyChunks.push(init.body)
-        ;(init as any)._ogBody = init.body
       }
     }
 
@@ -259,6 +299,17 @@ export class IncrementalCache {
       const crypto = require('crypto') as typeof import('crypto')
       cacheKey = crypto.createHash('sha256').update(cacheString).digest('hex')
     }
+
+    // Return the cache key and body if requested.
+    if (options?.returnBody) {
+      return { cacheKey, body }
+    }
+
+    // Assign the body if it's defined.
+    if (body) {
+      ;(init as any)._ogBody = body
+    }
+
     return cacheKey
   }
 

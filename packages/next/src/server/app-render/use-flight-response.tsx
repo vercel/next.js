@@ -1,18 +1,50 @@
 import { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import {
-  readableStreamTee,
-  encodeText,
-  decodeText,
-} from '../node-web-streams-helper'
 import { htmlEscapeJsonString } from '../htmlescape'
 import { isEdgeRuntime } from './app-render'
 import { FlightResponseRef } from './flight-response-ref'
+
+class RSCTransformStream extends TransformStream<string, string> {
+  constructor(nonce?: string) {
+    const startScriptTag = nonce
+      ? `<script nonce=${JSON.stringify(nonce)}>`
+      : '<script>'
+
+    super({
+      start(controller) {
+        controller.enqueue(
+          `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+            JSON.stringify([0])
+          )})</script>`
+        )
+      },
+      transform(chunk, controller) {
+        controller.enqueue(
+          `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
+            JSON.stringify([1, chunk])
+          )})</script>`
+        )
+      },
+    })
+  }
+}
+
+class RSCChunkWritableStream extends WritableStream<Uint8Array> {
+  constructor(chunks: Uint8Array[]) {
+    super({
+      write(chunk) {
+        if (!chunk) return
+
+        chunks.push(chunk)
+      },
+    })
+  }
+}
 
 /**
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
-export function useFlightResponse(
+export async function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   req: ReadableStream<Uint8Array>,
   clientReferenceManifest: ClientReferenceManifest,
@@ -27,54 +59,49 @@ export function useFlightResponse(
     createFromReadableStream,
   } = require('next/dist/compiled/react-server-dom-webpack/client.edge')
 
-  const [renderStream, forwardStream] = readableStreamTee(req)
+  // Break the request stream into two streams. One for the Flight response
+  // and one for the writer.
+  const [renderStream, forwardStream] = req.tee()
+
+  // Create the Flight response.
   const res = createFromReadableStream(renderStream, {
     moduleMap: isEdgeRuntime
       ? clientReferenceManifest.edgeSSRModuleMapping
       : clientReferenceManifest.ssrModuleMapping,
   })
+
+  // Add the reference to the flight response object.
   flightResponseRef.current = res
 
-  let bootstrapped = false
-  // We only attach CSS chunks to the inlined data.
-  const forwardReader = forwardStream.getReader()
-  const writer = writable.getWriter()
-  const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
-    : '<script>'
-  const textDecoder = new TextDecoder()
+  // Create the two readers for the stream.
+  const [rcsChunkReader, writerReader] = forwardStream.tee()
 
-  function read() {
-    forwardReader.read().then(({ done, value }) => {
-      if (value) {
-        rscChunks.push(value)
-      }
+  const promises: Array<Promise<unknown>> = [
+    // TODO: (wyattjoh) doesn't look like these chunks are used, maybe we can remove this?
+    // Collect all the chunks from the stream.
+    rcsChunkReader
+      // Collects all the chunks into the array.
+      .pipeTo(new RSCChunkWritableStream(rscChunks)),
 
-      if (!bootstrapped) {
-        bootstrapped = true
-        writer.write(
-          encodeText(
-            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([0])
-            )})</script>`
-          )
-        )
-      }
-      if (done) {
-        flightResponseRef.current = null
-        writer.close()
-      } else {
-        const responsePartial = decodeText(value, textDecoder)
-        const scripts = `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([1, responsePartial])
-        )})</script>`
+    // Generate all the script tags to send down.
+    writerReader
+      // Decode the Uint8Array chunks into strings.
+      .pipeThrough(new TextDecoderStream())
+      // This transformer is used to take React Server Components chunks and
+      // transform them into a stream of script tags that will be injected into
+      // the HTML.
+      .pipeThrough(new RSCTransformStream(nonce))
+      // Re-encode the strings into Uint8Array chunks.
+      .pipeThrough(new TextEncoderStream())
+      // Send the chunks to the writable stream. This will automatically close
+      // the stream when the reader is done.
+      .pipeTo(writable),
+  ]
 
-        writer.write(encodeText(scripts))
-        read()
-      }
-    })
-  }
-  read()
+  // Once all the promises are done, we can update the reference.
+  Promise.all(promises).finally(() => {
+    flightResponseRef.current = null
+  })
 
   return res
 }

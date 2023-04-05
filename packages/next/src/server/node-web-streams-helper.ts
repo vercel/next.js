@@ -42,27 +42,17 @@ export const streamToBufferedResult = async (
 export function readableStreamTee<T = any>(
   readable: ReadableStream<T>
 ): [ReadableStream<T>, ReadableStream<T>] {
-  const transformStream = new TransformStream()
-  const transformStream2 = new TransformStream()
-  const writer = transformStream.writable.getWriter()
-  const writer2 = transformStream2.writable.getWriter()
+  const transformers = [
+    new TransformStream<T, T>(),
+    new TransformStream<T, T>(),
+  ] as const
 
-  const reader = readable.getReader()
-  function read() {
-    reader.read().then(({ done, value }) => {
-      if (done) {
-        writer.close()
-        writer2.close()
-        return
-      }
-      writer.write(value)
-      writer2.write(value)
-      read()
-    })
+  const readers = readable.tee()
+  for (let i = 0; i < readers.length; ++i) {
+    readers[i].pipeThrough(transformers[i])
   }
-  read()
 
-  return [transformStream.readable, transformStream2.readable]
+  return [transformers[0].readable, transformers[1].readable]
 }
 
 export function chainStreams<T>(
