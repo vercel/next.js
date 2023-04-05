@@ -946,12 +946,13 @@ export default class HotReloader {
                         key.startsWith('app/') &&
                         mod.resource?.endsWith('.css')
                       ) {
-                        const key = mod.layer + ':' + mod.resource
-                        const prevHash = prevCSSImportModuleHashes.get(key)
+                        const resourceKey = mod.layer + ':' + mod.resource
+                        const prevHash =
+                          prevCSSImportModuleHashes.get(resourceKey)
                         if (prevHash && prevHash !== hash) {
                           hasCSSModuleChanges = true
                         }
-                        prevCSSImportModuleHashes.set(key, hash)
+                        prevCSSImportModuleHashes.set(resourceKey, hash)
                       }
                     }
                   })
