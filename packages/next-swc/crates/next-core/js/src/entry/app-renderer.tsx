@@ -290,6 +290,7 @@ async function runOperation(renderData: RenderData) {
   return {
     headers: [
       ["Content-Type", result.contentType() ?? MIME_TEXT_HTML_UTF8],
+      ["Vary", "RSC"],
     ] as [string, string][],
     body,
   };
