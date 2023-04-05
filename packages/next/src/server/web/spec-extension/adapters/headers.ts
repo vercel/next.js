@@ -1,10 +1,5 @@
 import type { IncomingHttpHeaders } from 'http'
 
-function isHeaders(headers: IncomingHttpHeaders | Headers): headers is Headers {
-  // TODO: maybe use instanceof check?
-  return typeof headers.get === 'function' && typeof headers.set === 'function'
-}
-
 /**
  * @internal
  */
@@ -146,8 +141,7 @@ export class HeadersAdapter extends Headers {
    * @returns a headers instance
    */
   public static from(headers: IncomingHttpHeaders | Headers): Headers {
-    if (headers instanceof HeadersAdapter) return headers
-    if (isHeaders(headers)) return headers
+    if (headers instanceof Headers) return headers
 
     return new HeadersAdapter(headers)
   }
