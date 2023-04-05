@@ -9,7 +9,7 @@ use turbo_binding::{
     turbopack::{
         core::{
             asset::{AssetVc, AssetsVc},
-            chunk::ChunkingContextVc,
+            chunk::{ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
             reference_type::{EntryReferenceSubType, ReferenceType},
@@ -373,6 +373,7 @@ async fn create_page_source_for_file(
             route_matcher.into(),
             pathname,
             SsrEntry {
+                runtime_entries,
                 context: server_context,
                 entry_asset: page_asset,
                 ty: SsrType::AutoApi,
@@ -383,7 +384,6 @@ async fn create_page_source_for_file(
             }
             .cell()
             .into(),
-            runtime_entries,
         )
     } else {
         let data_pathname = pathname_for_path(server_root, server_path, true, true);
@@ -391,6 +391,7 @@ async fn create_page_source_for_file(
             NextPrefixSuffixParamsMatcherVc::new(data_pathname, "_next/data/development/", ".json");
 
         let ssr_entry = SsrEntry {
+            runtime_entries,
             context: server_context,
             entry_asset: page_asset,
             ty: SsrType::Html,
@@ -403,6 +404,7 @@ async fn create_page_source_for_file(
         .into();
 
         let ssr_data_entry = SsrEntry {
+            runtime_entries,
             context: server_data_context,
             entry_asset: page_asset,
             ty: SsrType::Data,
@@ -423,7 +425,6 @@ async fn create_page_source_for_file(
                 route_matcher.into(),
                 pathname,
                 ssr_entry,
-                runtime_entries,
                 fallback_page,
             ),
             create_node_rendered_source(
@@ -434,7 +435,6 @@ async fn create_page_source_for_file(
                 data_route_matcher.into(),
                 pathname,
                 ssr_data_entry,
-                runtime_entries,
                 fallback_page,
             ),
             create_page_loader(
@@ -519,6 +519,7 @@ async fn create_not_found_page_source(
     );
 
     let ssr_entry = SsrEntry {
+        runtime_entries,
         context: server_context,
         entry_asset,
         ty: SsrType::Html,
@@ -547,7 +548,6 @@ async fn create_not_found_page_source(
             route_matcher,
             pathname,
             ssr_entry,
-            runtime_entries,
             fallback_page,
         ),
         page_loader,
@@ -662,6 +662,7 @@ enum SsrType {
 /// The node.js renderer for SSR of pages.
 #[turbo_tasks::value]
 struct SsrEntry {
+    runtime_entries: AssetsVc,
     context: AssetContextVc,
     entry_asset: AssetVc,
     ty: SsrType,
@@ -734,7 +735,13 @@ impl SsrEntryVc {
         };
 
         Ok(NodeRenderingEntry {
-            context: this.context,
+            runtime_entries: EvaluatableAssetsVc::cell(
+                this.runtime_entries
+                    .await?
+                    .iter()
+                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
+                    .collect(),
+            ),
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 internal_asset,
                 this.context,

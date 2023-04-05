@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 
-import { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
+import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
 export type NextApiRequestCookies = Partial<{ [key: string]: string }>
