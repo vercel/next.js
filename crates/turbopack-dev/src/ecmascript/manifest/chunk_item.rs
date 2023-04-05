@@ -49,16 +49,12 @@ impl EcmascriptChunkItem for DevManifestChunkItem {
             // item is one of several that are contained in that chunk file.
             let chunk_path = &*chunk.ident().path().await?;
             // The pathname is the file path necessary to load the chunk from the server.
-            let chunk_server_path = if let Some(path) = output_root.get_path_to(chunk_path) {
-                path
+            if let Some(path) = output_root.get_path_to(chunk_path) {
+                chunk_server_paths.insert(path.to_string());
             } else {
-                bail!(
-                    "chunk path {} is not in output root {}",
-                    chunk.ident().path().to_string().await?,
-                    self.context.output_root().to_string().await?
-                );
+                // ignore all chunks that are not in the output root
+                // they need to be handled by some external mechanism
             };
-            chunk_server_paths.insert(chunk_server_path.to_string());
         }
 
         let chunk_list_path = self
