@@ -153,6 +153,18 @@ createNextDescribe(
       })
     })
 
+    it('should generate unique path for image routes under group routes', async () => {
+      const $ = await next.render$('/blog')
+      const ogImageUrl = $('meta[property="og:image"]').attr('content')
+      const ogImageUrlInstance = new URL(ogImageUrl)
+      const res = await next.fetch(ogImageUrlInstance.pathname)
+
+      // generate unique path with suffix for image routes under group routes
+      expect(ogImageUrl).toMatch(/opengraph-image-\d{6}\?/)
+      expect(ogImageUrl).toMatch(hashRegex)
+      expect(res.status).toBe(200)
+    })
+
     it('should inject dynamic metadata properly to head', async () => {
       const $ = await next.render$('/')
       const $icon = $('link[rel="icon"]')
@@ -182,14 +194,18 @@ createNextDescribe(
 
       if (isNextDeploy) {
         // absolute urls
-        expect(ogImageUrl).toMatch(/https:\/\/\w+.vercel.app\/opengraph-image/)
+        expect(ogImageUrl).toMatch(
+          /https:\/\/\w+.vercel.app\/opengraph-image\?/
+        )
         expect(twitterImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/twitter-image/
+          /https:\/\/\w+.vercel.app\/twitter-image\?/
         )
       } else {
         // absolute urls
-        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image/)
-        expect(twitterImageUrl).toMatch(/http:\/\/localhost:\d+\/twitter-image/)
+        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image\?/)
+        expect(twitterImageUrl).toMatch(
+          /http:\/\/localhost:\d+\/twitter-image\?/
+        )
       }
       expect(ogImageUrl).toMatch(hashRegex)
       expect(twitterImageUrl).toMatch(hashRegex)

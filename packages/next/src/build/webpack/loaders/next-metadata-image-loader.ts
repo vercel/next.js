@@ -13,13 +13,14 @@ import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 
 interface Options {
   route: string
+  segment: string
   type: PossibleImageFileNameConvention
   pageExtensions: string[]
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const { type, route, pageExtensions } = options
+  const { type, route, segment, pageExtensions } = options
   const numericSizes = type === 'twitter' || type === 'openGraph'
   const { resourcePath, rootContext: context } = this
   const { name: fileNameBase, ext } = path.parse(resourcePath)
@@ -44,9 +45,8 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   )
 
   const isDynamicResource = pageExtensions.includes(extension)
-  const pageRoute =
-    (isDynamicResource ? fileNameBase : interpolatedName) +
-    (contentHash ? '?' + contentHash : '')
+  const pageRoute = isDynamicResource ? fileNameBase : interpolatedName
+  const hashQuery = contentHash ? '?' + contentHash : ''
 
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
@@ -55,17 +55,23 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     import * as exported from ${JSON.stringify(resourcePath)}
     import { interpolateDynamicPath } from 'next/dist/server/server-utils'
     import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
+    import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
 
     const exportedImageData = { ...exported }
     export default (props) => {
       const pathname = ${JSON.stringify(route)}
       const routeRegex = getNamedRouteRegex(pathname, false)
+      const segment = ${JSON.stringify(segment)}
       const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+      const suffix = getMetadataRouteSuffix(segment)
+      const routeSuffix = suffix ? \`-\${suffix}\` : ''
 
       const imageData = {
         alt: exportedImageData.alt,
-        type: exportedImageData.contentType,
-        url: path.join(route, ${JSON.stringify(pageRoute)}),
+        type: exportedImageData.contentType || 'image/png',
+        url: path.join(route, ${JSON.stringify(
+          pageRoute
+        )} + routeSuffix + ${JSON.stringify(hashQuery)}),
       }
       const { size } = exportedImageData
       if (size) {
@@ -118,7 +124,9 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
     return {
       ...imageData,
-      url: path.join(route, ${JSON.stringify(pageRoute)}),
+      url: path.join(route, ${JSON.stringify(pageRoute)} + ${JSON.stringify(
+    hashQuery
+  )}),
     }
   }`
 }
