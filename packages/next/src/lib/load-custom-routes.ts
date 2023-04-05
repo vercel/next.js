@@ -57,6 +57,7 @@ export type Redirect = {
 
 export type Middleware = {
   source: string
+  originalSource: string
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
@@ -138,7 +139,13 @@ export function checkCustomRoutes(
   let hadInvalidHas = false
   let hadInvalidMissing = false
 
-  const allowedKeys = new Set<string>(['source', 'locale', 'has', 'missing'])
+  const allowedKeys = new Set<string>([
+    'source',
+    'originalSource',
+    'locale',
+    'has',
+    'missing',
+  ])
 
   if (type === 'rewrite') {
     allowedKeys.add('basePath')
