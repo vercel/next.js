@@ -46,15 +46,17 @@ impl Bundler for Turbopack {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        npm::install(
-            install_dir,
-            &[
-                NpmPackage::new("next", "13.2.4-canary.7"),
-                // Dependency on this is inserted by swc's preset_env
-                NpmPackage::new("@swc/helpers", "^0.4.11"),
-            ],
-        )
-        .context("failed to install from npm")?;
+        let package_json = include_str!("../../../../../../next/package.json");
+        let data: serde_json::Value = serde_json::from_str(package_json)?;
+        let version = data
+            .as_object()
+            .unwrap()
+            .get("version")
+            .unwrap()
+            .as_str()
+            .unwrap();
+        npm::install(install_dir, &[NpmPackage::new("next", version)])
+            .context("failed to install from npm")?;
 
         fs::write(
             install_dir.join("next.config.js"),
