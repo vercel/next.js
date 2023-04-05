@@ -89,7 +89,7 @@ async function createNextInstall({
 
       let combinedDependencies = dependencies
 
-      if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
+      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
         const pkgPaths = await rootSpan
           .traceChild('linkPackages')
           .traceAsyncFn(() =>

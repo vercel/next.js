@@ -6,16 +6,26 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    it('should work with node runtime', async () => {
-      const res = await next.fetch('/api/')
-      const html = await res.text()
-      expect(html).toContain('Hello World')
-    })
+    it.each(['edge', 'node'])(
+      'should handle trailing slash for %s runtime',
+      async (runtime) => {
+        let res = await next.fetch(`/runtime/${runtime}`, {
+          redirect: 'manual',
+        })
 
-    it('should work edge node runtime', async () => {
-      const res = await next.fetch('/api/edge/')
-      const html = await res.text()
-      expect(html).toContain('Hello World')
-    })
+        expect(res.status).toEqual(308)
+        expect(res.headers.get('location')).toEndWith(`/runtime/${runtime}/`)
+
+        res = await next.fetch(`/runtime/${runtime}/`, {
+          redirect: 'manual',
+        })
+
+        expect(res.status).toEqual(200)
+        await expect(res.json()).resolves.toEqual({
+          url: `/runtime/${runtime}/`,
+          nextUrl: `/runtime/${runtime}/`,
+        })
+      }
+    )
   }
 )

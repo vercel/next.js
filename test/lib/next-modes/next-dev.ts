@@ -88,7 +88,7 @@ export class NextDevInstance extends NextInstance {
                 msg,
               })
             }
-            this.off('stdout', readyCb)
+            // server might reload so we keep listening
             resolve()
           }
         }
