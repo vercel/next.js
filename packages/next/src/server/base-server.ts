@@ -247,6 +247,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentProps?: any
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
+    strictNextHead: boolean
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
@@ -412,6 +413,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     this.renderOpts = {
+      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
