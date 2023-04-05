@@ -5,13 +5,17 @@ use async_recursion::async_recursion;
 use indexmap::{indexmap, IndexMap};
 use turbo_binding::{
     turbo::{
-        tasks::{primitives::OptionStringVc, Value},
+        tasks::{
+            primitives::{OptionStringVc, StringVc},
+            Value,
+        },
         tasks_env::{CustomProcessEnvVc, EnvMapVc, ProcessEnvVc},
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
     },
     turbopack::{
         core::{
             asset::{AssetVc, AssetsVc},
+            chunk::{EvaluatableAssetVc, EvaluatableAssetsVc},
             compile_time_info::CompileTimeInfoVc,
             context::{AssetContext, AssetContextVc},
             environment::{EnvironmentIntention, ServerAddrVc},
@@ -50,7 +54,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::primitives::StringVc;
 
 use crate::{
     app_render::next_layout_entry_transition::NextServerComponentTransition,
@@ -394,7 +397,10 @@ pub async fn create_app_source(
     let injected_env = env_for_js(EnvMapVc::empty().into(), false, next_config);
     let env = CustomProcessEnvVc::new(env, next_config.env()).as_process_env();
 
-    let server_runtime_entries = vec![ProcessEnvAssetVc::new(project_path, injected_env).into()];
+    let server_runtime_entries =
+        AssetsVc::cell(vec![
+            ProcessEnvAssetVc::new(project_path, injected_env).into()
+        ]);
 
     let fallback_page = get_fallback_page(
         project_path,
@@ -404,8 +410,6 @@ pub async fn create_app_source(
         client_compile_time_info,
         next_config,
     );
-
-    let server_runtime_entries = AssetsVc::cell(server_runtime_entries);
 
     let sources = entrypoints
         .await?
@@ -468,6 +472,7 @@ async fn create_app_page_source_for_route(
         params_matcher.into(),
         pathname_vc,
         AppRenderer {
+            runtime_entries,
             context_ssr,
             context,
             server_root,
@@ -477,7 +482,6 @@ async fn create_app_page_source_for_route(
         }
         .cell()
         .into(),
-        runtime_entries,
         fallback_page,
     );
 
@@ -510,6 +514,7 @@ async fn create_app_route_source_for_route(
         pathname_vc,
         AppRoute {
             context: context_ssr,
+            runtime_entries,
             server_root,
             entry_path,
             project_path,
@@ -518,7 +523,6 @@ async fn create_app_route_source_for_route(
         }
         .cell()
         .into(),
-        runtime_entries,
     );
 
     Ok(source.issue_context(app_dir, &format!("Next.js App Route {pathname}")))
@@ -527,6 +531,7 @@ async fn create_app_route_source_for_route(
 /// The renderer for pages in app directory
 #[turbo_tasks::value]
 struct AppRenderer {
+    runtime_entries: AssetsVc,
     context_ssr: AssetContextVc,
     context: AssetContextVc,
     project_path: FileSystemPathVc,
@@ -540,6 +545,7 @@ impl AppRendererVc {
     #[turbo_tasks::function]
     async fn entry(self, is_rsc: bool) -> Result<NodeRenderingEntryVc> {
         let AppRenderer {
+            runtime_entries,
             context_ssr,
             context,
             project_path,
@@ -703,7 +709,13 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         .build();
 
         Ok(NodeRenderingEntry {
-            context,
+            runtime_entries: EvaluatableAssetsVc::cell(
+                runtime_entries
+                    .await?
+                    .iter()
+                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, context))
+                    .collect(),
+            ),
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 asset.into(),
                 context,
@@ -749,6 +761,7 @@ impl NodeEntry for AppRenderer {
 /// The node.js renderer api routes in the app directory
 #[turbo_tasks::value]
 struct AppRoute {
+    runtime_entries: AssetsVc,
     context: AssetContextVc,
     entry_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
@@ -784,7 +797,13 @@ impl AppRouteVc {
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
         );
         Ok(NodeRenderingEntry {
-            context: this.context,
+            runtime_entries: EvaluatableAssetsVc::cell(
+                this.runtime_entries
+                    .await?
+                    .iter()
+                    .map(|entry| EvaluatableAssetVc::from_asset(*entry, this.context))
+                    .collect(),
+            ),
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
                 virtual_asset.into(),
                 this.context,
