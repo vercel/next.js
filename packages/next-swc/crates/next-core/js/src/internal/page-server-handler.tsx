@@ -152,6 +152,7 @@ export default function startHandler({
         : Component;
 
     const renderOpts: RenderOpts = {
+      strictNextHead: false,
       /* LoadComponentsReturnType */
       Component: comp,
       App,
