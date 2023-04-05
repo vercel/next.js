@@ -17,8 +17,6 @@ export default function Page() {
   )
 }
 
-export const runtime = 'experimental-edge'
-
 export const metadata: Metadata = {
   generator: 'next.js',
   applicationName: 'test',
