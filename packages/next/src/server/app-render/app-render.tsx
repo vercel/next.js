@@ -598,7 +598,7 @@ export async function renderToHTMLOrFlight(
           staticGenerationStore.dynamicShouldError = true
         } else if (dynamic === 'force-dynamic') {
           staticGenerationStore.forceDynamic = true
-          staticGenerationBailout(`dynamic = 'force-dynamic'`)
+          staticGenerationBailout(`force-dynamic`, { dynamic })
         } else {
           staticGenerationStore.dynamicShouldError = false
           if (dynamic === 'force-static') {

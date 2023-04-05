@@ -283,7 +283,9 @@ export class AppRouteRouteModule extends RouteModule<
                 // The dynamic property is set to force-dynamic, so we should
                 // force the page to be dynamic.
                 staticGenerationStore.forceDynamic = true
-                this.staticGenerationBailout(`dynamic = 'force-dynamic'`)
+                this.staticGenerationBailout(`force-dynamic`, {
+                  dynamic: this.dynamic,
+                })
                 break
               case 'force-static':
                 // The dynamic property is set to force-static, so we should

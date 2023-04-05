@@ -1231,12 +1231,6 @@ export async function buildAppStaticPaths({
     },
     async () => {
       const pageEntry = generateParams[generateParams.length - 1]
-      /* This is an alternative way to do this
-      if (nextConfigOutput === 'export') {
-        if (generateParams.some(entry => entry.config?.dynamic === 'force-dynamic')) {
-          throw new Error('it worked as expected!')
-        }
-      }*/
 
       // if the page has legacy getStaticPaths we call it like normal
       if (typeof pageEntry?.getStaticPaths === 'function') {
