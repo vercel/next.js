@@ -1,3 +1,5 @@
+use std::{env::current_dir, path::PathBuf};
+
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
@@ -10,16 +12,17 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use std::{env::current_dir, path::PathBuf};
 use swc_relay::{relay, RelayLanguageConfig};
 use turbo_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
-        ecma::transforms::base::resolver,
-        ecma::transforms::testing::{test, test_fixture},
         ecma::{
             parser::{EsConfig, Syntax},
-            transforms::react::jsx,
+            transforms::{
+                base::resolver,
+                react::jsx,
+                testing::{test, test_fixture},
+            },
         },
     },
     testing::fixture,

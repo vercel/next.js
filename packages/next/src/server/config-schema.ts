@@ -284,6 +284,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        experimentalReact: {
+          type: 'boolean',
+        },
         extensionAlias: {
           type: 'object',
         },
@@ -366,9 +369,6 @@ const configSchema = {
         pageEnv: {
           type: 'boolean',
         },
-        preCompiledNextServer: {
-          type: 'boolean',
-        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
@@ -398,6 +398,9 @@ const configSchema = {
             },
           },
           type: 'object',
+        },
+        strictNextHead: {
+          type: 'boolean',
         },
         swcFileReading: {
           type: 'boolean',

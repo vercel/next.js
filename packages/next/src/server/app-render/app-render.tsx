@@ -13,9 +13,7 @@ import type { StaticGenerationAsyncStorage } from '../../client/components/stati
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
@@ -29,7 +27,10 @@ import {
   continueFromInitialStream,
   streamToBufferedResult,
 } from '../node-web-streams-helper'
-import { matchSegment } from '../../client/components/match-segments'
+import {
+  canSegmentBeOverridden,
+  matchSegment,
+} from '../../client/components/match-segments'
 import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html'
 import { stripInternalQueries } from '../internal-utils'
 import { HeadManagerContext } from '../../shared/lib/head-manager-context'
@@ -75,6 +76,18 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 
+// Import builtin react directly to avoid require cache conflicts
+let React: typeof import('next/dist/compiled/react')
+let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
+
+if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
+  React = require('next/dist/compiled/react-experimental')
+  ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
+} else {
+  React = require('next/dist/compiled/react')
+  ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
+}
+
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 export type GetDynamicParamFromSegment = (
@@ -86,6 +99,56 @@ export type GetDynamicParamFromSegment = (
   treeSegment: Segment
   type: DynamicParamTypesShort
 } | null
+
+/* This method is important for intercepted routes to function:
+ * when a route is intercepted, e.g. /blog/[slug], it will be rendered
+ * with the layout of the previous page, e.g. /profile/[id]. The problem is
+ * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
+ * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
+ * so we need to read it from the router state.
+ */
+function findDynamicParamFromRouterState(
+  providedFlightRouterState: FlightRouterState | undefined,
+  segment: string
+): {
+  param: string
+  value: string | string[] | null
+  treeSegment: Segment
+  type: DynamicParamTypesShort
+} | null {
+  if (!providedFlightRouterState) {
+    return null
+  }
+
+  const treeSegment = providedFlightRouterState[0]
+
+  if (canSegmentBeOverridden(segment, treeSegment)) {
+    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
+      return null
+    }
+
+    return {
+      param: treeSegment[0],
+      value: treeSegment[1],
+      treeSegment: treeSegment,
+      type: treeSegment[2],
+    }
+  }
+
+  for (const parallelRouterState of Object.values(
+    providedFlightRouterState[1]
+  )) {
+    const maybeDynamicParma = findDynamicParamFromRouterState(
+      parallelRouterState,
+      segment
+    )
+    if (maybeDynamicParma) {
+      return maybeDynamicParma
+    }
+  }
+
+  return null
+}
 
 export async function renderToHTMLOrFlight(
   req: IncomingMessage,
@@ -245,6 +308,7 @@ export async function renderToHTMLOrFlight(
       }
 
       const key = segmentParam.param
+
       let value = pathParams[key]
 
       if (Array.isArray(value)) {
@@ -265,7 +329,10 @@ export async function renderToHTMLOrFlight(
             treeSegment: [key, '', type],
           }
         }
-        return null
+        return findDynamicParamFromRouterState(
+          providedFlightRouterState,
+          segment
+        )
       }
 
       const type = getShortDynamicParamType(segmentParam.type)
@@ -939,10 +1006,16 @@ export async function renderToHTMLOrFlight(
           flightRouterState[3] === 'refetch'
 
         if (!parentRendered && renderComponentsOnThisLevel) {
+          const overriddenSegment =
+            flightRouterState &&
+            canSegmentBeOverridden(actualSegment, flightRouterState[0])
+              ? flightRouterState[0]
+              : null
+
           return [
-            actualSegment,
-            // Create router state using the slice of the loaderTree
+            overriddenSegment ?? actualSegment,
             createFlightRouterStateFromLoaderTree(
+              // Create router state using the slice of the loaderTree
               loaderTreeToFilter,
               getDynamicParamFromSegment,
               query
@@ -1248,10 +1321,14 @@ export async function renderToHTMLOrFlight(
       )
     }
 
+    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
     const bodyResult = getTracer().wrap(
       AppRenderSpan.getBodyResult,
       {
         spanName: `render route (app) ${pathname}`,
+        attributes: {
+          'next.route': pathname,
+        },
       },
       async ({
         asNotFound,

@@ -45,7 +45,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   setLazyProp,
   getCookieParser,
-  checkIsManualRevalidate,
+  checkIsOnDemandRevalidate,
 } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config'
 import Router from './router'
@@ -99,6 +99,7 @@ import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { fromNodeHeaders, toNodeHeaders } from './web/utils'
 
 export type FindComponentsResult = {
@@ -155,6 +156,11 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: import('http').Server
+
+  _routerWorker?: boolean
+  _renderWorker?: boolean
+
+  isNodeDebugging?: 'brk' | boolean
 }
 
 export interface BaseRequestHandler {
@@ -241,6 +247,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentProps?: any
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
+    strictNextHead: boolean
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
@@ -283,7 +290,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getCustomRoutes(): CustomRoutes
   protected abstract hasPage(pathname: string): Promise<boolean>
 
-  protected abstract generateRoutes(): RouterOptions
+  protected abstract generateRoutes(dev?: boolean): RouterOptions
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -337,6 +344,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly handlers: RouteHandlerManager
   protected readonly i18nProvider?: I18NProvider
   protected readonly localeNormalizer?: LocaleRouteNormalizer
+  protected readonly isRouterWorker?: boolean
+  protected readonly isRenderWorker?: boolean
 
   public constructor(options: ServerOptions) {
     const {
@@ -350,6 +359,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       port,
     } = options
     this.serverOptions = options
+    this.isRouterWorker = options._routerWorker
+    this.isRenderWorker = options._renderWorker
 
     this.dir =
       process.env.NEXT_RUNTIME === 'edge' ? dir : require('path').resolve(dir)
@@ -402,6 +413,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     this.renderOpts = {
+      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
@@ -456,7 +468,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     matchers.reload()
 
     this.customRoutes = this.getCustomRoutes()
-    this.router = new Router(this.generateRoutes())
+    this.router = new Router(this.generateRoutes(dev))
     this.setAssetPrefix(assetPrefix)
 
     this.responseCache = this.getResponseCache({ dev })
@@ -524,6 +536,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    await this.prepare()
     const method = req.method.toUpperCase()
     return getTracer().trace(
       BaseServerSpan.handleRequest,
@@ -534,6 +547,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.method': method,
           'http.target': req.url,
         },
+        // We will fire this from the renderer worker
+        hideSpan: this.serverOptions.dev && this.isRouterWorker,
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
@@ -559,11 +574,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
           const route = rootSpanAttributes.get('next.route')
           if (route) {
+            const newName = `${method} ${route}`
             span.setAttributes({
               'next.route': route,
               'http.route': route,
+              'next.span_name': newName,
             })
-            span.updateName(`${method} ${route}`)
+            span.updateName(newName)
           }
         })
     )
@@ -727,6 +744,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath, {
             i18n: localeAnalysisResult,
+            referrer: parseNextReferrerFromHeaders(req.headers),
           })
 
           // Update the source pathname to the matched page's pathname.
@@ -953,8 +971,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
   }
 
-  // Backwards compatibility
-  public async prepare(): Promise<void> {}
+  protected preparedPromise: Promise<void> | null = null
+  /**
+   * Runs async initialization of server.
+   * It is idempotent, won't fire underlying initialization more than once.
+   */
+  public async prepare(): Promise<void> {
+    if (this.preparedPromise === null) {
+      this.preparedPromise = this.prepareImpl()
+    }
+    return this.preparedPromise
+  }
+  protected async prepareImpl(): Promise<void> {}
 
   // Backwards compatibility
   protected async close(): Promise<void> {}
@@ -1416,12 +1444,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     }
 
-    let isManualRevalidate = false
+    let isOnDemandRevalidate = false
     let revalidateOnlyGenerated = false
 
     if (isSSG) {
-      ;({ isManualRevalidate, revalidateOnlyGenerated } =
-        checkIsManualRevalidate(req, this.renderOpts.previewProps))
+      ;({ isOnDemandRevalidate, revalidateOnlyGenerated } =
+        checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
     }
 
     if (isSSG && this.minimalMode && req.headers['x-matched-path']) {
@@ -1471,7 +1499,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let ssgCacheKey =
       isPreviewMode || !isSSG || opts.supportsDynamicHTML
-        ? null // Preview mode, manual revalidate, flight request can bypass the cache
+        ? null // Preview mode, on-demand revalidate, flight request can bypass the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
               ? ''
@@ -1646,6 +1674,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             : resolvedUrl,
 
         supportsDynamicHTML,
+        isOnDemandRevalidate,
       }
 
       const renderResult = await this.renderHTML(
@@ -1732,10 +1761,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           fallbackMode = 'blocking'
         }
 
-        // skip manual revalidate if cache is not present and
+        // skip on-demand revalidate if cache is not present and
         // revalidate-if-generated is set
         if (
-          isManualRevalidate &&
+          isOnDemandRevalidate &&
           revalidateOnlyGenerated &&
           !hadCache &&
           !this.minimalMode
@@ -1744,9 +1773,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           return null
         }
 
-        // only allow manual revalidate for fallback: true/blocking
+        // only allow on-demand revalidate for fallback: true/blocking
         // or for prerendered fallback: false paths
-        if (isManualRevalidate && (fallbackMode !== false || hadCache)) {
+        if (isOnDemandRevalidate && (fallbackMode !== false || hadCache)) {
           fallbackMode = 'blocking'
         }
 
@@ -1838,13 +1867,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       },
       {
         incrementalCache,
-        isManualRevalidate,
+        isOnDemandRevalidate: isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }
     )
 
     if (!cacheEntry) {
-      if (ssgCacheKey && !(isManualRevalidate && revalidateOnlyGenerated)) {
+      if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
         // A cache entry might not be generated if a response is written
         // in `getInitialProps` or `getServerSideProps`, but those shouldn't
         // have a cache key. If we do have a cache key but we don't end up
@@ -1860,7 +1889,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // we set for the image-optimizer
       res.setHeader(
         'x-nextjs-cache',
-        isManualRevalidate
+        isOnDemandRevalidate
           ? 'REVALIDATED'
           : cacheEntry.isMiss
           ? 'MISS'
@@ -2044,13 +2073,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponseImpl(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
-    const { res, query, pathname } = ctx
+    const { res, query, pathname, req } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromQuery(pathname, query),
+      referrer: parseNextReferrerFromHeaders(req.headers),
     }
 
     try {
@@ -2058,7 +2088,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.definition.pathname,
+            // Use the overridden pathname if available, otherwise use the
+            // original pathname.
+            pathname:
+              match.definition.pathnameOverride || match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,

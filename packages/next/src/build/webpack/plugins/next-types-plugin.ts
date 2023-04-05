@@ -159,10 +159,14 @@ type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ?
 type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
 type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
 
-type ParamCheck<T> = {
+${
+  options.type === 'route'
+    ? `type ParamCheck<T> = {
   __tag__: string
   __param_position__: string
   __param_type__: T
+}`
+    : ''
 }
 
 function checkFields<_ extends { [k in keyof any]: never }>() {}
@@ -431,6 +435,8 @@ declare module 'next/link' {
 }`
 }
 
+const appTypesBasePath = path.join('types', 'app')
+
 export class NextTypesPlugin {
   dir: string
   distDir: string
@@ -440,6 +446,7 @@ export class NextTypesPlugin {
   pageExtensions: string[]
   pagesDir: string
   typedRoutes: boolean
+  distDirAbsolutePath: string
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -450,6 +457,7 @@ export class NextTypesPlugin {
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
+    this.distDirAbsolutePath = path.join(this.dir, this.distDir)
     if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
       redirectsRewritesTypesProcessed = true
       addRedirectsRewritesRouteTypes(
@@ -457,6 +465,24 @@ export class NextTypesPlugin {
         options.originalRedirects
       )
     }
+  }
+
+  getRelativePathFromAppTypesDir(moduleRelativePathToAppDir: string) {
+    const moduleAbsolutePath = path.join(
+      this.appDir,
+      moduleRelativePathToAppDir
+    )
+
+    const moduleInAppTypesAbsolutePath = path.join(
+      this.distDirAbsolutePath,
+      appTypesBasePath,
+      moduleRelativePathToAppDir
+    )
+
+    return path.relative(
+      moduleInAppTypesAbsolutePath + '/..',
+      moduleAbsolutePath
+    )
   }
 
   collectPage(filePath: string) {
@@ -499,9 +525,6 @@ export class NextTypesPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    // From dist root to project root
-    const distDirRelative = path.relative(this.distDir + '/..', '.')
-
     // From asset root to dist root
     const assetDirRelative = this.dev
       ? '..'
@@ -529,7 +552,6 @@ export class NextTypesPlugin {
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
-      const relativePathToRoot = path.relative(this.dir, mod.resource)
 
       if (!this.dev) {
         if (IS_PAGE || IS_ROUTE) {
@@ -538,16 +560,12 @@ export class NextTypesPlugin {
       }
 
       const typePath = path.join(
-        'types',
-        'app',
+        appTypesBasePath,
         relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
       )
       const relativeImportPath = path
-        .join(
-          distDirRelative,
-          path.relative(typePath, ''),
-          relativePathToRoot.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
-        )
+        .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
+        .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
         .replace(/\\/g, '/')
       const assetPath = assetDirRelative + '/' + normalizePathSep(typePath)
 

@@ -16,7 +16,7 @@ export default function Modal() {
               <p>
                 This modal is rendered using{' '}
                 <a
-                  href="https://reactjs.org/docs/portals.html"
+                  href="https://react.dev/reference/react-dom/createPortal"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

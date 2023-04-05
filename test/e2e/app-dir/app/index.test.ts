@@ -8,12 +8,6 @@ createNextDescribe(
   'app dir',
   {
     files: __dirname,
-    dependencies: {
-      swr: '2.0.0-rc.0',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
     if (!isDev) {
@@ -190,7 +184,9 @@ createNextDescribe(
       const res = await next.fetch('/dashboard')
       expect(res.headers.get('x-edge-runtime')).toBe('1')
       expect(res.headers.get('vary')).toBe(
-        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+        isNextDeploy || isNextStart
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
       )
     })
 
@@ -215,9 +211,6 @@ createNextDescribe(
     it('should serve from pages', async () => {
       const html = await next.render('/')
       expect(html).toContain('hello from pages/index')
-
-      // esm imports should work fine in pages/
-      expect(html).toContain('swr-index')
     })
 
     it('should serve dynamic route from pages', async () => {

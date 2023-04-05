@@ -293,6 +293,36 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
           startTrace: () => {
             Log.error('Wasm binding does not support trace yet')
           },
+          entrypoints: {
+            stream: (
+              turboTasks: any,
+              rootDir: string,
+              applicationDir: string,
+              pageExtensions: string[],
+              callbackFn: (err: Error, entrypoints: any) => void
+            ) => {
+              return bindings.streamEntrypoints(
+                turboTasks,
+                rootDir,
+                applicationDir,
+                pageExtensions,
+                callbackFn
+              )
+            },
+            get: (
+              turboTasks: any,
+              rootDir: string,
+              applicationDir: string,
+              pageExtensions: string[]
+            ) => {
+              return bindings.getEntrypoints(
+                turboTasks,
+                rootDir,
+                applicationDir,
+                pageExtensions
+              )
+            },
+          },
         },
         mdx: {
           compile: (src: string, options: any) =>
@@ -524,6 +554,34 @@ function loadNative(isCustomTurbopack = false) {
         },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
+        entrypoints: {
+          stream: (
+            turboTasks: any,
+            rootDir: string,
+            applicationDir: string,
+            pageExtensions: string[]
+          ) => {
+            return bindings.streamEntrypoints(
+              turboTasks,
+              rootDir,
+              applicationDir,
+              pageExtensions
+            )
+          },
+          get: (
+            turboTasks: any,
+            rootDir: string,
+            applicationDir: string,
+            pageExtensions: string[]
+          ) => {
+            return bindings.getEntrypoints(
+              turboTasks,
+              rootDir,
+              applicationDir,
+              pageExtensions
+            )
+          },
+        },
       },
       mdx: {
         compile: (src: string, options: any) =>

@@ -126,7 +126,12 @@ export class NextServer {
 
   async prepare() {
     const server = await this.getServer()
-    return server.prepare()
+
+    // We shouldn't prepare the server in production,
+    // because this code won't be executed when deployed
+    if (this.options.dev) {
+      await server.prepare()
+    }
   }
 
   async close() {
@@ -135,19 +140,24 @@ export class NextServer {
   }
 
   private async createServer(options: DevServerOptions): Promise<Server> {
+    let ServerImplementation: typeof Server
     if (options.dev) {
-      const DevServer = require('./dev/next-dev-server').default
-      return new DevServer(options)
+      ServerImplementation = require('./dev/next-dev-server').default
+    } else {
+      ServerImplementation = await getServerImpl()
     }
-    const ServerImplementation = await getServerImpl()
-    return new ServerImplementation(options)
+    const server = new ServerImplementation(options)
+
+    return server
   }
 
   private async loadConfig() {
     return loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
       resolve(this.options.dir || '.'),
-      this.options.conf
+      this.options.conf,
+      undefined,
+      !!this.options._renderWorker
     )
   }
 
@@ -155,7 +165,10 @@ export class NextServer {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
-          process.env.NEXT_PREBUNDLED_REACT = '1'
+          const useExperimentalReact = !!conf.experimental.experimentalReact
+          process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
+            ? 'experimental'
+            : 'next'
           overrideBuiltInReactPackages()
         }
         this.server = await this.createServer({

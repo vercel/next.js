@@ -5,6 +5,7 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   ChildProp,
+  Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
@@ -24,6 +25,8 @@ import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
+import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
+import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -230,7 +233,7 @@ function InnerLayoutRouter({
   tree,
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
-  path,
+  cacheKey,
 }: {
   parallelRouterKey: string
   url: string
@@ -239,7 +242,7 @@ function InnerLayoutRouter({
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
   isActive: boolean
-  path: string
+  cacheKey: ReturnType<typeof createRouterCacheKey>
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -249,7 +252,7 @@ function InnerLayoutRouter({
   const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
 
   // Read segment path from the parallel router cache node.
-  let childNode = childNodes.get(path)
+  let childNode = childNodes.get(cacheKey)
 
   // If childProp is available this means it's the Flight / SSR case.
   if (
@@ -257,17 +260,19 @@ function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode && childNode.status === CacheStates.LAZY_INITIALIZED) {
-      // @ts-expect-error TODO-APP: handle changing of the type
-      childNode.status = CacheStates.READY
-      // @ts-expect-error TODO-APP: handle changing of the type
-      childNode.subTreeData = childProp.current
-      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-      childProp.current = null
+    if (childNode) {
+      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
+        // @ts-expect-error we're changing it's type!
+        childNode.status = CacheStates.READY
+        // @ts-expect-error
+        childNode.subTreeData = childProp.current
+        // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
+        childProp.current = null
+      }
     } else {
       // Add the segment's subTreeData to the cache.
       // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-      childNodes.set(path, {
+      childNodes.set(cacheKey, {
         status: CacheStates.READY,
         data: null,
         subTreeData: childProp.current,
@@ -276,7 +281,7 @@ function InnerLayoutRouter({
       // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
       childProp.current = null
       // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-      childNode = childNodes.get(path)
+      childNode = childNodes.get(cacheKey)
     }
   }
 
@@ -291,7 +296,7 @@ function InnerLayoutRouter({
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    childNodes.set(path, {
+    childNodes.set(cacheKey, {
       status: CacheStates.DATA_FETCH,
       data: fetchServerResponse(new URL(url, location.origin), refetchTree),
       subTreeData: null,
@@ -305,7 +310,7 @@ function InnerLayoutRouter({
           : new Map(),
     })
     // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-    childNode = childNodes.get(path)
+    childNode = childNodes.get(cacheKey)
   }
 
   // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
@@ -365,7 +370,6 @@ function InnerLayoutRouter({
       {childNode.subTreeData}
     </LayoutRouterContext.Provider>
   )
-
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return (
     <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
@@ -460,24 +464,27 @@ export default function OuterLayoutRouter({
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
 
-  const childPropSegment = Array.isArray(childProp.segment)
-    ? childProp.segment[1]
-    : childProp.segment
+  const childPropSegment = childProp.segment
 
   // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
-  const currentChildSegment = Array.isArray(treeSegment)
-    ? treeSegment[1]
-    : treeSegment
+  const currentChildSegmentValue = getSegmentValue(treeSegment)
 
   /**
    * Decides which segments to keep rendering, all segments that are not active will be wrapped in `<Offscreen>`.
    */
   // TODO-APP: Add handling of `<Offscreen>` when it's available.
-  const preservedSegments: string[] = [currentChildSegment]
+  const preservedSegments: Segment[] = [treeSegment]
 
   return (
     <>
       {preservedSegments.map((preservedSegment) => {
+        const isChildPropSegment = matchSegment(
+          preservedSegment,
+          childPropSegment
+        )
+        const preservedSegmentValue = getSegmentValue(preservedSegment)
+        const cacheKey = createRouterCacheKey(preservedSegment)
+
         return (
           /*
             - Error boundary
@@ -489,7 +496,7 @@ export default function OuterLayoutRouter({
               - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
           */
           <TemplateContext.Provider
-            key={preservedSegment}
+            key={cacheKey}
             value={
               <ErrorBoundary errorComponent={error} errorStyles={errorStyles}>
                 <LoadingBoundary
@@ -508,14 +515,12 @@ export default function OuterLayoutRouter({
                         url={url}
                         tree={tree}
                         childNodes={childNodesForParallelRouter!}
-                        childProp={
-                          childPropSegment === preservedSegment
-                            ? childProp
-                            : null
-                        }
+                        childProp={isChildPropSegment ? childProp : null}
                         segmentPath={segmentPath}
-                        path={preservedSegment}
-                        isActive={currentChildSegment === preservedSegment}
+                        cacheKey={cacheKey}
+                        isActive={
+                          currentChildSegmentValue === preservedSegmentValue
+                        }
                       />
                     </RedirectBoundary>
                   </NotFoundBoundary>

@@ -91,6 +91,7 @@ import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
+import { PageNotFoundError } from '../shared/lib/utils'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -264,6 +265,8 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   largePageDataBytes?: number
+  isOnDemandRevalidate?: boolean
+  strictNextHead: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -330,7 +333,34 @@ function checkRedirectValues(
   }
 }
 
-function errorToJSON(err: Error) {
+export const deserializeErr = (serializedErr: any) => {
+  if (
+    !serializedErr ||
+    typeof serializedErr !== 'object' ||
+    !serializedErr.stack
+  ) {
+    return serializedErr
+  }
+  let ErrorType: any = Error
+
+  if (serializedErr.name === 'PageNotFoundError') {
+    ErrorType = PageNotFoundError
+  }
+
+  const err = new ErrorType(serializedErr.message)
+  err.stack = serializedErr.stack
+  err.name = serializedErr.name
+  ;(err as any).digest = serializedErr.digest
+
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const { decorateServerError } =
+      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+    decorateServerError(err, serializedErr.source || 'server')
+  }
+  return err
+}
+
+export function errorToJSON(err: Error) {
   let source: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer =
     'server'
 
@@ -346,6 +376,7 @@ function errorToJSON(err: Error) {
     source,
     message: stripAnsi(err.message),
     stack: err.stack,
+    digest: (err as any).digest,
   }
 }
 
@@ -765,6 +796,9 @@ export async function renderToHTML(
         RenderSpan.getStaticProps,
         {
           spanName: `getStaticProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         () =>
           getStaticProps!({
@@ -975,6 +1009,9 @@ export async function renderToHTML(
         RenderSpan.getServerSideProps,
         {
           spanName: `getServerSideProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         async () =>
           getServerSideProps({
@@ -1331,10 +1368,14 @@ export async function renderToHTML(
     }
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', renderOpts.pathname)
   const documentResult = await getTracer().trace(
     RenderSpan.renderDocument,
     {
       spanName: `render route (pages) ${renderOpts.pathname}`,
+      attributes: {
+        'next.route': renderOpts.pathname,
+      },
     },
     async () => renderDocument()
   )
@@ -1398,6 +1439,7 @@ export async function renderToHTML(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,

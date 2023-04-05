@@ -8,14 +8,11 @@ import cheerio from 'cheerio'
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
   onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
 
-    response.body.on('end', resolve)
-  })
+  for await (const chunk of response.body) {
+    result += chunk.toString()
+    onData(chunk.toString(), result)
+  }
   return result
 }
 
@@ -338,13 +335,13 @@ describe('app dir - rsc basics', () => {
       const results = []
 
       await resolveStreamResponse(response, (chunk: string) => {
-        // check if rsc refresh script for suspense show up, the test content could change with react version
-        const hasRCScript = /\$RC=function/.test(chunk)
-        if (hasRCScript) results.push('refresh-script')
-
         const isSuspenseyDataResolved =
           /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
         if (isSuspenseyDataResolved) results.push('data')
+
+        // check if rsc refresh script for suspense show up, the test content could change with react version
+        const hasRCScript = /\$RC=function/.test(chunk)
+        if (hasRCScript) results.push('refresh-script')
 
         const isFallbackResolved = chunk.includes('fallback')
         if (isFallbackResolved) results.push('fallback')

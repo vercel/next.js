@@ -403,7 +403,7 @@ export default async function exportApp(
 
     if (i18n && !options.buildExport) {
       throw new ExportError(
-        `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+        `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/messages/export-no-custom-routes`
       )
     }
 
@@ -488,6 +488,7 @@ export default async function exportApp(
             )),
           }
         : {}),
+      strictNextHead: !!nextConfig.experimental.strictNextHead,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

@@ -24,7 +24,7 @@ You can also use [404 page](/docs/advanced-features/custom-error-page#404-page) 
 
 ## Handling Client Errors
 
-React [Error Boundaries](https://reactjs.org/docs/error-boundaries.html) is a graceful way to handle a JavaScript error on the client so that the other parts of the application continue working. In addition to preventing the page from crashing, it allows you to provide a custom fallback component and even log error information.
+React [Error Boundaries](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) is a graceful way to handle a JavaScript error on the client so that the other parts of the application continue working. In addition to preventing the page from crashing, it allows you to provide a custom fallback component and even log error information.
 
 To use Error Boundaries for your Next.js application, you must create a class component `ErrorBoundary` and wrap the `Component` prop in the `pages/_app.js` file. This component will be responsible to:
 
@@ -97,7 +97,7 @@ function MyApp({ Component, pageProps }) {
 export default MyApp
 ```
 
-You can learn more about [Error Boundaries](https://reactjs.org/docs/error-boundaries.html) in React's documentation.
+You can learn more about [Error Boundaries](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) in React's documentation.
 
 ### Reporting Errors
 

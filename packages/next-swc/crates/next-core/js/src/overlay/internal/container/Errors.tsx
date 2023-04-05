@@ -225,7 +225,7 @@ const TABS: TabConfig[] = [
     icon: <AlertOctagon />,
     title: {
       one: 'Runtime Warnings',
-      many: 'Runtime Warningss',
+      many: 'Runtime Warnings',
       short: 'Warn',
     },
     message: (

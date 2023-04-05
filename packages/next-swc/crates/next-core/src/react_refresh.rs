@@ -1,15 +1,19 @@
 use anyhow::{anyhow, Result};
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc},
-};
-use turbo_binding::turbopack::turbopack::{
-    ecmascript::{
-        chunk::EcmascriptChunkPlaceableVc,
-        resolve::{apply_cjs_specific_options, cjs_resolve},
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc, OptionIssueSourceVc},
+            resolve::{origin::ResolveOriginVc, parse::RequestVc},
+        },
+        turbopack::{
+            ecmascript::{
+                chunk::EcmascriptChunkPlaceableVc,
+                resolve::{apply_cjs_specific_options, cjs_resolve},
+            },
+            resolve_options_context::ResolveOptionsContextVc,
+        },
     },
-    resolve_options_context::ResolveOptionsContextVc,
 };
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 
@@ -82,9 +86,14 @@ pub async fn assert_can_resolve_react_refresh(
 /// Resolves the React Refresh runtime module from the given [AssetContextVc].
 #[turbo_tasks::function]
 pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<EcmascriptChunkPlaceableVc> {
-    if let Some(asset) = *cjs_resolve(origin, react_refresh_request())
-        .first_asset()
-        .await?
+    if let Some(asset) = *cjs_resolve(
+        origin,
+        react_refresh_request(),
+        OptionIssueSourceVc::none(),
+        IssueSeverity::Error.cell(),
+    )
+    .first_asset()
+    .await?
     {
         if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
             Ok(placeable)

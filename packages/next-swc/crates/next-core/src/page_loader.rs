@@ -2,22 +2,24 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_binding::turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{Chunk, ChunkGroupVc, ChunkReferenceVc, ChunkingContextVc, ChunksVc},
-    context::{AssetContext, AssetContextVc},
-    ident::AssetIdentVc,
-    reference::AssetReferencesVc,
-    reference_type::{EntryReferenceSubType, ReferenceType},
-    virtual_asset::VirtualAssetVc,
-};
-use turbo_binding::turbopack::dev_server::source::{
-    asset_graph::AssetGraphContentSourceVc, ContentSourceVc,
-};
-use turbo_binding::turbopack::ecmascript::{
-    utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
-    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+use turbo_binding::{
+    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc},
+    turbopack::{
+        core::{
+            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
+            chunk::{ChunkGroupVc, ChunkingContextVc, EvaluatableAssetsVc},
+            context::{AssetContext, AssetContextVc},
+            ident::AssetIdentVc,
+            reference::{AssetReferencesVc, SingleAssetReferenceVc},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            virtual_asset::VirtualAssetVc,
+        },
+        dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
+        ecmascript::{
+            utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+            EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+        },
+    },
 };
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 
@@ -79,7 +81,7 @@ impl PageLoaderAssetVc {
     }
 
     #[turbo_tasks::function]
-    async fn get_page_chunks(self) -> Result<ChunksVc> {
+    async fn get_page_chunks(self) -> Result<AssetsVc> {
         let this = &*self.await?;
 
         let loader_entry_asset = self.get_loader_entry_asset();
@@ -98,11 +100,19 @@ impl PageLoaderAssetVc {
             }),
         );
 
-        let chunk_group =
-            ChunkGroupVc::from_chunk(asset.as_evaluated_chunk(this.client_chunking_context, None));
+        let chunk_group = ChunkGroupVc::evaluated(
+            this.client_chunking_context,
+            asset.into(),
+            EvaluatableAssetsVc::empty(),
+        );
 
         Ok(chunk_group.chunks())
     }
+}
+
+#[turbo_tasks::function]
+fn page_loader_chunk_reference_description() -> StringVc {
+    StringVc::cell("page loader chunk".to_string())
 }
 
 #[turbo_tasks::value_impl]
@@ -129,7 +139,7 @@ impl Asset for PageLoaderAsset {
                 let server_root = server_root.clone();
                 async move {
                     Ok(server_root
-                        .get_path_to(&*chunk.path().await?)
+                        .get_path_to(&*chunk.ident().path().await?)
                         .map(|path| path.to_string()))
                 }
             })
@@ -154,7 +164,10 @@ impl Asset for PageLoaderAsset {
 
         let mut references = Vec::with_capacity(chunks.len());
         for chunk in chunks.iter() {
-            references.push(ChunkReferenceVc::new(*chunk).into());
+            references.push(
+                SingleAssetReferenceVc::new(*chunk, page_loader_chunk_reference_description())
+                    .into(),
+            );
         }
 
         Ok(AssetReferencesVc::cell(references))

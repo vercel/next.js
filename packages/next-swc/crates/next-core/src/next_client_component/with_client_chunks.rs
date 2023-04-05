@@ -1,24 +1,30 @@
 use anyhow::{Context, Result};
 use indoc::formatdoc;
-use turbo_binding::turbo::tasks_fs::FileSystemPathVc;
-use turbo_binding::turbopack::core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{
-        availability_info::AvailabilityInfo, Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc,
-        ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc,
-        ChunkingContext, ChunkingContextVc, ChunkingType, ChunkingTypeOptionVc,
+use turbo_binding::{
+    turbo::tasks_fs::FileSystemPathVc,
+    turbopack::{
+        core::{
+            asset::{Asset, AssetContentVc, AssetVc},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc,
+                ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
+                ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunkingType,
+                ChunkingTypeOptionVc,
+            },
+            ident::AssetIdentVc,
+            reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+            resolve::{ResolveResult, ResolveResultVc},
+        },
+        turbopack::ecmascript::{
+            chunk::{
+                EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
+                EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
+                EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports,
+                EcmascriptExportsVc,
+            },
+            utils::StringifyJs,
+        },
     },
-    ident::AssetIdentVc,
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
-    resolve::{ResolveResult, ResolveResultVc},
-};
-use turbo_binding::turbopack::turbopack::ecmascript::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
-        EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
-        EcmascriptChunkVc, EcmascriptChunkingContextVc, EcmascriptExports, EcmascriptExportsVc,
-    },
-    utils::StringifyJs,
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 
@@ -134,7 +140,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
                 }
             }
 
-            asset_paths.push(chunk.path().await?);
+            asset_paths.push(chunk.ident().path().await?);
         }
 
         let mut client_chunks = Vec::new();
