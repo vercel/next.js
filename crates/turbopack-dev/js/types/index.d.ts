@@ -25,6 +25,7 @@ export type ChunkRegistration = [
 
 interface Module {
   exports: Exports;
+  error: Error | undefined;
   loaded: boolean;
   id: ModuleId;
   hot?: Hot;
