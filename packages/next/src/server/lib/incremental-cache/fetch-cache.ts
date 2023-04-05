@@ -5,6 +5,13 @@ import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
+interface NextFetchCacheParams {
+  internal?: boolean
+  fetchType?: string
+  fetchIdx?: number
+  originUrl?: string
+}
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
@@ -66,7 +73,12 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
-  public async get(key: string, fetchCache?: boolean) {
+  public async get(
+    key: string,
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
+  ) {
     if (!fetchCache) return null
 
     let data = memoryCache?.get(key)
@@ -81,13 +93,19 @@ export default class FetchCache implements CacheHandler {
     if (!data && this.cacheEndpoint) {
       try {
         const start = Date.now()
+        const fetchParams: NextFetchCacheParams = {
+          internal: true,
+          fetchType: 'fetch-get',
+          originUrl,
+          fetchIdx,
+        }
+        console.log(JSON.stringify(fetchParams))
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'GET',
             headers: this.headers,
-            // @ts-expect-error
-            next: { internal: true },
+            next: fetchParams as NextFetchRequestConfig,
           }
         )
 
@@ -150,7 +168,9 @@ export default class FetchCache implements CacheHandler {
   public async set(
     key: string,
     data: CacheHandlerValue['value'],
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
   ) {
     if (!fetchCache) return
 
@@ -174,14 +194,20 @@ export default class FetchCache implements CacheHandler {
             data.data.headers['cache-control']
         }
         const body = JSON.stringify(data)
+        const fetchParams: NextFetchCacheParams = {
+          internal: true,
+          fetchType: 'fetch-set',
+          originUrl,
+          fetchIdx,
+        }
+        console.log(JSON.stringify(fetchParams))
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
             headers: this.headers,
             body: body,
-            // @ts-expect-error
-            next: { internal: true },
+            next: fetchParams as NextFetchRequestConfig,
           }
         )
 
