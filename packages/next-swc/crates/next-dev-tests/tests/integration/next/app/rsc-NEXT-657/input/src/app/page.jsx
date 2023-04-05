@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 
 export default function Home() {
   useEffect(() => {
@@ -13,8 +14,7 @@ function runTests() {
   it('should include RSC vary for app route', async () => {
     const res = await fetch('/app')
 
-    const vary = res.headers.get('vary') || ''
-    expect(vary.split(/\s*,\s*/g)).toContain('RSC')
+    expect(res.headers.get('vary')).toBe(RSC_VARY_HEADER)
 
     const text = await res.text()
     expect(text).toContain('<html')
@@ -28,8 +28,7 @@ function runTests() {
       },
     })
 
-    const vary = res.headers.get('vary') || ''
-    expect(vary.split(/\s*,\s*/g)).toContain('RSC')
+    expect(res.headers.get('vary')).toBe(RSC_VARY_HEADER)
 
     const text = await res.text()
     expect(text).not.toContain('<html')
