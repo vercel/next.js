@@ -75,7 +75,7 @@ type AppRouterProps = Omit<
   assetPrefix: string
   // Top level boundaries props
   notFound: React.ReactNode | undefined
-  notFoundStyles: React.ReactNode | undefined
+  notFoundStyles?: React.ReactNode | undefined
   asNotFound?: boolean
 }
 

@@ -1286,13 +1286,15 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <RootLayout params={{}}>
+                  <>
                     {assets}
-                    <NotFound />
-                  </RootLayout>
+                    <RootLayout params={{}}>
+                      {notFoundStyles}
+                      <NotFound />
+                    </RootLayout>
+                  </>
                 ) : undefined
               }
-              notFoundStyles={notFoundStyles}
               asNotFound={props.asNotFound}
             >
               <ComponentTree />
