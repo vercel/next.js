@@ -87,7 +87,7 @@ When navigating between pages, we want to *persist* page state (input values, 
 
 This layout pattern enables state persistence because the React component tree is maintained between page transitions. With the component tree, React can understand which elements have changed to preserve state.
 
-> **Note**: This process is called [reconciliation](https://reactjs.org/docs/reconciliation.html), which is how React understands which elements have changed.
+> **Note**: This process is called [reconciliation](https://react.dev/learn/preserving-and-resetting-state), which is how React understands which elements have changed.
 
 ### With TypeScript
 

@@ -75,7 +75,7 @@ if (typeof window !== 'undefined') {
 }
 ```
 
-A recommended way of accessing Web APIs safely is by using the [`useEffect`](https://reactjs.org/docs/hooks-effect.html) hook, which only executes client-side:
+A recommended way of accessing Web APIs safely is by using the [`useEffect`](https://react.dev/reference/react/useEffect) hook, which only executes client-side:
 
 ```jsx
 import { useEffect } from 'react'

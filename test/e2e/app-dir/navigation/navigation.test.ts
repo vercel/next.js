@@ -279,6 +279,13 @@ createNextDescribe(
           '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
         )
       })
+
+      it('should not log 404 errors in ipc server', async () => {
+        await next.fetch('/this-path-does-not-exist')
+        expect(next.cliOutput).not.toInclude(
+          'PageNotFoundError: Cannot find module for page'
+        )
+      })
     })
   }
 )
