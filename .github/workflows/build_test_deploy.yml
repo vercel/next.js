@@ -3,6 +3,7 @@ on:
     branches: ['canary', 'trunk-merge/*']
   pull_request:
     types: [opened, synchronize]
+  merge_group:
 
 name: Build, test, and deploy
 

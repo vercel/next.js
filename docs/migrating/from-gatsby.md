@@ -185,7 +185,7 @@ Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) comp
 
 ```jsx
 import Image from 'next/image'
-import profilePic from '../public/me.png'
+import profilePic from '../assets/me.png'
 
 export default function Home() {
   return (
