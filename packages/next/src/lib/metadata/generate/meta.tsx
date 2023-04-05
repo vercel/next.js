@@ -38,22 +38,16 @@ function camelToSnake(camelCaseStr: string) {
   })
 }
 
-function normalizeSpecialPropertyKey(propertyPrefix: string, key: string) {
+function getMetaKey(prefix: string, key: string) {
   // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
   // to be more compatible as it's a more common format
-  if (
-    (propertyPrefix === 'og:image' || propertyPrefix === 'twitter:image') &&
-    key === 'url'
-  ) {
-    return propertyPrefix
+  if ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') {
+    return prefix
   }
-  if (
-    propertyPrefix.startsWith('og:') ||
-    propertyPrefix.startsWith('twitter:')
-  ) {
+  if (prefix.startsWith('og:') || prefix.startsWith('twitter:')) {
     key = camelToSnake(key)
   }
-  return propertyPrefix + ':' + key
+  return prefix + ':' + key
 }
 
 function ExtendMeta({
@@ -73,9 +67,8 @@ function ExtendMeta({
         return typeof v === 'undefined' ? null : (
           <Meta
             key={keyPrefix + ':' + k + '_' + index}
-            {...(propertyPrefix
-              ? { property: normalizeSpecialPropertyKey(propertyPrefix, k) }
-              : { name: namePrefix + ':' + k })}
+            {...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) })}
+            {...(namePrefix && { property: getMetaKey(namePrefix, k) })}
             content={typeof v === 'string' ? v : v?.toString()}
           />
         )
