@@ -2,7 +2,6 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
 import { AlternateLinkDescriptor } from '../types/alternative-urls-types'
-import { resolveStringUrl } from '../resolvers/resolve-url'
 
 function AlternateLink({
   descriptor,
@@ -15,7 +14,7 @@ function AlternateLink({
     <link
       {...props}
       {...(descriptor.title && { title: descriptor.title })}
-      href={resolveStringUrl(descriptor.url)}
+      href={descriptor.url.toString()}
     />
   )
 }
