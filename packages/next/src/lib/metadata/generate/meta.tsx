@@ -68,7 +68,7 @@ function ExtendMeta({
           <Meta
             key={keyPrefix + ':' + k + '_' + index}
             {...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) })}
-            {...(namePrefix && { property: getMetaKey(namePrefix, k) })}
+            {...(namePrefix && { name: getMetaKey(namePrefix, k) })}
             content={typeof v === 'string' ? v : v?.toString()}
           />
         )
