@@ -1,6 +1,7 @@
-import { NEXT_QUERY_PARAM_PREFIX } from '../../../../lib/constants'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
+
+const NEXT_QUERY_PARAM_PREFIX = 'nextPriv'
 
 export interface Group {
   pos: number
