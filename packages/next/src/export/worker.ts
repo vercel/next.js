@@ -124,6 +124,7 @@ interface RenderOpts {
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
   incrementalCache?: IncrementalCache
+  strictNextHead?: boolean
 }
 
 // expose AsyncLocalStorage on globalThis for react usage
@@ -325,6 +326,7 @@ export default async function exportPage({
         curRenderOpts = {
           ...components,
           ...renderOpts,
+          strictNextHead: !!renderOpts.strictNextHead,
           ampPath: renderAmpPath,
           params,
           optimizeFonts,
