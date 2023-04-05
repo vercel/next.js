@@ -14,6 +14,8 @@ use turbo_binding::turbopack::{
 };
 use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
 
+use crate::next_config::NextConfigVc;
+
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
 ) -> Option<Vec<(FileJsonContentVc, AssetVc)>> {
