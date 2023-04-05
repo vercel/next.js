@@ -1,6 +1,6 @@
 import type { ServerRuntime } from '../../types'
 
-export const NEXT_QUERY_PARAM_PREFIX = 'nextPriv'
+export const NEXT_QUERY_PARAM_PREFIX = 'nextParam'
 
 // in seconds
 export const CACHE_ONE_YEAR = 31536000

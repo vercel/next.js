@@ -1544,10 +1544,10 @@ const runTests = (isDev = false, isTurbo = false) => {
             ),
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/blog\\-catchall/(?<nextPrivslug>.+?)\\.json$`,
+            )}/blog\\-catchall/(?<nextParamslug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
           {
@@ -1556,10 +1556,10 @@ const runTests = (isDev = false, isTurbo = false) => {
             )}\\/overridden\\/([^\\/]+?)\\.json$`,
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
-            )}/overridden/(?<nextPrivslug>[^/]+?)\\.json$`,
+            )}/overridden/(?<nextParamslug>[^/]+?)\\.json$`,
             page: '/overridden/[slug]',
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
         ],
@@ -2464,67 +2464,67 @@ const runTests = (isDev = false, isTurbo = false) => {
         },
         dynamicRoutes: [
           {
-            namedRegex: '^/_sport/(?<nextPrivslug>[^/]+?)(?:/)?$',
+            namedRegex: '^/_sport/(?<nextParamslug>[^/]+?)(?:/)?$',
             page: '/_sport/[slug]',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
           {
-            namedRegex: '^/_sport/(?<nextPrivslug>[^/]+?)/test(?:/)?$',
+            namedRegex: '^/_sport/(?<nextParamslug>[^/]+?)/test(?:/)?$',
             page: '/_sport/[slug]/test',
             regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
           {
-            namedRegex: '^/another/(?<nextPrivid>[^/]+?)(?:/)?$',
+            namedRegex: '^/another/(?<nextParamid>[^/]+?)(?:/)?$',
             page: '/another/[id]',
             regex: normalizeRegEx('^\\/another\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              nextPrivid: 'nextPrivid',
+              nextParamid: 'nextParamid',
             },
           },
           {
-            namedRegex: '^/api/dynamic/(?<nextPrivslug>[^/]+?)(?:/)?$',
+            namedRegex: '^/api/dynamic/(?<nextParamslug>[^/]+?)(?:/)?$',
             page: '/api/dynamic/[slug]',
             regex: normalizeRegEx('^\\/api\\/dynamic\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
           {
-            namedRegex: '^/auto\\-export/(?<nextPrivslug>[^/]+?)(?:/)?$',
+            namedRegex: '^/auto\\-export/(?<nextParamslug>[^/]+?)(?:/)?$',
             page: '/auto-export/[slug]',
             regex: normalizeRegEx('^\\/auto\\-export\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
           {
-            namedRegex: '^/blog/(?<nextPrivpost>[^/]+?)(?:/)?$',
+            namedRegex: '^/blog/(?<nextParampost>[^/]+?)(?:/)?$',
             page: '/blog/[post]',
             regex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
             routeKeys: {
-              nextPrivpost: 'nextPrivpost',
+              nextParampost: 'nextParampost',
             },
           },
           {
-            namedRegex: '^/blog\\-catchall/(?<nextPrivslug>.+?)(?:/)?$',
+            namedRegex: '^/blog\\-catchall/(?<nextParamslug>.+?)(?:/)?$',
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
           {
-            namedRegex: '^/overridden/(?<nextPrivslug>[^/]+?)(?:/)?$',
+            namedRegex: '^/overridden/(?<nextParamslug>[^/]+?)(?:/)?$',
             page: '/overridden/[slug]',
             regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
-              nextPrivslug: 'nextPrivslug',
+              nextParamslug: 'nextParamslug',
             },
           },
         ],

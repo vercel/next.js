@@ -1,7 +1,7 @@
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 
-const NEXT_QUERY_PARAM_PREFIX = 'nextPriv'
+const NEXT_QUERY_PARAM_PREFIX = 'nextParam'
 
 export interface Group {
   pos: number
@@ -90,7 +90,7 @@ function buildGetSafeRouteKey() {
   }
 }
 
-function getNamedParametrizedRoute(route: string, prefixRouteKeys?: boolean) {
+function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
   const segments = removeTrailingSlash(route).slice(1).split('/')
   const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
@@ -141,11 +141,14 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys?: boolean) {
 /**
  * This function extends `getRouteRegex` generating also a named regexp where
  * each group is named along with a routeKeys object that indexes the assigned
- * named group with its corresponding key.
+ * named group with its corresponding key. When the routeKeys need to be
+ * prefixed to uniquely identify internally the "prefixRouteKey" arg should
+ * be "true" currently this is only the case when creating the routes-manifest
+ * during the build
  */
 export function getNamedRouteRegex(
   normalizedRoute: string,
-  prefixRouteKey?: boolean
+  prefixRouteKey: boolean
 ) {
   const result = getNamedParametrizedRoute(normalizedRoute, prefixRouteKey)
   return {
@@ -174,7 +177,10 @@ export function getNamedMiddlewareRegex(
     }
   }
 
-  const { namedParameterizedRoute } = getNamedParametrizedRoute(normalizedRoute)
+  const { namedParameterizedRoute } = getNamedParametrizedRoute(
+    normalizedRoute,
+    false
+  )
   let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''
   return {
     namedRegex: `^${namedParameterizedRoute}${catchAllGroupedRegex}$`,

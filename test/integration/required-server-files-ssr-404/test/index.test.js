@@ -193,7 +193,7 @@ describe('Required Server Files', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?nextPrivslug=first',
+      '/some-other-path?nextParamslug=first',
       undefined,
       {
         headers: {
@@ -259,7 +259,7 @@ describe('Required Server Files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${buildId}/dynamic/first.json?nextPrivslug=first`,
+      `/_next/data/${buildId}/dynamic/first.json?nextParamslug=first`,
       undefined,
       {
         headers: {

@@ -59,7 +59,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     const exportedImageData = { ...exported }
     export default (props) => {
       const pathname = ${JSON.stringify(route)}
-      const routeRegex = getNamedRouteRegex(pathname)
+      const routeRegex = getNamedRouteRegex(pathname, false)
       const route = interpolateDynamicPath(pathname, props.params, routeRegex)
 
       const imageData = {
@@ -111,7 +111,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   export default (props) => {
     const pathname = ${JSON.stringify(route)}
-    const routeRegex = getNamedRouteRegex(pathname)
+    const routeRegex = getNamedRouteRegex(pathname, false)
     const route = interpolateDynamicPath(pathname, props.params, routeRegex)
 
     const imageData = ${JSON.stringify(imageData)};

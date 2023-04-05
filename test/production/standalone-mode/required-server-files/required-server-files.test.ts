@@ -570,7 +570,7 @@ describe('should set-up next', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?nextPrivslug=first',
+      '/some-other-path?nextParamslug=first',
       undefined,
       {
         headers: {
@@ -587,7 +587,7 @@ describe('should set-up next', () => {
 
     const html2 = await renderViaHTTP(
       appPort,
-      '/some-other-path?nextPrivslug=second',
+      '/some-other-path?nextParamslug=second',
       undefined,
       {
         headers: {
@@ -703,7 +703,7 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?nextPrivslug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?nextParamslug=first`,
       undefined,
       {
         headers: {
@@ -1145,7 +1145,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional/index',
-      { nextPrivrest: 'index', another: 'value' },
+      { nextParamrest: 'index', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',

@@ -789,7 +789,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           for (const key of Object.keys(parsedUrl.query)) {
             const value = parsedUrl.query[key]
 
-            if (key.startsWith(NEXT_QUERY_PARAM_PREFIX)) {
+            if (
+              key !== NEXT_QUERY_PARAM_PREFIX &&
+              key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+            ) {
               const normalizedKey = key.substring(
                 NEXT_QUERY_PARAM_PREFIX.length
               )

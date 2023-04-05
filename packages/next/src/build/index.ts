@@ -2393,7 +2393,7 @@ export default async function build(
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
                 routeRegex: normalizeRouteRegex(
-                  getNamedRouteRegex(page).re.source
+                  getNamedRouteRegex(page, false).re.source
                 ),
                 dataRoute,
                 // if dynamicParams are enabled treat as fallback:
@@ -2405,7 +2405,8 @@ export default async function build(
                   ? null
                   : normalizeRouteRegex(
                       getNamedRouteRegex(
-                        dataRoute.replace(/\.rsc$/, '')
+                        dataRoute.replace(/\.rsc$/, ''),
+                        false
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
                     ),
               }
@@ -2770,7 +2771,7 @@ export default async function build(
 
           finalDynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
-              getNamedRouteRegex(tbdRoute).re.source
+              getNamedRouteRegex(tbdRoute, false).re.source
             ),
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
@@ -2780,7 +2781,8 @@ export default async function build(
               : false,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
-                dataRoute.replace(/\.json$/, '')
+                dataRoute.replace(/\.json$/, ''),
+                false
               ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
           }

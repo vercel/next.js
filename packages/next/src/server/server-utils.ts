@@ -40,7 +40,8 @@ export function normalizeVercelUrl(
 
     for (const key of Object.keys(_parsedUrl.query)) {
       if (
-        key.startsWith(NEXT_QUERY_PARAM_PREFIX) ||
+        (key !== NEXT_QUERY_PARAM_PREFIX &&
+          key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
         (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
       ) {
         delete _parsedUrl.query[key]
@@ -113,7 +114,7 @@ export function getUtils({
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
-    defaultRouteRegex = getNamedRouteRegex(page)
+    defaultRouteRegex = getNamedRouteRegex(page, false)
     dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
