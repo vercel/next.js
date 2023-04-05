@@ -83,10 +83,12 @@ pub async fn get_fallback_page(
         bail!("fallback runtime entry is not an ecmascript module");
     };
 
-    let chunk = module.as_evaluated_chunk(chunking_context, Some(runtime_entries));
-
     Ok(DevHtmlAssetVc::new(
         dev_server_root.join("fallback.html"),
-        vec![ChunkGroupVc::from_chunk(chunk)],
+        vec![ChunkGroupVc::evaluated(
+            chunking_context,
+            module.into(),
+            runtime_entries,
+        )],
     ))
 }

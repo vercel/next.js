@@ -73,10 +73,10 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   }
 }
 
-export function resolveOpenGraph(
+export const resolveOpenGraph: FieldResolverWithMetadataBase<'openGraph'> = (
   openGraph: Metadata['openGraph'],
   metadataBase: ResolvedMetadata['metadataBase']
-): ResolvedMetadata['openGraph'] {
+) => {
   if (!openGraph) return null
 
   const url = resolveUrl(openGraph.url, metadataBase)

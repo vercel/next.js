@@ -284,6 +284,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        experimentalReact: {
+          type: 'boolean',
+        },
         extensionAlias: {
           type: 'object',
         },
@@ -395,6 +398,9 @@ const configSchema = {
             },
           },
           type: 'object',
+        },
+        strictNextHead: {
+          type: 'boolean',
         },
         swcFileReading: {
           type: 'boolean',
