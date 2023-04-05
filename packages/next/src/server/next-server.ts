@@ -88,6 +88,7 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
+import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/app-render'
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
@@ -955,8 +956,6 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
-      const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
-        require('./app-render/app-render') as typeof import('./app-render/app-render')
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
