@@ -259,6 +259,9 @@ pub async fn get_server_module_options_context(
         }
         ServerContextType::AppSSR { .. } => {
             let module_options_context = ModuleOptionsContext {
+                custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+                    StringVc::cell("TODO".to_string()),
+                )],
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
@@ -279,9 +282,12 @@ pub async fn get_server_module_options_context(
         }
         ServerContextType::AppRSC { .. } => {
             let module_options_context = ModuleOptionsContext {
-                custom_ecmascript_transforms: vec![EcmascriptInputTransform::ClientDirective(
-                    StringVc::cell("server-to-client".to_string()),
-                )],
+                custom_ecmascript_transforms: vec![
+                    EcmascriptInputTransform::ClientDirective(StringVc::cell(
+                        "server-to-client".to_string(),
+                    )),
+                    EcmascriptInputTransform::ServerDirective(StringVc::cell("TODO".to_string())),
+                ],
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
