@@ -28,12 +28,7 @@ pub enum EcmascriptInputTransform {
     ClientDirective(StringVc),
     CommonJs,
     Custom(CustomTransformVc),
-    Emotion {
-        #[serde(default)]
-        sourcemap: bool,
-        label_format: OptionStringVc,
-        auto_label: Option<bool>,
-    },
+    Emotion,
     PresetEnv(EnvironmentVc),
     React {
         #[serde(default)]
@@ -179,24 +174,10 @@ impl EcmascriptInputTransform {
                     Some(comments.clone()),
                 ));
             }
-            EcmascriptInputTransform::Emotion {
-                sourcemap,
-                label_format,
-                auto_label,
-            } => {
-                let options = swc_emotion::EmotionOptions {
-                    // this should be always enabled if match arrives here:
-                    // since moduleoptions expect to push emotion transform only if
-                    // there are valid, enabled config values.
-                    enabled: Some(true),
-                    sourcemap: Some(*sourcemap),
-                    label_format: label_format.await?.clone_value(),
-                    auto_label: *auto_label,
-                    ..Default::default()
-                };
+            EcmascriptInputTransform::Emotion => {
                 let p = std::mem::replace(program, Program::Module(Module::dummy()));
                 *program = p.fold_with(&mut swc_emotion::emotion(
-                    options,
+                    Default::default(),
                     Path::new(file_name_str),
                     source_map.clone(),
                     comments.clone(),
