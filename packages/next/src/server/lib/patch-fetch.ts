@@ -39,17 +39,17 @@ const REQUEST_INPUT_FIELDS: ReadonlyArray<keyof Request & keyof RequestInit> = [
  * @param init the request init
  * @param key the key to get
  */
-function getOption<K extends keyof Request>(
+export function getOption<K extends keyof Request>(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
   key: K
 ): Request[K] | undefined
-function getOption<K extends keyof RequestInit>(
+export function getOption<K extends keyof RequestInit>(
   input: RequestInfo | URL,
   init: RequestInit,
   key: K
 ): RequestInit[K] | undefined
-function getOption<K extends keyof (Request | RequestInit)>(
+export function getOption<K extends keyof (Request | RequestInit)>(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
   key: K
@@ -60,8 +60,8 @@ function getOption<K extends keyof (Request | RequestInit)>(
     if (value) return value
   }
 
-  if (input instanceof Request && key in input) {
-    value = input[key]
+  if (typeof input === 'object' && key in input) {
+    value = (input as RequestInit)[key]
     if (value) return value
   }
 }
@@ -75,7 +75,7 @@ function getOption<K extends keyof (Request | RequestInit)>(
  * @param store the static generation store
  * @returns the revalidate value to use for the fetch
  */
-function getRevalidate(
+export function getRevalidate(
   fetchNextRevalidate: number | false | undefined,
   input: Readonly<RequestInfo | URL>,
   init: Readonly<RequestInit | undefined>,
@@ -186,24 +186,20 @@ function getRevalidate(
   return store.revalidate
 }
 
-// we patch fetch to collect cache information used for
-// determining if a page is static or not
-export function patchFetch({
-  serverHooks,
-  staticGenerationAsyncStorage,
-}: {
+type FetchFn = typeof fetch
+
+interface PatchFetchOptions {
   serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
-}) {
-  if ((globalThis.fetch as any).__nextPatched) return
+}
 
+export function createFetchPatch(
+  { serverHooks, staticGenerationAsyncStorage }: PatchFetchOptions,
+  originFetch: FetchFn
+): FetchFn {
   const { DynamicServerError } = serverHooks
-  const originFetch = globalThis.fetch
 
-  globalThis.fetch = async (
-    input: RequestInfo | URL,
-    init: RequestInit | undefined
-  ) => {
+  return async (input: RequestInfo | URL, init: RequestInit | undefined) => {
     let url
     try {
       url = new URL(input instanceof Request ? input.url : input)
@@ -470,5 +466,16 @@ export function patchFetch({
       }
     )
   }
+}
+
+// we patch fetch to collect cache information used for
+// determining if a page is static or not
+export function patchFetch(options: PatchFetchOptions) {
+  if ((globalThis.fetch as any).__nextPatched) return
+
+  // Create a new fetch function that will be used to patch the global fetch.
+  globalThis.fetch = createFetchPatch(options, globalThis.fetch)
+
+  // Mark the fetch as patched so we don't patch it again.
   ;(fetch as any).__nextPatched = true
 }
