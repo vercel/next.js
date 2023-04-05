@@ -437,20 +437,8 @@ declare module 'next/link' {
 declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation'
 
-  import type { NavigateOptions } from 'next/dist/shared/lib/app-router-context'
-  interface AppRouterInstance {
-    /**
-     * Navigate to the previous history entry.
-     */
-    back(): void
-    /**
-     * Navigate to the next history entry.
-     */
-    forward(): void
-    /**
-     * Refresh the current page.
-     */
-    refresh(): void
+  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context'
+  interface AppRouterInstance extends OriginalAppRouterInstance {
     /**
      * Navigate to the provided href.
      * Pushes a new history entry.

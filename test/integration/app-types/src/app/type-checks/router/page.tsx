@@ -18,6 +18,7 @@ export default function Page() {
     router.push('/redirect')
     router.push(`/blog/${'a/b'}`)
     router.push(('/blog/' + 'a/b') as Route)
+    router.back()
   }
 
   return <div onClick={test} />
