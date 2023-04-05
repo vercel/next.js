@@ -94,7 +94,7 @@ In order to be able to leverage instrumentation provided by next.js you will nee
 
 Next.js automatically instruments several spans for you to provide useful insights into your application's performance.
 
-Attributes on spans follow [OPenTelemetry semantic conventions](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/) and we also add a few custom attributes in `next` namespace:
+Attributes on spans follow [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/). We also add some custom attributes under the `next` namespace:
 
 - `next.span_name` - duplicates span name
 - `next.span_type` - each span type has unique identifier
