@@ -25,12 +25,6 @@ function resolveUrl(
   } catch (_) {}
 
   if (!metadataBase) {
-    throw new Error(
-      `metadata.metadataBase needs to be set for resolving url "${url}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase\n`
-    )
-  }
-
-  if (metadataBase.origin === 'http://n') {
     metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
     // Development mode warning, add new line prefix for worker output
     console.log()
@@ -46,10 +40,4 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-// Return a string url without trailing slash
-const resolveStringUrl = (url: string | URL) => {
-  const href = typeof url === 'string' ? url : url.toString()
-  return href.endsWith('/') ? href.slice(0, -1) : href
-}
-
-export { isStringOrURL, resolveUrl, resolveStringUrl }
+export { isStringOrURL, resolveUrl }

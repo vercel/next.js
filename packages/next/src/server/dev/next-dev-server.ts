@@ -103,7 +103,6 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
 import { invokeRequest } from '../lib/server-ipc'
-import { hasVercelConfigFiles } from '../lib/find-vercel-config'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -893,7 +892,6 @@ export default class DevServer extends Server {
       this.router = new Router(this.generateRoutes(true))
     }
     const telemetry = new Telemetry({ distDir: this.distDir })
-    this.renderOpts.hasVercelConfig = await hasVercelConfigFiles(this.dir)
 
     // router worker does not start webpack compilers
     if (!this.isRenderWorker) {

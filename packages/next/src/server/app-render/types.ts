@@ -125,7 +125,6 @@ export type RenderOptsPartial = {
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
-  hasVercelConfig?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
 }

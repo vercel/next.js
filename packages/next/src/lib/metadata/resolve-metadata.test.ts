@@ -7,7 +7,6 @@ import { Metadata } from './types/metadata-interface'
 function accumulateMetadata(metadataItems: MetadataItems) {
   return originAccumulateMetadata(metadataItems, {
     pathname: '/test',
-    allowFallbackMetadataBase: false,
   })
 }
 

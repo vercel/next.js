@@ -282,16 +282,13 @@ export async function collectMetadata({
 
 type MetadataAccumulationOptions = {
   pathname: string
-  allowFallbackMetadataBase: boolean
 }
 
 export async function accumulateMetadata(
   metadataItems: MetadataItems,
   options: MetadataAccumulationOptions
 ): Promise<ResolvedMetadata> {
-  const resolvedMetadata = createDefaultMetadata({
-    allowFallbackMetadataBase: options.allowFallbackMetadataBase,
-  })
+  const resolvedMetadata = createDefaultMetadata()
 
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []

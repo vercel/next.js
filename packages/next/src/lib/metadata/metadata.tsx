@@ -19,7 +19,6 @@ import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 export async function MetadataTree({
   metadata,
   pathname,
-  allowFallbackMetadataBase,
 }: {
   metadata: MetadataItems
   pathname: string
@@ -27,7 +26,6 @@ export async function MetadataTree({
 }) {
   const options = {
     pathname,
-    allowFallbackMetadataBase,
   }
   const resolved = await accumulateMetadata(metadata, options)
 

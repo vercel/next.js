@@ -55,7 +55,6 @@ import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
-import { hasVercelConfigFiles } from '../server/lib/find-vercel-config'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -434,8 +433,6 @@ export default async function exportApp(
       }
     }
 
-    const hasVercelConfig = await hasVercelConfigFiles(dir)
-
     // Start the rendering process
     const renderOpts = {
       dir,
@@ -466,7 +463,6 @@ export default async function exportApp(
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: options.hasAppDir,
       hasServerComponents: options.hasAppDir,
-      hasVercelConfig,
       nextFontManifest: require(join(
         distDir,
         'server',

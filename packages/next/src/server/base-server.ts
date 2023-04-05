@@ -246,7 +246,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
-    hasVercelConfig?: boolean
     appDirDevErrorLogger?: (err: any) => Promise<void>
     strictNextHead: boolean
   }
