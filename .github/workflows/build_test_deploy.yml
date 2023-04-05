@@ -1265,7 +1265,7 @@ jobs:
 
       - run: echo "${{needs.build.outputs.docsChange == 'nope'}}"
 
-      - name: Install
+      - name: Install Rust toolchain
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         uses: actions-rs/toolchain@v1
         with:
