@@ -100,6 +100,7 @@ import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
+import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
@@ -326,8 +327,8 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
-  public async prepare() {
-    await super.prepare()
+  protected async prepareImpl() {
+    await super.prepareImpl()
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook
@@ -1054,13 +1055,18 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+    let route = pathname
+    if (isAppPath) {
+      // When in App we get page instead of route
+      route = pathname.replace(/\/[^/]*$/, '')
+    }
+
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {
         spanName: `resolving page into components`,
         attributes: {
-          'next.route': pathname,
+          'next.route': route,
         },
       },
       () => this.findPageComponentsImpl({ pathname, query, params, isAppPath })
@@ -1357,6 +1363,7 @@ export default class NextNodeServer extends BaseServer {
 
         const options: MatchOptions = {
           i18n: this.i18nProvider?.fromQuery(pathname, query),
+          referrer: parseNextReferrerFromHeaders(req.headers),
         }
 
         const match = await this.matchers.match(pathname, options)
@@ -1632,6 +1639,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   public getRequestHandler(): NodeRequestHandler {
+    // This is just optimization to fire prepare as soon as possible
+    // It will be properly awaited later
+    void this.prepare()
     const handler = super.getRequestHandler()
     return async (req, res, parsedUrl) => {
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
@@ -2068,7 +2078,9 @@ export default class NextNodeServer extends BaseServer {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(normalizedPathname),
+      referrer: parseNextReferrerFromHeaders(params.request.headers),
     }
+
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
     } else {

@@ -4,15 +4,17 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
+import type { ExportOptions } from '../export'
 
 import '../lib/setup-exception-listeners'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
 import { isMatch, makeRe } from 'next/dist/compiled/micromatch'
-import { promises, writeFileSync } from 'fs'
-import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
+import { promises } from 'fs'
+import os from 'os'
 import { Worker } from '../lib/worker'
+import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -38,7 +40,6 @@ import loadCustomRoutes, {
 import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
-import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
 import {
   BUILD_ID_FILE,
@@ -83,7 +84,6 @@ import {
   eventCliSession,
   eventBuildFeatureUsage,
   eventNextPlugins,
-  eventTypeCheckCompleted,
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
   eventPackageUsedInGetServerSideProps,
@@ -136,7 +136,7 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
-import type { ExportOptions } from '../export'
+import { startTypeChecking } from './type-check'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -161,59 +161,7 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-/**
- * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
- * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
- *
- * Since it is impossible to pass a function from main thread to a worker,
- * instead of running "next/lib/typescript/runTypeCheck" in a worker,
- * we will run entire "next/lib/verifyTypeScriptSetup" in a worker instead.
- */
-function verifyTypeScriptSetup(
-  dir: string,
-  distDir: string,
-  intentDirs: string[],
-  typeCheckPreflight: boolean,
-  tsconfigPath: string,
-  disableStaticImages: boolean,
-  cacheDir: string | undefined,
-  enableWorkerThreads: boolean | undefined,
-  isAppDirEnabled: boolean,
-  hasPagesDir: boolean
-) {
-  const typeCheckWorker = new JestWorker(
-    require.resolve('../lib/verifyTypeScriptSetup'),
-    {
-      numWorkers: 1,
-      enableWorkerThreads,
-      maxRetries: 0,
-    }
-  ) as JestWorker & {
-    verifyTypeScriptSetup: typeof import('../lib/verifyTypeScriptSetup').verifyTypeScriptSetup
-  }
-
-  typeCheckWorker.getStdout().pipe(process.stdout)
-  typeCheckWorker.getStderr().pipe(process.stderr)
-
-  return typeCheckWorker
-    .verifyTypeScriptSetup({
-      dir,
-      distDir,
-      intentDirs,
-      typeCheckPreflight,
-      tsconfigPath,
-      disableStaticImages,
-      cacheDir,
-      isAppDirEnabled,
-      hasPagesDir,
-    })
-    .then((result) => {
-      typeCheckWorker.end()
-      return result
-    })
-}
-
-function generateClientSsgManifest(
+async function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
     buildId,
@@ -235,7 +183,7 @@ function generateClientSsgManifest(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-  writeFileSync(
+  await promises.writeFile(
     path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
     clientSsgManifestContent
   )
@@ -390,108 +338,24 @@ export default async function build(
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
-      const startTypeChecking = async () => {
-        const ignoreTypeScriptErrors = Boolean(
-          config.typescript.ignoreBuildErrors
-        )
-
-        const eslintCacheDir = path.join(cacheDir, 'eslint/')
-
-        if (ignoreTypeScriptErrors) {
-          Log.info('Skipping validation of types')
-        }
-        if (runLint && ignoreESLint) {
-          // only print log when build require lint while ignoreESLint is enabled
-          Log.info('Skipping linting')
-        }
-
-        let typeCheckingAndLintingSpinnerPrefixText: string | undefined
-        let typeCheckingAndLintingSpinner:
-          | ReturnType<typeof createSpinner>
-          | undefined
-
-        if (!ignoreTypeScriptErrors && shouldLint) {
-          typeCheckingAndLintingSpinnerPrefixText =
-            'Linting and checking validity of types'
-        } else if (!ignoreTypeScriptErrors) {
-          typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
-        } else if (shouldLint) {
-          typeCheckingAndLintingSpinnerPrefixText = 'Linting'
-        }
-
-        // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
-        // enabled, but we will still verifying project's tsconfig and dependencies.
-        if (typeCheckingAndLintingSpinnerPrefixText) {
-          typeCheckingAndLintingSpinner = createSpinner({
-            prefixText: `${Log.prefixes.info} ${typeCheckingAndLintingSpinnerPrefixText}`,
-          })
-        }
-
-        const typeCheckStart = process.hrtime()
-
-        try {
-          const [[verifyResult, typeCheckEnd]] = await Promise.all([
-            nextBuildSpan
-              .traceChild('verify-typescript-setup')
-              .traceAsyncFn(() =>
-                verifyTypeScriptSetup(
-                  dir,
-                  config.distDir,
-                  [pagesDir, appDir].filter(Boolean) as string[],
-                  !ignoreTypeScriptErrors,
-                  config.typescript.tsconfigPath,
-                  config.images.disableStaticImages,
-                  cacheDir,
-                  config.experimental.workerThreads,
-                  isAppDirEnabled,
-                  !!pagesDir
-                ).then((resolved) => {
-                  const checkEnd = process.hrtime(typeCheckStart)
-                  return [resolved, checkEnd] as const
-                })
-              ),
-            shouldLint &&
-              nextBuildSpan
-                .traceChild('verify-and-lint')
-                .traceAsyncFn(async () => {
-                  await verifyAndLint(
-                    dir,
-                    eslintCacheDir,
-                    config.eslint?.dirs,
-                    config.experimental.workerThreads,
-                    telemetry,
-                    isAppDirEnabled && !!appDir
-                  )
-                }),
-          ])
-          typeCheckingAndLintingSpinner?.stopAndPersist()
-
-          if (!ignoreTypeScriptErrors && verifyResult) {
-            telemetry.record(
-              eventTypeCheckCompleted({
-                durationInSeconds: typeCheckEnd[0],
-                typescriptVersion: verifyResult.version,
-                inputFilesCount: verifyResult.result?.inputFilesCount,
-                totalFilesCount: verifyResult.result?.totalFilesCount,
-                incremental: verifyResult.result?.incremental,
-              })
-            )
-          }
-        } catch (err) {
-          // prevent showing jest-worker internal error as it
-          // isn't helpful for users and clutters output
-          if (isError(err) && err.message === 'Call retries were exceeded') {
-            await telemetry.flush()
-            process.exit(1)
-          }
-          throw err
-        }
+      const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
+        dir,
+        appDir,
+        pagesDir,
+        isAppDirEnabled,
+        runLint,
+        shouldLint,
+        ignoreESLint,
+        telemetry,
+        nextBuildSpan,
+        config,
+        cacheDir,
       }
 
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
-      if (!appDir) await startTypeChecking()
+      if (!appDir) await startTypeChecking(typeCheckingOptions)
 
       if (appDir && 'exportPathMap' in config) {
         Log.error(
@@ -582,12 +446,6 @@ export default async function build(
         p.includes(INSTRUMENTATION_HOOK_FILENAME)
       )
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
-
-      // needed for static exporting since we want to replace with HTML
-      // files
-
-      const allStaticPages = new Set<string>()
-      let allPageInfos = new Map<string, PageInfo>()
 
       const previewProps: __ApiPreviewProps = {
         previewModeId: crypto.randomBytes(16).toString('hex'),
@@ -1169,7 +1027,7 @@ export default async function build(
 
       // For app directory, we run type checking after build.
       if (appDir) {
-        await startTypeChecking()
+        await startTypeChecking(typeCheckingOptions)
       }
 
       const postCompileSpinner = createSpinner({
@@ -1239,6 +1097,23 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
+      // We limit the number of workers used based on the number of CPUs and
+      // the current available memory. This is to prevent the system from
+      // running out of memory as well as maximize speed. We assume that
+      // each worker will consume ~1GB of memory in a production build.
+      // For example, if the system has 10 CPU cores and 8GB of remaining memory
+      // we will use 8 workers.
+      const numWorkers = Math.max(
+        config.experimental.cpus !== defaultConfig.experimental!.cpus
+          ? (config.experimental.cpus as number)
+          : Math.min(
+              config.experimental.cpus || 1,
+              Math.floor(os.freemem() / 1e9)
+            ),
+        // enforce a minimum of 4 workers
+        4
+      )
+
       const staticWorkers = new Worker(staticWorker, {
         timeout: timeout * 1000,
         onRestart: (method, [arg], attempts) => {
@@ -1270,7 +1145,7 @@ export default async function build(
             infoPrinted = true
           }
         },
-        numWorkers: config.experimental.cpus,
+        numWorkers,
         enableWorkerThreads: config.experimental.workerThreads,
         computeWorkerKey(method, ...args) {
           if (method === 'exportPage') {
@@ -1862,7 +1737,7 @@ export default async function build(
               const traceContent = JSON.parse(
                 await promises.readFile(traceFile, 'utf8')
               )
-              let includes: string[] = []
+              const includes: string[] = []
 
               if (combinedIncludes?.size) {
                 await Promise.all(
@@ -2471,7 +2346,7 @@ export default async function build(
                   ? null
                   : path.posix.join(`${normalizedRoute}.rsc`)
 
-                let routeMeta: {
+                const routeMeta: {
                   initialStatus?: SsgRoute['initialStatus']
                   initialHeaders?: SsgRoute['initialHeaders']
                 } = {}
@@ -3025,13 +2900,8 @@ export default async function build(
         }
       }
 
-      staticPages.forEach((pg) => allStaticPages.add(pg))
-      pageInfos.forEach((info: PageInfo, key: string) => {
-        allPageInfos.set(key, info)
-      })
-
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
-        printTreeView(pageKeys, allPageInfos, {
+        printTreeView(pageKeys, pageInfos, {
           distPath: distDir,
           buildId: buildId,
           pagesDir,

@@ -1,3 +1,4 @@
+import { getSegmentParam } from '../../server/app-render/get-segment-param'
 import type { Segment } from '../../server/app-render/types'
 
 export const matchSegment = (
@@ -17,4 +18,18 @@ export const matchSegment = (
   }
 
   return false
+}
+
+/*
+ * This function is used to determine if an existing segment can be overridden by the incoming segment.
+ */
+export const canSegmentBeOverridden = (
+  existingSegment: Segment,
+  segment: Segment
+): boolean => {
+  if (Array.isArray(existingSegment) || !Array.isArray(segment)) {
+    return false
+  }
+
+  return getSegmentParam(existingSegment)?.param === segment[0]
 }
