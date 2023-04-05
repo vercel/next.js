@@ -624,6 +624,7 @@ createNextDescribe(
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
           'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image:secure_url': 'https://twitter.com/secure.png',
           'twitter:card': 'summary',
         })
       })
@@ -638,7 +639,7 @@ createNextDescribe(
           'twitter:site:id': 'siteId',
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
-          'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image': 'https://twitter.com/large-image.png',
           'twitter:image:alt': 'image-alt',
           'twitter:card': 'summary_large_image',
         })
