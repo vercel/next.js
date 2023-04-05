@@ -118,10 +118,9 @@ Attributes:
 - [Server HTTP attributes](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/#http-server-semantic-conventions)
   - `http.route`
   - `http.target`
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.route`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `render route (app) [next.route]`
 
@@ -131,10 +130,9 @@ This span represents the process of rendering a route in app router.
 
 Attributes:
 
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.route`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `fetch [http.method] [http.url]`
 
@@ -150,9 +148,8 @@ Attributes:
   - `http.url`
   - `net.peer.name`
   - `net.peer.port` (only if specified)
-- `next`
-  - `next.span_name`
-  - `next.span_type`
+- `next.span_name`
+- `next.span_type`
 
 ### `executing api route (app) [next.route]`
 
@@ -162,10 +159,9 @@ This span represents the execution of an API route handler in app router.
 
 Attributes:
 
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.route`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `getServerSideProps [next.route]`
 
@@ -175,10 +171,9 @@ This span represents the execution of `getServerSideProps` for a specific route.
 
 Attributes:
 
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.route`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `getStaticProps [next.route]`
 
@@ -188,10 +183,9 @@ This span represents the execution of `getStaticProps` for a specific route.
 
 Attributes:
 
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.route`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `render route (pages) [next.route]`
 
@@ -201,10 +195,9 @@ This span represents the process of rendering the document for a specific route.
 
 Attributes:
 
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.route`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `generateMetadata [next.page]`
 
@@ -214,7 +207,6 @@ This span represents the process of generating metadata for a specific page (sin
 
 Attributes:
 
-- `next`
-  - `next.span_name`
-  - `next.span_type`
-  - `next.page`
+- `next.span_name`
+- `next.span_type`
+- `next.page`
