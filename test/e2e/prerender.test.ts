@@ -1316,10 +1316,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/api\\-docs/(?<slug>.+?)\\.json$`,
+              )}/api\\-docs/(?<nextParamslug>.+?)\\.json$`,
               page: '/api-docs/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nextParamslug: 'nextParamslug',
               },
             },
             {
@@ -1346,9 +1346,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback/(?<nextParamslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nextParamslug: 'nextParamslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1358,9 +1358,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback\\-once/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback\\-once/(?<nextParamslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-once/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nextParamslug: 'nextParamslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1370,9 +1370,9 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blocking\\-fallback\\-some/(?<slug>[^/]+?)\\.json$`,
+              )}/blocking\\-fallback\\-some/(?<nextParamslug>[^/]+?)\\.json$`,
               page: '/blocking-fallback-some/[slug]',
-              routeKeys: { slug: 'slug' },
+              routeKeys: { nextParamslug: 'nextParamslug' },
             },
             {
               dataRouteRegex: normalizeRegEx(
@@ -1383,7 +1383,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blog/(?<post>[^/]+?)\\.json$`,
+              )}/blog/(?<nextParampost>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1391,13 +1391,13 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]',
               routeKeys: {
-                post: 'post',
+                nextParampost: 'nextParampost',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/blog/(?<post>[^/]+?)/(?<comment>[^/]+?)\\.json$`,
+              )}/blog/(?<nextParampost>[^/]+?)/(?<nextParamcomment>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1405,14 +1405,14 @@ describe('Prerender', () => {
               ),
               page: '/blog/[post]/[comment]',
               routeKeys: {
-                post: 'post',
-                comment: 'comment',
+                nextParampost: 'nextParampost',
+                nextParamcomment: 'nextParamcomment',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall/(?<slug>.+?)\\.json$`,
+              )}/catchall/(?<nextParamslug>.+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1420,13 +1420,13 @@ describe('Prerender', () => {
               ),
               page: '/catchall/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nextParamslug: 'nextParamslug',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall\\-explicit/(?<slug>.+?)\\.json$`,
+              )}/catchall\\-explicit/(?<nextParamslug>.+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1434,13 +1434,13 @@ describe('Prerender', () => {
               ),
               page: '/catchall-explicit/[...slug]',
               routeKeys: {
-                slug: 'slug',
+                nextParamslug: 'nextParamslug',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/catchall\\-optional(?:/(?<slug>.+?))?\\.json$`,
+              )}/catchall\\-optional(?:/(?<nextParamslug>.+?))?\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1448,7 +1448,7 @@ describe('Prerender', () => {
               ),
               page: '/catchall-optional/[[...slug]]',
               routeKeys: {
-                slug: 'slug',
+                nextParamslug: 'nextParamslug',
               },
             },
             {
@@ -1467,10 +1467,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/dynamic/(?<slug>[^/]+?)\\.json$`,
+              )}/dynamic/(?<nextParamslug>[^/]+?)\\.json$`,
               page: '/dynamic/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nextParamslug: 'nextParamslug',
               },
             },
             {
@@ -1481,10 +1481,10 @@ describe('Prerender', () => {
               ),
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/fallback\\-only/(?<slug>[^/]+?)\\.json$`,
+              )}/fallback\\-only/(?<nextParamslug>[^/]+?)\\.json$`,
               page: '/fallback-only/[slug]',
               routeKeys: {
-                slug: 'slug',
+                nextParamslug: 'nextParamslug',
               },
             },
             // TODO: investigate index/index
@@ -1499,7 +1499,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/lang/(?<lang>[^/]+?)/about\\.json$`,
+              )}/lang/(?<nextParamlang>[^/]+?)/about\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1507,7 +1507,7 @@ describe('Prerender', () => {
               ),
               page: '/lang/[lang]/about',
               routeKeys: {
-                lang: 'lang',
+                nextParamlang: 'nextParamlang',
               },
             },
             {
@@ -1525,7 +1525,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/non\\-json/(?<p>[^/]+?)\\.json$`,
+              )}/non\\-json/(?<nextParamp>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1533,13 +1533,13 @@ describe('Prerender', () => {
               ),
               page: '/non-json/[p]',
               routeKeys: {
-                p: 'p',
+                nextParamp: 'nextParamp',
               },
             },
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/non\\-json\\-blocking/(?<p>[^/]+?)\\.json$`,
+              )}/non\\-json\\-blocking/(?<nextParamp>[^/]+?)\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1547,7 +1547,7 @@ describe('Prerender', () => {
               ),
               page: '/non-json-blocking/[p]',
               routeKeys: {
-                p: 'p',
+                nextParamp: 'nextParamp',
               },
             },
             {
@@ -1575,7 +1575,7 @@ describe('Prerender', () => {
             {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
-              )}/user/(?<user>[^/]+?)/profile\\.json$`,
+              )}/user/(?<nextParamuser>[^/]+?)/profile\\.json$`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
@@ -1583,7 +1583,7 @@ describe('Prerender', () => {
               ),
               page: '/user/[user]/profile',
               routeKeys: {
-                user: 'user',
+                nextParamuser: 'nextParamuser',
               },
             },
           ])

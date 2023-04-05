@@ -1,5 +1,5 @@
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { BaseNextRequest } from '../../base-http'
+import type { NextRequest } from '../../web/spec-extension/request'
 import type { Params } from '../../../shared/lib/router/utils/route-matcher'
 
 // These are imported weirdly like this because of the way that the bundling
@@ -96,7 +96,7 @@ export abstract class RouteModule<
    * Handle will handle the request and return a response.
    */
   public abstract handle(
-    req: BaseNextRequest,
+    req: NextRequest,
     context: RouteModuleHandleContext
   ): Promise<Response>
 

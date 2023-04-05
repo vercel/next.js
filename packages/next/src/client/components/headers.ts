@@ -1,10 +1,12 @@
+import { RequestCookiesAdapter } from '../../server/web/spec-extension/adapters/request-cookies'
+import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
 
 export function headers() {
   if (staticGenerationBailout('headers')) {
-    return new Headers({})
+    return HeadersAdapter.seal(new Headers({}))
   }
 
   const requestStore = requestAsyncStorage.getStore()
@@ -30,7 +32,7 @@ export function previewData() {
 
 export function cookies() {
   if (staticGenerationBailout('cookies')) {
-    return new RequestCookies(new Headers({}))
+    return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
   }
 
   const requestStore = requestAsyncStorage.getStore()

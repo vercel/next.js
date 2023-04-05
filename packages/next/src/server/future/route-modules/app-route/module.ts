@@ -2,9 +2,7 @@ import type { Params } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
-import type { WebNextRequest } from '../../../base-http/web'
-import type { NodeNextRequest } from '../../../base-http/node'
-import type { BaseNextRequest } from '../../../base-http'
+import type { NextRequest } from '../../../web/spec-extension/request'
 
 import {
   RouteModule,
@@ -23,14 +21,13 @@ import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
 } from '../helpers/response-handlers'
-import { HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
+import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../../web/http'
 import { patchFetch } from '../../../lib/patch-fetch'
 import { getTracer } from '../../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import { proxyRequest } from './helpers/proxy-request'
 import { resolveHandlerError } from './helpers/resolve-handler-error'
-import { wrapRequest } from './helpers/wrap-request'
 import { RouteKind } from '../../route-kind'
 import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
@@ -231,18 +228,15 @@ export class AppRouteRouteModule extends RouteModule<
    * Executes the route handler.
    */
   private async execute(
-    req: BaseNextRequest,
+    request: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     // Get the handler function for the given method.
-    const handler = this.resolve(req.method)
+    const handler = this.resolve(request.method)
 
     // Get the context for the request.
     const requestContext: RequestContext = {
-      req:
-        'request' in (req as WebNextRequest)
-          ? req
-          : (req as NodeNextRequest).originalRequest,
+      req: request,
     }
 
     // Get the context for the static generation.
@@ -260,8 +254,9 @@ export class AppRouteRouteModule extends RouteModule<
     staticGenerationContext.renderOpts.fetchCache = this.userland.fetchCache
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
-    // support.
-    const response = await RequestAsyncStorageWrapper.wrap(
+    // support. We set this to `unknown` because the type is not known until
+    // runtime when we do a instanceof check below.
+    const response: unknown = await RequestAsyncStorageWrapper.wrap(
       this.requestAsyncStorage,
       requestContext,
       () =>
@@ -308,10 +303,7 @@ export class AppRouteRouteModule extends RouteModule<
             // Wrap the request so we can add additional functionality to cases
             // that might change it's output or affect the rendering.
             const wrappedRequest = proxyRequest(
-              // TODO: (wyattjoh) replace with unified request type
-              'request' in (req as WebNextRequest)
-                ? ((req as WebNextRequest).request as Request)
-                : wrapRequest(req),
+              request,
               { dynamic: this.dynamic },
               {
                 headerHooks: this.headerHooks,
@@ -384,12 +376,12 @@ export class AppRouteRouteModule extends RouteModule<
   }
 
   public async handle(
-    req: BaseNextRequest,
+    request: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
     try {
       // Execute the route to get the response.
-      const response = await this.execute(req, context)
+      const response = await this.execute(request, context)
 
       // The response was handled, return it.
       return response
