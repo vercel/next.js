@@ -99,7 +99,6 @@ export default class FetchCache implements CacheHandler {
           originUrl,
           fetchIdx,
         }
-        console.log(JSON.stringify(fetchParams))
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
@@ -200,7 +199,6 @@ export default class FetchCache implements CacheHandler {
           originUrl,
           fetchIdx,
         }
-        console.log(JSON.stringify(fetchParams))
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {

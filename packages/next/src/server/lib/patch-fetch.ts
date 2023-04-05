@@ -35,7 +35,6 @@ export function patchFetch({
       url = undefined
     }
 
-    console.log(`patchFetch: url: ${url}`)
     const method = init?.method?.toUpperCase() || 'GET'
 
     return await getTracer().trace(
@@ -235,9 +234,6 @@ export function patchFetch({
             next: { ...init?.next, fetchType: 'origin', fetchIdx, originUrl },
           }
 
-          console.log(
-            JSON.stringify({ fetchType: 'origin', fetchIdx, originUrl })
-          )
           return originFetch(input, clonedInit).then(async (res) => {
             if (
               staticGenerationStore.incrementalCache &&
