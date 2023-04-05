@@ -25,6 +25,14 @@ impl ServerAddr {
         Self(Some(addr))
     }
 
+    pub fn ip(&self) -> Option<String> {
+        self.0.map(|addr| addr.ip().to_string())
+    }
+
+    pub fn port(&self) -> Option<u16> {
+        self.0.map(|addr| addr.port())
+    }
+
     pub fn to_string(&self) -> Result<String> {
         let addr = &self.0.context("expected some server address")?;
         let uri = if addr.ip().is_loopback() || addr.ip().is_unspecified() {
