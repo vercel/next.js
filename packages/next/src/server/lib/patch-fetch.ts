@@ -31,6 +31,14 @@ const REQUEST_INPUT_FIELDS: ReadonlyArray<keyof Request & keyof RequestInit> = [
   'duplex',
 ] as const
 
+/**
+ * This will get an option from either the `init` value (if it's truthy) or
+ * the `input` value (if it's a `Request`).
+ *
+ * @param input the request info
+ * @param init the request init
+ * @param key the key to get
+ */
 function getOption<K extends keyof Request>(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
