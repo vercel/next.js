@@ -78,7 +78,7 @@ let BACKEND;
         }
 
         const previousLink = document.querySelector(
-          `link[href^="/${chunkPath}"]`
+          `link[type=stylesheet][href^="/${chunkPath}"]`
         );
 
         if (previousLink == null) {
