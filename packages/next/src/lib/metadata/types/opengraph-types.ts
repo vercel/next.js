@@ -125,7 +125,7 @@ type OpenGraphVideoOther = OpenGraphMetadata & {
 type OGImage = string | OGImageDescriptor | URL
 type OGImageDescriptor = {
   url: string | URL
-  secureUrl?: string | URL
+  secure_url?: string | URL
   alt?: string
   type?: string
   width?: string | number
@@ -140,7 +140,7 @@ type OGAudioDescriptor = {
 type OGVideo = string | OGVideoDescriptor | URL
 type OGVideoDescriptor = {
   url: string | URL
-  secureUrl?: string | URL
+  secure_url?: string | URL
   type?: string
   width?: string | number
   height?: string | number
