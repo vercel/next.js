@@ -229,8 +229,8 @@ describe('app dir with output export', () => {
     },
   ])(
     "should work with with isDev '$isDev' and dynamic $dynamic on page",
-    async ({ isDev, dynamic }) => {
-      await runTests({ isDev, dynamicPage: dynamic })
+    async ({ isDev, dynamic, expectedErrMsg }) => {
+      await runTests({ isDev, dynamicPage: dynamic, expectedErrMsg })
     }
   )
   it.each([
@@ -254,8 +254,8 @@ describe('app dir with output export', () => {
     },
   ])(
     "should work with with isDev '$isDev' and dynamic $dynamic on route handler",
-    async ({ isDev, dynamic }) => {
-      await runTests({ isDev, dynamicApiRoute: dynamic })
+    async ({ isDev, dynamic, expectedErrMsg }) => {
+      await runTests({ isDev, dynamicApiRoute: dynamic, expectedErrMsg })
     }
   )
   it('should throw when exportPathMap configured', async () => {
