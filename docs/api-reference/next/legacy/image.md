@@ -203,7 +203,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 ### style
 
-Allows [passing CSS styles](https://reactjs.org/docs/dom-elements.html#style) to the underlying image element.
+Allows [passing CSS styles](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/style) to the underlying image element.
 
 Note that all `layout` modes apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
@@ -274,9 +274,9 @@ If the image is nested in a scrollable parent element other than the root docume
 
 ### lazyRoot
 
-A React [Ref](https://reactjs.org/docs/refs-and-the-dom.html) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
+A React [Ref](https://react.dev/learn/referencing-values-with-refs) pointing to the scrollable parent element. Defaults to `null` (the document viewport).
 
-The Ref must point to a DOM element or a React component that [forwards the Ref](https://reactjs.org/docs/forwarding-refs.html) to the underlying DOM element.
+The Ref must point to a DOM element or a React component that [forwards the Ref](https://react.dev/reference/react/forwardRef) to the underlying DOM element.
 
 **Example pointing to a DOM element**
 
