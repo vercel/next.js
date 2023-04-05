@@ -14,6 +14,7 @@ import {
   // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
+import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -188,7 +189,8 @@ function getSelectedLayoutSegmentPath(
 
   if (!node) return segmentPath
   const segment = node[0]
-  const segmentValue = Array.isArray(segment) ? segment[1] : segment
+
+  const segmentValue = getSegmentValue(segment)
   if (!segmentValue || segmentValue.startsWith('__PAGE__')) return segmentPath
 
   segmentPath.push(segmentValue)

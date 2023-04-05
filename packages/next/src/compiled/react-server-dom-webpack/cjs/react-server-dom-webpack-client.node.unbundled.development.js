@@ -591,6 +591,12 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'n':
+        {
+          // BigInt
+          return BigInt(value.substring(2));
+        }
+
       default:
         {
           // We assume that anything else is a reference ID.

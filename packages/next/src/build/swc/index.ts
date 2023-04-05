@@ -298,13 +298,15 @@ async function loadWasm(importPath = '', isCustomTurbopack: boolean) {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[]
+              pageExtensions: string[],
+              callbackFn: (err: Error, entrypoints: any) => void
             ) => {
               return bindings.streamEntrypoints(
                 turboTasks,
                 rootDir,
                 applicationDir,
-                pageExtensions
+                pageExtensions,
+                callbackFn
               )
             },
             get: (

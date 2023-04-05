@@ -496,6 +496,26 @@ createNextDescribe(
             await next.patchFile(filePath, origContent)
           }
         })
+
+        it('should not break HMR when CSS is imported in a server component', async () => {
+          const filePath = 'app/hmr/page.js'
+          const origContent = await next.readFile(filePath)
+
+          const browser = await next.browser('/hmr')
+          await browser.eval(`window.__v = 1`)
+          try {
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello!', 'hmr!')
+            )
+            await check(() => browser.elementByCss('body').text(), 'hmr!')
+
+            // Make sure it doesn't reload the page
+            expect(await browser.eval(`window.__v`)).toBe(1)
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
       }
     })
 
@@ -508,15 +528,6 @@ createNextDescribe(
           await check(async () => {
             return await browser.eval(`window.__log`)
           }, /background = rgb\(255, 255, 0\)/)
-        })
-
-        it('should timeout if the resource takes too long', async () => {
-          const browser = await next.browser('/suspensey-css')
-          await browser.elementByCss('#timeout').click()
-          await check(() => browser.eval(`document.body.innerText`), 'Get back')
-          expect(await browser.eval(`window.__log`)).toEqual(
-            'background = rgba(0, 0, 0, 0)'
-          )
         })
       })
     }

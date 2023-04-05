@@ -6,8 +6,8 @@ use turbo_binding::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc},
             chunk::{
-                availability_info::AvailabilityInfo, Chunk, ChunkGroupVc, ChunkItem, ChunkItemVc,
-                ChunkVc, ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
+                availability_info::AvailabilityInfo, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc,
+                ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
                 ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunkingType,
                 ChunkingTypeOptionVc,
             },
@@ -140,7 +140,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
                 }
             }
 
-            asset_paths.push(chunk.path().await?);
+            asset_paths.push(chunk.ident().path().await?);
         }
 
         let mut client_chunks = Vec::new();
