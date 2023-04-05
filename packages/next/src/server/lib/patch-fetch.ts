@@ -49,7 +49,7 @@ export function getOption<K extends keyof RequestInit>(
   init: RequestInit,
   key: K
 ): RequestInit[K] | undefined
-export function getOption<K extends keyof (Request | RequestInit)>(
+export function getOption<K extends keyof (Request | RequestInit | URL)>(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
   key: K
@@ -57,12 +57,12 @@ export function getOption<K extends keyof (Request | RequestInit)>(
   let value
   if (init && key in init) {
     value = init[key]
-    if (value) return value
+    if (typeof value !== 'undefined') return value
   }
 
   if (typeof input === 'object' && key in input) {
-    value = (input as RequestInit)[key]
-    if (value) return value
+    value = (input as RequestInit | URL)[key]
+    if (typeof value !== 'undefined') return value
   }
 }
 
@@ -148,7 +148,7 @@ export function getRevalidate(
   // are not cacheable.
   const headers = getOption(input, init, 'headers')
   const hasNonCacheableHeaders: boolean = NON_CACHEABLE_HEADERS.some((header) =>
-    headers?.get(header)
+    headers?.get?.(header)
   )
 
   // Get the method for the fetch request and check if it is not cacheable.
@@ -193,6 +193,10 @@ interface PatchFetchOptions {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
+function isRequest(input: RequestInfo | URL): input is Request {
+  return typeof input !== 'string' && input.constructor?.name === 'Request'
+}
+
 export function createFetchPatch(
   { serverHooks, staticGenerationAsyncStorage }: PatchFetchOptions,
   originFetch: FetchFn
@@ -202,7 +206,7 @@ export function createFetchPatch(
   return async (input: RequestInfo | URL, init: RequestInit | undefined) => {
     let url
     try {
-      url = new URL(input instanceof Request ? input.url : input)
+      url = new URL(isRequest(input) ? input.url : input)
       url.username = ''
       url.password = ''
     } catch {
@@ -216,11 +220,7 @@ export function createFetchPatch(
     if (init && 'next' in init) {
       next = { ...init.next }
     }
-    if (
-      input instanceof Request &&
-      'next' in input &&
-      (input as RequestInit).next
-    ) {
+    if (isRequest(input) && (input as RequestInit).next) {
       // The nasty `(input as RequestInit).next` is needed
       // because it's not passing the type check correctly.
       if (next) {
@@ -271,9 +271,28 @@ export function createFetchPatch(
           store.revalidate = revalidate
         }
 
+        // If the incremental cache is available and the revalidate value is
+        // a number greater than 0, we generate a cache key for the fetch
+        // request.
+        let cacheKey: string | undefined
+        if (
+          store.incrementalCache &&
+          typeof revalidate === 'number' &&
+          revalidate > 0
+        ) {
+          try {
+            cacheKey = await store.incrementalCache.fetchCacheKey(
+              isRequest(input) ? input.url : input.toString(),
+              isRequest(input) ? input : init
+            )
+          } catch (err) {
+            console.error(`Failed to generate cache key for`, input, err)
+          }
+        }
+
         // Ensure that we copy over only the fields that are allowed to be
         // copied over to the new Request instance.
-        if (input instanceof Request) {
+        if (isRequest(input)) {
           const options: Record<string, any> = {
             body: (input as any)._ogBody || input.body,
           }
@@ -291,25 +310,6 @@ export function createFetchPatch(
             copy[field] = init[field]
           }
           init = copy
-        }
-
-        // If the incremental cache is available and the revalidate value is
-        // a number greater than 0, we generate a cache key for the fetch
-        // request.
-        let cacheKey: string | undefined
-        if (
-          store.incrementalCache &&
-          typeof revalidate === 'number' &&
-          revalidate > 0
-        ) {
-          try {
-            cacheKey = await store.incrementalCache.fetchCacheKey(
-              input instanceof Request ? input.url : input.toString(),
-              input instanceof Request ? input : init
-            )
-          } catch {
-            console.error(`Failed to generate cache key for`, input)
-          }
         }
 
         const doOriginalFetch = async () => {
@@ -409,7 +409,7 @@ export function createFetchPatch(
           if (init && 'next' in init) {
             delete init.next
           }
-          if (input instanceof Request && 'next' in input) {
+          if (isRequest(input) && 'next' in input) {
             delete (input as any).next
           }
 
