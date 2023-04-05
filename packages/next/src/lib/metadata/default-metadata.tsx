@@ -1,7 +1,7 @@
 import type { ResolvedMetadata } from './types/metadata-interface'
 
 export function createDefaultMetadata(): ResolvedMetadata {
-  let defaultMetadataBase =
+  const defaultMetadataBase =
     process.env.NODE_ENV === 'production' && process.env.VERCEL_URL
       ? new URL(`https://${process.env.VERCEL_URL}`)
       : null
