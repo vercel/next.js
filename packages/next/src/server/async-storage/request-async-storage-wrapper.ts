@@ -6,17 +6,33 @@ import type { PreviewData } from '../../../types'
 import type { RequestStore } from '../../client/components/request-async-storage'
 import type { RenderOpts } from '../app-render/types'
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
+import type { NextRequest } from '../web/spec-extension/request'
 
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
-import { ReadonlyHeaders } from '../app-render/readonly-headers'
-import { ReadonlyRequestCookies } from '../app-render/readonly-request-cookies'
+import {
+  HeadersAdapter,
+  type ReadonlyHeaders,
+} from '../web/spec-extension/adapters/headers'
+import {
+  RequestCookiesAdapter,
+  type ReadonlyRequestCookies,
+} from '../web/spec-extension/adapters/request-cookies'
+import { RequestCookies } from '../web/spec-extension/cookies'
 
-function headersWithoutFlight(headers: IncomingHttpHeaders) {
-  const newHeaders = { ...headers }
+function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
+  const cleaned = HeadersAdapter.from(headers)
   for (const param of FLIGHT_PARAMETERS) {
-    delete newHeaders[param.toString().toLowerCase()]
+    cleaned.delete(param.toString().toLowerCase())
   }
-  return newHeaders
+
+  return HeadersAdapter.seal(cleaned)
+}
+
+function getCookies(
+  headers: Headers | IncomingHttpHeaders
+): ReadonlyRequestCookies {
+  const cookies = new RequestCookies(HeadersAdapter.from(headers))
+  return RequestCookiesAdapter.seal(cookies)
 }
 
 /**
@@ -29,7 +45,7 @@ const tryGetPreviewData: typeof TryGetPreviewData | null =
     : null
 
 export type RequestContext = {
-  req: IncomingMessage | BaseNextRequest
+  req: IncomingMessage | BaseNextRequest | NextRequest
   res?: ServerResponse | BaseNextResponse
   renderOpts?: RenderOpts
 }
@@ -61,32 +77,29 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
           tryGetPreviewData(req, res, (renderOpts as any).previewProps)
         : false
 
-    let cachedHeadersInstance: ReadonlyHeaders
-    let cachedCookiesInstance: ReadonlyRequestCookies
+    const cache: {
+      headers?: ReadonlyHeaders
+      cookies?: ReadonlyRequestCookies
+    } = {}
 
     const store: RequestStore = {
       get headers() {
-        if (!cachedHeadersInstance) {
-          cachedHeadersInstance = new ReadonlyHeaders(
-            headersWithoutFlight(req.headers)
-          )
+        if (!cache.headers) {
+          // Seal the headers object that'll freeze out any methods that could
+          // mutate the underlying data.
+          cache.headers = getHeaders(req.headers)
         }
-        return cachedHeadersInstance
+
+        return cache.headers
       },
       get cookies() {
-        if (!cachedCookiesInstance) {
-          cachedCookiesInstance = new ReadonlyRequestCookies({
-            headers: {
-              get: (key) => {
-                if (key !== 'cookie') {
-                  throw new Error('Only cookie header is supported')
-                }
-                return req.headers.cookie
-              },
-            },
-          })
+        if (!cache.cookies) {
+          // Seal the cookies object that'll freeze out any methods that could
+          // mutate the underlying data.
+          cache.cookies = getCookies(req.headers)
         }
-        return cachedCookiesInstance
+
+        return cache.cookies
       },
       previewData,
     }
