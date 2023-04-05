@@ -1086,6 +1086,7 @@ export type AppConfig = {
 }
 export type GenerateParams = Array<{
   config?: AppConfig
+  isDynamicSegment?: boolean
   segmentPath: string
   getStaticPaths?: GetStaticPaths
   generateStaticParams?: any
@@ -1133,9 +1134,11 @@ export const collectGenerateParams = async (
   const config = collectAppConfig(mod)
 
   const isClientComponent = isClientReference(mod)
+  const isDynamicSegment = segment[0] && /^\[.+\]$/.test(segment[0])
 
   const result = {
     isLayout,
+    isDynamicSegment,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
@@ -1152,7 +1155,11 @@ export const collectGenerateParams = async (
 
   if (result.config || result.generateStaticParams || result.getStaticPaths) {
     generateParams.push(result)
+  } else if (isDynamicSegment) {
+    // It is a dynamic route, but no config was provided
+    generateParams.push(result)
   }
+
   return collectGenerateParams(
     segment[1]?.children,
     parentSegments,
@@ -1243,7 +1250,7 @@ export async function buildAppStaticPaths({
         // if generateStaticParams is being used we iterate over them
         // collecting them from each level
         type Params = Array<Record<string, string | string[]>>
-        let hadGenerateParams = false
+        let hadAllParamsGenerated = false
 
         const buildParams = async (
           paramsItems: Params = [{}],
@@ -1258,9 +1265,15 @@ export async function buildAppStaticPaths({
             typeof curGenerate.generateStaticParams !== 'function' &&
             idx < generateParams.length
           ) {
+            if (curGenerate.isDynamicSegment) {
+              // This dynamic level has no generateStaticParams so we change
+              // this flag to false, but it could be covered by a later
+              // generateStaticParams so it could be set back to true.
+              hadAllParamsGenerated = false
+            }
             return buildParams(paramsItems, idx + 1)
           }
-          hadGenerateParams = true
+          hadAllParamsGenerated = true
 
           const newParams = []
 
@@ -1287,7 +1300,7 @@ export async function buildAppStaticPaths({
           (generate) => generate.config?.dynamicParams === false
         )
 
-        if (!hadGenerateParams) {
+        if (!hadAllParamsGenerated) {
           return {
             paths: undefined,
             fallback:

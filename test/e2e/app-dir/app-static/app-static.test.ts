@@ -54,6 +54,16 @@ createNextDescribe(
           'A required parameter (slug) was not provided as a string received object'
         )
       })
+
+      it('should correctly handle multi-level generateStaticParams when some levels are missing', async () => {
+        const browser = await next.browser('/flight/foo/bar')
+        const v = ~~(Math.random() * 1000)
+        await browser.eval(`document.cookie = "test-cookie=${v}"`)
+        await browser.elementByCss('button').click()
+        await check(async () => {
+          return await browser.elementByCss('h1').text()
+        }, v.toString())
+      })
     }
 
     it('should correctly skip caching POST fetch for POST handler', async () => {
