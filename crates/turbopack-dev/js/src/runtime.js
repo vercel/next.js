@@ -166,6 +166,7 @@ function interopEsm(raw, ns, allowExportDefault) {
  */
 function esmImport(sourceModule, id, allowExportDefault) {
   const module = getOrInstantiateModuleFromParent(id, sourceModule);
+  if (module.error) throw module.error;
   const raw = module.exports;
   if (raw.__esModule) return raw;
   if (module.interopNamespace) return module.interopNamespace;
@@ -180,7 +181,9 @@ function esmImport(sourceModule, id, allowExportDefault) {
  * @returns {Exports}
  */
 function commonJsRequire(sourceModule, id) {
-  return getOrInstantiateModuleFromParent(id, sourceModule).exports;
+  const module = getOrInstantiateModuleFromParent(id, sourceModule);
+  if (module.error) throw module.error;
+  return module.exports;
 }
 
 function externalRequire(id, esm) {
@@ -276,6 +279,7 @@ function instantiateModule(id, source) {
   /** @type {Module} */
   const module = {
     exports: {},
+    error: undefined,
     loaded: false,
     id,
     parents: undefined,
@@ -302,21 +306,25 @@ function instantiateModule(id, source) {
   }
 
   runModuleExecutionHooks(module, () => {
-    moduleFactory.call(module.exports, {
-      e: module.exports,
-      r: commonJsRequire.bind(null, module),
-      x: externalRequire,
-      i: esmImport.bind(null, module),
-      s: esm.bind(null, module.exports),
-      j: cjs.bind(null, module.exports),
-      v: exportValue.bind(null, module),
-      m: module,
-      c: moduleCache,
-      l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
-      k: registerChunkList,
-      g: globalThis,
-      __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
-    });
+    try {
+      moduleFactory.call(module.exports, {
+        e: module.exports,
+        r: commonJsRequire.bind(null, module),
+        x: externalRequire,
+        i: esmImport.bind(null, module),
+        s: esm.bind(null, module.exports),
+        j: cjs.bind(null, module.exports),
+        v: exportValue.bind(null, module),
+        m: module,
+        c: moduleCache,
+        l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
+        k: registerChunkList,
+        g: globalThis,
+        __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
+      });
+    } catch (error) {
+      module.error = error;
+    }
   });
 
   module.loaded = true;
