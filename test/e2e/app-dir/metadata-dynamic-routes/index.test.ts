@@ -119,11 +119,17 @@ createNextDescribe(
       })
 
       it('should support params as argument in dynamic routes', async () => {
-        const bufferBig = await (
-          await next.fetch('/dynamic/big/opengraph-image')
-        ).buffer()
+        const big$ = await next.render$('/dynamic/big')
+        const small$ = await next.render$('/dynamic/small')
+        const bigOgUrl = new URL(
+          big$('meta[property="og:image"]').attr('content')
+        )
+        const smallOgUrl = new URL(
+          small$('meta[property="og:image"]').attr('content')
+        )
+        const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
         const bufferSmall = await (
-          await next.fetch('/dynamic/small/opengraph-image')
+          await next.fetch(smallOgUrl.pathname)
         ).buffer()
 
         const sizeBig = imageSize(bufferBig)
