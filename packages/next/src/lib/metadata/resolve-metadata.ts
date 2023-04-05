@@ -210,7 +210,7 @@ async function getDefinedMetadata(
             {
               spanName: `generateMetadata ${route}`,
               attributes: {
-                'next.route': route,
+                'next.page': route,
               },
             },
             () => mod.generateMetadata(props, parent)
@@ -221,26 +221,27 @@ async function getDefinedMetadata(
 
 async function collectStaticImagesFiles(
   metadata: ComponentsType['metadata'],
+  props: any,
   type: keyof NonNullable<ComponentsType['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (iconResolver: () => Promise<MetadataImageModule>) =>
-      interopDefault(await iconResolver())
+    async (imageModule: (p: any) => Promise<MetadataImageModule>) =>
+      interopDefault(await imageModule(props))
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
 
-async function resolveStaticMetadata(components: ComponentsType) {
+async function resolveStaticMetadata(components: ComponentsType, props: any) {
   const { metadata } = components
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([
-    collectStaticImagesFiles(metadata, 'icon'),
-    collectStaticImagesFiles(metadata, 'apple'),
-    collectStaticImagesFiles(metadata, 'openGraph'),
-    collectStaticImagesFiles(metadata, 'twitter'),
+    collectStaticImagesFiles(metadata, props, 'icon'),
+    collectStaticImagesFiles(metadata, props, 'apple'),
+    collectStaticImagesFiles(metadata, props, 'openGraph'),
+    collectStaticImagesFiles(metadata, props, 'twitter'),
   ])
 
   const staticMetadata = {
@@ -271,7 +272,7 @@ export async function collectMetadata({
     route += `/${modType}`
   }
 
-  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2], props)
   const metadataExport = mod
     ? await getDefinedMetadata(mod, props, route)
     : null

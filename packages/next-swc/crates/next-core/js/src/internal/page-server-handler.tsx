@@ -19,6 +19,7 @@ import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { RenderData } from "types/turbopack";
 import type { ChunkGroup } from "types/next";
+import type { NextComponentType } from "next/types";
 import { parse } from "node:querystring";
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
@@ -40,19 +41,22 @@ type IpcOutgoingMessage =
 const MIME_APPLICATION_JAVASCRIPT = "application/javascript";
 const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
 
+type ModuleImport = Promise<{
+  Component: NextComponentType,
+  namespace: Record<string, any>;
+}>
+
 export default function startHandler({
   isDataReq,
   App,
   Document,
-  Component,
-  otherExports,
+  mod,
   chunkGroup,
 }: {
   isDataReq: boolean;
   App?: any;
   Document?: any;
-  Component?: any;
-  otherExports: any;
+  mod: () => ModuleImport,
   chunkGroup?: ChunkGroup;
 }) {
   (async () => {
@@ -71,7 +75,9 @@ export default function startHandler({
         }
       }
 
-      const res = await runOperation(renderData);
+      const { Component, namespace } = await mod();
+
+      const res = await runOperation(renderData, Component, namespace);
 
       ipc.send(res);
     }
@@ -80,16 +86,18 @@ export default function startHandler({
   });
 
   async function runOperation(
-    renderData: RenderData
+    renderData: RenderData,
+    Component: NextComponentType,
+    namespace: Record<string, any>,
   ): Promise<IpcOutgoingMessage> {
-    if ("getStaticPaths" in otherExports) {
+    if ("getStaticPaths" in namespace) {
       const {
         paths: prerenderRoutes,
         fallback: prerenderFallback,
         encodedPaths: _encodedPrerenderRoutes,
       } = await buildStaticPaths({
         page: renderData.path,
-        getStaticPaths: otherExports.getStaticPaths,
+        getStaticPaths: namespace.getStaticPaths,
         // TODO(alexkirsz) Provide the correct next.config.js path.
         configFileName: "next.config.js",
       });
@@ -140,7 +148,7 @@ export default function startHandler({
     const comp =
       typeof Component === "undefined" ||
       (typeof Component === "object" && Object.keys(Component).length === 0)
-        ? () => {}
+        ? () => null
         : Component;
 
     const renderOpts: RenderOpts = {
@@ -153,7 +161,7 @@ export default function startHandler({
       reactLoadableManifest: createReactLoadableManifestProxy(),
       ComponentMod: {
         default: comp,
-        ...otherExports,
+        ...namespace,
       },
       pathname: renderData.path,
       buildId: "development",
@@ -195,14 +203,14 @@ export default function startHandler({
       },
     };
 
-    if ("getStaticPaths" in otherExports) {
-      renderOpts.getStaticPaths = otherExports.getStaticPaths;
+    if ("getStaticPaths" in namespace) {
+      renderOpts.getStaticPaths = namespace.getStaticPaths;
     }
-    if ("getStaticProps" in otherExports) {
-      renderOpts.getStaticProps = otherExports.getStaticProps;
+    if ("getStaticProps" in namespace) {
+      renderOpts.getStaticProps = namespace.getStaticProps;
     }
-    if ("getServerSideProps" in otherExports) {
-      renderOpts.getServerSideProps = otherExports.getServerSideProps;
+    if ("getServerSideProps" in namespace) {
+      renderOpts.getServerSideProps = namespace.getServerSideProps;
     }
 
     const req: IncomingMessage = {

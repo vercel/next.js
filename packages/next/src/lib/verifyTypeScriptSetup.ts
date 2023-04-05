@@ -112,9 +112,9 @@ export async function verifyTypeScriptSetup({
       require(tsPath)
     )) as typeof import('typescript')
 
-    if (semver.lt(ts.version, '4.3.2')) {
+    if (semver.lt(ts.version, '4.5.2')) {
       log.warn(
-        `Minimum recommended TypeScript version is v4.3.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
+        `Minimum recommended TypeScript version is v4.5.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
       )
     }
 

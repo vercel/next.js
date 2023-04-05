@@ -1,16 +1,19 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use turbo_binding::turbo::tasks_fs::{glob::GlobVc, FileJsonContent, FileSystemPathVc};
-use turbo_binding::turbopack::core::{
-    asset::Asset,
-    resolve::{
-        find_context_file,
-        node::node_cjs_resolve_options,
-        package_json,
-        parse::{Request, RequestVc},
-        plugin::{ResolvePlugin, ResolvePluginConditionVc, ResolvePluginVc},
-        resolve, FindContextFileResult, PrimaryResolveResult, ResolveResult, ResolveResultOptionVc,
+use turbo_binding::{
+    turbo::tasks_fs::{glob::GlobVc, FileJsonContent, FileSystemPathVc},
+    turbopack::core::{
+        asset::Asset,
+        resolve::{
+            find_context_file,
+            node::node_cjs_resolve_options,
+            package_json,
+            parse::{Request, RequestVc},
+            plugin::{ResolvePlugin, ResolvePluginConditionVc, ResolvePluginVc},
+            resolve, FindContextFileResult, PrimaryResolveResult, ResolveResult,
+            ResolveResultOptionVc,
+        },
     },
 };
 use turbo_tasks::primitives::{BoolVc, StringsVc};

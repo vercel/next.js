@@ -76,6 +76,52 @@ createNextDescribe(
       }
     })
 
+    // On-Demand Revalidate has not effect in dev
+    if (!(global as any).isNextDev) {
+      it('should revalidate all fetches during on-demand revalidate', async () => {
+        const initRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const html = await initRes.text()
+        const $ = cheerio.load(html)
+        const initLayoutData = $('#layout-data').text()
+        const initPageData = $('#page-data').text()
+
+        expect(initLayoutData).toBeTruthy()
+        expect(initPageData).toBeTruthy()
+
+        const revalidateRes = await next.fetch(
+          '/api/revalidate?path=/variable-revalidate/revalidate-360'
+        )
+        expect((await revalidateRes.json()).revalidated).toBe(true)
+
+        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+        const newHtml = await newRes.text()
+        const new$ = cheerio.load(newHtml)
+        const newLayoutData = new$('#layout-data').text()
+        const newPageData = new$('#page-data').text()
+
+        expect(newLayoutData).toBeTruthy()
+        expect(newPageData).toBeTruthy()
+        expect(newLayoutData).not.toBe(initLayoutData)
+        expect(newPageData).not.toBe(initPageData)
+      })
+    }
+
+    it('should correctly handle fetchCache = "force-no-store"', async () => {
+      const initRes = await next.fetch('/force-no-store')
+      const html = await initRes.text()
+      const $ = cheerio.load(html)
+      const initPageData = $('#page-data').text()
+      expect(initPageData).toBeTruthy()
+
+      const newRes = await next.fetch('/force-no-store')
+      const newHtml = await newRes.text()
+      const new$ = cheerio.load(newHtml)
+      const newPageData = new$('#page-data').text()
+
+      expect(newPageData).toBeTruthy()
+      expect(newPageData).not.toBe(initPageData)
+    })
+
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate correctly with config and fetch revalidate', async () => {
         const initial$ = await next.render$(
@@ -176,6 +222,7 @@ createNextDescribe(
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
+          'force-no-store/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -263,6 +310,9 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
+          'variable-revalidate/revalidate-360.html',
+          'variable-revalidate/revalidate-360.rsc',
+          'variable-revalidate/revalidate-360/page.js',
           'variable-revalidate/status-code.html',
           'variable-revalidate/status-code.rsc',
           'variable-revalidate/status-code/page.js',
@@ -474,6 +524,11 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-3.rsc',
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
+          },
+          '/variable-revalidate/revalidate-360': {
+            dataRoute: '/variable-revalidate/revalidate-360.rsc',
+            initialRevalidateSeconds: 10,
+            srcRoute: '/variable-revalidate/revalidate-360',
           },
           '/variable-revalidate/status-code': {
             dataRoute: '/variable-revalidate/status-code.rsc',
@@ -1229,49 +1284,51 @@ createNextDescribe(
       }, 'success')
     })
 
-    it('should honor dynamic = "force-static" correctly', async () => {
-      const res = await next.fetch('/force-static/first')
-      expect(res.status).toBe(200)
+    if (!process.env.CUSTOM_CACHE_HANDLER) {
+      it('should honor dynamic = "force-static" correctly', async () => {
+        const res = await next.fetch('/force-static/first')
+        expect(res.status).toBe(200)
 
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      expect(JSON.parse($('#params').text())).toEqual({ slug: 'first' })
-      expect(JSON.parse($('#headers').text())).toEqual([])
-      expect(JSON.parse($('#cookies').text())).toEqual([])
+        expect(JSON.parse($('#params').text())).toEqual({ slug: 'first' })
+        expect(JSON.parse($('#headers').text())).toEqual([])
+        expect(JSON.parse($('#cookies').text())).toEqual([])
 
-      const firstTime = $('#now').text()
+        const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
-        const res2 = await next.fetch('/force-static/first')
-        expect(res2.status).toBe(200)
+        if (!(global as any).isNextDev) {
+          const res2 = await next.fetch('/force-static/first')
+          expect(res2.status).toBe(200)
 
-        const $2 = cheerio.load(await res2.text())
-        expect(firstTime).toBe($2('#now').text())
-      }
-    })
+          const $2 = cheerio.load(await res2.text())
+          expect(firstTime).toBe($2('#now').text())
+        }
+      })
 
-    it('should honor dynamic = "force-static" correctly (lazy)', async () => {
-      const res = await next.fetch('/force-static/random')
-      expect(res.status).toBe(200)
+      it('should honor dynamic = "force-static" correctly (lazy)', async () => {
+        const res = await next.fetch('/force-static/random')
+        expect(res.status).toBe(200)
 
-      const html = await res.text()
-      const $ = cheerio.load(html)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-      expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
-      expect(JSON.parse($('#headers').text())).toEqual([])
-      expect(JSON.parse($('#cookies').text())).toEqual([])
+        expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
+        expect(JSON.parse($('#headers').text())).toEqual([])
+        expect(JSON.parse($('#cookies').text())).toEqual([])
 
-      const firstTime = $('#now').text()
+        const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
-        const res2 = await next.fetch('/force-static/random')
-        expect(res2.status).toBe(200)
+        if (!(global as any).isNextDev) {
+          const res2 = await next.fetch('/force-static/random')
+          expect(res2.status).toBe(200)
 
-        const $2 = cheerio.load(await res2.text())
-        expect(firstTime).toBe($2('#now').text())
-      }
-    })
+          const $2 = cheerio.load(await res2.text())
+          expect(firstTime).toBe($2('#now').text())
+        }
+      })
+    }
 
     // since we aren't leveraging fs cache with custom handler
     // then these will 404 as they are cache misses

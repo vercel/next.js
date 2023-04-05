@@ -15,6 +15,7 @@ import {
   isDefaultFunctionExport,
   isPositionInsideNode,
   getSource,
+  isInsideApp,
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
@@ -23,6 +24,7 @@ import serverLayer from './rules/server'
 import entryDefault from './rules/entry'
 import clientBoundary from './rules/client-boundary'
 import metadata from './rules/metadata'
+import errorEntry from './rules/error'
 
 export function createTSPlugin(modules: {
   typescript: typeof import('typescript/lib/tsserverlibrary')
@@ -187,6 +189,14 @@ export function createTSPlugin(modules: {
           ...e,
         })
         isClientEntry = false
+      }
+
+      if (isInsideApp(fileName)) {
+        const errorDiagnostic = errorEntry.getSemanticDiagnostics(
+          source!,
+          isClientEntry
+        )
+        prior.push(...errorDiagnostic)
       }
 
       ts.forEachChild(source!, (node) => {

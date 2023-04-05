@@ -6,12 +6,6 @@ createNextDescribe(
   'app dir - navigation',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDeploy }) => {
     describe('query string', () => {
@@ -283,6 +277,13 @@ createNextDescribe(
         expect(html).toContain('<meta name="robots" content="noindex"/>')
         expect(html).toContain(
           '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        )
+      })
+
+      it('should not log 404 errors in ipc server', async () => {
+        await next.fetch('/this-path-does-not-exist')
+        expect(next.cliOutput).not.toInclude(
+          'PageNotFoundError: Cannot find module for page'
         )
       })
     })
