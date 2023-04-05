@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString};
+use turbo_tasks::primitives::StringVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-    chunk::{Chunk, ChunkVc, ChunkingContext},
+    chunk::{ChunkVc, ChunkingContext},
     ident::AssetIdentVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
     version::{VersionedContent, VersionedContentVc},
