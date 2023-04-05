@@ -17,7 +17,7 @@ export default function Page() {
     router.prefetch('/about')
     router.push('/redirect')
     router.push(`/blog/${'a/b'}`)
-    router.push(('/blog/' + 'a/b') as Route)
+    router.push('/invalid' as Route)
     router.back()
   }
 
