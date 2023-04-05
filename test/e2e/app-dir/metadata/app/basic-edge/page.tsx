@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Client from './client'
 
+export const runtime = 'experimental-edge'
+
 export default function Page() {
   return (
     <div id="basic">
