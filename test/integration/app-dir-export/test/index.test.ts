@@ -212,58 +212,52 @@ describe('app dir with output export', () => {
     { isDev: true, dynamic: 'undefined' },
     { isDev: true, dynamic: "'error'" },
     { isDev: true, dynamic: "'force-static'" },
+    {
+      isDev: true,
+      dynamic: "'force-dynamic'",
+      expectedErrMsg:
+        'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
+    },
     { isDev: false, dynamic: 'undefined' },
     { isDev: false, dynamic: "'error'" },
     { isDev: false, dynamic: "'force-static'" },
+    {
+      isDev: false,
+      dynamic: "'force-dynamic'",
+      expectedErrMsg:
+        'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
+    },
   ])(
     "should work with with isDev '$isDev' and dynamic $dynamic on page",
     async ({ isDev, dynamic }) => {
       await runTests({ isDev, dynamicPage: dynamic })
     }
   )
-  it("should throw when dynamic 'force-dynamic' on page", async () => {
-    await fs.remove(distDir)
-    await fs.remove(exportDir)
-    await runTests({
-      isDev: false,
-      dynamicPage: `'force-dynamic'`,
-      expectedErrMsg:
-        'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
-    })
-  })
   it.each([
     { isDev: true, dynamic: 'undefined' },
     { isDev: true, dynamic: "'error'" },
     { isDev: true, dynamic: "'force-static'" },
+    {
+      isDev: true,
+      dynamic: "'force-dynamic'",
+      expectedErrMsg:
+        'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".',
+    },
     { isDev: false, dynamic: 'undefined' },
     { isDev: false, dynamic: "'error'" },
     { isDev: false, dynamic: "'force-static'" },
+    {
+      isDev: false,
+      dynamic: "'force-dynamic'",
+      expectedErrMsg:
+        'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".',
+    },
   ])(
     "should work with with isDev '$isDev' and dynamic $dynamic on route handler",
     async ({ isDev, dynamic }) => {
       await runTests({ isDev, dynamicApiRoute: dynamic })
     }
   )
-  it("should throw when dynamic 'force-dynamic' on route handler", async () => {
-    apiJson.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = 'force-dynamic'`
-    )
-    await fs.remove(distDir)
-    await fs.remove(exportDir)
-    let result = { code: 0, stderr: '' }
-    try {
-      result = await nextBuild(appDir, [], { stderr: true })
-    } finally {
-      nextConfig.restore()
-      slugPage.restore()
-      apiJson.restore()
-    }
-    expect(result.code).toBe(1)
-    expect(result.stderr).toContain(
-      'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".'
-    )
-  })
   it('should throw when exportPathMap configured', async () => {
     nextConfig.replace(
       'trailingSlash: true,',
