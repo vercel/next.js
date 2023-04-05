@@ -1,4 +1,7 @@
-import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type {
+  StaticGenerationAsyncStorage,
+  StaticGenerationStore,
+} from '../../client/components/static-generation-async-storage'
 import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan } from './trace/constants'
@@ -6,6 +9,174 @@ import { getTracer, SpanKind } from './trace/tracer'
 import { CACHE_ONE_YEAR } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+const CACHEABLE_METHODS = ['GET', 'HEAD']
+
+const NON_CACHEABLE_HEADERS = ['authorization', 'cookie']
+
+// @ts-expect-error - duplex is not in the type definition
+const REQUEST_INPUT_FIELDS: ReadonlyArray<keyof Request & keyof RequestInit> = [
+  'cache',
+  'credentials',
+  'headers',
+  'integrity',
+  'keepalive',
+  'method',
+  'mode',
+  'redirect',
+  'referrer',
+  'referrerPolicy',
+  'signal',
+  'window',
+  'duplex',
+] as const
+
+function getOption<K extends keyof Request>(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  key: K
+): Request[K] | undefined
+function getOption<K extends keyof RequestInit>(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  key: K
+): RequestInit[K] | undefined
+function getOption<K extends keyof (Request | RequestInit)>(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  key: K
+): unknown {
+  let value
+  if (init && key in init) {
+    value = init[key]
+    if (value) return value
+  }
+
+  if (input instanceof Request && key in input) {
+    value = input[key]
+    if (value) return value
+  }
+}
+
+/**
+ * Get the revalidate value to use for the fetch based on the fetch config
+ * and the page's static generation store.
+ *
+ * @param fetchNextRevalidate the current revalidate value from the fetch config
+ * @param fetchCache the cache value from the fetch config
+ * @param store the static generation store
+ * @returns the revalidate value to use for the fetch
+ */
+function getRevalidate(
+  fetchNextRevalidate: number | false | undefined,
+  input: Readonly<RequestInfo | URL>,
+  init: Readonly<RequestInit | undefined>,
+  store: Readonly<StaticGenerationStore>
+): number | undefined {
+  // Get the fetch cache value from the fetch config.
+  const fetchCache = getOption(input, init, 'cache')
+
+  // If the store is set to `only-cache` and the fetch cache is set to
+  // `no-store` then throw an error.
+  if (store.fetchCache === 'only-cache' && fetchCache === 'no-store') {
+    throw new Error(
+      `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
+    )
+  }
+
+  // If the store is set to `only-no-store` and the fetch cache is set to
+  // `force-cache` then throw an error.
+  if (store.fetchCache === 'only-no-store' && fetchCache === 'force-cache') {
+    throw new Error(
+      `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
+    )
+  }
+
+  switch (fetchCache) {
+    // If the fetch cache is set to `no-cache` or `no-store` then set the
+    // revalidate to `0` to prevent the fetch from caching (it expires
+    // immediately).
+    case 'no-cache':
+    case 'no-store':
+      return 0
+    // If the fetch cache is set to `force-cache` then set the revalidate to
+    // `CACHE_ONE_YEAR` to ensure the cache is used for the maximum amount of
+    // time.
+    case 'force-cache':
+      return CACHE_ONE_YEAR
+    default:
+  }
+
+  switch (store.fetchCache) {
+    // If the page's store is set to `force-cache` then set the revalidate to
+    // `CACHE_ONE_YEAR` to ensure the cache is used for the maximum amount of
+    // time.
+    case 'force-cache':
+      return CACHE_ONE_YEAR
+    // If the page's store is set to `force-no-store` then set the revalidate
+    // to `0` to prevent the fetch from caching (it expires immediately).
+    case 'force-no-store':
+      return 0
+    default:
+  }
+
+  // If the fetch next revalidate value is `false` then set the revalidate to
+  // `CACHE_ONE_YEAR` to ensure the cache is used for the maximum amount of
+  // time.
+  if (fetchNextRevalidate === false) {
+    return CACHE_ONE_YEAR
+  }
+
+  // If the fetch next revalidate value is a number, return that!
+  if (typeof fetchNextRevalidate === 'number') {
+    return fetchNextRevalidate
+  }
+
+  if (store.fetchCache === 'only-no-store') {
+    return 0
+  }
+
+  // Get the headers for the fetch request and check if any of the headers
+  // are not cacheable.
+  const headers = getOption(input, init, 'headers')
+  const hasNonCacheableHeaders: boolean = NON_CACHEABLE_HEADERS.some((header) =>
+    headers?.get(header)
+  )
+
+  // Get the method for the fetch request and check if it is not cacheable.
+  const method = getOption(input, init, 'method')?.toUpperCase() ?? 'GET'
+  const hasNonCacheableMethod = CACHEABLE_METHODS.every((m) => m !== method)
+
+  // If the revalidate value in the store is `0` and the fetch has a header
+  // that is not cacheable or the method is not cacheable then set the
+  // revalidate to `0` to prevent the fetch from caching (it expires
+  // immediately).
+  if (
+    store.revalidate === 0 &&
+    (hasNonCacheableHeaders || hasNonCacheableMethod)
+  ) {
+    return 0
+  }
+
+  // If the page's store is set to `default-no-store` then set the revalidate
+  // to `0` to prevent the fetch from caching (it expires immediately).
+  if (store.fetchCache === 'default-no-store') {
+    return 0
+  }
+
+  // If the page's store is a boolean (false) or undefined then set the
+  // revalidate to `CACHE_ONE_YEAR` to ensure the cache is used for the
+  // maximum amount of time.
+  if (
+    typeof store.revalidate === 'boolean' ||
+    typeof store.revalidate === 'undefined'
+  ) {
+    return CACHE_ONE_YEAR
+  }
+
+  // At this point, the page's store is a number or undefined so we return that!
+  return store.revalidate
+}
 
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
@@ -35,7 +206,23 @@ export function patchFetch({
       url = undefined
     }
 
-    const method = init?.method?.toUpperCase() || 'GET'
+    // Get the next config from the init and merge it with the one from the
+    // input if it exists. The next config from the input will take precedence.
+    let next: NextFetchRequestConfig | undefined
+    if (init && 'next' in init) {
+      next = { ...init.next }
+    }
+    if (input instanceof Request && 'next' in input && input.next) {
+      if (next) {
+        next = { ...next, ...input.next }
+      } else {
+        next = { ...input.next }
+      }
+    }
+
+    // Get the request method. This will internally default to GET if the
+    // method is not specified.
+    const method = getOption(input, init, 'method')?.toUpperCase() ?? 'GET'
 
     return await getTracer().trace(
       AppRenderSpan.fetch,
@@ -52,180 +239,73 @@ export function patchFetch({
         },
       },
       async () => {
-        const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-        const isRequestInput =
-          input &&
-          typeof input === 'object' &&
-          typeof (input as Request).method === 'string'
-
-        const getRequestMeta = (field: string) => {
-          let value = isRequestInput ? (input as any)[field] : null
-          return value || (init as any)?.[field]
-        }
+        const store = staticGenerationAsyncStorage.getStore()
 
         // If the staticGenerationStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
         // fetch implementation.
-        if (!staticGenerationStore || (init?.next as any)?.internal) {
+        if (!store || (next as any)?.internal) {
           return originFetch(input, init)
         }
 
-        let revalidate: number | undefined | false = undefined
-        // RequestInit doesn't keep extra fields e.g. next so it's
-        // only available if init is used separate
-        let curRevalidate =
-          typeof init?.next?.revalidate !== 'undefined'
-            ? init?.next?.revalidate
-            : isRequestInput
-            ? (input as any).next?.revalidate
-            : undefined
+        // Calculate the revalidate value for the fetch request.
+        let revalidate = getRevalidate(next?.revalidate, input, init, store)
 
-        const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
-        const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
-        const isDefaultNoStore =
-          staticGenerationStore.fetchCache === 'default-no-store'
-        const isOnlyNoStore =
-          staticGenerationStore.fetchCache === 'only-no-store'
-        const isForceNoStore =
-          staticGenerationStore.fetchCache === 'force-no-store'
-
-        const _cache = getRequestMeta('cache')
-
-        if (_cache === 'force-cache' || isForceCache) {
-          curRevalidate = false
-        }
-        if (['no-cache', 'no-store'].includes(_cache || '')) {
-          curRevalidate = 0
-        }
-        if (typeof curRevalidate === 'number') {
-          revalidate = curRevalidate
-        }
-
-        if (curRevalidate === false) {
-          revalidate = CACHE_ONE_YEAR
-        }
-
-        const _headers = getRequestMeta('headers')
-        const initHeaders: Headers =
-          typeof _headers?.get === 'function'
-            ? _headers
-            : new Headers(_headers || {})
-
-        const hasUnCacheableHeader =
-          initHeaders.get('authorization') || initHeaders.get('cookie')
-
-        const isUnCacheableMethod = !['get', 'head'].includes(
-          getRequestMeta('method')?.toLowerCase() || 'get'
-        )
-
-        // if there are authorized headers or a POST method and
-        // dynamic data usage was present above the tree we bail
-        // e.g. if cookies() is used before an authed/POST fetch
-        const autoNoCache =
-          (hasUnCacheableHeader || isUnCacheableMethod) &&
-          staticGenerationStore.revalidate === 0
-
-        if (isForceNoStore) {
-          revalidate = 0
-        }
-
-        if (typeof revalidate === 'undefined') {
-          if (isOnlyCache && _cache === 'no-store') {
-            throw new Error(
-              `cache: 'no-store' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-cache'`
-            )
-          }
-
-          if (isOnlyNoStore) {
-            revalidate = 0
-
-            if (_cache === 'force-cache') {
-              throw new Error(
-                `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
-              )
-            }
-          } else if (autoNoCache) {
-            revalidate = 0
-          } else if (isDefaultNoStore) {
-            revalidate = 0
-          } else {
-            revalidate =
-              typeof staticGenerationStore.revalidate === 'boolean' ||
-              typeof staticGenerationStore.revalidate === 'undefined'
-                ? CACHE_ONE_YEAR
-                : staticGenerationStore.revalidate
-          }
-        }
-
+        // If the store does not have a revalidate value or the revalidate
+        // value is less than the store's revalidate value, we update the
+        // store's revalidate value.
         if (
-          // we don't consider autoNoCache to switch to dynamic during
-          // revalidate although if it occurs during build we do
-          !autoNoCache &&
-          (typeof staticGenerationStore.revalidate === 'undefined' ||
-            (typeof revalidate === 'number' &&
-              revalidate < staticGenerationStore.revalidate))
+          typeof store.revalidate === 'undefined' ||
+          (typeof revalidate === 'number' && revalidate < store.revalidate)
         ) {
-          staticGenerationStore.revalidate = revalidate
+          store.revalidate = revalidate
         }
 
+        // Ensure that we copy over only the fields that are allowed to be
+        // copied over to the new Request instance.
+        if (input instanceof Request) {
+          const options: Record<string, any> = {
+            body: (input as any)._ogBody || input.body,
+          }
+
+          for (const field of REQUEST_INPUT_FIELDS) {
+            options[field] = input[field]
+          }
+
+          input = new Request(input.url, options)
+        } else if (init) {
+          const copy: Record<string, any> = {
+            body: (init as any)._ogBody || init.body,
+          }
+          for (const field of REQUEST_INPUT_FIELDS) {
+            copy[field] = init[field]
+          }
+          init = copy
+        }
+
+        // If the incremental cache is available and the revalidate value is
+        // a number greater than 0, we generate a cache key for the fetch
+        // request.
         let cacheKey: string | undefined
         if (
-          staticGenerationStore.incrementalCache &&
+          store.incrementalCache &&
           typeof revalidate === 'number' &&
           revalidate > 0
         ) {
           try {
-            cacheKey =
-              await staticGenerationStore.incrementalCache.fetchCacheKey(
-                isRequestInput ? (input as Request).url : input.toString(),
-                isRequestInput ? (input as RequestInit) : init
-              )
-          } catch (err) {
+            cacheKey = await store.incrementalCache.fetchCacheKey(
+              input instanceof Request ? input.url : input.toString(),
+              input instanceof Request ? input : init
+            )
+          } catch {
             console.error(`Failed to generate cache key for`, input)
-          }
-        }
-        const requestInputFields = [
-          'cache',
-          'credentials',
-          'headers',
-          'integrity',
-          'keepalive',
-          'method',
-          'mode',
-          'redirect',
-          'referrer',
-          'referrerPolicy',
-          'signal',
-          'window',
-          'duplex',
-        ]
-
-        if (isRequestInput) {
-          const reqInput: Request = input as any
-          const reqOptions: RequestInit = {
-            body: (reqInput as any)._ogBody || reqInput.body,
-          }
-
-          for (const field of requestInputFields) {
-            // @ts-expect-error custom fields
-            reqOptions[field] = reqInput[field]
-          }
-          input = new Request(reqInput.url, reqOptions)
-        } else if (init) {
-          const initialInit = init
-          init = {
-            body: (init as any)._ogBody || init.body,
-          }
-          for (const field of requestInputFields) {
-            // @ts-expect-error custom fields
-            init[field] = initialInit[field]
           }
         }
 
         const doOriginalFetch = async () => {
           return originFetch(input, init).then(async (res) => {
             if (
-              staticGenerationStore.incrementalCache &&
+              store.incrementalCache &&
               cacheKey &&
               typeof revalidate === 'number' &&
               revalidate > 0
@@ -243,7 +323,7 @@ export function patchFetch({
               }
 
               try {
-                await staticGenerationStore.incrementalCache.set(
+                await store.incrementalCache.set(
                   cacheKey,
                   {
                     kind: 'FETCH',
@@ -270,24 +350,20 @@ export function patchFetch({
           })
         }
 
-        if (cacheKey && staticGenerationStore?.incrementalCache) {
-          const entry = staticGenerationStore.isOnDemandRevalidate
+        if (cacheKey && store.incrementalCache) {
+          const entry = store.isOnDemandRevalidate
             ? null
-            : await staticGenerationStore.incrementalCache.get(
-                cacheKey,
-                true,
-                revalidate
-              )
+            : await store.incrementalCache.get(cacheKey, true, revalidate)
 
           if (entry?.value && entry.value.kind === 'FETCH') {
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
-            if (!staticGenerationStore.isRevalidate || !entry.isStale) {
+            if (!store.isRevalidate || !entry.isStale) {
               if (entry.isStale) {
-                if (!staticGenerationStore.pendingRevalidates) {
-                  staticGenerationStore.pendingRevalidates = []
+                if (!store.pendingRevalidates) {
+                  store.pendingRevalidates = []
                 }
-                staticGenerationStore.pendingRevalidates.push(
+                store.pendingRevalidates.push(
                   doOriginalFetch().catch(console.error)
                 )
               }
@@ -311,59 +387,64 @@ export function patchFetch({
           }
         }
 
-        if (staticGenerationStore.isStaticGeneration) {
-          if (init && typeof init === 'object') {
-            const cache = init.cache
-            // Delete `cache` property as Cloudflare Workers will throw an error
-            if (isEdgeRuntime) {
-              delete init.cache
+        if (store.isStaticGeneration) {
+          const cache = getOption(input, init, 'cache')
+
+          // Delete `cache` property as Cloudflare Workers will throw an error
+          if (init && isEdgeRuntime) {
+            delete init.cache
+          }
+
+          // Delete the internal `next` property from the request and inputs.
+          if (init && 'next' in init) delete init.next
+          if (input instanceof Request && 'next' in input) delete input.next
+
+          // If the cache is set to `no-store` we need to throw a
+          // DynamicServerError to ensure the page is not cached because we're
+          // in static generation mode.
+          if (cache === 'no-store') {
+            // If the cache is set to `no-store` we set the revalidate value to
+            // 0 to ensure the page is not cached.
+            store.revalidate = 0
+
+            // TODO: ensure this error isn't logged to the user seems it's slipping through currently
+            const dynamicUsageReason = `no-store fetch ${input}${
+              store.pathname ? ` ${store.pathname}` : ''
+            }`
+            const err = new DynamicServerError(dynamicUsageReason)
+            store.dynamicUsageStack = err.stack
+            store.dynamicUsageDescription = dynamicUsageReason
+
+            throw err
+          }
+
+          // If the fetchNextRevalidate option is a number and either the
+          // page's revalidate value is undefined or the fetchNextRevalidate
+          // value is less than the page's revalidate value.
+          if (
+            typeof next?.revalidate === 'number' &&
+            (typeof store.revalidate === 'undefined' ||
+              next.revalidate < store.revalidate)
+          ) {
+            // If force dynamic is not set or the revalidate value is not 0,
+            // we set the page's revalidate value to the fetchNextRevalidate.
+            if (!store.forceDynamic || next.revalidate !== 0) {
+              store.revalidate = next.revalidate
             }
-            if (cache === 'no-store') {
-              staticGenerationStore.revalidate = 0
-              // TODO: ensure this error isn't logged to the user
-              // seems it's slipping through currently
-              const dynamicUsageReason = `no-store fetch ${input}${
-                staticGenerationStore.pathname
-                  ? ` ${staticGenerationStore.pathname}`
-                  : ''
-              }`
+
+            // If force dynamic is not set and the revalidate value is 0, we
+            // throw a DynamicServerError to ensure the page is not cached.
+            if (!store.forceDynamic && next.revalidate === 0) {
+              const dynamicUsageReason = `revalidate: ${
+                next.revalidate
+              } fetch ${input}${store.pathname ? ` ${store.pathname}` : ''}`
+
               const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageStack = err.stack
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+              store.dynamicUsageStack = err.stack
+              store.dynamicUsageDescription = dynamicUsageReason
 
               throw err
             }
-
-            const hasNextConfig = 'next' in init
-            const next = init.next || {}
-            if (
-              typeof next.revalidate === 'number' &&
-              (typeof staticGenerationStore.revalidate === 'undefined' ||
-                next.revalidate < staticGenerationStore.revalidate)
-            ) {
-              const forceDynamic = staticGenerationStore.forceDynamic
-
-              if (!forceDynamic || next.revalidate !== 0) {
-                staticGenerationStore.revalidate = next.revalidate
-              }
-
-              if (!forceDynamic && next.revalidate === 0) {
-                const dynamicUsageReason = `revalidate: ${
-                  next.revalidate
-                } fetch ${input}${
-                  staticGenerationStore.pathname
-                    ? ` ${staticGenerationStore.pathname}`
-                    : ''
-                }`
-                const err = new DynamicServerError(dynamicUsageReason)
-                staticGenerationStore.dynamicUsageStack = err.stack
-                staticGenerationStore.dynamicUsageDescription =
-                  dynamicUsageReason
-
-                throw err
-              }
-            }
-            if (hasNextConfig) delete init.next
           }
         }
 

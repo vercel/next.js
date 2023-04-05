@@ -2,6 +2,13 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import { createAsyncLocalStorage } from './async-local-storage'
 
+export type FetchCache =
+  | 'only-cache'
+  | 'force-cache'
+  | 'force-no-store'
+  | 'default-no-store'
+  | 'only-no-store'
+
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
   readonly pathname: string
@@ -11,12 +18,8 @@ export interface StaticGenerationStore {
   readonly isPrerendering?: boolean
 
   forceDynamic?: boolean
-  fetchCache?:
-    | 'only-cache'
-    | 'force-cache'
-    | 'force-no-store'
-    | 'default-no-store'
-    | 'only-no-store'
+  fetchCache?: FetchCache
+
   revalidate?: false | number
   forceStatic?: boolean
   dynamicShouldError?: boolean
