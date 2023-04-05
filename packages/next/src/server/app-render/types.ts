@@ -120,7 +120,6 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   assetPrefix?: string
-  nextConfigOutput?: 'standalone' | 'export'
   nextFontManifest?: NextFontManifest
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
