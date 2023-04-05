@@ -683,15 +683,30 @@ export class Head extends React.Component<HeadProps> {
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
       head.forEach((c) => {
+        let metaTag
+
+        if (this.context.strictNextHead) {
+          metaTag = React.createElement('meta', {
+            name: 'next-head',
+            content: '1',
+          })
+        }
+
         if (
           c &&
           c.type === 'link' &&
           c.props['rel'] === 'preload' &&
           c.props['as'] === 'style'
         ) {
+          metaTag && cssPreloads.push(metaTag)
           cssPreloads.push(c)
         } else {
-          c && otherHeadElements.push(c)
+          if (c) {
+            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
+              otherHeadElements.push(metaTag)
+            }
+            otherHeadElements.push(c)
+          }
         }
       })
       head = cssPreloads.concat(otherHeadElements)
@@ -822,10 +837,12 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
+        {this.context.strictNextHead ? null : (
+          <meta
+            name="next-head-count"
+            content={React.Children.count(head || []).toString()}
+          />
+        )}
 
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}

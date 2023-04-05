@@ -35,7 +35,7 @@ Now, you can define the `src` for your image (either local or remote).
 To use a local image, `import` your `.jpg`, `.png`, or `.webp` files:
 
 ```jsx
-import profilePic from '../public/me.png'
+import profilePic from '../assets/me.png'
 ```
 
 Dynamic `await import()` or `require()` are _not_ supported. The `import` must be static so it can be analyzed at build time.
@@ -44,7 +44,7 @@ Next.js will automatically determine the `width` and `height` of your image base
 
 ```js
 import Image from 'next/image'
-import profilePic from '../public/me.png'
+import profilePic from '../assets/me.png'
 
 function Home() {
   return (
