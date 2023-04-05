@@ -2,12 +2,11 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 import type { Icon, IconDescriptor } from '../types/metadata-types'
 
 import React from 'react'
-import { resolveStringUrl } from '../resolvers/resolve-url'
 
 function IconDescriptorLink({ icon }: { icon: IconDescriptor }) {
   const { url, rel = 'icon', ...props } = icon
 
-  return <link rel={rel} href={resolveStringUrl(url)} {...props} />
+  return <link rel={rel} href={url.toString()} {...props} />
 }
 
 function IconLink({ rel, icon }: { rel?: string; icon: Icon }) {
@@ -15,7 +14,7 @@ function IconLink({ rel, icon }: { rel?: string; icon: Icon }) {
     if (rel) icon.rel = rel
     return <IconDescriptorLink icon={icon} />
   } else {
-    const href = resolveStringUrl(icon)
+    const href = icon.toString()
     return <link rel={rel} href={href} />
   }
 }
