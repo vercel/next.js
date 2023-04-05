@@ -82,9 +82,13 @@ let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
 if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
   React = require('next/dist/compiled/react-experimental')
   ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
-} else {
+} else if (process.env.NEXT_PREBUNDLED_REACT === 'next') {
   React = require('next/dist/compiled/react')
   ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
+} else {
+  throw new Error(
+    'invariant: Invalid NEXT_PREBUNDLED_REACT env value, this is a bug in Next.js'
+  )
 }
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
