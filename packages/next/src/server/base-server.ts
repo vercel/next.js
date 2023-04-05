@@ -782,13 +782,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, '_nextRewroteUrl', parsedUrl.pathname!)
             addRequestMeta(req, '_nextDidRewrite', true)
           }
+          const routeParamKeys = new Set<string>()
 
           for (const key of Object.keys(parsedUrl.query)) {
             const value = parsedUrl.query[key]
 
             if (key.startsWith(NEXT_QUERY_PARAM_PREFIX)) {
-              parsedUrl.query[key.substring(NEXT_QUERY_PARAM_PREFIX.length)] =
-                value
+              const normalizedKey = key.substring(
+                NEXT_QUERY_PARAM_PREFIX.length
+              )
+              parsedUrl.query[normalizedKey] = value
+
+              routeParamKeys.add(normalizedKey)
               delete parsedUrl.query[key]
             }
           }
@@ -877,6 +882,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          for (const key of routeParamKeys) {
+            delete parsedUrl.query[key]
           }
           parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
             matchedPath === '/' && this.nextConfig.basePath ? '' : matchedPath
