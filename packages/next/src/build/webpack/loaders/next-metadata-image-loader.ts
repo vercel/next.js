@@ -51,7 +51,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   if (isDynamicResource) {
     // re-export and spread as `exportedImageData` to avoid non-exported error
     return `\
-    import path from 'path'
+    import path from 'next/dist/shared/lib/isomorphic/path'
     import * as exported from ${JSON.stringify(resourcePath)}
     import { interpolateDynamicPath } from 'next/dist/server/server-utils'
     import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
@@ -105,7 +105,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   }
 
   return `\
-  import path from 'path'
+  import path from 'next/dist/shared/lib/isomorphic/path'
   import { interpolateDynamicPath } from 'next/dist/server/server-utils'
   import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
 
