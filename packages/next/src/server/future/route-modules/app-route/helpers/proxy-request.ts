@@ -9,7 +9,7 @@ import { NextURL } from '../../../../web/next-url'
 import { cleanURL } from './clean-url'
 
 export function proxyRequest(
-  req: NextRequest | Request,
+  request: NextRequest,
   { dynamic }: Pick<AppRouteUserlandModule, 'dynamic'>,
   hooks: {
     readonly serverHooks: typeof ServerHooks
@@ -76,30 +76,27 @@ export function proxyRequest(
     }
   }
 
-  const wrappedNextUrl =
-    'nextUrl' in req
-      ? new Proxy(req.nextUrl, {
-          get(target, prop) {
-            handleNextUrlBailout(prop)
+  const wrappedNextUrl = new Proxy(request.nextUrl, {
+    get(target, prop) {
+      handleNextUrlBailout(prop)
 
-            if (dynamic === 'force-static' && typeof prop === 'string') {
-              const result = handleForceStatic(target.href, prop)
-              if (result !== undefined) return result
-            }
-            const value = (target as any)[prop]
+      if (dynamic === 'force-static' && typeof prop === 'string') {
+        const result = handleForceStatic(target.href, prop)
+        if (result !== undefined) return result
+      }
+      const value = (target as any)[prop]
 
-            if (typeof value === 'function') {
-              return value.bind(target)
-            }
-            return value
-          },
-          set(target, prop, value) {
-            handleNextUrlBailout(prop)
-            ;(target as any)[prop] = value
-            return true
-          },
-        })
-      : undefined
+      if (typeof value === 'function') {
+        return value.bind(target)
+      }
+      return value
+    },
+    set(target, prop, value) {
+      handleNextUrlBailout(prop)
+      ;(target as any)[prop] = value
+      return true
+    },
+  })
 
   const handleReqBailout = (prop: string | symbol) => {
     switch (prop) {
@@ -123,7 +120,7 @@ export function proxyRequest(
     }
   }
 
-  return new Proxy(req, {
+  return new Proxy(request, {
     get(target, prop) {
       handleReqBailout(prop)
 

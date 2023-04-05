@@ -1,0 +1,21 @@
+PlainIssue {
+    severity: Warning,
+    context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/implicit-metadata/input/app",
+    category: "",
+    title: "Implicit metadata from filesystem is currently not supported in Turbopack",
+    description: "The following files were found in the app directory, but are not supported by Turbopack. They are ignored:\n\n- [project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/implicit-metadata/input/app/apple-icon.png\n- [project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/implicit-metadata/input/app/icon1234.png\n- [project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/implicit-metadata/input/app/icon234.png",
+    detail: "",
+    documentation_link: "",
+    source: None,
+    sub_issues: [],
+    processing_path: Some(
+        [
+            PlainIssueProcessingPathItem {
+                context: Some(
+                    "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/app/implicit-metadata/input/app",
+                ),
+                description: "Next.js App Page Route /",
+            },
+        ],
+    ),
+}
