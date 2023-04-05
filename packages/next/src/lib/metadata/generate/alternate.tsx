@@ -14,7 +14,7 @@ function AlternateLink({
     <link
       {...props}
       {...(descriptor.title && { title: descriptor.title })}
-      href={descriptor.url}
+      href={descriptor.url.toString()}
     />
   )
 }
