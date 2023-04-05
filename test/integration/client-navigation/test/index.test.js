@@ -484,7 +484,7 @@ describe('Client Navigation', () => {
           .click()
 
         const scrollPosition = await browser.eval('window.pageYOffset')
-        expect(scrollPosition).toBe(7408)
+        expect(scrollPosition).toBe(7208)
 
         // Go to snap scroll page
         await browser
@@ -518,7 +518,7 @@ describe('Client Navigation', () => {
           .click()
 
         const scrollPosition = await browser.eval('window.pageYOffset')
-        expect(scrollPosition).toBe(7408)
+        expect(scrollPosition).toBe(7208)
 
         // Go to snap scroll page
         await browser
@@ -552,7 +552,7 @@ describe('Client Navigation', () => {
           .click()
 
         const scrollPosition = await browser.eval('window.pageYOffset')
-        expect(scrollPosition).toBe(7408)
+        expect(scrollPosition).toBe(7208)
 
         // Go to snap scroll page
         await browser
@@ -564,7 +564,7 @@ describe('Client Navigation', () => {
           'document.getElementById("scroll-pos-y").innerText'
         )
         expect(snappedScrollPosition).not.toBe('0')
-        expect(Number(snappedScrollPosition)).toBeGreaterThanOrEqual(7408)
+        expect(Number(snappedScrollPosition)).toBeGreaterThanOrEqual(7208)
       } finally {
         if (browser) {
           await browser.close()
@@ -616,7 +616,7 @@ describe('Client Navigation', () => {
             'window.pageYOffset'
           )
 
-          expect(scrollPositionBeforeEmptyHash).toBe(7458.5)
+          expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
@@ -634,7 +634,7 @@ describe('Client Navigation', () => {
             'window.pageYOffset'
           )
 
-          expect(scrollPositionBeforeTopHash).toBe(7458.5)
+          expect(scrollPositionBeforeTopHash).toBe(7258)
 
           // Scrolls back to top when clicking link with href `#top`.
           await browser.elementByCss('#via-top-hash').click()
@@ -650,7 +650,7 @@ describe('Client Navigation', () => {
 
           const scrollPositionCJKHash = await browser.eval('window.pageYOffset')
 
-          expect(scrollPositionCJKHash).toBe(17939)
+          expect(scrollPositionCJKHash).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
@@ -679,7 +679,7 @@ describe('Client Navigation', () => {
 
           const scrollPosition = await browser.eval('window.pageYOffset')
 
-          expect(scrollPosition).toBe(16708.5)
+          expect(scrollPosition).toBe(16258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
@@ -708,7 +708,7 @@ describe('Client Navigation', () => {
             .waitForElementByCss('#hash-changes-page')
 
           const scrollPosition = await browser.eval('window.pageYOffset')
-          expect(scrollPosition).toBe(7458.5)
+          expect(scrollPosition).toBe(7258)
         } finally {
           if (browser) {
             await browser.close()
@@ -728,7 +728,7 @@ describe('Client Navigation', () => {
             .waitForElementByCss('#hash-changes-page')
 
           const scrollPosition = await browser.eval('window.pageYOffset')
-          expect(scrollPosition).toBe(17939)
+          expect(scrollPosition).toBe(17436)
         } finally {
           if (browser) {
             await browser.close()
