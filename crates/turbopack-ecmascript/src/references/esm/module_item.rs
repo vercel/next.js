@@ -3,9 +3,12 @@ use std::mem::replace;
 use anyhow::Result;
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{
-        ClassDecl, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl, ExportDefaultExpr, FnDecl,
-        Ident, ModuleDecl, ModuleItem, Stmt,
+    ecma::{
+        ast::{
+            ClassDecl, Decl, DefaultDecl, ExportDecl, ExportDefaultDecl, ExportDefaultExpr, FnDecl,
+            Ident, ModuleDecl, ModuleItem, Stmt,
+        },
+        visit::AstParentKind,
     },
     quote,
 };
@@ -44,6 +47,10 @@ impl CodeGenerateable for EsmModuleItem {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
+        assert!(
+            matches!(path.last(), Some(AstParentKind::ModuleDecl(_))),
+            "EsmModuleItem was created with a path that points to a unexpected ast node"
+        );
         visitors.push(
             create_visitor!(path, visit_mut_module_item(module_item: &mut ModuleItem) {
                 let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
@@ -89,12 +96,14 @@ impl CodeGenerateable for EsmModuleItem {
                         ModuleDecl::Import(_) => {
                             // already removed
                         }
-                        other => {
-                            panic!("EsmModuleItem was created with a path that points to a unexpected ModuleDecl {:?}", other);
+                        _ => {
+                            // not matching
+                            *module_item = ModuleItem::ModuleDecl(module_decl);
                         }
                     }
                 } else {
-                    panic!("EsmModuleItem was created with a path that points to a unexpected ModuleItem {:?}", item);
+                    // not matching
+                    *module_item = item;
                 }
             }),
         );
