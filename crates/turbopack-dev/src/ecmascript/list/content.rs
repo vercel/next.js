@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::{IntoTraitRef, TryJoinIterExt, ValueToString};
+use turbo_tasks::{IntoTraitRef, TryJoinIterExt};
 use turbo_tasks_fs::{FileContent, FileSystemPathReadRef, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetsVc},

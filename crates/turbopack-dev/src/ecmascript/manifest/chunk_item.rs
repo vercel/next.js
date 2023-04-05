@@ -1,11 +1,10 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use indoc::formatdoc;
 use serde::Serialize;
-use turbo_tasks::ValueToString;
 use turbopack_core::{
     asset::Asset,
-    chunk::{Chunk, ChunkItem, ChunkItemVc, ChunkingContext},
+    chunk::{ChunkItem, ChunkItemVc, ChunkingContext},
     ident::AssetIdentVc,
     reference::AssetReferencesVc,
 };

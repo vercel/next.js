@@ -9,6 +9,7 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkItem, ModuleIdReadRef},
     code_builder::{CodeBuilder, CodeVc},
+    error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
 };
 use turbopack_ecmascript::chunk::{
@@ -82,8 +83,6 @@ async fn item_code(
     item: EcmascriptChunkItemVc,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<CodeVc> {
-    use std::fmt::Write;
-
     Ok(
         match module_factory(item.content_with_availability_info(availability_info))
             .resolve()
@@ -93,11 +92,11 @@ async fn item_code(
             Err(error) => {
                 let id = item.id().to_string().await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
-                let mut error_message =
-                    format!("An error occurred while generating the chunk item {}", id);
-                for err in error.chain() {
-                    write!(error_message, "\n  at {}", err)?;
-                }
+                let error = error.context(format!(
+                    "An error occurred while generating the chunk item {}",
+                    id
+                ));
+                let error_message = format!("{}", PrettyPrintError(&error));
                 let js_error_message = serde_json::to_string(&error_message)?;
                 let issue = CodeGenerationIssue {
                     severity: IssueSeverity::Error.cell(),
