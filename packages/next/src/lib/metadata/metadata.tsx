@@ -22,8 +22,12 @@ export async function MetadataTree({
 }: {
   metadata: MetadataItems
   pathname: string
+  allowFallbackMetadataBase: boolean
 }) {
-  const resolved = await accumulateMetadata(metadata, pathname)
+  const options = {
+    pathname,
+  }
+  const resolved = await accumulateMetadata(metadata, options)
 
   return (
     <>

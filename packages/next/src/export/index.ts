@@ -488,6 +488,7 @@ export default async function exportApp(
             )),
           }
         : {}),
+      strictNextHead: !!nextConfig.experimental.strictNextHead,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
