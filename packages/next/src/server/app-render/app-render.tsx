@@ -12,9 +12,7 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
@@ -76,6 +74,18 @@ import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
+
+// Import builtin react directly to avoid require cache conflicts
+let React: typeof import('next/dist/compiled/react')
+let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
+
+if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
+  React = require('next/dist/compiled/react-experimental')
+  ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
+} else {
+  React = require('next/dist/compiled/react')
+  ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
+}
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
