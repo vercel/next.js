@@ -7,7 +7,8 @@ use turbo_binding::turbopack::{
     },
     ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
     turbopack::module_options::{
-        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, JsxTransformOptions,
+        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, EmotionLabelKind,
+        EmotionTransformOptions, EmotionTransformOptionsVc, JsxTransformOptions,
         JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
     },
 };
@@ -151,4 +152,42 @@ pub async fn get_jsx_transform_options(
     };
 
     Ok(react_transform_options.cell())
+}
+
+#[turbo_tasks::function]
+pub async fn get_emotion_compiler_config(
+    next_config: NextConfigVc,
+) -> Result<EmotionTransformOptionsVc> {
+    let emotion_compiler_config = (*next_config.await?)
+        .compiler
+        .as_ref()
+        .map(|value| {
+            value
+                .emotion
+                .as_ref()
+                .map(|value| {
+                    if value.is_boolean() {
+                        EmotionTransformOptionsVc::cell(EmotionTransformOptions {
+                            enabled: value.as_bool().unwrap_or(false),
+                            ..Default::default()
+                        })
+                    } else {
+                        EmotionTransformOptionsVc::cell(EmotionTransformOptions {
+                            enabled: true,
+                            sourcemap: value["sourcemap"].as_bool(),
+                            auto_label: match value["auto_label"].to_string().as_str() {
+                                "dev-only" => Some(EmotionLabelKind::DevOnly),
+                                "always" => Some(EmotionLabelKind::Always),
+                                "never" => Some(EmotionLabelKind::Never),
+                                _ => None,
+                            },
+                            label_format: value["labelFormat"].as_str().map(|s| s.to_string()),
+                        })
+                    }
+                })
+                .unwrap_or_default()
+        })
+        .unwrap_or_default();
+
+    Ok(emotion_compiler_config)
 }

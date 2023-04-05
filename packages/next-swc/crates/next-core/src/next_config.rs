@@ -55,9 +55,11 @@ pub struct NextConfig {
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
 
+    // Partially supported
+    pub compiler: Option<CompilerConfig>,
+
     // unsupported
     cross_origin: Option<String>,
-    compiler: Option<CompilerConfig>,
     amp: AmpConfig,
     analytics_id: String,
     asset_prefix: String,
@@ -353,6 +355,7 @@ pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
+    pub compiler: Option<CompilerConfig>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -420,6 +423,7 @@ enum MiddlewarePrefetchType {
 pub struct CompilerConfig {
     pub react_remove_properties: Option<bool>,
     pub relay: Option<RelayConfig>,
+    pub emotion: Option<serde_json::Value>,
     pub remove_console: Option<RemoveConsoleConfig>,
 }
 
