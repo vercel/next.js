@@ -220,11 +220,17 @@ export function patchFetch({
     if (init && 'next' in init) {
       next = { ...init.next }
     }
-    if (input instanceof Request && 'next' in input && input.next) {
+    if (
+      input instanceof Request &&
+      'next' in input &&
+      (input as RequestInit).next
+    ) {
+      // The nasty `(input as RequestInit).next` is needed
+      // because it's not passing the type check correctly.
       if (next) {
-        next = { ...next, ...input.next }
+        next = { ...next, ...(input as RequestInit).next }
       } else {
-        next = { ...input.next }
+        next = { ...(input as RequestInit).next }
       }
     }
 
@@ -404,8 +410,12 @@ export function patchFetch({
           }
 
           // Delete the internal `next` property from the request and inputs.
-          if (init && 'next' in init) delete init.next
-          if (input instanceof Request && 'next' in input) delete input.next
+          if (init && 'next' in init) {
+            delete init.next
+          }
+          if (input instanceof Request && 'next' in input) {
+            delete (input as any).next
+          }
 
           // If the cache is set to `no-store` we need to throw a
           // DynamicServerError to ensure the page is not cached because we're
