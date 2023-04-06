@@ -23,7 +23,7 @@ use turbo_tasks::{
     primitives::{StringVc, U64Vc},
     Value, ValueToString,
 };
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
@@ -142,7 +142,8 @@ pub async fn parse(
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<ParseResultVc> {
     let content = source.content();
-    let fs_path = &*source.ident().path().await?;
+    let fs_path_vc = source.ident().path();
+    let fs_path = &*fs_path_vc.await?;
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = *hash_ident(source.ident().to_string()).await? as u128;
     let ty = ty.into_value();
@@ -154,6 +155,7 @@ pub async fn parse(
                     let transforms = &*transforms.await?;
                     match parse_content(
                         string.into_owned(),
+                        fs_path_vc,
                         fs_path,
                         ident,
                         file_path_hash,
@@ -182,6 +184,7 @@ pub async fn parse(
 
 async fn parse_content(
     string: String,
+    fs_path_vc: FileSystemPathVc,
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
@@ -297,6 +300,7 @@ async fn parse_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
+                file_path: fs_path_vc,
             };
             for transform in transforms.iter() {
                 transform.apply(&mut parsed_program, &context).await?;

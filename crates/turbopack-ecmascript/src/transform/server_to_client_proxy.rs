@@ -13,29 +13,6 @@ use swc_core::{
 
 use crate::references::TURBOPACK_HELPER;
 
-macro_rules! has_client_directive {
-    ($stmts:expr) => {
-        $stmts
-            .map(|item| {
-                if let Lit::Str(str) = item?.as_expr()?.expr.as_lit()? {
-                    Some(str)
-                } else {
-                    None
-                }
-            })
-            .take_while(Option::is_some)
-            .map(Option::unwrap)
-            .any(|s| &*s.value == "use client")
-    };
-}
-
-pub fn is_client_module(program: &Program) -> bool {
-    match program {
-        Program::Module(m) => has_client_directive!(m.body.iter().map(|item| item.as_stmt())),
-        Program::Script(s) => has_client_directive!(s.body.iter().map(Some)),
-    }
-}
-
 pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Program {
     let ident = private_ident!("createProxy");
     Program::Module(Module {

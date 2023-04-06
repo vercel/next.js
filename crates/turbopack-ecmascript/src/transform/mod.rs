@@ -1,4 +1,5 @@
 mod server_to_client_proxy;
+mod util;
 
 use std::{fmt::Debug, path::Path, sync::Arc};
 
@@ -15,17 +16,25 @@ use swc_core::{
         },
         visit::{FoldWith, VisitMutWith},
     },
+    quote,
 };
 use turbo_tasks::primitives::{OptionStringVc, StringVc};
-use turbo_tasks_fs::json::parse_json_with_source_context;
-use turbopack_core::environment::EnvironmentVc;
+use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
+use turbopack_core::{
+    environment::EnvironmentVc,
+    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
+};
 
-use self::server_to_client_proxy::{create_proxy_module, is_client_module};
+use self::{
+    server_to_client_proxy::create_proxy_module,
+    util::{is_client_module, is_server_module},
+};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmascriptInputTransform {
     ClientDirective(StringVc),
+    ServerDirective(StringVc),
     CommonJs,
     Custom(CustomTransformVc),
     Emotion,
@@ -104,6 +113,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
+    pub file_path: FileSystemPathVc,
 }
 
 impl EcmascriptInputTransform {
@@ -115,6 +125,7 @@ impl EcmascriptInputTransform {
             unresolved_mark,
             file_name_str,
             file_name_hash,
+            file_path,
             ..
         } = ctx;
         match self {
@@ -250,10 +261,26 @@ impl EcmascriptInputTransform {
                 ));
             }
             EcmascriptInputTransform::ClientDirective(transition_name) => {
-                let transition_name = &*transition_name.await?;
                 if is_client_module(program) {
+                    let transition_name = &*transition_name.await?;
                     *program = create_proxy_module(transition_name, &format!("./{file_name_str}"));
                     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+                }
+            }
+            EcmascriptInputTransform::ServerDirective(_transition_name) => {
+                if is_server_module(program) {
+                    let stmt = quote!(
+                        "throw new Error('Server actions (\"use server\") are not yet supported in \
+                         Turbopack');" as Stmt
+                    );
+                    match program {
+                        Program::Module(m) => m.body = vec![ModuleItem::Stmt(stmt)],
+                        Program::Script(s) => s.body = vec![stmt],
+                    }
+                    UnsupportedServerActionIssue { context: file_path }
+                        .cell()
+                        .as_issue()
+                        .emit();
                 }
             }
             EcmascriptInputTransform::Custom(transform) => {
@@ -289,5 +316,38 @@ fn unwrap_module_program(program: &mut Program) -> Program {
                 .collect(),
             shebang: s.shebang.clone(),
         }),
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub struct UnsupportedServerActionIssue {
+    pub context: FileSystemPathVc,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for UnsupportedServerActionIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> IssueSeverityVc {
+        IssueSeverity::Error.into()
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("unsupported".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        StringVc::cell("Server actions (\"use server\") are not yet supported in Turbopack".into())
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::cell("".to_string()))
     }
 }
