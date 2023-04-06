@@ -12,7 +12,7 @@ PlainIssue {
         [
             PlainIssueProcessingPathItem {
                 context: None,
-                description: "Next.js Routing for GET /_next/static/chunks/.env_9f9305.js.chunk-list.json",
+                description: "Next.js Routing for GET /_next/static/chunks/[next]_entry_next-hydrate.tsx_40ae1d._.js",
             },
         ],
     ),
