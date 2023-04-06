@@ -227,6 +227,40 @@ createNextDescribe(
         })
       })
 
+      it('should support other basic tags (edge)', async () => {
+        const browser = await next.browser('/basic-edge')
+        const matchDom = createDomMatcher(browser)
+        const matchMultiDom = createMultiDomMatcher(browser)
+
+        await matchMultiDom('meta', 'name', 'content', {
+          generator: 'next.js',
+          'application-name': 'test',
+          referrer: 'origin-when-cross-origin',
+          keywords: 'next.js,react,javascript',
+          author: ['huozhi', 'tree'],
+          'color-scheme': 'dark',
+          viewport:
+            'width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual',
+          creator: 'shu',
+          publisher: 'vercel',
+          robots: 'index, follow',
+          'format-detection': 'telephone=no, address=no, email=no',
+        })
+
+        await matchMultiDom('link', 'rel', 'href', {
+          manifest: 'https://www.google.com/manifest',
+          author: 'https://tree.com',
+          preconnect: '/preconnect-url',
+          preload: '/preload-url',
+          'dns-prefetch': '/dns-prefetch-url',
+        })
+
+        await matchDom('meta', 'name="theme-color"', {
+          media: '(prefers-color-scheme: dark)',
+          content: 'cyan',
+        })
+      })
+
       it('should support apple related tags `itunes` and `appWebApp`', async () => {
         const browser = await next.browser('/apple')
         const matchMultiDom = createMultiDomMatcher(browser)
@@ -590,6 +624,7 @@ createNextDescribe(
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
           'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image:secure_url': 'https://twitter.com/secure.png',
           'twitter:card': 'summary',
         })
       })
@@ -604,7 +639,7 @@ createNextDescribe(
           'twitter:site:id': 'siteId',
           'twitter:creator': 'creator',
           'twitter:creator:id': 'creatorId',
-          'twitter:image': 'https://twitter.com/image.png',
+          'twitter:image': 'https://twitter.com/large-image.png',
           'twitter:image:alt': 'image-alt',
           'twitter:card': 'summary_large_image',
         })

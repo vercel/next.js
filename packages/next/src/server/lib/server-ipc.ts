@@ -2,6 +2,7 @@ import type NextServer from '../next-server'
 import { genExecArgv, getNodeOptionsWithoutInspect } from './utils'
 import { deserializeErr, errorToJSON } from '../render'
 import { IncomingMessage } from 'http'
+import isError from '../../lib/is-error'
 
 // we can't use process.send as jest-worker relies on
 // it already and can cause unexpected message errors
@@ -35,6 +36,9 @@ export async function createIpcServer(
           res.end(JSON.stringify(result || ''))
         }
       } catch (err: any) {
+        if (isError(err) && err.code !== 'ENOENT') {
+          console.error(err)
+        }
         res.end(
           JSON.stringify({
             err: { name: err.name, message: err.message, stack: err.stack },
@@ -84,6 +88,7 @@ export const createWorker = (
         __NEXT_PRIVATE_RENDER_WORKER: type,
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         NODE_ENV: process.env.NODE_ENV,
+        NEXT_PREBUNDLED_REACT: process.env.NEXT_PREBUNDLED_REACT,
       },
       execArgv: genExecArgv(
         isNodeDebugging === undefined ? false : isNodeDebugging,

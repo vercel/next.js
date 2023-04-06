@@ -5,6 +5,8 @@ createNextDescribe(
   'parallel-routes-and-interception',
   {
     files: __dirname,
+    // TODO: remove after deployment handling is updated
+    skipDeployment: true,
   },
   ({ next }) => {
     describe('parallel routes', () => {

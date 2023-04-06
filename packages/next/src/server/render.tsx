@@ -266,6 +266,7 @@ export type RenderOptsPartial = {
   images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
+  strictNextHead: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -795,6 +796,9 @@ export async function renderToHTML(
         RenderSpan.getStaticProps,
         {
           spanName: `getStaticProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         () =>
           getStaticProps!({
@@ -1005,6 +1009,9 @@ export async function renderToHTML(
         RenderSpan.getServerSideProps,
         {
           spanName: `getServerSideProps ${pathname}`,
+          attributes: {
+            'next.route': pathname,
+          },
         },
         async () =>
           getServerSideProps({
@@ -1366,6 +1373,9 @@ export async function renderToHTML(
     RenderSpan.renderDocument,
     {
       spanName: `render route (pages) ${renderOpts.pathname}`,
+      attributes: {
+        'next.route': renderOpts.pathname,
+      },
     },
     async () => renderDocument()
   )
@@ -1429,6 +1439,7 @@ export async function renderToHTML(
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
     },
+    strictNextHead: renderOpts.strictNextHead,
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
     dangerousAsPath: router.asPath,

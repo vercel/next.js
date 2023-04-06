@@ -1,7 +1,7 @@
 // PAGE and PATHNAME is set from rust code
 declare const PAGE: string, PATHNAME: string;
 
-import { EdgeModuleWrapper } from "next/dist/build/webpack/loaders/next-edge-app-route-loader/edge-module-wrapper";
+import { EdgeRouteModuleWrapper } from "next/dist/server/web/edge-route-module-wrapper";
 
 import RouteModule from "ROUTE_MODULE";
 import * as userland from "ENTRY";
@@ -17,6 +17,6 @@ const routeModule = new RouteModule({
 // @ts-expect-error - exposed for edge support
 globalThis._ENTRIES = {
   middleware_edge: {
-    default: EdgeModuleWrapper.wrap(routeModule, { page: `/${PAGE}` }),
+    default: EdgeRouteModuleWrapper.wrap(routeModule, { page: `/${PAGE}` }),
   },
 };
