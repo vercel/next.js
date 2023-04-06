@@ -17,6 +17,7 @@ type RouterRequest = {
   pathname: string;
   rawHeaders: [string, string][];
   rawQuery: string;
+  body: number[];
 };
 
 type IpcOutgoingMessage = {
@@ -91,7 +92,8 @@ export default async function route(
       routerRequest.method,
       routerRequest.pathname,
       routerRequest.rawQuery,
-      routerRequest.rawHeaders
+      routerRequest.rawHeaders,
+      Buffer.from(routerRequest.body),
     );
 
     // Send the clientRequest, so the server parses everything. We can then pass
