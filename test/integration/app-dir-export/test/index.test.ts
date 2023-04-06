@@ -53,7 +53,11 @@ const expectedFiles = [
 async function getFiles(cwd = exportDir) {
   const opts = { cwd, nodir: true }
   const files = ((await glob('**/*', opts)) as string[])
-    .filter((f) => !f.startsWith('_next/static/chunks/'))
+    .filter(
+      (f) =>
+        !f.startsWith('_next/static/chunks/') &&
+        !f.startsWith('_next/static/webpack/')
+    )
     .sort()
   return files
 }
