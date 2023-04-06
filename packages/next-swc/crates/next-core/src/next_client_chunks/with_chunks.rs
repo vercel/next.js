@@ -54,10 +54,12 @@ impl Asset for WithChunksAsset {
 
     #[turbo_tasks::function]
     async fn references(self_vc: WithChunksAssetVc) -> Result<AssetReferencesVc> {
-        let chunks = self_vc.chunks();
+        let this = self_vc.await?;
+        let entry_chunk = self_vc.entry_chunk();
 
         Ok(AssetReferencesVc::cell(vec![ChunkGroupReferenceVc::new(
-            chunks,
+            this.chunking_context,
+            entry_chunk,
         )
         .into()]))
     }
@@ -105,11 +107,15 @@ impl EcmascriptChunkPlaceable for WithChunksAsset {
 #[turbo_tasks::value_impl]
 impl WithChunksAssetVc {
     #[turbo_tasks::function]
+    async fn entry_chunk(self) -> Result<ChunkVc> {
+        let this = self.await?;
+        Ok(this.asset.as_root_chunk(this.chunking_context))
+    }
+
+    #[turbo_tasks::function]
     async fn chunks(self) -> Result<AssetsVc> {
         let this = self.await?;
-        Ok(this
-            .chunking_context
-            .chunk_group(this.asset.as_root_chunk(this.chunking_context)))
+        Ok(this.chunking_context.chunk_group(self.entry_chunk()))
     }
 }
 
