@@ -76,8 +76,8 @@ import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resol
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
-export async function GET() {
-  const data = await handler()
+export async function GET(req) {
+  const data = await handler(req)
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {

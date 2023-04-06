@@ -27,6 +27,7 @@ createNextDescribe(
         expect(text).toMatchInlineSnapshot(`
           "User-Agent: Googlebot
           Allow: /
+          Allow: /robots.txt
 
           User-Agent: Applebot
           User-Agent: Bingbot

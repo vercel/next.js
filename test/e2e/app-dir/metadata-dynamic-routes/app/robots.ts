@@ -1,11 +1,12 @@
 import type { MetadataRoute } from 'next'
+import type { NextRequest } from 'next/server'
 
-export default function robots(): MetadataRoute.Robots {
+export default function robots(req: NextRequest): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: 'Googlebot',
-        allow: ['/'],
+        allow: ['/', req.nextUrl.pathname],
       },
       {
         userAgent: ['Applebot', 'Bingbot'],
