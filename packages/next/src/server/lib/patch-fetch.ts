@@ -225,15 +225,12 @@ export function patchFetch({
         const doOriginalFetch = async () => {
           return originFetch(input, init).then(async (res) => {
             if (
+              res.ok &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
               typeof revalidate === 'number' &&
               revalidate > 0
             ) {
-              if (!res.ok) {
-                return res
-              }
-
               let base64Body = ''
               const resBlob = await res.blob()
               const arrayBuffer = await resBlob.arrayBuffer()
