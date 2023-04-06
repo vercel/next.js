@@ -173,8 +173,6 @@ fn test_skipped_fails(resource: PathBuf) {
 async fn run_test(resource: PathBuf) -> JestRunResult {
     register();
 
-    let is_debug_start = *DEBUG_START;
-
     let resource = canonicalize(resource).unwrap();
     assert!(resource.exists(), "{} does not exist", resource.display());
     assert!(
@@ -195,11 +193,7 @@ async fn run_test(resource: PathBuf) -> JestRunResult {
     let test_dir = resource.to_path_buf();
     let workspace_root = cargo_workspace_root.parent().unwrap().parent().unwrap();
     let project_dir = test_dir.join("input");
-    let requested_addr = if is_debug_start {
-        "127.0.0.1:3000".parse().unwrap()
-    } else {
-        get_free_local_addr().unwrap()
-    };
+    let requested_addr = get_free_local_addr().unwrap();
 
     let mock_dir = resource.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
@@ -475,8 +469,8 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
 }
 
 fn get_free_local_addr() -> Result<SocketAddr, std::io::Error> {
-    let socket = TcpSocket::new_v4()?;
-    socket.bind("127.0.0.1:0".parse().unwrap())?;
+    let socket = TcpSocket::new_v6()?;
+    socket.bind("[::]:0".parse().unwrap())?;
     socket.local_addr()
 }
 
