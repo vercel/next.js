@@ -139,7 +139,6 @@ jobs:
       - run: ./scripts/check-manifests.js
 
       - run: pnpm lint
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - run: pnpm lint-no-typescript
         if: ${{needs.build.outputs.docsChange != 'nope'}}
