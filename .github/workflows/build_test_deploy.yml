@@ -1154,7 +1154,7 @@ jobs:
 
       - name: Make more disk space
         continue-on-error: true
-        run: rm -rf /usr/local/lib/android
+        run: sudo rm -rf /usr/local/lib/android
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
