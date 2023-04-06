@@ -60,6 +60,7 @@ use turbo_binding::{
     },
 };
 
+// Register turbo functions
 fn register() {
     next_dev::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_integration.rs"));
