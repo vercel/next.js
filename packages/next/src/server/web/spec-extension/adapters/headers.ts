@@ -28,12 +28,12 @@ export class HeadersAdapter extends Headers {
     super()
 
     this.headers = new Proxy(headers, {
-      get(target, prop) {
+      get(target, prop, receiver) {
         // Because this is just an object, we expect that all "get" operations
         // are for properties. If it's a "get" for a symbol, we'll just return
         // the symbol.
         if (typeof prop === 'symbol') {
-          return ReflectAdapter.get(target, prop, headers)
+          return ReflectAdapter.get(target, prop, receiver)
         }
 
         const lowercased = prop.toLowerCase()
@@ -49,11 +49,11 @@ export class HeadersAdapter extends Headers {
         if (typeof original === 'undefined') return
 
         // If the original casing exists, return the value.
-        return ReflectAdapter.get(target, original, headers)
+        return ReflectAdapter.get(target, original, receiver)
       },
-      set(target, prop, value) {
+      set(target, prop, value, receiver) {
         if (typeof prop === 'symbol') {
-          return ReflectAdapter.set(target, prop, value)
+          return ReflectAdapter.set(target, prop, value, receiver)
         }
 
         const lowercased = prop.toLowerCase()
@@ -66,7 +66,7 @@ export class HeadersAdapter extends Headers {
         )
 
         // If the original casing doesn't exist, use the prop as the key.
-        return ReflectAdapter.set(target, original ?? prop, value)
+        return ReflectAdapter.set(target, original ?? prop, value, receiver)
       },
       has(target, prop) {
         if (typeof prop === 'symbol') return ReflectAdapter.has(target, prop)
@@ -114,14 +114,14 @@ export class HeadersAdapter extends Headers {
    */
   public static seal(headers: Headers): ReadonlyHeaders {
     return new Proxy<ReadonlyHeaders>(headers, {
-      get(target, prop) {
+      get(target, prop, receiver) {
         switch (prop) {
           case 'append':
           case 'delete':
           case 'set':
             return ReadonlyHeadersError.callable
           default:
-            return ReflectAdapter.get(target, prop, headers)
+            return ReflectAdapter.get(target, prop, receiver)
         }
       },
     })
