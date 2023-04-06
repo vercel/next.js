@@ -95,6 +95,7 @@ describe('createInitialRouterState', () => {
       pushRef: { pendingPush: false, mpaNavigation: false },
       focusAndScrollRef: { apply: false, hashFragment: null },
       cache: expectedCache,
+      nextUrl: null,
     }
 
     expect(state).toMatchObject(expected)

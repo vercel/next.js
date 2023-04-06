@@ -195,6 +195,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -378,6 +379,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -564,6 +566,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
+      nextUrl: 'https://example.vercel.sh/',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -721,6 +724,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
+      nextUrl: 'https://example.vercel.sh/',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -875,6 +879,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -1098,6 +1103,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -1325,6 +1331,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/parallel-tab-bar/demographics',
+      nextUrl: '/parallel-tab-bar/demographics',
       cache: {
         status: CacheStates.READY,
         data: null,

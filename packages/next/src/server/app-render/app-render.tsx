@@ -297,6 +297,11 @@ export async function renderToHTMLOrFlight(
 
       let value = pathParams[key]
 
+      // this is a special marker that will be present for interception routes
+      if (value === '__NEXT_EMPTY_PARAM__') {
+        value = undefined
+      }
+
       if (Array.isArray(value)) {
         value = value.map((i) => encodeURIComponent(i))
       } else if (typeof value === 'string') {

@@ -124,7 +124,12 @@ describe('prefetchReducer', () => {
     })
 
     const url = new URL('/linking/about', 'https://localhost')
-    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const serverResponse = await fetchServerResponse(
+      url,
+      initialTree,
+      null,
+      true
+    )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
@@ -195,6 +200,7 @@ describe('prefetchReducer', () => {
         undefined,
         true,
       ],
+      nextUrl: null,
     }
 
     expect(newState).toMatchObject(expectedState)
@@ -262,7 +268,12 @@ describe('prefetchReducer', () => {
     })
 
     const url = new URL('/linking/about', 'https://localhost')
-    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const serverResponse = await fetchServerResponse(
+      url,
+      initialTree,
+      null,
+      true
+    )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
@@ -335,6 +346,7 @@ describe('prefetchReducer', () => {
         undefined,
         true,
       ],
+      nextUrl: null,
     }
 
     expect(newState).toMatchObject(expectedState)
