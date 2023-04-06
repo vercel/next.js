@@ -398,7 +398,7 @@ async fn route_internal(
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
             JsonValueVc::cell(json!({
-                "hostname": server_addr.ip(),
+                "hostname": server_addr.hostname(),
                 "port": server_addr.port(),
             })),
         ],
