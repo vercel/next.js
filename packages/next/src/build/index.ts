@@ -2541,11 +2541,14 @@ export default async function build(
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
-                await promises.copyFile(
-                  orig,
-                  path.join(distDir, 'server', updatedRelativeDest)
-                )
-                pagesManifest['/404'] = updatedRelativeDest
+
+                if (await fileExists(orig)) {
+                  await promises.copyFile(
+                    orig,
+                    path.join(distDir, 'server', updatedRelativeDest)
+                  )
+                  pagesManifest['/404'] = updatedRelativeDest
+                }
               })
           }
 

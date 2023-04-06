@@ -194,6 +194,15 @@ createNextDescribe(
           ).toBe('rgb(255, 0, 0)')
         })
 
+        it('should include root layout css for root not-found.js', async () => {
+          const browser = await next.browser('/this-path-does-not-exist')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(210, 105, 30)')
+        })
+
         it('should include css imported in error.js', async () => {
           const browser = await next.browser('/error/client-component')
           await browser.elementByCss('button').click()
