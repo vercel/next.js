@@ -56,13 +56,16 @@ To see more spans, you must set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
 
-OpenTelemetry enables you to add your own custom spans to trace using official OpenTelemetry APIs.
-Our package `@vercel/otel` exports everything from `@opentelemetry/api` so you don't need to install anything.
+You can add your own span with [OpenTelemetry APIs](https://opentelemetry.io/docs/instrumentation/js/instrumentation).
+
+```bash
+npm install @opentelemetry/api
+```
 
 The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:
 
 ```ts
-import { trace } from '@vercel/otel'
+import { trace } from '@opentelemetry/api'
 
 export async function fetchGithubStars() {
   return await trace
@@ -76,8 +79,6 @@ export async function fetchGithubStars() {
     })
 }
 ```
-
-More documentation can be found in [OpenTelemetry docs](https://opentelemetry.io/docs/instrumentation/js/instrumentation/).
 
 The `register` function will execute before your code runs in a new environment.
 You can start creating new spans, and they should be correctly added to the exported trace.
@@ -94,87 +95,119 @@ In order to be able to leverage instrumentation provided by next.js you will nee
 
 Next.js automatically instruments several spans for you to provide useful insights into your application's performance.
 
-All spans have these attributes:
+Attributes on spans follow [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/). We also add some custom attributes under the `next` namespace:
 
-- `next.span_name`: this is name the of the span
-- `next.span_type`: this is unique identifier for particular span
-
-Here's a list of default spans provided by Next.js:
+- `next.span_name` - duplicates span name
+- `next.span_type` - each span type has unique identifier
+- `next.route` - The route pattern of the request (e.g., `/[param]/user`).
+- `next.page`
+  - This is an internal value used by an app router.
+  - You can think about it as a route to a special file (like `page.ts`, `layout.ts`, `loading.ts` and others)
+  - It can be used as an unique identifier only when paired with `next.route` because `/layout` can be used to identify both `/(groupA)/layout.ts` and `/(groupB)/layout.ts`
 
 ### `[http.method] [next.route]`
+
+- `next.span_type`: `BaseServer.handleRequest`
 
 This span represents the root span for each incoming request to your Next.js application. It tracks the HTTP method, route, target, and status code of the request.
 
 Attributes:
 
-- `http.method`: The HTTP method of the request (e.g., GET, POST).
-- `http.route`: Same as `next.route`.
-- `http.status_code`: The HTTP status code of the response.
-- `http.target`: The actual requested path (e.g., `/value/user`).
-- `next.route`: The route pattern of the request (e.g., `/[param]/user`).
-- `next.span_type`: `BaseServer.handleRequest`
+- [Common HTTP attributes](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/#common-attributes)
+  - `http.method`
+  - `http.status_code`
+- [Server HTTP attributes](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/#http-server-semantic-conventions)
+  - `http.route`
+  - `http.target`
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `render route (app) [next.route]`
 
-This span represents the process of rendering a route in the application.
+- `next.span_type`: `AppRender.getBodyResult`.
+
+This span represents the process of rendering a route in app router.
 
 Attributes:
 
-- `next.route`: The route pattern of the request (e.g., `/[param]/user`).
-- `next.span_type`: `AppRender.getBodyResult`.
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `fetch [http.method] [http.url]`
+
+- `next.span_type`: `AppRender.fetch`
 
 This span represents the fetch request executed in your code.
 
 Attributes:
 
-- `http.method`: The HTTP method of the fetch request (e.g., GET).
-- `http.url`: The URL of the fetch request (e.g., `https://vercel.com/`).
-- `net.peer.name`: The domain name of the fetch request (e.g., `vercel.com`).
-- `next.span_type`: `AppRender.fetch`
+- [Common HTTP attributes](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/#common-attributes)
+  - `http.method`
+- [Client HTTP attributes](https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/http/#http-client)
+  - `http.url`
+  - `net.peer.name`
+  - `net.peer.port` (only if specified)
+- `next.span_name`
+- `next.span_type`
 
 ### `executing api route (app) [next.route]`
 
-This span represents the execution of an API route handler in the application.
+- `next.span_type`: `AppRouteRouteHandlers.runHandler`.
+
+This span represents the execution of an API route handler in app router.
 
 Attributes:
 
-- `next.route`: The route pattern of the request (e.g., `/[param]/getUser`).
-- `next.span_type`: `AppRouteRouteHandlers.runHandler`.
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `getServerSideProps [next.route]`
+
+- `next.span_type`: `Render.getServerSideProps`.
 
 This span represents the execution of `getServerSideProps` for a specific route.
 
 Attributes:
 
-- `next.route`: The route pattern of the request (e.g., `/[param]/user`).
-- `next.span_type`: `Render.getServerSideProps`.
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `getStaticProps [next.route]`
+
+- `next.span_type`: `Render.getStaticProps`.
 
 This span represents the execution of `getStaticProps` for a specific route.
 
 Attributes:
 
-- `next.route`: The route pattern of the request (e.g., `/[param]/user`).
-- `next.span_type`: `Render.getStaticProps`.
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `render route (pages) [next.route]`
+
+- `next.span_type`: `Render.renderDocument`.
 
 This span represents the process of rendering the document for a specific route.
 
 Attributes:
 
-- `next.route`: The route pattern of the request (e.g., `/[param]/user`).
-- `next.span_type`: `Render.renderDocument`.
+- `next.span_name`
+- `next.span_type`
+- `next.route`
 
 ### `generateMetadata [next.page]`
 
-This span represents the process of generating metadata for a specific route.
+- `next.span_type`: `ResolveMetadata.generateMetadata`.
+
+This span represents the process of generating metadata for a specific page (single route can have multiple of these spans).
 
 Attributes:
 
-- `next.page`: The page pattern for which the metadata is generated (e.g., `/app/[param]/layout` or `/app/[param]/page`).
-- `next.span_type`: `ResolveMetadata.generateMetadata`.
+- `next.span_name`
+- `next.span_type`
+- `next.page`
