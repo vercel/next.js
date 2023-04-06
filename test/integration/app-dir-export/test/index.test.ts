@@ -201,7 +201,7 @@ async function runTests({
   }
 }
 
-describe('app dir with output export', () => {
+describe('app dir with output export (next dev / next build)', () => {
   it.each([
     { isDev: true, trailingSlash: false },
     { isDev: true, trailingSlash: true },
