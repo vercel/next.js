@@ -108,8 +108,9 @@ fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
     }
 }
 
-#[testing::fixture("tests/integration/*/*/*")]
+#[testing::fixture("tests/integration/*/*/*/input")]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().to_path_buf();
     if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
         // "Skip" directories named `__skipped__`, which include test directories to
         // skip. These tests are not considered truly skipped by `cargo test`, but they
