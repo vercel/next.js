@@ -18,7 +18,8 @@ type DesiredCompilerOptionsShape = {
 }
 
 function getDesiredCompilerOptions(
-  ts: typeof import('typescript')
+  ts: typeof import('typescript'),
+  userTsConfig: any
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
     // These are suggested values and will be set when not present in the
@@ -73,15 +74,18 @@ function getDesiredCompilerOptions(
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
-    isolatedModules: {
-      value: true,
-      reason: 'requirement for SWC / Babel',
-    },
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
       value: 'preserve',
       reason: 'next.js implements its own optimized jsx transform',
     },
+  }
+
+  if (userTsConfig.compilerOptions?.verbatimModuleSyntax !== true) {
+    o.isolatedModules = {
+      value: true,
+      reason: 'requirement for SWC / Babel',
+    };
   }
 
   return o
@@ -92,7 +96,7 @@ export function getRequiredConfiguration(
 ): Partial<import('typescript').CompilerOptions> {
   const res: Partial<import('typescript').CompilerOptions> = {}
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts, {})
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
     if (!('value' in ev)) {
@@ -116,7 +120,6 @@ export async function writeConfigurationDefaults(
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   const { options: tsOptions, raw: rawConfig } =
     await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
@@ -128,6 +131,8 @@ export async function writeConfigurationDefaults(
     userTsConfig.compilerOptions = {}
     isFirstTimeSetup = true
   }
+
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts, userTsConfig)
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
