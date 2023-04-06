@@ -2,7 +2,6 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
 import { Meta, MultiMeta } from './meta'
-import { resolveStringUrl } from '../resolvers/resolve-url'
 
 export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return (
@@ -16,15 +15,13 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
       {metadata.authors
         ? metadata.authors.map((author, index) => (
             <React.Fragment key={index}>
-              {author.url && (
-                <link rel="author" href={resolveStringUrl(author.url)} />
-              )}
+              {author.url && <link rel="author" href={author.url.toString()} />}
               <Meta name="author" content={author.name} />
             </React.Fragment>
           ))
         : null}
       {metadata.manifest ? (
-        <link rel="manifest" href={resolveStringUrl(metadata.manifest)} />
+        <link rel="manifest" href={metadata.manifest.toString()} />
       ) : null}
       <Meta name="generator" content={metadata.generator} />
       <Meta name="keywords" content={metadata.keywords?.join(',')} />

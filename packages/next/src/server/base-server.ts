@@ -100,6 +100,7 @@ import { sendResponse } from './send-response'
 import { RouteKind } from './future/route-kind'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import { fromNodeHeaders, toNodeHeaders } from './web/utils'
+import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -246,6 +247,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponentProps?: any
     largePageDataBytes?: number
     appDirDevErrorLogger?: (err: any) => Promise<void>
+    strictNextHead: boolean
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
@@ -411,6 +413,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.nextFontManifest = this.getNextFontManifest()
 
     this.renderOpts = {
+      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
@@ -779,6 +782,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             addRequestMeta(req, '_nextRewroteUrl', parsedUrl.pathname!)
             addRequestMeta(req, '_nextDidRewrite', true)
           }
+          const routeParamKeys = new Set<string>()
+
+          for (const key of Object.keys(parsedUrl.query)) {
+            const value = parsedUrl.query[key]
+
+            if (
+              key !== NEXT_QUERY_PARAM_PREFIX &&
+              key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+            ) {
+              const normalizedKey = key.substring(
+                NEXT_QUERY_PARAM_PREFIX.length
+              )
+              parsedUrl.query[normalizedKey] = value
+
+              routeParamKeys.add(normalizedKey)
+              delete parsedUrl.query[key]
+            }
+          }
 
           // interpolate dynamic params and normalize URL if needed
           if (pageIsDynamic) {
@@ -857,7 +878,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
             }
-            Object.assign(parsedUrl.query, params)
           }
 
           if (pageIsDynamic || didRewrite) {
@@ -865,6 +885,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
+          }
+          for (const key of routeParamKeys) {
+            delete parsedUrl.query[key]
           }
           parsedUrl.pathname = `${this.nextConfig.basePath || ''}${
             matchedPath === '/' && this.nextConfig.basePath ? '' : matchedPath

@@ -8,6 +8,7 @@ import { createContext } from 'react'
 
 export type HtmlProps = {
   __NEXT_DATA__: NEXT_DATA
+  strictNextHead: boolean
   dangerousAsPath: string
   docComponentsRendered: {
     Html?: boolean
