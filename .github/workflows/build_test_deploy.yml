@@ -1098,7 +1098,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core-oss
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: 'vercel'
