@@ -6,6 +6,7 @@ import type {
 import path from 'path'
 import { stringify } from 'querystring'
 import { STATIC_METADATA_IMAGES } from '../../../../lib/metadata/is-metadata-route'
+import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 
 const METADATA_TYPE = 'metadata'
 
@@ -54,13 +55,13 @@ async function enumMetadataFiles(
 export async function createStaticMetadataFromRoute(
   resolvedDir: string,
   {
-    route,
+    segment,
     resolvePath,
     isRootLayer,
     loaderContext,
     pageExtensions,
   }: {
-    route: string
+    segment: string
     resolvePath: (pathname: string) => Promise<string>
     isRootLayer: boolean
     loaderContext: webpack.LoaderContext<any>
@@ -98,7 +99,8 @@ export async function createStaticMetadataFromRoute(
         const imageModuleImportSource = `next-metadata-image-loader?${stringify(
           {
             type,
-            route,
+            segment,
+            route: normalizeAppPath(segment),
             pageExtensions,
           }
         )}!${filepath}${METADATA_RESOURCE_QUERY}`

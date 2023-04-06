@@ -384,8 +384,8 @@ export async function renderToHTMLOrFlight(
 
       await collectMetadata({
         loaderTree: tree,
+        metadataItems,
         props: layerProps,
-        array: metadataItems,
         route: currentTreePrefix
           // __PAGE__ shouldn't be shown in a route
           .filter((s) => s !== PAGE_SEGMENT_KEY)
@@ -396,8 +396,8 @@ export async function renderToHTMLOrFlight(
         const childTree = parallelRoutes[key]
         await resolveMetadata({
           tree: childTree,
-          parentParams: currentParams,
           metadataItems,
+          parentParams: currentParams,
           treePrefix: currentTreePrefix,
         })
       }
