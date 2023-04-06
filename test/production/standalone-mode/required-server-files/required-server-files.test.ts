@@ -570,7 +570,7 @@ describe('should set-up next', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=first',
+      '/some-other-path?nextParamslug=first',
       undefined,
       {
         headers: {
@@ -587,7 +587,7 @@ describe('should set-up next', () => {
 
     const html2 = await renderViaHTTP(
       appPort,
-      '/some-other-path?slug=second',
+      '/some-other-path?nextParamslug=second',
       undefined,
       {
         headers: {
@@ -606,7 +606,7 @@ describe('should set-up next', () => {
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/dynamic/[slug]',
-        'x-now-route-matches': '1=second&slug=second',
+        'x-now-route-matches': '1=second&nextParamslug=second',
       },
     })
     const $3 = cheerio.load(html3)
@@ -703,7 +703,7 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?slug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?nextParamslug=first`,
       undefined,
       {
         headers: {
@@ -761,7 +761,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&catchAll=hello',
+          'x-now-route-matches': '1=hello&nextParamcatchAll=hello',
         },
       }
     )
@@ -780,7 +780,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&catchAll=hello/world',
+          'x-now-route-matches': '1=hello/world&nextParamcatchAll=hello/world',
         },
       }
     )
@@ -818,7 +818,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&rest=hello',
+          'x-now-route-matches': '1=hello&nextParamrest=hello',
         },
       }
     )
@@ -835,7 +835,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&rest=hello/world',
+          'x-now-route-matches': '1=hello/world&nextParamrest=hello/world',
         },
       }
     )
@@ -1111,7 +1111,7 @@ describe('should set-up next', () => {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
           'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+            '1=en%2Fes%2Fhello%252Fworld&nextParamrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -1145,7 +1145,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional/index',
-      { rest: 'index', another: 'value' },
+      { nextParamrest: 'index', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',

@@ -155,7 +155,7 @@ export class IncrementalCache {
   ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v1'
+    const MAIN_KEY_PREFIX = 'v2'
 
     let cacheKey: string
     const bodyChunks: string[] = []
