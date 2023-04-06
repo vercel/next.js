@@ -144,8 +144,9 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'ReadableByteStreamController',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'TextDecoderStream',
-  'TextEncoderStream',
+  // Available as of 2.1.0 - https://github.com/vercel/edge-runtime/blob/23f465da83c45c94892ee5444cd1fa0e919e25e6/packages/primitives/CHANGELOG.md#210
+  // 'TextDecoderStream',
+  // 'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]
