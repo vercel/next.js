@@ -257,13 +257,13 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata({
   loaderTree,
+  metadataItems: array,
   props,
-  array,
   route,
 }: {
   loaderTree: LoaderTree
+  metadataItems: MetadataItems
   props: any
-  array: MetadataItems
   route: string
 }) {
   const [mod, modType] = await getLayoutOrPageModule(loaderTree)
@@ -289,7 +289,6 @@ export async function accumulateMetadata(
   options: MetadataAccumulationOptions
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
-
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
