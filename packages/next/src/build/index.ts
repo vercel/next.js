@@ -137,6 +137,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
+import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -519,6 +520,12 @@ export default async function build(
           appPageKeys.push(normalizedAppPageKey)
         }
       }
+
+      // Interception routes are modelled as beforeFiles rewrites
+      rewrites.beforeFiles.unshift(
+        ...generateInterceptionRoutesRewrites(appPageKeys)
+      )
+
       const totalAppPagesCount = appPageKeys.length
 
       const pageKeys = {
