@@ -56,6 +56,7 @@ async function getFiles(cwd = exportDir) {
     .filter(
       (f) =>
         !f.startsWith('_next/static/chunks/') &&
+        !f.startsWith('_next/static/development/') &&
         !f.startsWith('_next/static/webpack/')
     )
     .sort()
