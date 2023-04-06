@@ -14,14 +14,16 @@ export default function Form() {
   return (
     <>
       <hr />
-      <form method="POST" action={action}>
+      <form method="POST" action="">
+        <input type="text" name="$$id" value={action.$$id} hidden readOnly />
         <input type="text" name="name" id="name" required />
         <button type="submit" id="submit">
           Submit
         </button>
       </form>
       <hr />
-      <form method="POST" action={nowhere}>
+      <form method="POST" action="">
+        <input type="text" name="$$id" value={nowhere.$$id} hidden readOnly />
         <button type="submit" id="nowhere">
           Go nowhere
         </button>
