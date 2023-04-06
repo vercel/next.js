@@ -384,8 +384,8 @@ export async function renderToHTMLOrFlight(
 
       await collectMetadata({
         loaderTree: tree,
+        metadataItems,
         props: layerProps,
-        array: metadataItems,
         route: currentTreePrefix
           // __PAGE__ shouldn't be shown in a route
           .filter((s) => s !== PAGE_SEGMENT_KEY)
@@ -396,8 +396,8 @@ export async function renderToHTMLOrFlight(
         const childTree = parallelRoutes[key]
         await resolveMetadata({
           tree: childTree,
-          parentParams: currentParams,
           metadataItems,
+          parentParams: currentParams,
           treePrefix: currentTreePrefix,
         })
       }
@@ -459,6 +459,89 @@ export async function renderToHTMLOrFlight(
       return [Comp, styles]
     }
 
+    const createStaticAssets = async ({
+      layoutOrPagePath,
+      injectedCSS: injectedCSSWithCurrentLayout,
+      injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+    }: {
+      layoutOrPagePath: string | undefined
+      injectedCSS: Set<string>
+      injectedFontPreloadTags: Set<string>
+    }) => {
+      const stylesheets: string[] = layoutOrPagePath
+        ? getCssInlinedLinkTags(
+            clientReferenceManifest,
+            serverCSSManifest!,
+            layoutOrPagePath,
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
+          )
+        : []
+
+      const preloadedFontFiles = layoutOrPagePath
+        ? getPreloadedFontFilesInlineLinkTags(
+            serverCSSManifest!,
+            nextFontManifest,
+            serverCSSForEntries,
+            layoutOrPagePath,
+            injectedFontPreloadTagsWithCurrentLayout
+          )
+        : []
+
+      return (
+        <>
+          {preloadedFontFiles?.length === 0 ? (
+            <link
+              data-next-font={
+                nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+              }
+              rel="preconnect"
+              href="/"
+              crossOrigin="anonymous"
+            />
+          ) : null}
+          {preloadedFontFiles
+            ? preloadedFontFiles.map((fontFile) => {
+                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                return (
+                  <link
+                    key={fontFile}
+                    rel="preload"
+                    href={`${assetPrefix}/_next/${fontFile}`}
+                    as="font"
+                    type={`font/${ext}`}
+                    crossOrigin="anonymous"
+                    data-next-font={
+                      fontFile.includes('-s') ? 'size-adjust' : ''
+                    }
+                  />
+                )
+              })
+            : null}
+          {stylesheets
+            ? stylesheets.map((href, index) => (
+                <link
+                  rel="stylesheet"
+                  // In dev, Safari will wrongly cache the resource if you preload it:
+                  // - https://github.com/vercel/next.js/issues/5860
+                  // - https://bugs.webkit.org/show_bug.cgi?id=187726
+                  // We used to add a `?ts=` query for resources in `pages` to bypass it,
+                  // but in this case it is fine as we don't need to preload the styles.
+                  href={`${assetPrefix}/_next/${href}`}
+                  // `Precedence` is an opt-in signal for React to handle
+                  // resource loading and deduplication, etc:
+                  // https://github.com/facebook/react/pull/25060
+                  // @ts-ignore
+                  precedence="next.js"
+                  key={index}
+                />
+              ))
+            : null}
+        </>
+      )
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -498,29 +581,15 @@ export async function renderToHTMLOrFlight(
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
-      const stylesheets: string[] = layoutOrPagePath
-        ? getCssInlinedLinkTags(
-            clientReferenceManifest,
-            serverCSSManifest!,
-            layoutOrPagePath,
-            serverCSSForEntries,
-            injectedCSSWithCurrentLayout,
-            true
-          )
-        : []
-
       const injectedFontPreloadTagsWithCurrentLayout = new Set(
         injectedFontPreloadTags
       )
-      const preloadedFontFiles = layoutOrPagePath
-        ? getPreloadedFontFilesInlineLinkTags(
-            serverCSSManifest!,
-            nextFontManifest,
-            serverCSSForEntries,
-            layoutOrPagePath,
-            injectedFontPreloadTagsWithCurrentLayout
-          )
-        : []
+
+      const assets = createStaticAssets({
+        layoutOrPagePath,
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+      })
 
       const [Template, templateStyles] = template
         ? await createComponentAndStyles({
@@ -855,53 +924,7 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {preloadedFontFiles?.length === 0 ? (
-                <link
-                  data-next-font={
-                    nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
-                  }
-                  rel="preconnect"
-                  href="/"
-                  crossOrigin="anonymous"
-                />
-              ) : null}
-              {preloadedFontFiles
-                ? preloadedFontFiles.map((fontFile) => {
-                    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                    return (
-                      <link
-                        key={fontFile}
-                        rel="preload"
-                        href={`${assetPrefix}/_next/${fontFile}`}
-                        as="font"
-                        type={`font/${ext}`}
-                        crossOrigin="anonymous"
-                        data-next-font={
-                          fontFile.includes('-s') ? 'size-adjust' : ''
-                        }
-                      />
-                    )
-                  })
-                : null}
-              {stylesheets
-                ? stylesheets.map((href, index) => (
-                    <link
-                      rel="stylesheet"
-                      // In dev, Safari will wrongly cache the resource if you preload it:
-                      // - https://github.com/vercel/next.js/issues/5860
-                      // - https://bugs.webkit.org/show_bug.cgi?id=187726
-                      // We used to add a `?ts=` query for resources in `pages` to bypass it,
-                      // but in this case it is fine as we don't need to preload the styles.
-                      href={`${assetPrefix}/_next/${href}`}
-                      // `Precedence` is an opt-in signal for React to handle
-                      // resource loading and deduplication, etc:
-                      // https://github.com/facebook/react/pull/25060
-                      // @ts-ignore
-                      precedence="next.js"
-                      key={index}
-                    />
-                  ))
-                : null}
+              {assets}
             </>
           )
         },
@@ -1201,13 +1224,15 @@ export async function renderToHTMLOrFlight(
       async (props) => {
         // Create full component tree from root to leaf.
         const injectedCSS = new Set<string>()
+        const injectedFontPreloadTags = new Set<string>()
+
         const { Component: ComponentTree } = await createComponentTree({
           createSegmentPath: (child) => child,
           loaderTree,
           parentParams: {},
           firstItem: true,
           injectedCSS,
-          injectedFontPreloadTags: new Set(),
+          injectedFontPreloadTags,
           rootLayoutIncluded: false,
           asNotFound: props.asNotFound,
         })
@@ -1228,6 +1253,12 @@ export async function renderToHTMLOrFlight(
           : rootLayoutAtThisLevel
           ? [DefaultNotFound]
           : []
+
+        const assets = createStaticAssets({
+          layoutOrPagePath: layout?.[1],
+          injectedCSS,
+          injectedFontPreloadTags,
+        })
 
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
@@ -1255,12 +1286,15 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <RootLayout params={{}}>
-                    <NotFound />
-                  </RootLayout>
+                  <>
+                    {assets}
+                    <RootLayout params={{}}>
+                      {notFoundStyles}
+                      <NotFound />
+                    </RootLayout>
+                  </>
                 ) : undefined
               }
-              notFoundStyles={notFoundStyles}
               asNotFound={props.asNotFound}
             >
               <ComponentTree />

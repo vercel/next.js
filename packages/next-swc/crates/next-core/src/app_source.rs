@@ -597,9 +597,9 @@ impl AppRendererVc {
                 state.counter += 1;
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let chunks_identifier = magic_identifier::mangle(&format!("chunks of {name} #{i}"));
-                write!(
+                writeln!(
                     state.loader_tree_code,
-                    "{name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + '.js']",
+                    "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + '.js'],",
                     name = StringifyJs(name)
                 )?;
                 state.imports.push(format!(
@@ -638,7 +638,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 components,
             } = &*loader_tree.await?;
 
-            write!(
+            writeln!(
                 state.loader_tree_code,
                 "[{segment}, {{",
                 segment = StringifyJs(segment)
@@ -649,7 +649,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 walk_tree(state, parallel_route).await?;
                 writeln!(state.loader_tree_code, ",")?;
             }
-            write!(state.loader_tree_code, "}}, {{")?;
+            writeln!(state.loader_tree_code, "}}, {{")?;
             // add components
             let Components {
                 page,
@@ -884,6 +884,11 @@ impl Issue for UnsupportedImplicitMetadataIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> IssueSeverityVc {
         IssueSeverity::Warning.into()
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("unsupported".to_string())
     }
 
     #[turbo_tasks::function]

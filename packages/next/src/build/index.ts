@@ -190,7 +190,7 @@ async function generateClientSsgManifest(
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getNamedRouteRegex(page)
+  const routeRegex = getNamedRouteRegex(page, true)
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
@@ -1975,7 +1975,8 @@ export default async function build(
 
           if (isDynamicRoute(page)) {
             const routeRegex = getNamedRouteRegex(
-              dataRoute.replace(/\.json$/, '')
+              dataRoute.replace(/\.json$/, ''),
+              true
             )
 
             dataRouteRegex = normalizeRouteRegex(
@@ -2392,7 +2393,7 @@ export default async function build(
               // dynamicParams for non-static paths?
               finalDynamicRoutes[page] = {
                 routeRegex: normalizeRouteRegex(
-                  getNamedRouteRegex(page).re.source
+                  getNamedRouteRegex(page, false).re.source
                 ),
                 dataRoute,
                 // if dynamicParams are enabled treat as fallback:
@@ -2404,7 +2405,8 @@ export default async function build(
                   ? null
                   : normalizeRouteRegex(
                       getNamedRouteRegex(
-                        dataRoute.replace(/\.rsc$/, '')
+                        dataRoute.replace(/\.rsc$/, ''),
+                        false
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
                     ),
               }
@@ -2539,11 +2541,14 @@ export default async function build(
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
-                await promises.copyFile(
-                  orig,
-                  path.join(distDir, 'server', updatedRelativeDest)
-                )
-                pagesManifest['/404'] = updatedRelativeDest
+
+                if (await fileExists(orig)) {
+                  await promises.copyFile(
+                    orig,
+                    path.join(distDir, 'server', updatedRelativeDest)
+                  )
+                  pagesManifest['/404'] = updatedRelativeDest
+                }
               })
           }
 
@@ -2769,7 +2774,7 @@ export default async function build(
 
           finalDynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
-              getNamedRouteRegex(tbdRoute).re.source
+              getNamedRouteRegex(tbdRoute, false).re.source
             ),
             dataRoute,
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
@@ -2779,7 +2784,8 @@ export default async function build(
               : false,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
-                dataRoute.replace(/\.json$/, '')
+                dataRoute.replace(/\.json$/, ''),
+                false
               ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
             ),
           }
