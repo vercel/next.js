@@ -32,12 +32,11 @@ function fastRefreshReducerImpl(
     // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.
     cache.data = createRecordFromThenable(
-      fetchServerResponse(new URL(href, origin), [
-        state.tree[0],
-        state.tree[1],
-        state.tree[2],
-        'refetch',
-      ])
+      fetchServerResponse(
+        new URL(href, origin),
+        [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
+        state.nextUrl
+      )
     )
   }
   const [flightData, canonicalUrlOverride] = readRecordValue(cache.data!)

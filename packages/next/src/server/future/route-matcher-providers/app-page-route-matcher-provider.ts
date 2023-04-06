@@ -1,13 +1,8 @@
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 
-import {
-  extractInterceptionRouteInformation,
-  isIntersectionRouteAppPath,
-} from '../helpers/interception-routes'
 import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
 import { AppNormalizers } from '../normalizers/built/app'
 import { RouteKind } from '../route-kind'
-import { AppPageInterceptingRouteMatcher } from '../route-matchers/app-intercepting-route-matcher'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
 import {
   Manifest,
@@ -48,33 +43,16 @@ export class AppPageRouteMatcherProvider extends ManifestRouteMatcherProvider<Ap
       const filename = this.normalizers.filename.normalize(manifest[page])
       const bundlePath = this.normalizers.bundlePath.normalize(page)
 
-      if (isIntersectionRouteAppPath(pathname)) {
-        const { interceptingRoute, interceptedRoute } =
-          extractInterceptionRouteInformation(pathname)
-        matchers.push(
-          new AppPageInterceptingRouteMatcher({
-            kind: RouteKind.APP_PAGE,
-            pathname: interceptedRoute,
-            page,
-            bundlePath,
-            filename,
-            appPaths,
-            interceptingRoute: interceptingRoute,
-            pathnameOverride: pathname,
-          })
-        )
-      } else {
-        matchers.push(
-          new AppPageRouteMatcher({
-            kind: RouteKind.APP_PAGE,
-            pathname,
-            page,
-            bundlePath,
-            filename,
-            appPaths,
-          })
-        )
-      }
+      matchers.push(
+        new AppPageRouteMatcher({
+          kind: RouteKind.APP_PAGE,
+          pathname,
+          page,
+          bundlePath,
+          filename,
+          appPaths,
+        })
+      )
     }
 
     return matchers
