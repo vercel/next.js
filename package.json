@@ -29,7 +29,7 @@
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
     "lint-typescript": "turbo run typescript",
     "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0 --config .eslintrc.json --no-eslintrc",
-    "lint-no-typescript": "run-p prettier-check lint-eslint",
+    "lint-no-typescript": "run-p prettier-check lint-eslint lint-language",
     "lint": "run-p test-types lint-typescript prettier-check lint-eslint lint-language",
     "lint-fix": "pnpm prettier-fix && eslint . --ext js,jsx,ts,tsx --fix --max-warnings=0 --config .eslintrc.json --no-eslintrc",
     "lint-language": "alex .",
