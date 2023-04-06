@@ -10,9 +10,12 @@ import type {
   Segment,
 } from './types'
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-
+// Import builtin react directly to avoid require cache conflicts
+import React from 'next/dist/compiled/react'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
@@ -74,18 +77,6 @@ import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
-
-// Import builtin react directly to avoid require cache conflicts
-let React: typeof import('next/dist/compiled/react')
-let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
-
-if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
-  React = require('next/dist/compiled/react-experimental')
-  ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
-} else {
-  React = require('next/dist/compiled/react')
-  ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
-}
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -166,6 +157,7 @@ export async function renderToHTMLOrFlight(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
+    nextConfigOutput,
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
@@ -217,6 +209,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -306,6 +300,11 @@ export async function renderToHTMLOrFlight(
       const key = segmentParam.param
 
       let value = pathParams[key]
+
+      // this is a special marker that will be present for interception routes
+      if (value === '__NEXT_EMPTY_PARAM__') {
+        value = undefined
+      }
 
       if (Array.isArray(value)) {
         value = value.map((i) => encodeURIComponent(i))
@@ -640,15 +639,33 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
-      if (typeof layoutOrPageMod?.dynamic === 'string') {
+      let dynamic = layoutOrPageMod?.dynamic
+
+      if (nextConfigOutput === 'export') {
+        if (!dynamic || dynamic === 'auto') {
+          dynamic = 'error'
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationStore.dynamicShouldError = true
+          staticGenerationBailout(`output: export`, {
+            dynamic,
+            link: 'https://nextjs.org/docs/advanced-features/static-html-export',
+          })
+        }
+      }
+
+      if (typeof dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'error') {
+        if (dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`force-dynamic`, { dynamic })
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod.dynamic === 'force-static') {
+          if (dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
@@ -1455,6 +1472,15 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (
+            err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+            err.message?.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          ) {
+            // Ensure that "next dev" prints the red error overlay
+            throw err
+          }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
               `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
