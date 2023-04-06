@@ -225,6 +225,43 @@ createNextDescribe(
         )
       })
 
+      it('should render intercepted route from a nested route', async () => {
+        const browser = await next.browser('/intercepting-routes/feed/nested')
+
+        // Check if navigation to modal route works.
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-routes/photos/1"]')
+              .click()
+              .waitForElementByCss('#photo-intercepted-1')
+              .text(),
+          'Photo INTERCEPTED 1'
+        )
+
+        // Check if intercepted route was rendered while existing page content was removed.
+        // Content would only be preserved when combined with parallel routes.
+        // await check(() => browser.elementByCss('#feed-page').text()).not.toBe('Feed')
+
+        // Check if url matches even though it was intercepted.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes/photos/1'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        await check(
+          () => browser.refresh().waitForElementByCss('#photo-page-1').text(),
+          'Photo PAGE 1'
+        )
+
+        // Check if the url matches still.
+        await check(
+          () => browser.url(),
+          next.url + '/intercepting-routes/photos/1'
+        )
+      })
+
       it('should render modal when paired with parallel routes', async () => {
         const browser = await next.browser(
           '/intercepting-parallel-modal/vercel'
