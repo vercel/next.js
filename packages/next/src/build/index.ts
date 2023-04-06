@@ -280,7 +280,6 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
-      const useExperimentalReact = !!config.experimental.experimentalReact
       const initialRequireHookFilePath = require.resolve(
         'next/dist/server/initialize-require-hook'
       )
@@ -290,9 +289,7 @@ export default async function build(
       )
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-          ? 'experimental'
-          : 'next'
+        process.env.NEXT_PREBUNDLED_REACT = '1'
       }
       await promises
         .writeFile(
