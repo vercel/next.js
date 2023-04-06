@@ -56,13 +56,16 @@ To see more spans, you must set `NEXT_OTEL_VERBOSE=1`.
 
 ## Custom Spans
 
-OpenTelemetry enables you to add your own custom spans to trace using official OpenTelemetry APIs.
-Our package `@vercel/otel` exports everything from `@opentelemetry/api` so you don't need to install anything.
+You can add your own span with [OpenTelemetry APIs](https://opentelemetry.io/docs/instrumentation/js/instrumentation).
+
+```bash
+npm install @opentelemetry/api
+```
 
 The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:
 
 ```ts
-import { trace } from '@vercel/otel'
+import { trace } from '@opentelemetry/api'
 
 export async function fetchGithubStars() {
   return await trace
@@ -76,8 +79,6 @@ export async function fetchGithubStars() {
     })
 }
 ```
-
-More documentation can be found in [OpenTelemetry docs](https://opentelemetry.io/docs/instrumentation/js/instrumentation/).
 
 The `register` function will execute before your code runs in a new environment.
 You can start creating new spans, and they should be correctly added to the exported trace.
