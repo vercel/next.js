@@ -229,6 +229,7 @@ createNextDescribe(
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'flight/[slug]/[slug2]/page.js',
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
@@ -609,16 +610,6 @@ createNextDescribe(
             fallback: false,
             routeRegex: normalizeRegEx(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/partial-gen-params/[lang]/[slug]': {
-            dataRoute: '/partial-gen-params/[lang]/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
           '/force-static/[slug]': {
