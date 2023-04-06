@@ -2,15 +2,16 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/middleware-rewrite-before')) {
+  const [, , to, ...testType] = request.nextUrl.pathname.split('/')
+  if (testType[0] === 'middleware-rewrite-before') {
     return NextResponse.rewrite(
-      new URL('/middleware-rewrite-after', request.url)
+      new URL(`/${to}/${to}/middleware-rewrite-after`, request.url)
     )
   }
 
-  if (request.nextUrl.pathname.startsWith('/middleware-redirect-before')) {
+  if (testType[0] === 'middleware-redirect-before') {
     return NextResponse.redirect(
-      new URL('/middleware-redirect-after', request.url)
+      new URL(`/${to}/${to}/middleware-redirect-after`, request.url)
     )
   }
 }

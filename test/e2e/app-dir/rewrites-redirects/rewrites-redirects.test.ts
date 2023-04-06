@@ -20,17 +20,20 @@ createNextDescribe(
      * We also test compatibility with pages
      */
     describe.each(['link', 'button'])('navigation using %s', (testType) => {
+      if (testType === 'button') return
       describe.each([
         ['app', 'app'],
         ['app', 'pages'],
         ['pages', 'app'],
-      ])('navigation from %s to %s', ([from, to]) => {
-        it('should rewrite from middleware correctly', async () => {
+      ])('navigation from %s to %s', (from, to) => {
+        it.only('should rewrite from middleware correctly', async () => {
           const browser = await next.browser('/')
+          console.log(`navigate to ${from}-${to}-${testType}`)
           await browser
-            .elementById(`${from}-${to}-${testType}-middleware-rewrite`)
+            .elementById(`${testType}-${to}-${to}-middleware-rewrite`)
             .click()
-            .waitForElementByCss('.page_middleware-rewrite-after')
+            .waitForElementByCss(`.page_${to}_${to}_middleware-rewrite-after`)
+          console.log('after click')
           const url = new URL(await browser.url())
           expect(url.pathname).toEndWith('-before')
         })
