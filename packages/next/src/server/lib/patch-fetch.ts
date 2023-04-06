@@ -230,6 +230,10 @@ export function patchFetch({
               typeof revalidate === 'number' &&
               revalidate > 0
             ) {
+              if (!res.ok) {
+                return res
+              }
+
               let base64Body = ''
               const resBlob = await res.blob()
               const arrayBuffer = await resBlob.arrayBuffer()
