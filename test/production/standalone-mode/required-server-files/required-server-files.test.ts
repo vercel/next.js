@@ -606,7 +606,7 @@ describe('should set-up next', () => {
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/dynamic/[slug]',
-        'x-now-route-matches': '1=second&slug=second',
+        'x-now-route-matches': '1=second&nextParamslug=second',
       },
     })
     const $3 = cheerio.load(html3)
@@ -761,7 +761,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&catchAll=hello',
+          'x-now-route-matches': '1=hello&nextParamcatchAll=hello',
         },
       }
     )
@@ -780,7 +780,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&catchAll=hello/world',
+          'x-now-route-matches': '1=hello/world&nextParamcatchAll=hello/world',
         },
       }
     )
@@ -818,7 +818,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&rest=hello',
+          'x-now-route-matches': '1=hello&nextParamrest=hello',
         },
       }
     )
@@ -835,7 +835,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&rest=hello/world',
+          'x-now-route-matches': '1=hello/world&nextParamrest=hello/world',
         },
       }
     )
@@ -1111,7 +1111,7 @@ describe('should set-up next', () => {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
           'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&rest=en%2Fes%2Fhello%252Fworld',
+            '1=en%2Fes%2Fhello%252Fworld&nextParamrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
