@@ -109,13 +109,6 @@ function createIpc<TIncoming, TOutgoing>(
     })
   }
 
-  // When the socket is closed, this process is no longer needed.
-  // This might happen e. g. when parent process is killed or
-  // node.js pool is garbage collected.
-  socket.once('close', () => {
-    process.exit(0)
-  })
-
   return {
     async recv() {
       const packet = packetQueue.shift()

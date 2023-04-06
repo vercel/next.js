@@ -24,8 +24,7 @@ export function makeRequest(
   method: string,
   path: string,
   rawQuery?: string,
-  rawHeaders?: [string, string][],
-  body?: Buffer
+  rawHeaders?: [string, string][]
 ): Promise<{
   clientRequest: ClientRequest;
   clientResponsePromise: Promise<IncomingMessage>;
@@ -114,13 +113,7 @@ export function makeRequest(
     // Otherwise Node.js waits for the first chunk of data to be written before sending the request.
     clientRequest.flushHeaders();
 
-    if (body) {
-      clientRequest.write(body);
-    }
-
     clientRequest.once("response", responseListener);
     clientRequest.once("error", clientResponseErrorListener);
-
-    clientRequest.end();
   });
 }

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use futures::{StreamExt, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 use indexmap::IndexSet;
 use turbo_binding::turbopack::{
     core::{
@@ -118,9 +118,9 @@ impl ContentSource for NextRouterContentSource {
         // TODO: change router so we can stream the request body to it
         let mut body_stream = body.await?.read();
 
-        let mut body = Vec::new();
+        let mut body = Vec::with_capacity(body_stream.size_hint().0);
         while let Some(data) = body_stream.try_next().await? {
-            body.extend(data.iter());
+            body.push(data);
         }
 
         let request = RouterRequest {
@@ -128,7 +128,7 @@ impl ContentSource for NextRouterContentSource {
             method: method.clone(),
             raw_headers: raw_headers.clone(),
             raw_query: raw_query.clone(),
-            body: body.into(),
+            body,
         }
         .cell();
 

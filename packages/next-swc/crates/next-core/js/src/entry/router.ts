@@ -17,7 +17,7 @@ type RouterRequest = {
   pathname: string;
   rawHeaders: [string, string][];
   rawQuery: string;
-  body: number[];
+  body: number[][];
 };
 
 type IpcOutgoingMessage = {
@@ -92,13 +92,14 @@ export default async function route(
       routerRequest.method,
       routerRequest.pathname,
       routerRequest.rawQuery,
-      routerRequest.rawHeaders,
-      Buffer.from(routerRequest.body),
+      routerRequest.rawHeaders
     );
+
+    const body = Buffer.concat(routerRequest.body.map((arr) => Buffer.from(arr)));
 
     // Send the clientRequest, so the server parses everything. We can then pass
     // the serverRequest to Next.js to handle.
-    clientRequest.end();
+    clientRequest.end(body);
 
     // The route promise must not block us from starting the client response
     // handling, so we cannot await it yet. By making the call, we allow

@@ -88,7 +88,7 @@ pub struct RouterRequest {
     pub pathname: String,
     pub raw_query: String,
     pub raw_headers: Vec<(String, String)>,
-    pub body: Bytes,
+    pub body: Vec<Bytes>,
 }
 
 #[turbo_tasks::value(shared)]
