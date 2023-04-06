@@ -566,7 +566,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
-      nextUrl: 'https://example.vercel.sh/',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -724,7 +724,7 @@ describe('navigateReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: 'https://example.vercel.sh/',
-      nextUrl: 'https://example.vercel.sh/',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,

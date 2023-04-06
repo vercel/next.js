@@ -200,7 +200,7 @@ describe('prefetchReducer', () => {
         undefined,
         true,
       ],
-      nextUrl: null,
+      nextUrl: '/linking',
     }
 
     expect(newState).toMatchObject(expectedState)
@@ -346,7 +346,7 @@ describe('prefetchReducer', () => {
         undefined,
         true,
       ],
-      nextUrl: null,
+      nextUrl: '/linking',
     }
 
     expect(newState).toMatchObject(expectedState)
