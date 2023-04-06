@@ -17,6 +17,7 @@ use turbo_binding::{
             ident::AssetIdentVc,
             reference::AssetReferencesVc,
         },
+        dev::ChunkData,
         ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -141,18 +142,16 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
 
         let chunks = self.inner.chunks().await?;
         let server_root = inner_chunking_context.output_root().await?;
-        let mut client_chunks = Vec::new();
 
-        for chunk_path in chunks
+        let chunks_data = chunks
             .iter()
-            .map(|chunk| chunk.ident().path())
+            .map(|&chunk| ChunkData::from_asset(&server_root, chunk))
             .try_join()
             .await?
-        {
-            if let Some(path) = server_root.get_path_to(&chunk_path) {
-                client_chunks.push(serde_json::Value::String(path.to_string()));
-            }
-        }
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
         let module_id = &*inner
             .asset
             .as_chunk_item(inner_chunking_context)
@@ -171,7 +170,7 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
             const chunks = {:#};
             "#,
             StringifyJs(&module_id),
-            StringifyJs(&client_chunks),
+            StringifyJs(&chunks_data),
         )?;
 
         Ok(EcmascriptChunkItemContent {
