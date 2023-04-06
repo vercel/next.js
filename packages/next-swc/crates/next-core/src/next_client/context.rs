@@ -19,6 +19,7 @@ use turbo_binding::{
             free_var_references,
         },
         dev::DevChunkingContextVc,
+        ecmascript::EcmascriptInputTransform,
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
         turbopack::{
@@ -175,6 +176,9 @@ pub async fn get_client_module_options_context(
     };
 
     let module_options_context = ModuleOptionsContext {
+        custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+            StringVc::cell("TODO".to_string()),
+        )],
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         ..Default::default()

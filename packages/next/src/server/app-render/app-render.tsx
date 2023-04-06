@@ -10,6 +10,7 @@ import type {
   Segment,
 } from './types'
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
 
@@ -166,6 +167,7 @@ export async function renderToHTMLOrFlight(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
+    nextConfigOutput,
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
@@ -217,6 +219,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -645,15 +649,33 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
-      if (typeof layoutOrPageMod?.dynamic === 'string') {
+      let dynamic = layoutOrPageMod?.dynamic
+
+      if (nextConfigOutput === 'export') {
+        if (!dynamic || dynamic === 'auto') {
+          dynamic = 'error'
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationStore.dynamicShouldError = true
+          staticGenerationBailout(`output: export`, {
+            dynamic,
+            link: 'https://nextjs.org/docs/advanced-features/static-html-export',
+          })
+        }
+      }
+
+      if (typeof dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'error') {
+        if (dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`force-dynamic`, { dynamic })
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod.dynamic === 'force-static') {
+          if (dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
@@ -1460,6 +1482,15 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (
+            err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+            err.message?.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          ) {
+            // Ensure that "next dev" prints the red error overlay
+            throw err
+          }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
               `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,

@@ -86,6 +86,8 @@ const nextBuild: CliCommand = (argv) => {
       (err.code === 'INVALID_RESOLVE_ALIAS' ||
         err.code === 'WEBPACK_ERRORS' ||
         err.code === 'BUILD_OPTIMIZATION_FAILED' ||
+        err.code === 'NEXT_EXPORT_ERROR' ||
+        err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
         err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
     ) {
       printAndExit(`> ${err.message}`)
