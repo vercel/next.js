@@ -121,11 +121,7 @@ export class HeadersAdapter extends Headers {
           case 'set':
             return ReadonlyHeadersError.callable
           default:
-            return ReflectAdapter.get(
-              target,
-              prop as keyof ReadonlyHeaders,
-              headers
-            )
+            return ReflectAdapter.get(target, prop, headers)
         }
       },
     })

@@ -997,7 +997,7 @@ export async function renderToHTML(
             return ReflectAdapter.get(obj, prop, res)
           }
 
-          return ReflectAdapter.get(obj, prop as keyof ServerResponse, res)
+          return ReflectAdapter.get(obj, prop, res)
         },
       })
     }

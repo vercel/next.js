@@ -31,11 +31,7 @@ export class RequestCookiesAdapter {
           case 'set':
             return ReadonlyRequestCookiesError.callable
           default:
-            return ReflectAdapter.get(
-              target,
-              prop as keyof ReadonlyRequestCookies,
-              cookies
-            )
+            return ReflectAdapter.get(target, prop, cookies)
         }
       },
     })
