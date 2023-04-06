@@ -22,21 +22,22 @@ impl DotenvProcessEnvVc {
     pub fn new(prior: Option<ProcessEnvVc>, path: FileSystemPathVc) -> Self {
         DotenvProcessEnv { prior, path }.cell()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ProcessEnv for DotenvProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<EnvMapVc> {
-        let prior = if let Some(p) = self.prior {
-            Some(p.read_all().await?)
-        } else {
-            None
-        };
-        let empty = IndexMap::new();
-        let prior = prior.as_deref().unwrap_or(&empty);
+    pub async fn read_prior(self) -> Result<EnvMapVc> {
+        let this = self.await?;
+        match this.prior {
+            None => Ok(EnvMapVc::empty()),
+            Some(p) => Ok(p.read_all()),
+        }
+    }
 
-        let file = self.path.read().await?;
+    #[turbo_tasks::function]
+    pub async fn read_all_with_prior(self, prior: EnvMapVc) -> Result<EnvMapVc> {
+        let this = self.await?;
+        let prior = prior.await?;
+
+        let file = this.path.read().await?;
         if let FileContent::Content(f) = &*file {
             let res;
             let vars;
@@ -48,7 +49,7 @@ impl ProcessEnv for DotenvProcessEnv {
                 // state.
                 let initial = env::vars().collect();
 
-                restore_env(&initial, prior, &lock);
+                restore_env(&initial, &prior, &lock);
 
                 // from_read will load parse and evalute the Read, and set variables
                 // into the global env. If a later dotenv defines an already defined
@@ -59,17 +60,26 @@ impl ProcessEnv for DotenvProcessEnv {
                 restore_env(&vars, &initial, &lock);
             }
 
-            if res.is_err() {
-                res.context(anyhow!(
+            if let Err(e) = res {
+                return Err(e).context(anyhow!(
                     "unable to read {} for env vars",
-                    self.path.to_string().await?
-                ))?;
+                    this.path.to_string().await?
+                ));
             }
 
             Ok(EnvMapVc::cell(vars))
         } else {
-            Ok(EnvMapVc::cell(prior.clone()))
+            Ok(EnvMapVc::cell(prior.clone_value()))
         }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ProcessEnv for DotenvProcessEnv {
+    #[turbo_tasks::function]
+    async fn read_all(self_vc: DotenvProcessEnvVc) -> Result<EnvMapVc> {
+        let prior = self_vc.read_prior();
+        Ok(self_vc.read_all_with_prior(prior))
     }
 }
 
