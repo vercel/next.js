@@ -369,7 +369,7 @@ impl IssueReporter for ConsoleUi {
             .iter_with_shortest_path()
             .map(|(issue, path)| async move {
                 let plain_issue = issue.into_plain(path);
-                let id = plain_issue.internal_hash().await?;
+                let id = plain_issue.internal_hash(false).await?;
                 Ok((plain_issue.await?, *id))
             })
             .try_join()

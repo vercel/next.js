@@ -503,42 +503,67 @@ pub struct PlainIssue {
     pub processing_path: PlainIssueProcessingPathReadRef,
 }
 
+fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
+    hasher.write_ref(&issue.severity);
+    hasher.write_ref(&issue.context);
+    hasher.write_ref(&issue.category);
+    hasher.write_ref(&issue.title);
+    hasher.write_ref(
+        // Normalize syspaths from Windows. These appear in stack traces.
+        &issue.description.replace('\\', "/"),
+    );
+    hasher.write_ref(&issue.detail);
+    hasher.write_ref(&issue.documentation_link);
+
+    if let Some(source) = &issue.source {
+        hasher.write_value(1_u8);
+        // I'm assuming we don't need to hash the contents. Not 100% correct, but
+        // probably 99%.
+        hasher.write_ref(&source.start);
+        hasher.write_ref(&source.end);
+    } else {
+        hasher.write_value(0_u8);
+    }
+
+    if full {
+        hasher.write_value(issue.sub_issues.len());
+        for i in &issue.sub_issues {
+            hash_plain_issue(i, hasher, full);
+        }
+
+        hasher.write_ref(&issue.processing_path);
+    }
+}
+
 impl PlainIssue {
     /// We need deduplicate issues that can come from unique paths, but
     /// represent the same underlying problem. Eg, a parse error for a file
     /// that is compiled in both client and server contexts.
-    pub fn internal_hash(&self) -> u64 {
+    ///
+    /// Passing [full] will also hash any sub-issues and processing paths. While
+    /// useful for generating exact matching hashes, it's possible for the
+    /// same issue to pass from multiple processing paths, making for overly
+    /// verbose logging.
+    pub fn internal_hash(&self, full: bool) -> u64 {
         let mut hasher = Xxh3Hash64Hasher::new();
-        hasher.write_ref(&self.severity);
-        hasher.write_ref(&self.context);
-        hasher.write_ref(&self.category);
-        hasher.write_ref(&self.title);
-        hasher.write_ref(
-            // Normalize syspaths from Windows. These appear in stack traces.
-            &self.description.replace('\\', "/"),
-        );
-        hasher.write_ref(&self.detail);
-        hasher.write_ref(&self.documentation_link);
-
-        if let Some(source) = &self.source {
-            hasher.write_value(1_u8);
-            // I'm assuming we don't need to hash the contents. Not 100% correct, but
-            // probably 99%.
-            hasher.write_ref(&source.start);
-            hasher.write_ref(&source.end);
-        } else {
-            hasher.write_value(0_u8);
-        }
-
+        hash_plain_issue(self, &mut hasher, full);
         hasher.finish()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl PlainIssueVc {
+    /// We need deduplicate issues that can come from unique paths, but
+    /// represent the same underlying problem. Eg, a parse error for a file
+    /// that is compiled in both client and server contexts.
+    ///
+    /// Passing [full] will also hash any sub-issues and processing paths. While
+    /// useful for generating exact matching hashes, it's possible for the
+    /// same issue to pass from multiple processing paths, making for overly
+    /// verbose logging.
     #[turbo_tasks::function]
-    pub async fn internal_hash(self) -> Result<U64Vc> {
-        Ok(U64Vc::cell(self.await?.internal_hash()))
+    pub async fn internal_hash(self, full: bool) -> Result<U64Vc> {
+        Ok(U64Vc::cell(self.await?.internal_hash(full)))
     }
 }
 
@@ -631,11 +656,11 @@ impl PlainAssetVc {
 }
 
 #[turbo_tasks::value(transparent, serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, DeterministicHash)]
 pub struct PlainIssueProcessingPath(Option<Vec<PlainIssueProcessingPathItemReadRef>>);
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, DeterministicHash)]
 pub struct PlainIssueProcessingPathItem {
     pub context: Option<StringReadRef>,
     pub description: StringReadRef,

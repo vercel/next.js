@@ -84,6 +84,13 @@ impl<'de> Deserialize<'de> for SharedError {
     }
 }
 
+impl Deref for SharedError {
+    type Target = Arc<Error>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 pub struct FormatDuration(pub Duration);
 
 impl Display for FormatDuration {

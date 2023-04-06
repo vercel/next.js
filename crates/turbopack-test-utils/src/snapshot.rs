@@ -31,7 +31,7 @@ pub async fn snapshot_issues<
     let expected_issues = expected(issues_path).await?;
     let mut seen = HashSet::new();
     for (plain_issue, debug_string) in captured_issues.into_iter() {
-        let hash = encode_hex(plain_issue.internal_hash());
+        let hash = encode_hex(plain_issue.internal_hash(true));
 
         let path = issues_path.join(&format!(
             "{}-{}.txt",
@@ -44,7 +44,9 @@ pub async fn snapshot_issues<
                 .replace('?', "__q__"),
             &hash[0..6]
         ));
-        seen.insert(path);
+        if !seen.insert(path) {
+            continue;
+        }
 
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
         // PlainAsset.path -> FileSystemPath.fs -> DiskFileSystem.root changes
