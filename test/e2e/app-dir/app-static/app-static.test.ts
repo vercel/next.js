@@ -310,8 +310,6 @@ createNextDescribe(
           'variable-revalidate/revalidate-360.html',
           'variable-revalidate/revalidate-360.rsc',
           'variable-revalidate/revalidate-360/page.js',
-          'variable-revalidate/status-code.html',
-          'variable-revalidate/status-code.rsc',
           'variable-revalidate/status-code/page.js',
         ])
       })
@@ -526,11 +524,6 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-360.rsc',
             initialRevalidateSeconds: 10,
             srcRoute: '/variable-revalidate/revalidate-360',
-          },
-          '/variable-revalidate/status-code': {
-            dataRoute: '/variable-revalidate/status-code.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/status-code',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({
