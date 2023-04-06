@@ -1152,6 +1152,14 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: node scripts/normalize-version-bump.js
 
+      - name: Print disk usage
+        continue-on-error: true
+        run: du -h -t 1000000000 /
+
+      - name: Print disk usage 2
+        continue-on-error: true
+        run: df -h
+
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -1162,13 +1170,23 @@ jobs:
           run: |
             set -e &&
             export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
+            export CARGO_PROFILE_DEV_DEBUG=0 &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
             rustup target add x86_64-unknown-linux-gnu &&
             npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
             unset CC_x86_64_unknown_linux_gnu && unset CC &&
             turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
+            ls -l packages/next-swc/native &&
             strip packages/next-swc/native/next-swc.*.node
+
+      - name: Print disk usage
+        continue-on-error: true
+        run: du -h -t 1000000000 /
+
+      - name: Print disk usage 2
+        continue-on-error: true
+        run: df -h
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
