@@ -227,14 +227,8 @@ function popHostContext(fiber) {
 }
 
 // -----------------------------------------------------------------------------
-// Land or remove (moderate effort)
-//
-// Flags that can be probably deleted or landed, but might require extra effort
-// like migrating internal callers or performance testing.
-// -----------------------------------------------------------------------------
-// TODO: Finish rolling out in www
 
-var enableClientRenderFallbackOnTextMismatch = true; // Recoil still uses useMutableSource in www, need to delete
+var enableClientRenderFallbackOnTextMismatch = true; // TODO: Need to review this code one more time before landing
 // Slated for removal in the future (significant effort)
 //
 // These are experiments that didn't work out, and never shipped, but we can't
@@ -405,7 +399,7 @@ var PassiveMask = Passive$1 | Visibility | ChildDeletion; // Union of tags that 
 var StaticMask = LayoutStatic | PassiveStatic | RefStatic | MaySuspendCommit;
 
 // This module only exists as an ESM wrapper around the external CommonJS
-var scheduleCallback$3 = Scheduler.unstable_scheduleCallback;
+var scheduleCallback$2 = Scheduler.unstable_scheduleCallback;
 var cancelCallback$1 = Scheduler.unstable_cancelCallback;
 var shouldYield = Scheduler.unstable_shouldYield;
 var requestPaint = Scheduler.unstable_requestPaint;
@@ -2193,8 +2187,8 @@ function registerDirectEvent(registrationName, dependencies) {
 
 var canUseDOM = !!(typeof window !== 'undefined' && typeof window.document !== 'undefined' && typeof window.document.createElement !== 'undefined');
 
-// A simple string attribute.
 // Attributes that aren't in the filter are presumed to have this type.
+
 var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
 // "enumerated" attributes with "true" and "false" as possible values.
 // When true, it should be set to a "true" string.
@@ -2216,168 +2210,6 @@ var NUMERIC = 5; // An attribute that must be positive numeric or parse as a pos
 // When falsy, it should be removed.
 
 var POSITIVE_NUMERIC = 6;
-function getPropertyInfo(name) {
-  return properties.hasOwnProperty(name) ? properties[name] : null;
-} // $FlowFixMe[missing-this-annot]
-
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// the `possibleStandardNames` module to ensure casing and incorrect
-// name warnings.
-
-
-var properties = {}; // A few React string attributes have a different name.
-// This is a mapping from React prop names to the attribute names.
-
-[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
-  var name = _ref[0],
-      attributeName = _ref[1];
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" HTML attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-// Since these are SVG attributes, their attribute names are case-sensitive.
-
-['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML boolean attributes.
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-// booleans, but can also accept a string value.
-
-['capture', 'download' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(OVERLOADED_BOOLEAN, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be positive numbers.
-
-['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(POSITIVE_NUMERIC, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be numbers.
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
-  false);
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-// These will also need to accept Trusted Types object in the future.
-
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[xlinkHref] = new PropertyInfoRecord(STRING, 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
-false);
-var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[formAction] = new PropertyInfoRecord(STRING, 'formaction', // attributeName
-null, // attributeNamespace
-true, // sanitizeURL
-false);
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
-
 /* eslint-disable max-len */
 
 var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
@@ -2409,6 +2241,198 @@ function isAttributeNameSafe(attributeName) {
 
   return false;
 }
+function getPropertyInfo(name) {
+  return properties.hasOwnProperty(name) ? properties[name] : null;
+} // $FlowFixMe[missing-this-annot]
+
+function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
+  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
+  this.attributeName = attributeName;
+  this.attributeNamespace = attributeNamespace;
+  this.mustUseProperty = mustUseProperty;
+  this.propertyName = name;
+  this.type = type;
+  this.sanitizeURL = sanitizeURL;
+  this.removeEmptyString = removeEmptyString;
+} // When adding attributes to this list, be sure to also add them to
+// the `possibleStandardNames` module to ensure casing and incorrect
+// name warnings.
+
+
+var properties = {}; // A few React string attributes have a different name.
+// This is a mapping from React prop names to the attribute names.
+
+[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
+  var name = _ref[0],
+      attributeName = _ref[1];
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" HTML attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+
+['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are "enumerated" SVG attributes that accept "true" and "false".
+// In React, we let users pass `true` and `false` even though technically
+// these aren't boolean attributes (they are coerced to strings).
+// Since these are SVG attributes, their attribute names are case-sensitive.
+
+['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML boolean attributes.
+
+['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
+// on the client side because the browsers are inconsistent. Instead we call focus().
+'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
+'itemScope'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are the few React props that we set as DOM properties
+// rather than attributes. These are all booleans.
+
+['checked', // Note: `option.selected` is not updated if `select.multiple` is
+// disabled with `removeAttribute`. We have special logic for handling this.
+'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that are "overloaded booleans": they behave like
+// booleans, but can also accept a string value.
+
+['capture', 'download' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be positive numbers.
+
+['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
+  name, // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are HTML attributes that must be numbers.
+
+['rowSpan', 'start'].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+});
+var CAMELIZE = /[\-\:]([a-z])/g;
+
+var capitalize = function (token) {
+  return token[1].toUpperCase();
+}; // This is a list of all SVG attributes that need special casing, namespacing,
+// or boolean value assignment. Regular attributes that just accept strings
+// and have the same names are omitted, just like in the HTML attribute filter.
+// Some of these attributes can be hard to find. This list was created by
+// scraping the MDN documentation.
+
+
+['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // String SVG attributes with the xlink namespace.
+
+['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
+  false);
+}); // String SVG attributes with the xml namespace.
+
+['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (attributeName) {
+  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
+  false);
+}); // These attribute exists both in HTML and SVG.
+// The attribute name is case-sensitive in SVG so we can't just use
+// the React name like we do for attributes that exist only in HTML.
+
+['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These attributes accept URLs. These must not allow javascript: URLS.
+// These will also need to accept Trusted Types object in the future.
+
+var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
+'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
+false);
+var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+
+properties[formAction] = new PropertyInfoRecord('formAction', STRING, false, // mustUseProperty
+'formaction', // attributeName
+null, // attributeNamespace
+true, // sanitizeURL
+false);
+['src', 'href', 'action'].forEach(function (attributeName) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  true, // sanitizeURL
+  true);
+});
 
 // and any newline or tab are filtered out as if they're not part of the URL.
 // https://url.spec.whatwg.org/#url-parsing
@@ -2424,19 +2448,13 @@ var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r
 var didWarn$1 = false;
 
 function sanitizeURL(url) {
-  // We should never have symbols here because they get filtered out elsewhere.
-  // eslint-disable-next-line react-internal/safe-string-coercion
-  var stringifiedURL = '' + url;
-
   {
-    if (!didWarn$1 && isJavaScriptProtocol.test(stringifiedURL)) {
+    if (!didWarn$1 && isJavaScriptProtocol.test(url)) {
       didWarn$1 = true;
 
-      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(stringifiedURL));
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
     }
   }
-
-  return url;
 }
 
 /**
@@ -2447,6 +2465,22 @@ function sanitizeURL(url) {
 
 function getValueForProperty(node, name, expected, propertyInfo) {
   {
+    if (propertyInfo.mustUseProperty) {
+      var propertyName = propertyInfo.propertyName;
+      return node[propertyName];
+    }
+
+    if (propertyInfo.sanitizeURL) {
+      // If we haven't fully disabled javascript: URLs, and if
+      // the hydration is successful of a javascript: URL, we
+      // still want to warn on the client.
+      {
+        checkAttributeStringCoercion(expected, name);
+      }
+
+      sanitizeURL('' + expected);
+    }
+
     var attributeName = propertyInfo.attributeName;
 
     if (!node.hasAttribute(attributeName)) {
@@ -2519,13 +2553,6 @@ function getValueForProperty(node, name, expected, propertyInfo) {
     } // shouldRemoveAttribute
 
 
-    switch (typeof expected) {
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
-        return value;
-    }
-
     switch (propertyInfo.type) {
       case BOOLEAN:
         {
@@ -2580,18 +2607,6 @@ function getValueForProperty(node, name, expected, propertyInfo) {
     {
       checkAttributeStringCoercion(expected, name);
     }
-
-    if (propertyInfo.sanitizeURL) {
-      // We have already verified this above.
-      // eslint-disable-next-line react-internal/safe-string-coercion
-      if (value === '' + sanitizeURL(expected)) {
-        return expected;
-      }
-
-      return value;
-    } // We have already verified this above.
-    // eslint-disable-next-line react-internal/safe-string-coercion
-
 
     if (value === '' + expected) {
       return expected;
@@ -2687,115 +2702,128 @@ function getValueForAttributeOnCustomComponent(node, name, expected) {
  * @param {*} value
  */
 
-function setValueForProperty(node, propertyInfo, value) {
-  var attributeName = propertyInfo.attributeName;
-
-  if (value === null) {
-    node.removeAttribute(attributeName);
+function setValueForProperty(node, name, value) {
+  if ( // shouldIgnoreAttribute
+  // We have already filtered out reserved words.
+  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
     return;
-  } // shouldRemoveAttribute
+  }
+
+  var propertyInfo = getPropertyInfo(name);
+
+  if (propertyInfo !== null) {
+    if (propertyInfo.mustUseProperty) {
+      // We assume mustUseProperty are of BOOLEAN type because that's the only way we use it
+      // right now.
+      node[propertyInfo.propertyName] = value && typeof value !== 'function' && typeof value !== 'symbol';
+      return;
+    } // The rest are treated as attributes with special cases.
 
 
-  switch (typeof value) {
-    case 'undefined':
-    case 'function':
-    case 'symbol':
-      // eslint-disable-line
+    var attributeName = propertyInfo.attributeName;
+
+    if (value === null) {
       node.removeAttribute(attributeName);
       return;
+    } // shouldRemoveAttribute
 
-    case 'boolean':
-      {
-        if (!propertyInfo.acceptsBooleans) {
+
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        // eslint-disable-line
+        node.removeAttribute(attributeName);
+        return;
+
+      case 'boolean':
+        {
+          if (!propertyInfo.acceptsBooleans) {
+            node.removeAttribute(attributeName);
+            return;
+          }
+        }
+    }
+
+    switch (propertyInfo.type) {
+      case BOOLEAN:
+        if (value) {
+          node.setAttribute(attributeName, '');
+        } else {
           node.removeAttribute(attributeName);
           return;
         }
-      }
-  }
 
-  switch (propertyInfo.type) {
-    case BOOLEAN:
-      if (value) {
-        node.setAttribute(attributeName, '');
-      } else {
-        node.removeAttribute(attributeName);
+        break;
+
+      case OVERLOADED_BOOLEAN:
+        if (value === true) {
+          node.setAttribute(attributeName, '');
+        } else if (value === false) {
+          node.removeAttribute(attributeName);
+        } else {
+          {
+            checkAttributeStringCoercion(value, attributeName);
+          }
+
+          node.setAttribute(attributeName, value);
+        }
+
         return;
-      }
 
-      break;
+      case NUMERIC:
+        if (!isNaN(value)) {
+          {
+            checkAttributeStringCoercion(value, attributeName);
+          }
 
-    case OVERLOADED_BOOLEAN:
-      if (value === true) {
-        node.setAttribute(attributeName, '');
-      } else if (value === false) {
-        node.removeAttribute(attributeName);
-      } else {
-        {
-          checkAttributeStringCoercion(value, attributeName);
+          node.setAttribute(attributeName, value);
+        } else {
+          node.removeAttribute(attributeName);
         }
 
-        node.setAttribute(attributeName, value);
-      }
+        break;
 
-      return;
+      case POSITIVE_NUMERIC:
+        if (!isNaN(value) && value >= 1) {
+          {
+            checkAttributeStringCoercion(value, attributeName);
+          }
 
-    case NUMERIC:
-      if (!isNaN(value)) {
-        {
-          checkAttributeStringCoercion(value, attributeName);
+          node.setAttribute(attributeName, value);
+        } else {
+          node.removeAttribute(attributeName);
         }
 
-        node.setAttribute(attributeName, value);
-      } else {
-        node.removeAttribute(attributeName);
-      }
+        break;
 
-      break;
-
-    case POSITIVE_NUMERIC:
-      if (!isNaN(value) && value >= 1) {
+      default:
         {
-          checkAttributeStringCoercion(value, attributeName);
-        }
+          var attributeValue; // `setAttribute` with objects becomes only `[object]` in IE8/9,
+          // ('' + value) makes it output the correct toString()-value.
 
-        node.setAttribute(attributeName, value);
-      } else {
-        node.removeAttribute(attributeName);
-      }
+          {
+            {
+              checkAttributeStringCoercion(value, attributeName);
+            }
 
-      break;
-
-    default:
-      {
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
-        var attributeValue; // `setAttribute` with objects becomes only `[object]` in IE8/9,
-        // ('' + value) makes it output the correct toString()-value.
-
-        {
-          // We have already verified this above.
-          // eslint-disable-next-line react-internal/safe-string-coercion
-          attributeValue = '' + value;
+            attributeValue = '' + value;
+          }
 
           if (propertyInfo.sanitizeURL) {
-            attributeValue = sanitizeURL(attributeValue);
+            sanitizeURL(attributeValue.toString());
+          }
+
+          var attributeNamespace = propertyInfo.attributeNamespace;
+
+          if (attributeNamespace) {
+            node.setAttributeNS(attributeNamespace, attributeName, attributeValue);
+          } else {
+            node.setAttribute(attributeName, attributeValue);
           }
         }
-
-        var attributeNamespace = propertyInfo.attributeNamespace;
-
-        if (attributeNamespace) {
-          node.setAttributeNS(attributeNamespace, attributeName, attributeValue);
-        } else {
-          node.setAttribute(attributeName, attributeValue);
-        }
-      }
-  }
-}
-function setValueForAttribute(node, name, value) {
-  if (isAttributeNameSafe(name)) {
+    }
+  } else if (isAttributeNameSafe(name)) {
     // If the prop isn't in the special list, treat it as a simple attribute.
     // shouldRemoveAttribute
     if (value === null) {
@@ -2820,6 +2848,31 @@ function setValueForAttribute(node, name, value) {
             return;
           }
         }
+    }
+
+    {
+      checkAttributeStringCoercion(value, name);
+    }
+
+    node.setAttribute(name, '' + value);
+  }
+}
+function setValueForPropertyOnCustomComponent(node, name, value) {
+
+  if (isAttributeNameSafe(name)) {
+    // shouldRemoveAttribute
+    if (value === null) {
+      node.removeAttribute(name);
+      return;
+    }
+
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        // eslint-disable-line
+        node.removeAttribute(name);
+        return;
     }
 
     {
@@ -4529,88 +4582,77 @@ function warnValidStyle(name, value) {
 /**
  * CSS properties which accept numbers but are not in units of "px".
  */
-function isUnitlessNumber (name) {
-  switch (name) {
-    case 'animationIterationCount':
-    case 'aspectRatio':
-    case 'borderImageOutset':
-    case 'borderImageSlice':
-    case 'borderImageWidth':
-    case 'boxFlex':
-    case 'boxFlexGroup':
-    case 'boxOrdinalGroup':
-    case 'columnCount':
-    case 'columns':
-    case 'flex':
-    case 'flexGrow':
-    case 'flexPositive':
-    case 'flexShrink':
-    case 'flexNegative':
-    case 'flexOrder':
-    case 'gridArea':
-    case 'gridRow':
-    case 'gridRowEnd':
-    case 'gridRowSpan':
-    case 'gridRowStart':
-    case 'gridColumn':
-    case 'gridColumnEnd':
-    case 'gridColumnSpan':
-    case 'gridColumnStart':
-    case 'fontWeight':
-    case 'lineClamp':
-    case 'lineHeight':
-    case 'opacity':
-    case 'order':
-    case 'orphans':
-    case 'scale':
-    case 'tabSize':
-    case 'widows':
-    case 'zIndex':
-    case 'zoom':
-    case 'fillOpacity': // SVG-related properties
+var isUnitlessNumber = {
+  animationIterationCount: true,
+  aspectRatio: true,
+  borderImageOutset: true,
+  borderImageSlice: true,
+  borderImageWidth: true,
+  boxFlex: true,
+  boxFlexGroup: true,
+  boxOrdinalGroup: true,
+  columnCount: true,
+  columns: true,
+  flex: true,
+  flexGrow: true,
+  flexPositive: true,
+  flexShrink: true,
+  flexNegative: true,
+  flexOrder: true,
+  gridArea: true,
+  gridRow: true,
+  gridRowEnd: true,
+  gridRowSpan: true,
+  gridRowStart: true,
+  gridColumn: true,
+  gridColumnEnd: true,
+  gridColumnSpan: true,
+  gridColumnStart: true,
+  fontWeight: true,
+  lineClamp: true,
+  lineHeight: true,
+  opacity: true,
+  order: true,
+  orphans: true,
+  scale: true,
+  tabSize: true,
+  widows: true,
+  zIndex: true,
+  zoom: true,
+  // SVG-related properties
+  fillOpacity: true,
+  floodOpacity: true,
+  stopOpacity: true,
+  strokeDasharray: true,
+  strokeDashoffset: true,
+  strokeMiterlimit: true,
+  strokeOpacity: true,
+  strokeWidth: true
+};
+/**
+ * @param {string} prefix vendor-specific prefix, eg: Webkit
+ * @param {string} key style name, eg: transitionDuration
+ * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
+ * WebkitTransitionDuration
+ */
 
-    case 'floodOpacity':
-    case 'stopOpacity':
-    case 'strokeDasharray':
-    case 'strokeDashoffset':
-    case 'strokeMiterlimit':
-    case 'strokeOpacity':
-    case 'strokeWidth':
-    case 'MozAnimationIterationCount': // Known Prefixed Properties
-
-    case 'MozBoxFlex': // TODO: Remove these since they shouldn't be used in modern code
-
-    case 'MozBoxFlexGroup':
-    case 'MozLineClamp':
-    case 'msAnimationIterationCount':
-    case 'msFlex':
-    case 'msZoom':
-    case 'msFlexGrow':
-    case 'msFlexNegative':
-    case 'msFlexOrder':
-    case 'msFlexPositive':
-    case 'msFlexShrink':
-    case 'msGridColumn':
-    case 'msGridColumnSpan':
-    case 'msGridRow':
-    case 'msGridRowSpan':
-    case 'WebkitAnimationIterationCount':
-    case 'WebkitBoxFlex':
-    case 'WebKitBoxFlexGroup':
-    case 'WebkitBoxOrdinalGroup':
-    case 'WebkitColumnCount':
-    case 'WebkitColumns':
-    case 'WebkitFlex':
-    case 'WebkitFlexGrow':
-    case 'WebkitFlexPositive':
-    case 'WebkitFlexShrink':
-    case 'WebkitLineClamp':
-      return true;
-
-    default:
-      return false;
-  }
+function prefixKey(prefix, key) {
+  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
 }
+/**
+ * Support style names that may come passed in prefixed by adding permutations
+ * of vendor prefixes.
+ */
+
+
+var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
+// infinite loop, because it iterates over the newly added props too.
+
+Object.keys(isUnitlessNumber).forEach(function (prop) {
+  prefixes.forEach(function (prefix) {
+    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
+  });
+});
 
 /**
  * Operations for dealing with CSS properties.
@@ -4645,7 +4687,7 @@ function createDangerousStringForStyles(styles) {
 
           serialized += delimiter + styleName + ':' + ('' + value).trim();
         } else {
-          if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(styleName)) {
+          if (typeof value === 'number' && value !== 0 && !(isUnitlessNumber.hasOwnProperty(styleName) && isUnitlessNumber[styleName])) {
             serialized += delimiter + hyphenateStyleName(styleName) + ':' + value + 'px';
           } else {
             {
@@ -4698,7 +4740,7 @@ function setValueForStyles(node, styles) {
       }
     } else if (isCustomProperty) {
       style.setProperty(styleName, value);
-    } else if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(styleName)) {
+    } else if (typeof value === 'number' && value !== 0 && !(isUnitlessNumber.hasOwnProperty(styleName) && isUnitlessNumber[styleName])) {
       style[styleName] = value + 'px'; // Presumes implicit 'px' suffix for unitless numbers
     } else {
       if (styleName === 'float') {
@@ -4785,9 +4827,9 @@ function validateShorthandPropertyCollisionInDev(styleUpdates, nextStyles) {
   }
 }
 
-function isCustomElement(tagName, props) {
+function isCustomComponent(tagName, props) {
   if (tagName.indexOf('-') === -1) {
-    return false;
+    return typeof props.is === 'string';
   }
 
   switch (tagName) {
@@ -5420,7 +5462,7 @@ function validateProperty$1(tagName, name) {
   return true;
 }
 
-function validateProperties$2(type, props) {
+function warnInvalidARIAProps(type, props) {
   {
     var invalidProps = [];
 
@@ -5442,6 +5484,14 @@ function validateProperties$2(type, props) {
       error('Invalid aria props %s on <%s> tag. ' + 'For details, see https://reactjs.org/link/invalid-aria-props', unknownPropString, type);
     }
   }
+}
+
+function validateProperties$2(type, props) {
+  if (isCustomComponent(type, props)) {
+    return;
+  }
+
+  warnInvalidARIAProps(type, props);
 }
 
 var didWarnValueNull = false;
@@ -5591,77 +5641,37 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
     }
 
-    switch (typeof value) {
-      case 'boolean':
-        {
-          switch (name) {
-            case 'checked':
-            case 'selected':
-            case 'multiple':
-            case 'muted':
-              {
-                // Boolean properties can accept boolean values
-                return true;
-              }
+    if (typeof value === 'boolean') {
+      var prefix = name.toLowerCase().slice(0, 5);
+      var acceptsBooleans = propertyInfo !== null ? propertyInfo.acceptsBooleans : prefix === 'data-' || prefix === 'aria-';
 
-            default:
-              {
-                if (propertyInfo === null) {
-                  var prefix = name.toLowerCase().slice(0, 5);
-
-                  if (prefix === 'data-' || prefix === 'aria-') {
-                    return true;
-                  }
-                } else if (propertyInfo.acceptsBooleans) {
-                  return true;
-                }
-
-                if (value) {
-                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
-                } else {
-                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
-                }
-
-                warnedProperties[name] = true;
-                return true;
-              }
-          }
+      if (!acceptsBooleans) {
+        if (value) {
+          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+        } else {
+          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
         }
+      }
 
+      warnedProperties[name] = true;
+      return true;
+    } // Warn when a known attribute is a bad type
+
+
+    switch (typeof value) {
       case 'function':
       case 'symbol':
         // eslint-disable-line
-        // Warn when a known attribute is a bad type
         warnedProperties[name] = true;
         return false;
+    } // Warn when passing the strings 'false' or 'true' into a boolean prop
 
-      case 'string':
-        {
-          // Warn when passing the strings 'false' or 'true' into a boolean prop
-          if (value === 'false' || value === 'true') {
-            switch (name) {
-              case 'checked':
-              case 'selected':
-              case 'multiple':
-              case 'muted':
-                {
-                  break;
-                }
 
-              default:
-                {
-                  if (propertyInfo === null || propertyInfo.type !== BOOLEAN) {
-                    return true;
-                  }
-                }
-            }
+    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
+      error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
 
-            error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
-
-            warnedProperties[name] = true;
-            return true;
-          }
-        }
+      warnedProperties[name] = true;
+      return true;
     }
 
     return true;
@@ -5693,7 +5703,7 @@ function warnUnknownProperties(type, props, eventRegistry) {
 }
 
 function validateProperties(type, props, eventRegistry) {
-  if (isCustomElement(type) || typeof props.is === 'string') {
+  if (isCustomComponent(type, props)) {
     return;
   }
 
@@ -6469,6 +6479,99 @@ function is(x, y) {
 
 var objectIs = // $FlowFixMe[method-unbinding]
 typeof Object.is === 'function' ? Object.is : is;
+
+var syncQueue = null;
+var includesLegacySyncCallbacks = false;
+var isFlushingSyncQueue = false;
+function scheduleSyncCallback(callback) {
+  // Push this callback into an internal queue. We'll flush these either in
+  // the next tick, or earlier if something calls `flushSyncCallbackQueue`.
+  if (syncQueue === null) {
+    syncQueue = [callback];
+  } else {
+    // Push onto existing queue. Don't need to schedule a callback because
+    // we already scheduled one when we created the queue.
+    syncQueue.push(callback);
+  }
+}
+function scheduleLegacySyncCallback(callback) {
+  includesLegacySyncCallbacks = true;
+  scheduleSyncCallback(callback);
+}
+function flushSyncCallbacksOnlyInLegacyMode() {
+  // Only flushes the queue if there's a legacy sync callback scheduled.
+  // TODO: There's only a single type of callback: performSyncOnWorkOnRoot. So
+  // it might make more sense for the queue to be a list of roots instead of a
+  // list of generic callbacks. Then we can have two: one for legacy roots, one
+  // for concurrent roots. And this method would only flush the legacy ones.
+  if (includesLegacySyncCallbacks) {
+    flushSyncCallbacks();
+  }
+}
+function flushSyncCallbacks() {
+  if (!isFlushingSyncQueue && syncQueue !== null) {
+    // Prevent re-entrance.
+    isFlushingSyncQueue = true; // Set the event priority to discrete
+    // TODO: Is this necessary anymore? The only user code that runs in this
+    // queue is in the render or commit phases, which already set the
+    // event priority. Should be able to remove.
+
+    var previousUpdatePriority = getCurrentUpdatePriority();
+    setCurrentUpdatePriority(DiscreteEventPriority);
+    var errors = null;
+    var queue = syncQueue; // $FlowFixMe[incompatible-use] found when upgrading Flow
+
+    for (var i = 0; i < queue.length; i++) {
+      // $FlowFixMe[incompatible-use] found when upgrading Flow
+      var callback = queue[i];
+
+      try {
+        do {
+          var isSync = true; // $FlowFixMe[incompatible-type] we bail out when we get a null
+
+          callback = callback(isSync);
+        } while (callback !== null);
+      } catch (error) {
+        // Collect errors so we can rethrow them at the end
+        if (errors === null) {
+          errors = [error];
+        } else {
+          errors.push(error);
+        }
+      }
+    }
+
+    syncQueue = null;
+    includesLegacySyncCallbacks = false;
+    setCurrentUpdatePriority(previousUpdatePriority);
+    isFlushingSyncQueue = false;
+
+    if (errors !== null) {
+      if (errors.length > 1) {
+        if (typeof AggregateError === 'function') {
+          // eslint-disable-next-line no-undef
+          throw new AggregateError(errors);
+        } else {
+          for (var _i = 1; _i < errors.length; _i++) {
+            scheduleCallback$2(ImmediatePriority, throwError.bind(null, errors[_i]));
+          }
+
+          var firstError = errors[0];
+          throw firstError;
+        }
+      } else {
+        var error = errors[0];
+        throw error;
+      }
+    }
+  }
+
+  return null;
+}
+
+function throwError(error) {
+  throw error;
+}
 
 // This is imported by the event replaying implementation in React DOM. It's
 // in a separate file to break a circular dependency between the renderer and
@@ -8413,7 +8516,7 @@ var ReactStrictModeWarnings = {
   };
 }
 
-var ReactCurrentActQueue$3 = ReactSharedInternals.ReactCurrentActQueue; // An error that is thrown (e.g. by `use`) to trigger Suspense. If we
+var ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue; // An error that is thrown (e.g. by `use`) to trigger Suspense. If we
 // detect this is caught by userspace, we'll log a warning in development.
 
 var SuspenseException = new Error("Suspense Exception: This is not a real error! It's an implementation " + 'detail of `use` to interrupt the current render. You must either ' + 'rethrow it immediately, or move the `use` call outside of the ' + '`try/catch` block. Capturing without rethrowing will lead to ' + 'unexpected behavior.\n\n' + 'To handle async errors, wrap your component in an error boundary, or ' + "call the promise's `.catch` method and pass the result to `use`");
@@ -8438,8 +8541,8 @@ function isThenableResolved(thenable) {
 function noop$2() {}
 
 function trackUsedThenable(thenableState, thenable, index) {
-  if (ReactCurrentActQueue$3.current !== null) {
-    ReactCurrentActQueue$3.didUsePromise = true;
+  if (ReactCurrentActQueue$2.current !== null) {
+    ReactCurrentActQueue$2.didUsePromise = true;
   }
 
   var previous = thenableState[index];
@@ -14830,17 +14933,24 @@ function updateFunctionComponent(current, workInProgress, Component, nextProps, 
   return workInProgress.child;
 }
 
-function replayFunctionComponent(current, workInProgress, nextProps, Component, secondArg, renderLanes) {
+function replayFunctionComponent(current, workInProgress, nextProps, Component, renderLanes) {
   // This function is used to replay a component that previously suspended,
   // after its data resolves. It's a simplified version of
   // updateFunctionComponent that reuses the hooks from the previous attempt.
+  var context;
+
+  {
+    var unmaskedContext = getUnmaskedContext(workInProgress, Component, true);
+    context = getMaskedContext(workInProgress, unmaskedContext);
+  }
+
   prepareToReadContext(workInProgress, renderLanes);
 
   {
     markComponentRenderStarted(workInProgress);
   }
 
-  var nextChildren = replaySuspendedComponentWithHooks(current, workInProgress, Component, nextProps, secondArg);
+  var nextChildren = replaySuspendedComponentWithHooks(current, workInProgress, Component, nextProps, context);
   var hasId = checkDidRenderIdHook();
 
   {
@@ -17421,7 +17531,7 @@ function AbortControllerShim() {
 } ; // Intentionally not named imports because Rollup would
 // use dynamic dispatch for CommonJS interop named imports.
 
-var scheduleCallback$2 = Scheduler.unstable_scheduleCallback,
+var scheduleCallback$1 = Scheduler.unstable_scheduleCallback,
     NormalPriority = Scheduler.unstable_NormalPriority;
 var CacheContext = {
   $$typeof: REACT_CONTEXT_TYPE,
@@ -17475,7 +17585,7 @@ function releaseCache(cache) {
   }
 
   if (cache.refCount === 0) {
-    scheduleCallback$2(NormalPriority, function () {
+    scheduleCallback$1(NormalPriority, function () {
       cache.controller.abort();
     });
   }
@@ -22588,7 +22698,7 @@ function onCommitRoot() {
   }
 }
 
-var ReactCurrentActQueue$2 = ReactSharedInternals.ReactCurrentActQueue;
+var ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue;
 function isLegacyActEnvironment(fiber) {
   {
     // Legacy mode. We preserve the behavior of React 17's act. It assumes an
@@ -22609,380 +22719,12 @@ function isConcurrentActEnvironment() {
     typeof IS_REACT_ACT_ENVIRONMENT !== 'undefined' ? // $FlowFixMe[cannot-resolve-name]
     IS_REACT_ACT_ENVIRONMENT : undefined;
 
-    if (!isReactActEnvironmentGlobal && ReactCurrentActQueue$2.current !== null) {
+    if (!isReactActEnvironmentGlobal && ReactCurrentActQueue$1.current !== null) {
       // TODO: Include link to relevant documentation page.
       error('The current testing environment is not configured to support ' + 'act(...)');
     }
 
     return isReactActEnvironmentGlobal;
-  }
-}
-
-var ReactCurrentActQueue$1 = ReactSharedInternals.ReactCurrentActQueue; // A linked list of all the roots with pending work. In an idiomatic app,
-// there's only a single root, but we do support multi root apps, hence this
-// extra complexity. But this module is optimized for the single root case.
-
-var firstScheduledRoot = null;
-var lastScheduledRoot = null; // Used to prevent redundant mircotasks from being scheduled.
-
-var didScheduleMicrotask = false; // `act` "microtasks" are scheduled on the `act` queue instead of an actual
-// microtask, so we have to dedupe those separately. This wouldn't be an issue
-// if we required all `act` calls to be awaited, which we might in the future.
-
-var didScheduleMicrotask_act = false; // Used to quickly bail out of flushSync if there's no sync work to do.
-
-var mightHavePendingSyncWork = false;
-var isFlushingWork = false;
-function ensureRootIsScheduled(root) {
-  // This function is called whenever a root receives an update. It does two
-  // things 1) it ensures the root is in the root schedule, and 2) it ensures
-  // there's a pending microtask to process the root schedule.
-  //
-  // Most of the actual scheduling logic does not happen until
-  // `scheduleTaskForRootDuringMicrotask` runs.
-  // Add the root to the schedule
-  if (root === lastScheduledRoot || root.next !== null) ; else {
-    if (lastScheduledRoot === null) {
-      firstScheduledRoot = lastScheduledRoot = root;
-    } else {
-      lastScheduledRoot.next = root;
-      lastScheduledRoot = root;
-    }
-  } // Any time a root received an update, we set this to true until the next time
-  // we process the schedule. If it's false, then we can quickly exit flushSync
-  // without consulting the schedule.
-
-
-  mightHavePendingSyncWork = true; // At the end of the current event, go through each of the roots and ensure
-  // there's a task scheduled for each one at the correct priority.
-
-  if (ReactCurrentActQueue$1.current !== null) {
-    // We're inside an `act` scope.
-    if (!didScheduleMicrotask_act) {
-      didScheduleMicrotask_act = true;
-      scheduleImmediateTask(processRootScheduleInMicrotask);
-    }
-  } else {
-    if (!didScheduleMicrotask) {
-      didScheduleMicrotask = true;
-      scheduleImmediateTask(processRootScheduleInMicrotask);
-    }
-  }
-}
-function flushSyncWorkOnAllRoots() {
-  // This is allowed to be called synchronously, but the caller should check
-  // the execution context first.
-  flushSyncWorkAcrossRoots_impl(false);
-}
-function flushSyncWorkOnLegacyRootsOnly() {
-  // This is allowed to be called synchronously, but the caller should check
-  // the execution context first.
-  flushSyncWorkAcrossRoots_impl(true);
-}
-
-function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
-  if (isFlushingWork) {
-    // Prevent reentrancy.
-    // TODO: Is this overly defensive? The callers must check the execution
-    // context first regardless.
-    return;
-  }
-
-  if (!mightHavePendingSyncWork) {
-    // Fast path. There's no sync work to do.
-    return;
-  }
-
-  var workInProgressRoot = getWorkInProgressRoot();
-  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes(); // There may or may not be synchronous work scheduled. Let's check.
-
-  var didPerformSomeWork;
-  var errors = null;
-  isFlushingWork = true;
-
-  do {
-    didPerformSomeWork = false;
-    var root = firstScheduledRoot;
-
-    while (root !== null) {
-      if (onlyLegacy && root.tag !== LegacyRoot) ; else {
-        var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
-
-        if (includesSyncLane(nextLanes)) {
-          // This root has pending sync work. Flush it now.
-          try {
-            // TODO: Pass nextLanes as an argument instead of computing it again
-            // inside performSyncWorkOnRoot.
-            didPerformSomeWork = true;
-            performSyncWorkOnRoot(root);
-          } catch (error) {
-            // Collect errors so we can rethrow them at the end
-            if (errors === null) {
-              errors = [error];
-            } else {
-              errors.push(error);
-            }
-          }
-        }
-      }
-
-      root = root.next;
-    }
-  } while (didPerformSomeWork);
-
-  isFlushingWork = false; // If any errors were thrown, rethrow them right before exiting.
-  // TODO: Consider returning these to the caller, to allow them to decide
-  // how/when to rethrow.
-
-  if (errors !== null) {
-    if (errors.length > 1) {
-      if (typeof AggregateError === 'function') {
-        // eslint-disable-next-line no-undef
-        throw new AggregateError(errors);
-      } else {
-        for (var i = 1; i < errors.length; i++) {
-          scheduleImmediateTask(throwError.bind(null, errors[i]));
-        }
-
-        var firstError = errors[0];
-        throw firstError;
-      }
-    } else {
-      var error = errors[0];
-      throw error;
-    }
-  }
-}
-
-function throwError(error) {
-  throw error;
-}
-
-function processRootScheduleInMicrotask() {
-  // This function is always called inside a microtask. It should never be
-  // called synchronously.
-  didScheduleMicrotask = false;
-
-  {
-    didScheduleMicrotask_act = false;
-  } // We'll recompute this as we iterate through all the roots and schedule them.
-
-
-  mightHavePendingSyncWork = false;
-  var currentTime = now$1();
-  var prev = null;
-  var root = firstScheduledRoot;
-
-  while (root !== null) {
-    var next = root.next;
-    var nextLanes = scheduleTaskForRootDuringMicrotask(root, currentTime);
-
-    if (nextLanes === NoLane) {
-      // This root has no more pending work. Remove it from the schedule. To
-      // guard against subtle reentrancy bugs, this microtask is the only place
-      // we do this — you can add roots to the schedule whenever, but you can
-      // only remove them here.
-      // Null this out so we know it's been removed from the schedule.
-      root.next = null;
-
-      if (prev === null) {
-        // This is the new head of the list
-        firstScheduledRoot = next;
-      } else {
-        prev.next = next;
-      }
-
-      if (next === null) {
-        // This is the new tail of the list
-        lastScheduledRoot = prev;
-      }
-    } else {
-      // This root still has work. Keep it in the list.
-      prev = root;
-
-      if (includesSyncLane(nextLanes)) {
-        mightHavePendingSyncWork = true;
-      }
-    }
-
-    root = next;
-  } // At the end of the microtask, flush any pending synchronous work. This has
-  // to come at the end, because it does actual rendering work that might throw.
-
-
-  flushSyncWorkOnAllRoots();
-}
-
-function scheduleTaskForRootDuringMicrotask(root, currentTime) {
-  // This function is always called inside a microtask, or at the very end of a
-  // rendering task right before we yield to the main thread. It should never be
-  // called synchronously.
-  //
-  // TODO: Unless enableDeferRootSchedulingToMicrotask is off. We need to land
-  // that ASAP to unblock additional features we have planned.
-  //
-  // This function also never performs React work synchronously; it should
-  // only schedule work to be performed later, in a separate task or microtask.
-  // Check if any lanes are being starved by other work. If so, mark them as
-  // expired so we know to work on those next.
-  markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
-
-  var workInProgressRoot = getWorkInProgressRoot();
-  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
-  var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
-  var existingCallbackNode = root.callbackNode;
-
-  if ( // Check if there's nothing to work on
-  nextLanes === NoLanes || // If this root is currently suspended and waiting for data to resolve, don't
-  // schedule a task to render it. We'll either wait for a ping, or wait to
-  // receive an update.
-  //
-  // Suspended render phase
-  root === workInProgressRoot && isWorkLoopSuspendedOnData() || // Suspended commit phase
-  root.cancelPendingCommit !== null) {
-    // Fast path: There's nothing to work on.
-    if (existingCallbackNode !== null) {
-      cancelCallback(existingCallbackNode);
-    }
-
-    root.callbackNode = null;
-    root.callbackPriority = NoLane;
-    return NoLane;
-  } // Schedule a new callback in the host environment.
-
-
-  if (includesSyncLane(nextLanes)) {
-    // Synchronous work is always flushed at the end of the microtask, so we
-    // don't need to schedule an additional task.
-    if (existingCallbackNode !== null) {
-      cancelCallback(existingCallbackNode);
-    }
-
-    root.callbackPriority = SyncLane;
-    root.callbackNode = null;
-    return SyncLane;
-  } else {
-    // We use the highest priority lane to represent the priority of the callback.
-    var existingCallbackPriority = root.callbackPriority;
-    var newCallbackPriority = getHighestPriorityLane(nextLanes);
-
-    if (newCallbackPriority === existingCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
-    // Scheduler task, rather than an `act` task, cancel it and re-schedule
-    // on the `act` queue.
-    !(ReactCurrentActQueue$1.current !== null && existingCallbackNode !== fakeActCallbackNode$1)) {
-      // The priority hasn't changed. We can reuse the existing task.
-      return newCallbackPriority;
-    } else {
-      // Cancel the existing callback. We'll schedule a new one below.
-      cancelCallback(existingCallbackNode);
-    }
-
-    var schedulerPriorityLevel;
-
-    switch (lanesToEventPriority(nextLanes)) {
-      case DiscreteEventPriority:
-        schedulerPriorityLevel = ImmediatePriority;
-        break;
-
-      case ContinuousEventPriority:
-        schedulerPriorityLevel = UserBlockingPriority;
-        break;
-
-      case DefaultEventPriority:
-        schedulerPriorityLevel = NormalPriority$1;
-        break;
-
-      case IdleEventPriority:
-        schedulerPriorityLevel = IdlePriority;
-        break;
-
-      default:
-        schedulerPriorityLevel = NormalPriority$1;
-        break;
-    }
-
-    var newCallbackNode = scheduleCallback$1(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
-    root.callbackPriority = newCallbackPriority;
-    root.callbackNode = newCallbackNode;
-    return newCallbackPriority;
-  }
-}
-
-function getContinuationForRoot(root, originalCallbackNode) {
-  // This is called at the end of `performConcurrentWorkOnRoot` to determine
-  // if we need to schedule a continuation task.
-  //
-  // Usually `scheduleTaskForRootDuringMicrotask` only runs inside a microtask;
-  // however, since most of the logic for determining if we need a continuation
-  // versus a new task is the same, we cheat a bit and call it here. This is
-  // only safe to do because we know we're at the end of the browser task.
-  // So although it's not an actual microtask, it might as well be.
-  scheduleTaskForRootDuringMicrotask(root, now$1());
-
-  if (root.callbackNode === originalCallbackNode) {
-    // The task node scheduled for this root is the same one that's
-    // currently executed. Need to return a continuation.
-    return performConcurrentWorkOnRoot.bind(null, root);
-  }
-
-  return null;
-}
-var fakeActCallbackNode$1 = {};
-
-function scheduleCallback$1(priorityLevel, callback) {
-  if (ReactCurrentActQueue$1.current !== null) {
-    // Special case: We're inside an `act` scope (a testing utility).
-    // Instead of scheduling work in the host environment, add it to a
-    // fake internal queue that's managed by the `act` implementation.
-    ReactCurrentActQueue$1.current.push(callback);
-    return fakeActCallbackNode$1;
-  } else {
-    return scheduleCallback$3(priorityLevel, callback);
-  }
-}
-
-function cancelCallback(callbackNode) {
-  if (callbackNode === fakeActCallbackNode$1) ; else if (callbackNode !== null) {
-    cancelCallback$1(callbackNode);
-  }
-}
-
-function scheduleImmediateTask(cb) {
-  if (ReactCurrentActQueue$1.current !== null) {
-    // Special case: Inside an `act` scope, we push microtasks to the fake `act`
-    // callback queue. This is because we currently support calling `act`
-    // without awaiting the result. The plan is to deprecate that, and require
-    // that you always await the result so that the microtasks have a chance to
-    // run. But it hasn't happened yet.
-    ReactCurrentActQueue$1.current.push(function () {
-      cb();
-      return null;
-    });
-  } // TODO: Can we land supportsMicrotasks? Which environments don't support it?
-  // Alternatively, can we move this check to the host config?
-
-
-  {
-    scheduleMicrotask(function () {
-      // In Safari, appending an iframe forces microtasks to run.
-      // https://github.com/facebook/react/issues/22459
-      // We don't support running callbacks in the middle of render
-      // or commit so we need to check against that.
-      var executionContext = getExecutionContext();
-
-      if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-        // Note that this would still prematurely flush the callbacks
-        // if this happens outside render or commit phase (e.g. in an event).
-        // Intentionally using a macrotask instead of a microtask here. This is
-        // wrong semantically but it prevents an infinite loop. The bug is
-        // Safari's, not ours, so we just do our best to not crash even though
-        // the behavior isn't completely correct.
-        scheduleCallback$3(ImmediatePriority, cb);
-        return;
-      }
-
-      cb();
-    });
   }
 }
 
@@ -23113,9 +22855,6 @@ function getWorkInProgressRoot() {
 function getWorkInProgressRootRenderLanes() {
   return workInProgressRootRenderLanes;
 }
-function isWorkLoopSuspendedOnData() {
-  return workInProgressSuspendedReason === SuspendedOnData;
-}
 function requestEventTime() {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     // We're inside React, so it's fine to read the actual time.
@@ -23230,9 +22969,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
   // finish loading.
 
 
-  if ( // Suspended render phase
-  root === workInProgressRoot && workInProgressSuspendedReason === SuspendedOnData || // Suspended commit phase
-  root.cancelPendingCommit !== null) {
+  if (workInProgressSuspendedReason === SuspendedOnData && root === workInProgressRoot) {
     // The incoming update might unblock the current render. Interrupt the
     // current attempt and restart from the top.
     prepareFreshStack(root, NoLanes);
@@ -23262,7 +22999,10 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
 
     if (root === workInProgressRoot) {
       // Received an update to a tree that's in the middle of rendering. Mark
-      // that there was an interleaved update work on this root.
+      // that there was an interleaved update work on this root. Unless the
+      // `deferRenderPhaseUpdateToNextBatch` flag is off and this is a render
+      // phase update. In that case, we don't treat render phase updates as if
+      // they were interleaved, for backwards compat reasons.
       if ((executionContext & RenderContext) === NoContext) {
         workInProgressRootInterleavedUpdatedLanes = mergeLanes(workInProgressRootInterleavedUpdatedLanes, lane);
       }
@@ -23278,21 +23018,17 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
       }
     }
 
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, eventTime);
 
-    if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode) {
-      if (ReactCurrentActQueue.isBatchingLegacy) {
-        // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-        ReactCurrentActQueue.didScheduleLegacyUpdate = true;
-      } else {
-        // Flush the synchronous work now, unless we're already working or inside
-        // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
-        // scheduleCallbackForFiber to preserve the ability to schedule a callback
-        // without immediately flushing it. We only do this for user-initiated
-        // updates, to preserve historical behavior of legacy mode.
-        resetRenderTimer();
-        flushSyncWorkOnLegacyRootsOnly();
-      }
+    if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
+    !(ReactCurrentActQueue.isBatchingLegacy)) {
+      // Flush the synchronous work now, unless we're already working or inside
+      // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
+      // scheduleCallbackForFiber to preserve the ability to schedule a callback
+      // without immediately flushing it. We only do this for user-initiated
+      // updates, to preserve historical behavior of legacy mode.
+      resetRenderTimer();
+      flushSyncCallbacksOnlyInLegacyMode();
     }
   }
 }
@@ -23309,14 +23045,161 @@ function scheduleInitialHydrationOnRoot(root, lane, eventTime) {
   var current = root.current;
   current.lanes = lane;
   markRootUpdated(root, lane, eventTime);
-  ensureRootIsScheduled(root);
+  ensureRootIsScheduled(root, eventTime);
 }
 function isUnsafeClassRenderPhaseUpdate(fiber) {
   // Check if this is a render phase update. Only called by class components,
   // which special (deprecated) behavior for UNSAFE_componentWillReceive props.
-  return (executionContext & RenderContext) !== NoContext;
+  return (// TODO: Remove outdated deferRenderPhaseUpdateToNextBatch experiment. We
+    // decided not to enable it.
+    (executionContext & RenderContext) !== NoContext
+  );
+} // Use this function to schedule a task for a root. There's only one task per
+// root; if a task was already scheduled, we'll check to make sure the priority
+// of the existing task is the same as the priority of the next level that the
+// root has work on. This function is called on every update, and right before
+// exiting a task.
+
+function ensureRootIsScheduled(root, currentTime) {
+  var existingCallbackNode = root.callbackNode; // Check if any lanes are being starved by other work. If so, mark them as
+  // expired so we know to work on those next.
+
+  markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
+
+  var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
+
+  if (nextLanes === NoLanes) {
+    // Special case: There's nothing to work on.
+    if (existingCallbackNode !== null) {
+      cancelCallback(existingCallbackNode);
+    }
+
+    root.callbackNode = null;
+    root.callbackPriority = NoLane;
+    return;
+  } // If this root is currently suspended and waiting for data to resolve, don't
+  // schedule a task to render it. We'll either wait for a ping, or wait to
+  // receive an update.
+
+
+  if (workInProgressSuspendedReason === SuspendedOnData && workInProgressRoot === root) {
+    root.callbackPriority = NoLane;
+    root.callbackNode = null;
+    return;
+  }
+
+  var cancelPendingCommit = root.cancelPendingCommit;
+
+  if (cancelPendingCommit !== null) {
+    // We should only interrupt a pending commit if the new update
+    // is urgent.
+    if (includesOnlyNonUrgentLanes(nextLanes)) {
+      // The new update is not urgent. Don't interrupt the pending commit.
+      root.callbackPriority = NoLane;
+      root.callbackNode = null;
+      return;
+    }
+  } // We use the highest priority lane to represent the priority of the callback.
+
+
+  var newCallbackPriority = getHighestPriorityLane(nextLanes); // Check if there's an existing task. We may be able to reuse it.
+
+  var existingCallbackPriority = root.callbackPriority;
+
+  if (existingCallbackPriority === newCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
+  // Scheduler task, rather than an `act` task, cancel it and re-scheduled
+  // on the `act` queue.
+  !(ReactCurrentActQueue.current !== null && existingCallbackNode !== fakeActCallbackNode)) {
+    {
+      // If we're going to re-use an existing task, it needs to exist.
+      // Assume that discrete update microtasks are non-cancellable and null.
+      // TODO: Temporary until we confirm this warning is not fired.
+      if (existingCallbackNode == null && !includesSyncLane(existingCallbackPriority)) {
+        error('Expected scheduled callback to exist. This error is likely caused by a bug in React. Please file an issue.');
+      }
+    } // The priority hasn't changed. We can reuse the existing task. Exit.
+
+
+    return;
+  }
+
+  if (existingCallbackNode != null) {
+    // Cancel the existing callback. We'll schedule a new one below.
+    cancelCallback(existingCallbackNode);
+  } // Schedule a new callback.
+
+
+  var newCallbackNode;
+
+  if (includesSyncLane(newCallbackPriority)) {
+    // Special case: Sync React callbacks are scheduled on a special
+    // internal queue
+    if (root.tag === LegacyRoot) {
+      if (ReactCurrentActQueue.isBatchingLegacy !== null) {
+        ReactCurrentActQueue.didScheduleLegacyUpdate = true;
+      }
+
+      scheduleLegacySyncCallback(performSyncWorkOnRoot.bind(null, root));
+    } else {
+      scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
+    }
+
+    {
+      // Flush the queue in a microtask.
+      if (ReactCurrentActQueue.current !== null) {
+        // Inside `act`, use our internal `act` queue so that these get flushed
+        // at the end of the current scope even when using the sync version
+        // of `act`.
+        ReactCurrentActQueue.current.push(flushSyncCallbacks);
+      } else {
+        scheduleMicrotask(function () {
+          // In Safari, appending an iframe forces microtasks to run.
+          // https://github.com/facebook/react/issues/22459
+          // We don't support running callbacks in the middle of render
+          // or commit so we need to check against that.
+          if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
+            // Note that this would still prematurely flush the callbacks
+            // if this happens outside render or commit phase (e.g. in an event).
+            flushSyncCallbacks();
+          }
+        });
+      }
+    }
+
+    newCallbackNode = null;
+  } else {
+    var schedulerPriorityLevel;
+
+    switch (lanesToEventPriority(nextLanes)) {
+      case DiscreteEventPriority:
+        schedulerPriorityLevel = ImmediatePriority;
+        break;
+
+      case ContinuousEventPriority:
+        schedulerPriorityLevel = UserBlockingPriority;
+        break;
+
+      case DefaultEventPriority:
+        schedulerPriorityLevel = NormalPriority$1;
+        break;
+
+      case IdleEventPriority:
+        schedulerPriorityLevel = IdlePriority;
+        break;
+
+      default:
+        schedulerPriorityLevel = NormalPriority$1;
+        break;
+    }
+
+    newCallbackNode = scheduleCallback(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
+  }
+
+  root.callbackPriority = newCallbackPriority;
+  root.callbackNode = newCallbackNode;
 } // This is the entry point for every concurrent task, i.e. anything that
 // goes through Scheduler.
+
 
 function performConcurrentWorkOnRoot(root, didTimeout) {
   {
@@ -23348,7 +23231,6 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     }
   } // Determine the next lanes to work on, using the fields stored
   // on the root.
-  // TODO: This was already computed in the caller. Pass it as an argument.
 
 
   var lanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
@@ -23386,7 +23268,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
       var fatalError = workInProgressRootFatalError;
       prepareFreshStack(root, NoLanes);
       markRootSuspended(root, lanes);
-      ensureRootIsScheduled(root);
+      ensureRootIsScheduled(root, now$1());
       throw fatalError;
     }
 
@@ -23426,7 +23308,7 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
           var _fatalError = workInProgressRootFatalError;
           prepareFreshStack(root, NoLanes);
           markRootSuspended(root, lanes);
-          ensureRootIsScheduled(root);
+          ensureRootIsScheduled(root, now$1());
           throw _fatalError;
         } // FIXME: Need to check for RootDidNotComplete again. The factoring here
         // isn't ideal.
@@ -23441,8 +23323,15 @@ function performConcurrentWorkOnRoot(root, didTimeout) {
     }
   }
 
-  ensureRootIsScheduled(root);
-  return getContinuationForRoot(root, originalCallbackNode);
+  ensureRootIsScheduled(root, now$1());
+
+  if (root.callbackNode === originalCallbackNode) {
+    // The task node scheduled for this root is the same one that's
+    // currently executed. Need to return a continuation.
+    return performConcurrentWorkOnRoot.bind(null, root);
+  }
+
+  return null;
 }
 
 function recoverFromConcurrentError(root, originallyAttemptedLanes, errorRetryLanes) {
@@ -23740,13 +23629,12 @@ function performSyncWorkOnRoot(root) {
     throw new Error('Should not already be working.');
   }
 
-  flushPassiveEffects(); // TODO: This was already computed in the caller. Pass it as an argument.
-
+  flushPassiveEffects();
   var lanes = getNextLanes(root, NoLanes);
 
   if (!includesSyncLane(lanes)) {
     // There's no remaining sync work left.
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, now$1());
     return null;
   }
 
@@ -23770,7 +23658,7 @@ function performSyncWorkOnRoot(root) {
     var fatalError = workInProgressRootFatalError;
     prepareFreshStack(root, NoLanes);
     markRootSuspended(root, lanes);
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, now$1());
     throw fatalError;
   }
 
@@ -23779,7 +23667,7 @@ function performSyncWorkOnRoot(root) {
     // cases where need to exit the current render without producing a
     // consistent tree or committing.
     markRootSuspended(root, lanes);
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, now$1());
     return null;
   } // We now have a consistent tree. Because this is a sync render, we
   // will commit it even if something suspended.
@@ -23791,20 +23679,18 @@ function performSyncWorkOnRoot(root) {
   commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions); // Before exiting, make sure there's a callback scheduled for the next
   // pending level.
 
-  ensureRootIsScheduled(root);
+  ensureRootIsScheduled(root, now$1());
   return null;
 }
+
 function flushRoot(root, lanes) {
   if (lanes !== NoLanes) {
     markRootEntangled(root, mergeLanes(lanes, SyncLane));
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, now$1());
 
     if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
-      resetRenderTimer(); // TODO: For historical reasons this flushes all sync work across all
-      // roots. It shouldn't really matter either way, but we could change this
-      // to only flush the given root.
-
-      flushSyncWorkOnAllRoots();
+      resetRenderTimer();
+      flushSyncCallbacks();
     }
   }
 }
@@ -23824,7 +23710,7 @@ function batchedUpdates$1(fn, a) {
     if (executionContext === NoContext && // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
     !(ReactCurrentActQueue.isBatchingLegacy)) {
       resetRenderTimer();
-      flushSyncWorkOnLegacyRootsOnly();
+      flushSyncCallbacksOnlyInLegacyMode();
     }
   }
 }
@@ -23862,7 +23748,7 @@ function flushSync$1(fn) {
     // the stack.
 
     if ((executionContext & (RenderContext | CommitContext)) === NoContext) {
-      flushSyncWorkOnAllRoots();
+      flushSyncCallbacks();
     }
   }
 }
@@ -24376,7 +24262,7 @@ function renderRootConcurrent(root, lanes) {
                 // rendering later.
 
 
-                ensureRootIsScheduled(root);
+                ensureRootIsScheduled(root, now$1());
               };
 
               thenable.then(onResolution, onResolution);
@@ -24618,8 +24504,8 @@ function replaySuspendedUnitOfWork(unitOfWork) {
       }
     // eslint-disable-next-line no-fallthrough
 
-    case SimpleMemoComponent:
     case FunctionComponent:
+    case ForwardRef:
       {
         // Resolve `defaultProps`. This logic is copied from `beginWork`.
         // TODO: Consider moving this switch statement into that module. Also,
@@ -24628,29 +24514,15 @@ function replaySuspendedUnitOfWork(unitOfWork) {
         var Component = unitOfWork.type;
         var unresolvedProps = unitOfWork.pendingProps;
         var resolvedProps = unitOfWork.elementType === Component ? unresolvedProps : resolveDefaultProps(Component, unresolvedProps);
-        var context;
-
-        {
-          var unmaskedContext = getUnmaskedContext(unitOfWork, Component, true);
-          context = getMaskedContext(unitOfWork, unmaskedContext);
-        }
-
-        next = replayFunctionComponent(current, unitOfWork, resolvedProps, Component, context, workInProgressRootRenderLanes);
+        next = replayFunctionComponent(current, unitOfWork, resolvedProps, Component, workInProgressRootRenderLanes);
         break;
       }
 
-    case ForwardRef:
+    case SimpleMemoComponent:
       {
-        // Resolve `defaultProps`. This logic is copied from `beginWork`.
-        // TODO: Consider moving this switch statement into that module. Also,
-        // could maybe use this as an opportunity to say `use` doesn't work with
-        // `defaultProps` :)
-        var _Component = unitOfWork.type.render;
-        var _unresolvedProps = unitOfWork.pendingProps;
-
-        var _resolvedProps = unitOfWork.elementType === _Component ? _unresolvedProps : resolveDefaultProps(_Component, _unresolvedProps);
-
-        next = replayFunctionComponent(current, unitOfWork, _resolvedProps, _Component, unitOfWork.ref, workInProgressRootRenderLanes);
+        var _Component = unitOfWork.type;
+        var nextProps = unitOfWork.pendingProps;
+        next = replayFunctionComponent(current, unitOfWork, nextProps, _Component, workInProgressRootRenderLanes);
         break;
       }
 
@@ -25113,7 +24985,7 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   // additional work on this root is scheduled.
 
 
-  ensureRootIsScheduled(root);
+  ensureRootIsScheduled(root, now$1());
 
   if (recoverableErrors !== null) {
     // There were errors during this render, but recovered from them without
@@ -25167,7 +25039,7 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   } // If layout work was scheduled, flush it now.
 
 
-  flushSyncWorkOnAllRoots();
+  flushSyncCallbacks();
 
   {
     markCommitStopped();
@@ -25316,7 +25188,7 @@ function flushPassiveEffectsImpl() {
   }
 
   executionContext = prevExecutionContext;
-  flushSyncWorkOnAllRoots();
+  flushSyncCallbacks();
 
   {
     // If additional passive effects were scheduled, increment a counter. If this
@@ -25376,7 +25248,7 @@ function captureCommitPhaseErrorOnRoot(rootFiber, sourceFiber, error) {
 
   if (root !== null) {
     markRootUpdated(root, SyncLane, eventTime);
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, eventTime);
   }
 }
 
@@ -25393,7 +25265,11 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
     return;
   }
 
-  var fiber = nearestMountedAncestor;
+  var fiber = null;
+
+  {
+    fiber = nearestMountedAncestor;
+  }
 
   while (fiber !== null) {
     if (fiber.tag === HostRoot) {
@@ -25411,7 +25287,7 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
 
         if (root !== null) {
           markRootUpdated(root, SyncLane, eventTime);
-          ensureRootIsScheduled(root);
+          ensureRootIsScheduled(root, eventTime);
         }
 
         return;
@@ -25422,7 +25298,12 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
   }
 
   {
-    error('Internal React error: Attempted to capture a commit phase error ' + 'inside a detached tree. This indicates a bug in React. Potential ' + 'causes include deleting the same fiber more than once, committing an ' + 'already-finished tree, or an inconsistent return pointer.\n\n' + 'Error message:\n\n%s', error$1);
+    // TODO: Until we re-land skipUnmountedBoundaries (see #20147), this warning
+    // will fire for errors that are thrown by destroy functions inside deleted
+    // trees. What it should instead do is propagate the error to the parent of
+    // the deleted tree. In the meantime, do not add this warning to the
+    // allowlist; this is only for our internal use.
+    error('Internal React error: Attempted to capture a commit phase error ' + 'inside a detached tree. This indicates a bug in React. Likely ' + 'causes include deleting the same fiber more than once, committing an ' + 'already-finished tree, or an inconsistent return pointer.\n\n' + 'Error message:\n\n%s', error$1);
   }
 }
 function attachPingListener(root, wakeable, lanes) {
@@ -25480,6 +25361,7 @@ function pingSuspendedRoot(root, wakeable, pingedLanes) {
     pingCache.delete(wakeable);
   }
 
+  var eventTime = requestEventTime();
   markRootPinged(root, pingedLanes);
   warnIfSuspenseResolutionNotWrappedWithActDEV(root);
 
@@ -25504,7 +25386,7 @@ function pingSuspendedRoot(root, wakeable, pingedLanes) {
     }
   }
 
-  ensureRootIsScheduled(root);
+  ensureRootIsScheduled(root, eventTime);
 }
 
 function retryTimedOutBoundary(boundaryFiber, retryLane) {
@@ -25524,7 +25406,7 @@ function retryTimedOutBoundary(boundaryFiber, retryLane) {
 
   if (root !== null) {
     markRootUpdated(root, retryLane, eventTime);
-    ensureRootIsScheduled(root);
+    ensureRootIsScheduled(root, eventTime);
   }
 }
 
@@ -25838,9 +25720,18 @@ function scheduleCallback(priorityLevel, callback) {
       actQueue.push(callback);
       return fakeActCallbackNode;
     } else {
-      return scheduleCallback$3(priorityLevel, callback);
+      return scheduleCallback$2(priorityLevel, callback);
     }
   }
+}
+
+function cancelCallback(callbackNode) {
+  if (callbackNode === fakeActCallbackNode) {
+    return;
+  } // In production, always call Scheduler. This function will be stripped out.
+
+
+  return cancelCallback$1(callbackNode);
 }
 
 function shouldForceFlushFallbacksInDEV() {
@@ -26929,7 +26820,6 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
   this.cancelPendingCommit = null;
   this.context = null;
   this.pendingContext = null;
-  this.next = null;
   this.callbackNode = null;
   this.callbackPriority = NoLane;
   this.eventTimes = createLaneMap(NoLanes);
@@ -27023,7 +26913,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-b14f8da15-20230403';
+var ReactVersion = '18.3.0-next-85de6fde5-20230328';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -27272,7 +27162,6 @@ function markRetryLaneIfNotHydrated(fiber, retryLane) {
     markRetryLaneImpl(alternate, retryLane);
   }
 }
-
 function attemptContinuousHydration(fiber) {
   if (fiber.tag !== SuspenseComponent) {
     // We ignore HostRoots here because we can't increase
@@ -27760,8 +27649,7 @@ function createQueuedReplayableEvent(blockedOn, domEventName, eventSystemFlags, 
     nativeEvent: nativeEvent,
     targetContainers: [targetContainer]
   };
-} // Resets the replaying for this type of continuous event to no event.
-
+}
 
 function clearIfContinuousEvent(domEventName, nativeEvent) {
   switch (domEventName) {
@@ -27952,11 +27840,13 @@ function attemptReplayContinuousQueuedEvent(queuedEvent) {
     var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.domEventName, queuedEvent.eventSystemFlags, targetContainer, queuedEvent.nativeEvent);
 
     if (nextBlockedOn === null) {
-      var nativeEvent = queuedEvent.nativeEvent;
-      var nativeEventClone = new nativeEvent.constructor(nativeEvent.type, nativeEvent);
-      setReplayingEvent(nativeEventClone);
-      nativeEvent.target.dispatchEvent(nativeEventClone);
-      resetReplayingEvent();
+      {
+        var nativeEvent = queuedEvent.nativeEvent;
+        var nativeEventClone = new nativeEvent.constructor(nativeEvent.type, nativeEvent);
+        setReplayingEvent(nativeEventClone);
+        nativeEvent.target.dispatchEvent(nativeEventClone);
+        resetReplayingEvent();
+      }
     } else {
       // We're still blocked. Try again later.
       var fiber = getInstanceFromNode(nextBlockedOn);
@@ -27983,7 +27873,8 @@ function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
 }
 
 function replayUnblockedEvents() {
-  hasScheduledReplayAttempt = false; // Replay any continuous events.
+  hasScheduledReplayAttempt = false;
+
 
   if (queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus)) {
     queuedFocus = null;
@@ -28142,6 +28033,12 @@ function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEv
     return;
   }
 
+  {
+    dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay(domEventName, eventSystemFlags, targetContainer, nativeEvent);
+  }
+}
+
+function dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
   var blockedOn = findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent);
 
   if (blockedOn === null) {
@@ -28191,6 +28088,7 @@ function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEv
 
   dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, null, targetContainer);
 }
+
 var return_targetInst = null; // Returns a SuspenseInstance or Container if it's blocked.
 // The return_targetInst field above is conceptually part of the return value.
 
@@ -31165,10 +31063,20 @@ function getListenerSetKey(domEventName, capture) {
 }
 
 var didWarnInvalidHydration = false;
+var warnedUnknownTags;
 var canDiffStyleForHydrationWarning;
 
 {
-  // IE 11 parses & normalizes the style attribute as opposed to other
+  warnedUnknownTags = {
+    // There are working polyfills for <dialog>. Let people use it.
+    dialog: true,
+    // Electron ships a custom <webview> tag to display external web content in
+    // an isolated frame and process.
+    // This tag is not present in non Electron environments such as JSDom which
+    // is often used for testing purposes.
+    // @see https://electronjs.org/docs/api/webview-tag
+    webview: true
+  }; // IE 11 parses & normalizes the style attribute as opposed to other
   // browsers. It adds spaces and sorts the properties in some
   // non-alphabetical order. Handling that would require sorting CSS
   // properties in the client & server versions or applying
@@ -31176,6 +31084,7 @@ var canDiffStyleForHydrationWarning;
   // normalized. Since it only affects IE, we're skipping style warnings
   // in that browser completely in favor of doing all that work.
   // See https://github.com/facebook/react/issues/11807
+
   canDiffStyleForHydrationWarning = canUseDOM && !document.documentMode;
 }
 
@@ -31294,6 +31203,9 @@ function checkForUnmatchedText(serverText, clientText, isConcurrentMode, shouldW
     throw new Error('Text content does not match server-rendered HTML.');
   }
 }
+function getOwnerDocumentFromRootContainer(rootContainerElement) {
+  return rootContainerElement.nodeType === DOCUMENT_NODE ? rootContainerElement : rootContainerElement.ownerDocument;
+}
 
 function noop$1() {}
 
@@ -31310,7 +31222,7 @@ function trapClickOnNonInteractiveElement(node) {
   node.onclick = noop$1;
 }
 
-function setProp(domElement, tag, key, value, isCustomElementTag, props) {
+function setProp(domElement, tag, key, value, isCustomComponentTag, props) {
   switch (key) {
     case 'style':
       {
@@ -31403,20 +31315,6 @@ function setProp(domElement, tag, key, value, isCustomElementTag, props) {
 
         break;
       }
-    // Note: `option.selected` is not updated if `select.multiple` is
-    // disabled with `removeAttribute`. We have special logic for handling this.
-
-    case 'multiple':
-      {
-        domElement.multiple = value && typeof value !== 'function' && typeof value !== 'symbol';
-        break;
-      }
-
-    case 'muted':
-      {
-        domElement.muted = value && typeof value !== 'function' && typeof value !== 'symbol';
-        break;
-      }
 
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
@@ -31451,35 +31349,109 @@ function setProp(domElement, tag, key, value, isCustomElementTag, props) {
             warnForInvalidEventListener(key, value);
           }
         } else {
-          if (isCustomElementTag) {
-            {
-              if (typeof value === 'boolean') {
-                // Special case before the new flag is on
-                value = '' + value;
-              }
-
-              setValueForAttribute(domElement, key, value);
-            }
+          if (isCustomComponentTag) {
+            setValueForPropertyOnCustomComponent(domElement, key, value);
           } else {
-            if ( // shouldIgnoreAttribute
-            // We have already filtered out reserved words.
-            key.length > 2 && (key[0] === 'o' || key[0] === 'O') && (key[1] === 'n' || key[1] === 'N')) {
-              return;
-            }
-
-            var propertyInfo = getPropertyInfo(key);
-
-            if (propertyInfo !== null) {
-              setValueForProperty(domElement, propertyInfo, value);
-            } else {
-              setValueForAttribute(domElement, key, value);
-            }
+            setValueForProperty(domElement, key, value);
           }
         }
       }
   }
-}
+} // creates a script element that won't execute
 
+
+function createPotentiallyInlineScriptElement(ownerDocument) {
+  // Create the script via .innerHTML so its "parser-inserted" flag is
+  // set to true and it does not execute
+  var div = ownerDocument.createElement('div');
+
+  div.innerHTML = '<script><' + '/script>'; // eslint-disable-line
+  // This is guaranteed to yield a script element.
+
+  var firstChild = div.firstChild;
+  var element = div.removeChild(firstChild);
+  return element;
+}
+function createSelectElement(props, ownerDocument) {
+  var element;
+
+  if (typeof props.is === 'string') {
+    element = ownerDocument.createElement('select', {
+      is: props.is
+    });
+  } else {
+    // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
+    // See discussion in https://github.com/facebook/react/pull/6896
+    // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
+    element = ownerDocument.createElement('select');
+  }
+
+  if (props.multiple) {
+    element.multiple = true;
+  } else if (props.size) {
+    // Setting a size greater than 1 causes a select to behave like `multiple=true`, where
+    // it is possible that no option is selected.
+    //
+    // This is only necessary when a select in "single selection mode".
+    element.size = props.size;
+  }
+
+  return element;
+} // Creates elements in the HTML namesapce
+
+function createHTMLElement(type, props, ownerDocument) {
+  {
+    switch (type) {
+      case 'script':
+      case 'select':
+        error('createHTMLElement was called with a "%s" type. This type has special creation logic in React and should use the create function implemented specifically for it. This is a bug in React.', type);
+
+        break;
+
+      case 'svg':
+      case 'math':
+        error('createHTMLElement was called with a "%s" type. This type must be created with Document.createElementNS which this method does not implement. This is a bug in React.', type);
+
+    }
+  }
+
+  var isCustomComponentTag;
+  var element;
+
+  {
+    isCustomComponentTag = isCustomComponent(type, props); // Should this check be gated by parent namespace? Not sure we want to
+    // allow <SVG> or <mATH>.
+
+    if (!isCustomComponentTag && type !== type.toLowerCase()) {
+      error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
+    }
+  }
+
+  if (typeof props.is === 'string') {
+    element = ownerDocument.createElement(type, {
+      is: props.is
+    });
+  } else {
+    // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
+    // See discussion in https://github.com/facebook/react/pull/6896
+    // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
+    element = ownerDocument.createElement(type);
+  }
+
+  {
+    if (!isCustomComponentTag && // $FlowFixMe[method-unbinding]
+    Object.prototype.toString.call(element) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
+      warnedUnknownTags[type] = true;
+
+      error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
+    }
+  }
+
+  return element;
+}
+function createTextNode(text, rootContainerElement) {
+  return getOwnerDocumentFromRootContainer(rootContainerElement).createTextNode(text);
+}
 function setInitialProperties(domElement, tag, props) {
   {
     validatePropertiesInDevelopment(tag, props);
@@ -31653,19 +31625,7 @@ function setInitialProperties(domElement, tag, props) {
             continue;
           }
 
-          switch (_propKey3) {
-            case 'selected':
-              {
-                // TODO: Remove support for selected on option.
-                domElement.selected = _propValue3 && typeof _propValue3 !== 'function' && typeof _propValue3 !== 'symbol';
-                break;
-              }
-
-            default:
-              {
-                setProp(domElement, tag, _propKey3, _propValue3, false, props);
-              }
-          }
+          setProp(domElement, tag, _propKey3, _propValue3, false, props);
         }
 
         postMountWrapper$2(domElement, props);
@@ -31763,6 +31723,7 @@ function setInitialProperties(domElement, tag, props) {
 
             default:
               {
+                // TODO: If the `is` prop is specified, this should go through the isCustomComponentTag flow.
                 setProp(domElement, tag, _propKey4, _propValue4, false, props);
               }
           }
@@ -31772,7 +31733,7 @@ function setInitialProperties(domElement, tag, props) {
       }
   }
 
-  var isCustomElementTag = isCustomElement(tag);
+  var isCustomComponentTag = isCustomComponent(tag, props);
 
   for (var _propKey5 in props) {
     if (!props.hasOwnProperty(_propKey5)) {
@@ -31785,7 +31746,7 @@ function setInitialProperties(domElement, tag, props) {
       continue;
     }
 
-    setProp(domElement, tag, _propKey5, _propValue5, isCustomElementTag, props);
+    setProp(domElement, tag, _propKey5, _propValue5, isCustomComponentTag, props);
   }
 } // Calculate the diff between the two objects.
 
@@ -31876,13 +31837,6 @@ function diffProperties(domElement, tag, lastProps, nextProps) {
 
             break;
           }
-
-        case 'is':
-          {
-            error('Cannot update the "is" prop after it has been initialized.');
-          }
-
-        // eslint-disable-next-line no-fallthrough
 
         default:
           {
@@ -32026,30 +31980,6 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
         return;
       }
 
-    case 'option':
-      {
-        for (var _i3 = 0; _i3 < updatePayload.length; _i3 += 2) {
-          var _propKey8 = updatePayload[_i3];
-          var _propValue8 = updatePayload[_i3 + 1];
-
-          switch (_propKey8) {
-            case 'selected':
-              {
-                // TODO: Remove support for selected on option.
-                domElement.selected = _propValue8 && typeof _propValue8 !== 'function' && typeof _propValue8 !== 'symbol';
-                break;
-              }
-
-            default:
-              {
-                setProp(domElement, tag, _propKey8, _propValue8, false, nextProps);
-              }
-          }
-        }
-
-        return;
-      }
-
     case 'img':
     case 'link':
     case 'area':
@@ -32067,15 +31997,15 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
     case 'menuitem':
       {
         // Void elements
-        for (var _i4 = 0; _i4 < updatePayload.length; _i4 += 2) {
-          var _propKey9 = updatePayload[_i4];
-          var _propValue9 = updatePayload[_i4 + 1];
+        for (var _i3 = 0; _i3 < updatePayload.length; _i3 += 2) {
+          var _propKey8 = updatePayload[_i3];
+          var _propValue8 = updatePayload[_i3 + 1];
 
-          switch (_propKey9) {
+          switch (_propKey8) {
             case 'children':
             case 'dangerouslySetInnerHTML':
               {
-                if (_propValue9 != null) {
+                if (_propValue8 != null) {
                   // TODO: Can we make this a DEV warning to avoid this deny list?
                   throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
                 }
@@ -32086,21 +32016,24 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                setProp(domElement, tag, _propKey9, _propValue9, false, nextProps);
+                // TODO: If the `is` prop is specified, this should go through the isCustomComponentTag flow.
+                setProp(domElement, tag, _propKey8, _propValue8, false, nextProps);
               }
           }
         }
 
         return;
       }
-  }
+  } // TODO: Handle wasCustomComponentTag. Changing "is" isn't valid.
+  // const wasCustomComponentTag = isCustomComponent(tag, lastProps);
 
-  var isCustomElementTag = isCustomElement(tag); // Apply the diff.
 
-  for (var _i5 = 0; _i5 < updatePayload.length; _i5 += 2) {
-    var _propKey10 = updatePayload[_i5];
-    var _propValue10 = updatePayload[_i5 + 1];
-    setProp(domElement, tag, _propKey10, _propValue10, isCustomElementTag, nextProps);
+  var isCustomComponentTag = isCustomComponent(tag, nextProps); // Apply the diff.
+
+  for (var _i4 = 0; _i4 < updatePayload.length; _i4 += 2) {
+    var _propKey9 = updatePayload[_i4];
+    var _propValue9 = updatePayload[_i4 + 1];
+    setProp(domElement, tag, _propKey9, _propValue9, isCustomComponentTag, nextProps);
   }
 }
 
@@ -32198,10 +32131,6 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
 
       // eslint-disable-next-line no-fallthrough
 
-      case 'className':
-
-      // eslint-disable-next-line no-fallthrough
-
       default:
         {
           var ownNamespaceDev = parentNamespaceDev;
@@ -32216,10 +32145,10 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
             extraAttributeNames.delete(propKey);
           }
 
-          var _serverValue = getValueForAttributeOnCustomComponent(domElement, propKey, nextProp);
+          var serverValue = getValueForAttributeOnCustomComponent(domElement, propKey, nextProp);
 
-          if (nextProp !== _serverValue) {
-            warnForPropDifference(propKey, _serverValue, nextProp);
+          if (nextProp !== serverValue) {
+            warnForPropDifference(propKey, serverValue, nextProp);
           }
         }
     }
@@ -32286,30 +32215,7 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
         extraAttributeNames.delete(propKey);
         diffHydratedStyles(domElement, nextProp);
         continue;
-
-      case 'multiple':
-        {
-          extraAttributeNames.delete(propKey);
-          var _serverValue2 = domElement.multiple;
-
-          if (nextProp !== _serverValue2) {
-            warnForPropDifference('multiple', _serverValue2, nextProp);
-          }
-
-          continue;
-        }
-
-      case 'muted':
-        {
-          extraAttributeNames.delete(propKey);
-          var _serverValue3 = domElement.muted;
-
-          if (nextProp !== _serverValue3) {
-            warnForPropDifference('muted', _serverValue3, nextProp);
-          }
-
-          continue;
-        }
+      // eslint-disable-next-line no-fallthrough
 
       default:
         if ( // shouldIgnoreAttribute
@@ -32487,8 +32393,8 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
     var extraAttributeNames = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i6 = 0; _i6 < attributes.length; _i6++) {
-      var name = attributes[_i6].name.toLowerCase();
+    for (var _i5 = 0; _i5 < attributes.length; _i5++) {
+      var name = attributes[_i5].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -32505,11 +32411,11 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributeNames.add(attributes[_i6].name);
+          extraAttributeNames.add(attributes[_i5].name);
       }
     }
 
-    if (isCustomElement(tag)) {
+    if (isCustomComponent(tag, props)) {
       diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributeNames);
     } else {
       diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributeNames);
@@ -33051,11 +32957,6 @@ var SUSPENSE_FALLBACK_START_DATA = '$!';
 var STYLE = 'style';
 var eventsEnabled = null;
 var selectionInformation = null;
-
-function getOwnerDocumentFromRootContainer(rootContainerElement) {
-  return rootContainerElement.nodeType === DOCUMENT_NODE ? rootContainerElement : rootContainerElement.ownerDocument;
-}
-
 function getRootHostContext(rootContainerInstance) {
   var type;
   var namespace;
@@ -33120,23 +33021,13 @@ function resetAfterCommit(containerInfo) {
 }
 function createHoistableInstance(type, props, rootContainerInstance, internalInstanceHandle) {
   var ownerDocument = getOwnerDocumentFromRootContainer(rootContainerInstance);
-  var domElement = ownerDocument.createElement(type);
+  var domElement = createHTMLElement(type, props, ownerDocument);
   precacheFiberNode(internalInstanceHandle, domElement);
   updateFiberProps(domElement, props);
   setInitialProperties(domElement, type, props);
   markNodeAsHoistable(domElement);
   return domElement;
 }
-var warnedUnknownTags = {
-  // There are working polyfills for <dialog>. Let people use it.
-  dialog: true,
-  // Electron ships a custom <webview> tag to display external web content in
-  // an isolated frame and process.
-  // This tag is not present in non Electron environments such as JSDom which
-  // is often used for testing purposes.
-  // @see https://electronjs.org/docs/api/webview-tag
-  webview: true
-};
 function createInstance(type, props, rootContainerInstance, hostContext, internalInstanceHandle) {
   var namespace;
 
@@ -33166,87 +33057,23 @@ function createInstance(type, props, rootContainerInstance, hostContext, interna
     default:
       switch (type) {
         case 'svg':
-          {
-            domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
-            break;
-          }
+          domElement = ownerDocument.createElementNS(SVG_NAMESPACE, type);
+          break;
 
         case 'math':
-          {
-            domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
-            break;
-          }
+          domElement = ownerDocument.createElementNS(MATH_NAMESPACE, type);
+          break;
 
         case 'script':
-          {
-            // Create the script via .innerHTML so its "parser-inserted" flag is
-            // set to true and it does not execute
-            var div = ownerDocument.createElement('div');
-
-            div.innerHTML = '<script><' + '/script>'; // eslint-disable-line
-            // This is guaranteed to yield a script element.
-
-            var firstChild = div.firstChild;
-            domElement = div.removeChild(firstChild);
-            break;
-          }
+          domElement = createPotentiallyInlineScriptElement(ownerDocument);
+          break;
 
         case 'select':
-          {
-            if (typeof props.is === 'string') {
-              domElement = ownerDocument.createElement('select', {
-                is: props.is
-              });
-            } else {
-              // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
-              // See discussion in https://github.com/facebook/react/pull/6896
-              // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
-              domElement = ownerDocument.createElement('select');
-            }
-
-            if (props.multiple) {
-              domElement.multiple = true;
-            } else if (props.size) {
-              // Setting a size greater than 1 causes a select to behave like `multiple=true`, where
-              // it is possible that no option is selected.
-              //
-              // This is only necessary when a select in "single selection mode".
-              domElement.size = props.size;
-            }
-
-            break;
-          }
+          domElement = createSelectElement(props, ownerDocument);
+          break;
 
         default:
-          {
-            if (typeof props.is === 'string') {
-              domElement = ownerDocument.createElement(type, {
-                is: props.is
-              });
-            } else {
-              // Separate else branch instead of using `props.is || undefined` above because of a Firefox bug.
-              // See discussion in https://github.com/facebook/react/pull/6896
-              // and discussion in https://bugzilla.mozilla.org/show_bug.cgi?id=1276240
-              domElement = ownerDocument.createElement(type);
-            }
-
-            {
-              if (type.indexOf('-') === -1) {
-                // We're not SVG/MathML and we don't have a dash, so we're not a custom element
-                // Even if you use `is`, these should be of known type and lower case.
-                if (type !== type.toLowerCase()) {
-                  error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
-                }
-
-                if ( // $FlowFixMe[method-unbinding]
-                Object.prototype.toString.call(domElement) === '[object HTMLUnknownElement]' && !hasOwnProperty.call(warnedUnknownTags, type)) {
-                  warnedUnknownTags[type] = true;
-
-                  error('The tag <%s> is unrecognized in this browser. ' + 'If you meant to render a React component, start its name with ' + 'an uppercase letter.', type);
-                }
-              }
-            }
-          }
+          domElement = createHTMLElement(type, props, ownerDocument);
       }
 
   }
@@ -33297,7 +33124,7 @@ function createTextInstance(text, rootContainerInstance, hostContext, internalIn
     validateDOMNesting(null, text, hostContextDev.ancestorInfo);
   }
 
-  var textNode = getOwnerDocumentFromRootContainer(rootContainerInstance).createTextNode(text);
+  var textNode = createTextNode(text, rootContainerInstance);
   precacheFiberNode(internalInstanceHandle, textNode);
   return textNode;
 }
@@ -35276,33 +35103,29 @@ function waitForCommitToBeReady() {
 
   if (state.count > 0) {
     return function (commit) {
-      // We almost never want to show content before its styles have loaded. But
-      // eventually we will give up and allow unstyled content. So this number is
-      // somewhat arbitrary — big enough that you'd only reach it under
-      // extreme circumstances.
-      // TODO: Figure out what the browser engines do during initial page load and
-      // consider aligning our behavior with that.
-      var stylesheetTimer = setTimeout(function () {
-        if (state.stylesheets) {
-          insertSuspendedStylesheets(state, state.stylesheets);
-        }
-
-        if (state.unsuspend) {
-          var unsuspend = state.unsuspend;
-          state.unsuspend = null;
-          unsuspend();
-        }
-      }, 60000); // one minute
-
+      unsuspendAfterTimeout(state);
       state.unsuspend = commit;
       return function () {
-        state.unsuspend = null;
-        clearTimeout(stylesheetTimer);
+        return state.unsuspend = null;
       };
     };
   }
 
   return null;
+}
+
+function unsuspendAfterTimeout(state) {
+  setTimeout(function () {
+    if (state.stylesheets) {
+      insertSuspendedStylesheets(state, state.stylesheets);
+    }
+
+    if (state.unsuspend) {
+      var unsuspend = state.unsuspend;
+      state.unsuspend = null;
+      unsuspend();
+    }
+  }, 500);
 }
 
 function onUnsuspend() {

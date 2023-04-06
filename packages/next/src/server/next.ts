@@ -165,10 +165,7 @@ export class NextServer {
     if (!this.serverPromise) {
       this.serverPromise = this.loadConfig().then(async (conf) => {
         if (conf.experimental.appDir) {
-          const useExperimentalReact = !!conf.experimental.experimentalReact
-          process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-            ? 'experimental'
-            : 'next'
+          process.env.NEXT_PREBUNDLED_REACT = '1'
           overrideBuiltInReactPackages()
         }
         this.server = await this.createServer({
