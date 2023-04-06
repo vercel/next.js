@@ -2,7 +2,7 @@ import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   extractInterceptionRouteInformation,
-  isIntersectionRouteAppPath,
+  isInterceptionRouteAppPath,
 } from '../server/future/helpers/interception-routes'
 import { Rewrite } from './load-custom-routes'
 
@@ -17,7 +17,7 @@ export function generateInterceptionRoutesRewrites(
   const rewrites: Rewrite[] = []
 
   for (const appPath of appPaths) {
-    if (isIntersectionRouteAppPath(appPath)) {
+    if (isInterceptionRouteAppPath(appPath)) {
       const { interceptingRoute, interceptedRoute } =
         extractInterceptionRouteInformation(appPath)
 

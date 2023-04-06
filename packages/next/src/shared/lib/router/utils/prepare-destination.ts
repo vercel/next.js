@@ -10,7 +10,7 @@ import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
 import {
   INTERCEPTION_ROUTE_MARKERS,
-  isIntersectionRouteAppPath,
+  isInterceptionRouteAppPath,
 } from '../../../../server/future/helpers/interception-routes'
 
 /**
@@ -237,7 +237,7 @@ export function prepareDestination(args: {
   // compile the route properly with path-to-regexp, otherwise it will throw
   // The compiler also thinks that the interception route marker is an unnamed param, hence '0',
   // so we need to add it to the params object.
-  if (isIntersectionRouteAppPath(destPath)) {
+  if (isInterceptionRouteAppPath(destPath)) {
     main: for (const segment of destPath.split('/')) {
       for (const marker of INTERCEPTION_ROUTE_MARKERS) {
         if (segment.startsWith(marker)) {
