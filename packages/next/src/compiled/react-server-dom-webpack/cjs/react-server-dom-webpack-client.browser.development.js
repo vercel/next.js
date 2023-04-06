@@ -669,6 +669,12 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'n':
+        {
+          // BigInt
+          return BigInt(value.substring(2));
+        }
+
       default:
         {
           // We assume that anything else is a reference ID.
@@ -1285,6 +1291,10 @@ function serializeUndefined() {
   return '$undefined';
 }
 
+function serializeBigInt(n) {
+  return '$n' + n.toString(10);
+}
+
 function escapeStringValue(value) {
   if (value[0] === '$') {
     // We need to escape $ prefixed strings since we use those to encode
@@ -1433,7 +1443,7 @@ function processReply(root, resolve, reject) {
     }
 
     if (typeof value === 'bigint') {
-      throw new Error("BigInt (" + value + ") is not yet supported as an argument to a Server Function.");
+      return serializeBigInt(value);
     }
 
     throw new Error("Type " + typeof value + " is not supported as an argument to a Server Function.");

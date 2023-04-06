@@ -432,7 +432,32 @@ declare module 'next/link' {
   }
 
   export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
-}`
+}
+
+declare module 'next/navigation' {
+  export * from 'next/dist/client/components/navigation'
+
+  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context'
+  interface AppRouterInstance extends OriginalAppRouterInstance {
+    /**
+     * Navigate to the provided href.
+     * Pushes a new history entry.
+     */
+    push<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
+    /**
+     * Navigate to the provided href.
+     * Replaces the current history entry.
+     */
+    replace<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
+    /**
+     * Prefetch the provided href.
+     */
+    prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
+  }
+
+  export declare function useRouter(): AppRouterInstance;
+}
+`
 }
 
 const appTypesBasePath = path.join('types', 'app')

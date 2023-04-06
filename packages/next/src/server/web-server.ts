@@ -290,7 +290,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           pathname = this.serverOptions.webServerConfig.page
 
           if (isDynamicRoute(pathname)) {
-            const routeRegex = getNamedRouteRegex(pathname)
+            const routeRegex = getNamedRouteRegex(pathname, false)
             pathname = interpolateDynamicPath(pathname, query, routeRegex)
             normalizeVercelUrl(
               req,
