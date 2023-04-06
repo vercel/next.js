@@ -24,14 +24,18 @@ export type ReadonlyRequestCookies = Omit<
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
     return new Proxy(cookies, {
-      get(target, prop, receiver) {
+      get(target, prop) {
         switch (prop) {
           case 'clear':
           case 'delete':
           case 'set':
             return ReadonlyRequestCookiesError.callable
           default:
-            return ReflectAdapter.get(target, prop, receiver)
+            return ReflectAdapter.get(
+              target,
+              prop as keyof ReadonlyRequestCookies,
+              cookies
+            )
         }
       },
     })

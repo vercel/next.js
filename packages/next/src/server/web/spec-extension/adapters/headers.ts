@@ -28,12 +28,12 @@ export class HeadersAdapter extends Headers {
     super()
 
     this.headers = new Proxy(headers, {
-      get(target, prop, receiver: IncomingHttpHeaders) {
+      get(target, prop) {
         // Because this is just an object, we expect that all "get" operations
         // are for properties. If it's a "get" for a symbol, we'll just return
         // the symbol.
         if (typeof prop === 'symbol') {
-          return ReflectAdapter.get(target, prop, receiver)
+          return ReflectAdapter.get(target, prop, headers)
         }
 
         const lowercased = prop.toLowerCase()
@@ -49,7 +49,7 @@ export class HeadersAdapter extends Headers {
         if (typeof original === 'undefined') return
 
         // If the original casing exists, return the value.
-        return ReflectAdapter.get(target, original, receiver)
+        return ReflectAdapter.get(target, original, headers)
       },
       set(target, prop, value) {
         if (typeof prop === 'symbol') {
@@ -113,15 +113,19 @@ export class HeadersAdapter extends Headers {
    * any mutating method is called.
    */
   public static seal(headers: Headers): ReadonlyHeaders {
-    return new Proxy(headers, {
-      get(target, prop, receiver) {
+    return new Proxy<ReadonlyHeaders>(headers, {
+      get(target, prop) {
         switch (prop) {
           case 'append':
           case 'delete':
           case 'set':
             return ReadonlyHeadersError.callable
           default:
-            return ReflectAdapter.get(target, prop, receiver)
+            return ReflectAdapter.get(
+              target,
+              prop as keyof ReadonlyHeaders,
+              headers
+            )
         }
       },
     })

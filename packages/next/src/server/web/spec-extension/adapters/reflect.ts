@@ -2,7 +2,7 @@ export class ReflectAdapter {
   static get<T extends object, P extends keyof T>(
     target: T,
     prop: P | symbol,
-    receiver?: T
+    receiver?: unknown
   ): T[P] | undefined {
     if (typeof prop === 'symbol') {
       return undefined
