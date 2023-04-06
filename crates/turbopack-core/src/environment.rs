@@ -25,6 +25,22 @@ impl ServerAddr {
         Self(Some(addr))
     }
 
+    /// The hostname portion of the address, without the port. Prefers
+    /// "localhost" when using a loopback address.
+    pub fn hostname(&self) -> Option<String> {
+        self.0.map(|addr| {
+            if addr.ip().is_loopback() || addr.ip().is_unspecified() {
+                "localhost".to_string()
+            } else if addr.is_ipv6() {
+                // When using an IPv6 address, we need to surround the IP in brackets to
+                // distinguish it from the port's `:`.
+                format!("[{}]", addr.ip())
+            } else {
+                addr.ip().to_string()
+            }
+        })
+    }
+
     pub fn ip(&self) -> Option<String> {
         self.0.map(|addr| addr.ip().to_string())
     }
@@ -33,18 +49,17 @@ impl ServerAddr {
         self.0.map(|addr| addr.port())
     }
 
+    /// Constructs a URL out of the address.
     pub fn to_string(&self) -> Result<String> {
-        let addr = &self.0.context("expected some server address")?;
-        let uri = if addr.ip().is_loopback() || addr.ip().is_unspecified() {
-            match addr.port() {
-                80 => "http://localhost".to_string(),
-                443 => "https://localhost".to_string(),
-                _ => format!("http://localhost:{}", addr.port()),
-            }
-        } else {
-            format!("http://{}", addr)
-        };
-        Ok(uri)
+        let (hostname, port) = self
+            .hostname()
+            .zip(self.port())
+            .context("expected some server address")?;
+        Ok(match port {
+            80 => format!("http://{hostname}"),
+            443 => format!("https://{hostname}"),
+            _ => format!("http://{hostname}:{port}"),
+        })
     }
 }
 
