@@ -185,6 +185,27 @@ createNextDescribe(
         expect(html).toContain('parallel/(new)/layout')
         expect(html).toContain('parallel/(new)/@baz/nested/page')
       })
+
+      it('should throw a 404 when no matching parallel route is found', async () => {
+        const browser = await next.browser('/parallel-tab-bar')
+        // we make sure the page is available through navigating
+        await check(
+          () => browser.waitForElementByCss('#home').text(),
+          'Tab bar page (@children)'
+        )
+        await browser.elementByCss('#view-duration-link').click()
+        await check(
+          () => browser.waitForElementByCss('#view-duration').text(),
+          'View duration'
+        )
+
+        // fetch /parallel-tab-bar/view-duration
+        const res = await next.fetch(
+          `${next.url}/parallel-tab-bar/view-duration`
+        )
+        const html = await res.text()
+        expect(html).toContain('page could not be found')
+      })
     })
 
     describe('route intercepting', () => {
