@@ -260,6 +260,8 @@ pub async fn get_server_module_options_context(
         ServerContextType::AppSSR { .. } => {
             let module_options_context = ModuleOptionsContext {
                 custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+                    // ServerDirective is not implemented yet and always reports an issue.
+                    // We don't have to pass a valid transition name yet, but the API is prepared.
                     StringVc::cell("TODO".to_string()),
                 )],
                 execution_context: Some(execution_context),
@@ -286,7 +288,12 @@ pub async fn get_server_module_options_context(
                     EcmascriptInputTransform::ClientDirective(StringVc::cell(
                         "server-to-client".to_string(),
                     )),
-                    EcmascriptInputTransform::ServerDirective(StringVc::cell("TODO".to_string())),
+                    EcmascriptInputTransform::ServerDirective(
+                        // ServerDirective is not implemented yet and always reports an issue.
+                        // We don't have to pass a valid transition name yet, but the API is
+                        // prepared.
+                        StringVc::cell("TODO".to_string()),
+                    ),
                 ],
                 execution_context: Some(execution_context),
                 ..Default::default()
