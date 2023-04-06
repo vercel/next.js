@@ -980,7 +980,7 @@ export async function renderToHTML(
     let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
-        get: function (obj, prop, receiver) {
+        get: function (obj, prop) {
           if (!canAccessRes) {
             const message =
               `You should not access 'res' after getServerSideProps resolves.` +
@@ -993,7 +993,11 @@ export async function renderToHTML(
             }
           }
 
-          return ReflectAdapter.get(obj, prop, receiver)
+          if (typeof prop === 'symbol') {
+            return ReflectAdapter.get(obj, prop, res)
+          }
+
+          return ReflectAdapter.get(obj, prop as keyof ServerResponse, res)
         },
       })
     }
