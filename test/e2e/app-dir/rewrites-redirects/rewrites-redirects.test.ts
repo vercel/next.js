@@ -11,13 +11,10 @@ createNextDescribe(
       '@types/react': 'latest',
       '@types/node': 'latest',
     },
+    // TODO: investigate test failures on deploy
+    skipDeployment: true,
   },
   ({ next }) => {
-    // TODO: investigate test failures on deploy
-    if ((global as any).isNextDeploy) {
-      it('should skip for deploy', () => {})
-      return
-    }
     /**
      * All test will use a link/button to navigate to '/*-before' which should be redirected by correct redirect/rewrite to '/*-after'
      * We also test compatibility with pages
