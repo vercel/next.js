@@ -175,7 +175,7 @@ pub async fn get_client_module_options_context(
             .clone_if()
     };
 
-    let emotion_compiler_options = get_emotion_compiler_config(next_config);
+    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
 
     let module_options_context = ModuleOptionsContext {
         custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
@@ -191,7 +191,7 @@ pub async fn get_client_module_options_context(
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_emotion: Some(emotion_compiler_options),
+        enable_emotion,
         enable_react_refresh,
         enable_styled_components: true,
         enable_styled_jsx: true,

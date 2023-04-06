@@ -7,14 +7,14 @@ use turbo_binding::turbopack::{
     },
     ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig},
     turbopack::module_options::{
-        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, EmotionLabelKind,
-        EmotionTransformOptions, EmotionTransformOptionsVc, JsxTransformOptions,
-        JsxTransformOptionsVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+        DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, EmotionTransformConfig,
+        EmotionTransformConfigVc, JsxTransformOptions, JsxTransformOptionsVc,
+        OptionEmotionTransformConfigVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
     },
 };
 use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
 
-use crate::next_config::NextConfigVc;
+use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfigVc};
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
@@ -159,7 +159,7 @@ pub async fn get_jsx_transform_options(
 #[turbo_tasks::function]
 pub async fn get_emotion_compiler_config(
     next_config: NextConfigVc,
-) -> Result<EmotionTransformOptionsVc> {
+) -> Result<OptionEmotionTransformConfigVc> {
     let emotion_compiler_config = (*next_config.await?)
         .compiler
         .as_ref()
@@ -168,28 +168,23 @@ pub async fn get_emotion_compiler_config(
                 .emotion
                 .as_ref()
                 .map(|value| {
-                    if value.is_boolean() {
-                        EmotionTransformOptionsVc::cell(EmotionTransformOptions {
-                            enabled: value.as_bool().unwrap_or(false),
-                            ..Default::default()
-                        })
-                    } else {
-                        EmotionTransformOptionsVc::cell(EmotionTransformOptions {
-                            enabled: true,
-                            sourcemap: value["sourcemap"].as_bool(),
-                            auto_label: match value["auto_label"].to_string().as_str() {
-                                "dev-only" => Some(EmotionLabelKind::DevOnly),
-                                "always" => Some(EmotionLabelKind::Always),
-                                "never" => Some(EmotionLabelKind::Never),
-                                _ => None,
-                            },
-                            label_format: value["labelFormat"].as_str().map(|s| s.to_string()),
-                        })
-                    }
+                    let options = match value {
+                        EmotionTransformOptionsOrBoolean::Boolean(true) => {
+                            Some(EmotionTransformConfigVc::cell(EmotionTransformConfig {
+                                ..Default::default()
+                            }))
+                        }
+                        EmotionTransformOptionsOrBoolean::Boolean(false) => None,
+                        EmotionTransformOptionsOrBoolean::Options(value) => {
+                            Some(EmotionTransformConfigVc::cell(value.clone()))
+                        }
+                    };
+
+                    OptionEmotionTransformConfigVc::cell(options)
                 })
-                .unwrap_or_default()
+                .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None))
         })
-        .unwrap_or_default();
+        .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None));
 
     Ok(emotion_compiler_config)
 }
