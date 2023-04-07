@@ -166,7 +166,7 @@ createNextDescribe(
       const res = await next.fetch(ogImageUrlInstance.pathname)
 
       // generate unique path with suffix for image routes under group routes
-      expect(ogImageUrl).toMatch(/opengraph-image-\d{6}\?/)
+      expect(ogImageUrl).toMatch(/opengraph-image-\w{6}\?/)
       expect(ogImageUrl).toMatch(hashRegex)
       expect(res.status).toBe(200)
     })
