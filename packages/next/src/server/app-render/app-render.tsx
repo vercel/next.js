@@ -981,7 +981,22 @@ export async function renderToHTMLOrFlight(
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
-        const parallelRoutesKeys = Object.keys(parallelRoutes)
+        // if there's a refetch key, it'll probably take precedence when rendering
+        // so we sort the parallel routes so that the refetch key is first
+        // Sort the routes so that a route marked for refetching is at the beginning of the array
+        const parallelRoutesKeys = Object.keys(parallelRoutes).sort(
+          (parallelRouteKeyA, parallelRouteKeyB) => {
+            if (flightRouterState?.[1][parallelRouteKeyA][3] === 'refetch') {
+              return -1
+            }
+            if (flightRouterState?.[1][parallelRouteKeyB][3] === 'refetch') {
+              return 1
+            }
+
+            return 0
+          }
+        )
+
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
 
@@ -1021,7 +1036,19 @@ export async function renderToHTMLOrFlight(
           // Last item in the tree
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
-          flightRouterState[3] === 'refetch'
+          flightRouterState[3] === 'refetch' ||
+          // if any of the parallel routes segments differ or have a refresh marker
+          Object.entries(parallelRoutes).some(
+            ([parallelRouteKey, [parallelRouteSegment]]) => {
+              const [incomingParallelRouteSegment] =
+                flightRouterState[1][parallelRouteKey] ?? []
+
+              return (
+                incomingParallelRouteSegment === '__DEFAULT__' &&
+                parallelRouteSegment !== '__DEFAULT__'
+              )
+            }
+          )
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           const overriddenSegment =
