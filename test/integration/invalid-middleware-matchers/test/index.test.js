@@ -141,23 +141,12 @@ describe('Errors on invalid custom middleware matchers', () => {
       getStderr = async () => {
         let stderr = ''
         const port = await findPort()
-        // console.log('BEFORE');
         await launchApp(appDir, port, {
-          // onStdout(msg) {
-          //   console.log('STDOUT: ', msg);
-          // },
           onStderr(msg) {
-            // console.log('STDERR: ', msg);
             stderr += msg
           },
         })
-        // console.log('BETWEEN');
-        await fetchViaHTTP(port, '/')
-          // suppress error
-          .catch((err) => {
-            // console.log('ERROR: ', err);
-          })
-        // console.log('AFTER');
+        await fetchViaHTTP(port, '/').catch(() => {})
         return stderr
       }
     })
