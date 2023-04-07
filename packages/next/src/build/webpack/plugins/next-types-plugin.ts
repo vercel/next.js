@@ -514,11 +514,6 @@ export class NextTypesPlugin {
     if (!this.typedRoutes) return
 
     const isApp = filePath.startsWith(this.appDir + path.sep)
-    const isPages = !isApp && filePath.startsWith(this.pagesDir + path.sep)
-
-    if (!isApp && !isPages) {
-      return
-    }
 
     // Filter out non-page and non-route files in app dir
     if (isApp && !/[/\\](?:page|route)\.[^.]+$/.test(filePath)) {
@@ -527,7 +522,7 @@ export class NextTypesPlugin {
 
     // Filter out non-page files in pages dir
     if (
-      isPages &&
+      !isApp &&
       /[/\\](?:_app|_document|_error|404|500)\.[^.]+$/.test(filePath)
     ) {
       return
