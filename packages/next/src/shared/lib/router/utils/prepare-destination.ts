@@ -8,6 +8,10 @@ import type { BaseNextRequest } from '../../../../server/base-http'
 import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { parseUrl } from './parse-url'
+import {
+  INTERCEPTION_ROUTE_MARKERS,
+  isInterceptionRouteAppPath,
+} from '../../../../server/future/helpers/interception-routes'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -226,6 +230,27 @@ export function prepareDestination(args: {
   }
 
   let newUrl
+
+  // for interception routes we don't have access to the dynamic segments from the
+  // referrer route so we mark them as noop for the app renderer so that it
+  // can retrieve them from the router state later on. This also allows us to
+  // compile the route properly with path-to-regexp, otherwise it will throw
+  // The compiler also thinks that the interception route marker is an unnamed param, hence '0',
+  // so we need to add it to the params object.
+  if (isInterceptionRouteAppPath(destPath)) {
+    main: for (const segment of destPath.split('/')) {
+      for (const marker of INTERCEPTION_ROUTE_MARKERS) {
+        if (segment.startsWith(marker)) {
+          args.params['0'] = marker
+          break main
+        }
+      }
+      if (segment.startsWith(':')) {
+        const param = segment.slice(1)
+        args.params[param] = '__NEXT_EMPTY_PARAM__'
+      }
+    }
+  }
 
   try {
     newUrl = destPathCompiler(args.params)

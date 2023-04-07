@@ -8,13 +8,13 @@ import { djb2Hash } from '../../shared/lib/hash'
  *
  * e.g.
  * /app/open-graph.tsx -> /open-graph/route
- * /app/(post)/open-graph.tsx -> /open-graph/route-123456
+ * /app/(post)/open-graph.tsx -> /open-graph/route-[0-9a-z]{6}
  */
 export function getMetadataRouteSuffix(page: string) {
   let suffix = ''
 
   if ((page.includes('(') && page.includes(')')) || page.includes('@')) {
-    suffix = djb2Hash(page).toString().slice(0, 6)
+    suffix = djb2Hash(page).toString(36).slice(0, 6)
   }
   return suffix
 }

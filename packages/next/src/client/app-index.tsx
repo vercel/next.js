@@ -240,6 +240,7 @@ export function hydrate() {
               apply: false,
               hashFragment: null,
             },
+            nextUrl: null,
           }}
         >
           <HotReload
