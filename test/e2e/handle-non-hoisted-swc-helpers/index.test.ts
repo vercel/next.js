@@ -9,12 +9,12 @@ describe('handle-non-hoisted-swc-helpers', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page() { 
+          export default function Page() {
             return <p>hello world</p>
-          } 
-          
+          }
+
           export function getServerSideProps() {
-            const helper = require('@swc/helpers/lib/_object_spread.js')
+            const helper = require('@swc/helpers/_/_object_spread.js')
             console.log(helper)
             return {
               props: {
