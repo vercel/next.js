@@ -24,13 +24,19 @@ When you enable OpenTelemetry you we will automatically wrap all your code like 
 
 ## Getting Started
 
-To get started, you must install the required packages:
+OpenTelemetry is extensible but setting it up properly can be quite verbose.
+That's why we prepared a simple package `@vercel/otel` that helps you get started quickly.
+It's not extensible and you should configure OpenTelemetry manually you need to customize your setup.
+
+### Using `@vercel/otel`
+
+To get started, you must install `@vercel/otel`:
 
 ```bash
 npm install @vercel/otel
 ```
 
-Next, create a custom [`instrumentation.ts`](./instrumentation.md) file in the root of the project:
+Next, create a custom [`instrumentation.ts`](https://nextjs.org/docs/advanced-features/instrumentation) file in the root of the project:
 
 ```ts
 // instrumentation.ts
@@ -42,6 +48,50 @@ export function register() {
 ```
 
 > **Note**: We have created a basic [with-opentelemetry](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) example that you can use.
+
+### Manual OpenTelemetry configuration
+
+If our wrapper `@vercel/otel` doesn't suit your needs, you can easily configure OpenTelemetry manually.
+
+Firstly you need to install OpenTelemetry packages:
+
+```bash
+npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
+`
+```
+
+Now you can initialize `NodeSDK` in your `instrumentation.ts`.
+OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.end.NEXT_RUNTIME === "nodejs"`. Conditionally importing with an `require` doesn't play well with typescript. We recommend using a conditionally `require`ing new file `instrumentation.node.ts` which can use normal `import`s:
+
+```ts
+// instrumentation.ts
+export function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    require('./instrumentation.node.ts')
+  }
+}
+```
+
+```ts
+// instrumentation.node.ts
+import { trace, context } from '@opentelemetry/api'
+import { NodeSDK } from '@opentelemetry/sdk-node'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+import { Resource } from '@opentelemetry/resources'
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
+
+const sdk = new NodeSDK({
+  resource: new Resource({
+    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+  }),
+  spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
+})
+sdk.start()
+```
+
+Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend.
+For example you could use `@opentelemetry/exporter-trace-otlp-grpc` instead of `@opentelemetry/exporter-trace-otlp-http`.
 
 ## Testing your instrumentation
 
@@ -82,14 +132,6 @@ export async function fetchGithubStars() {
 
 The `register` function will execute before your code runs in a new environment.
 You can start creating new spans, and they should be correctly added to the exported trace.
-
-## Custom register function
-
-We have created `@vercel/otel` to make it easier to get started with OpenTelemetry. But this package won't be able to satisfy some advanced setups. You can always use OpenTelemetry APIs directly.
-
-In order to be able to leverage instrumentation provided by next.js you will need to setup and register custom [TraceProvider](https://opentelemetry.io/docs/reference/specification/trace/api/#tracerprovider).
-
-> **Note**: `instrumentation.ts` get's called in both `edge` and `nodejs` runtime. You need to make sure that you are initializing OpenTelemetry only in `nodejs` runtime. OpenTelemetry APIs are not available on `edge`.
 
 ## Default Spans in Next.js
 
