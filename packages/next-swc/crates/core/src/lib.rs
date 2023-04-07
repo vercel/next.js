@@ -244,11 +244,13 @@ where
                     return None;
                 }
                 if let FileName::Real(path) = &file.name {
+                    let fm = cm.load_file(path).unwrap();
                     path.to_str().map(|_| {
                         Either::Left(
                             turbo_binding::swc::custom_transform::emotion::EmotionTransformer::new(
                                 config.clone(),
                                 path,
+                                fm.src_hash as u32,
                                 cm,
                                 comments.clone(),
                             ),
