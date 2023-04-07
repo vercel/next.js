@@ -45,7 +45,7 @@ export type {
  * router.push(returnToPath as Route)
  * ```
  */
-export type Route = string & {};
+export type Route = string & {}
 
 // Extend the React types with missing properties
 declare module 'react' {
