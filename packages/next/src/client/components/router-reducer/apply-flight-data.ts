@@ -32,6 +32,7 @@ export function applyFlightData(
     // Copy subTreeData for the root node of the cache.
     cache.status = CacheStates.READY
     cache.subTreeData = state.cache.subTreeData
+    cache.parallelRoutes = new Map(state.cache.parallelRoutes)
     // Create a copy of the existing cache with the subTreeData applied.
     fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
   }

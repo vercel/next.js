@@ -246,6 +246,30 @@ createNextDescribe(
         )
       })
 
+      it('should render an intercepted route from a slot', async () => {
+        const browser = await next.browser('/')
+
+        await check(
+          () => browser.waitForElementByCss('#default-slot').text(),
+          'default from @slot'
+        )
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/nested"]')
+              .click()
+              .waitForElementByCss('#interception-slot')
+              .text(),
+          'interception from @slot/nested'
+        )
+
+        await check(
+          () => browser.refresh().waitForElementByCss('#nested').text(),
+          'hello world from /nested'
+        )
+      })
+
       it('should render intercepted route from a nested route', async () => {
         const browser = await next.browser('/intercepting-routes/feed/nested')
 
@@ -281,6 +305,30 @@ createNextDescribe(
           () => browser.url(),
           next.url + '/intercepting-routes/photos/1'
         )
+      })
+
+      it('should re-render the layout on the server when it had a default child route', async () => {
+        const browser = await next.browser('/parallel-non-intercepting')
+
+        // check if the default view loads
+        await check(
+          () => browser.waitForElementByCss('#default-parallel').text(),
+          'default view for parallel'
+        )
+
+        // check that navigating to /foo re-renders the layout to display @parallel/foo
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/parallel-non-intercepting/foo"]')
+              .click()
+              .waitForElementByCss('#parallel-foo')
+              .text(),
+          'parallel for foo'
+        )
+
+        // check that navigating to /foo also re-renders the base children
+        await check(() => browser.elementByCss('#children-foo').text(), 'foo')
       })
 
       it('should render modal when paired with parallel routes', async () => {
