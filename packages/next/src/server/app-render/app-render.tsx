@@ -1028,12 +1028,15 @@ export async function renderToHTMLOrFlight(
               const [incomingParallelRouteSegment, , , refreshMarker] =
                 flightRouterState[1][parallelRouteKey]
               return (
-                (incomingParallelRouteSegment &&
-                  !matchSegment(
-                    parallelRouteSegment,
-                    incomingParallelRouteSegment
-                  )) ||
-                refreshMarker
+                // there's no incoming segment
+                !incomingParallelRouteSegment ||
+                // the segments differ, e.g. '__DEFAULT__' to 'foo'
+                !matchSegment(
+                  parallelRouteSegment,
+                  incomingParallelRouteSegment
+                ) ||
+                // there's a refresh marker
+                refreshMarker === 'refetch'
               )
             }
           )
