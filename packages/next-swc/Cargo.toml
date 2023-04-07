@@ -47,11 +47,11 @@ swc_emotion = { version = "0.29.10" }
 testing = { version = "0.31.31" }
 
 # Turbo crates
-turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230405.4" }
+turbo-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230406.2" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230405.4" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230406.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230405.4" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230406.2" }
 
 # General Deps
 

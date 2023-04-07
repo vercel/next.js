@@ -23,6 +23,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
+import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -104,6 +105,18 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
+    for (const key of Object.keys(parsedUrl.query)) {
+      const value = parsedUrl.query[key]
+
+      if (
+        key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+      ) {
+        const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+        parsedUrl.query[normalizedKey] = value
+        delete parsedUrl.query[key]
+      }
+    }
     super.run(req, res, parsedUrl)
   }
   protected async hasPage(page: string) {

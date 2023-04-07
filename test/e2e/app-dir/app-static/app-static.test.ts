@@ -168,19 +168,16 @@ createNextDescribe(
       })
     }
 
-    it('should include statusCode in cache', async () => {
+    it('should not cache non-ok statusCode', async () => {
       const $ = await next.render$('/variable-revalidate/status-code')
       const origData = JSON.parse($('#page-data').text())
 
       expect(origData.status).toBe(404)
 
-      await check(async () => {
-        const new$ = await next.render$('/variable-revalidate/status-code')
-        const newData = JSON.parse(new$('#page-data').text())
-        expect(newData.status).toBe(origData.status)
-        expect(newData.text).not.toBe(origData.text)
-        return 'success'
-      }, 'success')
+      const new$ = await next.render$('/variable-revalidate/status-code')
+      const newData = JSON.parse(new$('#page-data').text())
+      expect(newData.status).toBe(origData.status)
+      expect(newData.text).not.toBe(origData.text)
     })
 
     if (isNextStart) {
@@ -313,8 +310,6 @@ createNextDescribe(
           'variable-revalidate/revalidate-360.html',
           'variable-revalidate/revalidate-360.rsc',
           'variable-revalidate/revalidate-360/page.js',
-          'variable-revalidate/status-code.html',
-          'variable-revalidate/status-code.rsc',
           'variable-revalidate/status-code/page.js',
         ])
       })
@@ -529,11 +524,6 @@ createNextDescribe(
             dataRoute: '/variable-revalidate/revalidate-360.rsc',
             initialRevalidateSeconds: 10,
             srcRoute: '/variable-revalidate/revalidate-360',
-          },
-          '/variable-revalidate/status-code': {
-            dataRoute: '/variable-revalidate/status-code.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/status-code',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({
