@@ -1026,7 +1026,7 @@ export async function renderToHTMLOrFlight(
           Object.entries(parallelRoutes).some(
             ([parallelRouteKey, [parallelRouteSegment]]) => {
               const [incomingParallelRouteSegment, , , refreshMarker] =
-                flightRouterState[1][parallelRouteKey]
+                flightRouterState[1][parallelRouteKey] ?? []
               return (
                 // there's no incoming segment
                 !incomingParallelRouteSegment ||
