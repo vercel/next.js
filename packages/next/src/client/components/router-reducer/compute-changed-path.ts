@@ -84,9 +84,6 @@ export function computeChangedPath(
         parallelRoutesB[parallelRouterKey]
       )
       if (changedPath !== null) {
-        if (changedPath === '') {
-          return segmentToPathname(segmentB)
-        }
         return `${segmentToPathname(segmentB)}/${changedPath}`
       }
     }
