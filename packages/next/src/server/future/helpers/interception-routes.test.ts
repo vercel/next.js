@@ -1,19 +1,19 @@
 import {
   extractInterceptionRouteInformation,
-  isIntersectionRouteAppPath,
+  isInterceptionRouteAppPath,
 } from './interception-routes'
 
 describe('Interception Route helper', () => {
-  describe('isIntersectionRouteAppPath', () => {
+  describe('isInterceptionRouteAppPath', () => {
     it('should validate correct paths', () => {
-      expect(isIntersectionRouteAppPath('/foo/(..)/bar')).toBe(true)
-      expect(isIntersectionRouteAppPath('/foo/(...)/bar')).toBe(true)
-      expect(isIntersectionRouteAppPath('/foo/(..)(..)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(..)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(...)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(..)(..)/bar')).toBe(true)
     })
     it('should not validate incorrect paths', () => {
-      expect(isIntersectionRouteAppPath('/foo/(..')).toBe(false)
-      expect(isIntersectionRouteAppPath('/foo/..)/bar')).toBe(false)
-      expect(isIntersectionRouteAppPath('/foo')).toBe(false)
+      expect(isInterceptionRouteAppPath('/foo/(..')).toBe(false)
+      expect(isInterceptionRouteAppPath('/foo/..)/bar')).toBe(false)
+      expect(isInterceptionRouteAppPath('/foo')).toBe(false)
     })
   })
   describe('extractInterceptionRouteInformation', () => {

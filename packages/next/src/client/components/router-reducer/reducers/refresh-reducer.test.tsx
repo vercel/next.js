@@ -154,6 +154,7 @@ describe('refreshReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -311,6 +312,7 @@ describe('refreshReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -492,6 +494,7 @@ describe('refreshReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -722,6 +725,7 @@ describe('refreshReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking',
+      nextUrl: '/linking',
       cache: {
         status: CacheStates.READY,
         data: null,

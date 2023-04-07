@@ -10,6 +10,35 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    it('should have correct searchParams and params (server)', async () => {
+      const html = await next.render('/dynamic/category-1/id-2?query1=value2')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#id-page-params').text())).toEqual({
+        category: 'category-1',
+        id: 'id-2',
+      })
+      expect(JSON.parse($('#search-params').text())).toEqual({
+        query1: 'value2',
+      })
+    })
+
+    it('should have correct searchParams and params (client)', async () => {
+      const browser = await next.browser(
+        '/dynamic-client/category-1/id-2?query1=value2'
+      )
+      const html = await browser.eval('document.documentElement.innerHTML')
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#id-page-params').text())).toEqual({
+        category: 'category-1',
+        id: 'id-2',
+      })
+      expect(JSON.parse($('#search-params').text())).toEqual({
+        query1: 'value2',
+      })
+    })
+
     if (!isDev) {
       it('should successfully detect app route during prefetch', async () => {
         const browser = await next.browser('/')

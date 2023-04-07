@@ -169,7 +169,7 @@ export function navigateReducer(
       state.cache,
       // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
       segments.slice(1),
-      () => fetchServerResponse(url, optimisticTree)
+      () => fetchServerResponse(url, optimisticTree, state.nextUrl)
     )
 
     // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
@@ -190,7 +190,9 @@ export function navigateReducer(
 
   // If no in-flight fetch at the top, start it.
   if (!cache.data) {
-    cache.data = createRecordFromThenable(fetchServerResponse(url, state.tree))
+    cache.data = createRecordFromThenable(
+      fetchServerResponse(url, state.tree, state.nextUrl)
+    )
   }
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
