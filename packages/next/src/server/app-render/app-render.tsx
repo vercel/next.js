@@ -10,9 +10,12 @@ import type {
   Segment,
 } from './types'
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-
+// Import builtin react directly to avoid require cache conflicts
+import React from 'next/dist/compiled/react'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
@@ -74,18 +77,6 @@ import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
-
-// Import builtin react directly to avoid require cache conflicts
-let React: typeof import('next/dist/compiled/react')
-let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
-
-if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
-  React = require('next/dist/compiled/react-experimental')
-  ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
-} else {
-  React = require('next/dist/compiled/react')
-  ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
-}
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -166,6 +157,7 @@ export async function renderToHTMLOrFlight(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
+    nextConfigOutput,
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
@@ -217,6 +209,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -307,6 +301,11 @@ export async function renderToHTMLOrFlight(
 
       let value = pathParams[key]
 
+      // this is a special marker that will be present for interception routes
+      if (value === '__NEXT_EMPTY_PARAM__') {
+        value = undefined
+      }
+
       if (Array.isArray(value)) {
         value = value.map((i) => encodeURIComponent(i))
       } else if (typeof value === 'string') {
@@ -384,8 +383,8 @@ export async function renderToHTMLOrFlight(
 
       await collectMetadata({
         loaderTree: tree,
+        metadataItems,
         props: layerProps,
-        array: metadataItems,
         route: currentTreePrefix
           // __PAGE__ shouldn't be shown in a route
           .filter((s) => s !== PAGE_SEGMENT_KEY)
@@ -396,8 +395,8 @@ export async function renderToHTMLOrFlight(
         const childTree = parallelRoutes[key]
         await resolveMetadata({
           tree: childTree,
-          parentParams: currentParams,
           metadataItems,
+          parentParams: currentParams,
           treePrefix: currentTreePrefix,
         })
       }
@@ -459,6 +458,89 @@ export async function renderToHTMLOrFlight(
       return [Comp, styles]
     }
 
+    const createStaticAssets = async ({
+      layoutOrPagePath,
+      injectedCSS: injectedCSSWithCurrentLayout,
+      injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+    }: {
+      layoutOrPagePath: string | undefined
+      injectedCSS: Set<string>
+      injectedFontPreloadTags: Set<string>
+    }) => {
+      const stylesheets: string[] = layoutOrPagePath
+        ? getCssInlinedLinkTags(
+            clientReferenceManifest,
+            serverCSSManifest!,
+            layoutOrPagePath,
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
+          )
+        : []
+
+      const preloadedFontFiles = layoutOrPagePath
+        ? getPreloadedFontFilesInlineLinkTags(
+            serverCSSManifest!,
+            nextFontManifest,
+            serverCSSForEntries,
+            layoutOrPagePath,
+            injectedFontPreloadTagsWithCurrentLayout
+          )
+        : []
+
+      return (
+        <>
+          {preloadedFontFiles?.length === 0 ? (
+            <link
+              data-next-font={
+                nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+              }
+              rel="preconnect"
+              href="/"
+              crossOrigin="anonymous"
+            />
+          ) : null}
+          {preloadedFontFiles
+            ? preloadedFontFiles.map((fontFile) => {
+                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                return (
+                  <link
+                    key={fontFile}
+                    rel="preload"
+                    href={`${assetPrefix}/_next/${fontFile}`}
+                    as="font"
+                    type={`font/${ext}`}
+                    crossOrigin="anonymous"
+                    data-next-font={
+                      fontFile.includes('-s') ? 'size-adjust' : ''
+                    }
+                  />
+                )
+              })
+            : null}
+          {stylesheets
+            ? stylesheets.map((href, index) => (
+                <link
+                  rel="stylesheet"
+                  // In dev, Safari will wrongly cache the resource if you preload it:
+                  // - https://github.com/vercel/next.js/issues/5860
+                  // - https://bugs.webkit.org/show_bug.cgi?id=187726
+                  // We used to add a `?ts=` query for resources in `pages` to bypass it,
+                  // but in this case it is fine as we don't need to preload the styles.
+                  href={`${assetPrefix}/_next/${href}`}
+                  // `Precedence` is an opt-in signal for React to handle
+                  // resource loading and deduplication, etc:
+                  // https://github.com/facebook/react/pull/25060
+                  // @ts-ignore
+                  precedence="next.js"
+                  key={index}
+                />
+              ))
+            : null}
+        </>
+      )
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -498,29 +580,15 @@ export async function renderToHTMLOrFlight(
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
-      const stylesheets: string[] = layoutOrPagePath
-        ? getCssInlinedLinkTags(
-            clientReferenceManifest,
-            serverCSSManifest!,
-            layoutOrPagePath,
-            serverCSSForEntries,
-            injectedCSSWithCurrentLayout,
-            true
-          )
-        : []
-
       const injectedFontPreloadTagsWithCurrentLayout = new Set(
         injectedFontPreloadTags
       )
-      const preloadedFontFiles = layoutOrPagePath
-        ? getPreloadedFontFilesInlineLinkTags(
-            serverCSSManifest!,
-            nextFontManifest,
-            serverCSSForEntries,
-            layoutOrPagePath,
-            injectedFontPreloadTagsWithCurrentLayout
-          )
-        : []
+
+      const assets = createStaticAssets({
+        layoutOrPagePath,
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+      })
 
       const [Template, templateStyles] = template
         ? await createComponentAndStyles({
@@ -571,15 +639,33 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
-      if (typeof layoutOrPageMod?.dynamic === 'string') {
+      let dynamic = layoutOrPageMod?.dynamic
+
+      if (nextConfigOutput === 'export') {
+        if (!dynamic || dynamic === 'auto') {
+          dynamic = 'error'
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationStore.dynamicShouldError = true
+          staticGenerationBailout(`output: export`, {
+            dynamic,
+            link: 'https://nextjs.org/docs/advanced-features/static-html-export',
+          })
+        }
+      }
+
+      if (typeof dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'error') {
+        if (dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`force-dynamic`, { dynamic })
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod.dynamic === 'force-static') {
+          if (dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
@@ -855,53 +941,7 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {preloadedFontFiles?.length === 0 ? (
-                <link
-                  data-next-font={
-                    nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
-                  }
-                  rel="preconnect"
-                  href="/"
-                  crossOrigin="anonymous"
-                />
-              ) : null}
-              {preloadedFontFiles
-                ? preloadedFontFiles.map((fontFile) => {
-                    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                    return (
-                      <link
-                        key={fontFile}
-                        rel="preload"
-                        href={`${assetPrefix}/_next/${fontFile}`}
-                        as="font"
-                        type={`font/${ext}`}
-                        crossOrigin="anonymous"
-                        data-next-font={
-                          fontFile.includes('-s') ? 'size-adjust' : ''
-                        }
-                      />
-                    )
-                  })
-                : null}
-              {stylesheets
-                ? stylesheets.map((href, index) => (
-                    <link
-                      rel="stylesheet"
-                      // In dev, Safari will wrongly cache the resource if you preload it:
-                      // - https://github.com/vercel/next.js/issues/5860
-                      // - https://bugs.webkit.org/show_bug.cgi?id=187726
-                      // We used to add a `?ts=` query for resources in `pages` to bypass it,
-                      // but in this case it is fine as we don't need to preload the styles.
-                      href={`${assetPrefix}/_next/${href}`}
-                      // `Precedence` is an opt-in signal for React to handle
-                      // resource loading and deduplication, etc:
-                      // https://github.com/facebook/react/pull/25060
-                      // @ts-ignore
-                      precedence="next.js"
-                      key={index}
-                    />
-                  ))
-                : null}
+              {assets}
             </>
           )
         },
@@ -941,7 +981,22 @@ export async function renderToHTMLOrFlight(
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
-        const parallelRoutesKeys = Object.keys(parallelRoutes)
+        // if there's a refetch key, it'll probably take precedence when rendering
+        // so we sort the parallel routes so that the refetch key is first
+        // Sort the routes so that a route marked for refetching is at the beginning of the array
+        const parallelRoutesKeys = Object.keys(parallelRoutes).sort(
+          (parallelRouteKeyA, parallelRouteKeyB) => {
+            if (flightRouterState?.[1][parallelRouteKeyA][3] === 'refetch') {
+              return -1
+            }
+            if (flightRouterState?.[1][parallelRouteKeyB][3] === 'refetch') {
+              return 1
+            }
+
+            return 0
+          }
+        )
+
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
 
@@ -981,7 +1036,19 @@ export async function renderToHTMLOrFlight(
           // Last item in the tree
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
-          flightRouterState[3] === 'refetch'
+          flightRouterState[3] === 'refetch' ||
+          // if any of the parallel routes segments differ or have a refresh marker
+          Object.entries(parallelRoutes).some(
+            ([parallelRouteKey, [parallelRouteSegment]]) => {
+              const [incomingParallelRouteSegment] =
+                flightRouterState[1][parallelRouteKey] ?? []
+
+              return (
+                incomingParallelRouteSegment === '__DEFAULT__' &&
+                parallelRouteSegment !== '__DEFAULT__'
+              )
+            }
+          )
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           const overriddenSegment =
@@ -1201,13 +1268,15 @@ export async function renderToHTMLOrFlight(
       async (props) => {
         // Create full component tree from root to leaf.
         const injectedCSS = new Set<string>()
+        const injectedFontPreloadTags = new Set<string>()
+
         const { Component: ComponentTree } = await createComponentTree({
           createSegmentPath: (child) => child,
           loaderTree,
           parentParams: {},
           firstItem: true,
           injectedCSS,
-          injectedFontPreloadTags: new Set(),
+          injectedFontPreloadTags,
           rootLayoutIncluded: false,
           asNotFound: props.asNotFound,
         })
@@ -1228,6 +1297,12 @@ export async function renderToHTMLOrFlight(
           : rootLayoutAtThisLevel
           ? [DefaultNotFound]
           : []
+
+        const assets = createStaticAssets({
+          layoutOrPagePath: layout?.[1],
+          injectedCSS,
+          injectedFontPreloadTags,
+        })
 
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
@@ -1255,12 +1330,15 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <RootLayout params={{}}>
-                    <NotFound />
-                  </RootLayout>
+                  <>
+                    {assets}
+                    <RootLayout params={{}}>
+                      {notFoundStyles}
+                      <NotFound />
+                    </RootLayout>
+                  </>
                 ) : undefined
               }
-              notFoundStyles={notFoundStyles}
               asNotFound={props.asNotFound}
             >
               <ComponentTree />
@@ -1421,6 +1499,15 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (
+            err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+            err.message?.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          ) {
+            // Ensure that "next dev" prints the red error overlay
+            throw err
+          }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
               `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,

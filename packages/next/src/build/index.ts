@@ -137,6 +137,7 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
+import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -279,7 +280,6 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
-      const useExperimentalReact = !!config.experimental.experimentalReact
       const initialRequireHookFilePath = require.resolve(
         'next/dist/server/initialize-require-hook'
       )
@@ -289,9 +289,7 @@ export default async function build(
       )
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-          ? 'experimental'
-          : 'next'
+        process.env.NEXT_PREBUNDLED_REACT = '1'
       }
       await promises
         .writeFile(
@@ -519,6 +517,12 @@ export default async function build(
           appPageKeys.push(normalizedAppPageKey)
         }
       }
+
+      // Interception routes are modelled as beforeFiles rewrites
+      rewrites.beforeFiles.unshift(
+        ...generateInterceptionRoutesRewrites(appPageKeys)
+      )
+
       const totalAppPagesCount = appPageKeys.length
 
       const pageKeys = {
@@ -2541,11 +2545,14 @@ export default async function build(
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
-                await promises.copyFile(
-                  orig,
-                  path.join(distDir, 'server', updatedRelativeDest)
-                )
-                pagesManifest['/404'] = updatedRelativeDest
+
+                if (await fileExists(orig)) {
+                  await promises.copyFile(
+                    orig,
+                    path.join(distDir, 'server', updatedRelativeDest)
+                  )
+                  pagesManifest['/404'] = updatedRelativeDest
+                }
               })
           }
 

@@ -103,6 +103,7 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { NextUrlWithParsedQuery } from '../request-meta'
 import { deserializeErr, errorToJSON } from '../render'
 import { invokeRequest } from '../lib/server-ipc'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -788,6 +789,23 @@ export default class DevServer extends Server {
               matchers: middlewareMatchers,
             }
           : undefined
+
+        this.customRoutes = await loadCustomRoutes(this.nextConfig)
+        this.customRoutes.rewrites.beforeFiles.unshift(
+          ...generateInterceptionRoutesRewrites(Object.keys(appPaths))
+        )
+        const { rewrites } = this.customRoutes
+        if (
+          rewrites.beforeFiles.length ||
+          rewrites.afterFiles.length ||
+          rewrites.fallback.length
+        ) {
+          this.router.setRewrites(
+            this.generateRewrites({
+              restrictedRedirectPaths: [],
+            })
+          )
+        }
 
         try {
           // we serve a separate manifest with all pages for the client in

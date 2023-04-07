@@ -236,6 +236,7 @@ export function patchFetch({
 
           return originFetch(input, clonedInit).then(async (res) => {
             if (
+              res.ok &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
               typeof revalidate === 'number' &&

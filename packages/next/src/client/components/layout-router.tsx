@@ -298,7 +298,11 @@ function InnerLayoutRouter({
      */
     childNodes.set(cacheKey, {
       status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(new URL(url, location.origin), refetchTree),
+      data: fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl
+      ),
       subTreeData: null,
       head:
         childNode && childNode.status === CacheStates.LAZY_INITIALIZED

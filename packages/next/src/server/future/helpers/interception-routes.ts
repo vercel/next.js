@@ -3,7 +3,7 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 // order matters here, the first match will be used
 export const INTERCEPTION_ROUTE_MARKERS = ['(..)(..)', '(..)', '(...)'] as const
 
-export function isIntersectionRouteAppPath(path: string): boolean {
+export function isInterceptionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
   return (
     path

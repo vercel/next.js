@@ -75,7 +75,7 @@ type AppRouterProps = Omit<
   assetPrefix: string
   // Top level boundaries props
   notFound: React.ReactNode | undefined
-  notFoundStyles: React.ReactNode | undefined
+  notFoundStyles?: React.ReactNode | undefined
   asNotFound?: boolean
 }
 
@@ -110,7 +110,15 @@ function Router({
     [children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [
-    { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
+    {
+      tree,
+      cache,
+      prefetchCache,
+      pushRef,
+      focusAndScrollRef,
+      canonicalUrl,
+      nextUrl,
+    },
     dispatch,
     sync,
   ] = useReducerWithReduxDevtools(reducer, initialState)
@@ -370,6 +378,7 @@ function Router({
             changeByServerResponse,
             tree,
             focusAndScrollRef,
+            nextUrl,
           }}
         >
           <AppRouterContext.Provider value={appRouter}>
