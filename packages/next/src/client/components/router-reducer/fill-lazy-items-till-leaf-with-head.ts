@@ -21,9 +21,6 @@ export function fillLazyItemsTillLeafWithHead(
     const cacheKey = createRouterCacheKey(segmentForParallelRoute)
 
     if (existingCache) {
-      if (cacheKey === '__DEFAULT__') {
-        continue
-      }
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {
