@@ -90,15 +90,15 @@ const runTests = () => {
     expect(stderr).toContain(`\`source\` is missing for route {}`)
 
     expect(stderr).toContain(
-      `\`source\` is not a string for route {"source":123}`
+      `\`source\` is not a string for route {"source":123,"originalSource":123}`
     )
 
     expect(stderr).toContain(
-      `\`source\` does not start with / for route {"source":"hello"}`
+      `\`source\` does not start with / for route {"source":"hello","originalSource":"hello"}`
     )
 
     expect(stderr).toContain(
-      `invalid field: destination for route {"source":"/hello","destination":"/not-allowed"}`
+      `invalid field: destination for route {"source":"/hello","destination":"/not-allowed","originalSource":"/hello"}`
     )
 
     expect(stderr).toContain(
@@ -110,7 +110,7 @@ const runTests = () => {
       `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
     )
     expect(stderr).toContain(
-      `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}]}`
+      `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}],"originalSource":"/hello"}`
     )
 
     expect(stderr).toContain('Invalid `has` items:')
@@ -121,14 +121,14 @@ const runTests = () => {
       `invalid type "queryr" for {"type":"queryr","key":"hello"}`
     )
     expect(stderr).toContain(
-      `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
+      `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}],"originalSource":"/hello"}`
     )
     expect(stderr).toContain(`Valid \`has\` object shape is {`)
     expect(stderr).toContain(
-      `invalid field: basePath for route {"source":"/hello","basePath":false}`
+      `invalid field: basePath for route {"source":"/hello","basePath":false,"originalSource":"/hello"}`
     )
     expect(stderr).toContain(
-      '`locale` must be undefined or false for route {"source":"/hello","locale":true}'
+      '`locale` must be undefined or false for route {"source":"/hello","locale":true,"originalSource":"/hello"}'
     )
   })
 }
@@ -141,14 +141,23 @@ describe('Errors on invalid custom middleware matchers', () => {
       getStderr = async () => {
         let stderr = ''
         const port = await findPort()
+        // console.log('BEFORE');
         await launchApp(appDir, port, {
+          // onStdout(msg) {
+          //   console.log('STDOUT: ', msg);
+          // },
           onStderr(msg) {
+            // console.log('STDERR: ', msg);
             stderr += msg
           },
         })
+        // console.log('BETWEEN');
         await fetchViaHTTP(port, '/')
           // suppress error
-          .catch(() => {})
+          .catch((err) => {
+            // console.log('ERROR: ', err);
+          })
+        // console.log('AFTER');
         return stderr
       }
     })

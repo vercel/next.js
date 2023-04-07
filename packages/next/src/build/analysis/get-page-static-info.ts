@@ -168,7 +168,9 @@ export function getMiddlewareMatchers(
 
   let routes = matchers.map((m) => {
     let middleware = (typeof m === 'string' ? { source: m } : m) as Middleware
-    middleware.originalSource = middleware.source
+    if (middleware) {
+      middleware.originalSource = middleware.source
+    }
     return middleware
   })
 
