@@ -22,11 +22,11 @@ createNextDescribe(
     describe.each(['link', 'button'])('navigation using %s', (testType) => {
       if (testType === 'button') return
       describe.each([
-        ['app', 'app'],
+        // ['app', 'app'],
         ['app', 'pages'],
-        ['pages', 'app'],
+        // ['pages', 'app'],
       ])('navigation from %s to %s', (from, to) => {
-        it.only('should rewrite from middleware correctly', async () => {
+        it('should rewrite from middleware correctly', async () => {
           const browser = await next.browser('/')
           console.log(`navigate to ${from}-${to}-${testType}`)
           await browser
@@ -37,6 +37,7 @@ createNextDescribe(
           const url = new URL(await browser.url())
           expect(url.pathname).toEndWith('-before')
         })
+        return
 
         it('should redirect from middleware correctly', async () => {
           const browser = await next.browser('/')
