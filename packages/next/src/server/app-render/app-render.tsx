@@ -1031,7 +1031,22 @@ export async function renderToHTMLOrFlight(
           // Last item in the tree
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
-          flightRouterState[3] === 'refetch'
+          flightRouterState[3] === 'refetch' ||
+          // if any of the parallel routes segments differ or have a refresh marker
+          Object.entries(parallelRoutes).some(
+            ([parallelRouteKey, [parallelRouteSegment]]) => {
+              const [incomingParallelRouteSegment, , , refreshMarker] =
+                flightRouterState[1][parallelRouteKey]
+              return (
+                (incomingParallelRouteSegment &&
+                  !matchSegment(
+                    parallelRouteSegment,
+                    incomingParallelRouteSegment
+                  )) ||
+                refreshMarker
+              )
+            }
+          )
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           const overriddenSegment =
