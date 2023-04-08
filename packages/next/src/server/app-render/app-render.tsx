@@ -1042,10 +1042,18 @@ export async function renderToHTMLOrFlight(
             ([parallelRouteKey, [parallelRouteSegment]]) => {
               const [incomingParallelRouteSegment] =
                 flightRouterState[1][parallelRouteKey] ?? []
-
+              console.log({
+                incomingParallelRouteSegment,
+                parallelRouteSegment,
+              })
               return (
-                incomingParallelRouteSegment === '__DEFAULT__' &&
-                parallelRouteSegment !== '__DEFAULT__'
+                // incomingParallelRouteSegment === '__DEFAULT__' &&
+                // parallelRouteSegment !== '__DEFAULT__'
+                incomingParallelRouteSegment &&
+                !matchSegment(
+                  incomingParallelRouteSegment,
+                  parallelRouteSegment
+                )
               )
             }
           )
@@ -1121,36 +1129,54 @@ export async function renderToHTMLOrFlight(
         }
 
         // Walk through all parallel routes.
-        for (const parallelRouteKey of parallelRoutesKeys) {
-          const parallelRoute = parallelRoutes[parallelRouteKey]
+        const paths: FlightDataPath[] = (
+          await Promise.all(
+            parallelRoutesKeys.map(async (parallelRouteKey) => {
+              // for (const parallelRouteKey of parallelRoutesKeys) {
+              const parallelRoute = parallelRoutes[parallelRouteKey]
 
-          const currentSegmentPath: FlightSegmentPath = isFirst
-            ? [parallelRouteKey]
-            : [actualSegment, parallelRouteKey]
+              const currentSegmentPath: FlightSegmentPath = isFirst
+                ? [parallelRouteKey]
+                : [actualSegment, parallelRouteKey]
 
-          const path = await walkTreeWithFlightRouterState({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
-            loaderTreeToFilter: parallelRoute,
-            parentParams: currentParams,
-            flightRouterState:
-              flightRouterState && flightRouterState[1][parallelRouteKey],
-            parentRendered: parentRendered || renderComponentsOnThisLevel,
-            isFirst: false,
-            rscPayloadHead,
-            injectedCSS: injectedCSSWithCurrentLayout,
-            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            asNotFound,
-          })
+              const path = await walkTreeWithFlightRouterState({
+                createSegmentPath: (child) => {
+                  return createSegmentPath([...currentSegmentPath, ...child])
+                },
+                loaderTreeToFilter: parallelRoute,
+                parentParams: currentParams,
+                flightRouterState:
+                  flightRouterState && flightRouterState[1][parallelRouteKey],
+                parentRendered: parentRendered || renderComponentsOnThisLevel,
+                isFirst: false,
+                rscPayloadHead,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                asNotFound,
+              })
 
-          if (typeof path[path.length - 1] !== 'string') {
-            return [actualSegment, parallelRouteKey, ...path]
-          }
-        }
+              // console.log({ path })
+              // if (typeof path[path.length - 1] !== 'string') {
+              //   console.log('returning')
 
-        return [actualSegment]
+              if (!Array.isArray(path[path.length - 1])) {
+                return [[actualSegment, parallelRouteKey, ...path]]
+              } else {
+                return path.map((item) => {
+                  return [actualSegment, parallelRouteKey, ...item]
+                })
+              }
+              // }
+              console.log('not returning')
+            })
+          )
+        ).flatMap((item) => item)
+        console.log('paths', paths)
+        return paths
+        console.log('returning actual segment', actualSegment)
+        // return [actualSegment]
       }
 
       const metadataItems = await resolveMetadata({
@@ -1160,33 +1186,29 @@ export async function renderToHTMLOrFlight(
       })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
-      const flightData: FlightData = [
-        (
-          await walkTreeWithFlightRouterState({
-            createSegmentPath: (child) => child,
-            loaderTreeToFilter: loaderTree,
-            parentParams: {},
-            flightRouterState: providedFlightRouterState,
-            isFirst: true,
-            // For flight, render metadata inside leaf page
-            rscPayloadHead: (
-              <>
-                {/* Adding key={requestId} to make metadata remount for each render */}
-                {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree
-                  key={requestId}
-                  metadata={metadataItems}
-                  pathname={pathname}
-                />
-              </>
-            ),
-            injectedCSS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            rootLayoutIncluded: false,
-            asNotFound: pathname === '/404',
-          })
-        ).slice(1),
-      ]
+      const flightData: FlightData = await walkTreeWithFlightRouterState({
+        createSegmentPath: (child) => child,
+        loaderTreeToFilter: loaderTree,
+        parentParams: {},
+        flightRouterState: providedFlightRouterState,
+        isFirst: true,
+        // For flight, render metadata inside leaf page
+        rscPayloadHead: (
+          <>
+            {/* Adding key={requestId} to make metadata remount for each render */}
+            {/* @ts-expect-error allow to use async server component */}
+            <MetadataTree
+              key={requestId}
+              metadata={metadataItems}
+              pathname={pathname}
+            />
+          </>
+        ),
+        injectedCSS: new Set(),
+        injectedFontPreloadTags: new Set(),
+        rootLayoutIncluded: false,
+        asNotFound: pathname === '/404',
+      })
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.

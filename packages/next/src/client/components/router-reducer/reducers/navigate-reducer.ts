@@ -75,18 +75,21 @@ export function navigateReducer(
     }
 
     // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
+
     const flightDataPath = flightData[0]
     const flightSegmentPath = flightDataPath.slice(
       0,
       -3
     ) as unknown as FlightSegmentPath
+
     // The one before last item is the router state tree patch
     const [treePatch] = flightDataPath.slice(-3)
 
     // Create new tree based on the flightSegmentPath and router state patch
     let newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
-      ['', ...flightSegmentPath],
+      // ['', ...flightSegmentPath],
+      flightSegmentPath,
       state.tree,
       treePatch
     )
@@ -96,7 +99,8 @@ export function navigateReducer(
     if (newTree === null) {
       newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
+        // ['', ...flightSegmentPath],
+        flightSegmentPath,
         treeAtTimeOfPrefetch,
         treePatch
       )
@@ -111,7 +115,8 @@ export function navigateReducer(
 
       const hardNavigate = shouldHardNavigate(
         // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
+        // ['', ...flightSegmentPath],
+        flightSegmentPath,
         state.tree
       )
 
@@ -218,7 +223,8 @@ export function navigateReducer(
   // Create new tree based on the flightSegmentPath and router state patch
   const newTree = applyRouterStatePatchToTree(
     // TODO-APP: remove ''
-    ['', ...flightSegmentPath],
+    // ['', ...flightSegmentPath],
+    flightSegmentPath,
     state.tree,
     treePatch
   )
