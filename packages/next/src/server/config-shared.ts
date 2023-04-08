@@ -114,6 +114,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -662,6 +663,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    appDocumentPreloading: true,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',

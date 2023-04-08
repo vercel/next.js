@@ -385,6 +385,7 @@ async fn route_internal(
     let Some(dir) = to_sys_path(project_path).await? else {
         bail!("Next.js requires a disk path to check for valid routes");
     };
+    let server_addr = server_addr.await?;
     let result = evaluate(
         router_asset,
         project_path,
@@ -396,6 +397,10 @@ async fn route_internal(
         vec![
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
+            JsonValueVc::cell(json!({
+                "hostname": server_addr.hostname(),
+                "port": server_addr.port(),
+            })),
         ],
         CompletionsVc::all(vec![next_config_changed, routes_changed]),
         /* debug */ false,

@@ -71,6 +71,7 @@ async function main() {
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
     child.stdin.write('\n')
+    child.stdin.write('y\n')
   }
   await child
 

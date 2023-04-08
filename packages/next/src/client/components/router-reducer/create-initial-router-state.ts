@@ -51,5 +51,6 @@ export function createInitialRouterState({
         ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
           createHrefFromUrl(location)
         : initialCanonicalUrl,
+    nextUrl: location?.pathname ?? null,
   }
 }

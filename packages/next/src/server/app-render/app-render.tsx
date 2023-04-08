@@ -10,6 +10,7 @@ import type {
   Segment,
 } from './types'
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
 
@@ -166,6 +167,7 @@ export async function renderToHTMLOrFlight(
     dev,
     nextFontManifest,
     supportsDynamicHTML,
+    nextConfigOutput,
   } = renderOpts
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
@@ -217,6 +219,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout: StaticGenerationBailout =
+    ComponentMod.staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -306,6 +310,11 @@ export async function renderToHTMLOrFlight(
       const key = segmentParam.param
 
       let value = pathParams[key]
+
+      // this is a special marker that will be present for interception routes
+      if (value === '__NEXT_EMPTY_PARAM__') {
+        value = undefined
+      }
 
       if (Array.isArray(value)) {
         value = value.map((i) => encodeURIComponent(i))
@@ -640,15 +649,33 @@ export async function renderToHTMLOrFlight(
         ? [DefaultNotFound]
         : []
 
-      if (typeof layoutOrPageMod?.dynamic === 'string') {
+      let dynamic = layoutOrPageMod?.dynamic
+
+      if (nextConfigOutput === 'export') {
+        if (!dynamic || dynamic === 'auto') {
+          dynamic = 'error'
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationStore.dynamicShouldError = true
+          staticGenerationBailout(`output: export`, {
+            dynamic,
+            link: 'https://nextjs.org/docs/advanced-features/static-html-export',
+          })
+        }
+      }
+
+      if (typeof dynamic === 'string') {
         // the nested most config wins so we only force-static
         // if it's configured above any parent that configured
         // otherwise
-        if (layoutOrPageMod.dynamic === 'error') {
+        if (dynamic === 'error') {
           staticGenerationStore.dynamicShouldError = true
+        } else if (dynamic === 'force-dynamic') {
+          staticGenerationStore.forceDynamic = true
+          staticGenerationBailout(`force-dynamic`, { dynamic })
         } else {
           staticGenerationStore.dynamicShouldError = false
-          if (layoutOrPageMod.dynamic === 'force-static') {
+          if (dynamic === 'force-static') {
             staticGenerationStore.forceStatic = true
           } else {
             staticGenerationStore.forceStatic = false
@@ -964,7 +991,22 @@ export async function renderToHTMLOrFlight(
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
-        const parallelRoutesKeys = Object.keys(parallelRoutes)
+        // if there's a refetch key, it'll probably take precedence when rendering
+        // so we sort the parallel routes so that the refetch key is first
+        // Sort the routes so that a route marked for refetching is at the beginning of the array
+        const parallelRoutesKeys = Object.keys(parallelRoutes).sort(
+          (parallelRouteKeyA, parallelRouteKeyB) => {
+            if (flightRouterState?.[1][parallelRouteKeyA][3] === 'refetch') {
+              return -1
+            }
+            if (flightRouterState?.[1][parallelRouteKeyB][3] === 'refetch') {
+              return 1
+            }
+
+            return 0
+          }
+        )
+
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
 
@@ -1004,7 +1046,19 @@ export async function renderToHTMLOrFlight(
           // Last item in the tree
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
-          flightRouterState[3] === 'refetch'
+          flightRouterState[3] === 'refetch' ||
+          // if any of the parallel routes segments differ or have a refresh marker
+          Object.entries(parallelRoutes).some(
+            ([parallelRouteKey, [parallelRouteSegment]]) => {
+              const [incomingParallelRouteSegment] =
+                flightRouterState[1][parallelRouteKey] ?? []
+
+              return (
+                incomingParallelRouteSegment === '__DEFAULT__' &&
+                parallelRouteSegment !== '__DEFAULT__'
+              )
+            }
+          )
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           const overriddenSegment =
@@ -1455,6 +1509,15 @@ export async function renderToHTMLOrFlight(
 
           return result
         } catch (err: any) {
+          if (
+            err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+            err.message?.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            )
+          ) {
+            // Ensure that "next dev" prints the red error overlay
+            throw err
+          }
           if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
             warn(
               `Entire page ${pathname} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,

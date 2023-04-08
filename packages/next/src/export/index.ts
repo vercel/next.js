@@ -144,7 +144,7 @@ const createProgress = (total: number, label: string) => {
 }
 
 export class ExportError extends Error {
-  type = 'ExportError'
+  code = 'NEXT_EXPORT_ERROR'
 }
 
 export interface ExportOptions {

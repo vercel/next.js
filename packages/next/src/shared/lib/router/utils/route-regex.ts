@@ -1,7 +1,7 @@
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 
-const NEXT_QUERY_PARAM_PREFIX = 'nextParam'
+const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 
 export interface Group {
   pos: number
@@ -102,6 +102,10 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
           // replace any non-word characters since they can break
           // the named regex
           let cleanedKey = key.replace(/\W/g, '')
+
+          if (prefixRouteKeys) {
+            cleanedKey = `${NEXT_QUERY_PARAM_PREFIX}${cleanedKey}`
+          }
           let invalidKey = false
 
           // check if the key is still invalid and fallback to using a known
@@ -118,7 +122,6 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
           }
 
           if (prefixRouteKeys) {
-            cleanedKey = `${NEXT_QUERY_PARAM_PREFIX}${cleanedKey}`
             routeKeys[cleanedKey] = `${NEXT_QUERY_PARAM_PREFIX}${key}`
           } else {
             routeKeys[cleanedKey] = `${key}`
