@@ -1,1 +1,1 @@
-import font from 'cool-fonts/target.css?{"path":"pages/test.tsx","import":"","arguments":[{"prop":true}],"variableName":"font"}';
+import font from 'cool-fonts/target.css?{"arguments":[{"prop":true}],"import":"","path":"pages/test.tsx","variableName":"font"}';
