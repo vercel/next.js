@@ -248,7 +248,7 @@ function createServer(options: NextServerOptions): NextServer {
 }
 
 // Support commonjs `require('next')`
-// module.exports = createServer
+module.exports = createServer
 // exports = module.exports
 
 // Support `import next from 'next'`
