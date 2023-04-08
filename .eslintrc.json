@@ -63,7 +63,7 @@
         "@typescript-eslint/consistent-type-assertions": "warn",
         "no-array-constructor": "off",
         "@typescript-eslint/no-array-constructor": "warn",
-        "@typescript-eslint/no-namespace": "error",
+        "@typescript-eslint/no-namespace": "off",
         "no-use-before-define": "off",
         "@typescript-eslint/no-use-before-define": [
           "warn",
@@ -158,6 +158,9 @@
     {
       "files": ["packages/**/*.tsx", "packages/**/*.ts"],
       "rules": {
+        // Note: you must disable the base rule as it can report incorrect errors
+        "no-shadow": "off",
+        "@typescript-eslint/no-shadow": ["warn", { "builtinGlobals": false }],
         "@typescript-eslint/no-unused-vars": [
           "warn",
           {

@@ -331,13 +331,13 @@ createNextDescribe(
               .waitForElementByCss('#nextjs__container_errors_desc')
               .text()
           ).toContain(
-            'This might be caused by a React Class component being rendered in a server component'
+            'This might be caused by a React Class Component being rendered in a Server Component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'This might be caused by a React Class component being rendered in a server component'
+          'This might be caused by a React Class Component being rendered in a Server Component'
         )
 
         await cleanup()
@@ -384,13 +384,13 @@ createNextDescribe(
               .waitForElementByCss('#nextjs__container_errors_desc')
               .text()
           ).toContain(
-            'This might be caused by a React Class component being rendered in a server component'
+            'This might be caused by a React Class Component being rendered in a Server Component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'This might be caused by a React Class component being rendered in a server component'
+          'This might be caused by a React Class Component being rendered in a Server Component'
         )
 
         await cleanup()
@@ -437,13 +437,13 @@ createNextDescribe(
               .waitForElementByCss('#nextjs__container_errors_desc')
               .text()
           ).toContain(
-            'This might be caused by a React Class component being rendered in a server component'
+            'This might be caused by a React Class Component being rendered in a Server Component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'This might be caused by a React Class component being rendered in a server component'
+          'This might be caused by a React Class Component being rendered in a Server Component'
         )
 
         await cleanup()

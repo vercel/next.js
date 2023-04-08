@@ -37,7 +37,7 @@ export default function RootLayout({
               {'. '}
               <a
                 className="underline decoration-dotted underline-offset-4"
-                href="https://github.com/vercel/next.js/examples/with-turbopack"
+                href="https://github.com/vercel/next.js/tree/canary/examples/with-turbopack"
               >
                 View the code
               </a>

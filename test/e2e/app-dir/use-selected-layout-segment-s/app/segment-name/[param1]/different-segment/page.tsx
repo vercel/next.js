@@ -1,3 +1,3 @@
 export default function Page() {
-  return null
+  return <p>/segment-name/[param1]/different-name2</p>
 }

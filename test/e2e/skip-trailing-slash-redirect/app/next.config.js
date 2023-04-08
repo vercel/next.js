@@ -2,6 +2,13 @@
 const nextConfig = {
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
+  experimental: {
+    externalMiddlewareRewritesResolve: true,
+  },
+  i18n: {
+    locales: ['en', 'ja-jp'],
+    defaultLocale: 'en',
+  },
   async redirects() {
     return [
       {

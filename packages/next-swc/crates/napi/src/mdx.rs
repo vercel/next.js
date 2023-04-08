@@ -1,5 +1,5 @@
 use napi::bindgen_prelude::*;
-use next_binding::features::mdxjs::{compile, Options};
+use turbo_binding::features::mdxjs::{compile, Options};
 
 pub struct MdxCompileTask {
     pub input: String,

@@ -1,10 +1,12 @@
 import type { NextConfigComplete } from '../config-shared'
+import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
 import '../node-polyfill-fetch'
 import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
+  GenerateParams,
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
@@ -12,6 +14,9 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../../build/webpack/require-hook'
+import { IncrementalCache } from '../lib/incremental-cache'
+import * as serverHooks from '../../client/components/hooks-server-context'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 
 type RuntimeConfig = any
 
@@ -19,8 +24,6 @@ loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
-
-let workerWasUsed = false
 
 // expose AsyncLocalStorage on globalThis for react usage
 const { AsyncLocalStorage } = require('async_hooks')
@@ -39,6 +42,11 @@ export async function loadStaticPaths({
   defaultLocale,
   isAppPath,
   originalAppPath,
+  isrFlushToDisk,
+  fetchCacheKeyPrefix,
+  maxMemoryCacheSize,
+  requestHeaders,
+  incrementalCacheHandlerPath,
 }: {
   distDir: string
   pathname: string
@@ -49,17 +57,16 @@ export async function loadStaticPaths({
   defaultLocale?: string
   isAppPath?: boolean
   originalAppPath?: string
+  isrFlushToDisk?: boolean
+  fetchCacheKeyPrefix?: string
+  maxMemoryCacheSize?: number
+  requestHeaders: IncrementalCache['requestHeaders']
+  incrementalCacheHandlerPath?: string
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
   fallback?: boolean | 'blocking'
 }> {
-  // we only want to use each worker once to prevent any invalid
-  // caches
-  if (workerWasUsed) {
-    process.exit(1)
-  }
-
   // update work memory runtime-config
   require('../../shared/lib/runtime-config').setConfig(config)
   setHttpClientAndAgentOptions({
@@ -81,24 +88,52 @@ export async function loadStaticPaths({
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
     )
   }
-  workerWasUsed = true
 
-  if (isAppPath) {
-    const generateParams = await collectGenerateParams(
-      components.ComponentMod.tree
-    )
-    return buildAppStaticPaths({
+  try {
+    if (isAppPath) {
+      const userland: AppRouteUserlandModule | undefined =
+        components.ComponentMod.routeModule?.userland
+      const generateParams: GenerateParams = userland
+        ? [
+            {
+              config: {
+                revalidate: userland.revalidate,
+                dynamic: userland.dynamic,
+                dynamicParams: userland.dynamicParams,
+              },
+              generateStaticParams: userland.generateStaticParams,
+              segmentPath: pathname,
+            },
+          ]
+        : await collectGenerateParams(components.ComponentMod.tree)
+
+      return await buildAppStaticPaths({
+        page: pathname,
+        generateParams,
+        configFileName: config.configFileName,
+        distDir,
+        requestHeaders,
+        incrementalCacheHandlerPath,
+        serverHooks,
+        staticGenerationAsyncStorage,
+        isrFlushToDisk,
+        fetchCacheKeyPrefix,
+        maxMemoryCacheSize,
+      })
+    }
+
+    return await buildStaticPaths({
       page: pathname,
-      generateParams,
+      getStaticPaths: components.getStaticPaths,
       configFileName: config.configFileName,
+      locales,
+      defaultLocale,
+    })
+  } finally {
+    setTimeout(() => {
+      // we only want to use each worker once to prevent any invalid
+      // caches
+      process.exit(1)
     })
   }
-
-  return buildStaticPaths({
-    page: pathname,
-    getStaticPaths: components.getStaticPaths,
-    configFileName: config.configFileName,
-    locales,
-    defaultLocale,
-  })
 }

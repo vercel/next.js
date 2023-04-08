@@ -32,7 +32,7 @@ describe('devtool set in development mode in next config', () => {
     )
 
     const browser = await webdriver(appPort, '/')
-    expect(await hasRedbox(browser)).toBe(true)
+    expect(await hasRedbox(browser, true)).toBe(true)
     if (process.platform === 'win32') {
       // TODO: add win32 snapshot
     } else {

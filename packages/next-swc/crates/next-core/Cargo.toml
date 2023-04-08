@@ -1,0 +1,64 @@
+[package]
+name = "next-core"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = { workspace = true }
+async-recursion = "1.0.2"
+once_cell = { workspace = true }
+qstring = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+mime = { workspace = true }
+indoc = { workspace = true }
+allsorts = { workspace = true }
+futures = { workspace = true }
+turbo-binding = { workspace = true, features = [
+  "__feature_auto_hash_map",
+  "__turbo_tasks",
+  "__turbo_tasks_bytes",
+  "__turbo_tasks_env",
+  "__turbo_tasks_fetch",
+  "__turbo_tasks_fs",
+  "__turbo_tasks_hash",
+  "__turbopack",
+  "__turbopack_core",
+  "__turbopack_dev",
+  "__turbopack_dev_server",
+  "__turbopack_ecmascript",
+  "__turbopack_env",
+  "__turbopack_node",
+  ] }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+next-transform-strip-page-exports = { workspace = true }
+next-transform-font = { workspace = true }
+next-transform-dynamic = { workspace = true }
+
+swc_core = { workspace = true, features = ["ecma_ast", "common"] }
+
+[build-dependencies]
+turbo-binding = { workspace = true, features = [
+  "__turbo_tasks_build"
+]}
+
+[features]
+next-font-local = []
+native-tls = ["turbo-binding/__turbo_tasks_fetch_native-tls"]
+rustls-tls = ["turbo-binding/__turbo_tasks_fetch_rustls-tls"]
+# Internal only. Enabled when building for the Next.js integration test suite.
+__internal_nextjs_integration_test = []
+# enable "HMR" for embedded assets
+dynamic_embed_contents = [
+  "turbo-binding/__turbo_tasks_fs_dynamic_embed_contents",
+  "turbo-binding/__turbopack_dev_dynamic_embed_contents",
+]
+

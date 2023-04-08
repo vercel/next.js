@@ -60,7 +60,7 @@ tigris dev start
 npm run dev
 ```
 
-> Note: This step uses a custom dev & build script to initialize Tigris database and collection for
+> Note: This step uses a custom dev & build script to initialize Tigris collections for
 > the app and requires [ts-node](https://www.npmjs.com/package/ts-node#installation) to be installed.
 
 :tada: All done. You should be able to use app on `localhost:3000` in browser. Feel free to play
@@ -95,10 +95,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ├── package.json
 ├── lib
 │   ├── tigris.ts
-├── models
-│   └── tigris
-│       └── todoStarterApp
-│           └── todoItems.ts
+├── db
+│   └── models
+│       └── todoItems.ts
 └── pages
     ├── index.tsx
     └── api
@@ -114,13 +113,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 <details>
 <summary> 🪢 Tigris schema definition</summary>
 
-[models/tigris/todoStarterApp/todoItems.ts](models/tigris/todoStarterApp/todoItems.ts) - The to-do list app
-has a single collection `todoItems` that stores the to-do items in `todoStarterApp` database. The
-Database and Collection get automatically provisioned by the [setup script](scripts/setup.ts).
-
-This is an inspiration from Next.js based file system router. Create a folder or drop a schema file
-inside database folder under `models/tigris/`, and you're able to instantly create Databases and
-Collections in Tigris for your application.
+[db/models/todoItems.ts](db/models/todoItems.ts) - The to-do list app has a single collection
+`todoItems` that stores the to-do items. The Collection gets automatically provisioned by the
+[setup script](scripts/setup.ts).
 
 </details>
 

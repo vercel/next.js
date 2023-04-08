@@ -39,7 +39,7 @@ Caching improves response times and reduces the number of requests to external s
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-`Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function. If you're using `next/image`, there are also [specific caching rules](/docs/basic-features/image-optimization.md#caching) for the default Image Optimization loader.
+`Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function. If you're using `next/image`, you can configure the [`minimumCacheTTL`](/docs/api-reference/next/image#minimum-cache-ttl) for the default Image Optimization loader.
 
 **Note:** When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
 
@@ -109,7 +109,7 @@ Since Next.js runs on both the client and server, there are multiple forms of lo
 - `console.log` in the browser
 - `stdout` on the server
 
-If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations#logging?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) compatible with Next.js.
+If you want a structured logging package, we recommend [Pino](https://www.npmjs.com/package/pino). If you're using Vercel, there are [pre-built logging integrations](https://vercel.com/integrations?utm_source=next-site&utm_medium=docs&utm_campaign=next-website#logging) compatible with Next.js.
 
 ## Error Handling
 

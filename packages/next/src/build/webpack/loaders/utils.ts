@@ -1,6 +1,8 @@
+import { createHash } from 'crypto'
+
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
 export function isClientComponentModule(mod: {
@@ -12,3 +14,16 @@ export function isClientComponentModule(mod: {
 }
 
 export const regexCSS = /\.(css|scss|sass)(\?.*)?$/
+
+export function getActions(mod: {
+  resource: string
+  buildInfo: any
+}): undefined | string[] {
+  return mod.buildInfo.rsc?.actions
+}
+
+export function generateActionId(filePath: string, exportName: string) {
+  return createHash('sha1')
+    .update(filePath + ':' + exportName)
+    .digest('hex')
+}

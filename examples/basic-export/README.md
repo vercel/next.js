@@ -1,6 +1,6 @@
 # Basic export example
 
-This example shows the most basic usage of `next export`. Without `exportPathMap`.
+This example shows basic usage of `output: 'export'`.
 
 ## Deploy your own
 

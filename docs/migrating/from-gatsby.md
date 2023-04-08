@@ -181,11 +181,11 @@ This means you can remove common Gatsby plugins like:
 
 Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) component and [Automatic Image Optimization](/docs/basic-features/image-optimization.md).
 
-> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+> The `next/image` component's default loader is not supported when using [`output: 'export'`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
 ```jsx
 import Image from 'next/image'
-import profilePic from '../public/me.png'
+import profilePic from '../assets/me.png'
 
 export default function Home() {
   return (

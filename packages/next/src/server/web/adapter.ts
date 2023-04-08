@@ -17,6 +17,8 @@ import {
   RSC,
 } from '../../client/components/app-router-headers'
 
+declare const _ENTRIES: any
+
 class NextRequestHint extends NextRequest {
   sourcePage: string
 
@@ -49,11 +51,15 @@ const FLIGHT_PARAMETERS = [
   [FETCH_CACHE_HEADER],
 ] as const
 
-export async function adapter(params: {
+export type AdapterOptions = {
   handler: NextMiddleware
   page: string
   request: RequestData
-}): Promise<FetchEventResult> {
+}
+
+export async function adapter(
+  params: AdapterOptions
+): Promise<FetchEventResult> {
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
 
@@ -75,10 +81,16 @@ export async function adapter(params: {
   }
 
   const requestHeaders = fromNodeHeaders(params.request.headers)
+  const flightHeaders = new Map()
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const param of FLIGHT_PARAMETERS) {
-      requestHeaders.delete(param.toString().toLowerCase())
+      const key = param.toString().toLowerCase()
+      const value = requestHeaders.get(key)
+      if (value) {
+        flightHeaders.set(key, requestHeaders.get(key))
+        requestHeaders.delete(key)
+      }
     }
   }
 
@@ -87,7 +99,9 @@ export async function adapter(params: {
 
   const request = new NextRequestHint({
     page: params.page,
-    input: String(requestUrl),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? params.request.url
+      : String(requestUrl),
     init: {
       body: params.request.body,
       geo: params.request.geo,
@@ -144,11 +158,22 @@ export async function adapter(params: {
      * with an internal header so the client knows which component to load
      * from the data request.
      */
-    if (isDataReq) {
-      response.headers.set(
-        'x-nextjs-rewrite',
-        relativizeURL(String(rewriteUrl), String(requestUrl))
+    const relativizedRewrite = relativizeURL(
+      String(rewriteUrl),
+      String(requestUrl)
+    )
+
+    if (
+      isDataReq &&
+      // if the rewrite is external and external rewrite
+      // resolving config is enabled don't add this header
+      // so the upstream app can set it instead
+      !(
+        process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE &&
+        relativizedRewrite.match(/http(s)?:\/\//)
       )
+    ) {
+      response.headers.set('x-nextjs-rewrite', relativizedRewrite)
     }
   }
 
@@ -192,8 +217,29 @@ export async function adapter(params: {
     }
   }
 
+  const finalResponse = response ? response : NextResponse.next()
+
+  // Flight headers are not overridable / removable so they are applied at the end.
+  const middlewareOverrideHeaders = finalResponse.headers.get(
+    'x-middleware-override-headers'
+  )
+  const overwrittenHeaders: string[] = []
+  if (middlewareOverrideHeaders) {
+    for (const [key, value] of flightHeaders) {
+      finalResponse.headers.set(`x-middleware-request-${key}`, value)
+      overwrittenHeaders.push(key)
+    }
+
+    if (overwrittenHeaders.length > 0) {
+      finalResponse.headers.set(
+        'x-middleware-override-headers',
+        middlewareOverrideHeaders + ',' + overwrittenHeaders.join(',')
+      )
+    }
+  }
+
   return {
-    response: response || NextResponse.next(),
+    response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
   }
 }
@@ -240,4 +286,17 @@ export function enhanceGlobals() {
     enumerable: false,
     configurable: false,
   })
+
+  if (
+    '_ENTRIES' in globalThis &&
+    _ENTRIES.middleware_instrumentation &&
+    _ENTRIES.middleware_instrumentation.register
+  ) {
+    try {
+      _ENTRIES.middleware_instrumentation.register()
+    } catch (err: any) {
+      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+      throw err
+    }
+  }
 }

@@ -1,6 +1,6 @@
 # Convex
 
-This example demonstrates the Convex global state management framework.
+This example demonstrates the Convex backend platform.
 
 ## Deploy your own
 

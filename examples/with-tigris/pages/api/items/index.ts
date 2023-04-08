@@ -1,8 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import {
-  COLLECTION_NAME,
-  TodoItem,
-} from '../../../models/tigris/todoStarterApp/todoItems'
+import { TodoItem } from '../../../db/models/todoItems'
 import tigrisDb from '../../../lib/tigris'
 
 type Response = {
@@ -12,7 +9,7 @@ type Response = {
 
 async function handleGet(req: NextApiRequest, res: NextApiResponse<Response>) {
   try {
-    const itemsCollection = tigrisDb.getCollection<TodoItem>(COLLECTION_NAME)
+    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
     const cursor = itemsCollection.findMany()
     const items = await cursor.toArray()
     res.status(200).json({ result: items })
@@ -25,7 +22,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse<Response>) {
 async function handlePost(req: NextApiRequest, res: NextApiResponse<Response>) {
   try {
     const item = JSON.parse(req.body) as TodoItem
-    const itemsCollection = tigrisDb.getCollection<TodoItem>(COLLECTION_NAME)
+    const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
     const inserted = await itemsCollection.insertOne(item)
     res.status(200).json({ result: [inserted] })
   } catch (err) {

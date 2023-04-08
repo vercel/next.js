@@ -20,7 +20,7 @@ export type EventSwcLoadFailure = {
 export async function eventSwcLoadFailure(
   event?: EventSwcLoadFailure['payload']
 ): Promise<void> {
-  const telemetry: Telemetry = traceGlobals.get('telemetry')
+  const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
   // can't continue if telemetry isn't set
   if (!telemetry) return
 

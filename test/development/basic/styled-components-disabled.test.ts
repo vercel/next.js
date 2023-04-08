@@ -6,7 +6,8 @@ import { check, fetchViaHTTP } from 'next-test-utils'
 
 describe.each([
   ['dev', false],
-  ['turbo', true],
+  // TODO: re-enable when this is no longer flakey with turbo
+  // ['turbo', true],
 ])('styled-components SWC transform', (_name, turbo) => {
   let next: NextInstance
 

@@ -5,6 +5,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { remove } from 'fs-extra'
 import { join } from 'path'
 import {
+  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -45,9 +46,9 @@ describe('Edge runtime code with imports', () => {
     await remove(join(__dirname, '../.next'))
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
     context.api.restore()
     context.middleware.restore()
@@ -97,11 +98,14 @@ describe('Edge runtime code with imports', () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
-      expectUnsupportedModuleDevError(
-        moduleName,
-        importStatement,
-        await res.text()
-      )
+      await check(async () => {
+        expectUnsupportedModuleDevError(
+          moduleName,
+          importStatement,
+          await res.text()
+        )
+        return 'success'
+      }, 'success')
     })
 
     it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -157,11 +161,14 @@ describe('Edge runtime code with imports', () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
-      expectUnsupportedModuleDevError(
-        moduleName,
-        importStatement,
-        await res.text()
-      )
+      await check(async () => {
+        expectUnsupportedModuleDevError(
+          moduleName,
+          importStatement,
+          await res.text()
+        )
+        return 'success'
+      }, 'success')
     })
 
     it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -230,11 +237,14 @@ describe('Edge runtime code with imports', () => {
         )
         const res = await fetchViaHTTP(context.appPort, url)
         expect(res.status).toBe(500)
-        expectUnsupportedModuleDevError(
-          moduleName,
-          importStatement,
-          await res.text()
-        )
+        await check(async () => {
+          expectUnsupportedModuleDevError(
+            moduleName,
+            importStatement,
+            await res.text()
+          )
+          return 'success'
+        }, 'success')
       })
 
       it('throws unsupported module error in production at runtime and prints error on logs', async () => {
@@ -296,11 +306,15 @@ describe('Edge runtime code with imports', () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
-      expectModuleNotFoundDevError(
-        moduleName,
-        importStatement,
-        await res.text()
-      )
+
+      await check(async () => {
+        expectModuleNotFoundDevError(
+          moduleName,
+          importStatement,
+          await res.text()
+        )
+        return 'success'
+      }, 'success')
     })
 
     it('does not build and reports', async () => {
@@ -353,11 +367,15 @@ describe('Edge runtime code with imports', () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
-      expectModuleNotFoundDevError(
-        moduleName,
-        importStatement,
-        await res.text()
-      )
+
+      await check(async () => {
+        expectModuleNotFoundDevError(
+          moduleName,
+          importStatement,
+          await res.text()
+        )
+        return 'success'
+      }, 'success')
     })
 
     it('does not build and reports module not found error', async () => {
@@ -414,11 +432,14 @@ describe('Edge runtime code with imports', () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(500)
-      expectModuleNotFoundDevError(
-        moduleName,
-        importStatement,
-        await res.text()
-      )
+      await check(async () => {
+        expectModuleNotFoundDevError(
+          moduleName,
+          importStatement,
+          await res.text()
+        )
+        return 'success'
+      }, 'success')
     })
 
     it('does not build and reports module not found error', async () => {
@@ -428,6 +449,7 @@ describe('Edge runtime code with imports', () => {
         stderr: true,
       })
       expect(code).toEqual(1)
+
       expectModuleNotFoundProdError(moduleName, stderr)
     })
   })
@@ -656,9 +678,9 @@ function expectModuleNotFoundProdError(
   output = context.logs.output
 ) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
-  expect(output).not.toContain(moduleNotSupportedMessage)
+  expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(output).toContain(moduleNotFoundMessage)
+  expect(stripAnsi(output)).toContain(moduleNotFoundMessage)
 }
 
 function expectModuleNotFoundDevError(

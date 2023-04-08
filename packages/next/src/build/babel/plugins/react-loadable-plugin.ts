@@ -114,6 +114,7 @@ export default function ({
               | BabelTypes.ObjectProperty
               | BabelTypes.ObjectMethod
               | BabelTypes.SpreadElement
+              | BabelTypes.BooleanLiteral
             >
           } = {}
 
@@ -139,6 +140,23 @@ export default function ({
           }
           const dynamicImports: BabelTypes.Expression[] = []
           const dynamicKeys: BabelTypes.Expression[] = []
+
+          if (propertiesMap.ssr) {
+            const ssr = propertiesMap.ssr.get('value')
+            const nodePath = Array.isArray(ssr) ? undefined : ssr
+
+            if (nodePath) {
+              const nonSSR =
+                nodePath.node.type === 'BooleanLiteral' &&
+                nodePath.node.value === false
+              // If `ssr` is set to `false`, erase the loader for server side
+              if (nonSSR && loader && state.file.opts.caller?.isServer) {
+                loader.replaceWith(
+                  t.arrowFunctionExpression([], t.nullLiteral(), true)
+                )
+              }
+            }
+          }
 
           loader.traverse({
             Import(importPath) {

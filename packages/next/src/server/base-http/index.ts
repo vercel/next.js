@@ -1,4 +1,4 @@
-import type { IncomingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
 import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
@@ -54,6 +54,8 @@ export abstract class BaseNextResponse<Destination = any> {
    * Get vaues for a header concatenated using `,` or undefined if no value is present
    */
   abstract getHeader(name: string): string | undefined
+
+  abstract getHeaders(): OutgoingHttpHeaders
 
   abstract body(value: string): this
 

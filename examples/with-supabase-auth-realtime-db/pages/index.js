@@ -4,7 +4,7 @@ import { Auth, Card, Typography, Space, Button, Icon } from '@supabase/ui'
 import { supabase } from '../lib/initSupabase'
 import { useEffect, useState } from 'react'
 
-const fetcher = (url, token) =>
+const fetcher = ([url, token]) =>
   fetch(url, {
     method: 'GET',
     headers: new Headers({ 'Content-Type': 'application/json', token }),

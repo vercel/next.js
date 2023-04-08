@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
   forwardRef,
+  version,
 } from 'react'
 import Head from '../shared/lib/head'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
@@ -35,7 +36,10 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = ImageConfigComplete & {
+  allSizes: number[]
+  output?: 'standalone' | 'export'
+}
 
 export type { ImageLoaderProps }
 export type ImageLoader = (p: ImageLoaderProps) => string
@@ -141,6 +145,7 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
+  fetchPriority: string
   fill?: boolean
   loading: LoadingValue
   config: ImageConfig
@@ -276,7 +281,7 @@ function handleLoading(
   img['data-loaded-src'] = src
   const p = 'decode' in img ? img.decode() : Promise.resolve()
   p.catch(() => {}).then(() => {
-    if (!img.parentNode) {
+    if (!img.parentElement || !img.isConnected) {
       // Exit early in case of race condition:
       // - onload() is called
       // - decode() is called but incomplete
@@ -363,6 +368,23 @@ function handleLoading(
   })
 }
 
+function getDynamicProps(
+  fetchPriority?: string
+): Record<string, string | undefined> {
+  const [majorStr, minorStr] = version.split('.')
+  const major = parseInt(majorStr, 10)
+  const minor = parseInt(minorStr, 10)
+  if (major > 18 || (major === 18 && minor >= 3)) {
+    // In React 18.3.0 or newer, we must use camelCase
+    // prop to avoid "Warning: Invalid DOM property".
+    // See https://github.com/facebook/react/pull/25927
+    return { fetchPriority }
+  }
+  // In React 18.2.0 or older, we must use lowercase prop
+  // to avoid "Warning: Invalid DOM property".
+  return { fetchpriority: fetchPriority }
+}
+
 const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   (
     {
@@ -374,6 +396,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       imgStyle,
       blurStyle,
       isLazy,
+      fetchPriority,
       fill,
       placeholder,
       loading,
@@ -396,15 +419,19 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       <>
         <img
           {...rest}
-          {...imgAttributes}
+          {...getDynamicProps(fetchPriority)}
+          // @ts-expect-error - TODO: upgrade to `@types/react@18`
+          loading={loading}
           width={widthInt}
           height={heightInt}
           decoding="async"
           data-nimg={fill ? 'fill' : '1'}
           className={className}
-          // @ts-ignore - TODO: upgrade to `@types/react@17`
-          loading={loading}
           style={{ ...imgStyle, ...blurStyle }}
+          // It's intended to keep `loading` before `src` because React updates
+          // props in order which causes Safari/Firefox to not lazy load properly.
+          // See https://github.com/facebook/react/issues/25883
+          {...imgAttributes}
           ref={useCallback(
             (img: ImgElementWithDataProp | null) => {
               if (forwardedRef) {
@@ -507,6 +534,8 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       onLoadingComplete,
       placeholder = 'empty',
       blurDataURL,
+      // @ts-expect-error - TODO: upgrade to `@types/react@18`
+      fetchPriority,
       layout,
       objectFit,
       objectPosition,
@@ -618,7 +647,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
 
     let isLazy =
       !priority && (loading === 'lazy' || typeof loading === 'undefined')
-    if (src.startsWith('data:') || src.startsWith('blob:')) {
+    if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
       unoptimized = true
       isLazy = false
@@ -635,6 +664,9 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       // through the built-in Image Optimization API.
       unoptimized = true
     }
+    if (priority) {
+      fetchPriority = 'high'
+    }
 
     const [blurComplete, setBlurComplete] = useState(false)
     const [showAltText, setShowAltText] = useState(false)
@@ -642,6 +674,15 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const qualityInt = getInt(quality)
 
     if (process.env.NODE_ENV !== 'production') {
+      if (config.output === 'export' && isDefaultLoader && !unoptimized) {
+        throw new Error(
+          `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.
+  Possible solutions:
+    - Remove \`{ output: 'export' }\` and run "next start" to run server mode including the Image Optimization API.
+    - Configure \`{ images: { unoptimized: true } }\` in \`next.config.js\` to disable the Image Optimization API.
+  Read more: https://nextjs.org/docs/messages/export-image-api`
+        )
+      }
       if (!src) {
         // React doesn't show the stack trace and there's
         // no `src` to help identify which image, so we
@@ -837,6 +878,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
                 blurWidth,
                 blurHeight,
                 blurDataURL,
+                objectFit: imgStyle.objectFit,
               }
             )}")`,
           }
@@ -875,16 +917,6 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       }
     }
 
-    const linkProps: React.DetailedHTMLProps<
-      React.LinkHTMLAttributes<HTMLLinkElement>,
-      HTMLLinkElement
-    > = {
-      // @ts-expect-error upgrade react types to react 18
-      imageSrcSet: imgAttributes.srcSet,
-      imageSizes: imgAttributes.sizes,
-      crossOrigin: rest.crossOrigin,
-    }
-
     const onLoadRef = useRef(onLoad)
 
     useEffect(() => {
@@ -908,6 +940,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       blurStyle,
       loading,
       config,
+      fetchPriority,
       fill,
       unoptimized,
       placeholder,
@@ -939,7 +972,11 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               rel="preload"
               as="image"
               href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-              {...linkProps}
+              // @ts-expect-error - TODO: upgrade to `@types/react@18`
+              imageSrcSet={imgAttributes.srcSet}
+              imageSizes={imgAttributes.sizes}
+              crossOrigin={rest.crossOrigin}
+              {...getDynamicProps(fetchPriority)}
             />
           </Head>
         ) : null}

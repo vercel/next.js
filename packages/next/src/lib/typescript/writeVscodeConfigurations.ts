@@ -12,26 +12,27 @@ export async function writeVscodeConfigurations(
   try {
     const vscodeSettings = path.join(baseDir, '.vscode', 'settings.json')
     let settings: any = {}
-    let configExisted = false
+    let configExists = false
     let currentContent: string = ''
 
     try {
       currentContent = await fs.readFile(vscodeSettings, 'utf8')
       settings = CommentJson.parse(currentContent)
-      configExisted = true
+      configExists = true
     } catch (err) {
       if (isError(err) && err.code !== 'ENOENT') {
         throw err
       }
     }
 
-    const libPath = path.relative(baseDir, path.dirname(tsPath))
     if (
-      settings['typescript.tsdk'] === libPath &&
+      settings['typescript.tsdk'] &&
       settings['typescript.enablePromptUseWorkspaceTsdk']
     ) {
       return
     }
+
+    const libPath = path.relative(baseDir, path.dirname(tsPath))
 
     settings['typescript.tsdk'] = libPath
     settings['typescript.enablePromptUseWorkspaceTsdk'] = true
@@ -48,7 +49,7 @@ export async function writeVscodeConfigurations(
 
     Log.info(
       `VS Code settings.json has been ${
-        configExisted ? 'updated' : 'created'
+        configExists ? 'updated' : 'created'
       } for Next.js' automatic app types, this file can be added to .gitignore if desired`
     )
   } catch (err) {

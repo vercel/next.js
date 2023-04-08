@@ -13,7 +13,7 @@ description: Dynamically import JavaScript modules and React Components and spli
 
 Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libraries are only imported and included in the JavaScript bundle when they're used.
 
-`next/dynamic` is a composite extension of [`React.lazy`](https://reactjs.org/docs/code-splitting.html#reactlazy) and [`Suspense`](https://reactjs.org/docs/react-api.html#reactsuspense), components can delay hydration until the Suspense boundary is resolved.
+`next/dynamic` is a composite extension of [`React.lazy`](https://react.dev/reference/react/lazy) and [`Suspense`](https://react.dev/reference/react/Suspense), components can delay hydration until the Suspense boundary is resolved.
 
 ## Example
 
@@ -23,7 +23,7 @@ By using `next/dynamic`, the header component will not be included in the page's
 import dynamic from 'next/dynamic'
 
 const DynamicHeader = dynamic(() => import('../components/header'), {
-  loading: () => 'Loading...',
+  loading: () => <p>Loading...</p>,
 })
 
 export default function Home() {

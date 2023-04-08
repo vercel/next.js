@@ -33,7 +33,7 @@ pr:
 
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
-  PNPM_VERSION: 7.3.0
+  PNPM_VERSION: 7.24.3
   NEXT_TELEMETRY_DISABLED: '1'
   node_14_version: ^14.19.0
   node_16_version: ^16.8.0
@@ -67,7 +67,7 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Install and build'
 
-          - script: npx playwright install chromium
+          - script: npx playwright@1.28.1 install chromium
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
@@ -135,7 +135,7 @@ stages:
       #       condition: eq(variables['isDocsOnly'], 'No')
       #       displayName: 'Install and build'
 
-      #     - script: npx playwright install chromium
+      #     - script: npx playwright@1.28.1 install chromium
       #       condition: eq(variables['isDocsOnly'], 'No')
 
       #     - script: |
@@ -171,7 +171,7 @@ stages:
       #       condition: eq(variables['isDocsOnly'], 'No')
       #       displayName: 'Install and build'
 
-      #     - script: npx playwright install chromium
+      #     - script: npx playwright@1.28.1 install chromium
       #       condition: eq(variables['isDocsOnly'], 'No')
 
       #     - script: |

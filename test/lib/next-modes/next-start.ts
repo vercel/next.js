@@ -24,13 +24,13 @@ export class NextStartInstance extends NextInstance {
   private handleStdio = (childProcess) => {
     childProcess.stdout.on('data', (chunk) => {
       const msg = chunk.toString()
-      process.stdout.write(chunk)
+      if (!process.env.CI) process.stdout.write(chunk)
       this._cliOutput += msg
       this.emit('stdout', [msg])
     })
     childProcess.stderr.on('data', (chunk) => {
       const msg = chunk.toString()
-      process.stderr.write(chunk)
+      if (!process.env.CI) process.stderr.write(chunk)
       this._cliOutput += msg
       this.emit('stderr', [msg])
     })
@@ -63,9 +63,8 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    console.log('running', buildArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
-      console.log('running', buildArgs.join(' '))
-
       try {
         this.childProcess = spawn(
           buildArgs[0],
@@ -88,18 +87,19 @@ export class NextStartInstance extends NextInstance {
     })
 
     this._buildId = (
-      await fs.readFile(
-        path.join(
-          this.testDir,
-          this.nextConfig?.distDir || '.next',
-          'BUILD_ID'
-        ),
-        'utf8'
-      )
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
     ).trim()
 
     console.log('running', startArgs.join(' '))
-
     await new Promise<void>((resolve) => {
       try {
         this.childProcess = spawn(
@@ -112,7 +112,7 @@ export class NextStartInstance extends NextInstance {
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
-            throw new Error(
+            require('console').error(
               `next start exited unexpectedly with code/signal ${
                 code || signal
               }`
@@ -122,7 +122,7 @@ export class NextStartInstance extends NextInstance {
 
         const readyCb = (msg) => {
           if (msg.includes('started server on') && msg.includes('url:')) {
-            this._url = msg.split('url: ').pop().trim()
+            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
             this._parsedUrl = new URL(this._url)
             this.off('stdout', readyCb)
             resolve()
@@ -136,10 +136,42 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async export() {
+  public async build() {
     return new Promise((resolve) => {
       const curOutput = this._cliOutput.length
-      const exportArgs = ['yarn', 'next', 'export']
+      const exportArgs = ['pnpm', 'next', 'build']
+
+      if (this.childProcess) {
+        throw new Error(
+          `can not run export while server is running, use next.stop() first`
+        )
+      }
+
+      console.log('running', exportArgs.join(' '))
+
+      this.childProcess = spawn(
+        exportArgs[0],
+        exportArgs.slice(1),
+        this.spawnOpts
+      )
+      this.handleStdio(this.childProcess)
+
+      this.childProcess.on('exit', (code, signal) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: signal || code,
+          cliOutput: this.cliOutput.slice(curOutput),
+        })
+      })
+    })
+  }
+
+  public async export(...[args]: Parameters<NextInstance['export']>) {
+    return new Promise((resolve) => {
+      const curOutput = this._cliOutput.length
+      const exportArgs = ['pnpm', 'next', 'export']
+
+      if (args?.outdir) exportArgs.push('--outdir', args.outdir)
 
       if (this.childProcess) {
         throw new Error(

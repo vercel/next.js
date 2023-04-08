@@ -9,7 +9,9 @@ import { NextInstance } from 'test/lib/next-modes/base'
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>
+  initialFiles?: Map<string, string>,
+  initialUrl: string = '/',
+  webDriverOptions: any = undefined
 ) {
   await next.stop()
   await next.clean()
@@ -20,7 +22,7 @@ export async function sandbox(
     }
   }
   await next.start()
-  const browser = await webdriver(next.url, '/')
+  const browser = await webdriver(next.url, initialUrl, webDriverOptions)
   return {
     browser,
     session: {
@@ -120,6 +122,17 @@ export async function sandbox(
           return `${header}\n\n${source}`
         }
         return source
+      },
+      async getRedboxComponentStack() {
+        await browser.waitForElementByCss('[data-nextjs-component-stack-frame]')
+        const componentStackFrameElements = await browser.elementsByCss(
+          '[data-nextjs-component-stack-frame]'
+        )
+        const componentStackFrameTexts = await Promise.all(
+          componentStackFrameElements.map((f) => f.innerText())
+        )
+
+        return componentStackFrameTexts.join('\n')
       },
       async waitForAndOpenRuntimeError() {
         return browser.waitForElementByCss('[data-nextjs-toast]').click()
