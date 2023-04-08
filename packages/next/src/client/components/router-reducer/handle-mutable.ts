@@ -1,3 +1,4 @@
+import { computeChangedPath } from './compute-changed-path'
 import {
   Mutable,
   ReadonlyReducerState,
@@ -50,5 +51,10 @@ export function handleMutable(
       typeof mutable.patchedTree !== 'undefined'
         ? mutable.patchedTree
         : state.tree,
+    nextUrl:
+      typeof mutable.patchedTree !== 'undefined'
+        ? computeChangedPath(state.tree, mutable.patchedTree) ??
+          state.canonicalUrl
+        : state.nextUrl,
   }
 }

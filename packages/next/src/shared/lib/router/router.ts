@@ -1323,7 +1323,7 @@ export default class Router implements BaseRouter {
     // if we detected the path as app route during prefetching
     // trigger hard navigation
     if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url, router: this })
+      handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
     }
 

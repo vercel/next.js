@@ -144,7 +144,7 @@ const createProgress = (total: number, label: string) => {
 }
 
 export class ExportError extends Error {
-  type = 'ExportError'
+  code = 'NEXT_EXPORT_ERROR'
 }
 
 export interface ExportOptions {
@@ -488,6 +488,7 @@ export default async function exportApp(
             )),
           }
         : {}),
+      strictNextHead: !!nextConfig.experimental.strictNextHead,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

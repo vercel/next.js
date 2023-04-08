@@ -1,5 +1,6 @@
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
 import type { FlightRouterState } from '../../../server/app-render/types'
+import { createRouterCacheKey } from './create-router-cache-key'
 
 export function fillLazyItemsTillLeafWithHead(
   newCache: CacheNode,
@@ -17,14 +18,9 @@ export function fillLazyItemsTillLeafWithHead(
   for (const key in routerState[1]) {
     const parallelRouteState = routerState[1][key]
     const segmentForParallelRoute = parallelRouteState[0]
-    const cacheKey = Array.isArray(segmentForParallelRoute)
-      ? segmentForParallelRoute[1]
-      : segmentForParallelRoute
+    const cacheKey = createRouterCacheKey(segmentForParallelRoute)
 
     if (existingCache) {
-      if (cacheKey === '__DEFAULT__') {
-        continue
-      }
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {

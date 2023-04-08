@@ -63,7 +63,8 @@ export type CacheNode =
        */
       parallelRoutes: Map<string, ChildSegmentMap>
     }
-interface NavigateOptions {
+
+export interface NavigateOptions {
   forceOptimisticNavigation?: boolean
 }
 
@@ -112,6 +113,7 @@ export const GlobalLayoutRouterContext = React.createContext<{
     overrideCanonicalUrl: URL | undefined
   ) => void
   focusAndScrollRef: FocusAndScrollRef
+  nextUrl: string | null
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null as any)

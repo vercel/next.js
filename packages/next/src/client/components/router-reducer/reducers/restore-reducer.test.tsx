@@ -126,6 +126,7 @@ describe('serverPatchReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -287,6 +288,7 @@ describe('serverPatchReducer', () => {
         hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
