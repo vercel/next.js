@@ -226,6 +226,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        appDocumentPreloading: {
+          type: 'boolean',
+        },
         adjustFontFallbacks: {
           type: 'boolean',
         },
