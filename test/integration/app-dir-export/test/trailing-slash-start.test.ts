@@ -1,1 +1,1 @@
-require('./dynamic')
+require('./trailing-slash')
