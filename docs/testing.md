@@ -304,7 +304,7 @@ To set up Jest, install `jest`, `jest-environment-jsdom`, `@testing-library/reac
 npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom
 ```
 
-Create a `jest.config.mjs` file in your project's root directory and add the following:
+Create a `jest.config.js` file in your project's root directory and add the following:
 
 ```jsx
 // jest.config.mjs
