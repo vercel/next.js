@@ -234,7 +234,7 @@ export default class NextNodeServer extends BaseServer {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    if (!options.dev) {
+    if (!options.dev && !this.nextConfig.experimental.appDocumentPreloading) {
       // pre-warm _document and _app as these will be
       // needed for most requests
       loadComponents({
