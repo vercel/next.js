@@ -24,6 +24,7 @@ import {
   Params,
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
+import type { RouteMatch } from './future/route-matches/route-match'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -233,7 +234,7 @@ export default class NextNodeServer extends BaseServer {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    if (!options.dev) {
+    if (!options.dev && !this.nextConfig.experimental.appDocumentPreloading) {
       // pre-warm _document and _app as these will be
       // needed for most requests
       loadComponents({
@@ -1520,6 +1521,7 @@ export default class NextNodeServer extends BaseServer {
                 query,
                 params: match.params,
                 page: match.definition.page,
+                match,
                 appPaths: null,
               })
 
@@ -2563,13 +2565,15 @@ export default class NextNodeServer extends BaseServer {
     params: Params | undefined
     page: string
     appPaths: string[] | null
+    match?: RouteMatch
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const { query, page } = params
+    const { query, page, match } = params
 
-    await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
+    if (!match)
+      await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,

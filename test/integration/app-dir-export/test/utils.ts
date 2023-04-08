@@ -15,20 +15,19 @@ import {
   killApp,
   launchApp,
   nextBuild,
-  nextExport,
   startStaticServer,
   stopApp,
 } from 'next-test-utils'
 
 const glob = promisify(globOrig)
-const appDir = join(__dirname, '..')
-const distDir = join(appDir, '.next')
-const exportDir = join(appDir, 'out')
-const nextConfig = new File(join(appDir, 'next.config.js'))
+export const appDir = join(__dirname, '..')
+export const distDir = join(appDir, '.next')
+export const exportDir = join(appDir, 'out')
+export const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))
 const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 
-const expectedFiles = [
+export const expectedFiles = [
   '404.html',
   '404/index.html',
   '_next/static/media/test.3f1a293b.png',
@@ -50,7 +49,7 @@ const expectedFiles = [
   'robots.txt',
 ]
 
-async function getFiles(cwd = exportDir) {
+export async function getFiles(cwd = exportDir) {
   const opts = { cwd, nodir: true }
   const files = ((await glob('**/*', opts)) as string[])
     .filter(
@@ -62,7 +61,7 @@ async function getFiles(cwd = exportDir) {
     .sort()
   return files
 }
-async function runTests({
+export async function runTests({
   isDev = false,
   trailingSlash = true,
   dynamicPage,
@@ -75,6 +74,9 @@ async function runTests({
   dynamicApiRoute?: string
   expectedErrMsg?: string
 }) {
+  if ((isDev && !process.env.TEST_DEV) || (!isDev && process.env.TEST_DEV)) {
+    return
+  }
   if (trailingSlash) {
     nextConfig.replace(
       'trailingSlash: true,',
@@ -200,169 +202,3 @@ async function runTests({
     apiJson.restore()
   }
 }
-
-describe('app dir with output export (next dev / next build)', () => {
-  it.each([
-    { isDev: true, trailingSlash: false },
-    { isDev: true, trailingSlash: true },
-    { isDev: false, trailingSlash: false },
-    { isDev: false, trailingSlash: true },
-  ])(
-    "should work with isDev '$isDev' and trailingSlash '$trailingSlash'",
-    async ({ isDev, trailingSlash }) => {
-      await runTests({ isDev, trailingSlash })
-    }
-  )
-  it.each([
-    { isDev: true, dynamic: 'undefined' },
-    { isDev: true, dynamic: "'error'" },
-    { isDev: true, dynamic: "'force-static'" },
-    {
-      isDev: true,
-      dynamic: "'force-dynamic'",
-      expectedErrMsg:
-        'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
-    },
-    { isDev: false, dynamic: 'undefined' },
-    { isDev: false, dynamic: "'error'" },
-    { isDev: false, dynamic: "'force-static'" },
-    {
-      isDev: false,
-      dynamic: "'force-dynamic'",
-      expectedErrMsg:
-        'Page with `dynamic = "force-dynamic"` couldn\'t be rendered statically because it used `output: export`.',
-    },
-  ])(
-    "should work with with isDev '$isDev' and dynamic $dynamic on page",
-    async ({ isDev, dynamic, expectedErrMsg }) => {
-      await runTests({ isDev, dynamicPage: dynamic, expectedErrMsg })
-    }
-  )
-  it.each([
-    { isDev: true, dynamic: 'undefined' },
-    { isDev: true, dynamic: "'error'" },
-    { isDev: true, dynamic: "'force-static'" },
-    {
-      isDev: true,
-      dynamic: "'force-dynamic'",
-      expectedErrMsg:
-        'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".',
-    },
-    { isDev: false, dynamic: 'undefined' },
-    { isDev: false, dynamic: "'error'" },
-    { isDev: false, dynamic: "'force-static'" },
-    {
-      isDev: false,
-      dynamic: "'force-dynamic'",
-      expectedErrMsg:
-        'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".',
-    },
-  ])(
-    "should work with with isDev '$isDev' and dynamic $dynamic on route handler",
-    async ({ isDev, dynamic, expectedErrMsg }) => {
-      await runTests({ isDev, dynamicApiRoute: dynamic, expectedErrMsg })
-    }
-  )
-  it('should throw when exportPathMap configured', async () => {
-    nextConfig.replace(
-      'trailingSlash: true,',
-      `trailingSlash: true,
-       exportPathMap: async function (map) {
-        return map
-      },`
-    )
-    await fs.remove(distDir)
-    await fs.remove(exportDir)
-    let result = { code: 0, stderr: '' }
-    try {
-      result = await nextBuild(appDir, [], { stderr: true })
-    } finally {
-      nextConfig.restore()
-    }
-    expect(result.code).toBe(1)
-    expect(result.stderr).toContain(
-      'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
-    )
-  })
-  it('should warn about "next export" is no longer needed with config', async () => {
-    await fs.remove(distDir)
-    await fs.remove(exportDir)
-    await nextBuild(appDir)
-    expect(await getFiles()).toEqual(expectedFiles)
-    let stdout = ''
-    let stderr = ''
-    await nextExport(
-      appDir,
-      { outdir: exportDir },
-      {
-        onStdout(msg) {
-          stdout += msg
-        },
-        onStderr(msg) {
-          stderr += msg
-        },
-      }
-    )
-    expect(stderr).toContain(
-      'warn  - "next export" is no longer needed when "output: export" is configured in next.config.js'
-    )
-    expect(stdout).toContain('Export successful. Files written to')
-    expect(await getFiles()).toEqual(expectedFiles)
-  })
-  it('should error when no config.output detected for next export', async () => {
-    await fs.remove(distDir)
-    await fs.remove(exportDir)
-    nextConfig.replace(`output: 'export',`, '')
-    try {
-      await nextBuild(appDir)
-      expect(await getFiles()).toEqual([])
-      let stdout = ''
-      let stderr = ''
-      let error = undefined
-      try {
-        await nextExport(
-          appDir,
-          { outdir: exportDir },
-          {
-            onStdout(msg) {
-              stdout += msg
-            },
-            onStderr(msg) {
-              stderr += msg
-            },
-          }
-        )
-      } catch (e) {
-        error = e
-      }
-      expect(error).toBeDefined()
-      expect(stderr).toContain(
-        'error - "next export" does not work with App Router. Please use "output: export" in next.config.js'
-      )
-      expect(stdout).not.toContain('Export successful. Files written to')
-      expect(await getFiles()).toEqual([])
-    } finally {
-      nextConfig.restore()
-      await fs.remove(distDir)
-      await fs.remove(exportDir)
-    }
-  })
-  it('should correctly emit exported assets to config.distDir', async () => {
-    const outputDir = join(appDir, 'output')
-    await fs.remove(distDir)
-    await fs.remove(outputDir)
-    nextConfig.replace(
-      'trailingSlash: true,',
-      `trailingSlash: true,
-       distDir: 'output',`
-    )
-    try {
-      await nextBuild(appDir)
-      expect(await getFiles(outputDir)).toEqual(expectedFiles)
-    } finally {
-      nextConfig.restore()
-      await fs.remove(distDir)
-      await fs.remove(outputDir)
-    }
-  })
-})

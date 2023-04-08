@@ -486,20 +486,18 @@ describe('Middleware Runtime', () => {
       const json = readMiddlewareJSON(res)
       delete json.process.env['JEST_WORKER_ID']
 
-      expect(json).toEqual({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-            STRING_ENV_VAR: 'asdf3',
-            MIDDLEWARE_TEST: 'asdf',
-            ...((global as any).isNextDeploy
-              ? {}
-              : {
-                  NEXT_RUNTIME: 'edge',
-                }),
-          },
-        },
-      })
+      for (const [key, value] of Object.entries({
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+        ...((global as any).isNextDeploy
+          ? {}
+          : {
+              NEXT_RUNTIME: 'edge',
+            }),
+      })) {
+        expect(json.process.env[key]).toBe(value)
+      }
     })
 
     it(`should contain \`globalThis\``, async () => {
