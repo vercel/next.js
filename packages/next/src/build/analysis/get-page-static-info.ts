@@ -154,6 +154,10 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
+type MiddlewareLike = Middleware & {
+  originalSource?: string
+}
+
 export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
@@ -167,7 +171,9 @@ export function getMiddlewareMatchers(
   const { i18n } = nextConfig
 
   let routes = matchers.map((m) => {
-    let middleware = (typeof m === 'string' ? { source: m } : m) as Middleware
+    let middleware = (
+      typeof m === 'string' ? { source: m } : m
+    ) as MiddlewareLike
     if (middleware) {
       middleware.originalSource = middleware.source
     }
