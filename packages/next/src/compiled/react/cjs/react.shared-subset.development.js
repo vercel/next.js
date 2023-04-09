@@ -918,7 +918,7 @@ function ReactElement(type, key, ref, self, source, owner, props) {
 }
 /**
  * Create and return a new ReactElement of the given type.
- * See https://reactjs.org/docs/react-api.html#createelement
+ * See https://react.dev/reference/react/createElement#reference
  */
 
 function createElement$1(type, config, children) {
@@ -1089,7 +1089,7 @@ function cloneElement$1(element, config, children) {
 }
 /**
  * Verifies the object is a ReactElement.
- * See https://reactjs.org/docs/react-api.html#isvalidelement
+ * See https://react.dev/reference/react/isValidElement
  * @param {?object} object
  * @return {boolean} True if `object` is a ReactElement.
  * @final
@@ -1305,7 +1305,7 @@ function mapChildren(children, func, context) {
  * Count the number of children that are typically specified as
  * `props.children`.
  *
- * See https://reactjs.org/docs/react-api.html#reactchildrencount
+ * See https://react.dev/reference/react/Children#children-count
  *
  * @param {?*} children Children tree container.
  * @return {number} The number of children.
