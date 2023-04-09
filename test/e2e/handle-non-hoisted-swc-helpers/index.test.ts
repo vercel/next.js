@@ -14,7 +14,7 @@ describe('handle-non-hoisted-swc-helpers', () => {
           }
 
           export function getServerSideProps() {
-            const helper = require('@swc/helpers/_/_object_spread.js')
+            const helper = require('@swc/helpers/_/_object_spread')
             console.log(helper)
             return {
               props: {
