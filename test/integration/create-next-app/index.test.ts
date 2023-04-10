@@ -13,7 +13,7 @@
 import execa from 'execa'
 import fs from 'fs-extra'
 import path from 'path'
-
+import Conf from 'next/dist/compiled/conf'
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
   projectFilesShouldExist,
@@ -25,11 +25,14 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-const run = (args: string[], options: execa.Options) =>
-  execa('node', [cli].concat(args), options)
+const run = (args: string[], options: execa.Options) => {
+  const conf = new Conf({ projectName: 'create-next-app' })
+  conf.clear()
+  return execa('node', [cli].concat(args), options)
+}
 
 describe('create next app', () => {
-  if (!process.env.NEXT_TEST_CNA) {
+  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
   }
@@ -45,9 +48,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -69,9 +74,11 @@ describe('create next app', () => {
           [
             projectName,
             '--js',
+            '--no-tailwind',
             '--eslint',
             '--no-src-dir',
             '--no-experimental-app',
+            `--import-alias=@/*`,
           ],
           { cwd }
         )
@@ -86,7 +93,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example-name'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'not a real example'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'not a real example',
+        ],
         {
           cwd,
           reject: false,
@@ -106,7 +120,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'basic-css'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'basic-css',
+        ],
         {
           cwd,
         }
@@ -129,7 +150,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example-without-package-json'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'with-docker-compose'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'with-docker-compose',
+        ],
         {
           cwd,
         }
@@ -151,6 +179,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -181,6 +210,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           'https://github.com/vercel/nextjs-portfolio-starter/',
@@ -211,6 +241,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           exampleRepo,
@@ -243,6 +274,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -278,9 +310,11 @@ describe('create next app', () => {
           [
             projectName,
             '--js',
+            '--no-tailwind',
             '--eslint',
             '--example',
             '__internal-testing-retry',
+            '--import-alias=@/*',
           ],
           {
             cwd,
@@ -298,7 +332,15 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'default-example'
       const res = await run(
-        [projectName, '--js', '--eslint', '--example', 'default'],
+        [
+          projectName,
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--example',
+          'default',
+          '--import-alias=@/*',
+        ],
         {
           cwd,
         }
@@ -316,10 +358,12 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -352,9 +396,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -388,7 +434,15 @@ describe('create next app', () => {
       }
 
       const res = await run(
-        ['.', '--js', '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          '.',
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+          `--import-alias=@/*`,
+        ],
         {
           cwd,
           env,
@@ -407,7 +461,14 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'test-project'
       const res = await run(
-        ['--js', '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          '--js',
+          '--no-tailwind',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+          `--import-alias=@/*`,
+        ],
         {
           cwd,
           input: `${projectName}\n`,
@@ -426,10 +487,12 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-npm',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -448,6 +511,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-npm',
           '--example',
@@ -478,10 +542,12 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-pnpm',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -518,6 +584,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--use-pnpm',
           '--example',
@@ -548,9 +615,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -579,6 +648,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -613,9 +683,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -651,6 +723,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,
@@ -685,9 +758,11 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias=@/*`,
         ],
         {
           cwd,
@@ -723,6 +798,7 @@ describe('create next app', () => {
         [
           projectName,
           '--js',
+          '--no-tailwind',
           '--eslint',
           '--example',
           `${exampleRepo}/${examplePath}`,

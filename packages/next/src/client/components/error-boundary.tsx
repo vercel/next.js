@@ -4,8 +4,9 @@ import React from 'react'
 
 const styles = {
   error: {
+    // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+      'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
     height: '100vh',
     textAlign: 'center',
     display: 'flex',
@@ -14,18 +15,13 @@ const styles = {
     justifyContent: 'center',
   },
   desc: {
-    display: 'inline-block',
     textAlign: 'left',
-    lineHeight: '49px',
-    height: '49px',
-    verticalAlign: 'middle',
   },
   text: {
     fontSize: '14px',
-    fontWeight: 'normal',
-    lineHeight: '49px',
+    fontWeight: 400,
+    lineHeight: '3em',
     margin: 0,
-    padding: 0,
   },
 } as const
 

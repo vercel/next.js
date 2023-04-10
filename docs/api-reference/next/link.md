@@ -131,7 +131,7 @@ export default NavLink
 
 ## If the child is a functional component
 
-If the child of `Link` is a functional component, in addition to using `passHref` and `legacyBehavior`, you must wrap the component in [`React.forwardRef`](https://reactjs.org/docs/react-api.html#reactforwardref):
+If the child of `Link` is a functional component, in addition to using `passHref` and `legacyBehavior`, you must wrap the component in [`React.forwardRef`](https://react.dev/reference/react/forwardRef):
 
 ```jsx
 import Link from 'next/link'
@@ -233,9 +233,9 @@ export function middleware(req) {
   const nextUrl = req.nextUrl
   if (nextUrl.pathname === '/dashboard') {
     if (req.cookies.authToken) {
-      return NextResponse.rewrite('/auth/dashboard')
+      return NextResponse.rewrite(new URL('/auth/dashboard', req.url))
     } else {
-      return NextResponse.rewrite('/public/dashboard')
+      return NextResponse.rewrite(new URL('/public/dashboard', req.url))
     }
   }
 }

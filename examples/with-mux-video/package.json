@@ -7,8 +7,8 @@
   },
   "dependencies": {
     "@mux/mux-node": "^7.0.0",
-    "@mux/mux-player-react": "^1.4.0",
-    "@mux/upchunk": "^3.0.0",
+    "@mux/mux-player-react": "^1",
+    "@mux/upchunk": "^3",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -13,8 +13,11 @@ jobs:
     name: Triage
     runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v2.5
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          configuration-path: '.github/issue-labeler.yml'
-          enable-versioned-regex: 0
+          node-version: 18
+      - name: 'Run issue labeler'
+        run: node ./.github/actions/issue-labeler/lib
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

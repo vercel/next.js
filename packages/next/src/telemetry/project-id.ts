@@ -18,6 +18,7 @@ function _getProjectIdByGit() {
       {
         timeout: 1000,
         stdio: `pipe`,
+        windowsHide: true,
       }
     )
 

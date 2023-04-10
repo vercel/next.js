@@ -395,9 +395,9 @@ var require_lib = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/utils.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/utils.js
 var require_utils = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/utils.js"(exports, module2) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/utils.js"(exports, module2) {
     "use strict";
     init_define_process();
     function isObject(value) {
@@ -888,9 +888,9 @@ var require_tr46 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/infra.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/infra.js
 var require_infra = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/infra.js"(exports, module2) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/infra.js"(exports, module2) {
     "use strict";
     init_define_process();
     function isASCIIDigit(c) {
@@ -918,9 +918,9 @@ var require_infra = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/encoding.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/encoding.js
 var require_encoding = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/encoding.js"(exports, module2) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/encoding.js"(exports, module2) {
     "use strict";
     init_define_process();
     var utf8Encoder = new TextEncoder();
@@ -940,9 +940,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/percent-encoding.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/percent-encoding.js
 var require_percent_encoding = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/percent-encoding.js"(exports, module2) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/percent-encoding.js"(exports, module2) {
     "use strict";
     init_define_process();
     var { isASCIIHex } = require_infra();
@@ -1065,9 +1065,9 @@ var require_percent_encoding = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/url-state-machine.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/url-state-machine.js
 var require_url_state_machine = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/url-state-machine.js"(exports, module2) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/url-state-machine.js"(exports, module2) {
     "use strict";
     init_define_process();
     var tr46 = require_tr46();
@@ -1128,13 +1128,13 @@ var require_url_state_machine = __commonJS({
     }
     __name(isNormalizedWindowsDriveLetterString, "isNormalizedWindowsDriveLetterString");
     function containsForbiddenHostCodePoint(string) {
-      return string.search(/\u0000|\u0009|\u000A|\u000D|\u0020|#|%|\/|:|<|>|\?|@|\[|\\|\]|\^|\|/u) !== -1;
-    }
-    __name(containsForbiddenHostCodePoint, "containsForbiddenHostCodePoint");
-    function containsForbiddenHostCodePointExcludingPercent(string) {
       return string.search(/\u0000|\u0009|\u000A|\u000D|\u0020|#|\/|:|<|>|\?|@|\[|\\|\]|\^|\|/u) !== -1;
     }
-    __name(containsForbiddenHostCodePointExcludingPercent, "containsForbiddenHostCodePointExcludingPercent");
+    __name(containsForbiddenHostCodePoint, "containsForbiddenHostCodePoint");
+    function containsForbiddenDomainCodePoint(string) {
+      return containsForbiddenHostCodePoint(string) || string.search(/[\u0000-\u001F]|%|\u007F/u) !== -1;
+    }
+    __name(containsForbiddenDomainCodePoint, "containsForbiddenDomainCodePoint");
     function isSpecialScheme2(scheme) {
       return specialSchemes[scheme] !== void 0;
     }
@@ -1372,7 +1372,7 @@ var require_url_state_machine = __commonJS({
       if (asciiDomain === failure) {
         return failure;
       }
-      if (containsForbiddenHostCodePoint(asciiDomain)) {
+      if (containsForbiddenDomainCodePoint(asciiDomain)) {
         return failure;
       }
       if (endsInANumber(asciiDomain)) {
@@ -1400,7 +1400,7 @@ var require_url_state_machine = __commonJS({
     }
     __name(endsInANumber, "endsInANumber");
     function parseOpaqueHost(input) {
-      if (containsForbiddenHostCodePointExcludingPercent(input)) {
+      if (containsForbiddenHostCodePoint(input)) {
         return failure;
       }
       return utf8PercentEncodeString(input, isC0ControlPercentEncode);
@@ -1480,7 +1480,7 @@ var require_url_state_machine = __commonJS({
     }
     __name(includesCredentials, "includesCredentials");
     function cannotHaveAUsernamePasswordPort(url) {
-      return url.host === null || url.host === "" || hasAnOpaquePath(url) || url.scheme === "file";
+      return url.host === null || url.host === "" || url.scheme === "file";
     }
     __name(cannotHaveAUsernamePasswordPort, "cannotHaveAUsernamePasswordPort");
     function hasAnOpaquePath(url) {
@@ -2124,9 +2124,9 @@ var require_url_state_machine = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/urlencoded.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/urlencoded.js
 var require_urlencoded = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/urlencoded.js"(exports, module2) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/urlencoded.js"(exports, module2) {
     "use strict";
     init_define_process();
     var { utf8Encode, utf8DecodeWithoutBOM } = require_encoding();
@@ -2220,9 +2220,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/Function.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/Function.js
 var require_Function = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/Function.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/Function.js"(exports) {
     "use strict";
     init_define_process();
     var conversions = require_lib();
@@ -2257,9 +2257,9 @@ var require_Function = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URLSearchParams-impl.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URLSearchParams-impl.js
 var require_URLSearchParams_impl = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URLSearchParams-impl.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URLSearchParams-impl.js"(exports) {
     "use strict";
     init_define_process();
     var urlencoded = require_urlencoded();
@@ -2289,11 +2289,14 @@ var require_URLSearchParams_impl = __commonJS({
       }
       _updateSteps() {
         if (this._url !== null) {
-          let query = urlencoded.serializeUrlencoded(this._list);
-          if (query === "") {
-            query = null;
+          let serializedQuery = urlencoded.serializeUrlencoded(this._list);
+          if (serializedQuery === "") {
+            serializedQuery = null;
           }
-          this._url._url.query = query;
+          this._url._url.query = serializedQuery;
+          if (serializedQuery === null) {
+            this._url._potentiallyStripTrailingSpacesFromAnOpaquePath();
+          }
         }
       }
       append(name, value) {
@@ -2379,9 +2382,9 @@ var require_URLSearchParams_impl = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URLSearchParams.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URLSearchParams.js
 var require_URLSearchParams = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URLSearchParams.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URLSearchParams.js"(exports) {
     "use strict";
     init_define_process();
     var conversions = require_lib();
@@ -2803,9 +2806,9 @@ var require_URLSearchParams = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URL-impl.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URL-impl.js
 var require_URL_impl = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URL-impl.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URL-impl.js"(exports) {
     "use strict";
     init_define_process();
     var usm = require_url_state_machine();
@@ -2938,6 +2941,7 @@ var require_URL_impl = __commonJS({
         if (v === "") {
           url.query = null;
           this._query._list = [];
+          this._potentiallyStripTrailingSpacesFromAnOpaquePath();
           return;
         }
         const input = v[0] === "?" ? v.substring(1) : v;
@@ -2957,6 +2961,7 @@ var require_URL_impl = __commonJS({
       set hash(v) {
         if (v === "") {
           this._url.fragment = null;
+          this._potentiallyStripTrailingSpacesFromAnOpaquePath();
           return;
         }
         const input = v[0] === "#" ? v.substring(1) : v;
@@ -2966,13 +2971,25 @@ var require_URL_impl = __commonJS({
       toJSON() {
         return this.href;
       }
+      _potentiallyStripTrailingSpacesFromAnOpaquePath() {
+        if (!usm.hasAnOpaquePath(this._url)) {
+          return;
+        }
+        if (this._url.fragment !== null) {
+          return;
+        }
+        if (this._url.query !== null) {
+          return;
+        }
+        this._url.path = this._url.path.replace(/\u0020+$/u, "");
+      }
     }, "URLImpl");
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URL.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URL.js
 var require_URL = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/lib/URL.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/lib/URL.js"(exports) {
     "use strict";
     init_define_process();
     var conversions = require_lib();
@@ -3320,9 +3337,9 @@ var require_URL = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/webidl2js-wrapper.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/webidl2js-wrapper.js
 var require_webidl2js_wrapper = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/webidl2js-wrapper.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/webidl2js-wrapper.js"(exports) {
     "use strict";
     init_define_process();
     var URL3 = require_URL();
@@ -3332,9 +3349,9 @@ var require_webidl2js_wrapper = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/index.js
+// ../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/index.js
 var require_whatwg_url = __commonJS({
-  "../../node_modules/.pnpm/whatwg-url@11.0.0/node_modules/whatwg-url/index.js"(exports) {
+  "../../node_modules/.pnpm/whatwg-url@12.0.0/node_modules/whatwg-url/index.js"(exports) {
     "use strict";
     init_define_process();
     var { URL: URL3, URLSearchParams: URLSearchParams2 } = require_webidl2js_wrapper();
@@ -3372,10 +3389,10 @@ module.exports = __toCommonJS(url_exports);
 init_define_process();
 var import_whatwg_url = __toESM(require_whatwg_url());
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.1/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.2/node_modules/urlpattern-polyfill/index.js
 init_define_process();
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.1/node_modules/urlpattern-polyfill/dist/urlpattern.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.2/node_modules/urlpattern-polyfill/dist/urlpattern.js
 init_define_process();
 var regexIdentifierStart = /[$_\p{ID_Start}]/u;
 var regexIdentifierPart = /[$_\u200C\u200D\p{ID_Continue}]/u;
@@ -3844,7 +3861,10 @@ function canonicalizePathname(pathname, protocol, isPattern) {
     return url.pathname;
   }
   const leadingSlash = pathname[0] == "/";
-  pathname = new URL(!leadingSlash ? "/-" + pathname : pathname, "https://example.com").pathname;
+  pathname = new URL(
+    !leadingSlash ? "/-" + pathname : pathname,
+    "https://example.com"
+  ).pathname;
   if (!leadingSlash) {
     pathname = pathname.substring(2, pathname.length);
   }
@@ -4272,19 +4292,26 @@ function extractValues(url, baseURL) {
   };
 }
 __name(extractValues, "extractValues");
+function processBaseURLString(input, isPattern) {
+  if (!isPattern) {
+    return input;
+  }
+  return escapePatternString(input);
+}
+__name(processBaseURLString, "processBaseURLString");
 function applyInit(o, init, isPattern) {
   let baseURL;
   if (typeof init.baseURL === "string") {
     try {
       baseURL = new URL(init.baseURL);
-      o.protocol = baseURL.protocol ? baseURL.protocol.substring(0, baseURL.protocol.length - 1) : "";
-      o.username = baseURL.username;
-      o.password = baseURL.password;
-      o.hostname = baseURL.hostname;
-      o.port = baseURL.port;
-      o.pathname = baseURL.pathname;
-      o.search = baseURL.search ? baseURL.search.substring(1, baseURL.search.length) : "";
-      o.hash = baseURL.hash ? baseURL.hash.substring(1, baseURL.hash.length) : "";
+      o.protocol = processBaseURLString(baseURL.protocol.substring(0, baseURL.protocol.length - 1), isPattern);
+      o.username = processBaseURLString(baseURL.username, isPattern);
+      o.password = processBaseURLString(baseURL.password, isPattern);
+      o.hostname = processBaseURLString(baseURL.hostname, isPattern);
+      o.port = processBaseURLString(baseURL.port, isPattern);
+      o.pathname = processBaseURLString(baseURL.pathname, isPattern);
+      o.search = processBaseURLString(baseURL.search.substring(1, baseURL.search.length), isPattern);
+      o.hash = processBaseURLString(baseURL.hash.substring(1, baseURL.hash.length), isPattern);
     } catch {
       throw new TypeError(`invalid baseURL '${init.baseURL}'.`);
     }
@@ -4309,7 +4336,7 @@ function applyInit(o, init, isPattern) {
     if (baseURL && !isAbsolutePathname(o.pathname, isPattern)) {
       const slashIndex = baseURL.pathname.lastIndexOf("/");
       if (slashIndex >= 0) {
-        o.pathname = baseURL.pathname.substring(0, slashIndex + 1) + o.pathname;
+        o.pathname = processBaseURLString(baseURL.pathname.substring(0, slashIndex + 1), isPattern) + o.pathname;
       }
     }
     o.pathname = canonicalizePathname(o.pathname, o.protocol, isPattern);
@@ -4621,7 +4648,7 @@ var URLPattern = /* @__PURE__ */ __name(class {
   }
 }, "URLPattern");
 
-// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.1/node_modules/urlpattern-polyfill/index.js
+// ../../node_modules/.pnpm/urlpattern-polyfill@6.0.2/node_modules/urlpattern-polyfill/index.js
 if (!globalThis.URLPattern) {
   globalThis.URLPattern = URLPattern;
 }

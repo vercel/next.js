@@ -37,7 +37,7 @@ export class Playwright extends BrowserInterface {
     if (!this.eventCallbacks[event]) {
       throw new Error(
         `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
-          event
+          this.eventCallbacks
         )}`
       )
     }
@@ -110,6 +110,12 @@ export class Playwright extends BrowserInterface {
       await oldPage.close()
     }
     page = await context.newPage()
+
+    // in development compilation can take longer due to
+    // lower CPU availability in GH actions
+    page.setDefaultTimeout(60 * 1000)
+    page.setDefaultNavigationTimeout(60 * 1000)
+
     pageLogs = []
     websocketFrames = []
 
@@ -277,8 +283,8 @@ export class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
   hasElementByCssSelector(selector: string) {
@@ -359,7 +365,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'function') {
       snippet = snippet.toString()
     }
@@ -377,7 +383,7 @@ export class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate(snippet).catch(() => null)
+    return page.evaluate<T>(snippet).catch(() => null)
   }
 
   async log() {

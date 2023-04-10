@@ -27,7 +27,7 @@ export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
-export const FONT_LOADER_MANIFEST = 'font-loader-manifest'
+export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
@@ -63,10 +63,12 @@ export const MODERN_BROWSERSLIST_TARGET = [
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/flight-manifest.js
-export const FLIGHT_MANIFEST = 'flight-manifest'
-// server/flight-server-css-manifest.json
+// server/client-reference-manifest
+export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
+// server/flight-server-css-manifest
 export const FLIGHT_SERVER_CSS_MANIFEST = 'flight-server-css-manifest'
+// server/server-reference-manifest
+export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
@@ -94,6 +96,7 @@ export const TEMPORARY_REDIRECT_STATUS = 307
 export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
+export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
@@ -113,6 +116,8 @@ export const DEFAULT_SANS_SERIF_FONT = {
 }
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+// in `MB`
+export const TURBO_TRACE_DEFAULT_MEMORY_LIMIT = 6000
 
 export const RSC_MODULE_TYPES = {
   client: 'client',
@@ -144,3 +149,10 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]
+
+export const SYSTEM_ENTRYPOINTS = new Set<string>([
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+])

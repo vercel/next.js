@@ -9,6 +9,11 @@ const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
+  roots: [
+    '<rootDir>',
+    '<rootDir>/../packages/next/src/',
+    '<rootDir>/../packages/font/src/',
+  ],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
   globals: {

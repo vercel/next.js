@@ -25,6 +25,30 @@ const styles = css`
     white-space: pre-wrap;
     word-break: break-word;
   }
+
+  [data-with-open-in-editor-link] svg {
+    width: auto;
+    height: var(--size-font-small);
+    margin-left: var(--size-gap);
+  }
+  [data-with-open-in-editor-link] {
+    cursor: pointer;
+  }
+  [data-with-open-in-editor-link]:hover {
+    text-decoration: underline dotted;
+  }
+  [data-with-open-in-editor-link-source-file] {
+    border-bottom: 1px solid var(--color-ansi-bright-black);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  [data-with-open-in-editor-link-import-trace] {
+    margin-left: var(--size-gap-double);
+  }
+  [data-nextjs-terminal] a {
+    color: inherit;
+  }
 `
 
 export { styles }

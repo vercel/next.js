@@ -1,8 +1,8 @@
 /* eslint-env jest */
-import { createNextDescribe, FileRef } from 'e2e-utils'
-import cheerio from 'cheerio'
 import path from 'path'
-import { withQuery } from 'next-test-utils'
+import cheerio from 'cheerio'
+import { check, withQuery } from 'next-test-utils'
+import { createNextDescribe, FileRef } from 'e2e-utils'
 
 createNextDescribe(
   'app-dir with middleware',
@@ -11,6 +11,17 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
+    it('should filter correctly after middleware rewrite', async () => {
+      const browser = await next.browser('/start')
+
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('window.next.router.push("/rewrite-to-app")')
+
+      await check(async () => {
+        return browser.eval('document.documentElement.innerHTML')
+      }, /app-dir/)
+    })
+
     describe.each([
       {
         title: 'Serverless Functions',

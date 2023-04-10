@@ -78,9 +78,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       if (actionInfo.isRelease) {
         logger('Release detected, resetting mainRepo to last stable tag')
         const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
-        mainNextSwcVersion = {
-          '@next/swc-linux-x64-gnu': lastStableTag,
-        }
+        mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         console.log('using latestStable', lastStableTag)
         await checkoutRef(lastStableTag, mainRepoDir)
@@ -140,7 +138,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcPkg: isMainRepo ? mainNextSwcVersion : undefined,
+        nextSwcVersion: isMainRepo ? mainNextSwcVersion : undefined,
       })
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths

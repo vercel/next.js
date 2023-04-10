@@ -1,5 +1,5 @@
 'use client'
-import localFont from '@next/font/local'
+import localFont from 'next/font/local'
 
 const pageFont = localFont({ src: './page.woff2', preload: false })
 

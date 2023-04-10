@@ -118,6 +118,8 @@ export default function nextJest(options: { dir?: string } = {}) {
 
           // Handle @next/font
           '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
+          // Handle next/font
+          'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break

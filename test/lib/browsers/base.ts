@@ -116,10 +116,18 @@ export class BrowserInterface implements PromiseLike<any> {
   ): Promise<void> {}
   async get(url: string): Promise<void> {}
 
-  async getValue(): Promise<any> {}
-  async getAttribute(name: string): Promise<any> {}
-  async eval(snippet: string | Function): Promise<any> {}
-  async evalAsync(snippet: string | Function): Promise<any> {}
+  async getValue<T = any>(): Promise<T> {
+    return
+  }
+  async getAttribute<T = any>(name: string): Promise<T> {
+    return
+  }
+  async eval<T = any>(snippet: string | Function): Promise<T> {
+    return
+  }
+  async evalAsync<T = any>(snippet: string | Function): Promise<T> {
+    return
+  }
   async text(): Promise<string> {
     return ''
   }

@@ -15,7 +15,7 @@ createNextDescribe(
         .click()
 
       if (isNextDev) {
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(/Error: Client error/)
       } else {
         await browser

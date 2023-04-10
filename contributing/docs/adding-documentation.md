@@ -23,17 +23,17 @@ After:
 
 ```json
 [
-   {
-      "path": "/docs/original",
-      "redirect": {
-         "permanent": false,
-         "destination": "/new"
-      }
-   }
-   {
-      "path": "/docs/new.md",
-      "title": "Hello world"
-   },
+  {
+    "path": "/docs/original",
+    "redirect": {
+      "permanent": false,
+      "destination": "/new"
+    }
+  },
+  {
+    "path": "/docs/new.md",
+    "title": "Hello world"
+  }
 ]
 ```
 

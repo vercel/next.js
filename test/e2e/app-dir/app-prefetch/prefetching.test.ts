@@ -10,7 +10,7 @@ createNextDescribe(
   ({ next, isNextDev }) => {
     // TODO: re-enable for dev after https://vercel.slack.com/archives/C035J346QQL/p1663822388387959 is resolved (Sep 22nd 2022)
     if (isNextDev) {
-      it('should skip next deploy for now', () => {})
+      it('should skip next dev for now', () => {})
       return
     }
 
@@ -50,12 +50,13 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched', async () => {
-      const browser = await next.browser('/', { waitHydration: false })
+      const browser = await next.browser('/404')
       let requests: string[] = []
 
       browser.on('request', (req) => {
         requests.push(new URL(req.url()).pathname)
       })
+      await browser.eval('location.href = "/"')
 
       await browser.eval('window.nd.router.prefetch("/static-page")')
       await check(() => {
@@ -72,6 +73,79 @@ createNextDescribe(
       expect(
         requests.filter((request) => request === '/static-page').length
       ).toBe(1)
+    })
+
+    it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
+      const browser = await next.browser('/404')
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+      await browser.eval('location.href = "/"')
+
+      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await check(() => {
+        return requests.some((req) => req.includes('static-page'))
+          ? 'success'
+          : JSON.stringify(requests)
+      }, 'success')
+
+      await browser
+        .elementByCss('#to-static-page')
+        .click()
+        .waitForElementByCss('#static-page')
+
+      await browser
+        .elementByCss('#to-home')
+        // Go back to home page
+        .click()
+        // Wait for homepage to load
+        .waitForElementByCss('#to-static-page')
+        // Click on the link to the static page again
+        .click()
+        // Wait for the static page to load again
+        .waitForElementByCss('#static-page')
+
+      expect(
+        requests.filter((request) => request === '/static-page').length
+      ).toBe(1)
+    })
+
+    it('should not prefetch for a bot user agent', async () => {
+      const browser = await next.browser('/404')
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+      await browser.eval(
+        `location.href = "/?useragent=${encodeURIComponent(
+          'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        )}"`
+      )
+
+      await browser.elementByCss('#to-static-page').moveTo()
+
+      // check five times to ensure prefetch didn't occur
+      for (let i = 0; i < 5; i++) {
+        await waitFor(500)
+        expect(
+          requests.filter((request) => request === '/static-page').length
+        ).toBe(0)
+      }
+    })
+
+    it('should navigate when prefetch is false', async () => {
+      const browser = await next.browser('/prefetch-false/initial')
+      await browser
+        .elementByCss('#to-prefetch-false-result')
+        .click()
+        .waitForElementByCss('#prefetch-false-page-result')
+
+      expect(
+        await browser.elementByCss('#prefetch-false-page-result').text()
+      ).toBe('Result page')
     })
   }
 )

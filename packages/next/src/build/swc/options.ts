@@ -127,6 +127,9 @@ function getBaseSWCOptions({
       styledComponents: getStyledComponentsOptions(nextConfig, development),
     }),
     serverComponents: hasServerComponents
+      ? { isServer: !!isServerLayer }
+      : undefined,
+    serverActions: hasServerComponents
       ? {
           isServer: !!isServerLayer,
         }
@@ -180,11 +183,10 @@ export function getJestSWCOptions({
   esm,
   nextConfig,
   jsConfig,
+  resolvedBaseUrl,
   pagesDir,
   hasServerComponents,
-}: // This is not passed yet as "paths" resolving needs a test first
-// resolvedBaseUrl,
-any) {
+}: any) {
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
@@ -194,7 +196,7 @@ any) {
     nextConfig,
     jsConfig,
     hasServerComponents,
-    // resolvedBaseUrl,
+    resolvedBaseUrl,
   })
 
   const isNextDist = nextDistPath.test(filename)
@@ -220,8 +222,8 @@ export function getLoaderSWCOptions({
   filename,
   development,
   isServer,
-  isServerLayer,
   pagesDir,
+  appDir,
   isPageFile,
   hasReactRefresh,
   nextConfig,
@@ -230,6 +232,7 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   hasServerComponents,
+  isServerLayer,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 any) {
@@ -242,18 +245,20 @@ any) {
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    isServerLayer,
     relativeFilePathFromRoot,
     hasServerComponents,
+    isServerLayer,
   })
+  baseOptions.fontLoaders = {
+    fontLoaders: [
+      'next/font/local',
+      'next/font/google',
 
-  if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
-    baseOptions.fontLoaders = {
-      fontLoaders: nextConfig.experimental.fontLoaders.map(
-        ({ loader }: any) => loader
-      ),
-      relativeFilePathFromRoot,
-    }
+      // TODO: remove this in the next major version
+      '@next/font/local',
+      '@next/font/google',
+    ],
+    relativeFilePathFromRoot,
   }
 
   const isNextDist = nextDistPath.test(filename)
@@ -267,6 +272,7 @@ any) {
       isDevelopment: development,
       isServer,
       pagesDir,
+      appDir,
       isPageFile,
       env: {
         targets: {
@@ -292,6 +298,7 @@ any) {
       isDevelopment: development,
       isServer,
       pagesDir,
+      appDir,
       isPageFile,
       ...(supportedBrowsers && supportedBrowsers.length > 0
         ? {

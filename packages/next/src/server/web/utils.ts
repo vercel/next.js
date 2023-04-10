@@ -1,13 +1,16 @@
-import type { NodeHeaders } from './types'
+import type { OutgoingHttpHeaders } from 'http'
 
-export function fromNodeHeaders(object: NodeHeaders): Headers {
+export function fromNodeHeaders(object: OutgoingHttpHeaders): Headers {
   const headers = new Headers()
   for (let [key, value] of Object.entries(object)) {
     const values = Array.isArray(value) ? value : [value]
     for (let v of values) {
-      if (v !== undefined) {
-        headers.append(key, v)
+      if (typeof v === 'undefined') continue
+      if (typeof v === 'number') {
+        v = v.toString()
       }
+
+      headers.append(key, v)
     }
   }
   return headers
@@ -89,13 +92,19 @@ export function splitCookiesString(cookiesString: string) {
   return cookiesStrings
 }
 
-export function toNodeHeaders(headers?: Headers): NodeHeaders {
-  const result: NodeHeaders = {}
+export function toNodeHeaders(headers?: Headers): OutgoingHttpHeaders {
+  const result: OutgoingHttpHeaders = {}
+  const cookies: string[] = []
   if (headers) {
     for (const [key, value] of headers.entries()) {
-      result[key] = value
       if (key.toLowerCase() === 'set-cookie') {
-        result[key] = splitCookiesString(value)
+        // We may have gotten a comma joined string of cookies, or multiple
+        // set-cookie headers. We need to merge them into one header array
+        // to represent all the cookies.
+        cookies.push(...splitCookiesString(value))
+        result[key] = cookies.length === 1 ? cookies[0] : cookies
+      } else {
+        result[key] = value
       }
     }
   }
