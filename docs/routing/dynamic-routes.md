@@ -16,16 +16,16 @@ Defining routes by using predefined paths is not always enough for complex appli
 Consider the following page `pages/post/[pid].js`:
 
 ```jsx
-import { useRouter } from "next/router";
+import { useRouter } from 'next/router'
 
 const Post = () => {
-  const router = useRouter();
-  const { pid } = router.query;
+  const router = useRouter()
+  const { pid } = router.query
 
-  return <p>Post: {pid}</p>;
-};
+  return <p>Post: {pid}</p>
+}
 
-export default Post;
+export default Post
 ```
 
 Any route like `/post/1`, `/post/abc`, etc. will be matched by `pages/post/[pid].js`. The matched path parameter will be sent as a query parameter to the page, and it will be merged with the other query parameters.
@@ -57,7 +57,7 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 Client-side navigations to dynamic routes are handled with [`next/link`](/docs/api-reference/next/link.md). If we wanted to have links to the routes used above it will look like this:
 
 ```jsx
-import Link from "next/link";
+import Link from 'next/link'
 
 function Home() {
   return (
@@ -74,10 +74,10 @@ function Home() {
         </Link>
       </li>
     </ul>
-  );
+  )
 }
 
-export default Home;
+export default Home
 ```
 
 Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-between-pages) to learn more.
