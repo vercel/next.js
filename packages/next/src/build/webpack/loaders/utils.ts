@@ -13,7 +13,7 @@ export function isClientComponentModule(mod: {
   return hasClientDirective || imageRegex.test(mod.resource)
 }
 
-export const regexCSS = /\.(css|scss|sass)(\?.*)?$/
+export const regexCSS = /\.(css|scss|sass|css\.ts)(\?.*)?$/
 
 export function getActions(mod: {
   resource: string
