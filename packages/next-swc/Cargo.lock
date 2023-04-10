@@ -7478,6 +7478,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "swc_core",
  "tracing",
  "turbo-binding",
  "wasm-bindgen",
