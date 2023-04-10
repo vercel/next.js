@@ -11,7 +11,7 @@ import type {
   NEXT_DATA,
 } from '../shared/lib/utils'
 import type { ScriptProps } from '../client/script'
-import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 import { BuildManifest, getPageFiles } from '../server/get-page-files'
 import { htmlEscapeJsonString } from '../server/htmlescape'
@@ -357,20 +357,20 @@ function getAmpPath(ampPath: string, asPath: string): string {
   return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
 
-function getFontLoaderLinks(
-  fontLoaderManifest: FontLoaderManifest | undefined,
+function getNextFontLinkTags(
+  nextFontManifest: NextFontManifest | undefined,
   dangerousAsPath: string,
   assetPrefix: string = ''
 ) {
-  if (!fontLoaderManifest) {
+  if (!nextFontManifest) {
     return {
       preconnect: null,
       preload: null,
     }
   }
 
-  const appFontsEntry = fontLoaderManifest.pages['/_app']
-  const pageFontsEntry = fontLoaderManifest.pages[dangerousAsPath]
+  const appFontsEntry = nextFontManifest.pages['/_app']
+  const pageFontsEntry = nextFontManifest.pages[dangerousAsPath]
 
   const preloadedFontFiles = [
     ...(appFontsEntry ?? []),
@@ -387,7 +387,7 @@ function getFontLoaderLinks(
     preconnect: preconnectToSelf ? (
       <link
         data-next-font={
-          fontLoaderManifest.pagesUsingSizeAdjust ? 'size-adjust' : ''
+          nextFontManifest.pagesUsingSizeAdjust ? 'size-adjust' : ''
         }
         rel="preconnect"
         href="/"
@@ -669,7 +669,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       optimizeFonts,
       assetPrefix,
-      fontLoaderManifest,
+      nextFontManifest,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -683,15 +683,30 @@ export class Head extends React.Component<HeadProps> {
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
       head.forEach((c) => {
+        let metaTag
+
+        if (this.context.strictNextHead) {
+          metaTag = React.createElement('meta', {
+            name: 'next-head',
+            content: '1',
+          })
+        }
+
         if (
           c &&
           c.type === 'link' &&
           c.props['rel'] === 'preload' &&
           c.props['as'] === 'style'
         ) {
+          metaTag && cssPreloads.push(metaTag)
           cssPreloads.push(c)
         } else {
-          c && otherHeadElements.push(c)
+          if (c) {
+            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
+              otherHeadElements.push(metaTag)
+            }
+            otherHeadElements.push(c)
+          }
         }
       })
       head = cssPreloads.concat(otherHeadElements)
@@ -784,8 +799,8 @@ export class Head extends React.Component<HeadProps> {
       process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
     )
 
-    const fontLoaderLinks = getFontLoaderLinks(
-      fontLoaderManifest,
+    const nextFontLinkTags = getNextFontLinkTags(
+      nextFontManifest,
       dangerousAsPath,
       assetPrefix
     )
@@ -822,16 +837,18 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
+        {this.context.strictNextHead ? null : (
+          <meta
+            name="next-head-count"
+            content={React.Children.count(head || []).toString()}
+          />
+        )}
 
         {children}
         {optimizeFonts && <meta name="next-font-preconnect" />}
 
-        {fontLoaderLinks.preconnect}
-        {fontLoaderLinks.preload}
+        {nextFontLinkTags.preconnect}
+        {nextFontLinkTags.preload}
 
         {process.env.NEXT_RUNTIME !== 'edge' && inAmpMode && (
           <>

@@ -1,5 +1,8 @@
-import { CacheNode } from '../../../shared/lib/app-router-context'
-import { FlightRouterState, FlightData } from '../../../server/app-render'
+import type { CacheNode } from '../../../shared/lib/app-router-context'
+import type {
+  FlightRouterState,
+  FlightData,
+} from '../../../server/app-render/types'
 import { fetchServerResponse } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
@@ -7,6 +10,7 @@ export const ACTION_NAVIGATE = 'navigate'
 export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
+export const ACTION_FAST_REFRESH = 'fast-refresh'
 
 export interface Mutable {
   mpaNavigation?: boolean
@@ -16,6 +20,8 @@ export interface Mutable {
   applyFocusAndScroll?: boolean
   pendingPush?: boolean
   cache?: CacheNode
+  prefetchCache?: AppRouterState['prefetchCache']
+  hashFragment?: string
 }
 
 /**
@@ -25,6 +31,13 @@ export interface Mutable {
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
+  cache: CacheNode
+  mutable: Mutable
+  origin: Location['origin']
+}
+
+export interface FastRefreshAction {
+  type: typeof ACTION_FAST_REFRESH
   cache: CacheNode
   mutable: Mutable
   origin: Location['origin']
@@ -112,8 +125,6 @@ export interface ServerPatchAction {
 export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
-  tree: FlightRouterState
-  serverResponse: Awaited<ReturnType<typeof fetchServerResponse>>
 }
 
 interface PushRef {
@@ -132,6 +143,10 @@ export type FocusAndScrollRef = {
    * If focus and scroll should be set in the layout-router's useEffect()
    */
   apply: boolean
+  /**
+   * The hash fragment that should be scrolled to.
+   */
+  hashFragment: string | null
 }
 
 /**
@@ -156,9 +171,8 @@ export type AppRouterState = {
   prefetchCache: Map<
     string,
     {
-      flightData: FlightData
-      tree: FlightRouterState
-      canonicalUrlOverride: URL | undefined
+      treeAtTimeOfPrefetch: FlightRouterState
+      data: ReturnType<typeof fetchServerResponse> | null
     }
   >
   /**
@@ -174,6 +188,10 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+  /**
+   * The underlying "url" representing the UI state, which is used for intercepting routes.
+   */
+  nextUrl: string | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>
@@ -184,4 +202,5 @@ export type ReducerActions = Readonly<
   | RestoreAction
   | ServerPatchAction
   | PrefetchAction
+  | FastRefreshAction
 >

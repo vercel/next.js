@@ -389,7 +389,24 @@ export default class HotReloader {
                   stackTrace
                 )?.[1]
                 if (file) {
-                  fileMessage = ` when ${file} changed`
+                  // `file` is filepath in `pages/` but it can be weird long webpack url in `app/`.
+                  // If it's a webpack loader URL, it will start with '(app-client)/./'
+                  if (file.startsWith('(app-client)/./')) {
+                    const fileUrl = new URL(file, 'file://')
+                    const cwd = process.cwd()
+                    const modules = fileUrl.searchParams
+                      .getAll('modules')
+                      .map((filepath) => filepath.slice(cwd.length + 1))
+                      .filter(
+                        (filepath) => !filepath.startsWith('node_modules')
+                      )
+
+                    if (modules.length > 0) {
+                      fileMessage = ` when ${modules.join(', ')} changed`
+                    }
+                  } else {
+                    fileMessage = ` when ${file} changed`
+                  }
                 }
               }
 
@@ -642,7 +659,7 @@ export default class HotReloader {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
         const outputPath = this.multiCompiler?.outputPath || ''
-        const entries: ReturnType<typeof getEntries> = getEntries(outputPath)
+        const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
         const isClientCompilation = config.name === COMPILER_NAMES.client
@@ -655,8 +672,12 @@ export default class HotReloader {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
 
-            const result = /^(client|server|edge-server)(.*)/g.exec(entryKey)
-            const [, key, page] = result! // this match should always happen
+            const result =
+              /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
+                entryKey
+              )
+            const [, key /* pageType */, , page] = result! // this match should always happen
+
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return
@@ -717,6 +738,7 @@ export default class HotReloader {
                 const appDirLoader = isAppPath
                   ? getAppEntry({
                       name: bundlePath,
+                      page,
                       appPaths: entryData.appPaths,
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
@@ -731,6 +753,7 @@ export default class HotReloader {
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
                       assetPrefix: this.config.assetPrefix,
+                      nextConfigOutput: this.config.output,
                     }).import
                   : undefined
 
@@ -798,6 +821,7 @@ export default class HotReloader {
                   value: isAppPath
                     ? getAppEntry({
                         name: bundlePath,
+                        page,
                         appPaths: entryData.appPaths,
                         pagePath: posix.join(
                           APP_DIR_ALIAS,
@@ -812,6 +836,7 @@ export default class HotReloader {
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
                         assetPrefix: this.config.assetPrefix,
+                        nextConfigOutput: this.config.output,
                       })
                     : relativeRequest,
                   hasAppDir,
@@ -921,13 +946,13 @@ export default class HotReloader {
                         key.startsWith('app/') &&
                         mod.resource?.endsWith('.css')
                       ) {
-                        const prevHash = prevCSSImportModuleHashes.get(
-                          mod.resource
-                        )
+                        const resourceKey = mod.layer + ':' + mod.resource
+                        const prevHash =
+                          prevCSSImportModuleHashes.get(resourceKey)
                         if (prevHash && prevHash !== hash) {
                           hasCSSModuleChanges = true
                         }
-                        prevCSSImportModuleHashes.set(mod.resource, hash)
+                        prevCSSImportModuleHashes.set(resourceKey, hash)
                       }
                     }
                   })

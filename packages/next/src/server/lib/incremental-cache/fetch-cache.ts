@@ -5,34 +5,19 @@ import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
+interface NextFetchCacheParams {
+  internal?: boolean
+  fetchType?: string
+  fetchIdx?: number
+  originUrl?: string
+}
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
 
   constructor(ctx: CacheHandlerContext) {
-    if (ctx.maxMemoryCacheSize && !memoryCache) {
-      memoryCache = new LRUCache({
-        max: ctx.maxMemoryCacheSize,
-        length({ value }) {
-          if (!value) {
-            return 25
-          } else if (value.kind === 'REDIRECT') {
-            return JSON.stringify(value.props).length
-          } else if (value.kind === 'IMAGE') {
-            throw new Error('invariant image should not be incremental-cache')
-          } else if (value.kind === 'FETCH') {
-            return JSON.stringify(value.data || '').length
-          } else if (value.kind === 'ROUTE') {
-            return value.body.length
-          }
-          // rough estimate of size of cache value
-          return (
-            value.html.length + (JSON.stringify(value.pageData)?.length || 0)
-          )
-        },
-      })
-    }
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
     this.headers['Content-Type'] = 'application/json'
@@ -56,24 +41,70 @@ export default class FetchCache implements CacheHandler {
     } else if (this.debug) {
       console.log('no cache endpoint available')
     }
+
+    if (ctx.maxMemoryCacheSize && !memoryCache) {
+      if (this.debug) {
+        console.log('using memory store for fetch cache')
+      }
+      memoryCache = new LRUCache({
+        max: ctx.maxMemoryCacheSize,
+        length({ value }) {
+          if (!value) {
+            return 25
+          } else if (value.kind === 'REDIRECT') {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === 'IMAGE') {
+            throw new Error('invariant image should not be incremental-cache')
+          } else if (value.kind === 'FETCH') {
+            return JSON.stringify(value.data || '').length
+          } else if (value.kind === 'ROUTE') {
+            return value.body.length
+          }
+          // rough estimate of size of cache value
+          return (
+            value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+          )
+        },
+      })
+    } else {
+      if (this.debug) {
+        console.log('not using memory store for fetch cache')
+      }
+    }
   }
 
-  public async get(key: string, fetchCache?: boolean) {
+  public async get(
+    key: string,
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
+  ) {
     if (!fetchCache) return null
 
     let data = memoryCache?.get(key)
+
+    // memory cache data is only leveraged for up to 1 seconds
+    // so that revalidation events can be pulled from source
+    if (Date.now() - (data?.lastModified || 0) > 2000) {
+      data = undefined
+    }
 
     // get data from fetch cache
     if (!data && this.cacheEndpoint) {
       try {
         const start = Date.now()
+        const fetchParams: NextFetchCacheParams = {
+          internal: true,
+          fetchType: 'fetch-get',
+          originUrl,
+          fetchIdx,
+        }
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'GET',
             headers: this.headers,
-            // @ts-expect-error
-            next: { internal: true },
+            next: fetchParams as NextFetchRequestConfig,
           }
         )
 
@@ -105,11 +136,11 @@ export default class FetchCache implements CacheHandler {
 
         data = {
           value: cached,
-          // if it's already stale set it to a year in the future
+          // if it's already stale set it to a time in the past
           // if not derive last modified from age
           lastModified:
             cacheState === 'stale'
-              ? Date.now() + CACHE_ONE_YEAR
+              ? Date.now() - CACHE_ONE_YEAR
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
         if (this.debug) {
@@ -136,7 +167,9 @@ export default class FetchCache implements CacheHandler {
   public async set(
     key: string,
     data: CacheHandlerValue['value'],
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
   ) {
     if (!fetchCache) return
 
@@ -160,14 +193,19 @@ export default class FetchCache implements CacheHandler {
             data.data.headers['cache-control']
         }
         const body = JSON.stringify(data)
+        const fetchParams: NextFetchCacheParams = {
+          internal: true,
+          fetchType: 'fetch-set',
+          originUrl,
+          fetchIdx,
+        }
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
             headers: this.headers,
             body: body,
-            // @ts-expect-error
-            next: { internal: true },
+            next: fetchParams as NextFetchRequestConfig,
           }
         )
 

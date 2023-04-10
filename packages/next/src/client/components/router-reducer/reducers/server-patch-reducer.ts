@@ -6,11 +6,9 @@ import {
   ReducerState,
   ReadonlyReducerState,
 } from '../router-reducer-types'
-import {
-  handleMutable,
-  applyFlightData,
-  handleExternalUrl,
-} from './navigate-reducer'
+import { handleExternalUrl } from './navigate-reducer'
+import { applyFlightData } from '../apply-flight-data'
+import { handleMutable } from '../handle-mutable'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,

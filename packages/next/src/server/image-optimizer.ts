@@ -20,7 +20,7 @@ import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
 import { NextUrlWithParsedQuery } from './request-meta'
 import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
-import { mockRequest } from './lib/mock-request'
+import { createRequestResponseMocks } from './lib/mock-request'
 import { hasMatch } from '../shared/lib/match-remote-pattern'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import { ImageConfigComplete } from '../shared/lib/image-config'
@@ -33,6 +33,7 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
+const ICO = 'image/x-icon'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -140,6 +141,9 @@ export function detectContentType(buffer: Buffer) {
     )
   ) {
     return AVIF
+  }
+  if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
+    return ICO
   }
   return null
 }
@@ -517,7 +521,7 @@ export async function imageOptimizer(
   ) => Promise<void>
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
   let upstreamBuffer: Buffer
-  let upstreamType: string | null
+  let upstreamType: string | null | undefined
   let maxAge: number
   const { isAbsolute, href, width, mimeType, quality } = paramsResult
 
@@ -543,28 +547,30 @@ export async function imageOptimizer(
     maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   } else {
     try {
-      const {
-        resBuffers,
-        req: mockReq,
-        res: mockRes,
-        streamPromise: isStreamFinished,
-      } = mockRequest(href, _req.headers, _req.method || 'GET', _req.connection)
+      const mocked = createRequestResponseMocks({
+        url: href,
+        method: _req.method || 'GET',
+        headers: _req.headers,
+        socket: _req.socket,
+      })
 
-      await handleRequest(mockReq, mockRes, nodeUrl.parse(href, true))
-      await isStreamFinished
+      await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+      await mocked.res.hasStreamed
 
-      if (!mockRes.statusCode) {
-        console.error('image response failed for', href, mockRes.statusCode)
+      if (!mocked.res.statusCode) {
+        console.error('image response failed for', href, mocked.res.statusCode)
         throw new ImageError(
-          mockRes.statusCode,
+          mocked.res.statusCode,
           '"url" parameter is valid but internal response is invalid'
         )
       }
 
-      upstreamBuffer = Buffer.concat(resBuffers)
+      upstreamBuffer = Buffer.concat(mocked.res.buffers)
       upstreamType =
-        detectContentType(upstreamBuffer) || mockRes.getHeader('Content-Type')
-      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+        detectContentType(upstreamBuffer) ||
+        mocked.res.getHeader('Content-Type')
+      const cacheControl = mocked.res.getHeader('Cache-Control')
+      maxAge = cacheControl ? getMaxAge(cacheControl) : 0
     } catch (err) {
       console.error('upstream image response failed for', href, err)
       throw new ImageError(

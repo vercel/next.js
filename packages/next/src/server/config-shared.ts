@@ -9,6 +9,7 @@ import {
 import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
+import type { NextParsedUrlQuery } from './request-meta'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -16,7 +17,6 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
-  target?: string
 }
 
 export interface I18NConfig {
@@ -114,15 +114,20 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  appDocumentPreloading?: boolean
+  strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  // decimal for percent for possible false positives
+  // e.g. 0.01 for 10% potential false matches lower
+  // percent increases size of the filter
+  clientRouterFilterAllowedRate?: number
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
-  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -144,6 +149,10 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
+  /**
+   * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#appdir
+   */
   appDir?: boolean
   amp?: {
     optimizer?: any
@@ -184,10 +193,11 @@ export interface ExperimentalConfig {
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
 
-  // A list of packages that should be treated as external in the RSC server build
+  /**
+   * A list of packages that should be treated as external in the RSC server build.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages
+   */
   serverComponentsExternalPackages?: string[]
-
-  fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
@@ -209,10 +219,18 @@ export interface ExperimentalConfig {
     /** in `MB` */
     memoryLimit?: number
   }
+
+  /**
+   * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#mdxrs
+   */
   mdxRs?: boolean
 
-  // Generate Route types and enable type checking for Link and Router.push, etc.
-  // This option requires `appDir` to be enabled first.
+  /**
+   * Generate Route types and enable type checking for Link and Router.push, etc.
+   * This option requires `appDir` to be enabled first.
+   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#typedroutes
+   */
   typedRoutes?: boolean
 
   /**
@@ -224,10 +242,22 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
+
+  /**
+   * Use the `experimental` channel of React and React DOM in the app/ directory.
+   * By default, this will be disable and the `next` channel will be used.
+   * This requires `appDir` to be enabled first.
+   */
+  experimentalReact?: boolean
 }
 
 export type ExportPathMap = {
-  [path: string]: { page: string; query?: Record<string, string | string[]> }
+  [path: string]: {
+    page: string
+    query?: NextParsedUrlQuery
+    _isAppDir?: boolean
+    _isDynamicError?: boolean
+  }
 }
 
 /**
@@ -503,6 +533,7 @@ export interface NextConfig extends Record<string, any> {
       src: string
       artifactDirectory?: string
       language?: 'typescript' | 'javascript' | 'flow'
+      eagerEsModules?: boolean
     }
     removeConsole?:
       | boolean
@@ -554,7 +585,11 @@ export interface NextConfig extends Record<string, any> {
    */
   output?: 'standalone' | 'export'
 
-  // A list of packages that should always be transpiled and bundled in the server
+  /**
+   * Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the
+   * `next-transpile-modules` package.
+   * @see [transpilePackages](https://nextjs.org/docs/advanced-features/compiler#module-transpilation)
+   */
   transpilePackages?: string[]
 
   skipMiddlewareUrlNormalize?: boolean
@@ -594,7 +629,6 @@ export const defaultConfig: NextConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
@@ -629,9 +663,9 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    appDocumentPreloading: true,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
-    preCompiledNextServer: false,
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,

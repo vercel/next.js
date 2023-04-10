@@ -1,18 +1,19 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
+import { Readable } from 'stream'
+
 import {
   withRequestMeta,
   getRequestMeta,
   cookieWithRequestMeta,
 } from './helpers'
-import { Readable } from 'stream'
-import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextStart }) => {
+  ({ next, isNextDeploy, isNextDev, isNextStart }) => {
     describe('works with api prefix correctly', () => {
       it('statically generates correctly with no dynamic usage', async () => {
         if (isNextStart) {
@@ -138,6 +139,14 @@ createNextDescribe(
           const meta = getRequestMeta(res.headers)
           expect(meta.ping).toEqual('pong')
         })
+
+        it('can read query parameters (edge)', async () => {
+          const res = await next.fetch('/edge/advanced/query?ping=pong')
+
+          expect(res.status).toEqual(200)
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
       })
 
       describe('response', () => {
@@ -180,7 +189,7 @@ createNextDescribe(
 
     describe('body', () => {
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can handle handle a streaming request and streaming response', async () => {
           const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
           let index = 0
@@ -203,6 +212,27 @@ createNextDescribe(
         })
       }
 
+      it('can handle handle a streaming request and streaming response (edge)', async () => {
+        const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
+        let index = 0
+        const stream = new Readable({
+          read() {
+            if (index >= body.length) return this.push(null)
+
+            this.push(body[index] + '\n')
+            index++
+          },
+        })
+
+        const res = await next.fetch('/edge/advanced/body/streaming', {
+          method: 'POST',
+          body: stream,
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual(body.join('\n') + '\n')
+      })
+
       it('can read a JSON encoded body', async () => {
         const body = { ping: 'pong' }
         const res = await next.fetch('/advanced/body/json', {
@@ -215,8 +245,20 @@ createNextDescribe(
         expect(meta.body).toEqual(body)
       })
 
+      it('can read a JSON encoded body (edge)', async () => {
+        const body = { ping: 'pong' }
+        const res = await next.fetch('/edge/advanced/body/json', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
       // we can't stream a body to a function currently only stream response
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('can read a streamed JSON encoded body', async () => {
           const body = { ping: 'pong' }
           const encoded = JSON.stringify(body)
@@ -240,9 +282,43 @@ createNextDescribe(
         })
       }
 
+      it('can read a streamed JSON encoded body (edge)', async () => {
+        const body = { ping: 'pong' }
+        const encoded = JSON.stringify(body)
+        let index = 0
+        const stream = new Readable({
+          async read() {
+            if (index >= encoded.length) return this.push(null)
+
+            this.push(encoded[index])
+            index++
+          },
+        })
+        const res = await next.fetch('/edge/advanced/body/json', {
+          method: 'POST',
+          body: stream,
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
       it('can read the text body', async () => {
         const body = 'hello, world'
         const res = await next.fetch('/advanced/body/text', {
+          method: 'POST',
+          body,
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
+      it('can read the text body (edge)', async () => {
+        const body = 'hello, world'
+        const res = await next.fetch('/edge/advanced/body/text', {
           method: 'POST',
           body,
         })
@@ -369,7 +445,7 @@ createNextDescribe(
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
 
-        if (!(global as any).isNextDeploy) {
+        if (!isNextDeploy) {
           await check(() => {
             expect(next.cliOutput).toContain(error)
             return 'yes'
@@ -446,6 +522,17 @@ createNextDescribe(
       })
     })
 
+    describe('customized metadata routes', () => {
+      it('should work if conflict with metadata routes convention', async () => {
+        const res = await next.fetch('/robots.txt')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toBe(
+          'User-agent: *\nAllow: /\n\nSitemap: https://www.example.com/sitemap.xml'
+        )
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
@@ -475,6 +562,26 @@ createNextDescribe(
             }, 'yes')
           }
         )
+      })
+
+      describe('invalid exports', () => {
+        it('should print an error when exporting a default handler in dev', async () => {
+          const res = await next.fetch('/default')
+
+          // Ensure we get a 405 (Method Not Allowed) response when there is no
+          // exported handler for the GET method.
+          expect(res.status).toEqual(405)
+
+          await check(() => {
+            expect(next.cliOutput).toMatch(
+              /Detected default export in '.+\/route\.ts'\. Export a named export for each HTTP method instead\./
+            )
+            expect(next.cliOutput).toMatch(
+              /No HTTP methods exported in '.+\/route\.ts'\. Export a named export for each HTTP method\./
+            )
+            return 'yes'
+          }, 'yes')
+        })
       })
     }
   }

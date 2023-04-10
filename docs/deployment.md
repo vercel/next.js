@@ -37,7 +37,7 @@ When deploying to Vercel, the platform [automatically detects Next.js](https://v
 - [Pages](/docs/basic-features/pages.md) are automatically statically optimized, if possible
 - Assets (JavaScript, CSS, images, fonts) are compressed and served from a [Global Edge Network](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - [API Routes](/docs/api-routes/introduction.md) are automatically optimized as isolated [Serverless Functions](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that can scale infinitely
-- [Middleware](/docs/middleware.md) are automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that have zero cold starts and boot instantly
+- [Middleware](/docs/middleware.md) is automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that have zero cold starts and boot instantly
 
 In addition, Vercel provides features like:
 
@@ -71,7 +71,7 @@ First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 }
 ```
 
-Then, run `next build` to build your application. Finally, run `next start` to start the Node.js server. This server supports all features of Next.js.
+Then, run `npm run build` to build your application. Finally, run `npm run start` to start the Node.js server. This server supports all features of Next.js.
 
 > If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
 
@@ -107,21 +107,21 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 ### Static Only
 
-The following services only support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+The following services only support deploying Next.js using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
 
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
 
-You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
+You can also manually deploy the output from [`output: 'export'`](/docs/advanced-features/static-html-export.md) to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
 
 ### Serverless
 
-- [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
-- [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
+- [AWS Amplify](https://aws.amazon.com/blogs/mobile/amplify-next-js-13/)
 - [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
 - [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
 - [Firebase](https://firebase.google.com/docs/hosting/nextjs)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
+- [SST](https://docs.sst.dev/start/nextjs)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 

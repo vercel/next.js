@@ -1,6 +1,6 @@
 # Example with portals
 
-This example show how to use the React [Portals](https://reactjs.org/docs/portals.html) feature with Next.js.
+This example show how to use the React [Portals](https://react.dev/reference/react-dom/createPortal) feature with Next.js.
 
 ## Deploy your own
 

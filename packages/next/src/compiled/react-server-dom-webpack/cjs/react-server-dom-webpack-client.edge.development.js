@@ -51,7 +51,7 @@ function resolveClientReference(bundlerConfig, metadata) {
   }
 
   return metadata;
-} // The chunk cache contains all the chunks we've preloaded so far.
+}
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
 // replicate it in user space. null means that it has already loaded.
@@ -150,6 +150,8 @@ function requireModule(metadata) {
   return moduleExports[metadata.name];
 }
 
+var knownServerReferences = new WeakMap();
+
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
@@ -163,7 +165,7 @@ var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FI
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe function signature doesn't reflect the symbol value
+    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
     REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
   }
 
@@ -267,17 +269,17 @@ function getRoot(response) {
 }
 
 function createPendingChunk(response) {
-  // $FlowFixMe Flow doesn't support functions as constructors
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(PENDING, null, null, response);
 }
 
 function createBlockedChunk(response) {
-  // $FlowFixMe Flow doesn't support functions as constructors
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(BLOCKED, null, null, response);
 }
 
 function createErrorChunk(response, error) {
-  // $FlowFixMe Flow doesn't support functions as constructors
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(ERRORED, null, error, response);
 }
 
@@ -326,12 +328,12 @@ function triggerErrorOnChunk(chunk, error) {
 }
 
 function createResolvedModelChunk(response, value) {
-  // $FlowFixMe Flow doesn't support functions as constructors
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODEL, value, null, response);
 }
 
 function createResolvedModuleChunk(response, value) {
-  // $FlowFixMe Flow doesn't support functions as constructors
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODULE, value, null, response);
 }
 
@@ -547,18 +549,23 @@ function createServerReferenceProxy(response, metaData) {
     var args = Array.prototype.slice.call(arguments);
     var p = metaData.bound;
 
+    if (!p) {
+      return callServer(metaData.id, args);
+    }
+
     if (p.status === INITIALIZED) {
       var bound = p.value;
-      return callServer(metaData, bound.concat(args));
+      return callServer(metaData.id, bound.concat(args));
     } // Since this is a fake Promise whose .then doesn't chain, we have to wrap it.
     // TODO: Remove the wrapper once that's fixed.
 
 
     return Promise.resolve(p).then(function (bound) {
-      return callServer(metaData, bound.concat(args));
+      return callServer(metaData.id, bound.concat(args));
     });
   };
 
+  knownServerReferences.set(proxy, metaData);
   return proxy;
 }
 
@@ -633,6 +640,19 @@ function parseModelString(response, parentObject, key, value) {
             default:
               throw _chunk2.reason;
           }
+        }
+
+      case 'u':
+        {
+          // matches "$undefined"
+          // Special encoding for `undefined` which can't be serialized as JSON otherwise.
+          return undefined;
+        }
+
+      case 'n':
+        {
+          // BigInt
+          return BigInt(value.substring(2));
         }
 
       default:

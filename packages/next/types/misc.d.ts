@@ -375,6 +375,15 @@ declare module 'next/dist/compiled/react-dom' {
   export = m
 }
 
+declare module 'next/dist/compiled/react-experimental' {
+  import * as m from 'react'
+  export = m
+}
+declare module 'next/dist/compiled/react-dom-experimental' {
+  import * as m from 'react-dom'
+  export = m
+}
+
 declare module 'next/dist/compiled/stacktrace-parser' {
   import * as m from 'stacktrace-parser'
   export = m
@@ -403,6 +412,15 @@ declare module 'next/dist/compiled/shell-quote' {
   import * as m from 'shell-quote'
   export = m
 }
+
+declare module 'next/dist/compiled/@vercel/og/satori-types' {
+  export * from 'satori'
+}
+declare module 'next/dist/compiled/@vercel/og' {
+  export * from '@vercel/og'
+}
+declare module 'next/dist/compiled/@vercel/og/index.node'
+declare module 'next/dist/compiled/@vercel/og/index.edge'
 
 declare namespace NodeJS {
   interface ProcessVersions {
@@ -442,5 +460,10 @@ declare module 'next/dist/compiled/is-animated' {
 
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
+  export = m
+}
+
+declare module 'next/dist/compiled/zod' {
+  import m from 'zod'
   export = m
 }

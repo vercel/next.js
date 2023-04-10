@@ -38,7 +38,22 @@ describe('app type checking', () => {
       ].map(([, line]) => +line)
 
       const ST = 17
-      const ED = 33
+      const ED = 34
+      expect(errorLines).toEqual(
+        Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
+      )
+    })
+
+    it('should generate route types correctly and report router API errors', async () => {
+      // Make sure all errors were reported and other links passed type checking
+      const errorLines = [
+        ...errors.matchAll(
+          /\.\/src\/app\/type-checks\/router\/page\.tsx:(\d+):/g
+        ),
+      ].map(([, line]) => +line)
+
+      const ST = 11
+      const ED = 13
       expect(errorLines).toEqual(
         Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
       )
@@ -67,6 +82,27 @@ describe('app type checking', () => {
       // Avoid invalid return types for exported functions.
       expect(errors).toContain(
         `"Promise<number>" is not a valid generateStaticParams return type`
+      )
+
+      // Can't export arbitrary things.
+      expect(errors).toContain(`"bar" is not a valid Route export field.`)
+
+      // Can't export invalid fields.
+      expect(errors).toMatch(
+        /Invalid configuration "revalidate":\s+Expected "false | number (>= 0)", got "-1"/
+      )
+
+      // Avoid invalid argument types for exported functions.
+      expect(errors).toMatch(
+        /Route "src\/app\/type-checks\/route-handlers\/route\.ts" has an invalid "GET" export:\s+Type "boolean" is not a valid type for the function's first argument/
+      )
+      expect(errors).toMatch(
+        /Route "src\/app\/type-checks\/route-handlers\/route\.ts" has an invalid "generateStaticParams" export:\s+Type "string" is not valid/
+      )
+
+      // Avoid invalid return types for exported functions.
+      expect(errors).toContain(
+        `"Promise<boolean>" is not a valid generateStaticParams return type`
       )
     })
   })

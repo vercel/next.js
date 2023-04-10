@@ -354,7 +354,8 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        router.refresh()
+        // @ts-ignore it exists, it's just hidden
+        router.fastRefresh()
         dispatcher.onRefresh()
       })
 
@@ -378,12 +379,14 @@ function processMessage(
     }
     case 'removedPage': {
       // TODO-APP: potentially only refresh if the currently viewed page was removed.
-      router.refresh()
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
       return
     }
     case 'addedPage': {
       // TODO-APP: potentially only refresh if the currently viewed page was added.
-      router.refresh()
+      // @ts-ignore it exists, it's just hidden
+      router.fastRefresh()
       return
     }
     case 'pong': {
@@ -391,7 +394,8 @@ function processMessage(
       if (invalid) {
         // Payload can be invalid even if the page does exist.
         // So, we check if it can be created.
-        router.refresh()
+        // @ts-ignore it exists, it's just hidden
+        router.fastRefresh()
       }
       return
     }
@@ -436,7 +440,7 @@ export default function HotReload({
   }, [dispatch])
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
-    // Component stack is added to the error in use-error-handler
+    // Component stack is added to the error in use-error-handler in case there was a hydration errror
     const componentStack = (error as any)._componentStack
     dispatch({
       type: ACTION_UNHANDLED_ERROR,

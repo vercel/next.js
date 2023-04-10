@@ -34,6 +34,11 @@ export default {
         destination: 'https://nextjs.org',
         permanent: false,
       },
+      {
+        source: '/redirect(/v1)?/guides/:param/page',
+        destination: 'https://nextjs.org',
+        permanent: false,
+      },
     ]
   },
 }

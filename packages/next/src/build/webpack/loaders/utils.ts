@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
-const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif']
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
 export function isClientComponentModule(mod: {

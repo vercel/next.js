@@ -39,7 +39,9 @@ export class CacheHandler {
 
   public async get(
     _key: string,
-    _fetchCache?: boolean
+    _fetchCache?: boolean,
+    _originUrl?: string,
+    _fetchIdx?: number
   ): Promise<CacheHandlerValue | null> {
     return {} as any
   }
@@ -47,7 +49,9 @@ export class CacheHandler {
   public async set(
     _key: string,
     _data: IncrementalCacheValue | null,
-    _fetchCache?: boolean
+    _fetchCache?: boolean,
+    _originUrl?: string,
+    _fetchIdx?: number
   ): Promise<void> {}
 }
 
@@ -149,10 +153,13 @@ export class IncrementalCache {
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
-  async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
+  async fetchCacheKey(
+    url: string,
+    init: RequestInit | Request = {}
+  ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v1'
+    const MAIN_KEY_PREFIX = 'v2'
 
     let cacheKey: string
     const bodyChunks: string[] = []
@@ -240,7 +247,6 @@ export class IncrementalCache {
       init.referrer,
       init.referrerPolicy,
       init.integrity,
-      init.next,
       init.cache,
       bodyChunks,
     ])
@@ -263,7 +269,10 @@ export class IncrementalCache {
   // get data from cache if available
   async get(
     pathname: string,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    revalidate?: number,
+    originUrl?: string,
+    fetchIdx?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
@@ -276,10 +285,15 @@ export class IncrementalCache {
 
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
-    const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
+    const cacheData = await this.cacheHandler?.get(
+      pathname,
+      fetchCache,
+      originUrl,
+      fetchIdx
+    )
 
     if (cacheData?.value?.kind === 'FETCH') {
-      const revalidate = cacheData.value.revalidate
+      revalidate = revalidate || cacheData.value.revalidate
       const age = Math.round(
         (Date.now() - (cacheData.lastModified || 0)) / 1000
       )
@@ -294,8 +308,7 @@ export class IncrementalCache {
           data,
           revalidate: revalidate,
         },
-        revalidateAfter:
-          (cacheData.lastModified || Date.now()) + revalidate * 1000,
+        revalidateAfter: Date.now() + revalidate * 1000,
       }
     }
 
@@ -335,7 +348,14 @@ export class IncrementalCache {
         curRevalidate,
         revalidateAfter,
       }
-      this.set(pathname, entry.value, curRevalidate, fetchCache)
+      this.set(
+        pathname,
+        entry.value,
+        curRevalidate,
+        fetchCache,
+        originUrl,
+        fetchIdx
+      )
     }
     return entry
   }
@@ -345,13 +365,15 @@ export class IncrementalCache {
     pathname: string,
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
   ) {
     if (this.dev && !fetchCache) return
-    // fetchCache has upper limit of 1MB per-entry currently
-    if (fetchCache && JSON.stringify(data).length > 1024 * 1024) {
+    // fetchCache has upper limit of 2MB per-entry currently
+    if (fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
       if (this.dev) {
-        throw new Error(`fetch for over 1MB of data can not be cached`)
+        throw new Error(`fetch for over 2MB of data can not be cached`)
       }
       return
     }
@@ -372,7 +394,13 @@ export class IncrementalCache {
           initialRevalidateSeconds: revalidateSeconds,
         }
       }
-      await this.cacheHandler?.set(pathname, data, fetchCache)
+      await this.cacheHandler?.set(
+        pathname,
+        data,
+        fetchCache,
+        originUrl,
+        fetchIdx
+      )
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }

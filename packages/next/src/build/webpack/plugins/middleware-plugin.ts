@@ -19,7 +19,7 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
-  FONT_LOADER_MANIFEST,
+  NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
@@ -126,11 +126,11 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    files.push(`server/${NEXT_FONT_MANIFEST}.js`)
+  }
 
-    if (NextBuildContext!.hasInstrumentationHook) {
-      files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
-    }
+  if (NextBuildContext!.hasInstrumentationHook) {
+    files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
   }
 
   files.push(
@@ -668,7 +668,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/]server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
               resource
             )
 
@@ -858,6 +858,25 @@ export default class MiddlewarePlugin {
   }
 }
 
+export const SUPPORTED_NATIVE_MODULES = [
+  'buffer',
+  'events',
+  'assert',
+  'util',
+  'async_hooks',
+] as const
+
+const supportedEdgePolyfills = new Set<string>(SUPPORTED_NATIVE_MODULES)
+
+export function getEdgePolyfilledModules() {
+  const records: Record<string, string> = {}
+  for (const mod of SUPPORTED_NATIVE_MODULES) {
+    records[mod] = `commonjs node:${mod}`
+    records[`node:${mod}`] = `commonjs node:${mod}`
+  }
+  return records
+}
+
 export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
@@ -869,7 +888,11 @@ export async function handleWebpackExternalForEdgeRuntime({
   contextInfo: any
   getResolve: () => any
 }) {
-  if (contextInfo.issuerLayer === 'middleware' && isNodeJsModule(request)) {
+  if (
+    contextInfo.issuerLayer === 'middleware' &&
+    isNodeJsModule(request) &&
+    !supportedEdgePolyfills.has(request)
+  ) {
     // allows user to provide and use their polyfills, as we do with buffer.
     try {
       await getResolve()(context, request)

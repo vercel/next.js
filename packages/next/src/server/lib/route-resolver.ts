@@ -1,24 +1,49 @@
 import type { IncomingMessage, ServerResponse } from 'http'
+import { join } from 'path'
+
+import {
+  StackFrame,
+  parse as parseStackTrace,
+} from 'next/dist/compiled/stacktrace-parser'
+
 import type { NextConfig } from '../config'
-import { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 import { RouteKind } from '../future/route-kind'
 import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
-import { RouteMatch } from '../future/route-matches/route-match'
+import type { RouteMatch } from '../future/route-matches/route-match'
 import type { PageChecker, Route } from '../router'
 import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { join } from 'path'
+import {
+  CLIENT_STATIC_FILES_PATH,
+  DEV_CLIENT_PAGES_MANIFEST,
+} from '../../shared/lib/constants'
+import type { BaseNextRequest } from '../base-http'
 
-type MiddlewareConfig = {
+export type MiddlewareConfig = {
   matcher: string[]
   files: string[]
 }
-type RouteResult =
+
+export type ServerAddress = {
+  hostname: string
+  port: number
+}
+
+export type RouteResult =
   | {
       type: 'rewrite'
       url: string
       statusCode: number
       headers: Record<string, undefined | number | string | string[]>
+    }
+  | {
+      type: 'error'
+      error: {
+        name: string
+        message: string
+        stack: StackFrame[]
+      }
     }
   | {
       type: 'none'
@@ -58,7 +83,8 @@ class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 export async function makeResolver(
   dir: string,
   nextConfig: NextConfig,
-  middleware: MiddlewareConfig
+  middleware: MiddlewareConfig,
+  serverAddr: Partial<ServerAddress>
 ) {
   const url = require('url') as typeof import('url')
   const { default: Router } = require('../router') as typeof import('../router')
@@ -73,16 +99,49 @@ export async function makeResolver(
   const { default: loadCustomRoutes } =
     require('../../lib/load-custom-routes') as typeof import('../../lib/load-custom-routes')
 
-  const devServer = new DevServer({
+  const routeResults = new WeakMap<any, RouteResult>()
+
+  class TurbopackDevServerProxy extends DevServer {
+    // make sure static files are served by turbopack
+    serveStatic(): Promise<void> {
+      return Promise.resolve()
+    }
+
+    // make turbopack handle errors
+    async renderError(err: Error | null, req: BaseNextRequest): Promise<void> {
+      if (err != null) {
+        routeResults.set(req, {
+          type: 'error',
+          error: {
+            name: err.name,
+            message: err.message,
+            stack: parseStackTrace(err.stack!),
+          },
+        })
+      }
+
+      return Promise.resolve()
+    }
+
+    // make turbopack handle 404s
+    render404(): Promise<void> {
+      return Promise.resolve()
+    }
+  }
+
+  const devServer = new TurbopackDevServerProxy({
     dir,
     conf: nextConfig,
-    hostname: 'localhost',
-    port: 3000,
+    hostname: serverAddr.hostname || 'localhost',
+    port: serverAddr.port || 3000,
   })
 
   await devServer.matchers.reload()
 
-  // @ts-expect-error
+  // @ts-expect-error private
+  devServer.setDevReady!()
+
+  // @ts-expect-error protected
   devServer.customRoutes = await loadCustomRoutes(nextConfig)
 
   if (middleware.files?.length) {
@@ -106,7 +165,7 @@ export async function makeResolver(
           return {
             name: 'middleware',
             paths: middleware.files.map((file) => join(process.cwd(), file)),
-            env: [],
+            env: Object.keys(process.env),
             wasm: [],
             assets: [],
           }
@@ -123,8 +182,7 @@ export async function makeResolver(
     devServer.hasMiddleware = () => true
   }
 
-  const routeResults = new WeakMap<any, string>()
-  const routes = devServer.generateRoutes()
+  const routes = devServer.generateRoutes(true)
   // @ts-expect-error protected
   const catchAllMiddleware = devServer.generateCatchAllMiddlewareRoute(true)
 
@@ -133,13 +191,30 @@ export async function makeResolver(
     devServer.hasPage.bind(devServer)
   )
 
+  // @ts-expect-error protected
+  const buildId = devServer.buildId
+
+  const pagesManifestRoute = routes.fsRoutes.find(
+    (r) =>
+      r.name ===
+      `_next/${CLIENT_STATIC_FILES_PATH}/${buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+  )
+  if (pagesManifestRoute) {
+    // make sure turbopack serves this
+    pagesManifestRoute.fn = () => {
+      return {
+        finished: true,
+      }
+    }
+  }
+
   const router = new Router({
     ...routes,
     catchAllMiddleware,
     catchAllRoute: {
       match: getPathMatch('/:path*'),
       name: 'catchall route',
-      fn: async (req, _res, _params, parsedUrl) => {
+      fn: async (req, res, _params, parsedUrl) => {
         // clean up internal query values
         for (const key of Object.keys(parsedUrl.query || {})) {
           if (key.startsWith('_next')) {
@@ -147,14 +222,17 @@ export async function makeResolver(
           }
         }
 
-        routeResults.set(
-          req,
-          url.format({
+        routeResults.set(req, {
+          type: 'rewrite',
+          url: url.format({
             pathname: parsedUrl.pathname,
             query: parsedUrl.query,
             hash: parsedUrl.hash,
-          })
-        )
+          }),
+          statusCode: 200,
+          headers: res.getHeaders(),
+        })
+
         return { finished: true }
       },
     } as Route,
@@ -162,14 +240,14 @@ export async function makeResolver(
 
   // @ts-expect-error internal field
   router.compiledRoutes = router.compiledRoutes.filter((route: Route) => {
-    const matches =
+    return (
       route.type === 'rewrite' ||
       route.type === 'redirect' ||
       route.type === 'header' ||
       route.name === 'catchall route' ||
       route.name === 'middleware catchall' ||
       route.name?.includes('check')
-    return matches
+    )
   })
 
   return async function resolveRoute(
@@ -187,22 +265,13 @@ export async function makeResolver(
 
     if (!res.originalResponse.headersSent) {
       res.setHeader('x-nextjs-route-result', '1')
-      const resolvedUrl = routeResults.get(req)
-      routeResults.delete(req)
-
-      const routeResult: RouteResult =
-        resolvedUrl == null
-          ? {
-              type: 'none',
-            }
-          : {
-              type: 'rewrite',
-              url: resolvedUrl,
-              statusCode: 200,
-              headers: res.originalResponse.getHeaders(),
-            }
+      const routeResult: RouteResult = routeResults.get(req) ?? {
+        type: 'none',
+      }
 
       res.body(JSON.stringify(routeResult)).send()
     }
+
+    routeResults.delete(req)
   }
 }

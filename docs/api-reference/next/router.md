@@ -35,7 +35,7 @@ function ActiveLink({ children, href }) {
 export default ActiveLink
 ```
 
-> `useRouter` is a [React Hook](https://reactjs.org/docs/hooks-intro.html), meaning it cannot be used with classes. You can either use [withRouter](#withRouter) or wrap your class in a function component.
+> `useRouter` is a [React Hook](https://react.dev/learn#using-hooks), meaning it cannot be used with classes. You can either use [withRouter](#withRouter) or wrap your class in a function component.
 
 ## `router` object
 
@@ -174,7 +174,7 @@ useEffect(() => {
 }, [router.query.slug])
 ```
 
-2. Use a React `key` to [tell React to remount the component](https://reactjs.org/docs/lists-and-keys.html#keys). To do this for all pages, you can use a custom app:
+2. Use a React `key` to [tell React to remount the component](https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key). To do this for all pages, you can use a custom app:
 
 ```jsx
 // pages/_app.js
@@ -283,7 +283,7 @@ export default function Login() {
   useEffect(() => {
     // Prefetch the dashboard page
     router.prefetch('/dashboard')
-  }, [])
+  }, [router])
 
   return (
     <form onSubmit={handleSubmit}>
@@ -331,7 +331,7 @@ export default function Page() {
 
       return true
     })
-  }, [])
+  }, [router])
 
   return <p>Welcome to the page</p>
 }
@@ -425,7 +425,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeStart', handleRouteChange)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }
@@ -433,7 +433,7 @@ export default function MyApp({ Component, pageProps }) {
 
 > We use a [Custom App](/docs/advanced-features/custom-app.md) (`pages/_app.js`) for this example to subscribe to the event because it's not unmounted on page navigations, but you can subscribe to router events on any component in your application.
 
-Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens.
+Router events should be registered when a component mounts ([useEffect](https://react.dev/reference/react/useEffect) or [componentDidMount](https://react.dev/reference/react/Component#componentdidmount) / [componentWillUnmount](https://react.dev/reference/react/Component#componentwillunmount)) or imperatively when an event happens.
 
 If a route load is cancelled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
 
@@ -458,7 +458,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeError', handleRouteChangeError)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }

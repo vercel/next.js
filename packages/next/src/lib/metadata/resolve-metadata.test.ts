@@ -1,5 +1,14 @@
-import { accumulateMetadata, MetadataItems } from './resolve-metadata'
+import {
+  accumulateMetadata as originAccumulateMetadata,
+  MetadataItems,
+} from './resolve-metadata'
 import { Metadata } from './types/metadata-interface'
+
+function accumulateMetadata(metadataItems: MetadataItems) {
+  return originAccumulateMetadata(metadataItems, {
+    pathname: '/test',
+  })
+}
 
 describe('accumulateMetadata', () => {
   describe('typing', () => {

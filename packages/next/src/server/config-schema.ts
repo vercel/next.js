@@ -226,6 +226,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        appDocumentPreloading: {
+          type: 'boolean',
+        },
         adjustFontFallbacks: {
           type: 'boolean',
         },
@@ -256,6 +259,9 @@ const configSchema = {
         clientRouterFilterRedirects: {
           type: 'boolean',
         },
+        clientRouterFilterAllowedRate: {
+          type: 'number',
+        },
         cpus: {
           type: 'number',
         },
@@ -279,6 +285,9 @@ const configSchema = {
           ] as any,
         },
         appDir: {
+          type: 'boolean',
+        },
+        experimentalReact: {
           type: 'boolean',
         },
         extensionAlias: {
@@ -363,9 +372,6 @@ const configSchema = {
         pageEnv: {
           type: 'boolean',
         },
-        preCompiledNextServer: {
-          type: 'boolean',
-        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
@@ -396,6 +402,9 @@ const configSchema = {
           },
           type: 'object',
         },
+        strictNextHead: {
+          type: 'boolean',
+        },
         swcFileReading: {
           type: 'boolean',
         },
@@ -420,20 +429,6 @@ const configSchema = {
         workerThreads: {
           type: 'boolean',
         },
-        fontLoaders: {
-          items: {
-            additionalProperties: false,
-            properties: {
-              loader: {
-                type: 'string',
-              },
-              options: {},
-            },
-            type: 'object',
-            required: ['loader'],
-          },
-          type: 'array',
-        } as any,
         webVitalsAttribution: {
           type: 'array',
           items: {

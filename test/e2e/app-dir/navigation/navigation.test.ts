@@ -6,12 +6,6 @@ createNextDescribe(
   'app dir - navigation',
   {
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-      react: 'latest',
-      'react-dom': 'latest',
-      sass: 'latest',
-    },
   },
   ({ next, isNextDeploy }) => {
     describe('query string', () => {
@@ -30,6 +24,37 @@ createNextDescribe(
 
         const url = new URL(await browser.url())
         expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
+      })
+    })
+
+    describe('hash', () => {
+      it('should scroll to the specified hash', async () => {
+        const browser = await next.browser('/hash')
+
+        const checkLink = async (
+          val: number | string,
+          expectedScroll: number
+        ) => {
+          await browser.elementByCss(`#link-to-${val.toString()}`).click()
+          await check(
+            async () => {
+              const val = await browser.eval('window.pageYOffset')
+              require('console').error({ val })
+              return val.toString()
+            },
+            expectedScroll.toString(),
+            true,
+            // Try maximum of 15 seconds
+            15
+          )
+        }
+
+        await checkLink(6, 114)
+        await checkLink(50, 730)
+        await checkLink(160, 2270)
+        await checkLink(300, 4230)
+        await checkLink('top', 0)
+        await checkLink('non-existent', 0)
       })
     })
 
@@ -74,9 +99,6 @@ createNextDescribe(
         ).toBe('noindex')
       })
       it('should trigger not-found while streaming', async () => {
-        const initialHtml = await next.render('/not-found/suspense')
-        expect(initialHtml).not.toContain('noindex')
-
         const browser = await next.browser('/not-found/suspense')
         expect(
           await browser.waitForElementByCss('#not-found-component').text()
@@ -228,6 +250,41 @@ createNextDescribe(
             ).toBe(`${subcategory}`)
           }
         }
+      })
+    })
+
+    describe('SEO', () => {
+      it('should emit noindex meta tag for not found page when streaming', async () => {
+        const noIndexTag = '<meta name="robots" content="noindex"/>'
+        const defaultViewportTag =
+          '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        const html = await next.render('/not-found/suspense')
+        expect(html).toContain(noIndexTag)
+        // only contain once
+        expect(html.split(noIndexTag).length).toBe(2)
+        expect(html.split(defaultViewportTag).length).toBe(2)
+      })
+
+      it('should emit refresh meta tag for redirect page when streaming', async () => {
+        const html = await next.render('/redirect/suspense')
+        expect(html).toContain(
+          '<meta http-equiv="refresh" content="0;url=/redirect/result"/>'
+        )
+      })
+
+      it('should contain default meta tags in error page', async () => {
+        const html = await next.render('/not-found/servercomponent')
+        expect(html).toContain('<meta name="robots" content="noindex"/>')
+        expect(html).toContain(
+          '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
+        )
+      })
+
+      it('should not log 404 errors in ipc server', async () => {
+        await next.fetch('/this-path-does-not-exist')
+        expect(next.cliOutput).not.toInclude(
+          'PageNotFoundError: Cannot find module for page'
+        )
       })
     })
   }

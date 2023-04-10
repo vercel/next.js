@@ -483,20 +483,21 @@ describe('Middleware Runtime', () => {
 
     it('should contain process polyfill', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
-      expect(readMiddlewareJSON(res)).toEqual({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-            STRING_ENV_VAR: 'asdf3',
-            MIDDLEWARE_TEST: 'asdf',
-            ...((global as any).isNextDeploy
-              ? {}
-              : {
-                  NEXT_RUNTIME: 'edge',
-                }),
-          },
-        },
-      })
+      const json = readMiddlewareJSON(res)
+      delete json.process.env['JEST_WORKER_ID']
+
+      for (const [key, value] of Object.entries({
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+        ...((global as any).isNextDeploy
+          ? {}
+          : {
+              NEXT_RUNTIME: 'edge',
+            }),
+      })) {
+        expect(json.process.env[key]).toBe(value)
+      }
     })
 
     it(`should contain \`globalThis\``, async () => {

@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    // type checking
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    // interop constraints
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+
+    // js support
+    "allowJs": true,
+    "checkJs": false,
+
+    // environment
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM"],
+    "target": "esnext",
+
+    // modules
+    "baseUrl": ".",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "paths": {
+      "@vercel/turbopack-next/*": ["src/*"],
+      "@vercel/turbopack-next/pages/_app": ["node_modules/next/app"],
+      "@vercel/turbopack-next/pages/_document": ["node_modules/next/document"],
+      "@vercel/turbopack-next/internal/_error": ["node_modules/next/error"],
+      "next/*": ["node_modules/next/*"]
+    },
+    "resolveJsonModule": true,
+    "types": [
+      "react/next"
+    ],
+
+    // emit
+    "noEmit": true,
+    "stripInternal": true
+  },
+  "include": ["src", "types"]
+}

@@ -126,10 +126,6 @@ The Edge Runtime supports the following web standard APIs:
 | [`WeakSet`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet)                       | Represents a collection of objects in which each object may occur only once                                                                                                                          |
 | [`WebAssembly`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly)               | Provides access to WebAssembly                                                                                                                                                                       |
 
-## Next.js Specific Polyfills
-
-- [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage)
-
 ## Environment Variables
 
 You can use `process.env` to access [Environment Variables](/docs/basic-features/environment-variables.md) for both `next dev` and `next build`.
@@ -143,11 +139,25 @@ console.log(process.env.TEST_VARIABLE)
 // value
 ```
 
+## Compatible Node.js Modules
+
+The following modules can be imported with and without the `node:` prefix when using the `import` statement:
+
+| Module                                                   | Description                                                                                                                                                                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`async_hooks`](https://nodejs.org/api/async_hooks.html) | Manage asynchronous resources lifecycles with `AsyncLocalStorage`. Supports the [WinterCG subset](https://github.com/wintercg/proposal-common-minimum-api/blob/main/asynclocalstorage.md) of APIs |
+| [`events`](https://nodejs.org/api/events.html)           | Facilitate event-driven programming with custom event emitters and listeners. This API is fully supported                                                                                         |
+| [`buffer`](https://nodejs.org/api/buffer.html)           | Efficiently manipulate binary data using fixed-size, raw memory allocations with `Buffer`. Every primitive compatible with `Uint8Array` accepts `Buffer` too                                      |
+| [`assert`](https://nodejs.org/api/assert.html)           | Provide a set of assertion functions for verifying invariants in your code                                                                                                                        |
+| [`util`](https://nodejs.org/api/util.html)               | Offer various utility functions where we include `promisify`/`callbackify` and `types`                                                                                                            |
+
+Also, `Buffer` and `AsyncLocalStorage` are globally exposed to maximize compatibility with existing Node.js nodules.
+
 ## Unsupported APIs
 
 The Edge Runtime has some restrictions including:
 
-- Native Node.js APIs **are not supported**. For example, you can't read or write to the filesystem
+- Some Node.js APIs other than the ones listed above **are not supported**. For example, you can't read or write to the filesystem
 - `node_modules` _can_ be used, as long as they implement ES Modules and do not use native Node.js APIs
 - Calling `require` directly is **not allowed**. Use ES Modules instead
 

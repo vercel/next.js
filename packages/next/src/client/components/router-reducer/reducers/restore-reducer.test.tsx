@@ -1,5 +1,5 @@
 import React from 'react'
-import { FlightRouterState } from '../../../../server/app-render'
+import type { FlightRouterState } from '../../../../server/app-render/types'
 import {
   CacheNode,
   CacheStates,
@@ -123,8 +123,10 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -283,8 +285,10 @@ describe('serverPatchReducer', () => {
       },
       focusAndScrollRef: {
         apply: false,
+        hashFragment: null,
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
