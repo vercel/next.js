@@ -683,13 +683,20 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
+  const useExperimentalReact = !!config.experimental.experimentalReact
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
+  const builtInReactChannel = useExperimentalReact ? '-experimental' : ''
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
         'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
+      )
+    }
+    if (useExperimentalReact && !hasAppDir) {
+      Log.warn(
+        'You are using `experimental.experimentalReact` which requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -1025,13 +1032,11 @@ export default async function getBaseWebpackConfig(
         ? {
             // For react and react-dom, alias them dynamically for server layer
             // and others in the loaders configuration
-            'react-dom/client$': 'next/dist/compiled/react-dom/client',
-            'react-dom/server$': 'next/dist/compiled/react-dom/server',
-            'react-dom/server.browser$':
-              'next/dist/compiled/react-dom/server.browser',
-            'react/jsx-dev-runtime$':
-              'next/dist/compiled/react/jsx-dev-runtime',
-            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
+            'react-dom/client$': `next/dist/compiled/react-dom${builtInReactChannel}/client`,
+            'react-dom/server$': `next/dist/compiled/react-dom${builtInReactChannel}/server`,
+            'react-dom/server.browser$': `next/dist/compiled/react-dom${builtInReactChannel}/server.browser`,
+            'react/jsx-dev-runtime$': `next/dist/compiled/react${builtInReactChannel}/jsx-dev-runtime`,
+            'react/jsx-runtime$': `next/dist/compiled/react${builtInReactChannel}/jsx-runtime`,
           }
         : {
             react: reactDir,
@@ -1233,11 +1238,17 @@ export default async function getBaseWebpackConfig(
 
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
         // override react-dom to server-rendering-stub for server
+        const channel = useExperimentalReact ? '-experimental' : ''
         if (
           request === 'react-dom' &&
           (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
         ) {
-          request = 'react-dom/server-rendering-stub'
+          request = `react-dom${channel}/server-rendering-stub`
+        } else {
+          // `react` -> `react-experimental`
+          // `react-dom` -> `react-dom-experimental`
+          // `react/jsx-runtime` -> `react-experimental/jsx-runtime`
+          request = request.replace(/^(react|react-dom)/, (m) => m + channel)
         }
         return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
       }
@@ -1766,9 +1777,8 @@ export default async function getBaseWebpackConfig(
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
-                    react: 'next/dist/compiled/react/react.shared-subset',
-                    'react-dom$':
-                      'next/dist/compiled/react-dom/server-rendering-stub',
+                    react: `next/dist/compiled/react${builtInReactChannel}/react.shared-subset`,
+                    'react-dom$': `next/dist/compiled/react-dom${builtInReactChannel}/server-rendering-stub`,
                   },
                 },
                 use: {
@@ -1854,11 +1864,10 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: {
-                        react: 'next/dist/compiled/react/react.shared-subset',
+                        react: `next/dist/compiled/react${builtInReactChannel}/react.shared-subset`,
                         // Use server rendering stub for RSC
                         // x-ref: https://github.com/facebook/react/pull/25436
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
+                        'react-dom$': `next/dist/compiled/react-dom${builtInReactChannel}/server-rendering-stub`,
                       },
                     },
                   },
@@ -1867,9 +1876,8 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resolve: {
                       alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
+                        react: `next/dist/compiled/react${builtInReactChannel}`,
+                        'react-dom$': `next/dist/compiled/react-dom${builtInReactChannel}/server-rendering-stub`,
                       },
                     },
                   },
@@ -1877,12 +1885,11 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resolve: {
                       alias: {
-                        react: 'next/dist/compiled/react',
+                        react: `next/dist/compiled/react${builtInReactChannel}`,
                         'react-dom$': reactProductionProfiling
-                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
-                          : 'next/dist/compiled/react-dom',
-                        'react-dom/client$':
-                          'next/dist/compiled/react-dom/client',
+                          ? `next/dist/compiled/react-dom${builtInReactChannel}/cjs/react-dom.profiling.min`
+                          : `next/dist/compiled/react-dom${builtInReactChannel}`,
+                        'react-dom/client$': `next/dist/compiled/react-dom${builtInReactChannel}/client`,
                       },
                     },
                   },
@@ -2241,6 +2248,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
+              useExperimentalReact,
             })),
       hasAppDir &&
         !isClient &&

@@ -176,7 +176,10 @@ export class NextServer {
           }
         }
         if (conf.experimental.appDir) {
-          process.env.NEXT_PREBUNDLED_REACT = '1'
+          const useExperimentalReact = !!conf.experimental.experimentalReact
+          process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
+            ? 'experimental'
+            : 'next'
           overrideBuiltInReactPackages()
         }
         this.server = await this.createServer({
