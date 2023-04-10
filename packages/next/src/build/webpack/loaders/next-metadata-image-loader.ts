@@ -118,15 +118,19 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   export default (props) => {
     const pathname = ${JSON.stringify(route)}
     const routeRegex = getNamedRouteRegex(pathname, false)
+    const segment = ${JSON.stringify(segment)}
     const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+    const suffix = getMetadataRouteSuffix(segment)
+    const routeSuffix = suffix ? \`-\${suffix}\` : ''
+    const { name, ext } = path.parse(${JSON.stringify(pageRoute)})
 
     const imageData = ${JSON.stringify(imageData)};
 
     return {
       ...imageData,
-      url: path.join(route, ${JSON.stringify(pageRoute)} + ${JSON.stringify(
-    hashQuery
-  )}),
+      url: path.join(route, name + routeSuffix + ext + ${JSON.stringify(
+        hashQuery
+      )}),
     }
   }`
 }
