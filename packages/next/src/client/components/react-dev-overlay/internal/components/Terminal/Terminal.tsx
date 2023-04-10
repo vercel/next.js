@@ -9,17 +9,19 @@ function getFile(lines: string[]) {
   const contentFileName = lines.shift()
   if (!contentFileName) return null
   const [fileName, line, column] = contentFileName.split(':')
+
   const parsedLine = Number(line)
   const parsedColumn = Number(column)
+  const hasLocation = !Number.isNaN(parsedLine) && !Number.isNaN(parsedColumn)
+
   return {
-    fileName,
-    location:
-      !Number.isNaN(parsedLine) && !Number.isNaN(parsedColumn)
-        ? {
-            line: parsedLine,
-            column: parsedColumn,
-          }
-        : undefined,
+    fileName: hasLocation ? fileName : contentFileName,
+    location: hasLocation
+      ? {
+          line: parsedLine,
+          column: parsedColumn,
+        }
+      : undefined,
   }
 }
 
