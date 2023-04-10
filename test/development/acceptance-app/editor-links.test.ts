@@ -3,10 +3,21 @@ import { createNextDescribe, FileRef } from 'e2e-utils'
 import path from 'path'
 import { sandbox } from './helpers'
 
-async function clickEditorLinks(browser: any) {
-  await browser.waitForElementByCss('[data-with-open-in-editor-link]')
+async function clickSourceFile(browser: any) {
+  await browser.waitForElementByCss(
+    '[data-with-open-in-editor-link-source-file]'
+  )
+  await browser
+    .elementByCss('[data-with-open-in-editor-link-source-file]')
+    .click()
+}
+
+async function clickImportTraceFiles(browser: any) {
+  await browser.waitForElementByCss(
+    '[data-with-open-in-editor-link-import-trace]'
+  )
   const collapsedFrameworkGroups = await browser.elementsByCss(
-    '[data-with-open-in-editor-link]'
+    '[data-with-open-in-editor-link-import-trace]'
   )
   for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
     await collapsedFrameworkButton.click()
@@ -24,7 +35,7 @@ createNextDescribe(
     skipStart: true,
   },
   ({ next }) => {
-    it('should be possible to open files on RSC build error', async () => {
+    it('should be possible to open source file on build error', async () => {
       let editorRequestsCount = 0
       const { session, browser, cleanup } = await sandbox(
         next,
@@ -57,13 +68,13 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
-      await clickEditorLinks(browser)
-      await check(() => editorRequestsCount, /2/)
+      await clickSourceFile(browser)
+      await check(() => editorRequestsCount, /1/)
 
       await cleanup()
     })
 
-    it('should be possible to open files on RSC parse error', async () => {
+    it('should be possible to open import trace files on RSC parse error', async () => {
       let editorRequestsCount = 0
       const { session, browser, cleanup } = await sandbox(
         next,
@@ -98,13 +109,13 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
-      await clickEditorLinks(browser)
+      await clickImportTraceFiles(browser)
       await check(() => editorRequestsCount, /4/)
 
       await cleanup()
     })
 
-    it('should be possible to open files on module not found error', async () => {
+    it('should be possible to open import trace files on module not found error', async () => {
       let editorRequestsCount = 0
       const { session, browser, cleanup } = await sandbox(
         next,
@@ -139,7 +150,7 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
-      await clickEditorLinks(browser)
+      await clickImportTraceFiles(browser)
       await check(() => editorRequestsCount, /3/)
 
       await cleanup()
