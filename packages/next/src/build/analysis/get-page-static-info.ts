@@ -154,10 +154,6 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
   }
 }
 
-type MiddlewareLike = Middleware & {
-  originalSource?: string
-}
-
 export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
   nextConfig: NextConfig
@@ -170,12 +166,11 @@ export function getMiddlewareMatchers(
   }
   const { i18n } = nextConfig
 
+  const originalSourceMap = new Map<Middleware, string>()
   let routes = matchers.map((m) => {
-    let middleware = (
-      typeof m === 'string' ? { source: m } : m
-    ) as MiddlewareLike
+    let middleware = (typeof m === 'string' ? { source: m } : m) as Middleware
     if (middleware) {
-      middleware.originalSource = middleware.source
+      originalSourceMap.set(middleware, middleware.source)
     }
     return middleware
   })
@@ -205,18 +200,21 @@ export function getMiddlewareMatchers(
       source = `${nextConfig.basePath}${source}`
     }
 
-    return { ...r, source }
+    r.source = source
+    return r
   })
 
   checkCustomRoutes(routes, 'middleware')
 
   return routes.map((r) => {
-    const { source, originalSource, ...rest } = r
+    const { source, ...rest } = r
     const parsedPage = tryToParsePath(source)
 
     if (parsedPage.error || !parsedPage.regexStr) {
       throw new Error(`Invalid source: ${source}`)
     }
+
+    const originalSource = originalSourceMap.get(r)
 
     return {
       ...rest,
