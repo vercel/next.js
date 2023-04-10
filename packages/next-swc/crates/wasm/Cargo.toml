@@ -35,6 +35,7 @@ turbo-binding = { workspace = true, features = [
   "__swc_core_binding_wasm",
   "__feature_mdx_rs",
 ] }
+swc_core = { workspace = true, features = ["ecma_ast_serde", "common"] }
 
 
 # Workaround a bug
