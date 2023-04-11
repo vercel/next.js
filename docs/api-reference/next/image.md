@@ -71,7 +71,7 @@ Here's a summary of the props available for the Image Component:
 | [`alt`](#alt)                             | `alt="Picture of the author"`        | String          | Yes      |
 | [`loader`](#loader)                       | `loader={imageLoader}`               | Function        | -        |
 | [`fill`](#fill)                           | `fill={true}`                        | Boolean         | -        |
-| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw"`   | String          | -        |
+| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw, 50vw"`   | String          | -        |
 | [`quality`](#quality)                     | `quality={80}`                       | Integer (1-100) | -        |
 | [`priority`](#priority)                   | `priority={true}`                    | Boolean         | -        |
 | [`placeholder`](#placeholder)             | `placeholder="blur"`                 | String          | -        |
@@ -151,7 +151,7 @@ const imageLoader = ({ src, width, quality }) => {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
 
-export default function Page({ imageLoader }) {
+export default function Page() {
   return (
     <Image
       loader={imageLoader}
@@ -301,7 +301,7 @@ A callback function that is invoked if the image fails to load.
 
 #### `loading`
 
-> **Recommendation**: This property is only meant for advanced use cases. Switching an image to load with `eager` will normally **hurt performance**. We recommend using the [`priority`](#priority) property instead, which early loads the image for most use cases.
+> **Recommendation**: This property is only meant for advanced use cases. Switching an image to load with `eager` will normally **hurt performance**. We recommend using the [`priority`](#priority) property instead, which will eagerly preload the image.
 
 ```js
 loading = 'lazy' // {lazy} | {eager}
@@ -358,7 +358,6 @@ Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
 - **`srcSet`**: Use [Device Sizes](#devicesizes) instead.
-- **`ref`**: Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - **`decoding`**: It is always `async`.
 
 ## Configuration Options
@@ -401,7 +400,7 @@ module.exports = {
 }
 ```
 
-The example above will ensure the `src` property of `next/image` uses the `example.com` domain with any number of subdomains. E.g. `https://img1.example.com` or `https://me.avatar.example.com`. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+The example above will ensure the `src` property of `next/image` uses the `example.com` domain with any number of subdomains, e.g. `https://img1.example.com` or `https://me.avatar.example.com`. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
