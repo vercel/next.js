@@ -3,7 +3,7 @@ import React, { use } from "react";
 import type { ReactElement } from "react";
 import { version } from "next/package.json";
 import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack/client";
-import { callServer } from 'next/dist/client/app-call-server';
+import { callServer } from "next/dist/client/app-call-server";
 
 import { HeadManagerContext } from "next/dist/shared/lib/head-manager-context";
 
@@ -19,8 +19,7 @@ window.next = {
 };
 
 globalThis.__next_require__ = (data) => {
-  const [client_id, chunks, chunkListPath] = JSON.parse(data);
-  __turbopack_register_chunk_list__(chunkListPath, chunks);
+  const [client_id] = JSON.parse(data);
   return __turbopack_require__(client_id);
 };
 globalThis.__next_chunk_load__ = __turbopack_load__;
