@@ -1,3 +1,3 @@
 export default function page() {
-  return <>image</>
+  return <>static image</>
 }
