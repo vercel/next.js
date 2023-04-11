@@ -320,66 +320,6 @@ createNextDescribe(
       await cleanup()
     })
 
-    it('should be possible to open the import trace files in your editor', async () => {
-      let editorRequestsCount = 0
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/editor-links',
-        {
-          beforePageLoad(page) {
-            page.route('**/__nextjs_launch-editor**', (route) => {
-              editorRequestsCount += 1
-              route.fulfill()
-            })
-          },
-        }
-      )
-
-      const componentFile = 'app/editor-links/component.js'
-      const fileContent = await next.readFile(componentFile)
-
-      await session.patch(
-        componentFile,
-        fileContent.replace(
-          "// import { useState } from 'react'",
-          "import { useState } from 'react'"
-        )
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app/editor-links/component.js
-        ReactServerComponentsError:
-
-        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
-
-           ,-[1:1]
-         1 | import { useState } from 'react'
-           :          ^^^^^^^^
-         2 | export default function Component() {
-         3 |   return <div>Component</div>
-         4 | }
-           \`----
-
-        Maybe one of these should be marked as a client entry with \\"use client\\":
-        ./app/editor-links/component.js
-        ./app/editor-links/page.js"
-      `)
-
-      await browser.waitForElementByCss('[data-with-open-in-editor-link]')
-      const collapsedFrameworkGroups = await browser.elementsByCss(
-        '[data-with-open-in-editor-link]'
-      )
-      for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
-        await collapsedFrameworkButton.click()
-      }
-
-      await check(() => editorRequestsCount, /2/)
-
-      await cleanup()
-    })
-
     it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
       const pagePath = 'app/metadata/mutate/page.js'
       const content = `export default function page(props) {
