@@ -136,8 +136,7 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
                 __turbopack_export_value__((__turbopack_import__) => {{
                     return __turbopack_load__({chunk_server_path}).then(() => {{
                         return __turbopack_require__({item_id});
-                    }}).then(({{ chunks, list }}) => {{
-                        __turbopack_register_chunk_list__(list, chunks);
+                    }}).then((chunks) => {{
                         return Promise.all(chunks.map((chunk_path) => __turbopack_load__(chunk_path)));
                     }}).then(() => {{
                         return __turbopack_import__({dynamic_id});

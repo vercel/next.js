@@ -18,7 +18,7 @@ use turbo_tasks_fs::{to_sys_path, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsSetVc},
     chunk::{
-        ChunkGroupVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc,
+        ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetVc, EvaluatableAssetsVc,
     },
     reference::primary_referenced_assets,
     source_map::GenerateSourceMapVc,
@@ -264,10 +264,13 @@ pub async fn get_intermediate_asset(
     main_entry: EvaluatableAssetVc,
     other_entries: EvaluatableAssetsVc,
 ) -> Result<AssetVc> {
-    let chunk_group = ChunkGroupVc::evaluated(chunking_context, main_entry, other_entries);
+    let chunks = chunking_context.evaluated_chunk_group(
+        main_entry.as_root_chunk(chunking_context),
+        other_entries.with_entry(main_entry),
+    );
     Ok(NodeJsBootstrapAsset {
         path: chunking_context.chunk_path(main_entry.ident(), ".js"),
-        chunk_group,
+        chunks,
     }
     .cell()
     .into())

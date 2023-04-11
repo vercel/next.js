@@ -5,7 +5,6 @@ pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;
 
 pub use chunking_context::{DevChunkingContext, DevChunkingContextBuilder, DevChunkingContextVc};
-pub use ecmascript::list::reference::{ChunkListReference, ChunkListReferenceVc};
 
 pub fn register() {
     turbo_tasks::register();

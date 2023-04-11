@@ -21,5 +21,4 @@ export type ModuleEffect =
 export type DevRuntimeParams = {
   otherChunks: ChunkPath[];
   runtimeModuleIds: ModuleId[];
-  chunkListPath: ChunkPath;
 };

@@ -1,9 +1,9 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{Value, ValueToString};
 
-use super::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc};
+use super::{ChunkableAsset, ChunkableAssetVc};
 use crate::{
-    asset::{Asset, AssetVc, AssetsVc},
+    asset::{Asset, AssetVc},
     context::{AssetContext, AssetContextVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
 };
@@ -51,16 +51,4 @@ impl EvaluatableAssetsVc {
         entries.push(entry);
         Ok(EvaluatableAssets(entries).cell())
     }
-}
-
-/// Trait for chunking contexts which can generate evaluated chunks.
-#[turbo_tasks::value_trait]
-pub trait EvaluateChunkingContext: ChunkingContext {
-    /// Create a chunk that evaluates the given entries.
-    fn evaluate_chunk(
-        &self,
-        entry_chunk: ChunkVc,
-        other_assets: AssetsVc,
-        evaluatable_assets: EvaluatableAssetsVc,
-    ) -> AssetVc;
 }

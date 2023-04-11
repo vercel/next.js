@@ -14,9 +14,9 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_content, chunk_content_split,
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
-        Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkItemVc,
-        ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
-        FromChunkableAsset, ModuleId, ModuleIdVc,
+        Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkItem, ChunkItemVc, ChunkReferenceVc,
+        ChunkVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, FromChunkableAsset,
+        ModuleId, ModuleIdVc,
     },
     code_builder::{CodeBuilder, CodeVc},
     ident::{AssetIdent, AssetIdentVc},
@@ -197,7 +197,7 @@ impl GenerateSourceMap for CssChunkContent {
 pub struct CssChunkContentResult {
     pub chunk_items: Vec<CssChunkItemVc>,
     pub chunks: Vec<ChunkVc>,
-    pub async_chunk_groups: Vec<ChunkGroupVc>,
+    pub async_chunk_group_entries: Vec<ChunkVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
 }
 
@@ -206,7 +206,7 @@ impl From<ChunkContentResult<CssChunkItemVc>> for CssChunkContentResult {
         CssChunkContentResult {
             chunk_items: from.chunk_items,
             chunks: from.chunks,
-            async_chunk_groups: from.async_chunk_groups,
+            async_chunk_group_entries: from.async_chunk_group_entries,
             external_asset_references: from.external_asset_references,
         }
     }
@@ -231,26 +231,26 @@ async fn css_chunk_content(
 
     let mut all_chunk_items = IndexSet::<CssChunkItemVc>::new();
     let mut all_chunks = IndexSet::<ChunkVc>::new();
-    let mut all_async_chunk_groups = IndexSet::<ChunkGroupVc>::new();
+    let mut all_async_chunk_group_entries = IndexSet::<ChunkVc>::new();
     let mut all_external_asset_references = IndexSet::<AssetReferenceVc>::new();
 
     for content in contents {
         let CssChunkContentResult {
             chunk_items,
             chunks,
-            async_chunk_groups,
+            async_chunk_group_entries,
             external_asset_references,
         } = &*content.await?;
         all_chunk_items.extend(chunk_items.iter().copied());
         all_chunks.extend(chunks.iter().copied());
-        all_async_chunk_groups.extend(async_chunk_groups.iter().copied());
+        all_async_chunk_group_entries.extend(async_chunk_group_entries.iter().copied());
         all_external_asset_references.extend(external_asset_references.iter().copied());
     }
 
     Ok(CssChunkContentResult {
         chunk_items: all_chunk_items.into_iter().collect(),
         chunks: all_chunks.into_iter().collect(),
-        async_chunk_groups: all_async_chunk_groups.into_iter().collect(),
+        async_chunk_group_entries: all_async_chunk_group_entries.into_iter().collect(),
         external_asset_references: all_external_asset_references.into_iter().collect(),
     }
     .cell())
@@ -351,8 +351,8 @@ impl Asset for CssChunk {
         for chunk in content.chunks.iter() {
             references.push(ChunkReferenceVc::new_parallel(*chunk).into());
         }
-        for chunk_group in content.async_chunk_groups.iter() {
-            references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
+        for entry in content.async_chunk_group_entries.iter() {
+            references.push(ChunkGroupReferenceVc::new(this.context, *entry).into());
         }
         if *this
             .context

@@ -1,21 +1,25 @@
 use std::fmt::Write;
 
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::{
+    graph::{GraphTraversal, ReverseTopological, SkipDuplicates},
     primitives::{BoolVc, StringVc},
-    Value, ValueToString,
+    TryJoinIterExt, Value, ValueToString,
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkVc, ChunkableAssetVc, ChunkingContext,
-        ChunkingContextVc, EvaluatableAssetsVc, EvaluateChunkingContext, EvaluateChunkingContextVc,
+        availability_info::AvailabilityInfo, optimize, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+        ChunkingContext, ChunkingContextVc, ChunksVc, EvaluatableAssetsVc, ParallelChunkReference,
+        ParallelChunkReferenceVc,
     },
     environment::EnvironmentVc,
     ident::{AssetIdent, AssetIdentVc},
-    resolve::ModulePart,
+    reference::{AssetReference, AssetReferenceVc},
+    resolve::{ModulePart, PrimaryResolveResult},
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkItemVc, EcmascriptChunkVc, EcmascriptChunkingContext,
@@ -25,6 +29,7 @@ use turbopack_ecmascript::chunk::{
 use crate::ecmascript::{
     chunk::EcmascriptDevChunkVc,
     evaluate::chunk::EcmascriptDevEvaluateChunkVc,
+    list::asset::{EcmascriptDevChunkListSource, EcmascriptDevChunkListVc},
     manifest::{chunk_asset::DevManifestChunkAssetVc, loader_item::DevManifestLoaderItemVc},
 };
 
@@ -118,11 +123,6 @@ impl DevChunkingContextVc {
     }
 }
 
-#[turbo_tasks::function]
-fn chunk_list_modifier() -> StringVc {
-    StringVc::cell("chunk list".to_string())
-}
-
 #[turbo_tasks::value_impl]
 impl DevChunkingContextVc {
     #[turbo_tasks::function]
@@ -131,12 +131,38 @@ impl DevChunkingContextVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn chunk_list_path(
-        self,
-        entry_chunk_ident: AssetIdentVc,
-    ) -> Result<FileSystemPathVc> {
-        let ident = entry_chunk_ident.with_modifier(chunk_list_modifier());
-        Ok(self.chunk_path(ident, ".json"))
+    pub(crate) async fn generate_chunk(
+        self_vc: DevChunkingContextVc,
+        chunk: ChunkVc,
+    ) -> Result<AssetVc> {
+        Ok(
+            if let Some(ecmascript_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
+                EcmascriptDevChunkVc::new(self_vc, ecmascript_chunk).into()
+            } else {
+                chunk.into()
+            },
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn generate_evaluate_chunk(
+        self_vc: DevChunkingContextVc,
+        entry_chunk: ChunkVc,
+        other_chunks: AssetsVc,
+        evaluatable_assets: EvaluatableAssetsVc,
+    ) -> AssetVc {
+        EcmascriptDevEvaluateChunkVc::new(self_vc, entry_chunk, other_chunks, evaluatable_assets)
+            .into()
+    }
+
+    #[turbo_tasks::function]
+    fn generate_chunk_list_register_chunk(
+        self_vc: DevChunkingContextVc,
+        entry_chunk: ChunkVc,
+        other_chunks: AssetsVc,
+        source: Value<EcmascriptDevChunkListSource>,
+    ) -> AssetVc {
+        EcmascriptDevChunkListVc::new(self_vc, entry_chunk, other_chunks, source).into()
     }
 }
 
@@ -343,14 +369,68 @@ impl ChunkingContext for DevChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn generate_chunk(self_vc: DevChunkingContextVc, chunk: ChunkVc) -> Result<AssetVc> {
-        Ok(
-            if let Some(ecmascript_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
-                EcmascriptDevChunkVc::new(self_vc, ecmascript_chunk).into()
-            } else {
-                chunk.into()
-            },
-        )
+    async fn chunk_group(self_vc: DevChunkingContextVc, entry_chunk: ChunkVc) -> Result<AssetsVc> {
+        let chunks = get_optimized_parallel_chunks([entry_chunk]).await?;
+
+        let mut assets: Vec<AssetVc> = chunks
+            .await?
+            .iter()
+            .map(|chunk| self_vc.generate_chunk(*chunk))
+            .collect();
+
+        assets.push(self_vc.generate_chunk_list_register_chunk(
+            entry_chunk,
+            AssetsVc::cell(assets.clone()),
+            Value::new(EcmascriptDevChunkListSource::Dynamic),
+        ));
+
+        Ok(AssetsVc::cell(assets))
+    }
+
+    #[turbo_tasks::function]
+    async fn evaluated_chunk_group(
+        self_vc: DevChunkingContextVc,
+        entry_chunk: ChunkVc,
+        evaluatable_assets: EvaluatableAssetsVc,
+    ) -> Result<AssetsVc> {
+        let evaluatable_assets_ref = evaluatable_assets.await?;
+
+        let mut entry_assets: IndexSet<_> = evaluatable_assets_ref
+            .iter()
+            .map({
+                move |evaluatable_asset| async move {
+                    Ok(evaluatable_asset
+                        .as_root_chunk(self_vc.into())
+                        .resolve()
+                        .await?)
+                }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+
+        entry_assets.insert(entry_chunk.resolve().await?);
+
+        let chunks = get_optimized_parallel_chunks(entry_assets).await?;
+
+        let mut assets: Vec<AssetVc> = chunks
+            .await?
+            .iter()
+            .map(|chunk| self_vc.generate_chunk(*chunk))
+            .collect();
+
+        let other_assets = AssetsVc::cell(assets.clone());
+
+        assets.push(self_vc.generate_chunk_list_register_chunk(
+            entry_chunk,
+            other_assets,
+            Value::new(EcmascriptDevChunkListSource::Entry),
+        ));
+
+        assets.push(self_vc.generate_evaluate_chunk(entry_chunk, other_assets, evaluatable_assets));
+
+        Ok(AssetsVc::cell(assets))
     }
 }
 
@@ -367,16 +447,60 @@ impl EcmascriptChunkingContext for DevChunkingContext {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl EvaluateChunkingContext for DevChunkingContext {
-    #[turbo_tasks::function]
-    fn evaluate_chunk(
-        self_vc: DevChunkingContextVc,
-        entry_chunk: ChunkVc,
-        other_chunks: AssetsVc,
-        evaluatable_assets: EvaluatableAssetsVc,
-    ) -> AssetVc {
-        EcmascriptDevEvaluateChunkVc::new(self_vc, entry_chunk, other_chunks, evaluatable_assets)
-            .into()
+async fn get_optimized_parallel_chunks<I>(entries: I) -> Result<ChunksVc>
+where
+    I: IntoIterator<Item = ChunkVc>,
+{
+    let chunks: Vec<_> = GraphTraversal::<SkipDuplicates<ReverseTopological<_>, _>>::visit(
+        entries,
+        get_chunk_children,
+    )
+    .await
+    .completed()?
+    .into_inner()
+    .into_iter()
+    .collect();
+
+    let chunks = ChunksVc::cell(chunks);
+    let chunks = optimize(chunks);
+
+    Ok(chunks)
+}
+
+/// Computes the list of all chunk children of a given chunk.
+async fn get_chunk_children(parent: ChunkVc) -> Result<impl Iterator<Item = ChunkVc> + Send> {
+    Ok(parent
+        .references()
+        .await?
+        .iter()
+        .copied()
+        .map(reference_to_chunks)
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten())
+}
+
+/// Get all parallel chunks from a parallel chunk reference.
+async fn reference_to_chunks(r: AssetReferenceVc) -> Result<impl Iterator<Item = ChunkVc> + Send> {
+    let mut result = Vec::new();
+    if let Some(pc) = ParallelChunkReferenceVc::resolve_from(r).await? {
+        if *pc.is_loaded_in_parallel().await? {
+            result = r
+                .resolve_reference()
+                .await?
+                .primary
+                .iter()
+                .map(|r| async move {
+                    Ok(if let PrimaryResolveResult::Asset(a) = r {
+                        ChunkVc::resolve_from(a).await?
+                    } else {
+                        None
+                    })
+                })
+                .try_join()
+                .await?;
+        }
     }
+    Ok(result.into_iter().flatten())
 }

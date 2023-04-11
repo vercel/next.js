@@ -16,11 +16,6 @@ let BACKEND;
         return;
       }
 
-      registerChunkListAndMarkAsRuntime(params.chunkListPath, [
-        chunkPath,
-        ...params.otherChunks,
-      ]);
-
       const chunksToWaitFor = [];
       for (const otherChunkPath of params.otherChunks) {
         if (otherChunkPath.endsWith(".css")) {

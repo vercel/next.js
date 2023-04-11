@@ -22,6 +22,11 @@ export type ChunkRegistration = [
   chunkModules: ChunkModule[],
   DevRuntimeParams | undefined
 ];
+export type ChunkList = {
+  path: ChunkPath;
+  chunks: ChunkPath[];
+  source: "entry" | "dynamic";
+};
 
 interface Module {
   exports: Exports;
@@ -121,6 +126,7 @@ export interface TurbopackGlobals {
   TURBOPACK_CHUNK_UPDATE_LISTENERS?:
     | ChunkUpdateProvider
     | [ChunkPath, UpdateCallback][];
+  TURBOPACK_CHUNK_LISTS?: ChunkList[];
 }
 
 export type GetFirstModuleChunk = (moduleId: ModuleId) => ChunkPath | null;
@@ -128,10 +134,6 @@ export type GetOrInstantiateRuntimeModule = (
   moduleId: ModuleId,
   chunkPath: ChunkPath
 ) => Module;
-export type RegisterChunkListAndMarkAsRuntime = (
-  chunkListPath: ChunkPath,
-  chunkPaths: ChunkPath[]
-) => void;
 
 export interface Loader {
   promise: Promise<undefined>;
@@ -160,6 +162,7 @@ declare global {
     | ChunkUpdateProvider
     | [ChunkPath, UpdateCallback][]
     | undefined;
+  var TURBOPACK_CHUNK_LISTS: ChunkList[];
 
   var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
   var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];

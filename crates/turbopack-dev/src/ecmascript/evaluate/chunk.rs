@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
@@ -21,17 +21,17 @@ use turbopack_ecmascript::{
     utils::StringifyJs,
 };
 
-use crate::{ecmascript::list::reference::ChunkListReferenceVc, DevChunkingContextVc};
+use crate::DevChunkingContextVc;
 
 /// An Ecmascript chunk that:
 /// * Contains the Turbopack dev runtime code; and
 /// * Evaluates a list of runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevEvaluateChunk {
-    pub(super) chunking_context: DevChunkingContextVc,
-    pub(super) entry_chunk: ChunkVc,
-    pub(super) other_chunks: AssetsVc,
-    pub(super) evaluatable_assets: EvaluatableAssetsVc,
+    chunking_context: DevChunkingContextVc,
+    entry_chunk: ChunkVc,
+    other_chunks: AssetsVc,
+    evaluatable_assets: EvaluatableAssetsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -104,16 +104,7 @@ impl EcmascriptDevEvaluateChunkVc {
             .flatten()
             .collect();
 
-        let chunk_list_path = this
-            .chunking_context
-            .chunk_list_path(this.entry_chunk.ident())
-            .await?;
-        let chunk_list_path = output_root
-            .get_path_to(&*chunk_list_path)
-            .context("chunk list path is not in output root")?;
-
         let params = EcmascriptDevChunkRuntimeParams {
-            chunk_list_path,
             other_chunks: other_chunks_paths,
             runtime_module_ids,
         };
@@ -221,13 +212,8 @@ impl Asset for EcmascriptDevEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: EcmascriptDevEvaluateChunkVc) -> Result<AssetReferencesVc> {
-        let this = self_vc.await?;
-        Ok(AssetReferencesVc::cell(vec![
-            ChunkListReferenceVc::new(this.chunking_context, this.entry_chunk, this.other_chunks)
-                .into(),
-            SourceMapAssetReferenceVc::new(self_vc.into()).into(),
-        ]))
+    fn references(self_vc: EcmascriptDevEvaluateChunkVc) -> AssetReferencesVc {
+        AssetReferencesVc::cell(vec![SourceMapAssetReferenceVc::new(self_vc.into()).into()])
     }
 
     #[turbo_tasks::function]
@@ -247,7 +233,7 @@ impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct EcmascriptDevChunkRuntimeParams<'a> {
+struct EcmascriptDevChunkRuntimeParams {
     /// Other chunks in the chunk group this chunk belongs to, if any. Does not
     /// include the chunk itself.
     ///
@@ -256,6 +242,4 @@ struct EcmascriptDevChunkRuntimeParams<'a> {
     other_chunks: Vec<String>,
     /// List of module IDs that this chunk should instantiate when executed.
     runtime_module_ids: Vec<ModuleIdReadRef>,
-    /// Path to the chunk list that this chunk should register itself with.
-    chunk_list_path: &'a str,
 }

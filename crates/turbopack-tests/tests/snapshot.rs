@@ -28,7 +28,7 @@ use turbopack::{
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{
-        ChunkGroupVc, ChunkableAsset, ChunkableAssetVc, EvaluatableAssetVc, EvaluatableAssetsVc,
+        ChunkableAsset, ChunkableAssetVc, ChunkingContext, EvaluatableAssetVc, EvaluatableAssetsVc,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -253,16 +253,14 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
         .map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
                 // TODO: Load runtime entries from snapshots
-                Ok(ChunkGroupVc::evaluated(
-                    chunking_context,
-                    ecmascript.into(),
-                    runtime_entries.unwrap_or_else(EvaluatableAssetsVc::empty),
+                Ok(chunking_context.evaluated_chunk_group(
+                    ecmascript.as_root_chunk(chunking_context),
+                    runtime_entries
+                        .unwrap_or_else(EvaluatableAssetsVc::empty)
+                        .with_entry(ecmascript.into()),
                 ))
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
-                Ok(ChunkGroupVc::from_chunk(
-                    chunking_context,
-                    chunkable.as_root_chunk(chunking_context),
-                ))
+                Ok(chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context)))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(
@@ -276,8 +274,8 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
 
     let mut seen = HashSet::new();
     let mut queue = VecDeque::with_capacity(32);
-    for chunk_group in chunk_groups {
-        for chunk in &*chunk_group.chunks().await? {
+    for chunks in chunk_groups {
+        for chunk in &*chunks.await? {
             queue.push_back(*chunk);
         }
     }

@@ -372,8 +372,8 @@ impl Asset for EcmascriptChunk {
         for chunk in content.chunks.iter() {
             references.push(ChunkReferenceVc::new_parallel(*chunk).into());
         }
-        for chunk_group in content.async_chunk_groups.iter() {
-            references.push(ChunkGroupReferenceVc::new(*chunk_group).into());
+        for entry in content.async_chunk_group_entries.iter() {
+            references.push(ChunkGroupReferenceVc::new(this.context.into(), *entry).into());
         }
 
         Ok(AssetReferencesVc::cell(references))

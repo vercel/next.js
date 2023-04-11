@@ -4,7 +4,7 @@ use turbo_tasks::Value;
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, chunk_content, chunk_content_split,
-        ChunkContentResult, ChunkGroupVc, ChunkVc,
+        ChunkContentResult, ChunkVc,
     },
     reference::AssetReferenceVc,
 };
@@ -19,7 +19,7 @@ use super::{
 pub struct EcmascriptChunkContent {
     pub chunk_items: Vec<EcmascriptChunkItemVc>,
     pub chunks: Vec<ChunkVc>,
-    pub async_chunk_groups: Vec<ChunkGroupVc>,
+    pub async_chunk_group_entries: Vec<ChunkVc>,
     pub external_asset_references: Vec<AssetReferenceVc>,
     pub availability_info: AvailabilityInfo,
 }
@@ -29,7 +29,7 @@ impl From<ChunkContentResult<EcmascriptChunkItemVc>> for EcmascriptChunkContent 
         EcmascriptChunkContent {
             chunk_items: from.chunk_items,
             chunks: from.chunks,
-            async_chunk_groups: from.async_chunk_groups,
+            async_chunk_group_entries: from.async_chunk_group_entries,
             external_asset_references: from.external_asset_references,
             availability_info: from.availability_info,
         }
@@ -80,27 +80,27 @@ async fn ecmascript_chunk_content_internal(
 
     let mut all_chunk_items = IndexSet::<EcmascriptChunkItemVc>::new();
     let mut all_chunks = IndexSet::<ChunkVc>::new();
-    let mut all_async_chunk_groups = IndexSet::<ChunkGroupVc>::new();
+    let mut all_async_chunk_group_entries = IndexSet::<ChunkVc>::new();
     let mut all_external_asset_references = IndexSet::<AssetReferenceVc>::new();
 
     for content in contents {
         let EcmascriptChunkContent {
             chunk_items,
             chunks,
-            async_chunk_groups,
+            async_chunk_group_entries,
             external_asset_references,
             availability_info: _,
         } = &*content.await?;
         all_chunk_items.extend(chunk_items.iter().copied());
         all_chunks.extend(chunks.iter().copied());
-        all_async_chunk_groups.extend(async_chunk_groups.iter().copied());
+        all_async_chunk_group_entries.extend(async_chunk_group_entries.iter().copied());
         all_external_asset_references.extend(external_asset_references.iter().copied());
     }
 
     Ok(EcmascriptChunkContent {
         chunk_items: all_chunk_items.into_iter().collect(),
         chunks: all_chunks.into_iter().collect(),
-        async_chunk_groups: all_async_chunk_groups.into_iter().collect(),
+        async_chunk_group_entries: all_async_chunk_group_entries.into_iter().collect(),
         external_asset_references: all_external_asset_references.into_iter().collect(),
         availability_info: availability_info.into_value(),
     }
