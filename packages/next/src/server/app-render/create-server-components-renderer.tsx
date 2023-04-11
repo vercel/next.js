@@ -1,8 +1,15 @@
 import { RenderOpts } from './types'
-import React, { use } from 'next/dist/compiled/react'
 import { createErrorHandler } from './create-error-handler'
 import { useFlightResponse } from './use-flight-response'
 import { FlightResponseRef } from './flight-response-ref'
+
+let React: typeof import('next/dist/compiled/react')
+
+if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
+  React = require('next/dist/compiled/react-experimental')
+} else {
+  React = require('next/dist/compiled/react')
+}
 
 /**
  * Create a component that renders the Flight stream.
@@ -68,6 +75,6 @@ export function createServerComponentRenderer<Props>(
       flightResponseRef,
       nonce
     )
-    return use(response)
+    return React.use(response)
   }
 }
