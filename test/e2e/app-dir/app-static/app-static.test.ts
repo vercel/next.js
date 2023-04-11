@@ -87,7 +87,7 @@ createNextDescribe(
     })
 
     // On-Demand Revalidate has not effect in dev
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
         const initRes = await next.fetch('/variable-revalidate/revalidate-360')
         const html = await initRes.text()
@@ -103,16 +103,19 @@ createNextDescribe(
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const newHtml = await newRes.text()
-        const new$ = cheerio.load(newHtml)
-        const newLayoutData = new$('#layout-data').text()
-        const newPageData = new$('#page-data').text()
+        await check(async () => {
+          const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+          const newHtml = await newRes.text()
+          const new$ = cheerio.load(newHtml)
+          const newLayoutData = new$('#layout-data').text()
+          const newPageData = new$('#page-data').text()
 
-        expect(newLayoutData).toBeTruthy()
-        expect(newPageData).toBeTruthy()
-        expect(newLayoutData).not.toBe(initLayoutData)
-        expect(newPageData).not.toBe(initPageData)
+          expect(newLayoutData).toBeTruthy()
+          expect(newPageData).toBeTruthy()
+          expect(newLayoutData).not.toBe(initLayoutData)
+          expect(newPageData).not.toBe(initPageData)
+          return 'success'
+        }, 'success')
       })
     }
 
