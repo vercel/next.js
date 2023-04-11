@@ -1,5 +1,4 @@
 import path from '../../../shared/lib/isomorphic/path'
-import * as Log from '../../../build/output/log'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -26,11 +25,6 @@ function resolveUrl(
 
   if (!metadataBase) {
     metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
-    // Development mode warning, add new line prefix for worker output
-    console.log()
-    Log.warn(
-      `metadata.metadataBase is not set for resolving url "${url}", fallbacks to "${metadataBase.origin}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase`
-    )
   }
 
   // Handle relative or absolute paths
