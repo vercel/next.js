@@ -22,9 +22,9 @@ createNextDescribe(
     describe.each(['link', 'button'])('navigation using %s', (testType) => {
       if (testType === 'button') return
       describe.each([
-        // ['app', 'app'],
+        ['app', 'app'],
         ['app', 'pages'],
-        // ['pages', 'app'],
+        ['pages', 'app'],
       ])('navigation from %s to %s', (from, to) => {
         it('should rewrite from middleware correctly', async () => {
           const browser = await next.browser('/')
@@ -37,18 +37,19 @@ createNextDescribe(
           const url = new URL(await browser.url())
           expect(url.pathname).toEndWith('-before')
         })
-        return
 
         it('should redirect from middleware correctly', async () => {
           const browser = await next.browser('/')
           await browser
-            .elementById(`${from}-${to}-${testType}-middleware-redirect`)
+            .elementById(`${testType}-${from}-${to}-middleware-redirect`)
             .click()
-            .waitForElementByCss('.page_middleware-redirect-after')
+            .waitForElementByCss(`.page_${to}_${to}_middleware-redirect-after`)
           const url = new URL(await browser.url())
           expect(url.pathname).toEndWith('-after')
         })
 
+        return
+        // TODO: update the rest of the tests
         it('should rewrite from next.config.js correctly', async () => {
           const browser = await next.browser('/')
           await browser
