@@ -25,7 +25,7 @@ When you enable OpenTelemetry you we will automatically wrap all your code like 
 ## Getting Started
 
 OpenTelemetry is extensible but setting it up properly can be quite verbose.
-That's why we prepared a simple package `@vercel/otel` that helps you get started quickly.
+That's why we prepared a package `@vercel/otel` that helps you get started quickly.
 It's not extensible and you should configure OpenTelemetry manually you need to customize your setup.
 
 ### Using `@vercel/otel`
@@ -51,7 +51,7 @@ export function register() {
 
 ### Manual OpenTelemetry configuration
 
-If our wrapper `@vercel/otel` doesn't suit your needs, you can easily configure OpenTelemetry manually.
+If our wrapper `@vercel/otel` doesn't suit your needs, you can configure OpenTelemetry manually.
 
 Firstly you need to install OpenTelemetry packages:
 
