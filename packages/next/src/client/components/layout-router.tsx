@@ -448,7 +448,7 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
   asNotFound?: boolean
-  assets: React.ReactNode | undefined
+  assets?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
