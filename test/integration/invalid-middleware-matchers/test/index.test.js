@@ -90,15 +90,15 @@ const runTests = () => {
     expect(stderr).toContain(`\`source\` is missing for route {}`)
 
     expect(stderr).toContain(
-      `\`source\` is not a string for route {"source":123,"originalSource":123}`
+      `\`source\` is not a string for route {"source":123}`
     )
 
     expect(stderr).toContain(
-      `\`source\` does not start with / for route {"source":"hello","originalSource":"hello"}`
+      `\`source\` does not start with / for route {"source":"hello"}`
     )
 
     expect(stderr).toContain(
-      `invalid field: destination for route {"source":"/hello","destination":"/not-allowed","originalSource":"/hello"}`
+      `invalid field: destination for route {"source":"/hello","destination":"/not-allowed"}`
     )
 
     expect(stderr).toContain(
@@ -110,7 +110,7 @@ const runTests = () => {
       `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
     )
     expect(stderr).toContain(
-      `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}],"originalSource":"/hello"}`
+      `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}]}`
     )
 
     expect(stderr).toContain('Invalid `has` items:')
@@ -121,14 +121,14 @@ const runTests = () => {
       `invalid type "queryr" for {"type":"queryr","key":"hello"}`
     )
     expect(stderr).toContain(
-      `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}],"originalSource":"/hello"}`
+      `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
     )
     expect(stderr).toContain(`Valid \`has\` object shape is {`)
     expect(stderr).toContain(
-      `invalid field: basePath for route {"source":"/hello","basePath":false,"originalSource":"/hello"}`
+      `invalid field: basePath for route {"source":"/hello","basePath":false}`
     )
     expect(stderr).toContain(
-      '`locale` must be undefined or false for route {"source":"/hello","locale":true,"originalSource":"/hello"}'
+      '`locale` must be undefined or false for route {"source":"/hello","locale":true}'
     )
   })
 }
