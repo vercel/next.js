@@ -468,7 +468,7 @@ export async function renderToHTMLOrFlight(
       return [Comp, styles]
     }
 
-    const createStaticAssets = async ({
+    const createStaticAssets = ({
       layoutOrPagePath,
       injectedCSS: injectedCSSWithCurrentLayout,
       injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
@@ -476,7 +476,7 @@ export async function renderToHTMLOrFlight(
       layoutOrPagePath: string | undefined
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
-    }) => {
+    }): React.ReactNode => {
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             clientReferenceManifest,
@@ -572,7 +572,10 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
       asNotFound?: boolean
-    }): Promise<{ Component: React.ComponentType }> => {
+    }): Promise<{
+      Component: React.ComponentType
+      assets: React.ReactNode
+    }> => {
       const [segment, parallelRoutes, components] = tree
       const {
         layout,
@@ -827,17 +830,19 @@ export async function renderToHTMLOrFlight(
             }
 
             // Create the child component
-            const { Component: ChildComponent } = await createComponentTree({
-              createSegmentPath: (child) => {
-                return createSegmentPath([...currentSegmentPath, ...child])
-              },
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              asNotFound,
-            })
+            const { Component: ChildComponent, assets: childAssets } =
+              await createComponentTree({
+                createSegmentPath: (child) => {
+                  return createSegmentPath([...currentSegmentPath, ...child])
+                },
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                asNotFound,
+              })
 
             const childProp: ChildProp = {
               current: <ChildComponent />,
@@ -873,6 +878,7 @@ export async function renderToHTMLOrFlight(
                 notFoundStyles={notFoundStyles}
                 asNotFound={asNotFound}
                 childProp={childProp}
+                assets={childAssets}
               />,
             ]
           }
@@ -892,6 +898,7 @@ export async function renderToHTMLOrFlight(
       if (!Component) {
         return {
           Component: () => <>{parallelRouteComponents.children}</>,
+          assets,
         }
       }
 
@@ -942,7 +949,7 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
               {isPage && isClientComponent && isStaticGeneration ? (
                 <StaticGenerationSearchParamsBailoutProvider
                   propsForComponent={props}
@@ -951,10 +958,10 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {assets}
             </>
           )
         },
+        assets,
       }
     }
 
@@ -1081,7 +1088,7 @@ export async function renderToHTMLOrFlight(
               : // Create component tree using the slice of the loaderTree
                 // @ts-expect-error TODO-APP: fix async component type
                 React.createElement(async () => {
-                  const { Component } = await createComponentTree(
+                  const { Component, assets } = await createComponentTree(
                     // This ensures flightRouterPath is valid and filters down the tree
                     {
                       createSegmentPath: (child) => {
@@ -1098,7 +1105,12 @@ export async function renderToHTMLOrFlight(
                     }
                   )
 
-                  return <Component />
+                  return (
+                    <>
+                      {assets}
+                      <Component />
+                    </>
+                  )
                 }),
             isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
           ]
@@ -1280,7 +1292,7 @@ export async function renderToHTMLOrFlight(
         const injectedCSS = new Set<string>()
         const injectedFontPreloadTags = new Set<string>()
 
-        const { Component: ComponentTree } = await createComponentTree({
+        const { Component: ComponentTree, assets } = await createComponentTree({
           createSegmentPath: (child) => child,
           loaderTree,
           parentParams: {},
@@ -1308,12 +1320,6 @@ export async function renderToHTMLOrFlight(
           ? [DefaultNotFound]
           : []
 
-        const assets = createStaticAssets({
-          layoutOrPagePath: layout?.[1],
-          injectedCSS,
-          injectedFontPreloadTags,
-        })
-
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
           getDynamicParamFromSegment,
@@ -1322,6 +1328,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
+            {assets}
             <AppRouter
               assetPrefix={assetPrefix}
               initialCanonicalUrl={initialCanonicalUrl}
@@ -1340,13 +1347,10 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <>
-                    {assets}
-                    <RootLayout params={{}}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </RootLayout>
-                  </>
+                  <RootLayout params={{}}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </RootLayout>
                 ) : undefined
               }
               asNotFound={props.asNotFound}
