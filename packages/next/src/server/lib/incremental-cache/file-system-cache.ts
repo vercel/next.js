@@ -63,14 +63,16 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         const meta = JSON.parse(
-          await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
+          (
+            await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
+          ).toString('utf8')
         )
 
         const cacheEntry: CacheHandlerValue = {
           lastModified: mtime.getTime(),
           value: {
             kind: 'ROUTE',
-            body: Buffer.from(fileData),
+            body: fileData,
             headers: meta.headers,
             status: meta.status,
           },
@@ -92,30 +94,37 @@ export default class FileSystemCache implements CacheHandler {
           const lastModified = mtime.getTime()
           data = {
             lastModified,
-            value: JSON.parse(fileData),
+            value: JSON.parse(fileData.toString('utf8')),
           }
         } else {
           const pageData = isAppPath
-            ? await this.fs.readFile(
-                (
-                  await this.getFsPath({ pathname: `${key}.rsc`, appDir: true })
-                ).filePath
-              )
-            : JSON.parse(
+            ? (
                 await this.fs.readFile(
-                  await (
+                  (
                     await this.getFsPath({
-                      pathname: `${key}.json`,
-                      appDir: false,
+                      pathname: `${key}.rsc`,
+                      appDir: true,
                     })
                   ).filePath
                 )
+              ).toString('utf8')
+            : JSON.parse(
+                (
+                  await this.fs.readFile(
+                    (
+                      await this.getFsPath({
+                        pathname: `${key}.json`,
+                        appDir: false,
+                      })
+                    ).filePath
+                  )
+                ).toString('utf8')
               )
           data = {
             lastModified: mtime.getTime(),
             value: {
               kind: 'PAGE',
-              html: fileData,
+              html: fileData.toString('utf8'),
               pageData,
             },
           }
