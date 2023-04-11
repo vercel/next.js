@@ -299,7 +299,7 @@ createNextDescribe(
           ]
         `)
           return 'success'
-        }, 'succes')
+        }, 'success')
       })
 
       it('should handle api routes in pages', async () => {

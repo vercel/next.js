@@ -388,7 +388,7 @@ const nextDev: CliCommand = async (argv) => {
               true
             )
           }
-          
+
           if (config.experimental?.appDir && !devServerOptions.useWorkers) {
             Log.error(
               `Disabling dev workers is not supported with appDir enabled`
