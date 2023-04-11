@@ -54,6 +54,32 @@ All other spans from that particular trace will be nested under it.
 Next.js traces more spans than are emitted by default.
 To see more spans, you must set `NEXT_OTEL_VERBOSE=1`.
 
+## Deployment
+
+### Using OpenTelemetry Collector
+
+When you are deploying with OpenTelemetry Collector, you can use `@vercel/otel`.
+It will work both on Vercel and when self-hosted.
+
+#### Deploying on Vercel
+
+We made sure that OpenTelemetry works out-of the box on Vercel.
+
+Follow [Vercel documentation](https://vercel.com/docs/concepts/observability/otel-overview/quickstart) to connect your project to an observability provider.
+
+#### Self-hosting
+
+Deploying to other platforms is also straightforward. You will need to spin up your own OpenTelemetry Collector to receive and process the telemetry data from your Next.js app.
+
+To do this, follow the [OpenTelemetry Collector Getting Started guide](https://opentelemetry.io/docs/collector/getting-started/), which will walk you through setting up the collector and configuring it to receive data from your Next.js app.
+
+Once you have your collector up and running, you can deploy your Next.js app to your chosen platform following their respective deployment guides.
+
+### Custom Exporters
+
+You can use custom OpenTelemetry initialization in order to specify a custom OpenTelemetry exporter.
+We recommend using OpenTelemetry Collector for
+
 ## Custom Spans
 
 You can add your own span with [OpenTelemetry APIs](https://opentelemetry.io/docs/instrumentation/js/instrumentation).
