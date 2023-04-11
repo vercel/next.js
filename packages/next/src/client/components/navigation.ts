@@ -9,9 +9,7 @@ import {
 } from '../../shared/lib/app-router-context'
 import {
   SearchParamsContext,
-  // ParamsContext,
   PathnameContext,
-  // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
