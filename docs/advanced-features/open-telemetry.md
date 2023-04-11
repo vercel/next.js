@@ -113,7 +113,7 @@ It will work both on Vercel and when self-hosted.
 
 #### Deploying on Vercel
 
-We made sure that OpenTelemetry works out-of the box on Vercel.
+We made sure that OpenTelemetry works out of the box on Vercel.
 
 Follow [Vercel documentation](https://vercel.com/docs/concepts/observability/otel-overview/quickstart) to connect your project to an observability provider.
 
@@ -127,8 +127,8 @@ Once you have your collector up and running, you can deploy your Next.js app to 
 
 ### Custom Exporters
 
-You can use custom OpenTelemetry initialization in order to specify a custom OpenTelemetry exporter.
-We recommend using OpenTelemetry Collector for
+We recommend using OpenTelemetry Collector.
+If that is not possible on your platform, you can use a custom OpenTelemetry exporter with [manual OpenTelemetry configuration](https://nextjs.org/docs/advanced-features/open-telemetry#manual-opentelemetry-configuration)
 
 ## Custom Spans
 
