@@ -61,7 +61,7 @@ npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/sema
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
-OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.end.NEXT_RUNTIME === "nodejs"`. Conditionally importing with an `require` doesn't play well with typescript. We recommend using a conditionally `require`ing new file `instrumentation.node.ts` which can use normal `import`s:
+OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. Conditionally importing with an `require` doesn't play well with typescript. We recommend using a conditionally `require`ing new file `instrumentation.node.ts` which can use normal `import`s:
 
 ```ts
 // instrumentation.ts
@@ -91,7 +91,7 @@ sdk.start()
 ```
 
 Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend.
-For example you could use `@opentelemetry/exporter-trace-otlp-grpc` instead of `@opentelemetry/exporter-trace-otlp-http`.
+For example, you could use `@opentelemetry/exporter-trace-otlp-grpc` instead of `@opentelemetry/exporter-trace-otlp-http`.
 
 ## Testing your instrumentation
 
