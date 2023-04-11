@@ -7,7 +7,7 @@ use turbo_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-            chunk::{ChunkGroupVc, ChunkingContextVc, EvaluatableAssetsVc},
+            chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
@@ -100,13 +100,10 @@ impl PageLoaderAssetVc {
             }),
         );
 
-        let chunk_group = ChunkGroupVc::evaluated(
-            this.client_chunking_context,
-            asset.into(),
-            EvaluatableAssetsVc::empty(),
-        );
-
-        Ok(chunk_group.chunks())
+        Ok(this.client_chunking_context.evaluated_chunk_group(
+            asset.as_root_chunk(this.client_chunking_context),
+            EvaluatableAssetsVc::one(asset.into()),
+        ))
     }
 }
 
