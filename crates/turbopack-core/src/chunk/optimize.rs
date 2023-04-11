@@ -10,7 +10,7 @@ use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::TryJoinIterExt;
 use turbo_tasks_fs::{FileSystemPathOptionVc, FileSystemPathVc};
 
-use super::{ChunkGroupVc, ChunkVc, ChunksVc};
+use super::{ChunkVc, ChunksVc};
 use crate::{
     asset::{Asset, AssetVc},
     chunk::Chunk,
@@ -19,7 +19,7 @@ use crate::{
 /// A functor to optimize a set of chunks.
 #[turbo_tasks::value_trait]
 pub trait ChunkOptimizer {
-    fn optimize(&self, chunks: ChunksVc, chunk_group: ChunkGroupVc) -> ChunksVc;
+    fn optimize(&self, chunks: ChunksVc) -> ChunksVc;
 }
 
 /// Trait to mark a chunk as optimizable.
@@ -30,7 +30,7 @@ pub trait OptimizableChunk: Chunk + Asset {
 
 /// Optimize all chunks that implement [OptimizableChunk].
 #[turbo_tasks::function]
-pub async fn optimize(chunks: ChunksVc, chunk_group: ChunkGroupVc) -> Result<ChunksVc> {
+pub async fn optimize(chunks: ChunksVc) -> Result<ChunksVc> {
     let chunks = chunks.await?;
     let mut by_optimizer = IndexMap::<_, Vec<_>>::new();
     for (chunk, optimizer) in chunks
@@ -57,7 +57,7 @@ pub async fn optimize(chunks: ChunksVc, chunk_group: ChunkGroupVc) -> Result<Chu
             // TODO keyed cell: this would benefit from keying the cell by optimizer
             let chunks = ChunksVc::cell(chunks);
             Ok(if let Some(optimizer) = optimizer {
-                optimizer.optimize(chunks, chunk_group).await?
+                optimizer.optimize(chunks).await?
             } else {
                 chunks.await?
             })

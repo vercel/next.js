@@ -24,7 +24,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkGroupVc, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
+    chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
@@ -182,10 +182,9 @@ pub async fn get_evaluate_pool(
 
     let bootstrap = NodeJsBootstrapAsset {
         path,
-        chunk_group: ChunkGroupVc::evaluated(
-            chunking_context,
-            entry_module.into(),
-            runtime_entries,
+        chunks: chunking_context.evaluated_chunk_group(
+            entry_module.as_root_chunk(chunking_context),
+            runtime_entries.with_entry(entry_module.into()),
         ),
     }
     .cell()

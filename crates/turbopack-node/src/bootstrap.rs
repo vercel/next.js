@@ -4,8 +4,7 @@ use anyhow::Result;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    chunk::ChunkGroupVc,
+    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     ident::AssetIdentVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
 };
@@ -14,7 +13,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::value(shared)]
 pub(super) struct NodeJsBootstrapAsset {
     pub(super) path: FileSystemPathVc,
-    pub(super) chunk_group: ChunkGroupVc,
+    pub(super) chunks: AssetsVc,
 }
 
 #[turbo_tasks::function]
@@ -37,7 +36,7 @@ impl Asset for NodeJsBootstrapAsset {
         // but until then this is a simple hack to make it work for now
         let mut output = "Error.stackTraceLimit = 100;\nglobal.self = global;\n".to_string();
 
-        for chunk in self.chunk_group.chunks().await?.iter() {
+        for chunk in self.chunks.await?.iter() {
             let path = &*chunk.ident().path().await?;
             if let Some(p) = context_path.get_relative_path_to(path) {
                 if p.ends_with(".js") {
@@ -51,7 +50,7 @@ impl Asset for NodeJsBootstrapAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<AssetReferencesVc> {
-        let chunks = self.chunk_group.chunks().await?;
+        let chunks = self.chunks.await?;
         let mut references = Vec::new();
         for chunk in chunks.iter() {
             references.push(

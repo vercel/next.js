@@ -1,7 +1,7 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
     "output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_0d348e.js",
     {},
-    {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_b53fce.js","output/20803_bar_index_c8a3ce.js"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)"],"chunkListPath":"output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index.js_f5704b._.json"}
+    {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_b53fce.js","output/20803_bar_index_c8a3ce.js"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)"]}
 ]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -15,6 +15,7 @@ if (!Array.isArray(globalThis.TURBOPACK)) {
 /** @typedef {import('../types').ChunkPath} ChunkPath */
 /** @typedef {import('../types').ModuleId} ModuleId */
 /** @typedef {import('../types').GetFirstModuleChunk} GetFirstModuleChunk */
+/** @typedef {import('../types').ChunkList} ChunkList */
 
 /** @typedef {import('../types').Module} Module */
 /** @typedef {import('../types').SourceInfo} SourceInfo */
@@ -327,7 +328,6 @@ function instantiateModule(id, source) {
         m: module,
         c: moduleCache,
         l: loadChunk.bind(null, { type: SourceTypeParent, parentId: id }),
-        k: registerChunkList,
         g: globalThis,
         __dirname: module.id.replace(/(^|\/)[\/]+$/, ""),
       });
@@ -1184,6 +1184,10 @@ function disposeChunkList(chunkListPath) {
     }
   }
 
+  // We must also dispose of the chunk list's chunk itself to ensure it may
+  // be reloaded properly in the future.
+  BACKEND.unloadChunk(chunkListPath);
+
   return true;
 }
 
@@ -1248,39 +1252,30 @@ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
 /**
  * Subscribes to chunk list updates from the update server and applies them.
  *
- * @param {ChunkPath} chunkListPath
- * @param {ChunkPath[]} chunkPaths
+ * @param {ChunkList} chunkList
  */
-function registerChunkList(chunkListPath, chunkPaths) {
+function registerChunkList(chunkList) {
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS.push([
-    chunkListPath,
-    handleApply.bind(null, chunkListPath),
+    chunkList.path,
+    handleApply.bind(null, chunkList.path),
   ]);
 
   // Adding chunks to chunk lists and vice versa.
-  const chunks = new Set(chunkPaths);
-  chunkListChunksMap.set(chunkListPath, chunks);
+  const chunks = new Set(chunkList.chunks);
+  chunkListChunksMap.set(chunkList.path, chunks);
   for (const chunkPath of chunks) {
     let chunkChunkLists = chunkChunkListsMap.get(chunkPath);
     if (!chunkChunkLists) {
-      chunkChunkLists = new Set([chunkListPath]);
+      chunkChunkLists = new Set([chunkList.path]);
       chunkChunkListsMap.set(chunkPath, chunkChunkLists);
     } else {
-      chunkChunkLists.add(chunkListPath);
+      chunkChunkLists.add(chunkList.path);
     }
   }
-}
 
-/**
- * Registers a chunk list and marks it as a runtime chunk list. This is called
- * by the runtime of evaluated chunks.
- *
- * @param {ChunkPath} chunkListPath
- * @param {ChunkPath[]} chunkPaths
- */
-function registerChunkListAndMarkAsRuntime(chunkListPath, chunkPaths) {
-  registerChunkList(chunkListPath, chunkPaths);
-  markChunkListAsRuntime(chunkListPath);
+  if (chunkList.source === "entry") {
+    markChunkListAsRuntime(chunkList.path);
+  }
 }
 
 /**
@@ -1310,6 +1305,19 @@ async function registerChunk([chunkPath, chunkModules, runtimeParams]) {
 
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS =
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
+
+const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
+for (const chunkList of chunkListsToRegister) {
+  registerChunkList(chunkList);
+}
+globalThis.TURBOPACK_CHUNK_LISTS = {
+  push: (chunkList) => {
+    registerChunkList(chunkList);
+  },
+};
+
+globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS =
+  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS || [];
 /** @typedef {import('../types/backend').RuntimeBackend} RuntimeBackend */
 /** @typedef {import('../types/runtime.dom').ChunkResolver} ChunkResolver */
 /** @typedef {import('../types').ChunkPath} ChunkPath */
@@ -1327,11 +1335,6 @@ let BACKEND;
       if (params == null) {
         return;
       }
-
-      registerChunkListAndMarkAsRuntime(params.chunkListPath, [
-        chunkPath,
-        ...params.otherChunks,
-      ]);
 
       const chunksToWaitFor = [];
       for (const otherChunkPath of params.otherChunks) {

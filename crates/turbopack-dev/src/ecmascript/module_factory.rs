@@ -15,7 +15,6 @@ pub(super) async fn module_factory(content: EcmascriptChunkItemContentVc) -> Res
         "v: __turbopack_export_value__",
         "c: __turbopack_cache__",
         "l: __turbopack_load__",
-        "k: __turbopack_register_chunk_list__",
         "j: __turbopack_cjs__",
         "g: global",
         // HACK

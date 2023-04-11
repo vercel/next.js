@@ -1,7 +1,6 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use indexmap::IndexSet;
 use indoc::formatdoc;
-use serde::Serialize;
 use turbopack_core::{
     asset::Asset,
     chunk::{ChunkItem, ChunkItemVc, ChunkingContext},
@@ -37,8 +36,7 @@ impl EcmascriptChunkItem for DevManifestChunkItem {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
-        let chunk_group = self.manifest.chunk_group();
-        let chunks = chunk_group.chunks().await?;
+        let chunks = self.manifest.chunks().await?;
         let output_root = self.context.output_root().await?;
 
         let mut chunk_server_paths = IndexSet::new();
@@ -56,29 +54,11 @@ impl EcmascriptChunkItem for DevManifestChunkItem {
             };
         }
 
-        let chunk_list_path = self
-            .context
-            .chunk_list_path(chunk_group.entry().ident())
-            .await?;
-        let chunk_list_path = output_root
-            .get_path_to(&chunk_list_path)
-            .ok_or(anyhow!("chunk list path is not in output root"))?;
-
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct ManifestChunkExport<'a> {
-            chunks: IndexSet<String>,
-            list: &'a str,
-        }
-
         let code = formatdoc! {
             r#"
                 __turbopack_export_value__({:#});
             "#,
-            StringifyJs(&ManifestChunkExport {
-                chunks: chunk_server_paths,
-                list: chunk_list_path,
-            })
+            StringifyJs(&chunk_server_paths)
         };
 
         Ok(EcmascriptChunkItemContent {

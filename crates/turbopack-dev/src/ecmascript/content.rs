@@ -2,11 +2,10 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use serde::Serialize;
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContentVc},
-    chunk::{ChunkingContext, ModuleId, ModuleIdReadRef},
+    chunk::{ChunkingContext, ModuleId},
     code_builder::{CodeBuilder, CodeVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, OptionSourceMapVc},
     version::{
@@ -158,19 +157,4 @@ impl GenerateSourceMap for EcmascriptDevChunkContent {
 
         Ok(OptionSourceMapVc::cell(None))
     }
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct EcmascriptDevChunkRuntimeParams {
-    /// Other chunks in the chunk group this chunk belongs to, if any. Does not
-    /// include the chunk itself.
-    ///
-    /// These chunks must be loaed before the runtime modules can be
-    /// instantiated.
-    other_chunks: Vec<String>,
-    /// List of module IDs that this chunk should instantiate when executed.
-    runtime_module_ids: Vec<ModuleIdReadRef>,
-    /// Path to the chunk list that this chunk should register itself with.
-    chunk_list_path: Option<String>,
 }

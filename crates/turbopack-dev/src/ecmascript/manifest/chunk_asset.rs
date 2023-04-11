@@ -1,12 +1,10 @@
-use std::iter::once;
-
 use anyhow::{bail, Result};
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
+    asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
+        availability_info::AvailabilityInfo, ChunkVc, ChunkableAsset, ChunkableAssetVc,
+        ChunkingContext, ChunkingContextVc,
     },
     ident::AssetIdentVc,
     reference::{AssetReferencesVc, SingleAssetReferenceVc},
@@ -17,7 +15,7 @@ use turbopack_ecmascript::chunk::{
 };
 
 use super::chunk_item::DevManifestChunkItem;
-use crate::{ecmascript::list::reference::ChunkListReferenceVc, DevChunkingContextVc};
+use crate::DevChunkingContextVc;
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -57,13 +55,18 @@ impl DevManifestChunkAssetVc {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn chunk_group(self) -> Result<ChunkGroupVc> {
+    pub(super) async fn entry_chunk(self) -> Result<ChunkVc> {
         let this = self.await?;
-        Ok(ChunkGroupVc::from_asset(
-            this.asset,
+        Ok(this.asset.as_chunk(
             this.chunking_context.into(),
             Value::new(this.availability_info),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn chunks(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        Ok(this.chunking_context.chunk_group(self.entry_chunk()))
     }
 
     #[turbo_tasks::function]
@@ -95,9 +98,7 @@ impl Asset for DevManifestChunkAsset {
 
     #[turbo_tasks::function]
     async fn references(self_vc: DevManifestChunkAssetVc) -> Result<AssetReferencesVc> {
-        let this = self_vc.await?;
-        let chunk_group = self_vc.chunk_group();
-        let chunks = chunk_group.chunks();
+        let chunks = self_vc.chunks();
 
         Ok(AssetReferencesVc::cell(
             chunks
@@ -108,16 +109,6 @@ impl Asset for DevManifestChunkAsset {
                     SingleAssetReferenceVc::new(chunk, dev_manifest_chunk_reference_description())
                         .into()
                 })
-                .chain(once(
-                    // This creates the chunk list corresponding to the manifest chunk's chunk
-                    // group.
-                    ChunkListReferenceVc::new(
-                        this.chunking_context,
-                        chunk_group.entry(),
-                        chunk_group.chunks(),
-                    )
-                    .into(),
-                ))
                 .collect(),
         ))
     }

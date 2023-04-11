@@ -9,7 +9,7 @@ use turbopack_core::version::{
     UpdateVc, VersionVc, VersionedContent, VersionedContentMerger, VersionedContentsVc,
 };
 
-use super::{content::ChunkListContentVc, version::ChunkListVersionVc};
+use super::{content::EcmascriptDevChunkListContentVc, version::EcmascriptDevChunkListVersionVc};
 
 /// Update of a chunk list from one version to another.
 #[derive(Serialize)]
@@ -50,19 +50,20 @@ impl<'a> ChunkListUpdate<'a> {
 /// Computes the update of a chunk list from one version to another.
 #[turbo_tasks::function]
 pub(super) async fn update_chunk_list(
-    content: ChunkListContentVc,
+    content: EcmascriptDevChunkListContentVc,
     from_version: VersionVc,
 ) -> Result<UpdateVc> {
     let to_version = content.version();
-    let from_version = if let Some(from) = ChunkListVersionVc::resolve_from(from_version).await? {
-        from
-    } else {
-        // It's likely `from_version` is `NotFoundVersion`.
-        return Ok(Update::Total(TotalUpdate {
-            to: to_version.as_version().into_trait_ref().await?,
-        })
-        .cell());
-    };
+    let from_version =
+        if let Some(from) = EcmascriptDevChunkListVersionVc::resolve_from(from_version).await? {
+            from
+        } else {
+            // It's likely `from_version` is `NotFoundVersion`.
+            return Ok(Update::Total(TotalUpdate {
+                to: to_version.as_version().into_trait_ref().await?,
+            })
+            .cell());
+        };
 
     let to = to_version.await?;
     let from = from_version.await?;

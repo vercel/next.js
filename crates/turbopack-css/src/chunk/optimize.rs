@@ -3,7 +3,7 @@ use indexmap::IndexSet;
 use turbo_tasks::{TryJoinIterExt, Value};
 use turbopack_core::chunk::{
     optimize::{ChunkOptimizer, ChunkOptimizerVc},
-    ChunkGroupVc, ChunkVc, ChunkingContextVc, ChunksVc,
+    ChunkVc, ChunkingContextVc, ChunksVc,
 };
 
 use super::{CssChunkPlaceablesVc, CssChunkVc};
@@ -22,7 +22,7 @@ impl CssChunkOptimizerVc {
 #[turbo_tasks::value_impl]
 impl ChunkOptimizer for CssChunkOptimizer {
     #[turbo_tasks::function]
-    async fn optimize(&self, chunks: ChunksVc, _chunk_group: ChunkGroupVc) -> Result<ChunksVc> {
+    async fn optimize(&self, chunks: ChunksVc) -> Result<ChunksVc> {
         // The CSS optimizer works under the constraint that the order in which
         // CSS chunks are loaded must be preserved, as CSS rules
         // precedence is determined by the order in which they are

@@ -4,11 +4,11 @@ use turbo_tasks::{primitives::StringVc, TraitRef, TryJoinIterExt};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::version::{Version, VersionVc, VersionedContentMergerVc};
 
-/// The version of a [`ChunkListContent`].
+/// The version of a [`EcmascriptDevChunkListContent`].
 ///
-/// [`ChunkListContent`]: super::content::ChunkListContent
+/// [`EcmascriptDevChunkListContent`]: super::content::EcmascriptDevChunkListContent
 #[turbo_tasks::value(shared)]
-pub(super) struct ChunkListVersion {
+pub(super) struct EcmascriptDevChunkListVersion {
     /// A map from chunk path to its version.
     #[turbo_tasks(trace_ignore)]
     pub by_path: IndexMap<String, TraitRef<VersionVc>>,
@@ -18,7 +18,7 @@ pub(super) struct ChunkListVersion {
 }
 
 #[turbo_tasks::value_impl]
-impl Version for ChunkListVersion {
+impl Version for EcmascriptDevChunkListVersion {
     #[turbo_tasks::function]
     async fn id(&self) -> Result<StringVc> {
         let by_path = {
