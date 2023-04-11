@@ -114,6 +114,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
   import path from 'next/dist/shared/lib/isomorphic/path'
   import { interpolateDynamicPath } from 'next/dist/server/server-utils'
   import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
+  import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
 
   export default (props) => {
     const pathname = ${JSON.stringify(route)}
