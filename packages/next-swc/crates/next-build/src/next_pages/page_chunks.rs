@@ -305,7 +305,7 @@ async fn get_page_chunk_for_file(
 
     Ok(PageChunk {
         next_router_path,
-        node_chunk: node_build_context.node_chunk(page_asset, pathname, reference_type.clone()),
+        node_chunk: node_build_context.node_chunk(page_asset, reference_type.clone()),
         client_chunks: client_build_context.client_chunk(page_asset, pathname, reference_type),
     }
     .cell())

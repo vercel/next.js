@@ -71,15 +71,14 @@ impl PagesBuildNodeContextVc {
     }
 
     #[turbo_tasks::function]
-    async fn node_chunking_context(self, pathname: StringVc) -> Result<BuildChunkingContextVc> {
+    async fn node_chunking_context(self) -> Result<BuildChunkingContextVc> {
         let this = self.await?;
 
-        let pathname = pathname.await?;
         Ok(BuildChunkingContextVc::builder(
             this.project_root,
             this.node_root,
-            this.node_root.join("server/pages").join(&*pathname),
-            this.node_root.join("server/assets").join(&*pathname),
+            this.node_root.join("server/pages"),
+            this.node_root.join("server/assets"),
             this.node_asset_context.compile_time_info().environment(),
         )
         .build())
@@ -89,7 +88,6 @@ impl PagesBuildNodeContextVc {
     pub async fn node_chunk(
         self,
         asset: AssetVc,
-        pathname: StringVc,
         reference_type: Value<ReferenceType>,
     ) -> Result<AssetVc> {
         let this = self.await?;
@@ -100,7 +98,7 @@ impl PagesBuildNodeContextVc {
             bail!("Expected an EcmaScript module asset");
         };
 
-        let chunking_context = self.node_chunking_context(pathname);
+        let chunking_context = self.node_chunking_context();
         Ok(chunking_context.generate_exported_chunk(node_module_asset, this.node_runtime_entries))
     }
 }

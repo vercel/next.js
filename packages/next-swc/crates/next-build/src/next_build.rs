@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env::current_dir,
     path::{PathBuf, MAIN_SEPARATOR},
 };
@@ -220,12 +220,15 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
             let build_manifest_dir_path = build_manifest_path.parent().await?;
             let pages_manifest_dir_path = pages_manifest_path.parent().await?;
 
+            let mut deduplicated_node_assets = HashMap::new();
+            let mut deduplicated_client_assets = HashMap::new();
+
             // TODO(alexkirsz) We want all assets to emit them to the output directory, but
             // we only want runtime assets in the manifest. Furthermore, the pages
             // manifest (server) only wants a single runtime asset, so we need to
             // bundle node assets somewhat.
             for (next_router_path, node_chunk, all_node_assets, client_chunks, all_client_assets) in
-                &page_chunks_and_url
+                page_chunks_and_url
             {
                 let Some(relative_page_path) = next_router_root.get_path_to(&*next_router_path) else {
                     // TODO(alexkirsz) Not possible.
@@ -244,40 +247,24 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                     }
                 }
 
-                if debug {
-                    eprintln!("all node assets:");
-                }
-                all_node_assets
-                    .into_iter()
-                    .map(|asset| async move {
-                        if debug {
-                            eprintln!("  - {}", asset.ident().path().to_string().await?,);
-                        }
-                        emit(*asset).await?;
-                        Ok(())
-                    })
-                    .try_join()
-                    .await?;
-
-                if debug {
-                    eprintln!("all client assets:");
-                }
-
-                all_client_assets
-                    .into_iter()
-                    .map(|asset| async move {
-                        if debug {
-                            eprintln!(
-                                "  - {} ({:?})",
-                                asset.ident().path().to_string().await?,
-                                asset
-                            );
-                        }
-                        emit(*asset).await?;
-                        Ok(())
-                    })
-                    .try_join()
-                    .await?;
+                // TODO(alexkirsz) Deduplication should not happen at this level, but
+                // right now we have chunks with the same path being generated
+                // from different entrypoints, and writing them multiple times causes
+                // an infinite invalidation loop.
+                deduplicated_node_assets.extend(
+                    all_node_assets
+                        .into_iter()
+                        .map(|asset| async move { Ok((asset.ident().path().to_string().await?, asset)) })
+                        .try_join()
+                        .await?,
+                );
+                deduplicated_client_assets.extend(
+                    all_client_assets
+                        .into_iter()
+                        .map(|asset| async move { Ok((asset.ident().path().to_string().await?, asset)) })
+                        .try_join()
+                        .await?
+                );
 
                 let absolute_page_path = format!("/{relative_page_path}");
 
@@ -309,6 +296,40 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                 //     }
                 // }
             }
+
+            if debug {
+                eprintln!("all node assets:");
+            }
+            deduplicated_node_assets
+                .into_values()
+                .map(|asset| async move {
+                    if debug {
+                        eprintln!("  - {}", asset.ident().path().to_string().await?,);
+                    }
+                    emit(asset).await?;
+                    Ok(())
+                })
+                .try_join()
+                .await?;
+
+            if debug {
+                eprintln!("all client assets:");
+            }
+            deduplicated_client_assets
+                .into_values()
+                .map(|asset| async move {
+                    if debug {
+                        eprintln!(
+                            "  - {} ({:?})",
+                            asset.ident().path().to_string().await?,
+                            asset
+                        );
+                    }
+                    emit(asset).await?;
+                    Ok(())
+                })
+                .try_join()
+                .await?;
         }
         // TODO(alexkirsz) These manifests should be assets.
         let build_manifest = serde_json::to_string_pretty(&build_manifest)?;

@@ -50,15 +50,14 @@ impl PagesBuildClientContextVc {
     }
 
     #[turbo_tasks::function]
-    async fn client_chunking_context(self, pathname: StringVc) -> Result<ChunkingContextVc> {
+    async fn client_chunking_context(self) -> Result<ChunkingContextVc> {
         let this = self.await?;
 
-        let pathname = pathname.await?;
         Ok(DevChunkingContextVc::builder(
             this.project_root,
             this.client_root,
-            this.client_root.join("static/chunks").join(&*pathname),
-            this.client_root.join("static/media").join(&*pathname),
+            this.client_root.join("static/chunks"),
+            this.client_root.join("static/media"),
             this.client_asset_context.compile_time_info().environment(),
         )
         .build()
@@ -82,7 +81,7 @@ impl PagesBuildClientContextVc {
             bail!("Expected an EcmaScript module asset");
         };
 
-        let client_chunking_context = self.client_chunking_context(pathname);
+        let client_chunking_context = self.client_chunking_context();
 
         Ok(client_chunking_context.evaluated_chunk_group(
             client_module_asset.as_root_chunk(client_chunking_context),
