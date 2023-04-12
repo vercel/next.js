@@ -3,7 +3,6 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
-const { mockTrace } = require('../../../../../test/lib/mock-trace')
 const semver = require('semver')
 const execa = require('execa')
 
@@ -55,7 +54,7 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir, nextSwcVersion, span = mockTrace() }) {
+    async linkPackages({ repoDir, nextSwcVersion }) {
       const repoDirPkg = require(path.join(repoDir, 'package.json'))
       const hasTestPackAll = Boolean(repoDirPkg.scripts['test-pack-all'])
       if (!hasTestPackAll) {
