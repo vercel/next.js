@@ -27,7 +27,7 @@ import {
   generateActionId,
   getActions,
   isClientComponentModule,
-  regexCSS,
+  isCSSMod,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -354,7 +354,7 @@ export class ClientReferenceEntryPlugin {
         const resource = mod.resource
         const modId = resource
         if (modId) {
-          if (regexCSS.test(modId)) {
+          if (isCSSMod(mod)) {
             cssImportsForChunk[entryName].add(modId)
           }
         }
@@ -506,8 +506,7 @@ export class ClientReferenceEntryPlugin {
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
-      const rawRequest = mod.rawRequest
-      const isCSS = regexCSS.test(rawRequest)
+      const isCSS = isCSSMod(mod)
 
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
