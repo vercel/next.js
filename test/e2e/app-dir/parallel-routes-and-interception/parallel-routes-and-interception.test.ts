@@ -216,7 +216,7 @@ createNextDescribe(
         await check(
           () =>
             browser
-              .elementByCss('[href="/intercepting-routes/photos/1"]')
+              .elementByCss('[href="/intercepting-routes/feed/photos/1"]')
               .click()
               .waitForElementByCss('#photo-intercepted-1')
               .text(),
@@ -230,7 +230,7 @@ createNextDescribe(
         // Check if url matches even though it was intercepted.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
@@ -242,7 +242,7 @@ createNextDescribe(
         // Check if the url matches still.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
       })
 
@@ -277,7 +277,7 @@ createNextDescribe(
         await check(
           () =>
             browser
-              .elementByCss('[href="/intercepting-routes/photos/1"]')
+              .elementByCss('[href="/intercepting-routes/feed/photos/1"]')
               .click()
               .waitForElementByCss('#photo-intercepted-1')
               .text(),
@@ -291,7 +291,7 @@ createNextDescribe(
         // Check if url matches even though it was intercepted.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
@@ -303,7 +303,7 @@ createNextDescribe(
         // Check if the url matches still.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
       })
 
