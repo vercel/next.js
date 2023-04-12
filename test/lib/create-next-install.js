@@ -79,7 +79,8 @@ async function createNextInstall({
                     !item.includes('.DS_Store') &&
                     // Exclude Rust compilation files
                     !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                    !/next-swc[\\/]target/.test(item)
+                    !/next-swc[\\/]target/.test(item) &&
+                    !item.endsWith('.tgz')
                   )
                 },
               }
