@@ -67,13 +67,10 @@ module.exports = (actionInfo) => {
           env: { NEXT_SWC_VERSION: nextSwcVersion },
         })
       } else {
-        const proc = execa('pnpm', ['test-pack-all'], {
+        execa.sync('pnpm', ['test-pack-all'], {
           cwd: repoDir,
           env: { NEXT_SWC_VERSION: nextSwcVersion },
         })
-        proc.stdout.pipe(process.stdout)
-        proc.stderr.pipe(process.stderr)
-        await proc
       }
       const pkgPaths = new Map()
       const pkgs = (await fs.readdir(path.join(repoDir, 'packages'))).filter(
