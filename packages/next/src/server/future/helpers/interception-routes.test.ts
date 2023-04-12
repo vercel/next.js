@@ -67,12 +67,12 @@ describe('Interception Route helper', () => {
       expect(() =>
         extractInterceptionRouteInformation('/(..)bar')
       ).toThrowErrorMatchingInlineSnapshot(
-        `"Invalid interception route: /(..)bar. Cannot use (..) marker at the root level"`
+        `"Invalid interception route: /(..)bar. Cannot use (..) marker at the root level, use (.) instead."`
       )
       expect(() =>
         extractInterceptionRouteInformation('/(..)(..)bar')
       ).toThrowErrorMatchingInlineSnapshot(
-        `"Invalid interception route: /(..)(..)bar. Cannot use (..)(..) marker at the root level or one level up"`
+        `"Invalid interception route: /(..)(..)bar. Cannot use (..)(..) marker at the root level or one level up."`
       )
     })
   })

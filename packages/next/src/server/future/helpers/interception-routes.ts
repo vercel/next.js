@@ -38,22 +38,24 @@ export function extractInterceptionRouteInformation(path: string) {
     )
   }
 
-  interceptingRoute = interceptingRoute.slice(0, -1) // remove the trailing slash
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
   switch (marker) {
     case '(.)':
       // (.) indicates that we should match with sibling routes, so we just need to append the intercepted route to the intercepting route
-      interceptedRoute = interceptingRoute + '/' + interceptedRoute
+      if (interceptingRoute === '/') {
+        interceptedRoute = `/${interceptedRoute}`
+      } else {
+        interceptedRoute = interceptingRoute + '/' + interceptedRoute
+      }
       break
     case '(..)':
       // (..) indicates that we should match at one level up, so we need to remove the last segment of the intercepting route
       if (interceptingRoute === '/') {
         throw new Error(
-          `Invalid interception route: ${path}. Cannot use (..) marker at the root level`
+          `Invalid interception route: ${path}. Cannot use (..) marker at the root level, use (.) instead.`
         )
       }
-
       interceptedRoute = interceptingRoute
         .split('/')
         .slice(0, -1)
@@ -70,7 +72,7 @@ export function extractInterceptionRouteInformation(path: string) {
       const splitInterceptingRoute = interceptingRoute.split('/')
       if (splitInterceptingRoute.length <= 2) {
         throw new Error(
-          `Invalid interception route: ${path}. Cannot use (..)(..) marker at the root level or one level up`
+          `Invalid interception route: ${path}. Cannot use (..)(..) marker at the root level or one level up.`
         )
       }
 
