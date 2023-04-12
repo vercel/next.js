@@ -13,7 +13,9 @@ export default (context, render) => {
       try {
         browser = await webdriver(context.appPort, '/')
         const text = await browser.elementByCss('#hello-hmr').text()
+        const version = await browser.elementByCss('#version').text()
         expect(text).toBe('Hello HMR')
+        expect(version).toBe('18.2.0')
 
         // change the content
         const editedContent = originalContent.replace('Hello HMR', 'Hi HMR')
