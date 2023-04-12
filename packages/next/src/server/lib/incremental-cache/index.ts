@@ -40,7 +40,7 @@ export class CacheHandler {
   public async get(
     _key: string,
     _fetchCache?: boolean,
-    _originUrl?: string,
+    _fetchUrl?: string,
     _fetchIdx?: number
   ): Promise<CacheHandlerValue | null> {
     return {} as any
@@ -50,7 +50,7 @@ export class CacheHandler {
     _key: string,
     _data: IncrementalCacheValue | null,
     _fetchCache?: boolean,
-    _originUrl?: string,
+    _fetchUrl?: string,
     _fetchIdx?: number
   ): Promise<void> {}
 }
@@ -271,7 +271,7 @@ export class IncrementalCache {
     pathname: string,
     fetchCache?: boolean,
     revalidate?: number,
-    originUrl?: string,
+    fetchUrl?: string,
     fetchIdx?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
@@ -288,7 +288,7 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler?.get(
       pathname,
       fetchCache,
-      originUrl,
+      fetchUrl,
       fetchIdx
     )
 
@@ -353,7 +353,7 @@ export class IncrementalCache {
         entry.value,
         curRevalidate,
         fetchCache,
-        originUrl,
+        fetchUrl,
         fetchIdx
       )
     }
@@ -366,7 +366,7 @@ export class IncrementalCache {
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false,
     fetchCache?: boolean,
-    originUrl?: string,
+    fetchUrl?: string,
     fetchIdx?: number
   ) {
     if (this.dev && !fetchCache) return
@@ -398,7 +398,7 @@ export class IncrementalCache {
         pathname,
         data,
         fetchCache,
-        originUrl,
+        fetchUrl,
         fetchIdx
       )
     } catch (error) {
