@@ -1,20 +1,20 @@
 import React from 'react'
 import type { AppProps } from 'next/app'
 import type { NextPage } from 'next'
+import { ConfigProvider } from 'antd'
 
 import { GitHubBanner, Refine } from '@refinedev/core'
+import routerProvider, {
+  UnsavedChangesNotifier,
+} from '@refinedev/nextjs-router'
 import {
   ThemedLayout,
   notificationProvider,
   RefineThemes,
 } from '@refinedev/antd'
 import dataProvider from '@refinedev/simple-rest'
-import routerProvider, {
-  UnsavedChangesNotifier,
-} from '@refinedev/nextjs-router'
-import '@refinedev/antd/dist/reset.css'
 
-import { ConfigProvider } from 'antd'
+import '@refinedev/antd/dist/reset.css'
 import '@styles/global.css'
 
 import { authProvider } from 'src/authProvider'
