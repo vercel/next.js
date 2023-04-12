@@ -32,8 +32,8 @@ use crate::{
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
     transform_options::{
-        get_decorators_transform_options, get_jsx_transform_options,
-        get_typescript_transform_options,
+        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -235,6 +235,8 @@ pub async fn get_server_module_options_context(
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
+    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -245,6 +247,8 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -270,6 +274,8 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -300,6 +306,8 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
@@ -337,7 +345,9 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
+                enable_emotion,
                 enable_styled_jsx: true,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),

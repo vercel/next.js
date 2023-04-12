@@ -57,13 +57,13 @@ export async function createStaticMetadataFromRoute(
   {
     segment,
     resolvePath,
-    isRootLayer,
+    isRootLayoutOrRootPage,
     loaderContext,
     pageExtensions,
   }: {
     segment: string
     resolvePath: (pathname: string) => Promise<string>
-    isRootLayer: boolean
+    isRootLayoutOrRootPage: boolean
     loaderContext: webpack.LoaderContext<any>
     pageExtensions: string[]
   }
@@ -122,7 +122,7 @@ export async function createStaticMetadataFromRoute(
     collectIconModuleIfExists('apple'),
     collectIconModuleIfExists('openGraph'),
     collectIconModuleIfExists('twitter'),
-    isRootLayer && collectIconModuleIfExists('favicon'),
+    isRootLayoutOrRootPage && collectIconModuleIfExists('favicon'),
   ])
 
   return hasStaticMetadataFiles ? staticImagesMetadata : null
