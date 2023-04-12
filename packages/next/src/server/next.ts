@@ -11,14 +11,8 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../build/webpack/require-hook'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
-
-loadRequireHook()
 
 let ServerImpl: typeof Server
 
@@ -180,7 +174,6 @@ export class NextServer {
           process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
             ? 'experimental'
             : 'next'
-          overrideBuiltInReactPackages()
         }
         this.server = await this.createServer({
           ...this.options,

@@ -47,19 +47,10 @@ import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../build/webpack/require-hook'
 import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
 
 const exists = promisify(existsOrig)
 

@@ -960,8 +960,6 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
-  const reactDir = path.dirname(require.resolve('react/package.json'))
-  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
   let hasExternalOtelApiPackage = false
   try {
     require.resolve('@opentelemetry/api')
@@ -1028,26 +1026,11 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      ...(hasServerComponents
-        ? {
-            // For react and react-dom, alias them dynamically for server layer
-            // and others in the loaders configuration
-            'react-dom/client$': `next/dist/compiled/react-dom${builtInReactChannel}/client`,
-            'react-dom/server$': `next/dist/compiled/react-dom${builtInReactChannel}/server`,
-            'react-dom/server.browser$': `next/dist/compiled/react-dom${builtInReactChannel}/server.browser`,
-            'react/jsx-dev-runtime$': `next/dist/compiled/react${builtInReactChannel}/jsx-dev-runtime`,
-            'react/jsx-runtime$': `next/dist/compiled/react${builtInReactChannel}/jsx-runtime`,
-          }
-        : {
-            react: reactDir,
-            'react-dom$': reactDomDir,
-            'react-dom/server$': `${reactDomDir}/server`,
-            'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-            'react-dom/client$': `${reactDomDir}/client`,
-          }),
-
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
+
+      'react/jsx-dev-runtime$': require.resolve(`react/jsx-dev-runtime`),
+      'react/jsx-runtime$': require.resolve(`react/jsx-runtime`),
 
       ...customAppAliases,
       ...customErrorAlias,
@@ -1237,6 +1220,13 @@ export default async function getBaseWebpackConfig(
       }
 
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+        const isAppLayer = [
+          WEBPACK_LAYERS.server,
+          WEBPACK_LAYERS.client,
+          WEBPACK_LAYERS.appClient,
+          WEBPACK_LAYERS.action,
+        ].includes(layer!)
+
         // override react-dom to server-rendering-stub for server
         const channel = useExperimentalReact ? '-experimental' : ''
         if (
@@ -1244,13 +1234,13 @@ export default async function getBaseWebpackConfig(
           (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
         ) {
           request = `react-dom${channel}/server-rendering-stub`
-        } else {
+        } else if (isAppLayer) {
           // `react` -> `react-experimental`
           // `react-dom` -> `react-dom-experimental`
           // `react/jsx-runtime` -> `react-experimental/jsx-runtime`
           request = request.replace(/^(react|react-dom)/, (m) => m + channel)
         }
-        return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
+        return `commonjs ${isAppLayer ? 'next/dist/compiled/' : ''}${request}`
       }
 
       const notExternalModules =
@@ -1882,6 +1872,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
+                    issuerLayer: WEBPACK_LAYERS.appClient,
                     test: codeCondition.test,
                     resolve: {
                       alias: {

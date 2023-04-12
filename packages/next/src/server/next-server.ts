@@ -262,6 +262,7 @@ export default class NextNodeServer extends BaseServer {
       }
       const { createWorker, createIpcServer } =
         require('./lib/server-ipc') as typeof import('./lib/server-ipc')
+
       this.renderWorkersPromises = new Promise<void>(async (resolveWorkers) => {
         try {
           this.renderWorkers = {}
@@ -271,7 +272,10 @@ export default class NextNodeServer extends BaseServer {
               this.port || 0,
               ipcPort,
               options.isNodeDebugging,
-              'app'
+              'app',
+              this.nextConfig.experimental.experimentalReact
+                ? 'experimental'
+                : 'next'
             )
           }
           this.renderWorkers.pages = createWorker(

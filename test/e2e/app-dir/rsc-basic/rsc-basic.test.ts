@@ -433,6 +433,21 @@ describe('app dir - rsc basics', () => {
     expect(await res.text()).toBe('Hello from import-test.js')
   })
 
+  it('should use stable react for pages', async () => {
+    const resPages = await next.fetch('/pages-react')
+    const versionPages = (await resPages.text()).match(
+      /<div>version=([^<]+)<\/div>/
+    )?.[1]
+
+    const resApp = await next.fetch('/app-react')
+    const versionApp = (await resApp.text()).match(
+      /<div>version=([^<]+)<\/div>/
+    )?.[1]
+
+    expect(versionPages).not.toInclude('-next-')
+    expect(versionApp).toInclude('-next-')
+  })
+
   // disable this flaky test
   it.skip('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".

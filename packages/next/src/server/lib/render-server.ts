@@ -1,14 +1,20 @@
+import type { RequestHandler } from '../next'
+
 import v8 from 'v8'
 import http from 'http'
-import next from '../next'
 import { isIPv6 } from 'net'
+
+// This is required before other imports to ensure the require hook is setup.
+import '../require-hook'
+
+import next from '../next'
 import { warn } from '../../build/output/log'
-import type { RequestHandler } from '../next'
 import {
   deleteCache as _deleteCache,
   deleteAppClientCache as _deleteAppClientCache,
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { clearModuleContext as _clearModuleContext } from '../web/sandbox/context'
+
 export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
