@@ -206,6 +206,43 @@ createNextDescribe(
         const html = await res.text()
         expect(html).toContain('page could not be found')
       })
+
+      it('should render nested parallel routes', async () => {
+        const browser = await next.browser('/parallel-side-bar/nested/deeper')
+        await check(
+          () => browser.waitForElementByCss('#nested-deeper-main').text(),
+          'Nested deeper page'
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#nested-deeper-sidebar').text(),
+          'Nested deeper sidebar here'
+        )
+
+        await browser.elementByCss('[href="/parallel-side-bar/nested"]').click()
+
+        await check(
+          () => browser.waitForElementByCss('#nested-main').text(),
+          'Nested page'
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#nested-sidebar').text(),
+          'Nested sidebar here'
+        )
+
+        await browser.elementByCss('[href="/parallel-side-bar"]').click()
+
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'homepage'
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#sidebar-main').text(),
+          'root sidebar here'
+        )
+      })
     })
 
     describe('route intercepting', () => {
@@ -216,7 +253,7 @@ createNextDescribe(
         await check(
           () =>
             browser
-              .elementByCss('[href="/intercepting-routes/photos/1"]')
+              .elementByCss('[href="/intercepting-routes/feed/photos/1"]')
               .click()
               .waitForElementByCss('#photo-intercepted-1')
               .text(),
@@ -230,7 +267,7 @@ createNextDescribe(
         // Check if url matches even though it was intercepted.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
@@ -242,12 +279,36 @@ createNextDescribe(
         // Check if the url matches still.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
       })
 
       it('should render an intercepted route from a slot', async () => {
         const browser = await next.browser('/')
+
+        await check(
+          () => browser.waitForElementByCss('#default-slot').text(),
+          'default from @slot'
+        )
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/nested"]')
+              .click()
+              .waitForElementByCss('#interception-slot')
+              .text(),
+          'interception from @slot/nested'
+        )
+
+        await check(
+          () => browser.refresh().waitForElementByCss('#nested').text(),
+          'hello world from /nested'
+        )
+      })
+
+      it('should render an intercepted route at the top level from a nested path', async () => {
+        const browser = await next.browser('/nested-link')
 
         await check(
           () => browser.waitForElementByCss('#default-slot').text(),
@@ -277,7 +338,7 @@ createNextDescribe(
         await check(
           () =>
             browser
-              .elementByCss('[href="/intercepting-routes/photos/1"]')
+              .elementByCss('[href="/intercepting-routes/feed/photos/1"]')
               .click()
               .waitForElementByCss('#photo-intercepted-1')
               .text(),
@@ -291,7 +352,7 @@ createNextDescribe(
         // Check if url matches even though it was intercepted.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
@@ -303,7 +364,7 @@ createNextDescribe(
         // Check if the url matches still.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-routes/photos/1'
+          next.url + '/intercepting-routes/feed/photos/1'
         )
       })
 
