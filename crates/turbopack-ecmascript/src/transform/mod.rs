@@ -9,6 +9,7 @@ use swc_core::{
     common::{chain, util::take::Take, FileName, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program},
+        atoms::JsWord,
         preset_env::{self, Targets},
         transforms::{
             base::{feature::FeatureFlag, helpers::inject_helpers, resolver, Assumptions},
@@ -18,8 +19,8 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::primitives::{OptionStringVc, StringVc};
-use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
+use turbo_tasks::primitives::{OptionStringVc, StringVc, StringsVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     environment::EnvironmentVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
@@ -52,7 +53,15 @@ pub enum EcmascriptInputTransform {
         // swc.jsc.transform.react.runtime,
         runtime: OptionStringVc,
     },
-    StyledComponents,
+    StyledComponents {
+        display_name: bool,
+        ssr: bool,
+        file_name: bool,
+        top_level_import_paths: StringsVc,
+        meaningless_file_names: StringsVc,
+        css_prop: bool,
+        namespace: OptionStringVc,
+    },
     StyledJsx,
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
@@ -234,11 +243,43 @@ impl EcmascriptInputTransform {
                     inject_helpers(unresolved_mark),
                 ));
             }
-            EcmascriptInputTransform::StyledComponents => {
+            EcmascriptInputTransform::StyledComponents {
+                display_name,
+                ssr,
+                file_name,
+                top_level_import_paths,
+                meaningless_file_names,
+                css_prop,
+                namespace,
+            } => {
+                let mut options = styled_components::Config {
+                    display_name: *display_name,
+                    ssr: *ssr,
+                    file_name: *file_name,
+                    css_prop: *css_prop,
+                    ..Default::default()
+                };
+
+                if let Some(namespace) = &*namespace.await? {
+                    options.namespace = namespace.clone();
+                }
+
+                let top_level_import_paths = &*top_level_import_paths.await?;
+                if top_level_import_paths.len() > 0 {
+                    options.top_level_import_paths = top_level_import_paths
+                        .iter()
+                        .map(|s| JsWord::from(s.clone()))
+                        .collect();
+                }
+                let meaningless_file_names = &*meaningless_file_names.await?;
+                if meaningless_file_names.len() > 0 {
+                    options.meaningless_file_names = meaningless_file_names.clone();
+                }
+
                 program.visit_mut_with(&mut styled_components::styled_components(
                     FileName::Anon,
                     file_name_hash,
-                    parse_json_with_source_context("{}")?,
+                    options,
                 ));
             }
             EcmascriptInputTransform::StyledJsx => {

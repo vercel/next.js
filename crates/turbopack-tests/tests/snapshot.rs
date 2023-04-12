@@ -22,6 +22,7 @@ use turbopack::{
     ecmascript::EcmascriptModuleAssetVc,
     module_options::{
         EmotionTransformConfig, JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
+        StyledComponentsTransformConfig, StyledComponentsTransformConfigVc,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
@@ -199,7 +200,9 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
                 sourcemap: Some(false),
                 ..Default::default()
             })),
-            enable_styled_components: true,
+            enable_styled_components: Some(StyledComponentsTransformConfigVc::cell(
+                Default::default(),
+            )),
             preset_env_versions: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".to_string()),

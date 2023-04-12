@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::primitives::OptionStringVc;
+use turbo_tasks::primitives::{OptionStringVc, StringsVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -64,7 +64,7 @@ impl ModuleOptionsVc {
             ref enable_emotion,
             enable_react_refresh,
             enable_styled_jsx,
-            enable_styled_components,
+            ref enable_styled_components,
             enable_types,
             enable_tree_shaking,
             ref enable_typescript_transform,
@@ -113,8 +113,21 @@ impl ModuleOptionsVc {
                 },
             });
         }
-        if enable_styled_components {
-            transforms.push(EcmascriptInputTransform::StyledComponents);
+        if let Some(enable_styled_components) = enable_styled_components {
+            let styled_components_transform = &*enable_styled_components.await?;
+            transforms.push(EcmascriptInputTransform::StyledComponents {
+                display_name: styled_components_transform.display_name,
+                ssr: styled_components_transform.ssr,
+                file_name: styled_components_transform.file_name,
+                top_level_import_paths: StringsVc::cell(
+                    styled_components_transform.top_level_import_paths.clone(),
+                ),
+                meaningless_file_names: StringsVc::cell(
+                    styled_components_transform.meaningless_file_names.clone(),
+                ),
+                css_prop: styled_components_transform.css_prop,
+                namespace: OptionStringVc::cell(styled_components_transform.namespace.clone()),
+            });
         }
         if let Some(enable_jsx) = enable_jsx {
             let jsx = enable_jsx.await?;
