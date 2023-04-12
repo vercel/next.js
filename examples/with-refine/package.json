@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@refinedev/antd": "^5.5.2",
+    "@refinedev/core": "^4.7.3",
+    "@refinedev/cli": "^2.1.2",
+    "@refinedev/nextjs-router": "^5.1.4",
+    "@refinedev/simple-rest": "^4.1.0",
+    "next": "latest",
+    "nookies": "^2.5.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "antd": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@types/react": "^18.0.34",
+    "@types/react-dom": "^18.0.11",
+    "@typescript-eslint/parser": "5.57.1",
+    "typescript": "^5.0.4"
+  }
+}
