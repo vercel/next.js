@@ -109,6 +109,23 @@ describe(`Handle url imports`, () => {
         }
       })
 
+      it(`should ignore data url import in css`, async () => {
+        let browser
+        try {
+          browser = await webdriver(appPort, '/css')
+          await browser.waitForElementByCss('#static-css-datauri')
+          await check(
+            () =>
+              browser
+                .elementByCss('#static-css-datauri')
+                .getComputedCss('background-image'),
+            /^url\("data:[^"]+"\)$/
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('should respond on value api', async () => {
         const data = await fetchViaHTTP(appPort, '/api/value').then(
           (res) => res.ok && res.json()
