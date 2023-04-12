@@ -9,6 +9,7 @@ const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
+const { mockTrace } = require('./test/lib/mock-trace')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
@@ -42,11 +43,6 @@ const testFilters = {
   development: 'development/',
   examples: 'examples/',
 }
-
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)

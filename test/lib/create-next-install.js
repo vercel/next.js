@@ -92,9 +92,10 @@ async function createNextInstall({
       if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
         const pkgPaths = await rootSpan
           .traceChild('linkPackages')
-          .traceAsyncFn(() =>
+          .traceAsyncFn((span) =>
             linkPackages({
               repoDir: tmpRepoDir,
+              span,
             })
           )
 
