@@ -31,12 +31,20 @@
     },
     "typescript": {},
     "test-pack": {
-      "dependsOn": ["^test-pack", "test-pack-global-deps"],
+      "dependsOn": [
+        "^test-pack",
+        "test-pack-global-deps",
+        "test-pack-gitignored-deps"
+      ],
       "outputs": ["packed-*.tgz"],
       "env": ["NEXT_SWC_VERSION"]
     },
     "test-pack-global-deps": {
       "inputs": ["../../scripts/test-pack-package.mts", "../../package.json"],
+      "cache": false
+    },
+    "test-pack-gitignored-deps": {
+      "inputs": ["dist/**"],
       "cache": false
     }
   }
