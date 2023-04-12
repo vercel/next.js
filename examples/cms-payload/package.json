@@ -1,7 +1,5 @@
 {
-  "name": "next-payload-demo",
   "description": "Demo of Payload deployed as Vercel functions within NextJS",
-  "version": "1.0.0",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
@@ -26,7 +24,7 @@
     "dotenv": "^8.2.0",
     "eslint-plugin-jest": "27.2.1",
     "express": "^4.17.1",
-    "next": "^13.2.4-canary.6",
+    "next": "latest",
     "payload": "^1.6.32",
     "payload-admin-bar": "^1.0.5",
     "pino-pretty": "^9.1.1",
