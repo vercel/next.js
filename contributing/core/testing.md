@@ -79,3 +79,4 @@ When tests are run in CI and a test failure occurs we attempt to capture traces 
 ### Profiling tests
 
 Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our testing infrastructure.
+Those traces can be visualized with `node scripts/trace-to-tree.mjs test/.trace/trace`.
