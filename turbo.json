@@ -31,11 +31,7 @@
     },
     "typescript": {},
     "test-pack": {
-      "dependsOn": [
-        "^test-pack",
-        "test-pack-global-deps",
-        "test-pack-gitignored-deps"
-      ],
+      "dependsOn": ["test-pack-global-deps", "test-pack-gitignored-deps"],
       "outputs": ["packed-*.tgz"],
       "env": ["NEXT_SWC_VERSION"]
     },
