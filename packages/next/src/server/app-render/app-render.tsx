@@ -645,8 +645,6 @@ export async function renderToHTMLOrFlight(
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
-        : rootLayoutAtThisLevel
-        ? [DefaultNotFound]
         : []
 
       let dynamic = layoutOrPageMod?.dynamic
