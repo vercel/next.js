@@ -24,6 +24,7 @@ export type CollectedMetadata = {
 export type MetadataImageModule = {
   url: string
   type?: string
+  alt?: string
 } & (
   | { sizes?: string }
   | {

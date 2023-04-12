@@ -6,10 +6,12 @@ import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
 } from './metadata/types'
+import fs from 'fs/promises'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import { fileExists } from '../../../lib/file-exists'
 
 interface Options {
   route: string
@@ -108,6 +110,16 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
               ? 'any'
               : `${imageSize.width}x${imageSize.height}`,
         }),
+  }
+  if (type === 'openGraph' || type === 'twitter') {
+    const altPath = path.join(
+      path.dirname(resourcePath),
+      fileNameBase + '.alt.txt'
+    )
+
+    if (await fileExists(altPath)) {
+      imageData.alt = await fs.readFile(altPath, 'utf8')
+    }
   }
 
   return `\
