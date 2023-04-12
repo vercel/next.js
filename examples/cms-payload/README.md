@@ -26,7 +26,9 @@ pnpm create next-app --example cms-payload cms-payload-app
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-The only thing you need to do to deploy to Vercel is to ensure that you have a Mongo Atlas database connection string and an S3 bucket available. Fill out the same environment variables that are shown in the `.env.example` with your own values, and then you're good to go!
+The only thing you need to do to deploy to Vercel is to ensure that you have a Mongo Atlas database connection string and an S3 bucket (if desired). 
+
+Fill out the same environment variables that are shown in the `.env.example` with your own values, and then you're good to go!
 
 ### Developing locally
 
@@ -34,7 +36,7 @@ To develop with this package locally, make sure you have the following required 
 
 1. MongoDB
 2. Node + NPM / Yarn
-3. An S3 bucket to store media
+3. An S3 bucket to store media (optional)
 
 ### Getting started
 
@@ -47,20 +49,4 @@ Follow the steps below to spin up a local dev environment:
 
 From there, you can visit your admin panel via navigating to `http://localhost:3000/admin`. Go ahead and start working!
 
-<!-- ## Known gotchas
 
-#### Cold start delays
-
-With the nature of serverless functions, you are bound to encounter "cold start" delays when your serverless functions spin up for the first time. Once they're "warm", the problem will go away for a few minutes until the functions become dormant again. But there's little that this package can do about that issue, unfortunately.
-
-If you'd like to avoid cold starts with your Payload API, you can deploy on a server-based platform like [Payload Cloud](https://payloadcms.com/new) instead.
-
-#### Need to sign up for additional vendors
-
-To deploy Payload on Vercel, you'll need to configure additional vendors for the following:
-
-- Database (MongoDB Atlas)
-- File storage (AWS S3 or similar) with Payload's [Cloud Storage Plugin](https://github.com/payloadcms/plugin-cloud-storage)
-- Email service (Resend, Sendgrid)
-
-If you don't want to go out and sign up for a separate file hosting service, you can just use [Payload Cloud](https://payloadcms.com/new), which gives you file storage, a MongoDB Atlas database, email service by [Resend](https://resend.com), and lots more. -->
