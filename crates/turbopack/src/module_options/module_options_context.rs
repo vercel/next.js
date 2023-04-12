@@ -147,6 +147,50 @@ pub struct JsxTransformOptions {
     pub runtime: Option<String>,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionStyledComponentsTransformConfig(Option<StyledComponentsTransformConfigVc>);
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct StyledComponentsTransformConfig {
+    pub display_name: bool,
+    pub ssr: bool,
+    pub file_name: bool,
+    pub top_level_import_paths: Vec<String>,
+    pub meaningless_file_names: Vec<String>,
+    pub css_prop: bool,
+    pub namespace: Option<String>,
+}
+
+impl Default for StyledComponentsTransformConfig {
+    fn default() -> Self {
+        StyledComponentsTransformConfig {
+            display_name: true,
+            ssr: true,
+            file_name: true,
+            top_level_import_paths: vec![],
+            meaningless_file_names: vec!["index".to_string()],
+            css_prop: true,
+            namespace: None,
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl StyledComponentsTransformConfigVc {
+    #[turbo_tasks::function]
+    pub fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
+impl Default for StyledComponentsTransformConfigVc {
+    fn default() -> Self {
+        Self::default()
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ModuleOptionsContext {
@@ -157,7 +201,7 @@ pub struct ModuleOptionsContext {
     #[serde(default)]
     pub enable_react_refresh: bool,
     #[serde(default)]
-    pub enable_styled_components: bool,
+    pub enable_styled_components: Option<StyledComponentsTransformConfigVc>,
     #[serde(default)]
     pub enable_styled_jsx: bool,
     #[serde(default)]
