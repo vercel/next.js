@@ -7,6 +7,7 @@ use turbopack_core::{
 };
 use turbopack_css::CssInputTransformsVc;
 use turbopack_ecmascript::{EcmascriptInputTransformsVc, EcmascriptOptions};
+use turbopack_mdx::MdxTransformOptionsVc;
 
 use super::ModuleRuleCondition;
 
@@ -57,7 +58,10 @@ pub enum ModuleType {
     TypescriptDeclaration(EcmascriptInputTransformsVc),
     Json,
     Raw,
-    Mdx(EcmascriptInputTransformsVc),
+    Mdx {
+        transforms: EcmascriptInputTransformsVc,
+        options: MdxTransformOptionsVc,
+    },
     Css(CssInputTransformsVc),
     CssModule(CssInputTransformsVc),
     Static,

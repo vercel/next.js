@@ -173,9 +173,10 @@ async fn apply_module_type(
             ModuleCssModuleAssetVc::new(source, context.into(), *transforms).into()
         }
         ModuleType::Static => StaticModuleAssetVc::new(source, context.into()).into(),
-        ModuleType::Mdx(transforms) => {
-            MdxModuleAssetVc::new(source, context.into(), *transforms).into()
-        }
+        ModuleType::Mdx {
+            transforms,
+            options,
+        } => MdxModuleAssetVc::new(source, context.into(), *transforms, *options).into(),
         ModuleType::Custom(_) => todo!(),
     })
 }
