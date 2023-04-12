@@ -21,9 +21,9 @@ export function generateInterceptionRoutesRewrites(
       const { interceptingRoute, interceptedRoute } =
         extractInterceptionRouteInformation(appPath)
 
-      const normalizedInterceptingRoute = `${toPathToRegexpPath(
-        interceptingRoute
-      )}/(.*)?`
+      const normalizedInterceptingRoute = `${
+        interceptingRoute !== '/' ? toPathToRegexpPath(interceptingRoute) : ''
+      }/(.*)?`
 
       const normalizedInterceptedRoute = toPathToRegexpPath(interceptedRoute)
       const normalizedAppPath = toPathToRegexpPath(appPath)

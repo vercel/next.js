@@ -270,6 +270,30 @@ createNextDescribe(
         )
       })
 
+      it('should render an intercepted route at the top level from a nested path', async () => {
+        const browser = await next.browser('/nested-link')
+
+        await check(
+          () => browser.waitForElementByCss('#default-slot').text(),
+          'default from @slot'
+        )
+
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/nested"]')
+              .click()
+              .waitForElementByCss('#interception-slot')
+              .text(),
+          'interception from @slot/nested'
+        )
+
+        await check(
+          () => browser.refresh().waitForElementByCss('#nested').text(),
+          'hello world from /nested'
+        )
+      })
+
       it('should render intercepted route from a nested route', async () => {
         const browser = await next.browser('/intercepting-routes/feed/nested')
 
