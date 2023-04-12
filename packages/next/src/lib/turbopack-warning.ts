@@ -7,6 +7,7 @@ const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
   'experimental.appDir',
+  'compiler.styledComponents',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'images',
