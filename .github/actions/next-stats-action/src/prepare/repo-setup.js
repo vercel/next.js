@@ -59,7 +59,6 @@ module.exports = (actionInfo) => {
       let useTestPack = process.env.NEXT_TEST_PACK
 
       if (useTestPack) {
-        console.log('using test pack')
         execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
           cwd: repoDir,
           env: { NEXT_SWC_VERSION: nextSwcVersion },
@@ -89,7 +88,6 @@ module.exports = (actionInfo) => {
         })
         return pkgPaths
       } else {
-        console.log('not using test pack')
         const pkgPaths = new Map()
         const pkgDatas = new Map()
         let pkgs
