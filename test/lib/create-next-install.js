@@ -163,7 +163,9 @@ async function createNextInstall({
           })
       }
 
-      await fs.remove(tmpRepoDir)
+      if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
+        await fs.remove(tmpRepoDir)
+      }
       return installDir
     })
 }
