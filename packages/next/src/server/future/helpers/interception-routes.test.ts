@@ -1,19 +1,20 @@
 import {
   extractInterceptionRouteInformation,
-  isIntersectionRouteAppPath,
+  isInterceptionRouteAppPath,
 } from './interception-routes'
 
 describe('Interception Route helper', () => {
-  describe('isIntersectionRouteAppPath', () => {
+  describe('isInterceptionRouteAppPath', () => {
     it('should validate correct paths', () => {
-      expect(isIntersectionRouteAppPath('/foo/(..)/bar')).toBe(true)
-      expect(isIntersectionRouteAppPath('/foo/(...)/bar')).toBe(true)
-      expect(isIntersectionRouteAppPath('/foo/(..)(..)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(..)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(...)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(..)(..)/bar')).toBe(true)
+      expect(isInterceptionRouteAppPath('/foo/(.)bar')).toBe(true)
     })
     it('should not validate incorrect paths', () => {
-      expect(isIntersectionRouteAppPath('/foo/(..')).toBe(false)
-      expect(isIntersectionRouteAppPath('/foo/..)/bar')).toBe(false)
-      expect(isIntersectionRouteAppPath('/foo')).toBe(false)
+      expect(isInterceptionRouteAppPath('/foo/(..')).toBe(false)
+      expect(isInterceptionRouteAppPath('/foo/..)/bar')).toBe(false)
+      expect(isInterceptionRouteAppPath('/foo')).toBe(false)
     })
   })
   describe('extractInterceptionRouteInformation', () => {
@@ -39,6 +40,11 @@ describe('Interception Route helper', () => {
       expect(
         extractInterceptionRouteInformation('/foo/bar/@modal/(..)(..)baz')
       ).toEqual({ interceptingRoute: '/foo/bar', interceptedRoute: '/baz' })
+
+      expect(extractInterceptionRouteInformation('/foo/bar/(.)baz')).toEqual({
+        interceptingRoute: '/foo/bar',
+        interceptedRoute: '/foo/bar/baz',
+      })
     })
     it('should not extract incorrect information', () => {
       expect(() =>
@@ -55,6 +61,18 @@ describe('Interception Route helper', () => {
         extractInterceptionRouteInformation('/foo')
       ).toThrowErrorMatchingInlineSnapshot(
         `"Invalid interception route: /foo. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>"`
+      )
+    })
+    it('should check the segment length', () => {
+      expect(() =>
+        extractInterceptionRouteInformation('/(..)bar')
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"Invalid interception route: /(..)bar. Cannot use (..) marker at the root level, use (.) instead."`
+      )
+      expect(() =>
+        extractInterceptionRouteInformation('/(..)(..)bar')
+      ).toThrowErrorMatchingInlineSnapshot(
+        `"Invalid interception route: /(..)(..)bar. Cannot use (..)(..) marker at the root level or one level up."`
       )
     })
   })

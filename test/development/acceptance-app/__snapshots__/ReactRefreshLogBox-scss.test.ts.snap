@@ -16,7 +16,7 @@ Import trace for requested module:
 `;
 
 exports[`ReactRefreshLogBox app scss syntax errors 2`] = `
-"./index.module.scss:1:1
+"./index.module.scss (1:1)
 Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button { font-size: 5px; }

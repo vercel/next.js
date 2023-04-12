@@ -12,15 +12,16 @@
 /.prettier*                                   @vercel/next-js @leerob
 /*.md                                         @vercel/next-js @leerob
 /packages/create-next-app/                    @vercel/next-js
+/pnpm-lock.yaml                               @vercel/next-js @vercel/web-tooling
 
 # Image Component (@styfle)
 
-/**/*image*                                   @timneutkens @ijjk @shuding @styfle
-/**/*image*/**                                @timneutkens @ijjk @shuding @styfle
+/**/*image*                                   @timneutkens @ijjk @shuding @styfle @huozhi
+/**/*image*/**                                @timneutkens @ijjk @shuding @styfle @huozhi
 /packages/next/client/use-intersection.tsx    @timneutkens @ijjk @shuding @styfle
 /packages/next/server/lib/squoosh/            @timneutkens @ijjk @shuding @styfle
-/packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle
-/packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle
+/packages/next/server/serve-static.ts         @timneutkens @ijjk @shuding @styfle @huozhi
+/packages/next/server/config.ts               @timneutkens @ijjk @shuding @styfle @huozhi
 
 # Tooling & Telemetry
 

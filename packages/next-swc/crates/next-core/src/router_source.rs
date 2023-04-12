@@ -135,7 +135,7 @@ impl ContentSource for NextRouterContentSource {
         Ok(match &*res {
             RouterResult::Error(e) => {
                 return Err(anyhow!(e.clone()).context(format!(
-                    "error during Next.js routing for /{path}{}: {e}",
+                    "error during Next.js routing for /{path}{}",
                     formated_query(raw_query)
                 )))
             }

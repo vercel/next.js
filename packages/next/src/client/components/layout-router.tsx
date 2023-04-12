@@ -8,7 +8,7 @@ import type {
   Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, { useContext, use } from 'react'
 import ReactDOM from 'react-dom'
@@ -86,7 +86,7 @@ function findDOMNode(
   instance: Parameters<typeof ReactDOM.findDOMNode>[0]
 ): ReturnType<typeof ReactDOM.findDOMNode> {
   // Tree-shake for server bundle
-  if (typeof window === undefined) return null
+  if (typeof window === 'undefined') return null
   // Only apply strict mode warning when not in production
   if (process.env.NODE_ENV !== 'production') {
     const originalConsoleError = console.error
@@ -298,7 +298,11 @@ function InnerLayoutRouter({
      */
     childNodes.set(cacheKey, {
       status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(new URL(url, location.origin), refetchTree),
+      data: fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl
+      ),
       subTreeData: null,
       head:
         childNode && childNode.status === CacheStates.LAZY_INITIALIZED

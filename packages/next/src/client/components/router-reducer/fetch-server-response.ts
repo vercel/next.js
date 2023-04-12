@@ -8,6 +8,7 @@ import type {
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
+  NEXT_URL,
   RSC,
   RSC_CONTENT_TYPE_HEADER,
 } from '../app-router-headers'
@@ -21,11 +22,13 @@ import { callServer } from '../../app-call-server'
 export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
+  nextUrl: string | null,
   prefetch?: true
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
     [RSC]: '1'
     [NEXT_ROUTER_STATE_TREE]: string
+    [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH]?: '1'
   } = {
     // Enable flight response
@@ -36,6 +39,10 @@ export async function fetchServerResponse(
   if (prefetch) {
     // Enable prefetch response
     headers[NEXT_ROUTER_PREFETCH] = '1'
+  }
+
+  if (nextUrl) {
+    headers[NEXT_URL] = nextUrl
   }
 
   try {

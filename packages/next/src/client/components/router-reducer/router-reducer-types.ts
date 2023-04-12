@@ -188,6 +188,10 @@ export type AppRouterState = {
    * - This is the url you see in the browser.
    */
   canonicalUrl: string
+  /**
+   * The underlying "url" representing the UI state, which is used for intercepting routes.
+   */
+  nextUrl: string | null
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>

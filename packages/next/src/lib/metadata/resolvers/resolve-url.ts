@@ -1,5 +1,4 @@
 import path from '../../../shared/lib/isomorphic/path'
-import * as Log from '../../../build/output/log'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -25,17 +24,7 @@ function resolveUrl(
   } catch (_) {}
 
   if (!metadataBase) {
-    if (process.env.NODE_ENV !== 'production') {
-      metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
-      // Development mode warning
-      Log.warn(
-        `metadata.metadataBase is not set for resolving url "${url}", fallbacks to "${metadataBase.origin}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase`
-      )
-    } else {
-      throw new Error(
-        `metadata.metadataBase needs to be set for resolving url "${url}". See https://beta.nextjs.org/docs/api-reference/metadata#metadatabase\n`
-      )
-    }
+    metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
   }
 
   // Handle relative or absolute paths
@@ -45,10 +34,4 @@ function resolveUrl(
   return new URL(joinedPath, metadataBase)
 }
 
-// Return a string url without trailing slash
-const resolveStringUrl = (url: string | URL) => {
-  const href = typeof url === 'string' ? url : url.toString()
-  return href.endsWith('/') ? href.slice(0, -1) : href
-}
-
-export { isStringOrURL, resolveUrl, resolveStringUrl }
+export { isStringOrURL, resolveUrl }

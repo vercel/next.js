@@ -74,74 +74,86 @@ export function navigateReducer(
       return handleExternalUrl(state, mutable, flightData, pendingPush)
     }
 
-    // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-    const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(
-      0,
-      -3
-    ) as unknown as FlightSegmentPath
-    // The one before last item is the router state tree patch
-    const [treePatch] = flightDataPath.slice(-3)
+    let currentTree = state.tree
+    let currentCache = state.cache
 
-    // Create new tree based on the flightSegmentPath and router state patch
-    let newTree = applyRouterStatePatchToTree(
-      // TODO-APP: remove ''
-      ['', ...flightSegmentPath],
-      state.tree,
-      treePatch
-    )
+    for (const flightDataPath of flightData) {
+      const flightSegmentPath = flightDataPath.slice(
+        0,
+        -3
+      ) as unknown as FlightSegmentPath
 
-    // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
-    // TODO-APP: This should instead fill in the missing pieces in `state.tree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
-    if (newTree === null) {
-      newTree = applyRouterStatePatchToTree(
+      // The one before last item is the router state tree patch
+      const [treePatch] = flightDataPath.slice(-3)
+
+      // Create new tree based on the flightSegmentPath and router state patch
+      let newTree = applyRouterStatePatchToTree(
         // TODO-APP: remove ''
         ['', ...flightSegmentPath],
-        treeAtTimeOfPrefetch,
+        currentTree,
         treePatch
       )
-    }
 
-    if (newTree !== null) {
-      if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-        return handleExternalUrl(state, mutable, href, pendingPush)
-      }
-
-      const applied = applyFlightData(state, cache, flightDataPath, true)
-
-      const hardNavigate = shouldHardNavigate(
-        // TODO-APP: remove ''
-        ['', ...flightSegmentPath],
-        state.tree
-      )
-
-      if (hardNavigate) {
-        cache.status = CacheStates.READY
-        // Copy subTreeData for the root node of the cache.
-        cache.subTreeData = state.cache.subTreeData
-
-        invalidateCacheBelowFlightSegmentPath(
-          cache,
-          state.cache,
-          flightSegmentPath
+      // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
+      // TODO-APP: This should instead fill in the missing pieces in `currentTree` with the data from `treeAtTimeOfPrefetch`, then apply the patch.
+      if (newTree === null) {
+        newTree = applyRouterStatePatchToTree(
+          // TODO-APP: remove ''
+          ['', ...flightSegmentPath],
+          treeAtTimeOfPrefetch,
+          treePatch
         )
-        // Ensure the existing cache value is used when the cache was not invalidated.
-        mutable.cache = cache
-      } else if (applied) {
-        mutable.cache = cache
       }
 
-      mutable.previousTree = state.tree
-      mutable.patchedTree = newTree
-      mutable.applyFocusAndScroll = true
-      mutable.canonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
-      mutable.pendingPush = pendingPush
-      mutable.hashFragment = hash
+      if (newTree !== null) {
+        if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+          return handleExternalUrl(state, mutable, href, pendingPush)
+        }
 
-      return handleMutable(state, mutable)
+        const applied = applyFlightData(
+          currentCache,
+          cache,
+          flightDataPath,
+          true
+        )
+
+        const hardNavigate = shouldHardNavigate(
+          // TODO-APP: remove ''
+          ['', ...flightSegmentPath],
+          currentTree
+        )
+
+        if (hardNavigate) {
+          cache.status = CacheStates.READY
+          // Copy subTreeData for the root node of the cache.
+          cache.subTreeData = currentCache.subTreeData
+
+          invalidateCacheBelowFlightSegmentPath(
+            cache,
+            currentCache,
+            flightSegmentPath
+          )
+          // Ensure the existing cache value is used when the cache was not invalidated.
+          mutable.cache = cache
+        } else if (applied) {
+          mutable.cache = cache
+        }
+
+        currentCache = cache
+        currentTree = newTree
+      }
     }
+
+    mutable.previousTree = state.tree
+    mutable.patchedTree = currentTree
+    mutable.applyFocusAndScroll = true
+    mutable.canonicalUrl = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
+      : href
+    mutable.pendingPush = pendingPush
+    mutable.hashFragment = hash
+
+    return handleMutable(state, mutable)
   }
 
   // When doing a hard push there can be two cases: with optimistic tree and without
@@ -169,7 +181,7 @@ export function navigateReducer(
       state.cache,
       // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
       segments.slice(1),
-      () => fetchServerResponse(url, optimisticTree)
+      () => fetchServerResponse(url, optimisticTree, state.nextUrl)
     )
 
     // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
@@ -190,7 +202,9 @@ export function navigateReducer(
 
   // If no in-flight fetch at the top, start it.
   if (!cache.data) {
-    cache.data = createRecordFromThenable(fetchServerResponse(url, state.tree))
+    cache.data = createRecordFromThenable(
+      fetchServerResponse(url, state.tree, state.nextUrl)
+    )
   }
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
@@ -204,44 +218,49 @@ export function navigateReducer(
   // Remove cache.data as it has been resolved at this point.
   cache.data = null
 
-  // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-  const flightDataPath = flightData[0]
+  let currentTree = state.tree
+  let currentCache = state.cache
 
-  // The one before last item is the router state tree patch
-  const [treePatch] = flightDataPath.slice(-3, -2)
+  for (const flightDataPath of flightData) {
+    // The one before last item is the router state tree patch
+    const [treePatch] = flightDataPath.slice(-3, -2)
 
-  // Path without the last segment, router state, and the subTreeData
-  const flightSegmentPath = flightDataPath.slice(0, -4)
+    // Path without the last segment, router state, and the subTreeData
+    const flightSegmentPath = flightDataPath.slice(0, -4)
 
-  // Create new tree based on the flightSegmentPath and router state patch
-  const newTree = applyRouterStatePatchToTree(
-    // TODO-APP: remove ''
-    ['', ...flightSegmentPath],
-    state.tree,
-    treePatch
-  )
+    // Create new tree based on the flightSegmentPath and router state patch
+    const newTree = applyRouterStatePatchToTree(
+      // TODO-APP: remove ''
+      ['', ...flightSegmentPath],
+      currentTree,
+      treePatch
+    )
 
-  if (newTree === null) {
-    throw new Error('SEGMENT MISMATCH')
-  }
+    if (newTree === null) {
+      throw new Error('SEGMENT MISMATCH')
+    }
 
-  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-    return handleExternalUrl(state, mutable, href, pendingPush)
-  }
+    if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+      return handleExternalUrl(state, mutable, href, pendingPush)
+    }
 
-  mutable.canonicalUrl = canonicalUrlOverride
-    ? createHrefFromUrl(canonicalUrlOverride)
-    : href
+    mutable.canonicalUrl = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
+      : href
 
-  mutable.previousTree = state.tree
-  mutable.patchedTree = newTree
-  mutable.applyFocusAndScroll = true
-  mutable.pendingPush = pendingPush
-  mutable.hashFragment = hash
+    mutable.previousTree = currentTree
+    mutable.patchedTree = newTree
+    mutable.applyFocusAndScroll = true
+    mutable.pendingPush = pendingPush
+    mutable.hashFragment = hash
 
-  const applied = applyFlightData(state, cache, flightDataPath)
-  if (applied) {
-    mutable.cache = cache
+    const applied = applyFlightData(currentCache, cache, flightDataPath)
+    if (applied) {
+      mutable.cache = cache
+      currentCache = cache
+    }
+
+    currentTree = newTree
   }
 
   return handleMutable(state, mutable)

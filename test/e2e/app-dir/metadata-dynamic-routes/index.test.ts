@@ -15,7 +15,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
       it('should handle robots.[ext] dynamic routes', async () => {
         const res = await next.fetch('/robots.txt')
@@ -119,11 +119,17 @@ createNextDescribe(
       })
 
       it('should support params as argument in dynamic routes', async () => {
-        const bufferBig = await (
-          await next.fetch('/dynamic/big/opengraph-image')
-        ).buffer()
+        const big$ = await next.render$('/dynamic/big')
+        const small$ = await next.render$('/dynamic/small')
+        const bigOgUrl = new URL(
+          big$('meta[property="og:image"]').attr('content')
+        )
+        const smallOgUrl = new URL(
+          small$('meta[property="og:image"]').attr('content')
+        )
+        const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
         const bufferSmall = await (
-          await next.fetch('/dynamic/small/opengraph-image')
+          await next.fetch(smallOgUrl.pathname)
         ).buffer()
 
         const sizeBig = imageSize(bufferBig)
@@ -151,6 +157,26 @@ createNextDescribe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
         )
       })
+    })
+
+    it('should generate unique path for image routes under group routes', async () => {
+      const $ = await next.render$('/blog')
+      const ogImageUrl = $('meta[property="og:image"]').attr('content')
+      const twitterImageUrl = $('meta[name="twitter:image"]').attr('content')
+      const ogImageUrlInstance = new URL(ogImageUrl)
+      const twitterImageUrlInstance = new URL(twitterImageUrl)
+
+      const resOg = await next.fetch(ogImageUrlInstance.pathname)
+      const resTwitter = await next.fetch(twitterImageUrlInstance.pathname)
+
+      // generate unique path with suffix for image routes under group routes
+      expect(ogImageUrl).toMatch(/opengraph-image-\w{6}\?/)
+      expect(ogImageUrl).toMatch(hashRegex)
+      expect(twitterImageUrl).toMatch(/twitter-image-\w{6}\?/)
+      expect(twitterImageUrl).toMatch(hashRegex)
+
+      expect(resOg.status).toBe(200)
+      expect(resTwitter.status).toBe(200)
     })
 
     it('should inject dynamic metadata properly to head', async () => {
@@ -182,14 +208,18 @@ createNextDescribe(
 
       if (isNextDeploy) {
         // absolute urls
-        expect(ogImageUrl).toMatch(/https:\/\/\w+.vercel.app\/opengraph-image/)
+        expect(ogImageUrl).toMatch(
+          /https:\/\/\w+.vercel.app\/opengraph-image\?/
+        )
         expect(twitterImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/twitter-image/
+          /https:\/\/\w+.vercel.app\/twitter-image\?/
         )
       } else {
         // absolute urls
-        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image/)
-        expect(twitterImageUrl).toMatch(/http:\/\/localhost:\d+\/twitter-image/)
+        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image\?/)
+        expect(twitterImageUrl).toMatch(
+          /http:\/\/localhost:\d+\/twitter-image\?/
+        )
       }
       expect(ogImageUrl).toMatch(hashRegex)
       expect(twitterImageUrl).toMatch(hashRegex)
@@ -202,5 +232,18 @@ createNextDescribe(
         'Twitter'
       )
     })
+
+    if (isNextStart) {
+      it('should support edge runtime of image routes', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+        const functionRoutes = Object.keys(middlewareManifest.functions)
+        const edgeRoute = functionRoutes.find((route) =>
+          route.startsWith('/(group)/twitter-image-')
+        )
+        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+      })
+    }
   }
 )

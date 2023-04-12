@@ -140,10 +140,10 @@ describe('edge-render-getserversideprops', () => {
           ),
           namedDataRouteRegex: `^/_next/data/${escapeStringRegexp(
             next.buildId
-          )}/(?<id>[^/]+?)\\.json$`,
+          )}/(?<nxtPid>[^/]+?)\\.json$`,
           page: '/[id]',
           routeKeys: {
-            id: 'id',
+            nxtPid: 'nxtPid',
           },
         },
       ])

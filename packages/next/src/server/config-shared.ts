@@ -145,6 +145,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  appDocumentPreloading?: boolean
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -587,7 +588,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the
    * `next-transpile-modules` package.
-   * @see [transpilePackages](https://beta.nextjs.org/docs/api-reference/next.config.js#transpilepackages)
+   * @see [transpilePackages](https://nextjs.org/docs/advanced-features/compiler#module-transpilation)
    */
   transpilePackages?: string[]
 
@@ -662,6 +663,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    appDocumentPreloading: true,
     clientRouterFilter: false,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',

@@ -27,10 +27,11 @@ import "next/dist/server/node-polyfill-fetch";
 import "next/dist/server/node-polyfill-web-streams";
 import "@vercel/turbopack-next/polyfill/async-local-storage";
 import { renderToHTMLOrFlight } from "next/dist/server/app-render/app-render";
-import { PassThrough } from "stream";
+import { RSC_VARY_HEADER } from "next/dist/client/components/app-router-headers"
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import { parse, ParsedUrlQuery } from "node:querystring";
+import { PassThrough } from "node:stream";
 
 ("TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }");
 // @ts-ignore
@@ -38,7 +39,7 @@ import layoutEntry, { chunks as layoutEntryClientChunks } from "@vercel/turbopac
 
 
 globalThis.__next_require__ = (data) => {
-  const [, , , ssr_id] = JSON.parse(data);
+  const [, , ssr_id] = JSON.parse(data);
   return __turbopack_require__(ssr_id);
 };
 globalThis.__next_chunk_load__ = () => Promise.resolve();
@@ -290,6 +291,7 @@ async function runOperation(renderData: RenderData) {
   return {
     headers: [
       ["Content-Type", result.contentType() ?? MIME_TEXT_HTML_UTF8],
+      ["Vary", RSC_VARY_HEADER],
     ] as [string, string][],
     body,
   };
