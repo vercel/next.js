@@ -40,6 +40,7 @@ const main = async () => {
     // There's a bug in `pnpm pack` where it will run
     // the prepublishOnly script and that will fail.
     // See https://github.com/pnpm/pnpm/issues/2941
+    // This is fixed in v7.26.0
     delete packageJson.scripts.prepublishOnly
   }
 

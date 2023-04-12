@@ -56,10 +56,10 @@ module.exports = (actionInfo) => {
       }
     },
     async linkPackages({ repoDir, nextSwcVersion, span = mockTrace() }) {
-      let useTestPack = process.env.NEXT_TEST_PACK
+      let useTestPack = true //process.env.NEXT_TEST_PACK
 
       if (useTestPack) {
-        execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
+        await execa('pnpm', ['test-pack-all'], {
           cwd: repoDir,
           env: { NEXT_SWC_VERSION: nextSwcVersion },
         })

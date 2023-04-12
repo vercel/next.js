@@ -95,7 +95,7 @@ async function createNextInstall({
           .traceChild('linkPackages')
           .traceAsyncFn((span) =>
             linkPackages({
-              repoDir: tmpRepoDir,
+              repoDir: origRepoDir,
               span,
             })
           )
