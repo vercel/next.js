@@ -1,5 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
 
 createNextDescribe(
   'parallel-routes-and-interception',
