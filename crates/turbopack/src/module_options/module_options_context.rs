@@ -216,6 +216,10 @@ pub struct ModuleOptionsContext {
     pub decorators: Option<DecoratorsOptionsVc>,
     #[serde(default)]
     pub enable_mdx: bool,
+    // [Note]: currently mdx, and mdx_rs have different configuration entrypoint from next.config.js,
+    // however we might want to unify them in the future.
+    #[serde(default)]
+    pub enable_mdx_rs: bool,
     #[serde(default)]
     pub preset_env_versions: Option<EnvironmentVc>,
     #[serde(default)]

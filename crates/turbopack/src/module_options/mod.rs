@@ -17,6 +17,7 @@ use turbopack_css::{CssInputTransform, CssInputTransformsVc};
 use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptOptions,
 };
+use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::transforms::{postcss::PostCssTransformVc, webpack::WebpackLoadersVc};
 
 use crate::evaluate_context::node_evaluate_asset_context;
@@ -70,6 +71,7 @@ impl ModuleOptionsVc {
             ref enable_typescript_transform,
             ref decorators,
             enable_mdx,
+            enable_mdx_rs,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -131,6 +133,7 @@ impl ModuleOptionsVc {
         }
         if let Some(enable_jsx) = enable_jsx {
             let jsx = enable_jsx.await?;
+
             transforms.push(EcmascriptInputTransform::React {
                 refresh: enable_react_refresh,
                 import_source: OptionStringVc::cell(jsx.import_source.clone()),
@@ -345,12 +348,31 @@ impl ModuleOptionsVc {
             ),
         ];
 
-        if enable_mdx {
+        if enable_mdx || enable_mdx_rs {
+            let (jsx_runtime, jsx_import_source) = if let Some(enable_jsx) = enable_jsx {
+                let jsx = enable_jsx.await?;
+                (jsx.runtime.clone(), jsx.import_source.clone())
+            } else {
+                (None, None)
+            };
+
+            let mdx_transform_options = (MdxTransformOptions {
+                development: true,
+                preserve_jsx: false,
+                jsx_runtime,
+                jsx_import_source,
+            })
+            .cell();
+
             rules.push(ModuleRule::new(
-                ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx(
-                    mdx_transforms,
-                ))],
+                ModuleRuleCondition::any(vec![
+                    ModuleRuleCondition::ResourcePathEndsWith(".md".to_string()),
+                    ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx {
+                    transforms: mdx_transforms,
+                    options: mdx_transform_options,
+                })],
             ));
         }
 
