@@ -1,0 +1,4 @@
+{
+  "ext": "ts",
+  "exec": "ts-node payload/server.ts"
+}

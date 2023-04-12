@@ -1,0 +1,31 @@
+@use '../../css/common.scss' as *;
+
+.mobileMenuModal {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+  opacity: 1;
+  display: none;
+
+  @include mid-break {
+    display: block;
+  }
+}
+
+.contentContainer {
+  padding: 20px;
+}
+
+.mobileMenuItems {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-top: 30px;
+}
+
+.menuItem {
+  @extend %h4;
+  margin-top: 0;
+}
