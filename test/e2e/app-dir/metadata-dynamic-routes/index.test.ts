@@ -201,6 +201,11 @@ createNextDescribe(
 
       expect($('link[rel="favicon"]')).toHaveLength(0)
 
+      // manifest
+      expect($('link[rel="manifest"]').attr('href')).toBe(
+        '/manifest.webmanifest'
+      )
+
       // non absolute urls
       expect($icon.attr('href')).toContain('/icon')
       expect($icon.attr('href')).toMatch(hashRegex)
