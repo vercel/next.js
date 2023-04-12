@@ -206,6 +206,43 @@ createNextDescribe(
         const html = await res.text()
         expect(html).toContain('page could not be found')
       })
+
+      it('should render nested parallel routes', async () => {
+        const browser = await next.browser('/parallel-side-bar/nested/deeper')
+        await check(
+          () => browser.waitForElementByCss('#nested-deeper-main').text(),
+          'Nested deeper page'
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#nested-deeper-sidebar').text(),
+          'Nested deeper sidebar here'
+        )
+
+        await browser.elementByCss('[href="/parallel-side-bar/nested"]').click()
+
+        await check(
+          () => browser.waitForElementByCss('#nested-main').text(),
+          'Nested page'
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#nested-sidebar').text(),
+          'Nested sidebar here'
+        )
+
+        await browser.elementByCss('[href="/parallel-side-bar"]').click()
+
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'homepage'
+        )
+
+        await check(
+          () => browser.waitForElementByCss('#sidebar-main').text(),
+          'root sidebar here'
+        )
+      })
     })
 
     describe('route intercepting', () => {

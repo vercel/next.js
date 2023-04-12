@@ -12,6 +12,7 @@
 /.prettier*                                   @vercel/next-js @leerob
 /*.md                                         @vercel/next-js @leerob
 /packages/create-next-app/                    @vercel/next-js
+/pnpm-lock.yaml                               @vercel/next-js @vercel/web-tooling
 
 # Image Component (@styfle)
 
