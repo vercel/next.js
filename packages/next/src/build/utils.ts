@@ -14,7 +14,9 @@ import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { AppRouteUserlandModule } from '../server/future/route-modules/app-route/module'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 
+import '../server/require-hook'
 import '../server/node-polyfill-fetch'
+
 import chalk from 'next/dist/compiled/chalk'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
