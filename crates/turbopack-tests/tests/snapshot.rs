@@ -20,7 +20,9 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     condition::ContextCondition,
     ecmascript::EcmascriptModuleAssetVc,
-    module_options::{JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext},
+    module_options::{
+        EmotionTransformConfig, JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
+    },
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,
     ModuleAssetContextVc,
@@ -193,7 +195,10 @@ async fn run_test(resource: &str) -> Result<FileSystemPathVc> {
             enable_jsx: Some(JsxTransformOptionsVc::cell(JsxTransformOptions {
                 ..Default::default()
             })),
-            enable_emotion: true,
+            enable_emotion: Some(EmotionTransformConfig::cell(EmotionTransformConfig {
+                sourcemap: Some(false),
+                ..Default::default()
+            })),
             enable_styled_components: true,
             preset_env_versions: Some(env),
             rules: vec![(
