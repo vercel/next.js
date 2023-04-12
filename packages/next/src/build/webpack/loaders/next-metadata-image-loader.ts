@@ -11,6 +11,7 @@ import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import { fileExists } from '../../../lib/file-exists'
 
 interface Options {
   route: string
@@ -44,9 +45,6 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     '[name].[ext]',
     opts
   )
-  const resolveAltText = this.getResolve({
-    extensions: ['.alt.txt'],
-  })
 
   const isDynamicResource = pageExtensions.includes(extension)
   const pageRoute = isDynamicResource ? fileNameBase : interpolatedName
@@ -114,18 +112,13 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         }),
   }
   if (type === 'openGraph' || type === 'twitter') {
-    let alt
-    try {
-      const altPath = await resolveAltText(
-        context,
-        path.join(path.dirname(resourcePath), fileNameBase + '.alt.txt')
-      )
-      alt = await fs.readFile(altPath, 'utf8')
-    } catch (e: any) {
-      if (!e?.message?.includes("Can't resolve")) throw e
-    }
-    if (alt) {
-      imageData.alt = alt
+    const altPath = path.join(
+      path.dirname(resourcePath),
+      fileNameBase + '.alt.txt'
+    )
+
+    if (await fileExists(altPath)) {
+      imageData.alt = await fs.readFile(altPath, 'utf8')
     }
   }
 
