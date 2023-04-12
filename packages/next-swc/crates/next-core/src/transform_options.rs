@@ -163,7 +163,8 @@ pub async fn get_jsx_transform_options(
 pub async fn get_emotion_compiler_config(
     next_config: NextConfigVc,
 ) -> Result<OptionEmotionTransformConfigVc> {
-    let emotion_compiler_config = (*next_config.await?)
+    let emotion_compiler_config = next_config
+        .await?
         .compiler
         .as_ref()
         .map(|value| {
@@ -196,7 +197,8 @@ pub async fn get_emotion_compiler_config(
 pub async fn get_styled_components_compiler_config(
     next_config: NextConfigVc,
 ) -> Result<OptionStyledComponentsTransformConfigVc> {
-    let styled_components_compiler_config = (*next_config.await?)
+    let styled_components_compiler_config = next_config
+        .await?
         .compiler
         .as_ref()
         .map(|value| {
