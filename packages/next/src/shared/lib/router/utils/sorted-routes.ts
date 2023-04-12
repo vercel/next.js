@@ -134,7 +134,7 @@ class UrlNode {
             )
           }
 
-          if (slug.replace(/\W/g, '') === nextSegment.replace(/\W/g, '')) {
+          if (slug.replace(/\W/g, '') === nextSlug.replace(/\W/g, '')) {
             throw new Error(
               `You cannot have the slug names "${slug}" and "${nextSlug}" differ only by non-word symbols within a single dynamic path`
             )
