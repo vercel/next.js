@@ -20,10 +20,6 @@ async function createNextInstall({
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
-      const tmpRepoDir = path.join(
-        tmpDir,
-        `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
-      )
 
       const installDir = path.join(
         tmpDir,
@@ -63,30 +59,6 @@ async function createNextInstall({
           }
         }
       })
-
-      for (const item of ['package.json', 'packages']) {
-        await rootSpan
-          .traceChild(`copy ${item} to temp dir`)
-          .traceAsyncFn(async () => {
-            await fs.copy(
-              path.join(origRepoDir, item),
-              path.join(tmpRepoDir, item),
-              {
-                filter: (item) => {
-                  return (
-                    !item.includes('node_modules') &&
-                    !item.includes('pnpm-lock.yaml') &&
-                    !item.includes('.DS_Store') &&
-                    // Exclude Rust compilation files
-                    !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
-                    !/next-swc[\\/]target/.test(item) &&
-                    !item.endsWith('.tgz')
-                  )
-                },
-              }
-            )
-          })
-      }
 
       let combinedDependencies = dependencies
 
@@ -163,9 +135,6 @@ async function createNextInstall({
           })
       }
 
-      if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.remove(tmpRepoDir)
-      }
       return installDir
     })
 }
