@@ -29,7 +29,8 @@ use turbo_binding::{
             transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
         },
         turbopack::{
-            evaluate_context::node_evaluate_asset_context, module_options::EmotionTransformConfig,
+            evaluate_context::node_evaluate_asset_context,
+            module_options::{EmotionTransformConfig, StyledComponentsTransformConfig},
         },
     },
 };
@@ -427,12 +428,20 @@ pub enum EmotionTransformOptionsOrBoolean {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum StyledComponentsTransformOptionsOrBoolean {
+    Boolean(bool),
+    Options(StyledComponentsTransformConfig),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
     pub react_remove_properties: Option<bool>,
     pub relay: Option<RelayConfig>,
     pub emotion: Option<EmotionTransformOptionsOrBoolean>,
     pub remove_console: Option<RemoveConsoleConfig>,
+    pub styled_components: Option<StyledComponentsTransformOptionsOrBoolean>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]

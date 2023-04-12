@@ -8,6 +8,7 @@ const supportedTurbopackNextConfigOptions = [
   'env',
   'experimental.appDir',
   'compiler.emotion',
+  'compiler.styledComponents',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
   'images',

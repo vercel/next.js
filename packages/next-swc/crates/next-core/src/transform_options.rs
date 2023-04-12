@@ -9,12 +9,15 @@ use turbo_binding::turbopack::{
     turbopack::module_options::{
         DecoratorsKind, DecoratorsOptions, DecoratorsOptionsVc, EmotionTransformConfig,
         EmotionTransformConfigVc, JsxTransformOptions, JsxTransformOptionsVc,
-        OptionEmotionTransformConfigVc, TypescriptTransformOptions, TypescriptTransformOptionsVc,
+        OptionEmotionTransformConfigVc, OptionStyledComponentsTransformConfigVc,
+        StyledComponentsTransformConfig, TypescriptTransformOptions, TypescriptTransformOptionsVc,
     },
 };
 use turbo_tasks_fs::{FileJsonContentVc, FileSystemPathVc};
 
-use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfigVc};
+use crate::next_config::{
+    EmotionTransformOptionsOrBoolean, NextConfigVc, StyledComponentsTransformOptionsOrBoolean,
+};
 
 async fn get_typescript_options(
     project_path: FileSystemPathVc,
@@ -187,4 +190,38 @@ pub async fn get_emotion_compiler_config(
         .unwrap_or_else(|| OptionEmotionTransformConfigVc::cell(None));
 
     Ok(emotion_compiler_config)
+}
+
+#[turbo_tasks::function]
+pub async fn get_styled_components_compiler_config(
+    next_config: NextConfigVc,
+) -> Result<OptionStyledComponentsTransformConfigVc> {
+    let styled_components_compiler_config = (*next_config.await?)
+        .compiler
+        .as_ref()
+        .map(|value| {
+            value
+                .styled_components
+                .as_ref()
+                .map(|value| {
+                    let options = match value {
+                        StyledComponentsTransformOptionsOrBoolean::Boolean(true) => Some(
+                            StyledComponentsTransformConfig {
+                                ..Default::default()
+                            }
+                            .cell(),
+                        ),
+                        StyledComponentsTransformOptionsOrBoolean::Boolean(false) => None,
+                        StyledComponentsTransformOptionsOrBoolean::Options(value) => {
+                            Some(value.clone().cell())
+                        }
+                    };
+
+                    OptionStyledComponentsTransformConfigVc::cell(options)
+                })
+                .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None))
+        })
+        .unwrap_or_else(|| OptionStyledComponentsTransformConfigVc::cell(None));
+
+    Ok(styled_components_compiler_config)
 }

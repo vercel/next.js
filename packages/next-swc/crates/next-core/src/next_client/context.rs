@@ -49,7 +49,7 @@ use crate::{
     react_refresh::assert_can_resolve_react_refresh,
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
-        get_typescript_transform_options,
+        get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -186,6 +186,8 @@ pub async fn get_client_module_options_context(
         ..Default::default()
     };
 
+    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
+
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
@@ -193,7 +195,7 @@ pub async fn get_client_module_options_context(
         enable_jsx: Some(jsx_runtime_options),
         enable_emotion,
         enable_react_refresh,
-        enable_styled_components: true,
+        enable_styled_components,
         enable_styled_jsx: true,
         enable_postcss_transform: Some(PostCssTransformOptions {
             postcss_package: Some(get_postcss_package_mapping(project_path)),
