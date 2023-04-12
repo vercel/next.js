@@ -956,6 +956,8 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
+              {/* Make sure the component isn't null to avoid breaking this: https://github.com/vercel/next.js/blob/faa8038d50386a43ef845e714f4f156f9bb916af/packages/next/src/client/components/layout-router.tsx#L261 */}
+              <React.Fragment />
             </>
           )
         },
@@ -1336,10 +1338,13 @@ export async function renderToHTMLOrFlight(
             globalErrorComponent={GlobalError}
             notFound={
               NotFound && RootLayout ? (
-                <RootLayout params={{}}>
-                  {notFoundStyles}
-                  <NotFound />
-                </RootLayout>
+                <>
+                  {assets}
+                  <RootLayout params={{}}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </RootLayout>
+                </>
               ) : undefined
             }
             asNotFound={props.asNotFound}
