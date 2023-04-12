@@ -6,7 +6,7 @@ use turbo_binding::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc},
             chunk::{
-                availability_info::AvailabilityInfo, ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkVc,
+                availability_info::AvailabilityInfo, ChunkItem, ChunkItemVc, ChunkVc,
                 ChunkableAsset, ChunkableAssetReference, ChunkableAssetReferenceVc,
                 ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunkingType,
                 ChunkingTypeOptionVc,
@@ -121,14 +121,10 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let inner = self.inner.await?;
-        let group = ChunkGroupVc::from_asset(
-            inner.asset.into(),
-            self.context.into(),
-            Value::new(AvailabilityInfo::Root {
-                current_availability_root: inner.asset.into(),
-            }),
-        );
-        let chunks = group.chunks().await?;
+        let chunks = self
+            .context
+            .chunk_group(inner.asset.as_root_chunk(self.context.into()))
+            .await?;
         let server_root = inner.server_root.await?;
 
         let mut asset_paths = vec![];
