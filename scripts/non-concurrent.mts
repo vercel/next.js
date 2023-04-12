@@ -8,7 +8,9 @@ import { fileURLToPath } from 'url'
  * It will wait for other invocations with the same `operation-id` to finish before running.
  *
  * Usage:
- *  node scripts/non-concurrent.mts <operation-id> <script>
+ *  node scripts/non-concurrent.mts [operation-id] [script with arguments]...
+ * Example:
+ *  node scripts/non-concurrent.mts test-pack node scripts/test-pack.mts --more --args
  */
 
 const timeoutMs = 100
