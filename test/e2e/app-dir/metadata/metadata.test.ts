@@ -478,21 +478,23 @@ createNextDescribe(
 
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
-        expect($('[property="og:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e'
-        )
-        expect($('[property="og:image:type"]').attr('content')).toBe(
-          'image/png'
-        )
-        expect($('[property="og:image:width"]').attr('content')).toBe('114')
-        expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
-        expect($('[name="twitter:image"]').attr('content')).toBe(
-          'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e'
-        )
-        expect($('[name="twitter:card"]').attr('content')).toBe(
-          'summary_large_image'
-        )
+        const match = createMultiHtmlMatcher($)
+        await match('meta', 'property', 'content', {
+          'og:image:width': '114',
+          'og:image:height': '114',
+          'og:image:type': 'image/png',
+          'og:image:alt': 'A alt txt for og',
+          'og:image':
+            'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+        })
+
+        await match('meta', 'name', 'content', {
+          'twitter:image':
+            'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image:alt': 'A alt txt for twitter',
+          'twitter:card': 'summary_large_image',
+        })
 
         // favicon shouldn't be overridden
         const $icon = $('link[rel="icon"]')
