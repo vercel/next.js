@@ -407,6 +407,16 @@ createNextDescribe(
           'Photo MODAL 1'
         )
 
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/intercepting-parallel-modal/photo/2"]')
+              .click()
+              .waitForElementByCss('#photo-modal-2')
+              .text(),
+          'Photo MODAL 2'
+        )
+
         // Check if modal was rendered while existing page content is preserved.
         await check(
           () => browser.elementByCss('#user-page').text(),
@@ -416,19 +426,19 @@ createNextDescribe(
         // Check if url matches even though it was intercepted.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-parallel-modal/photo/1'
+          next.url + '/intercepting-parallel-modal/photo/2'
         )
 
         // Trigger a refresh, this should load the normal page, not the modal.
         await check(
-          () => browser.refresh().waitForElementByCss('#photo-page-1').text(),
-          'Photo PAGE 1'
+          () => browser.refresh().waitForElementByCss('#photo-page-2').text(),
+          'Photo PAGE 2'
         )
 
         // Check if the url matches still.
         await check(
           () => browser.url(),
-          next.url + '/intercepting-parallel-modal/photo/1'
+          next.url + '/intercepting-parallel-modal/photo/2'
         )
       })
     })

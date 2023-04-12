@@ -1137,11 +1137,12 @@ export async function renderToHTMLOrFlight(
               return path
                 .map((item) => {
                   // we don't need to send over default routes in the flight data
-                  // because they are always ignored by the client
+                  // because they are always ignored by the client, unless it's a refetch
                   if (
                     item[0] === '__DEFAULT__' &&
                     flightRouterState &&
-                    !!flightRouterState[1][parallelRouteKey][0]
+                    !!flightRouterState[1][parallelRouteKey][0] &&
+                    flightRouterState[1][parallelRouteKey][3] !== 'refetch'
                   ) {
                     return null
                   }
