@@ -1317,37 +1317,35 @@ export async function renderToHTMLOrFlight(
         )
 
         return (
-          <>
+          <AppRouter
+            assetPrefix={assetPrefix}
+            initialCanonicalUrl={initialCanonicalUrl}
+            initialTree={initialTree}
+            initialHead={
+              <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
+                {/* @ts-expect-error allow to use async server component */}
+                <MetadataTree
+                  key={requestId}
+                  metadata={metadataItems}
+                  pathname={pathname}
+                />
+              </>
+            }
+            globalErrorComponent={GlobalError}
+            notFound={
+              NotFound && RootLayout ? (
+                <RootLayout params={{}}>
+                  {notFoundStyles}
+                  <NotFound />
+                </RootLayout>
+              ) : undefined
+            }
+            asNotFound={props.asNotFound}
+          >
             {assets}
-            <AppRouter
-              assetPrefix={assetPrefix}
-              initialCanonicalUrl={initialCanonicalUrl}
-              initialTree={initialTree}
-              initialHead={
-                <>
-                  {/* Adding key={requestId} to make metadata remount for each render */}
-                  {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree
-                    key={requestId}
-                    metadata={metadataItems}
-                    pathname={pathname}
-                  />
-                </>
-              }
-              globalErrorComponent={GlobalError}
-              notFound={
-                NotFound && RootLayout ? (
-                  <RootLayout params={{}}>
-                    {notFoundStyles}
-                    <NotFound />
-                  </RootLayout>
-                ) : undefined
-              }
-              asNotFound={props.asNotFound}
-            >
-              <ComponentTree />
-            </AppRouter>
-          </>
+            <ComponentTree />
+          </AppRouter>
         )
       },
       ComponentMod,
