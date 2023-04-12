@@ -281,32 +281,12 @@ export default async function build(
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
       const useExperimentalReact = !!config.experimental.experimentalReact
-      const initialRequireHookFilePath = require.resolve(
-        'next/dist/server/initialize-require-hook'
-      )
-      const content = await promises.readFile(
-        initialRequireHookFilePath,
-        'utf8'
-      )
 
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
           ? 'experimental'
           : 'next'
       }
-      await promises
-        .writeFile(
-          initialRequireHookFilePath,
-          content.replace(
-            /isPrebundled = (true|false)/,
-            `isPrebundled = ${isAppDirEnabled}`
-          )
-        )
-        .catch((err) => {
-          if (isAppDirEnabled) {
-            throw err
-          }
-        })
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
       NextBuildContext.pagesDir = pagesDir

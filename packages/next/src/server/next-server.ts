@@ -1,4 +1,4 @@
-import './initialize-require-hook'
+import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
