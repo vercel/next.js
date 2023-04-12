@@ -137,6 +137,15 @@ createNextDescribe(
         expect([sizeBig.width, sizeBig.height]).toEqual([1200, 630])
         expect([sizeSmall.width, sizeSmall.height]).toEqual([600, 315])
       })
+
+      it('should fill params into routes groups url of static images', async () => {
+        const $ = await next.render$('/static')
+        const ogImageUrl = $('meta[property="og:image"]').attr('content')
+        expect(ogImageUrl).toMatch(hashRegex)
+        expect(ogImageUrl).toMatch('/static/opengraph-image')
+        // should already normalize the parallel routes segment to url
+        expect(ogImageUrl).not.toContain('(group)')
+      })
     })
 
     describe('icon image routes', () => {
