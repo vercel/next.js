@@ -34,9 +34,7 @@ import { parse, ParsedUrlQuery } from 'node:querystring'
 import { PassThrough } from 'node:stream'
 ;('TURBOPACK { transition: next-layout-entry; chunking-type: isolatedParallel }')
 // @ts-ignore
-import layoutEntry, {
-  chunks as layoutEntryClientChunks,
-} from './app/layout-entry'
+import layoutEntry from './app/layout-entry'
 
 globalThis.__next_require__ = (data) => {
   const [, , ssr_id] = JSON.parse(data)
