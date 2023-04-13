@@ -27,16 +27,18 @@ import {
   generateActionId,
   getActions,
   isClientComponentModule,
-  regexCSS,
+  isCSSMod,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
+import { warnOnce } from '../../../shared/lib/utils/warn-once'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useExperimentalReact: boolean
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
@@ -75,11 +77,13 @@ export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useExperimentalReact: boolean
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
+    this.useExperimentalReact = options.useExperimentalReact
   }
 
   apply(compiler: webpack.Compiler) {
@@ -241,6 +245,11 @@ export class ClientReferenceEntryPlugin {
       }
 
       if (actionEntryImports.size > 0) {
+        if (!this.useExperimentalReact) {
+          warnOnce(
+            '\nServer Actions require `experimental.experimentalReact` option to be enabled in your Next.js config.\n'
+          )
+        }
         addActionEntryList.push(
           this.injectActionEntry({
             compiler,
@@ -345,7 +354,7 @@ export class ClientReferenceEntryPlugin {
         const resource = mod.resource
         const modId = resource
         if (modId) {
-          if (regexCSS.test(modId)) {
+          if (isCSSMod(mod)) {
             cssImportsForChunk[entryName].add(modId)
           }
         }
@@ -497,8 +506,7 @@ export class ClientReferenceEntryPlugin {
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
-      const rawRequest = mod.rawRequest
-      const isCSS = regexCSS.test(rawRequest)
+      const isCSS = isCSSMod(mod)
 
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as

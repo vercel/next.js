@@ -730,10 +730,7 @@ export default async function loadConfig(
     : Log
 
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
-
-  if (!customConfig) {
-    loadWebpackHook()
-  }
+  loadWebpackHook()
 
   let configFileName = 'next.config.js'
 

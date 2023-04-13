@@ -226,6 +226,9 @@ const configSchema = {
     experimental: {
       additionalProperties: false,
       properties: {
+        appDocumentPreloading: {
+          type: 'boolean',
+        },
         adjustFontFallbacks: {
           type: 'boolean',
         },
@@ -282,6 +285,9 @@ const configSchema = {
           ] as any,
         },
         appDir: {
+          type: 'boolean',
+        },
+        experimentalReact: {
           type: 'boolean',
         },
         extensionAlias: {

@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
 import { toPairs } from "@vercel/turbopack-next/internal/headers";
-import { makeResolver, RouteResult } from "next/dist/server/lib/route-resolver";
+import { makeResolver, RouteResult, ServerAddress } from "next/dist/server/lib/route-resolver";
 import loadConfig from "next/dist/server/config";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
@@ -53,7 +53,8 @@ let resolveRouteMemo: Promise<
 >;
 
 async function getResolveRoute(
-  dir: string
+  dir: string,
+  serverAddr: Partial<ServerAddress>
 ): ReturnType<
   typeof import("next/dist/server/lib/route-resolver").makeResolver
 > {
@@ -64,20 +65,22 @@ async function getResolveRoute(
     undefined,
     true
   );
-
-  return await makeResolver(dir, nextConfig, {
+  const middlewareCfg = {
     files: middlewareChunkGroup.filter((f) => /\.[mc]?js$/.test(f)),
     matcher: middlewareConfig.matcher,
-  });
+  }
+
+  return await makeResolver(dir, nextConfig, middlewareCfg, serverAddr);
 }
 
 export default async function route(
   ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
   routerRequest: RouterRequest,
-  dir: string
+  dir: string,
+  serverAddr: Partial<ServerAddress>
 ) {
   const [resolveRoute, server] = await Promise.all([
-    (resolveRouteMemo ??= getResolveRoute(dir)),
+    (resolveRouteMemo ??= getResolveRoute(dir, serverAddr)),
     createServer(),
   ]);
 

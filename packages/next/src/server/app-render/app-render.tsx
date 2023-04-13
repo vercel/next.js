@@ -13,9 +13,7 @@ import type { StaticGenerationAsyncStorage } from '../../client/components/stati
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
@@ -77,6 +75,18 @@ import { handleAction } from './action-handler'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
+
+// Import builtin react directly to avoid require cache conflicts
+let React: typeof import('next/dist/compiled/react')
+let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
+
+if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
+  React = require('next/dist/compiled/react-experimental')
+  ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
+} else {
+  React = require('next/dist/compiled/react')
+  ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
+}
 
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -635,8 +645,6 @@ export async function renderToHTMLOrFlight(
             getComponent: notFound[0],
             injectedCSS: injectedCSSWithCurrentLayout,
           })
-        : rootLayoutAtThisLevel
-        ? [DefaultNotFound]
         : []
 
       let dynamic = layoutOrPageMod?.dynamic
@@ -978,10 +986,11 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags: Set<string>
         rootLayoutIncluded: boolean
         asNotFound?: boolean
-      }): Promise<FlightDataPath> => {
+      }): Promise<FlightDataPath[]> => {
         const [segment, parallelRoutes, components] = loaderTreeToFilter
 
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
 
@@ -1029,41 +1038,44 @@ export async function renderToHTMLOrFlight(
             canSegmentBeOverridden(actualSegment, flightRouterState[0])
               ? flightRouterState[0]
               : null
-
           return [
-            overriddenSegment ?? actualSegment,
-            createFlightRouterStateFromLoaderTree(
-              // Create router state using the slice of the loaderTree
-              loaderTreeToFilter,
-              getDynamicParamFromSegment,
-              query
-            ),
-            // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-            isPrefetch && !Boolean(components.loading)
-              ? null
-              : // Create component tree using the slice of the loaderTree
-                // @ts-expect-error TODO-APP: fix async component type
-                React.createElement(async () => {
-                  const { Component } = await createComponentTree(
-                    // This ensures flightRouterPath is valid and filters down the tree
-                    {
-                      createSegmentPath: (child) => {
-                        return createSegmentPath(child)
-                      },
-                      loaderTree: loaderTreeToFilter,
-                      parentParams: currentParams,
-                      firstItem: isFirst,
-                      injectedCSS,
-                      injectedFontPreloadTags,
-                      // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                      rootLayoutIncluded: rootLayoutIncluded,
-                      asNotFound,
-                    }
-                  )
+            [
+              overriddenSegment ?? actualSegment,
+              createFlightRouterStateFromLoaderTree(
+                // Create router state using the slice of the loaderTree
+                loaderTreeToFilter,
+                getDynamicParamFromSegment,
+                query
+              ),
+              // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : // Create component tree using the slice of the loaderTree
+                  // @ts-expect-error TODO-APP: fix async component type
+                  React.createElement(async () => {
+                    const { Component } = await createComponentTree(
+                      // This ensures flightRouterPath is valid and filters down the tree
+                      {
+                        createSegmentPath: (child) => {
+                          return createSegmentPath(child)
+                        },
+                        loaderTree: loaderTreeToFilter,
+                        parentParams: currentParams,
+                        firstItem: isFirst,
+                        injectedCSS,
+                        injectedFontPreloadTags,
+                        // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                        rootLayoutIncluded: rootLayoutIncluded,
+                        asNotFound,
+                      }
+                    )
 
-                  return <Component />
-                }),
-            isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
+                    return <Component />
+                  }),
+              isPrefetch && !Boolean(components.loading)
+                ? null
+                : rscPayloadHead,
+            ],
           ]
         }
 
@@ -1094,36 +1106,54 @@ export async function renderToHTMLOrFlight(
         }
 
         // Walk through all parallel routes.
-        for (const parallelRouteKey of parallelRoutesKeys) {
-          const parallelRoute = parallelRoutes[parallelRouteKey]
+        const paths: FlightDataPath[] = (
+          await Promise.all(
+            parallelRoutesKeys.map(async (parallelRouteKey) => {
+              // for (const parallelRouteKey of parallelRoutesKeys) {
+              const parallelRoute = parallelRoutes[parallelRouteKey]
 
-          const currentSegmentPath: FlightSegmentPath = isFirst
-            ? [parallelRouteKey]
-            : [actualSegment, parallelRouteKey]
+              const currentSegmentPath: FlightSegmentPath = isFirst
+                ? [parallelRouteKey]
+                : [actualSegment, parallelRouteKey]
 
-          const path = await walkTreeWithFlightRouterState({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
-            loaderTreeToFilter: parallelRoute,
-            parentParams: currentParams,
-            flightRouterState:
-              flightRouterState && flightRouterState[1][parallelRouteKey],
-            parentRendered: parentRendered || renderComponentsOnThisLevel,
-            isFirst: false,
-            rscPayloadHead,
-            injectedCSS: injectedCSSWithCurrentLayout,
-            injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-            asNotFound,
-          })
+              const path = await walkTreeWithFlightRouterState({
+                createSegmentPath: (child) => {
+                  return createSegmentPath([...currentSegmentPath, ...child])
+                },
+                loaderTreeToFilter: parallelRoute,
+                parentParams: currentParams,
+                flightRouterState:
+                  flightRouterState && flightRouterState[1][parallelRouteKey],
+                parentRendered: parentRendered || renderComponentsOnThisLevel,
+                isFirst: false,
+                rscPayloadHead,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                asNotFound,
+              })
 
-          if (typeof path[path.length - 1] !== 'string') {
-            return [actualSegment, parallelRouteKey, ...path]
-          }
-        }
+              return path
+                .map((item) => {
+                  // we don't need to send over default routes in the flight data
+                  // because they are always ignored by the client, unless it's a refetch
+                  if (
+                    item[0] === '__DEFAULT__' &&
+                    flightRouterState &&
+                    !!flightRouterState[1][parallelRouteKey][0] &&
+                    flightRouterState[1][parallelRouteKey][3] !== 'refetch'
+                  ) {
+                    return null
+                  }
+                  return [actualSegment, parallelRouteKey, ...item]
+                })
+                .filter(Boolean) as FlightDataPath[]
+            })
+          )
+        ).flat()
 
-        return [actualSegment]
+        return paths
       }
 
       const metadataItems = await resolveMetadata({
@@ -1133,33 +1163,31 @@ export async function renderToHTMLOrFlight(
       })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
-      const flightData: FlightData = [
-        (
-          await walkTreeWithFlightRouterState({
-            createSegmentPath: (child) => child,
-            loaderTreeToFilter: loaderTree,
-            parentParams: {},
-            flightRouterState: providedFlightRouterState,
-            isFirst: true,
-            // For flight, render metadata inside leaf page
-            rscPayloadHead: (
-              <>
-                {/* Adding key={requestId} to make metadata remount for each render */}
-                {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree
-                  key={requestId}
-                  metadata={metadataItems}
-                  pathname={pathname}
-                />
-              </>
-            ),
-            injectedCSS: new Set(),
-            injectedFontPreloadTags: new Set(),
-            rootLayoutIncluded: false,
-            asNotFound: pathname === '/404',
-          })
-        ).slice(1),
-      ]
+      const flightData: FlightData = (
+        await walkTreeWithFlightRouterState({
+          createSegmentPath: (child) => child,
+          loaderTreeToFilter: loaderTree,
+          parentParams: {},
+          flightRouterState: providedFlightRouterState,
+          isFirst: true,
+          // For flight, render metadata inside leaf page
+          rscPayloadHead: (
+            <>
+              {/* Adding key={requestId} to make metadata remount for each render */}
+              {/* @ts-expect-error allow to use async server component */}
+              <MetadataTree
+                key={requestId}
+                metadata={metadataItems}
+                pathname={pathname}
+              />
+            </>
+          ),
+          injectedCSS: new Set(),
+          injectedFontPreloadTags: new Set(),
+          rootLayoutIncluded: false,
+          asNotFound: pathname === '/404',
+        })
+      ).map((path) => path.slice(1)) // remove the '' (root) segment
 
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.

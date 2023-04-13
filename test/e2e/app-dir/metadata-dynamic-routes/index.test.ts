@@ -15,7 +15,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
       it('should handle robots.[ext] dynamic routes', async () => {
         const res = await next.fetch('/robots.txt')
@@ -137,6 +137,15 @@ createNextDescribe(
         expect([sizeBig.width, sizeBig.height]).toEqual([1200, 630])
         expect([sizeSmall.width, sizeSmall.height]).toEqual([600, 315])
       })
+
+      it('should fill params into routes groups url of static images', async () => {
+        const $ = await next.render$('/static')
+        const ogImageUrl = $('meta[property="og:image"]').attr('content')
+        expect(ogImageUrl).toMatch(hashRegex)
+        expect(ogImageUrl).toMatch('/static/opengraph-image')
+        // should already normalize the parallel routes segment to url
+        expect(ogImageUrl).not.toContain('(group)')
+      })
     })
 
     describe('icon image routes', () => {
@@ -162,13 +171,21 @@ createNextDescribe(
     it('should generate unique path for image routes under group routes', async () => {
       const $ = await next.render$('/blog')
       const ogImageUrl = $('meta[property="og:image"]').attr('content')
+      const twitterImageUrl = $('meta[name="twitter:image"]').attr('content')
       const ogImageUrlInstance = new URL(ogImageUrl)
-      const res = await next.fetch(ogImageUrlInstance.pathname)
+      const twitterImageUrlInstance = new URL(twitterImageUrl)
+
+      const resOg = await next.fetch(ogImageUrlInstance.pathname)
+      const resTwitter = await next.fetch(twitterImageUrlInstance.pathname)
 
       // generate unique path with suffix for image routes under group routes
-      expect(ogImageUrl).toMatch(/opengraph-image-\d{6}\?/)
+      expect(ogImageUrl).toMatch(/opengraph-image-\w{6}\?/)
       expect(ogImageUrl).toMatch(hashRegex)
-      expect(res.status).toBe(200)
+      expect(twitterImageUrl).toMatch(/twitter-image-\w{6}\?/)
+      expect(twitterImageUrl).toMatch(hashRegex)
+
+      expect(resOg.status).toBe(200)
+      expect(resTwitter.status).toBe(200)
     })
 
     it('should inject dynamic metadata properly to head', async () => {
@@ -183,6 +200,11 @@ createNextDescribe(
       )
 
       expect($('link[rel="favicon"]')).toHaveLength(0)
+
+      // manifest
+      expect($('link[rel="manifest"]').attr('href')).toBe(
+        '/manifest.webmanifest'
+      )
 
       // non absolute urls
       expect($icon.attr('href')).toContain('/icon')
@@ -224,5 +246,18 @@ createNextDescribe(
         'Twitter'
       )
     })
+
+    if (isNextStart) {
+      it('should support edge runtime of image routes', async () => {
+        const middlewareManifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+        const functionRoutes = Object.keys(middlewareManifest.functions)
+        const edgeRoute = functionRoutes.find((route) =>
+          route.startsWith('/(group)/twitter-image-')
+        )
+        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+      })
+    }
   }
 )

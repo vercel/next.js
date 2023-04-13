@@ -24,6 +24,8 @@ export interface StaticGenerationStore {
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
+
+  nextFetchId?: number
 }
 
 export type StaticGenerationAsyncStorage =

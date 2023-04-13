@@ -313,7 +313,7 @@ describe('should set-up next', () => {
   it('should render dynamic SSR page correctly with x-matched-path', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/some-other-path?nextParamslug=first',
+      '/some-other-path?nxtPslug=first',
       undefined,
       {
         headers: {
@@ -330,7 +330,7 @@ describe('should set-up next', () => {
 
     const html2 = await renderViaHTTP(
       appPort,
-      '/some-other-path?nextParamslug=second',
+      '/some-other-path?nxtPslug=second',
       undefined,
       {
         headers: {
@@ -349,7 +349,7 @@ describe('should set-up next', () => {
     const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
       headers: {
         'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
-        'x-now-route-matches': '1=second&nextParamslug=second',
+        'x-now-route-matches': '1=second&nxtPslug=second',
       },
     })
     const $3 = cheerio.load(html3)
@@ -393,7 +393,7 @@ describe('should set-up next', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/en/dynamic/first.json?nextParamslug=first`,
+      `/_next/data/${next.buildId}/en/dynamic/first.json?nxtPslug=first`,
       undefined,
       {
         headers: {
@@ -451,7 +451,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&nextParamcatchAll=hello',
+          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
         },
       }
     )
@@ -470,7 +470,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&nextParamcatchAll=hello/world',
+          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
         },
       }
     )
@@ -507,7 +507,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&nextParamrest=hello',
+          'x-now-route-matches': '1=hello&nxtPrest=hello',
         },
       }
     )
@@ -524,7 +524,7 @@ describe('should set-up next', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&nextParamrest=hello/world',
+          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
         },
       }
     )
@@ -640,7 +640,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssp',
-      { nextParamrest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssp/[[...rest]]',
@@ -683,7 +683,7 @@ describe('should set-up next', () => {
         headers: {
           'x-matched-path': '/en/[slug]/social/[[...rest]]',
           'x-now-route-matches':
-            'nextLocale=en&1=en&2=user-123&nextParamslug=user-123',
+            'nextLocale=en&1=en&2=user-123&nxtPslug=user-123',
         },
       }
     )
@@ -706,7 +706,7 @@ describe('should set-up next', () => {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
           'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&nextParamrest=en%2Fes%2Fhello%252Fworld',
+            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -723,7 +723,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional',
-      { nextParamrest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -766,8 +766,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/en/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/en/fallback/[slug]',
-        'x-now-route-matches':
-          '2=another&nextParamslug=another&1=en&nextLocale=en',
+        'x-now-route-matches': '2=another&nxtPslug=another&1=en&nextLocale=en',
       },
       redirect: 'manual',
     })
@@ -785,8 +784,7 @@ describe('should set-up next', () => {
     const res = await fetchViaHTTP(appPort, '/fr/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/fr/fallback/[slug]',
-        'x-now-route-matches':
-          '2=another&nextParamslug=another&1=fr&nextLocale=fr',
+        'x-now-route-matches': '2=another&nxtPslug=another&1=fr&nextLocale=fr',
       },
       redirect: 'manual',
     })

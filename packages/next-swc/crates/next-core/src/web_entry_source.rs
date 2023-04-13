@@ -6,7 +6,7 @@ use turbo_binding::{
     },
     turbopack::{
         core::{
-            chunk::{ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
+            chunk::{ChunkableAsset, ChunkableAssetVc, ChunkingContext},
             compile_time_defines,
             compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
             environment::{
@@ -147,16 +147,15 @@ pub async fn create_web_entry_source(
         .flatten()
         .map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                let chunk_group =
-                    ChunkGroupVc::evaluated(chunking_context, ecmascript.into(), runtime_entries);
+                let chunk_group = chunking_context.evaluated_chunk_group(
+                    ecmascript.as_root_chunk(chunking_context),
+                    runtime_entries.with_entry(ecmascript.into()),
+                );
                 Ok(chunk_group)
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
-                Ok(ChunkGroupVc::from_chunk(
-                    chunking_context,
-                    chunkable.as_root_chunk(chunking_context),
-                ))
+                Ok(chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context)))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(
