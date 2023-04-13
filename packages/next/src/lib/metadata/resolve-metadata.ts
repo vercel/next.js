@@ -45,7 +45,7 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata
 ) {
   if (!staticFilesMetadata) return
-  const { icon, apple, openGraph, twitter } = staticFilesMetadata
+  const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
   if (icon || apple) {
     metadata.icons = {
       icon: icon || [],
@@ -66,6 +66,9 @@ function mergeStaticMetadata(
       metadata.metadataBase
     )
     metadata.openGraph = resolvedOpenGraph
+  }
+  if (manifest) {
+    metadata.manifest = manifest
   }
 
   return metadata
@@ -249,6 +252,7 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
     apple,
     openGraph,
     twitter,
+    manifest: metadata.manifest,
   }
 
   return staticMetadata

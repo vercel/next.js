@@ -14,63 +14,35 @@ async function createNextInstall({
   packageJson = {},
   dirSuffix = '',
   onlyPackages = false,
+  keepRepoDir = false,
 }) {
   return await parentSpan
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
-
       const installDir = path.join(
         tmpDir,
         `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
-
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      await rootSpan.traceChild('ensure swc binary').traceAsyncFn(async () => {
-        // ensure swc binary is present in the native folder if
-        // not already built
-        for (const folder of await fs.readdir(
-          path.join(origRepoDir, 'node_modules/@next')
-        )) {
-          if (folder.startsWith('swc-')) {
-            const swcPkgPath = path.join(
-              origRepoDir,
-              'node_modules/@next',
-              folder
-            )
-            const outputPath = path.join(
-              origRepoDir,
-              'packages/next-swc/native'
-            )
-            await fs.copy(swcPkgPath, outputPath, {
-              filter: (item) => {
-                return (
-                  item === swcPkgPath ||
-                  (item.endsWith('.node') &&
-                    !fs.pathExistsSync(
-                      path.join(outputPath, path.basename(item))
-                    ))
-                )
-              },
-            })
-          }
-        }
-      })
+      const pkgPaths = await rootSpan
+        .traceChild('linkPackages')
+        .traceAsyncFn(() =>
+          linkPackages({
+            repoDir: origRepoDir,
+          })
+        )
 
       let combinedDependencies = dependencies
 
-      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
-        const pkgPaths = await rootSpan
-          .traceChild('linkPackages')
-          .traceAsyncFn(() =>
-            linkPackages({
-              repoDir: origRepoDir,
-            })
-          )
+      if (onlyPackages) {
+        return pkgPaths
+      }
 
+      if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
         if (onlyPackages) {
           return pkgPaths
         }

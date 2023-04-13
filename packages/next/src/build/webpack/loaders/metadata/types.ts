@@ -11,6 +11,7 @@ export type CollectingMetadata = {
   apple: string[]
   twitter: string[]
   openGraph: string[]
+  manifest?: string
 }
 
 // Contain the collecting evaluated image module
@@ -19,6 +20,7 @@ export type CollectedMetadata = {
   apple: ComponentModule[]
   twitter: ComponentModule[] | null
   openGraph: ComponentModule[] | null
+  manifest?: string
 }
 
 export type MetadataImageModule = {
@@ -39,3 +41,7 @@ export type PossibleImageFileNameConvention =
   | 'favicon'
   | 'twitter'
   | 'openGraph'
+
+export type PossibleStaticMetadataFileNameConvention =
+  | PossibleImageFileNameConvention
+  | 'manifest'
