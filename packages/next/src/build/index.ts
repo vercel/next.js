@@ -1396,7 +1396,11 @@ export default async function build(
                       checkPageSpan.traceChild('is-page-static')
                     let workerResult = await isPageStaticSpan.traceAsyncFn(
                       () => {
-                        return appStaticWorkers!.isPageStatic({
+                        return (
+                          pageType === 'app'
+                            ? appStaticWorkers
+                            : pagesStaticWorkers
+                        )!.isPageStatic({
                           page,
                           originalAppPath,
                           distDir,
