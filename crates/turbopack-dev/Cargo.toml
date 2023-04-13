@@ -24,6 +24,7 @@ serde_qs = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 

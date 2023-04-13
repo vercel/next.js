@@ -11,6 +11,7 @@ bench = false
 
 [dependencies]
 anyhow = { workspace = true }
+indexmap = { workspace = true }
 serde = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }

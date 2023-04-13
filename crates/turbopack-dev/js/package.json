@@ -1,5 +1,5 @@
 {
-  "name": "@vercel/turbopack-dev-runtime",
+  "name": "@vercel/turbopack-dev",
   "version": "0.0.0",
   "description": "Turbopack development runtime",
   "license": "UNLICENSED",
@@ -12,5 +12,9 @@
   },
   "devDependencies": {
     "@types/node": "^18.11.11"
+  },
+  "exports": {
+    "./types/*": "./types/*.d.ts",
+    "./*": "./src/*.ts"
   }
 }

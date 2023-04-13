@@ -1,9 +1,6 @@
 import { createConnection } from "node:net";
-
-import {
-  StackFrame,
-  parse as parseStackTrace,
-} from "../compiled/stacktrace-parser";
+import type { StackFrame } from "../compiled/stacktrace-parser";
+import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 
 export type StructuredError = {
   name: string;

@@ -32,7 +32,7 @@ struct Args {
     package_json: bool,
 
     /// How to communicate changes to the consumer (none | hook | component)
-    #[clap(long)]
+    #[clap(long, default_value = "none")]
     effect_mode: EffectMode,
 }
 

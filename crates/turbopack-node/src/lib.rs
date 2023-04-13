@@ -33,7 +33,7 @@ use self::{
 };
 
 pub mod bootstrap;
-mod embed_js;
+pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
 mod node_entry;

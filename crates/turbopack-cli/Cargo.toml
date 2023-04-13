@@ -14,12 +14,15 @@ bench = false
 [lib]
 bench = false
 
+[[bench]]
+name = "mod"
+harness = false
+
 [features]
 # By default, we enable native-tls for reqwest via downstream transitive features.
 # This is for the convenience of running daily dev workflows, i.e running
 # `cargo xxx` without explicitly specifying features, not that we want to
-# promote this as default backend. Actual configuration is done when building next-swc,
-# and also turbopack standalone when we have it.
+# promote this as default backend. Actual configuration is done when building turbopack-cli.
 default = ["custom_allocator", "native-tls"]
 serializable = []
 tokio_console = [
@@ -29,13 +32,14 @@ tokio_console = [
 ]
 profile = []
 custom_allocator = ["turbo-malloc/custom_allocator"]
-native-tls = ["next-core/native-tls"]
-rustls-tls = ["next-core/rustls-tls"]
+native-tls = ["turbo-tasks-fetch/native-tls"]
+rustls-tls = ["turbo-tasks-fetch/rustls-tls"]
 
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
+criterion = { workspace = true, features = ["async_tokio"] }
 dunce = { workspace = true }
 futures = { workspace = true }
 mime = { workspace = true }
@@ -44,12 +48,22 @@ serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-malloc = { workspace = true, default-features = false }
 turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fetch = { workspace = true, default-features = false }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
+turbopack = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-dev = { workspace = true }
 turbopack-dev-server = { workspace = true }
+turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
+webbrowser = { workspace = true }
+
+[dev-dependencies]
+regex = { workspace = true }
+turbopack-bench = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

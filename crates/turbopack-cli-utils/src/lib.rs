@@ -3,6 +3,7 @@
 #![feature(round_char_boundary)]
 
 pub mod issue;
+pub mod runtime_entry;
 pub mod source_context;
 
 pub fn register() {

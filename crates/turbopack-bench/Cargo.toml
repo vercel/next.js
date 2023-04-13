@@ -1,0 +1,46 @@
+[package]
+name = "turbopack-bench"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[[bench]]
+name = "mod"
+harness = false
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+chromiumoxide = { workspace = true, features = [
+  "tokio-runtime",
+], default-features = false }
+clap = { workspace = true, features = ["derive", "env"], optional = true }
+console-subscriber = { workspace = true, optional = true }
+criterion = { workspace = true, features = ["async_tokio"] }
+dunce = { workspace = true }
+futures = { workspace = true }
+mime = { workspace = true }
+once_cell = { workspace = true }
+owo-colors = { workspace = true }
+parking_lot = { workspace = true }
+portpicker = "0.1.1"
+rand = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tungstenite = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-cli = { workspace = true }
+turbopack-create-test-app = { workspace = true }
+url = { workspace = true }
+webbrowser = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = "0.26.1"
