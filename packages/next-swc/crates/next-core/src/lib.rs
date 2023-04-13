@@ -25,7 +25,6 @@ pub mod next_shared;
 mod page_loader;
 mod page_source;
 pub mod pages_structure;
-pub mod react_refresh;
 pub mod router;
 pub mod router_source;
 mod runtime;

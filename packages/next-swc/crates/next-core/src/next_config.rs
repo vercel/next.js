@@ -358,6 +358,7 @@ pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
+    mdx_rs: Option<bool>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -383,7 +384,6 @@ pub struct ExperimentalConfig {
     large_page_data_bytes: Option<f64>,
     legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
-    mdx_rs: Option<serde_json::Value>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
     modularize_imports: Option<serde_json::Value>,
     new_next_link_behavior: Option<bool>,
@@ -555,6 +555,13 @@ impl NextConfigVc {
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
         Ok(alias_map.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn mdx_rs(self) -> Result<BoolVc> {
+        Ok(BoolVc::cell(
+            self.await?.experimental.mdx_rs.unwrap_or(false),
+        ))
     }
 }
 
