@@ -13,13 +13,11 @@ import type { StaticGenerationAsyncStorage } from '../../client/components/stati
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
+import type { ParsedUrlQuery } from 'querystring'
+import type { NextParsedUrlQuery } from '../request-meta'
 
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
-import { ParsedUrlQuery } from 'querystring'
-import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
 import {
   renderToInitialStream,
