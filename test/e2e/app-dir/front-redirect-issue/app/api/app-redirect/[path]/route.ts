@@ -12,11 +12,15 @@ export async function GET(
     }
   }
 ): Promise<Response> {
-  console.log('TEST HIT', request.url)
   request.nextUrl.pathname = `/app-future/en/${params.path}`
   return fetch(request.nextUrl, {
     headers: new Headers({
       cookie: request.headers.get('cookie') ?? '',
     }),
+  }).then(async (res) => {
+    const resHeaders = new Headers(res.headers)
+    resHeaders.delete('content-encoding')
+    console.log({ res, status: res.status, headers: resHeaders, url: res.url })
+    return new Response(res.body, { status: res.status, headers: resHeaders })
   })
 }
