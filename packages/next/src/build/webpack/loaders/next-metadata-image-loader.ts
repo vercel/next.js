@@ -64,21 +64,20 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       const pathname = ${JSON.stringify(route)}
       const routeRegex = getNamedRouteRegex(pathname, false)
       const segment = ${JSON.stringify(segment)}
-      const { __metadata_id__: _, ...params } = props.params
 
+      const { __metadata_id__: _, ...params } = props.params
       const route = interpolateDynamicPath(pathname, params, routeRegex)
       const suffix = getMetadataRouteSuffix(segment)
       const routeSuffix = suffix ? \`-\${suffix}\` : ''
+      const imageRoute = ${JSON.stringify(pageRoute)} + routeSuffix
 
       const { generateImageMetadata } = imageModule
 
-      function getImageMetadata(imageMetadata, pageRoute, prefixId) {
+      function getImageMetadata(imageMetadata, segment) {
         const data = {
           alt: imageMetadata.alt,
           type: imageMetadata.contentType || 'image/png',
-          url: path.join(route, pageRoute + routeSuffix, String(prefixId) + ${JSON.stringify(
-            hashQuery
-          )}),
+          url: path.join(route, segment + ${JSON.stringify(hashQuery)}),
         }
         const { size } = imageMetadata
         if (size) {
@@ -94,12 +93,12 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       if (generateImageMetadata) {
         const imageMetadataArray = await generateImageMetadata(params)
         return imageMetadataArray.map((imageMetadata, index) => {
-          return getImageMetadata(imageMetadata, ${JSON.stringify(
-            pageRoute
-          )}, imageMetadata.id || index)
+          const segment = path.join(imageRoute, (imageMetadata.id || index) + '')
+          return getImageMetadata(imageMetadata, segment)
         })
       } else {
-        return [getImageMetadata(imageModule, ${JSON.stringify(pageRoute)}, 0)]
+        const segment = path.join(imageRoute, '0')
+        return [getImageMetadata(imageModule, segment)]
       }
     }`
   }
