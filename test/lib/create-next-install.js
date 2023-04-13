@@ -20,12 +20,41 @@ async function createNextInstall({
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
+      const useTurbo = Boolean(process.env.NEXT_TEST_PACK)
+      const tmpRepoDir = path.join(
+        tmpDir,
+        `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
+      )
       const installDir = path.join(
         tmpDir,
         `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
+
+      if (useTurbo) {
+        for (const item of ['package.json', 'packages']) {
+          await rootSpan
+            .traceChild(`copy ${item} to temp dir`)
+            .traceAsyncFn(async () => {
+              await fs.copy(
+                path.join(origRepoDir, item),
+                path.join(tmpRepoDir, item),
+                {
+                  filter: (item) => {
+                    return (
+                      !item.includes('node_modules') &&
+                      !item.includes('.DS_Store') &&
+                      // Exclude Rust compilation files
+                      !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+                      !/next-swc[\\/]target/.test(item)
+                    )
+                  },
+                }
+              )
+            })
+        }
+      }
 
       let combinedDependencies = dependencies
 
@@ -34,7 +63,7 @@ async function createNextInstall({
           .traceChild('linkPackages')
           .traceAsyncFn(() =>
             linkPackages({
-              repoDir: origRepoDir,
+              repoDir: useTurbo ? origRepoDir : tmpRepoDir,
             })
           )
 
