@@ -5,4 +5,3 @@ export = Anything;
 
 export const __turbopack_module_id__: string | number;
 export const chunks: string[];
-export const chunkListPath: string;

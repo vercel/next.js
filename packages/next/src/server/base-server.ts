@@ -548,7 +548,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.target': req.url,
         },
         // We will fire this from the renderer worker
-        hideSpan: this.serverOptions.dev && this.isRouterWorker,
+        hideSpan: this.isRouterWorker,
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
