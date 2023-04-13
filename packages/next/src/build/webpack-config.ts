@@ -1029,9 +1029,6 @@ export default async function getBaseWebpackConfig(
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
 
-      'react/jsx-dev-runtime$': require.resolve(`react/jsx-dev-runtime`),
-      'react/jsx-runtime$': require.resolve(`react/jsx-runtime`),
-
       ...customAppAliases,
       ...customErrorAlias,
       ...customDocumentAliases,
@@ -1202,6 +1199,20 @@ export default async function getBaseWebpackConfig(
 
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
+      if (
+        request === 'react/jsx-dev-runtime' ||
+        request === 'react/jsx-runtime'
+      ) {
+        // override react-dom to server-rendering-stub for server
+        const channel = useExperimentalReact ? '-experimental' : ''
+        return `commonjs next/dist/compiled/${request.replace(
+          /^(react|react-dom)/,
+          (m) => m + channel
+        )}`
+      }
+
+      // React needs to be bundled for Server Components so the special
+      // `react-server` export condition can be used.
       if (
         reactPackagesRegex.test(request) ||
         request === 'next/dist/compiled/react-server-dom-webpack/server.edge'
@@ -1405,7 +1416,11 @@ export default async function getBaseWebpackConfig(
       // also map react to builtin ones with require-hook.
       if (layer === WEBPACK_LAYERS.client) {
         if (reactPackagesRegex.test(request)) {
-          return `commonjs next/dist/compiled/${request}`
+          const channel = useExperimentalReact ? '-experimental' : ''
+          return `commonjs next/dist/compiled/${request.replace(
+            /^(react|react-dom)/,
+            (m) => m + channel
+          )}`
         }
         return
       }
