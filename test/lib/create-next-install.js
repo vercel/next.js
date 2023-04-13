@@ -32,7 +32,7 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      if (useTurbo) {
+      if (!useTurbo) {
         for (const item of ['package.json', 'packages']) {
           await rootSpan
             .traceChild(`copy ${item} to temp dir`)
