@@ -10,7 +10,8 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@vercel/turbopack-dev-runtime": "https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230411.2",
+    "@vercel/turbopack-dev": "https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js/src?turbopack-230411.2",
+    "@vercel/turbopack-node": "https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js/src?turbopack-230411.2",
     "anser": "^2.1.1",
     "css.escape": "^1.5.1",
     "next": "*",

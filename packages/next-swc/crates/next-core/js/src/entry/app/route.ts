@@ -1,7 +1,7 @@
 // IPC need to be the first import to allow it to catch errors happening during
 // the other imports
-import startHandler from '@vercel/turbopack-next/internal/api-server-handler'
-import { runEdgeFunction } from '@vercel/turbopack-next/internal/edge'
+import startHandler from '../internal/api-server-handler'
+import { runEdgeFunction } from '../internal/edge'
 
 import { join } from 'path'
 

@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-import type { Issue } from '@vercel/turbopack-dev-runtime/types/protocol'
+import type { Issue } from '@vercel/turbopack-dev/types/protocol'
 
 import * as Bus from './bus'
 import { ShadowPortal } from './components/ShadowPortal'

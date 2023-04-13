@@ -116,6 +116,12 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
+    insert_package_alias(
+        &mut import_map,
+        "@vercel/turbopack-dev/",
+        turbo_binding::turbopack::dev::embed_js::embed_fs().root(),
+    );
+
     Ok(import_map.cell())
 }
 
@@ -161,6 +167,12 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Impo
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
+
+    insert_package_alias(
+        &mut import_map,
+        "@vercel/turbopack-dev/",
+        turbo_binding::turbopack::dev::embed_js::embed_fs().root(),
+    );
 
     import_map.cell()
 }
@@ -355,6 +367,7 @@ pub async fn insert_next_server_special_aliases(
         }
         ServerContextType::Middleware => {}
     }
+
     Ok(())
 }
 
@@ -420,6 +433,17 @@ pub async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("next", project_path);
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
+
+    insert_package_alias(
+        import_map,
+        "@vercel/turbopack-dev/",
+        turbo_binding::turbopack::dev::embed_js::embed_fs().root(),
+    );
+    insert_package_alias(
+        import_map,
+        "@vercel/turbopack-node/",
+        turbo_binding::turbopack::node::embed_js::embed_fs().root(),
+    );
 
     Ok(())
 }

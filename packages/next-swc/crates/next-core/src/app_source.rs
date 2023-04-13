@@ -707,7 +707,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         // IPC need to be the first import to allow it to catch errors happening during
         // the other imports
         let mut result =
-            RopeBuilder::from("import { IPC } from \"@vercel/turbopack-next/ipc/index\";\n");
+            RopeBuilder::from("import { IPC } from \"@vercel/turbopack-node/ipc/index\";\n");
 
         for import in imports {
             writeln!(result, "{import}")?;
