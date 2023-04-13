@@ -30,9 +30,8 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
+      let pkgPaths = process.env.NEXT_TEST_PKG_PATHS
       if (!useTurbo) {
-        let pkgPaths = process.env.NEXT_TEST_PKG_PATHS
-
         if (pkgPaths) {
           pkgPaths = new Map(JSON.parse(pkgPaths))
           require('console').log('using provided pkg paths')
@@ -115,16 +114,18 @@ async function createNextInstall({
       let combinedDependencies = dependencies
 
       if (!(packageJson && packageJson.nextParamateSkipLocalDeps)) {
-        const pkgPaths = await rootSpan
-          .traceChild('linkPackages')
-          .traceAsyncFn(() =>
-            linkPackages({
-              repoDir: useTurbo ? origRepoDir : tmpRepoDir,
-            })
-          )
+        if (useTurbo) {
+          pkgPaths = await rootSpan
+            .traceChild('linkPackages')
+            .traceAsyncFn(() =>
+              linkPackages({
+                repoDir: useTurbo ? origRepoDir : tmpRepoDir,
+              })
+            )
 
-        if (onlyPackages) {
-          return pkgPaths
+          if (onlyPackages) {
+            return pkgPaths
+          }
         }
 
         combinedDependencies = {
