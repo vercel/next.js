@@ -813,10 +813,7 @@ impl AppRouteVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
-        let virtual_asset = VirtualAssetVc::new(
-            this.entry_path.join("route.ts"),
-            next_js_file("entry/app/route.ts").into(),
-        );
+        let internal_asset = SourceAssetVc::new(next_js_file_path("entry/app/route.ts"));
 
         let chunking_context = DevChunkingContextVc::builder(
             this.project_path,
@@ -843,7 +840,7 @@ impl AppRouteVc {
                     .collect(),
             ),
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                virtual_asset.into(),
+                internal_asset.into(),
                 this.context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
