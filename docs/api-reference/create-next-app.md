@@ -56,14 +56,26 @@ Options:
   --eslint
 
     Initialize with ESLint config.
+    
+  --no-eslint
+  
+    Initialize without ESLint config.
 
   --experimental-app
 
     Initialize as a `app/` directory project.
+    
+  --no-experimental-app
+    
+    Initialize without `app/` directory.
 
   --src-dir
 
     Initialize inside a `src/` directory.
+    
+  --no-src-dir
+  
+    Initialize without a `src/` directory.
 
   --import-alias <alias-to-configure>
 
