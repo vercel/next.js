@@ -1,16 +1,15 @@
 import { ImageResponse } from 'next/server'
 
+// without id
 export async function generateImageMetadata({ params }) {
   return [
     {
       contentType: 'image/png',
       size: { width: 48, height: 48 },
-      id: 'small',
     },
     {
       contentType: 'image/png',
-      size: { width: 72, height: 72 },
-      id: 'medium',
+      size: { width: 64, height: 64 },
     },
   ]
 }
@@ -26,11 +25,11 @@ export default function icon({ params, id }) {
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 88,
-          background: '#fff',
-          color: '#000',
+          background: '#000',
+          color: '#fafafa',
         }}
       >
-        Icon {params.size} {id}
+        Apple {params.size} {id}
       </div>
     )
   )

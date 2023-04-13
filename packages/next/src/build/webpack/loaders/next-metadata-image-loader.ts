@@ -76,7 +76,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         const data = {
           alt: imageMetadata.alt,
           type: imageMetadata.contentType || 'image/png',
-          url: path.join(route, pageRoute + routeSuffix, prefixId + ${JSON.stringify(
+          url: path.join(route, pageRoute + routeSuffix, String(prefixId) + ${JSON.stringify(
             hashQuery
           )}),
         }
@@ -96,12 +96,10 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
         return imageMetadataArray.map((imageMetadata, index) => {
           return getImageMetadata(imageMetadata, ${JSON.stringify(
             pageRoute
-          )}, index + '')
+          )}, imageMetadata.id || index)
         })
       } else {
-        return [getImageMetadata(imageModule, ${JSON.stringify(
-          pageRoute
-        )}, '0')]
+        return [getImageMetadata(imageModule, ${JSON.stringify(pageRoute)}, 0)]
       }
     }`
   }
