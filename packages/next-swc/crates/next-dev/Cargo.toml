@@ -85,8 +85,7 @@ serde_json = { workspace = true }
 tempfile = { workspace = true }
 tungstenite = { workspace = true }
 turbo-binding = { workspace = true, features = [
-  "__turbo_tasks_testing",
-  "__turbopack_create_test_app",
+  "__turbopack_bench",
 ]}
 url = { workspace = true }
 

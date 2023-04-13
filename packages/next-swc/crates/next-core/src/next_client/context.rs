@@ -18,7 +18,7 @@ use turbo_binding::{
             },
             free_var_references,
         },
-        dev::DevChunkingContextVc,
+        dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContextVc},
         ecmascript::EcmascriptInputTransform,
         env::ProcessEnvAssetVc,
         node::execution_context::ExecutionContextVc,
@@ -46,7 +46,6 @@ use crate::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
     },
-    react_refresh::assert_can_resolve_react_refresh,
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
