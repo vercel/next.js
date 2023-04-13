@@ -58,22 +58,10 @@ module.exports = (actionInfo) => {
       const useTurbo = Boolean(process.env.NEXT_TEST_PACK)
 
       if (useTurbo) {
-        const repoDirPkg = require(path.join(repoDir, 'package.json'))
-        const hasTestPackAll = Boolean(repoDirPkg.scripts['test-pack-all'])
-        if (!hasTestPackAll) {
-          // This code will be executed only when running comparison stats against latest stable.
-          // This code is not thread safe (that's what test-pack-all does), but it should be fine here, since main tests won't use this code path.
-          // TODO: remove this code when we release new stable (this was added right after 13.3.0)
-          execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
-            cwd: repoDir,
-            env: { NEXT_SWC_VERSION: nextSwcVersion },
-          })
-        } else {
-          execa.sync('pnpm', ['test-pack-all'], {
-            cwd: repoDir,
-            env: { NEXT_SWC_VERSION: nextSwcVersion },
-          })
-        }
+        execa.sync('pnpm', ['test-pack-all'], {
+          cwd: repoDir,
+          env: { NEXT_SWC_VERSION: nextSwcVersion },
+        })
         const pkgPaths = new Map()
         const pkgs = (await fs.readdir(path.join(repoDir, 'packages'))).filter(
           (item) => !item.startsWith('.')
@@ -98,7 +86,6 @@ module.exports = (actionInfo) => {
         })
         return pkgPaths
       } else {
-        // TODO: remove after next stable release (current v13.1.2)
         const pkgPaths = new Map()
         const pkgDatas = new Map()
         let pkgs
