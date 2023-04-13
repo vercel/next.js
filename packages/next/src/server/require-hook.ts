@@ -10,26 +10,6 @@ const hookPropertyMap = new Map()
 
 let overridedReact = false
 
-mod._resolveFilename = function (
-  originalResolveFilename: typeof resolveFilename,
-  requestMap: Map<string, string>,
-  request: string,
-  parent: any,
-  isMain: boolean,
-  options: any
-) {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !overridedReact) {
-    // In case the environment variable is set after the module is loaded.
-    overrideReact()
-  }
-
-  const hookResolved = requestMap.get(request)
-  if (hookResolved) request = hookResolved
-  return originalResolveFilename.call(mod, request, parent, isMain, options)
-
-  // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
-}.bind(null, resolveFilename, hookPropertyMap)
-
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
     hookPropertyMap.set(key, value)
@@ -98,3 +78,23 @@ function overrideReact() {
   }
 }
 overrideReact()
+
+mod._resolveFilename = function (
+  originalResolveFilename: typeof resolveFilename,
+  requestMap: Map<string, string>,
+  request: string,
+  parent: any,
+  isMain: boolean,
+  options: any
+) {
+  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !overridedReact) {
+    // In case the environment variable is set after the module is loaded.
+    overrideReact()
+  }
+
+  const hookResolved = requestMap.get(request)
+  if (hookResolved) request = hookResolved
+  return originalResolveFilename.call(mod, request, parent, isMain, options)
+
+  // We use `bind` here to avoid referencing outside variables to create potential memory leaks.
+}.bind(null, resolveFilename, hookPropertyMap)
