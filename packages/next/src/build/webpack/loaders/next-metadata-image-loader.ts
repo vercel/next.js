@@ -64,7 +64,9 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       const pathname = ${JSON.stringify(route)}
       const routeRegex = getNamedRouteRegex(pathname, false)
       const segment = ${JSON.stringify(segment)}
-      const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+      const { __metadata_id__: _, ...params } = props.params
+
+      const route = interpolateDynamicPath(pathname, params, routeRegex)
       const suffix = getMetadataRouteSuffix(segment)
       const routeSuffix = suffix ? \`-\${suffix}\` : ''
 
@@ -90,7 +92,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
       }
 
       if (generateImageMetadata) {
-        const imageMetadataArray = await generateImageMetadata(props.params)
+        const imageMetadataArray = await generateImageMetadata(params)
         return imageMetadataArray.map((imageMetadata, index) => {
           return getImageMetadata(imageMetadata, ${JSON.stringify(
             pageRoute
