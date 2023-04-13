@@ -523,7 +523,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  cleanUpAndExit(1)
-})
+main()
+  .then(() => cleanUpAndExit(0))
+  .catch((err) => {
+    console.error(err)
+    cleanUpAndExit(1)
+  })
