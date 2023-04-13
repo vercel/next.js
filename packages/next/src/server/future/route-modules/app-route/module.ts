@@ -1,4 +1,3 @@
-import type { Params } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
@@ -45,8 +44,8 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
  * AppRouteHandlerFnContext is the context that is passed to the handler as the
  * second argument.
  */
-interface AppRouteHandlerFnContext {
-  params?: Params
+type AppRouteHandlerFnContext = {
+  params?: Record<string, string | string[]>
 }
 
 /**
