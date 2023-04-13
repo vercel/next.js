@@ -172,7 +172,7 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[...one]', '/[[...one]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an required and optional catch-all route at the same level (\\"[...one]\\" and \\"[[...one]]\\" )."`
+      `"You cannot use both a required and optional catch-all route at the same level (\\"[...one]\\" and \\"[[...one]]\\" )."`
     )
     expect(() =>
       getSortedRoutes(['/[[...one]]', '/[...one]'])
@@ -185,23 +185,23 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/', '/[[...all]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as an optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
     )
     expect(() =>
       getSortedRoutes(['/[[...all]]', '/'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as an optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
     )
 
     expect(() =>
       getSortedRoutes(['/sub', '/sub/[[...all]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as an optional catch-all route (\\"/sub\\" and \\"/sub/[[...all]]\\")."`
     )
     expect(() =>
       getSortedRoutes(['/sub/[[...all]]', '/sub'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as an optional catch-all route (\\"/sub\\" and \\"/sub/[[...all]]\\")."`
     )
   })
 

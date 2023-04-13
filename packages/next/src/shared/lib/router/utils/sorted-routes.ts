@@ -39,7 +39,7 @@ class UrlNode {
       const r = prefix === '/' ? '/' : prefix.slice(0, -1)
       if (this.optionalRestSlugName != null) {
         throw new Error(
-          `You cannot define a route with the same specificity as a optional catch-all route ("${r}" and "${r}[[...${this.optionalRestSlugName}]]").`
+          `You cannot define a route with the same specificity as an optional catch-all route ("${r}" and "${prefix}[[...${this.optionalRestSlugName}]]").`
         )
       }
 
@@ -148,7 +148,7 @@ class UrlNode {
         if (isOptional) {
           if (this.restSlugName != null) {
             throw new Error(
-              `You cannot use both an required and optional catch-all route at the same level ("[...${this.restSlugName}]" and "${urlPaths[0]}" ).`
+              `You cannot use both a required and optional catch-all route at the same level ("[...${this.restSlugName}]" and "${urlPaths[0]}" ).`
             )
           }
 
