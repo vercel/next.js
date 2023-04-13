@@ -16,6 +16,7 @@ use turbo_binding::{
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
             source_asset::SourceAssetVc,
         },
+        dev::react_refresh::assert_can_resolve_react_refresh,
         dev_server::{
             html::DevHtmlAssetVc,
             source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
@@ -35,7 +36,6 @@ use crate::{
         runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
     },
     next_config::NextConfigVc,
-    react_refresh::assert_can_resolve_react_refresh,
 };
 
 pub fn web_defines() -> CompileTimeDefinesVc {

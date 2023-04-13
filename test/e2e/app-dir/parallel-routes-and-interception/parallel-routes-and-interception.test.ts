@@ -243,6 +243,18 @@ createNextDescribe(
           'root sidebar here'
         )
       })
+
+      it('should only scroll to the parallel route that was navigated to', async () => {
+        const browser = await next.browser('/parallel-scroll')
+
+        await browser.eval('window.scrollTo(0, 1000)')
+        const position = await browser.eval('window.scrollY')
+        console.log('position', position)
+        await browser.elementByCss('[href="/parallel-scroll/nav"]').click()
+        await browser.waitForElementByCss('#modal')
+        // check that we didn't scroll back to the top
+        await check(() => browser.eval('window.scrollY'), position)
+      })
     })
 
     describe('route intercepting', () => {
