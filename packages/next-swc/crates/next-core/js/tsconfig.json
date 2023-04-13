@@ -21,7 +21,7 @@
     // modules
     "baseUrl": ".",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "paths": {
       "@vercel/turbopack-next/*": ["src/*"],
       "@vercel/turbopack-next/pages/_app": ["node_modules/next/app"],
