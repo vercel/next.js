@@ -69,7 +69,7 @@ The loading strategy of the script. There are four different strategies that can
 
 Scripts that load with the `beforeInteractive` strategy are injected into the initial HTML from the server, downloaded before any Next.js module, and executed in the order they are placed before _any_ hydration occurs on the page.
 
-Scripts denoted with this strategy are preloaded and fetched before any first-party code, but their execution does not block page hydration from occuring.
+Scripts denoted with this strategy are preloaded and fetched before any first-party code, but their execution does not block page hydration from occurring.
 
 `beforeInteractive` scripts must be placed inside `pages/_document.js` and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
 

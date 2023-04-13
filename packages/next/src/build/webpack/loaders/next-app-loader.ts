@@ -237,6 +237,7 @@ async function createTreeCodeFromPath(
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
     const isRootLayer = segments.length === 0
+    const isRootLayoutOrRootPage = segments.length <= 1
 
     // We need to resolve all parallel routes in this level.
     const parallelSegments: [key: string, segment: string | string[]][] = []
@@ -256,7 +257,7 @@ async function createTreeCodeFromPath(
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
           segment: segmentPath,
           resolvePath,
-          isRootLayer,
+          isRootLayoutOrRootPage,
           loaderContext,
           pageExtensions,
         })

@@ -20,10 +20,10 @@ use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use next_core::{
     app_structure::find_app_dir_if_enabled, create_app_source, create_page_source,
-    create_web_entry_source, env::load_env, manifest::DevManifestContentSource,
-    next_config::load_next_config, next_image::NextImageContentSourceVc,
-    pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
-    source_map::NextSourceMapTraceContentSourceVc,
+    create_web_entry_source, manifest::DevManifestContentSource, next_config::load_next_config,
+    next_image::NextImageContentSourceVc, pages_structure::find_pages_structure,
+    router_source::NextRouterContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
+    turbopack::env::dotenv::load_env,
 };
 use owo_colors::OwoColorize;
 use turbo_binding::{
