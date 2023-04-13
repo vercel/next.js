@@ -56,13 +56,13 @@ export type AppRouteHandlerFn = (
   /**
    * Incoming request object.
    */
-  req: Request,
+  req: NextRequest,
   /**
    * Context properties on the request (including the parameters if this was a
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => Response
+) => Promise<Response> | Response
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
