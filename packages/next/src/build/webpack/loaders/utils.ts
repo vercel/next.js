@@ -15,6 +15,25 @@ export function isClientComponentModule(mod: {
 
 export const regexCSS = /\.(css|scss|sass)(\?.*)?$/
 
+// This function checks if a module is able to emit CSS resources. You should
+// never only rely on a single regex to do that.
+export function isCSSMod(mod: {
+  resource: string
+  type?: string
+  loaders?: { loader: string }[]
+}): boolean {
+  return !!(
+    mod.type === 'css/mini-extract' ||
+    (mod.resource && regexCSS.test(mod.resource)) ||
+    mod.loaders?.some(
+      ({ loader }) =>
+        loader.includes('next-style-loader/index.js') ||
+        loader.includes('mini-css-extract-plugin/loader.js') ||
+        loader.includes('@vanilla-extract/webpack-plugin/loader/')
+    )
+  )
+}
+
 export function getActions(mod: {
   resource: string
   buildInfo: any

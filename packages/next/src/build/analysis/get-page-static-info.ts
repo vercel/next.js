@@ -166,9 +166,14 @@ export function getMiddlewareMatchers(
   }
   const { i18n } = nextConfig
 
-  let routes = matchers.map(
-    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
-  )
+  const originalSourceMap = new Map<Middleware, string>()
+  let routes = matchers.map((m) => {
+    let middleware = (typeof m === 'string' ? { source: m } : m) as Middleware
+    if (middleware) {
+      originalSourceMap.set(middleware, middleware.source)
+    }
+    return middleware
+  })
 
   // check before we process the routes and after to ensure
   // they are still valid
@@ -195,7 +200,8 @@ export function getMiddlewareMatchers(
       source = `${nextConfig.basePath}${source}`
     }
 
-    return { ...r, source }
+    r.source = source
+    return r
   })
 
   checkCustomRoutes(routes, 'middleware')
@@ -208,10 +214,12 @@ export function getMiddlewareMatchers(
       throw new Error(`Invalid source: ${source}`)
     }
 
+    const originalSource = originalSourceMap.get(r)
+
     return {
       ...rest,
       regexp: parsedPage.regexStr,
-      originalSource: source,
+      originalSource: originalSource || source,
     }
   })
 }

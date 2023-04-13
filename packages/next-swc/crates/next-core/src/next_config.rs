@@ -28,7 +28,10 @@ use turbo_binding::{
             execution_context::{ExecutionContext, ExecutionContextVc},
             transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
         },
-        turbopack::evaluate_context::node_evaluate_asset_context,
+        turbopack::{
+            evaluate_context::node_evaluate_asset_context,
+            module_options::{EmotionTransformConfig, StyledComponentsTransformConfig},
+        },
     },
 };
 use turbo_tasks::{
@@ -55,9 +58,11 @@ pub struct NextConfig {
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
 
+    // Partially supported
+    pub compiler: Option<CompilerConfig>,
+
     // unsupported
     cross_origin: Option<String>,
-    compiler: Option<CompilerConfig>,
     amp: AmpConfig,
     analytics_id: String,
     asset_prefix: String,
@@ -353,6 +358,7 @@ pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbo: Option<ExperimentalTurboConfig>,
+    mdx_rs: Option<bool>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -378,7 +384,6 @@ pub struct ExperimentalConfig {
     large_page_data_bytes: Option<f64>,
     legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
-    mdx_rs: Option<serde_json::Value>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
     modularize_imports: Option<serde_json::Value>,
     new_next_link_behavior: Option<bool>,
@@ -416,11 +421,27 @@ enum MiddlewarePrefetchType {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum EmotionTransformOptionsOrBoolean {
+    Boolean(bool),
+    Options(EmotionTransformConfig),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum StyledComponentsTransformOptionsOrBoolean {
+    Boolean(bool),
+    Options(StyledComponentsTransformConfig),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
     pub react_remove_properties: Option<bool>,
     pub relay: Option<RelayConfig>,
+    pub emotion: Option<EmotionTransformOptionsOrBoolean>,
     pub remove_console: Option<RemoveConsoleConfig>,
+    pub styled_components: Option<StyledComponentsTransformOptionsOrBoolean>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -534,6 +555,13 @@ impl NextConfigVc {
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
         Ok(alias_map.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn mdx_rs(self) -> Result<BoolVc> {
+        Ok(BoolVc::cell(
+            self.await?.experimental.mdx_rs.unwrap_or(false),
+        ))
     }
 }
 

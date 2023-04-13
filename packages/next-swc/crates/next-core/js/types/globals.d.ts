@@ -1,10 +1,6 @@
 declare global {
   function __turbopack_require__(name: any): any;
   function __turbopack_load__(path: string): any;
-  function __turbopack_register_chunk_list__(
-    chunkListPath: string,
-    chunksPaths: string[]
-  ): any;
   function __webpack_require__(name: any): any;
   var __webpack_public_path__: string | undefined;
   var __DEV_MIDDLEWARE_MATCHERS: any[];
