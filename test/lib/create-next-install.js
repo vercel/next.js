@@ -20,11 +20,6 @@ async function createNextInstall({
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
-      const tmpRepoDir = path.join(
-        tmpDir,
-        `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
-      )
-
       const installDir = path.join(
         tmpDir,
         `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
