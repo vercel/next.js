@@ -62,17 +62,20 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 
     fn visit_mut_module(&mut self, module: &mut Module) {
         let (is_client_entry, imports) = self.collect_top_level_directives_and_imports(module);
+        let is_cjs = contains_cjs(module);
 
         if self.is_server {
             if !is_client_entry {
                 self.assert_server_graph(&imports, module);
             } else {
-                let is_cjs = contains_cjs(module);
                 self.to_module_ref(module, is_cjs);
                 return;
             }
         } else {
             self.assert_client_graph(&imports, module);
+            if is_client_entry {
+                self.prepend_comment_node(module, is_cjs);
+            }
         }
         module.visit_mut_children_with(self)
     }
@@ -289,21 +292,7 @@ impl<C: Comments> ReactServerComponents<C> {
             .into_iter(),
         );
 
-        // Prepend a special comment to the top of the file that contains
-        // module export names and the detected module type.
-        self.comments.add_leading(
-            module.span.lo,
-            Comment {
-                span: DUMMY_SP,
-                kind: CommentKind::Block,
-                text: format!(
-                    " __next_internal_client_entry_do_not_use__ {} {} ",
-                    self.export_names.join(","),
-                    if is_cjs { "cjs" } else { "auto" }
-                )
-                .into(),
-            },
-        );
+        self.prepend_comment_node(module, is_cjs);
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
@@ -508,6 +497,24 @@ impl<C: Comments> ReactServerComponents<C> {
                 })
             }
         }
+    }
+
+    fn prepend_comment_node(&self, module: &Module, is_cjs: bool) {
+        // Prepend a special comment to the top of the file that contains
+        // module export names and the detected module type.
+        self.comments.add_leading(
+            module.span.lo,
+            Comment {
+                span: DUMMY_SP,
+                kind: CommentKind::Block,
+                text: format!(
+                    " __next_internal_client_entry_do_not_use__ {} {} ",
+                    self.export_names.join(","),
+                    if is_cjs { "cjs" } else { "auto" }
+                )
+                .into(),
+            },
+        );
     }
 }
 
