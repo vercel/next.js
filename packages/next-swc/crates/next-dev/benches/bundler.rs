@@ -6,25 +6,23 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use regex::Regex;
-
-use super::RenderType;
-use crate::{
-    bundlers::Bundler,
+use turbo_binding::turbopack::bench::{
+    bundlers::{Bundler, RenderType},
     util::{
         npm::{self, NpmPackage},
         wait_for_match,
     },
 };
 
-pub struct Turbopack {
+pub struct TurboNext {
     name: String,
     path: String,
     render_type: RenderType,
 }
 
-impl Turbopack {
+impl TurboNext {
     pub fn new(name: &str, path: &str, render_type: RenderType) -> Self {
-        Turbopack {
+        TurboNext {
             name: name.to_owned(),
             path: path.to_owned(),
             render_type,
@@ -32,7 +30,7 @@ impl Turbopack {
     }
 }
 
-impl Bundler for Turbopack {
+impl Bundler for TurboNext {
     fn get_name(&self) -> &str {
         &self.name
     }
@@ -46,7 +44,7 @@ impl Bundler for Turbopack {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        let package_json = include_str!("../../../../../../next/package.json");
+        let package_json = include_str!("../../../../next/package.json");
         let data: serde_json::Value = serde_json::from_str(package_json)?;
         let version = data
             .as_object()

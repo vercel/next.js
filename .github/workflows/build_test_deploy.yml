@@ -1191,7 +1191,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-core-oss
 
     steps:
       - uses: actions/checkout@v3
