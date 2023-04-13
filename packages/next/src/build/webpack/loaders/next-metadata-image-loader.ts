@@ -6,10 +6,12 @@ import type {
   MetadataImageModule,
   PossibleImageFileNameConvention,
 } from './metadata/types'
+import fs from 'fs/promises'
 import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import { fileExists } from '../../../lib/file-exists'
 
 interface Options {
   route: string
@@ -109,24 +111,39 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
               : `${imageSize.width}x${imageSize.height}`,
         }),
   }
+  if (type === 'openGraph' || type === 'twitter') {
+    const altPath = path.join(
+      path.dirname(resourcePath),
+      fileNameBase + '.alt.txt'
+    )
+
+    if (await fileExists(altPath)) {
+      imageData.alt = await fs.readFile(altPath, 'utf8')
+    }
+  }
 
   return `\
   import path from 'next/dist/shared/lib/isomorphic/path'
   import { interpolateDynamicPath } from 'next/dist/server/server-utils'
   import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
+  import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
 
   export default (props) => {
     const pathname = ${JSON.stringify(route)}
     const routeRegex = getNamedRouteRegex(pathname, false)
+    const segment = ${JSON.stringify(segment)}
     const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+    const suffix = getMetadataRouteSuffix(segment)
+    const routeSuffix = suffix ? \`-\${suffix}\` : ''
+    const { name, ext } = path.parse(${JSON.stringify(pageRoute)})
 
     const imageData = ${JSON.stringify(imageData)};
 
     return {
       ...imageData,
-      url: path.join(route, ${JSON.stringify(pageRoute)} + ${JSON.stringify(
-    hashQuery
-  )}),
+      url: path.join(route, name + routeSuffix + ext + ${JSON.stringify(
+        hashQuery
+      )}),
     }
   }`
 }
