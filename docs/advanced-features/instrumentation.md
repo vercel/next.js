@@ -1,5 +1,5 @@
 ---
-description: Learn how to use instrumentation.ts to run code at server startup
+description: Learn how to use instrumentation to run code at server startup in your Next.js app
 ---
 
 > **Note**: This feature is experimental. To use it, you must explicitly opt in by defining `experimental.instrumentationHook = true;` in your `next.config.js`.
