@@ -1111,7 +1111,7 @@ describe('navigateReducer', () => {
         apply: true,
         hashFragment: null,
         segmentPaths: [
-          ['children', 'linking', 'children', 'about', 'about', 'children'],
+          ['children', 'linking', 'children', 'about', 'children'],
         ],
       },
       canonicalUrl: '/linking/about',

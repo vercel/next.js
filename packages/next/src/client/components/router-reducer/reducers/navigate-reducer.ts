@@ -170,6 +170,7 @@ export function navigateReducer(
 
         currentCache = cache
         currentTree = newTree
+
         for (const subSegment of generateSegmentsFromPatch(treePatch)) {
           scrollableSegments.push(
             // the last segment is the same as the first segment in the patch
