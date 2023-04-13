@@ -10,7 +10,7 @@ const flightData: FlightData = [
     [
       'about',
       {
-        children: ['', {}],
+        children: ['__PAGE__', {}],
       },
     ],
     <h1>About Page!</h1>,
@@ -31,7 +31,7 @@ const demographicsFlightData: FlightData = [
             audience: [
               'demographics',
               {
-                children: ['', {}],
+                children: ['__PAGE__', {}],
               },
             ],
           },
@@ -91,7 +91,7 @@ const getInitialRouterStateTree = (): FlightRouterState => [
     children: [
       'linking',
       {
-        children: ['', {}],
+        children: ['__PAGE__', {}],
       },
     ],
   },
@@ -136,7 +136,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -193,6 +193,9 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children'],
+        ],
       },
       canonicalUrl: '/linking/about',
       nextUrl: '/linking/about',
@@ -218,7 +221,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -237,7 +240,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       data: null,
@@ -272,7 +275,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }],
+              children: ['about', { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -307,7 +310,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -377,6 +380,9 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children'],
+        ],
       },
       canonicalUrl: '/linking/about',
       nextUrl: '/linking/about',
@@ -402,7 +408,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -421,7 +427,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       data: null,
@@ -456,7 +462,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }],
+              children: ['about', { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -491,7 +497,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -564,6 +570,7 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: 'https://example.vercel.sh/',
       nextUrl: '/linking',
@@ -589,7 +596,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -614,7 +621,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['', {}],
+              children: ['__PAGE__', {}],
             },
           ],
         },
@@ -649,7 +656,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -722,6 +729,7 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: 'https://example.vercel.sh/',
       nextUrl: '/linking',
@@ -747,7 +755,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -772,7 +780,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['', {}],
+              children: ['__PAGE__', {}],
             },
           ],
         },
@@ -807,7 +815,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -877,6 +885,7 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
       nextUrl: '/linking/about',
@@ -902,7 +911,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -973,7 +982,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1057,7 +1066,7 @@ describe('navigateReducer', () => {
           [
             'about',
             {
-              children: ['', {}],
+              children: ['__PAGE__', {}],
             },
           ],
           <h1>About Page!</h1>,
@@ -1083,7 +1092,7 @@ describe('navigateReducer', () => {
                 children: [
                   'linking',
                   {
-                    children: ['', {}],
+                    children: ['__PAGE__', {}],
                   },
                 ],
               },
@@ -1101,6 +1110,9 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children'],
+        ],
       },
       canonicalUrl: '/linking/about',
       nextUrl: '/linking/about',
@@ -1126,7 +1138,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1144,7 +1156,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       subTreeData: null,
@@ -1180,7 +1192,7 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }],
+              children: ['about', { children: ['__PAGE__', {}] }],
             },
           ],
         },
@@ -1200,9 +1212,9 @@ describe('navigateReducer', () => {
         children: [
           'parallel-tab-bar',
           {
-            audience: ['', {}],
-            views: ['', {}],
-            children: ['', {}],
+            audience: ['__PAGE__', {}],
+            views: ['__PAGE__', {}],
+            children: ['__PAGE__', {}],
           },
         ],
       },
@@ -1231,7 +1243,7 @@ describe('navigateReducer', () => {
                   'audience',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1245,7 +1257,7 @@ describe('navigateReducer', () => {
                   'views',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1259,7 +1271,7 @@ describe('navigateReducer', () => {
                   'children',
                   new Map([
                     [
-                      '',
+                      '__PAGE__',
                       {
                         status: CacheStates.READY,
                         data: null,
@@ -1329,6 +1341,15 @@ describe('navigateReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          [
+            'children',
+            'parallel-tab-bar',
+            'audience',
+            'demographics',
+            'children',
+          ],
+        ],
       },
       canonicalUrl: '/parallel-tab-bar/demographics',
       nextUrl: '/parallel-tab-bar/demographics',
@@ -1354,7 +1375,7 @@ describe('navigateReducer', () => {
                       'audience',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1373,7 +1394,7 @@ describe('navigateReducer', () => {
                                 'children',
                                 new Map([
                                   [
-                                    '',
+                                    '__PAGE__',
                                     {
                                       status: CacheStates.LAZY_INITIALIZED,
                                       data: null,
@@ -1397,7 +1418,7 @@ describe('navigateReducer', () => {
                       'views',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1411,7 +1432,7 @@ describe('navigateReducer', () => {
                       'children',
                       new Map([
                         [
-                          '',
+                          '__PAGE__',
                           {
                             status: CacheStates.READY,
                             data: null,
@@ -1436,9 +1457,9 @@ describe('navigateReducer', () => {
           children: [
             'parallel-tab-bar',
             {
-              audience: ['demographics', { children: ['', {}] }],
-              views: ['', {}],
-              children: ['', {}],
+              audience: ['demographics', { children: ['__PAGE__', {}] }],
+              views: ['__PAGE__', {}],
+              children: ['__PAGE__', {}],
             },
           ],
         },
