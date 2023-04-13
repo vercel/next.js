@@ -89,7 +89,8 @@ export const createWorker = (
         __NEXT_PRIVATE_RENDER_WORKER: type,
         __NEXT_PRIVATE_ROUTER_IPC_PORT: ipcPort + '',
         NODE_ENV: process.env.NODE_ENV,
-        NEXT_PREBUNDLED_REACT: reactType,
+        NEXT_PREBUNDLED_REACT_WORKER: reactType,
+        __NEXT_PRIVATE_PREBUNDLED_REACT: reactType,
       },
       execArgv: genExecArgv(
         isNodeDebugging === undefined ? false : isNodeDebugging,

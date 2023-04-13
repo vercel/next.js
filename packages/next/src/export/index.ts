@@ -149,6 +149,7 @@ export interface ExportOptions {
   pages?: string[]
   buildExport?: boolean
   statusMessage?: string
+  exportAppPageWorker?: typeof import('./worker').default
   exportPageWorker?: typeof import('./worker').default
   endWorker?: () => Promise<void>
   nextConfig?: NextConfigComplete
@@ -644,9 +645,12 @@ export default async function exportApp(
     const timeout = nextConfig?.staticPageGenerationTimeout || 0
     let infoPrinted = false
     let exportPage: typeof import('./worker').default
+    let exportAppPage: undefined | typeof import('./worker').default
+
     let endWorker: () => Promise<void>
     if (options.exportPageWorker) {
       exportPage = options.exportPageWorker
+      exportAppPage = options.exportAppPageWorker
       endWorker = options.endWorker || (() => Promise.resolve())
     } else {
       const worker = new Worker(require.resolve('./worker'), {
@@ -688,7 +692,13 @@ export default async function exportApp(
 
         return pageExportSpan.traceAsyncFn(async () => {
           const pathMap = exportPathMap[path]
-          const result = await exportPage({
+          const exportPageOrApp = pathMap._isAppDir ? exportAppPage : exportPage
+          if (!exportPageOrApp) {
+            throw new Error(
+              'invariant: Undefined export worker for app dir, this is a bug in Next.js.'
+            )
+          }
+          const result = await exportPageOrApp({
             path,
             pathMap,
             distDir,

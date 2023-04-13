@@ -8,6 +8,8 @@ const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const hookPropertyMap = new Map()
 
+let overridedReact = false
+
 mod._resolveFilename = function (
   originalResolveFilename: typeof resolveFilename,
   requestMap: Map<string, string>,
@@ -16,6 +18,11 @@ mod._resolveFilename = function (
   isMain: boolean,
   options: any
 ) {
+  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !overridedReact) {
+    // In case the environment variable is set after the module is loaded.
+    overrideReact()
+  }
+
   const hookResolved = requestMap.get(request)
   if (hookResolved) request = hookResolved
   return originalResolveFilename.call(mod, request, parent, isMain, options)
@@ -41,41 +48,53 @@ addHookAliases([
 ])
 
 // Override built-in React packages if necessary
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  const channelSuffix =
-    process.env.NEXT_PREBUNDLED_REACT === 'experimental' ? '-experimental' : ''
+function overrideReact() {
+  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
+    overridedReact = true
 
-  addHookAliases([
-    ['react', require.resolve(`next/dist/compiled/react${channelSuffix}`)],
-    [
-      'react/jsx-runtime',
-      require.resolve(`next/dist/compiled/react${channelSuffix}/jsx-runtime`),
-    ],
-    [
-      'react/jsx-dev-runtime',
-      require.resolve(
-        `next/dist/compiled/react${channelSuffix}/jsx-dev-runtime`
-      ),
-    ],
-    [
-      'react-dom',
-      require.resolve(
-        `next/dist/compiled/react-dom${channelSuffix}/server-rendering-stub`
-      ),
-    ],
-    [
-      'react-dom/client',
-      require.resolve(`next/dist/compiled/react-dom${channelSuffix}/client`),
-    ],
-    [
-      'react-dom/server',
-      require.resolve(`next/dist/compiled/react-dom${channelSuffix}/server`),
-    ],
-    [
-      'react-dom/server.browser',
-      require.resolve(
-        `next/dist/compiled/react-dom${channelSuffix}/server.browser`
-      ),
-    ],
-  ])
+    const channelSuffix =
+      process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental'
+        ? '-experimental'
+        : ''
+
+    addHookAliases([
+      ['react', require.resolve(`next/dist/compiled/react${channelSuffix}`)],
+      [
+        'react/jsx-runtime',
+        require.resolve(`next/dist/compiled/react${channelSuffix}/jsx-runtime`),
+      ],
+      [
+        'react/jsx-dev-runtime',
+        require.resolve(
+          `next/dist/compiled/react${channelSuffix}/jsx-dev-runtime`
+        ),
+      ],
+      [
+        'react-dom',
+        require.resolve(
+          `next/dist/compiled/react-dom${channelSuffix}/server-rendering-stub`
+        ),
+      ],
+      [
+        'react-dom/client',
+        require.resolve(`next/dist/compiled/react-dom${channelSuffix}/client`),
+      ],
+      [
+        'react-dom/server',
+        require.resolve(`next/dist/compiled/react-dom${channelSuffix}/server`),
+      ],
+      [
+        'react-dom/server.browser',
+        require.resolve(
+          `next/dist/compiled/react-dom${channelSuffix}/server.browser`
+        ),
+      ],
+    ])
+  } else {
+    addHookAliases([
+      ['react/jsx-runtime', require.resolve(`react/jsx-runtime`)],
+      ['react/jsx-dev-runtime', require.resolve(`react/jsx-dev-runtime`)],
+    ])
+  }
 }
+overrideReact()

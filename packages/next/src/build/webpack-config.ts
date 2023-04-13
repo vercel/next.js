@@ -1029,6 +1029,9 @@ export default async function getBaseWebpackConfig(
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
 
+      'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime'),
+      'react/jsx-runtime': require.resolve('react/jsx-runtime'),
+
       ...customAppAliases,
       ...customErrorAlias,
       ...customDocumentAliases,
@@ -1197,20 +1200,29 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    // Special internal modules that must be bundled for Server Components.
-    if (layer === WEBPACK_LAYERS.server) {
-      if (
-        request === 'react/jsx-dev-runtime' ||
-        request === 'react/jsx-runtime'
-      ) {
-        // override react-dom to server-rendering-stub for server
+    const isAppLayer = [
+      WEBPACK_LAYERS.server,
+      WEBPACK_LAYERS.client,
+      WEBPACK_LAYERS.appClient,
+      WEBPACK_LAYERS.action,
+    ].includes(layer!)
+
+    if (
+      request === 'react/jsx-dev-runtime' ||
+      request === 'react/jsx-runtime'
+    ) {
+      if (isAppLayer) {
         const channel = useExperimentalReact ? '-experimental' : ''
         return `commonjs next/dist/compiled/${request.replace(
           /^(react|react-dom)/,
           (m) => m + channel
         )}`
       }
+      return
+    }
 
+    // Special internal modules that must be bundled for Server Components.
+    if (layer === WEBPACK_LAYERS.server) {
       // React needs to be bundled for Server Components so the special
       // `react-server` export condition can be used.
       if (
@@ -1231,13 +1243,6 @@ export default async function getBaseWebpackConfig(
       }
 
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
-        const isAppLayer = [
-          WEBPACK_LAYERS.server,
-          WEBPACK_LAYERS.client,
-          WEBPACK_LAYERS.appClient,
-          WEBPACK_LAYERS.action,
-        ].includes(layer!)
-
         // override react-dom to server-rendering-stub for server
         const channel = useExperimentalReact ? '-experimental' : ''
         if (

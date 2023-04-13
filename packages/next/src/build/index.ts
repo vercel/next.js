@@ -1104,69 +1104,89 @@ export default async function build(
         4
       )
 
-      const staticWorkers = new Worker(staticWorker, {
-        timeout: timeout * 1000,
-        onRestart: (method, [arg], attempts) => {
-          if (method === 'exportPage') {
-            const { path: pagePath } = arg
-            if (attempts >= 3) {
-              throw new Error(
-                `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+      function createStaticWorker(type: 'app' | 'pages') {
+        const numWorkersPerType = isAppDirEnabled
+          ? Math.max(1, ~~(numWorkers / 2))
+          : numWorkers
+        const reactType =
+          type === 'app' ? (useExperimentalReact ? 'experimental' : 'next') : ''
+
+        return new Worker(staticWorker, {
+          timeout: timeout * 1000,
+          onRestart: (method, [arg], attempts) => {
+            if (method === 'exportPage') {
+              const { path: pagePath } = arg
+              if (attempts >= 3) {
+                throw new Error(
+                  `Static page generation for ${pagePath} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+                )
+              }
+              Log.warn(
+                `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
+              )
+            } else {
+              const pagePath = arg
+              if (attempts >= 2) {
+                throw new Error(
+                  `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+                )
+              }
+              Log.warn(
+                `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
               )
             }
-            Log.warn(
-              `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
-            )
-          } else {
-            const pagePath = arg
-            if (attempts >= 2) {
-              throw new Error(
-                `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
+            if (!infoPrinted) {
+              Log.warn(
+                'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
               )
+              infoPrinted = true
             }
-            Log.warn(
-              `Restarted collecting page data for ${pagePath} because it took more than ${timeout} seconds`
-            )
-          }
-          if (!infoPrinted) {
-            Log.warn(
-              'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-            )
-            infoPrinted = true
-          }
-        },
-        numWorkers,
-        enableWorkerThreads: config.experimental.workerThreads,
-        computeWorkerKey(method, ...args) {
-          if (method === 'exportPage') {
-            const typedArgs = args as Parameters<
-              typeof import('./worker').exportPage
-            >
-            return typedArgs[0].pathMap.page
-          } else if (method === 'isPageStatic') {
-            const typedArgs = args as Parameters<
-              typeof import('./worker').isPageStatic
-            >
-            return typedArgs[0].originalAppPath || typedArgs[0].page
-          }
-          return method
-        },
-        exposedMethods: sharedPool
-          ? [
-              'hasCustomGetInitialProps',
-              'isPageStatic',
-              'getNamedExports',
-              'exportPage',
-            ]
-          : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
-      }) as Worker &
-        Pick<
-          typeof import('./worker'),
-          | 'hasCustomGetInitialProps'
-          | 'isPageStatic'
-          | 'getNamedExports'
-          | 'exportPage'
-        >
+          },
+          numWorkers: numWorkersPerType,
+          forkOptions: {
+            env: {
+              ...process.env,
+              NEXT_PREBUNDLED_REACT_WORKER: reactType,
+              __NEXT_PRIVATE_PREBUNDLED_REACT: reactType,
+            },
+          },
+          enableWorkerThreads: config.experimental.workerThreads,
+          computeWorkerKey(method, ...args) {
+            if (method === 'exportPage') {
+              const typedArgs = args as Parameters<
+                typeof import('./worker').exportPage
+              >
+              return typedArgs[0].pathMap.page
+            } else if (method === 'isPageStatic') {
+              const typedArgs = args as Parameters<
+                typeof import('./worker').isPageStatic
+              >
+              return typedArgs[0].originalAppPath || typedArgs[0].page
+            }
+            return method
+          },
+          exposedMethods: sharedPool
+            ? [
+                'hasCustomGetInitialProps',
+                'isPageStatic',
+                'getNamedExports',
+                'exportPage',
+              ]
+            : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
+        }) as Worker &
+          Pick<
+            typeof import('./worker'),
+            | 'hasCustomGetInitialProps'
+            | 'isPageStatic'
+            | 'getNamedExports'
+            | 'exportPage'
+          >
+      }
+
+      const pagesStaticWorkers = createStaticWorker('pages')
+      const appStaticWorkers = isAppDirEnabled
+        ? createStaticWorker('app')
+        : undefined
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -1188,7 +1208,7 @@ export default async function build(
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
               hasCustomErrorPage &&
-              (await staticWorkers.hasCustomGetInitialProps(
+              (await pagesStaticWorkers.hasCustomGetInitialProps(
                 '/_error',
                 distDir,
                 runtimeEnvConfig,
@@ -1199,7 +1219,7 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            staticWorkers.isPageStatic({
+            pagesStaticWorkers.isPageStatic({
               page: '/_error',
               distDir,
               configFileName,
@@ -1215,18 +1235,21 @@ export default async function build(
         const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise =
-          staticWorkers.hasCustomGetInitialProps(
+          appStaticWorkers &&
+          appStaticWorkers.hasCustomGetInitialProps(
             appPageToCheck,
             distDir,
             runtimeEnvConfig,
             true
           )
 
-        const namedExportsPromise = staticWorkers.getNamedExports(
-          appPageToCheck,
-          distDir,
-          runtimeEnvConfig
-        )
+        const namedExportsPromise =
+          appStaticWorkers &&
+          appStaticWorkers.getNamedExports(
+            appPageToCheck,
+            distDir,
+            runtimeEnvConfig
+          )
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
@@ -1373,7 +1396,7 @@ export default async function build(
                       checkPageSpan.traceChild('is-page-static')
                     let workerResult = await isPageStaticSpan.traceAsyncFn(
                       () => {
-                        return staticWorkers.isPageStatic({
+                        return appStaticWorkers!.isPageStatic({
                           page,
                           originalAppPath,
                           distDir,
@@ -1609,7 +1632,10 @@ export default async function build(
           hasNonStaticErrorPage: nonStaticErrorPage,
         }
 
-        if (!sharedPool) staticWorkers.end()
+        if (!sharedPool) {
+          pagesStaticWorkers.end()
+          appStaticWorkers?.end()
+        }
         return returnValue
       })
 
@@ -2278,12 +2304,16 @@ export default async function build(
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
+            exportAppPageWorker: sharedPool
+              ? appStaticWorkers?.exportPage.bind(appStaticWorkers)
+              : undefined,
             exportPageWorker: sharedPool
-              ? staticWorkers.exportPage.bind(staticWorkers)
+              ? pagesStaticWorkers.exportPage.bind(pagesStaticWorkers)
               : undefined,
             endWorker: sharedPool
               ? async () => {
-                  await staticWorkers.end()
+                  await pagesStaticWorkers.end()
+                  await appStaticWorkers?.end()
                 }
               : undefined,
           }
@@ -2711,7 +2741,8 @@ export default async function build(
       }
 
       // ensure the worker is not left hanging
-      staticWorkers.close()
+      pagesStaticWorkers.close()
+      appStaticWorkers?.close()
 
       const analysisEnd = process.hrtime(analysisBegin)
       telemetry.record(
