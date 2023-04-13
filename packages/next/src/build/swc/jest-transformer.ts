@@ -58,8 +58,7 @@ module.exports = {
 
       let swcTransformOpts = getJestSWCOptions({
         // When target is node it's similar to the server option set in SWC.
-        isServer:
-          jestConfig.testEnvironment && jestConfig.testEnvironment === 'node',
+        isServer: jestConfig.testEnvironment === 'node',
         filename,
         nextConfig: inputOptions.nextConfig,
         jsConfig: inputOptions.jsConfig,
