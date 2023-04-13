@@ -22,7 +22,7 @@ use turbopack::{
     ecmascript::EcmascriptModuleAssetVc,
     module_options::{
         EmotionTransformConfig, JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
-        StyledComponentsTransformConfig, StyledComponentsTransformConfigVc,
+        StyledComponentsTransformConfigVc,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::TransitionsByNameVc,

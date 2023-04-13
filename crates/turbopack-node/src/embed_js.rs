@@ -1,7 +1,7 @@
 use turbo_tasks_fs::{embed_directory, FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc};
 
 #[turbo_tasks::function]
-fn embed_fs() -> FileSystemVc {
+pub fn embed_fs() -> FileSystemVc {
     embed_directory!("turbopack-node", "$CARGO_MANIFEST_DIR/js/src")
 }
 

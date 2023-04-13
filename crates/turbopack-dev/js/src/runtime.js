@@ -324,6 +324,7 @@ function instantiateModule(id, source) {
       });
     } catch (error) {
       module.error = error;
+      throw error;
     }
   });
 

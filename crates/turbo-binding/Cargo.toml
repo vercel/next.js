@@ -96,6 +96,7 @@ __turbo_tasks_testing = ["__turbo", "turbo-tasks-testing"]
 __turbo_updater = ["__turbo", "turbo-updater"]
 
 __turbopack = ["turbopack"]
+__turbopack_bench = ["__turbopack", "turbopack-bench"]
 __turbopack_cli_utils = ["__turbopack", "turbopack-cli-utils"]
 __turbopack_core = ["__turbopack", "turbopack-core"]
 __turbopack_core_issue_path = ["turbopack-core/issue_path"]
@@ -173,6 +174,7 @@ turbo-tasks-memory = { optional = true, workspace = true }
 turbo-tasks-testing = { optional = true, workspace = true }
 turbo-updater = { optional = true, workspace = true }
 turbopack = { optional = true, workspace = true }
+turbopack-bench = { optional = true, workspace = true }
 turbopack-cli-utils = { optional = true, workspace = true }
 turbopack-core = { optional = true, workspace = true }
 turbopack-create-test-app = { optional = true, workspace = true }

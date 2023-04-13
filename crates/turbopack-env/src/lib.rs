@@ -13,6 +13,7 @@
 #![feature(min_specialization)]
 
 mod asset;
+pub mod dotenv;
 mod embeddable;
 mod issue;
 mod try_env;

@@ -54,6 +54,8 @@ pub mod turbo {
 #[cfg(feature = "__turbopack")]
 pub mod turbopack {
     pub use turbopack;
+    #[cfg(feature = "__turbopack_bench")]
+    pub use turbopack_bench as bench;
     #[cfg(feature = "__turbopack_cli_utils")]
     pub use turbopack_cli_utils as cli_utils;
     #[cfg(feature = "__turbopack_core")]

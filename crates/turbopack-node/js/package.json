@@ -13,5 +13,8 @@
   "devDependencies": {
     "@types/loader-runner": "^2.2.4",
     "@types/node": "^18.11.11"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
   }
 }
