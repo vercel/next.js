@@ -98,15 +98,13 @@ export function computeChangedPath(
 ): string | null {
   const changedPath = computeChangedPathImpl(treeA, treeB)
 
-  if (changedPath === null) return null
+  if (changedPath == null || changedPath === '/') {
+    return changedPath
+  }
 
   // lightweight normalization to remove route groups
   return changedPath.split('/').reduce((acc, segment) => {
-    if (!segment) {
-      return acc
-    }
-
-    if (segment.startsWith('(') && segment.endsWith(')')) {
+    if (segment === '' || (segment.startsWith('(') && segment.endsWith(')'))) {
       return acc
     }
 
