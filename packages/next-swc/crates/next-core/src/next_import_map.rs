@@ -426,7 +426,7 @@ pub async fn insert_next_shared_aliases(
     import_map.insert_singleton_alias("react", project_path);
     import_map.insert_singleton_alias("react-dom", project_path);
 
-    insert_turbopack_dev_alias(&mut import_map);
+    insert_turbopack_dev_alias(import_map);
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
