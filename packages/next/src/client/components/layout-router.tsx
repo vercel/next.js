@@ -10,7 +10,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, use } from 'react'
+import React, { useContext, use, cache } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -135,6 +135,7 @@ function getHashFragmentDomNode(hashFragment: string) {
 interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
+  segmentPath: FlightSegmentPath
 }
 class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
   handlePotentialScroll = () => {
@@ -142,6 +143,22 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
     const { focusAndScrollRef } = this.props
 
     if (focusAndScrollRef.apply) {
+      // segmentPaths is an array of segment paths that should be scrolled to
+      // if the current segment path is not in the array, the scroll is not applied
+      // unless the array is empty, in which case the scroll is always applied
+      if (
+        focusAndScrollRef.segmentPaths.length !== 0 &&
+        !focusAndScrollRef.segmentPaths.some(
+          (segmentPath) =>
+            segmentPath.length === this.props.segmentPath.length &&
+            segmentPath.every((segment, index) =>
+              matchSegment(segment, this.props.segmentPath[index])
+            )
+        )
+      ) {
+        return
+      }
+
       let domNode:
         | ReturnType<typeof getHashFragmentDomNode>
         | ReturnType<typeof findDOMNode> = null
@@ -376,7 +393,10 @@ function InnerLayoutRouter({
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return (
-    <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
+    <ScrollAndFocusHandler
+      focusAndScrollRef={focusAndScrollRef}
+      segmentPath={segmentPath}
+    >
       {subtree}
     </ScrollAndFocusHandler>
   )
