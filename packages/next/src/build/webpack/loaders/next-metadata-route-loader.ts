@@ -91,12 +91,22 @@ export async function GET() {
 }
 
 function getDynamicImageRouteCode(resourcePath: string) {
+  // /[id]/route.js
   return `\
 import { NextResponse } from 'next/server'
-import handler from ${JSON.stringify(resourcePath)}
+import * as _imageModule from ${JSON.stringify(resourcePath)}
 
-export function GET(req, ctx) {
-  return handler({ params: ctx.params })
+const imageModule = { ..._imageModule }
+
+const handler = imageModule.default
+const generateMetadataImage = imageModule.generateMetadataImage
+
+export async function GET(req, { params }) {
+  const { id } = params
+  // validate
+  const imageMetadata = generateMetadataImage ? await generateMetadataImage(params) : {}
+  console.log('GET', id, imageMetadata)
+  return handler({ params, id })
 }
 `
 }
