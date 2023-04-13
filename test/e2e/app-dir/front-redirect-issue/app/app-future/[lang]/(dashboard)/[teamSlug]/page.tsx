@@ -12,13 +12,7 @@ export default async function TeamDashboardPage({ params }: any) {
 
 export const dynamicParams = true
 
-export async function generateMetadata({
-  params,
-}: {
-  params: {
-    teamSlug: string
-  }
-}) {
+export async function generateMetadata() {
   return {
     title: 'test',
   }
