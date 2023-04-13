@@ -57,7 +57,7 @@ export function normalizeMetadataRoute(page: string) {
       route = path.join(
         dir,
         `${name}${suffix ? `-${suffix}` : ''}${ext}`,
-        isSingleRoute ? '' : '[__metadata_id__]',
+        isSingleRoute ? '' : '[[...__metadata_id__]]',
         'route'
       )
     }

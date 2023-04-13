@@ -97,8 +97,7 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
           return getImageMetadata(imageMetadata, segment)
         })
       } else {
-        const segment = path.join(imageRoute, '0')
-        return [getImageMetadata(imageModule, segment)]
+        return [getImageMetadata(imageModule, imageRoute)]
       }
     }`
   }
@@ -157,9 +156,9 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
     return [{
       ...imageData,
-      url: path.join(route, name + routeSuffix + ext${
-        type === 'favicon' ? '' : `, '0' + ${JSON.stringify(hashQuery)}`
-      }),
+      url: path.join(route, name + routeSuffix + ext + ${JSON.stringify(
+        type === 'favicon' ? '' : hashQuery
+      )}),
     }]
   }`
 }

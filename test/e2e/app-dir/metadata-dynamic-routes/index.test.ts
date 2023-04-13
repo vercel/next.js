@@ -109,6 +109,55 @@ createNextDescribe(
         )
       })
 
+      it('should support generate multi images with generateImageMetadata', async () => {
+        const $ = await next.render$('/dynamic/big')
+        const iconUrls = $('link[rel="icon"]')
+          .toArray()
+          .map((el) => {
+            return {
+              href: $(el).attr('href').split('?')[0],
+              sizes: $(el).attr('sizes'),
+              type: $(el).attr('type'),
+            }
+          })
+        // slug is id param from generateImageMetadata
+        expect(iconUrls).toMatchObject([
+          {
+            href: '/dynamic/big/icon-48jo90/small',
+            sizes: '48x48',
+            type: 'image/png',
+          },
+          {
+            href: '/dynamic/big/icon-48jo90/medium',
+            sizes: '72x72',
+            type: 'image/png',
+          },
+        ])
+
+        const appleTouchIconUrls = $('link[rel="apple-touch-icon"]')
+          .toArray()
+          .map((el) => {
+            return {
+              href: $(el).attr('href').split('?')[0],
+              sizes: $(el).attr('sizes'),
+              type: $(el).attr('type'),
+            }
+          })
+        // slug is index by default
+        expect(appleTouchIconUrls).toEqual([
+          {
+            href: '/dynamic/big/apple-icon-48jo90/0',
+            sizes: '48x48',
+            type: 'image/png',
+          },
+          {
+            href: '/dynamic/big/apple-icon-48jo90/1',
+            sizes: '64x64',
+            type: 'image/png',
+          },
+        ])
+      })
+
       it('should fill params into dynamic routes url of metadata images', async () => {
         const $ = await next.render$('/dynamic/big')
         const ogImageUrl = $('meta[property="og:image"]').attr('content')
