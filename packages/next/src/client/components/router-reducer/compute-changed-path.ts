@@ -53,7 +53,7 @@ export function extractPathFromFlightRouterState(
   return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath
 }
 
-export function computeChangedPath(
+function computeChangedPathImpl(
   treeA: FlightRouterState,
   treeB: FlightRouterState
 ): string | null {
@@ -79,7 +79,7 @@ export function computeChangedPath(
 
   for (const parallelRouterKey in parallelRoutesA) {
     if (parallelRoutesB[parallelRouterKey]) {
-      const changedPath = computeChangedPath(
+      const changedPath = computeChangedPathImpl(
         parallelRoutesA[parallelRouterKey],
         parallelRoutesB[parallelRouterKey]
       )
@@ -90,4 +90,26 @@ export function computeChangedPath(
   }
 
   return null
+}
+
+export function computeChangedPath(
+  treeA: FlightRouterState,
+  treeB: FlightRouterState
+): string | null {
+  const changedPath = computeChangedPathImpl(treeA, treeB)
+
+  if (changedPath === null) return null
+
+  // lightweight normalization to remove route groups
+  return changedPath.split('/').reduce((acc, segment) => {
+    if (!segment) {
+      return acc
+    }
+
+    if (segment.startsWith('(') && segment.endsWith(')')) {
+      return acc
+    }
+
+    return `${acc}/${segment}`
+  }, '')
 }
