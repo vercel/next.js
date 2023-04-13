@@ -1,16 +1,14 @@
 import { redirect, notFound } from 'next/navigation'
-// http://localhost:3000/app-future/en/timvercel
-export default async function TeamDashboardPage({ params }) {
+
+export default async function TeamDashboardPage({ params }: any) {
   await new Promise((resolve) => setTimeout(resolve, 1000))
-  const username = 'timvercel'
+  const username = 'vercel-user'
   if (params.teamSlug === username) {
     console.log('REDIRECT?!')
     return redirect('/')
   }
 
   return notFound()
-
-  return 'Page!'
 }
 
 export const dynamicParams = true
