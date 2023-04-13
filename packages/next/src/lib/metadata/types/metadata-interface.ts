@@ -319,7 +319,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The common verification tokens for the document.
    * @example
    * ```tsx
-   * { verification: { google: "google-site-verification=1234567890", yandex: "1234567890", "me": "1234567890" } }
+   * { verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" } }
    * <meta name="google-site-verification" content="1234567890" />
    * <meta name="yandex-verification" content="1234567890" />
    * <meta name="me" content="@me" />
