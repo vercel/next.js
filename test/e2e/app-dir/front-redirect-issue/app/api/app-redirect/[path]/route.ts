@@ -20,7 +20,6 @@ export async function GET(
   }).then(async (res) => {
     const resHeaders = new Headers(res.headers)
     resHeaders.delete('content-encoding')
-    console.log({ res, status: res.status, headers: resHeaders, url: res.url })
     return new Response(res.body, { status: res.status, headers: resHeaders })
   })
 }
