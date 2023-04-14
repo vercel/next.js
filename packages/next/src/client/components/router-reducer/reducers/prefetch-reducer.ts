@@ -6,7 +6,10 @@ import {
   ReadonlyReducerState,
 } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
-import { isPrefetchCacheEntryExpired } from '../is-prefetch-cache-entry-expired'
+import {
+  PrefetchCacheEntryStatus,
+  getPrefetchEntryCacheStatus,
+} from '../get-prefetch-cache-entry-status'
 
 export function prefetchReducer(
   state: ReadonlyReducerState,
@@ -21,7 +24,14 @@ export function prefetchReducer(
 
   const cacheEntry = state.prefetchCache.get(href)
   // If the href was already prefetched it is not necessary to prefetch it again
-  if (cacheEntry && !isPrefetchCacheEntryExpired(cacheEntry)) {
+  if (
+    cacheEntry &&
+    // unless the cache entry was prefetched with 'auto' and the current prefetch is 'full'
+    (!(cacheEntry.kind === 'auto' && action.kind === 'full') ||
+      // or the cache entry is expired
+      getPrefetchEntryCacheStatus(cacheEntry) !==
+        PrefetchCacheEntryStatus.expired)
+  ) {
     return state
   }
 
@@ -32,7 +42,7 @@ export function prefetchReducer(
       // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
       state.tree,
       state.nextUrl,
-      action.kind !== 'hard'
+      action.kind
     )
   )
 

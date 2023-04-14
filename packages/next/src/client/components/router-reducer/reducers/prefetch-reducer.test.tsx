@@ -128,11 +128,12 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
-      true
+      'auto'
     )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: 'auto',
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -149,6 +150,9 @@ describe('prefetchReducer', () => {
           '/linking/about',
           {
             data: record,
+            kind: 'auto',
+            lastUsedTime: null,
+            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -273,11 +277,12 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
-      true
+      'auto'
     )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: 'auto',
     }
 
     await runPromiseThrowChain(() => prefetchReducer(state, action))
@@ -296,6 +301,9 @@ describe('prefetchReducer', () => {
           '/linking/about',
           {
             data: record,
+            prefetchTime: expect.any(Number),
+            kind: 'auto',
+            lastUsedTime: null,
             treeAtTimeOfPrefetch: [
               '',
               {

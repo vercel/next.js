@@ -214,7 +214,7 @@ function Router({
           dispatch({
             type: ACTION_PREFETCH,
             url,
-            kind: options?.kind ?? 'hard',
+            kind: options?.kind ?? 'full',
           })
         })
       },

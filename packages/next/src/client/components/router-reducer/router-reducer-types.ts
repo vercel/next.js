@@ -117,7 +117,13 @@ export interface ServerPatchAction {
   mutable: Mutable
 }
 
-export type PrefetchKind = 'soft' | 'hard'
+/**
+ * PrefetchKind defines the type of prefetching that should be done.
+ * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
+ * - `full` - prefetch the page data fully.
+ * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link.
+ */
+export type PrefetchKind = 'auto' | 'full' | 'temporary'
 
 /**
  * Prefetch adds the provided FlightData to the prefetch cache

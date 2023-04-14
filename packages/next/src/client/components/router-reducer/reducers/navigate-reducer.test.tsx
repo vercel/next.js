@@ -1005,7 +1005,7 @@ describe('navigateReducer', () => {
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      kind: 'soft',
+      kind: 'auto',
     }
 
     const state = createInitialRouterState({
@@ -1087,6 +1087,9 @@ describe('navigateReducer', () => {
           '/linking/about',
           {
             data: record,
+            kind: 'auto',
+            lastUsedTime: null,
+            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {

@@ -285,7 +285,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     }
 
     const prefetchEnabled = prefetchProp !== false
-    const appPrefetchKind = !prefetchProp ? 'soft' : 'hard'
+    /**
+     * The possible states for prefetch are:
+     * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
+     * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
+     * - false: we will not prefetch if in the viewport at all
+     */
+    const appPrefetchKind = prefetchProp == null ? 'auto' : 'full'
+
     const pagesRouter = React.useContext(RouterContext)
     const appRouter = React.useContext(AppRouterContext)
     const router = pagesRouter ?? appRouter

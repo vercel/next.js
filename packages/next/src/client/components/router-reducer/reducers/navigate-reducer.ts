@@ -21,7 +21,10 @@ import type {
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
-import { isPrefetchCacheEntryExpired } from '../is-prefetch-cache-entry-expired'
+import {
+  PrefetchCacheEntryStatus,
+  getPrefetchEntryCacheStatus,
+} from '../get-prefetch-cache-entry-status'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -92,8 +95,14 @@ export function navigateReducer(
   }
 
   const prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
+  const prefetchEntryCacheStatus =
+    prefetchValues && getPrefetchEntryCacheStatus(prefetchValues)
 
-  if (prefetchValues && !isPrefetchCacheEntryExpired(prefetchValues)) {
+  if (
+    prefetchValues &&
+    prefetchEntryCacheStatus !== null &&
+    prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.expired
+  ) {
     prefetchValues.lastUsedTime = Date.now()
 
     // The one before last item is the router state tree patch
@@ -146,7 +155,8 @@ export function navigateReducer(
           currentCache,
           cache,
           flightDataPath,
-          true
+          // if the entry is stale, we don't want to use the data from the prefetch cache
+          prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.stale
         )
 
         const hardNavigate = shouldHardNavigate(
@@ -197,6 +207,11 @@ export function navigateReducer(
     return handleMutable(state, mutable)
   }
 
+  // clean up the prefetch cache if the entry is expired as we don't need it anymore
+  if (prefetchEntryCacheStatus === PrefetchCacheEntryStatus.expired) {
+    state.prefetchCache.delete(createHrefFromUrl(url, false))
+  }
+
   // When doing a hard push there can be two cases: with optimistic tree and without
   // The with optimistic tree case only happens when the layouts have a loading state (loading.js)
   // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
@@ -215,6 +230,8 @@ export function navigateReducer(
     cache.status = CacheStates.READY
     cache.subTreeData = state.cache.subTreeData
 
+    const data = fetchServerResponse(url, optimisticTree, state.nextUrl)
+
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
     // The `data` property is used to suspend in layout-router during render if it hasn't resolved yet by the time it renders.
     const res = fillCacheWithDataProperty(
@@ -222,7 +239,7 @@ export function navigateReducer(
       state.cache,
       // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
       segments.slice(1),
-      () => fetchServerResponse(url, optimisticTree, state.nextUrl)
+      () => data
     )
 
     // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
@@ -234,6 +251,15 @@ export function navigateReducer(
       mutable.scrollableSegments = []
       mutable.cache = cache
       mutable.canonicalUrl = href
+
+      state.prefetchCache.set(createHrefFromUrl(url, false), {
+        data: Promise.resolve(data),
+        // this will make sure that the entry will be discarded after 30s
+        kind: 'temporary',
+        prefetchTime: Date.now(),
+        treeAtTimeOfPrefetch: state.tree,
+        lastUsedTime: Date.now(),
+      })
 
       return handleMutable(state, mutable)
     }
