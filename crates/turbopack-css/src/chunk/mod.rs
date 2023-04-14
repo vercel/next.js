@@ -1,4 +1,3 @@
-pub(crate) mod optimize;
 pub mod source_map;
 pub(crate) mod writer;
 
@@ -11,11 +10,9 @@ use turbo_tasks_fs::{rope::Rope, File, FileSystemPathOptionVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
-        availability_info::AvailabilityInfo,
-        chunk_content, chunk_content_split,
-        optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
-        Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkItem, ChunkItemVc, ChunkReferenceVc,
-        ChunkVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, FromChunkableAsset,
+        availability_info::AvailabilityInfo, chunk_content, chunk_content_split, Chunk,
+        ChunkContentResult, ChunkGroupReferenceVc, ChunkItem, ChunkItemVc, ChunkVc,
+        ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunksVc, FromChunkableAsset,
         ModuleId, ModuleIdVc,
     },
     code_builder::{CodeBuilder, CodeVc},
@@ -30,7 +27,7 @@ use turbopack_core::{
 };
 use writer::expand_imports;
 
-use self::{optimize::CssChunkOptimizerVc, source_map::CssChunkSourceMapAssetReferenceVc};
+use self::source_map::CssChunkSourceMapAssetReferenceVc;
 use crate::{
     embed::{CssEmbed, CssEmbeddable, CssEmbeddableVc},
     parse::ParseResultSourceMapVc,
@@ -40,10 +37,13 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct CssChunk {
-    context: ChunkingContextVc,
-    main_entries: CssChunkPlaceablesVc,
-    availability_info: AvailabilityInfo,
+    pub context: ChunkingContextVc,
+    pub main_entries: CssChunkPlaceablesVc,
+    pub availability_info: AvailabilityInfo,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct CssChunks(Vec<CssChunkVc>);
 
 #[turbo_tasks::value_impl]
 impl CssChunkVc {
@@ -280,13 +280,20 @@ impl Chunk for CssChunk {
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
     }
-}
 
-#[turbo_tasks::value_impl]
-impl OptimizableChunk for CssChunk {
     #[turbo_tasks::function]
-    fn get_optimizer(&self) -> ChunkOptimizerVc {
-        CssChunkOptimizerVc::new(self.context).into()
+    async fn parallel_chunks(&self) -> Result<ChunksVc> {
+        let content = css_chunk_content(
+            self.context,
+            self.main_entries,
+            Value::new(self.availability_info),
+        )
+        .await?;
+        let mut chunks = Vec::new();
+        for chunk in content.chunks.iter() {
+            chunks.push(*chunk);
+        }
+        Ok(ChunksVc::cell(chunks))
     }
 }
 
@@ -347,9 +354,6 @@ impl Asset for CssChunk {
                     }
                 }
             }
-        }
-        for chunk in content.chunks.iter() {
-            references.push(ChunkReferenceVc::new_parallel(*chunk).into());
         }
         for entry in content.async_chunk_group_entries.iter() {
             references.push(ChunkGroupReferenceVc::new(this.context, *entry).into());
