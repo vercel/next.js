@@ -177,6 +177,7 @@ createNextDescribe(
 
     it('should not cache non-ok statusCode', async () => {
       const $ = await next.render$('/variable-revalidate/status-code')
+      require('console').error($.html())
       const origData = JSON.parse($('#page-data').text())
 
       expect(origData.status).toBe(404)
@@ -293,6 +294,7 @@ createNextDescribe(
           'variable-config-revalidate/revalidate-3.html',
           'variable-config-revalidate/revalidate-3.rsc',
           'variable-config-revalidate/revalidate-3/page.js',
+          'variable-revalidate-edge/body/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
