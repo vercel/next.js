@@ -110,7 +110,7 @@ createNextDescribe(
       })
 
       it('should support generate multi images with generateImageMetadata', async () => {
-        const $ = await next.render$('/dynamic/big')
+        const $ = await next.render$('/dynamic/big?query=1')
         const iconUrls = $('link[rel="icon"]')
           .toArray()
           .map((el) => {
@@ -305,7 +305,9 @@ createNextDescribe(
         const edgeRoute = functionRoutes.find((route) =>
           route.startsWith('/(group)/twitter-image-')
         )
-        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+        expect(edgeRoute).toMatch(
+          /\/\(group\)\/twitter-image-\w{6}\/\[\[\.\.\.__metadata_id__\]\]\/route/
+        )
       })
     }
   }

@@ -104,8 +104,8 @@ const generateImageMetadata = imageModule.generateImageMetadata
 export async function GET(req, ctx) {
   const { __metadata_id__ = [], ...params } = ctx.params
   const id = __metadata_id__[0]
-  const searchParams = req.nextUrl.searchParams
-  const imageMetadata = generateImageMetadata ? await generateImageMetadata(params) : null
+  const searchParams = Object.fromEntries(req.nextUrl.searchParams)
+  const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params, searchParams }) : null
   if (imageMetadata) {
     const hasId = imageMetadata.some((item) => { item.id === id })
     if (!hasId) {
