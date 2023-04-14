@@ -111,19 +111,18 @@ impl DevServer {
             // When possible bind to v4 and v6, otherwise ignore the error
             let _ = socket.set_only_v6(false);
         }
+        let sock_addr = addr.into();
         socket
-            .bind(&addr.into())
+            .bind(&sock_addr)
             .context("not able to bind address")?;
+        socket.listen(128).context("not able to listen on socket")?;
 
         let listener: TcpListener = socket.into();
         let addr = listener
             .local_addr()
             .context("not able to get bound address")?;
         let server = Server::from_tcp(listener).context("Not able to start server")?;
-        Ok(DevServerBuilder {
-            addr: addr.into(),
-            server,
-        })
+        Ok(DevServerBuilder { addr, server })
     }
 }
 
