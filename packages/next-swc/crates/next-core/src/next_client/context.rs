@@ -158,7 +158,7 @@ pub async fn get_client_module_options_context(
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
-    let jsx_runtime_options = get_jsx_transform_options(project_path, mdx_rs_options);
+    let jsx_runtime_options = get_jsx_transform_options(project_path);
     let enable_webpack_loaders = {
         let options = &*next_config.webpack_loaders_options().await?;
         let loaders_options = WebpackLoadersOptions {
