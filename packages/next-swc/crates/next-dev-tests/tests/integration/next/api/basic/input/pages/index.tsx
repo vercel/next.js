@@ -6,7 +6,7 @@ export default function Page() {
     import('@turbo/pack-test-harness').then((mod) => runTests(mod))
   })
 
-  return <h1>Ok</h1>
+  return <h1>Ready</h1>
 }
 
 type Harness = typeof import('@turbo/pack-test-harness')
@@ -28,25 +28,19 @@ function runTests(harness: Harness) {
   })
 
   it('should be able to use PORT and fetch from localhost', async () => {
-    const res = await fetch(
-      `http://localhost:${process.env.PORT}/api/basic?input=test`
-    )
+    const res = await fetch('/api/localhost')
     const json = await res.json()
     expect(json).toEqual({ hello: 'world', input: 'test' })
   })
 
   it('should be able to use PORT and fetch from 127.0.0.1', async () => {
-    const res = await fetch(
-      `http://127.0.0.1:${process.env.PORT}/api/basic?input=test`
-    )
+    const res = await fetch('/api/ipv4')
     const json = await res.json()
     expect(json).toEqual({ hello: 'world', input: 'test' })
   })
 
   it('should be able to use PORT and fetch from [::]', async () => {
-    const res = await fetch(
-      `http://[::]:${process.env.PORT}/api/basic?input=test`
-    )
+    const res = await fetch('/api/ipv6')
     const json = await res.json()
     expect(json).toEqual({ hello: 'world', input: 'test' })
   })
