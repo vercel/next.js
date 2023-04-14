@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 
 export default function Page() {
   useEffect(() => {
@@ -12,7 +12,7 @@ export default function Page() {
 type Harness = typeof import('@turbo/pack-test-harness')
 
 let once = true
-function runTests(harness: Harness, iframe: HTMLIFrameElement) {
+function runTests(harness: Harness) {
   if (!once) return
   once = false
   it('should run a basic API request', async () => {
