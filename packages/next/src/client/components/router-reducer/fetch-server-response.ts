@@ -23,7 +23,7 @@ export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
   nextUrl: string | null,
-  prefetch?: true
+  prefetch?: boolean
 ): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
   const headers: {
     [RSC]: '1'

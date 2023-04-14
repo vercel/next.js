@@ -199,7 +199,7 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: async (href) => {
+      prefetch: async (href: string, options) => {
         // If prefetch has already been triggered, don't trigger it again.
         if (isBot(window.navigator.userAgent)) {
           return
@@ -209,12 +209,12 @@ function Router({
         if (isExternalURL(url)) {
           return
         }
-
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
             type: ACTION_PREFETCH,
             url,
+            kind: options?.kind ?? 'hard',
           })
         })
       },

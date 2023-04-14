@@ -21,6 +21,7 @@ import type {
 } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
+import { isPrefetchCacheEntryExpired } from '../is-prefetch-cache-entry-expired'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -91,7 +92,10 @@ export function navigateReducer(
   }
 
   const prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
-  if (prefetchValues) {
+
+  if (prefetchValues && !isPrefetchCacheEntryExpired(prefetchValues)) {
+    prefetchValues.lastUsedTime = Date.now()
+
     // The one before last item is the router state tree patch
     const { treeAtTimeOfPrefetch, data } = prefetchValues
 
@@ -111,7 +115,6 @@ export function navigateReducer(
         0,
         -3
       ) as unknown as FlightSegmentPath
-
       // The one before last item is the router state tree patch
       const [treePatch] = flightDataPath.slice(-3) as [FlightRouterState]
 

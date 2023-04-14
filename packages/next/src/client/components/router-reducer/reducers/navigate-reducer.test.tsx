@@ -1005,6 +1005,7 @@ describe('navigateReducer', () => {
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
+      kind: 'soft',
     }
 
     const state = createInitialRouterState({

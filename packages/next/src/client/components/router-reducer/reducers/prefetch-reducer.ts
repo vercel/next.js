@@ -6,6 +6,7 @@ import {
   ReadonlyReducerState,
 } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
+import { isPrefetchCacheEntryExpired } from '../is-prefetch-cache-entry-expired'
 
 export function prefetchReducer(
   state: ReadonlyReducerState,
@@ -18,8 +19,9 @@ export function prefetchReducer(
     false
   )
 
+  const cacheEntry = state.prefetchCache.get(href)
   // If the href was already prefetched it is not necessary to prefetch it again
-  if (state.prefetchCache.has(href)) {
+  if (cacheEntry && !isPrefetchCacheEntryExpired(cacheEntry)) {
     return state
   }
 
@@ -30,7 +32,7 @@ export function prefetchReducer(
       // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
       state.tree,
       state.nextUrl,
-      true
+      action.kind !== 'hard'
     )
   )
 
@@ -39,6 +41,9 @@ export function prefetchReducer(
     // Create new tree based on the flightSegmentPath and router state patch
     treeAtTimeOfPrefetch: state.tree,
     data: serverResponse,
+    kind: action.kind,
+    prefetchTime: Date.now(),
+    lastUsedTime: null,
   })
 
   return state
