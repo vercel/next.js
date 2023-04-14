@@ -53,6 +53,8 @@ export class CacheHandler {
     _fetchUrl?: string,
     _fetchIdx?: number
   ): Promise<void> {}
+
+  public async revalidateTag(_tag: string): Promise<void> {}
 }
 
 export class IncrementalCache {
@@ -152,6 +154,10 @@ export class IncrementalCache {
     return fetchCache ? pathname : normalizePagePath(pathname)
   }
 
+  async revalidateTag(tag: string) {
+    return this.cacheHandler?.revalidateTag?.(tag)
+  }
+
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(
     url: string,
@@ -159,7 +165,7 @@ export class IncrementalCache {
   ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v2'
+    const MAIN_KEY_PREFIX = 'v3'
 
     let cacheKey: string
     const bodyChunks: string[] = []

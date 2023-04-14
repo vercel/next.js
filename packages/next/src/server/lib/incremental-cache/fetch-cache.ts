@@ -73,6 +73,29 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
+  public async revalidateTag(tag: string) {
+    if (this.debug) {
+      console.log('revalidateTag', tag)
+    }
+    try {
+      const res = await fetch(
+        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
+        {
+          method: 'POST',
+          headers: this.headers,
+          // @ts-expect-error
+          next: { internal: true },
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}.`)
+      }
+    } catch (err) {
+      console.warn(`Failed to revalidate tag ${tag}`, err)
+    }
+  }
+
   public async get(
     key: string,
     fetchCache?: boolean,
@@ -139,7 +162,7 @@ export default class FetchCache implements CacheHandler {
           // if it's already stale set it to a time in the past
           // if not derive last modified from age
           lastModified:
-            cacheState === 'stale'
+            cacheState !== 'fresh'
               ? Date.now() - CACHE_ONE_YEAR
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
@@ -147,7 +170,9 @@ export default class FetchCache implements CacheHandler {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
-            }ms, size: ${Object.keys(cached).length}`
+            }ms, size: ${
+              Object.keys(cached).length
+            }, cache-state: ${cacheState}`
           )
         }
 
@@ -193,6 +218,16 @@ export default class FetchCache implements CacheHandler {
             data.data.headers['cache-control']
         }
         const body = JSON.stringify(data)
+        const headers = { ...this.headers }
+        if (data !== null && 'data' in data && data.data.tags) {
+          headers['x-vercel-cache-tags'] = data.data.tags.join(',')
+        }
+
+        if (this.debug) {
+          console.log('set cache', key, {
+            tags: headers['x-vercel-cache-tags'],
+          })
+        }
         const fetchParams: NextFetchCacheParams = {
           internal: true,
           fetchType: 'fetch-set',
@@ -203,7 +238,7 @@ export default class FetchCache implements CacheHandler {
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
-            headers: this.headers,
+            headers,
             body: body,
             next: fetchParams as NextFetchRequestConfig,
           }

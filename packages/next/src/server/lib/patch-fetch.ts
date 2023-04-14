@@ -71,14 +71,17 @@ export function patchFetch({
         }
 
         let revalidate: number | undefined | false = undefined
+        const getNextField = (field: 'revalidate' | 'tags') => {
+          return typeof init?.next?.[field] !== 'undefined'
+            ? init?.next?.[field]
+            : isRequestInput
+            ? (input as any).next?.[field]
+            : undefined
+        }
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
-        let curRevalidate =
-          typeof init?.next?.revalidate !== 'undefined'
-            ? init?.next?.revalidate
-            : isRequestInput
-            ? (input as any).next?.revalidate
-            : undefined
+        let curRevalidate = getNextField('revalidate')
+        const tags = getNextField('tags')
 
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
@@ -253,6 +256,7 @@ export function patchFetch({
                       headers: Object.fromEntries(res.headers.entries()),
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
+                      tags,
                     },
                     revalidate,
                   },
