@@ -1,5 +1,5 @@
 ---
-description: Learn how to instrument your Next.js app.
+description: Learn how to use instrumentation to run code at server startup in your Next.js app
 ---
 
 > **Note**: This feature is experimental. To use it, you must explicitly opt in by defining `experimental.instrumentationHook = true;` in your `next.config.js`.
@@ -35,7 +35,7 @@ export const register() {
 
 By doing this, you can colocate all of your side effects in one place in your code, and avoid any unintended consequences from importing files.
 
-We call `register` in all environments, so it's necessary to conditionally require any code that doesn't support both `edge` and `nodejs`. You can use environment variable `NEXT_RUNTIME` to get the current environment. Importing environment specific code would look like this:
+We call `register` in all environments, so it's necessary to conditionally require any code that doesn't support both `edge` and `nodejs`. You can use the environment variable `NEXT_RUNTIME` to get the current environment. Importing an environment-specific code would look like this:
 
 ```ts
 // /instrumentation.ts
