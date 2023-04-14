@@ -531,7 +531,7 @@ describe('CLI Usage', () => {
         await check(() => output, new RegExp(`on \\[::\\]:${port}`))
         await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
       } finally {
-        await killApp(app)
+        await killApp(app).catch(() => {})
       }
     })
 
