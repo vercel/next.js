@@ -709,6 +709,8 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         let mut result =
             RopeBuilder::from("import { IPC } from \"@vercel/turbopack-node/ipc/index\";\n");
 
+        writeln!(result, "import \"../polyfill/app-polyfills.ts\";\n")?;
+
         for import in imports {
             writeln!(result, "{import}")?;
         }

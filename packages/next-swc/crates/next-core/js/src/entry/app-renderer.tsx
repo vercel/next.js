@@ -23,9 +23,6 @@ import type {
 import type { RenderData } from 'types/turbopack'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 
-import 'next/dist/server/node-polyfill-fetch'
-import 'next/dist/server/node-polyfill-web-streams'
-import '../polyfill/async-local-storage'
 import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { ServerResponseShim } from '../internal/http'
