@@ -1060,10 +1060,9 @@ export default async function build(
 
       const timeout = config.staticPageGenerationTimeout || 0
       const sharedPool = config.experimental.sharedPool || false
-      const staticWorker = sharedPool
+      const staticWorkerPath = sharedPool
         ? require.resolve('./worker')
         : require.resolve('./utils')
-      let infoPrinted = false
 
       let appPathsManifest: Record<string, string> = {}
       const appPathRoutes: Record<string, string> = {}
@@ -1111,7 +1110,9 @@ export default async function build(
         const reactType =
           type === 'app' ? (useExperimentalReact ? 'experimental' : 'next') : ''
 
-        return new Worker(staticWorker, {
+        let infoPrinted = false
+
+        return new Worker(staticWorkerPath, {
           timeout: timeout * 1000,
           onRestart: (method, [arg], attempts) => {
             if (method === 'exportPage') {
@@ -1235,21 +1236,18 @@ export default async function build(
         const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise =
-          appStaticWorkers &&
-          appStaticWorkers.hasCustomGetInitialProps(
+          pagesStaticWorkers.hasCustomGetInitialProps(
             appPageToCheck,
             distDir,
             runtimeEnvConfig,
             true
           )
 
-        const namedExportsPromise =
-          appStaticWorkers &&
-          appStaticWorkers.getNamedExports(
-            appPageToCheck,
-            distDir,
-            runtimeEnvConfig
-          )
+        const namedExportsPromise = pagesStaticWorkers.getNamedExports(
+          appPageToCheck,
+          distDir,
+          runtimeEnvConfig
+        )
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
