@@ -242,17 +242,7 @@ export function patchFetch({
               typeof revalidate === 'number' &&
               revalidate > 0
             ) {
-              let base64Body = ''
-              const resBlob = await res.blob()
-              const arrayBuffer = await resBlob.arrayBuffer()
-
-              if (process.env.NEXT_RUNTIME === 'edge') {
-                const { encode } =
-                  require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
-                base64Body = encode(arrayBuffer)
-              } else {
-                base64Body = Buffer.from(arrayBuffer).toString('base64')
-              }
+              const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
               try {
                 await staticGenerationStore.incrementalCache.set(
@@ -261,7 +251,7 @@ export function patchFetch({
                     kind: 'FETCH',
                     data: {
                       headers: Object.fromEntries(res.headers.entries()),
-                      body: base64Body,
+                      body: bodyBuffer.toString('base64'),
                       status: res.status,
                     },
                     revalidate,
@@ -275,8 +265,8 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(resBlob, {
-                headers: res.headers,
+              return new Response(bodyBuffer, {
+                headers: new Headers(res.headers),
                 status: res.status,
               })
             }
