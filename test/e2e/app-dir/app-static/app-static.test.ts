@@ -1166,6 +1166,35 @@ createNextDescribe(
       }, 'success')
     })
 
+    it('should cache correctly handle JSON body', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(pageData).toBe('{"hello":"world"}')
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
       const browserOnIndexPage = await next.browser('/ssg-preview')
 

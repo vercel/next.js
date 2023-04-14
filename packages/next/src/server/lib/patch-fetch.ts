@@ -243,7 +243,8 @@ export function patchFetch({
               revalidate > 0
             ) {
               let base64Body = ''
-              const resBlob = await res.blob()
+              const clonedRes = res.clone()
+              const resBlob = await clonedRes.blob()
               const arrayBuffer = await resBlob.arrayBuffer()
 
               if (process.env.NEXT_RUNTIME === 'edge') {
@@ -275,7 +276,7 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(resBlob, {
+              return new Response(res.body, {
                 headers: res.headers,
                 status: res.status,
               })
