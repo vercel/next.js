@@ -233,9 +233,10 @@ async function collectStaticImagesFiles(
     async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
       interopDefault(await imageModule(props))
   )
-  const arrayOfArray =
-    iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
-  return arrayOfArray?.flat()
+
+  return iconPromises?.length > 0
+    ? (await Promise.all(iconPromises))?.flat()
+    : undefined
 }
 
 async function resolveStaticMetadata(components: ComponentsType, props: any) {
