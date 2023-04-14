@@ -23,7 +23,6 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { IncrementalCache } from './lib/incremental-cache'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
