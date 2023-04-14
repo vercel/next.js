@@ -117,7 +117,7 @@ export default async function nextFontLoader(this: any) {
         6
       )
 
-      // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
+      // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
       const result = await postcss(
         postcssNextFontPlugin({
           exports,

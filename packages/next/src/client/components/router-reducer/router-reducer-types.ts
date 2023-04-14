@@ -2,6 +2,7 @@ import type { CacheNode } from '../../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightData,
+  FlightSegmentPath,
 } from '../../../server/app-render/types'
 import { fetchServerResponse } from './fetch-server-response'
 
@@ -17,7 +18,7 @@ export interface Mutable {
   previousTree?: FlightRouterState
   patchedTree?: FlightRouterState
   canonicalUrl?: string
-  applyFocusAndScroll?: boolean
+  scrollableSegments?: FlightSegmentPath[]
   pendingPush?: boolean
   cache?: CacheNode
   prefetchCache?: AppRouterState['prefetchCache']
@@ -147,6 +148,10 @@ export type FocusAndScrollRef = {
    * The hash fragment that should be scrolled to.
    */
   hashFragment: string | null
+  /**
+   * The paths of the segments that should be focused.
+   */
+  segmentPaths: FlightSegmentPath[]
 }
 
 /**
