@@ -18,7 +18,7 @@ env:
 jobs:
   check-examples:
     name: Check examples
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     steps:
       - uses: actions/checkout@v3
       - name: Install moreutils
@@ -27,7 +27,7 @@ jobs:
         run: ./scripts/check-examples.sh
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       # we build a dev binary for use in CI so skip downloading
@@ -119,7 +119,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: build
     steps:
       - name: Setup node
@@ -145,7 +145,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange != 'nope'}}
 
   rust-check:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: build
     steps:
       - uses: actions/cache@v3
@@ -195,7 +195,7 @@ jobs:
 
   checkPrecompiled:
     name: Check Pre-compiled
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -242,7 +242,7 @@ jobs:
 
   testUnit:
     name: Test Unit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -278,7 +278,7 @@ jobs:
   # run LTS matrix always and maintenance tests during a release
   testDevLTS:
     name: Test Development Node.js LTS
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -326,7 +326,7 @@ jobs:
 
   testDevMaintenance:
     name: Test Development Node.js Maintenance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -377,7 +377,7 @@ jobs:
 
   testDevE2ELTS:
     name: Test Development (E2E) Node.js LTS
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -425,7 +425,7 @@ jobs:
 
   testDevE2EMaintenance:
     name: Test Development (E2E) Node.js Maintenance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -474,7 +474,7 @@ jobs:
 
   testProdLTS:
     name: Test Production Node.js LTS
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -512,7 +512,7 @@ jobs:
 
   testProdMaintenance:
     name: Test Production Node.js Maintenance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -551,7 +551,7 @@ jobs:
 
   testProdE2ELTS:
     name: Test Production (E2E) Node.js LTS
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -589,7 +589,7 @@ jobs:
 
   testProdE2EMaintenance:
     name: Test Production (E2E) Node.js Maintenance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -629,7 +629,7 @@ jobs:
 
   testCNA:
     name: Test Create Next App
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -671,7 +671,7 @@ jobs:
 
   testCodemods:
     name: Test Codemods
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build]
     if: ${{ needs.build.outputs.codemodChange == 'yup' }}
     timeout-minutes: 5
@@ -698,7 +698,7 @@ jobs:
 
   testIntegration:
     name: Test Integration
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -774,7 +774,7 @@ jobs:
 
   testElectron:
     name: Test Electron
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -815,7 +815,7 @@ jobs:
   # that running with turbopack should always pass.
   testTurbopack:
     name: Test Development (Turbopack)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -862,7 +862,7 @@ jobs:
 
   testsPass:
     name: thank you, next
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs:
       [
         lint,
@@ -882,7 +882,7 @@ jobs:
 
   testFirefox:
     name: Test Firefox (production)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -907,7 +907,7 @@ jobs:
 
   testSafari:
     name: Test Safari (production)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -936,7 +936,7 @@ jobs:
 
   testFirefoxNodeLTS:
     name: Test Firefox Node.js LTS
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, testFirefox, build-native-test]
     timeout-minutes: 10
     env:
@@ -962,7 +962,7 @@ jobs:
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs:
       - build
       - build-wasm
@@ -1005,7 +1005,7 @@ jobs:
 
   deployExamples:
     name: Deploy examples
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build]
     steps:
       - uses: actions/checkout@v3
@@ -1028,7 +1028,7 @@ jobs:
 
   testDeployE2E:
     name: E2E (deploy)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [publishRelease, build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -1068,7 +1068,7 @@ jobs:
 
   releaseStats:
     name: Release Stats
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [publishRelease, build-native-test]
     steps:
       - name: Setup node
@@ -1098,7 +1098,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-16-core-oss
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: 'vercel'
@@ -1191,7 +1191,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-latest-8-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-8-core-oss
 
     steps:
       - uses: actions/checkout@v3
@@ -1215,7 +1215,7 @@ jobs:
 
   test-native-integration:
     name: Integration Test Native Code
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-16-core-oss
     needs: build
 
     env:
@@ -1253,7 +1253,7 @@ jobs:
 
   test-bench-native-integration:
     name: Bench Integration Test Native Code
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-16-core-oss
     needs: build
 
     env:
@@ -1294,7 +1294,7 @@ jobs:
 
   test-wasm:
     name: Test the wasm build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     timeout-minutes: 15
     needs: [build, build-native-test, build-wasm-dev]
 
@@ -1550,7 +1550,7 @@ jobs:
 
   build-wasm-dev:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     steps:
       - uses: actions/cache@v3
         timeout-minutes: 5
@@ -1615,7 +1615,7 @@ jobs:
           path: packages/next-swc/crates/wasm/pkg-nodejs
 
   check-trace-secrests:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     outputs:
       trace-api-key: ${{ steps.trace-api-key.outputs.defined }}
     steps:
@@ -1627,7 +1627,7 @@ jobs:
 
   build-performance-metrics:
     name: Performance Metrics for Release Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: [build, build-native-test, check-trace-secrests]
     if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
     env:
