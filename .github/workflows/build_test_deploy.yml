@@ -339,7 +339,7 @@ jobs:
         group: [1, 2, 3, 4, 5]
     # we can't use "matrix" context in job level "if" so we have
     # to create a separate job which can skip
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -436,7 +436,7 @@ jobs:
       matrix:
         node: [16]
         group: [1, 2, 3, 4, 5, 6, 7, 8]
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -523,7 +523,7 @@ jobs:
       matrix:
         node: [16]
         group: [1, 2, 3, 4, 5]
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -601,7 +601,7 @@ jobs:
         node: [16]
         group: [1, 2, 3, 4, 5, 6, 7, 8]
     # run LTS matrix always and maintenance tests during a release
-    # if: ${{ needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
