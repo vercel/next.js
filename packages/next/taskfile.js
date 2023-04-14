@@ -1688,15 +1688,10 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
+        file.data = source.replace(
+          /require\(["']scheduler["']\)/g,
+          `require("next/dist/compiled/scheduler${packageSuffix}")`
+        )
       })
       .target(`src/compiled/react${packageSuffix}/cjs`)
 
@@ -1718,19 +1713,10 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react-dom["']\)/g,
-            `require("next/dist/compiled/react-dom${packageSuffix}")`
-          )
+        file.data = source.replace(
+          /require\(["']scheduler["']\)/g,
+          `require("next/dist/compiled/scheduler${packageSuffix}")`
+        )
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 

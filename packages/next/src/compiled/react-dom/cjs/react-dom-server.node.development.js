@@ -14,10 +14,10 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require("next/dist/compiled/react");
+var React = require('react');
 var util = require('util');
 var async_hooks = require('async_hooks');
-var ReactDOM = require("next/dist/compiled/react-dom");
+var ReactDOM = require('react-dom');
 
 var ReactVersion = '18.3.0-next-b14f8da15-20230403';
 
