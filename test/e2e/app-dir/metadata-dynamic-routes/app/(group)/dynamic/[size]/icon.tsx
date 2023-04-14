@@ -1,11 +1,10 @@
 import { ImageResponse } from 'next/server'
 
-export async function generateImageMetadata({ params, searchParams }) {
-  const smallSize = searchParams.query === '1' ? 48 : 12
+export async function generateImageMetadata({ params }) {
   return [
     {
       contentType: 'image/png',
-      size: { width: smallSize, height: smallSize },
+      size: { width: 48, height: 48 },
       id: 'small',
     },
     {

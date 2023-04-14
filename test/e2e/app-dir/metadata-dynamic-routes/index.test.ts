@@ -110,7 +110,7 @@ createNextDescribe(
       })
 
       it('should support generate multi images with generateImageMetadata', async () => {
-        const $ = await next.render$('/dynamic/big?query=1')
+        const $ = await next.render$('/dynamic/big')
         const iconUrls = $('link[rel="icon"]')
           .toArray()
           .map((el) => {
