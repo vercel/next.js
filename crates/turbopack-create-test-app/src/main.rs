@@ -34,6 +34,10 @@ struct Args {
     /// How to communicate changes to the consumer (none | hook | component)
     #[clap(long, default_value = "none")]
     effect_mode: EffectMode,
+
+    /// Make leaf modules client components for app dir
+    #[clap(long, default_value_t = false)]
+    leaf_client_components: bool,
 }
 
 fn main() -> Result<()> {
@@ -53,6 +57,7 @@ fn main() -> Result<()> {
                 None
             },
             effect_mode: args.effect_mode,
+            leaf_client_components: args.leaf_client_components,
         }
         .build()?
         .path()

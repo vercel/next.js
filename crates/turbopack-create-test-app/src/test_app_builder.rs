@@ -76,6 +76,7 @@ pub struct TestAppBuilder {
     pub flatness: usize,
     pub package_json: Option<PackageJsonConfig>,
     pub effect_mode: EffectMode,
+    pub leaf_client_components: bool,
 }
 
 impl Default for TestAppBuilder {
@@ -88,6 +89,7 @@ impl Default for TestAppBuilder {
             flatness: 5,
             package_json: Some(Default::default()),
             effect_mode: EffectMode::Hook,
+            leaf_client_components: false,
         }
     }
 }
@@ -172,10 +174,17 @@ impl TestAppBuilder {
                 || (!queue.is_empty()
                     && (queue.len() + remaining_modules) % (self.flatness + 1) == 0);
             if leaf {
+                let maybe_use_client = if self.leaf_client_components {
+                    r#""use client";"#
+                } else {
+                    ""
+                };
                 write_file(
                     &format!("leaf file {}", file.display()),
                     &file,
                     formatdoc! {r#"
+                        {maybe_use_client}
+
                         {setup_imports}
 
                         {SETUP_EFFECT_PROPS}
