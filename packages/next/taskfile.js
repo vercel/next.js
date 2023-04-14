@@ -1637,6 +1637,7 @@ export async function copy_vendor_react(task_) {
           exports: json.exports,
           dependencies: json.dependencies,
           peerDependencies: json.peerDependencies,
+          browser: json.browser,
         },
         null,
         2

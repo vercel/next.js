@@ -39,7 +39,9 @@ export class CacheHandler {
 
   public async get(
     _key: string,
-    _fetchCache?: boolean
+    _fetchCache?: boolean,
+    _originUrl?: string,
+    _fetchIdx?: number
   ): Promise<CacheHandlerValue | null> {
     return {} as any
   }
@@ -47,7 +49,9 @@ export class CacheHandler {
   public async set(
     _key: string,
     _data: IncrementalCacheValue | null,
-    _fetchCache?: boolean
+    _fetchCache?: boolean,
+    _originUrl?: string,
+    _fetchIdx?: number
   ): Promise<void> {}
 }
 
@@ -155,7 +159,7 @@ export class IncrementalCache {
   ): Promise<string> {
     // this should be bumped anytime a fix is made to cache entries
     // that should bust the cache
-    const MAIN_KEY_PREFIX = 'v1'
+    const MAIN_KEY_PREFIX = 'v2'
 
     let cacheKey: string
     const bodyChunks: string[] = []
@@ -266,7 +270,9 @@ export class IncrementalCache {
   async get(
     pathname: string,
     fetchCache?: boolean,
-    revalidate?: number
+    revalidate?: number,
+    originUrl?: string,
+    fetchIdx?: number
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
@@ -279,7 +285,12 @@ export class IncrementalCache {
 
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
-    const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
+    const cacheData = await this.cacheHandler?.get(
+      pathname,
+      fetchCache,
+      originUrl,
+      fetchIdx
+    )
 
     if (cacheData?.value?.kind === 'FETCH') {
       revalidate = revalidate || cacheData.value.revalidate
@@ -337,7 +348,14 @@ export class IncrementalCache {
         curRevalidate,
         revalidateAfter,
       }
-      this.set(pathname, entry.value, curRevalidate, fetchCache)
+      this.set(
+        pathname,
+        entry.value,
+        curRevalidate,
+        fetchCache,
+        originUrl,
+        fetchIdx
+      )
     }
     return entry
   }
@@ -347,7 +365,9 @@ export class IncrementalCache {
     pathname: string,
     data: IncrementalCacheValue | null,
     revalidateSeconds?: number | false,
-    fetchCache?: boolean
+    fetchCache?: boolean,
+    originUrl?: string,
+    fetchIdx?: number
   ) {
     if (this.dev && !fetchCache) return
     // fetchCache has upper limit of 2MB per-entry currently
@@ -374,7 +394,13 @@ export class IncrementalCache {
           initialRevalidateSeconds: revalidateSeconds,
         }
       }
-      await this.cacheHandler?.set(pathname, data, fetchCache)
+      await this.cacheHandler?.set(
+        pathname,
+        data,
+        fetchCache,
+        originUrl,
+        fetchIdx
+      )
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }

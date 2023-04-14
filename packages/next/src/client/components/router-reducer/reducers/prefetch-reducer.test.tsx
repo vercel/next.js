@@ -124,7 +124,12 @@ describe('prefetchReducer', () => {
     })
 
     const url = new URL('/linking/about', 'https://localhost')
-    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const serverResponse = await fetchServerResponse(
+      url,
+      initialTree,
+      null,
+      true
+    )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
@@ -168,6 +173,7 @@ describe('prefetchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
       cache: {
@@ -195,6 +201,7 @@ describe('prefetchReducer', () => {
         undefined,
         true,
       ],
+      nextUrl: '/linking',
     }
 
     expect(newState).toMatchObject(expectedState)
@@ -262,7 +269,12 @@ describe('prefetchReducer', () => {
     })
 
     const url = new URL('/linking/about', 'https://localhost')
-    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const serverResponse = await fetchServerResponse(
+      url,
+      initialTree,
+      null,
+      true
+    )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
@@ -308,6 +320,7 @@ describe('prefetchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
       cache: {
@@ -335,6 +348,7 @@ describe('prefetchReducer', () => {
         undefined,
         true,
       ],
+      nextUrl: '/linking',
     }
 
     expect(newState).toMatchObject(expectedState)

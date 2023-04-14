@@ -45,7 +45,7 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata
 ) {
   if (!staticFilesMetadata) return
-  const { icon, apple, openGraph, twitter } = staticFilesMetadata
+  const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
   if (icon || apple) {
     metadata.icons = {
       icon: icon || [],
@@ -66,6 +66,9 @@ function mergeStaticMetadata(
       metadata.metadataBase
     )
     metadata.openGraph = resolvedOpenGraph
+  }
+  if (manifest) {
+    metadata.manifest = manifest
   }
 
   return metadata
@@ -249,6 +252,7 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
     apple,
     openGraph,
     twitter,
+    manifest: metadata.manifest,
   }
 
   return staticMetadata
@@ -257,13 +261,13 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata({
   loaderTree,
+  metadataItems: array,
   props,
-  array,
   route,
 }: {
   loaderTree: LoaderTree
+  metadataItems: MetadataItems
   props: any
-  array: MetadataItems
   route: string
 }) {
   const [mod, modType] = await getLayoutOrPageModule(loaderTree)
@@ -289,7 +293,6 @@ export async function accumulateMetadata(
   options: MetadataAccumulationOptions
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
-
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 

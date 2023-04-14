@@ -1098,7 +1098,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16-core-oss
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: 'vercel'
@@ -1152,6 +1152,10 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: node scripts/normalize-version-bump.js
 
+      - name: Make more disk space
+        continue-on-error: true
+        run: sudo rm -rf /usr/local/lib/android
+
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -1162,6 +1166,8 @@ jobs:
           run: |
             set -e &&
             export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
+            export CARGO_PROFILE_DEV_INCREMENTAL=false &&
+            export CARGO_PROFILE_DEV_STRIP=true &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
             rustup target add x86_64-unknown-linux-gnu &&
@@ -1185,7 +1191,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-core-oss
 
     steps:
       - uses: actions/checkout@v3

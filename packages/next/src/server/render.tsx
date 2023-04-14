@@ -92,6 +92,7 @@ import { SearchParamsContext } from '../shared/lib/hooks-client-context'
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { PageNotFoundError } from '../shared/lib/utils'
+import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -979,7 +980,7 @@ export async function renderToHTML(
     let deferredContent = false
     if (process.env.NODE_ENV !== 'production') {
       resOrProxy = new Proxy<ServerResponse>(res, {
-        get: function (obj, prop, receiver) {
+        get: function (obj, prop) {
           if (!canAccessRes) {
             const message =
               `You should not access 'res' after getServerSideProps resolves.` +
@@ -991,15 +992,12 @@ export async function renderToHTML(
               warn(message)
             }
           }
-          const value = Reflect.get(obj, prop, receiver)
 
-          // since ServerResponse uses internal fields which
-          // proxy can't map correctly we need to ensure functions
-          // are bound correctly while being proxied
-          if (typeof value === 'function') {
-            return value.bind(obj)
+          if (typeof prop === 'symbol') {
+            return ReflectAdapter.get(obj, prop, res)
           }
-          return value
+
+          return ReflectAdapter.get(obj, prop, res)
         },
       })
     }

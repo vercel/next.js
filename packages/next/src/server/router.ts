@@ -27,7 +27,6 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import type { I18NProvider } from './future/helpers/i18n-provider'
 import { getTracer } from './lib/trace/tracer'
 import { RouterSpan } from './lib/trace/constants'
-import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 
 type RouteResult = {
   finished: boolean
@@ -84,7 +83,7 @@ export default class Router {
   private readonly headers: ReadonlyArray<Route>
   private readonly fsRoutes: Route[]
   private readonly redirects: ReadonlyArray<Route>
-  private readonly rewrites: {
+  private rewrites: {
     beforeFiles: ReadonlyArray<Route>
     afterFiles: ReadonlyArray<Route>
     fallback: ReadonlyArray<Route>
@@ -145,6 +144,11 @@ export default class Router {
     this.needsRecompilation = true
   }
 
+  public setRewrites(rewrites: RouterOptions['rewrites']) {
+    this.rewrites = rewrites
+    this.needsRecompilation = true
+  }
+
   public addFsRoute(fsRoute: Route) {
     // We use unshift so that we're sure the routes is defined before Next's
     // default routes.
@@ -200,7 +204,6 @@ export default class Router {
                   // not include dynamic matches.
                   skipDynamic: true,
                   i18n: this.i18nProvider?.analyze(pathname),
-                  referrer: parseNextReferrerFromHeaders(req.headers),
                 }
 
                 // If the locale was inferred from the default, we should mark
@@ -353,19 +356,17 @@ export default class Router {
     // we only honor this header if we are inside of a render worker to
     // prevent external users coercing the routing path
     const matchedPath = req.headers['x-invoke-path'] as string
-    const curRoutes = matchedPath
-      ? this.compiledRoutes.filter((r) => {
-          return (
-            r.name === 'Catchall render' || r.name === '_next/data catchall'
-          )
-        })
-      : this.compiledRoutes
+    let curRoutes = this.compiledRoutes
 
     if (
       process.env.NEXT_RUNTIME !== 'edge' &&
       process.env.__NEXT_PRIVATE_RENDER_WORKER &&
       matchedPath
     ) {
+      curRoutes = this.compiledRoutes.filter((r) => {
+        return r.name === 'Catchall render' || r.name === '_next/data catchall'
+      })
+
       const parsedMatchedPath = new URL(matchedPath || '/', 'http://n')
 
       const pathnameInfo = getNextPathnameInfo(parsedMatchedPath.pathname, {

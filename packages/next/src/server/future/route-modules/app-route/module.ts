@@ -1,4 +1,3 @@
-import type { Params } from '../../../../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from '../../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppConfig } from '../../../../build/utils'
@@ -45,8 +44,8 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
  * AppRouteHandlerFnContext is the context that is passed to the handler as the
  * second argument.
  */
-interface AppRouteHandlerFnContext {
-  params?: Params
+type AppRouteHandlerFnContext = {
+  params?: Record<string, string | string[]>
 }
 
 /**
@@ -56,13 +55,13 @@ export type AppRouteHandlerFn = (
   /**
    * Incoming request object.
    */
-  req: Request,
+  req: NextRequest,
   /**
    * Context properties on the request (including the parameters if this was a
    * dynamic route).
    */
   ctx: AppRouteHandlerFnContext
-) => Response
+) => Promise<Response> | Response
 
 /**
  * AppRouteHandlers describes the handlers for app routes that is provided by
@@ -278,7 +277,9 @@ export class AppRouteRouteModule extends RouteModule<
                 // The dynamic property is set to force-dynamic, so we should
                 // force the page to be dynamic.
                 staticGenerationStore.forceDynamic = true
-                this.staticGenerationBailout(`dynamic = 'force-dynamic'`)
+                this.staticGenerationBailout(`force-dynamic`, {
+                  dynamic: this.dynamic,
+                })
                 break
               case 'force-static':
                 // The dynamic property is set to force-static, so we should

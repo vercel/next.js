@@ -29,5 +29,8 @@
   },
   "peerDependencies": {
     "react": "18.3.0-next-b14f8da15-20230403"
+  },
+  "browser": {
+    "./server.js": "./server.browser.js"
   }
 }

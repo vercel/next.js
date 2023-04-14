@@ -25,7 +25,7 @@ export function patchFetch({
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) => {
-    let url
+    let url: URL | undefined
     try {
       url = new URL(input instanceof Request ? input.url : input)
       url.username = ''
@@ -163,6 +163,7 @@ export function patchFetch({
           !autoNoCache &&
           (typeof staticGenerationStore.revalidate === 'undefined' ||
             (typeof revalidate === 'number' &&
+              typeof staticGenerationStore.revalidate === 'number' &&
               revalidate < staticGenerationStore.revalidate))
         ) {
           staticGenerationStore.revalidate = revalidate
@@ -222,25 +223,26 @@ export function patchFetch({
           }
         }
 
+        const originUrl = url?.toString() ?? ''
+        const fetchIdx = staticGenerationStore.nextFetchId ?? 1
+        staticGenerationStore.nextFetchId = fetchIdx + 1
+
         const doOriginalFetch = async () => {
-          return originFetch(input, init).then(async (res) => {
+          // add metadata to init without editing the original
+          const clonedInit = {
+            ...init,
+            next: { ...init?.next, fetchType: 'origin', fetchIdx, originUrl },
+          }
+
+          return originFetch(input, clonedInit).then(async (res) => {
             if (
+              res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
               typeof revalidate === 'number' &&
               revalidate > 0
             ) {
-              let base64Body = ''
-              const resBlob = await res.blob()
-              const arrayBuffer = await resBlob.arrayBuffer()
-
-              if (process.env.NEXT_RUNTIME === 'edge') {
-                const { encode } =
-                  require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
-                base64Body = encode(arrayBuffer)
-              } else {
-                base64Body = Buffer.from(arrayBuffer).toString('base64')
-              }
+              const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
               try {
                 await staticGenerationStore.incrementalCache.set(
@@ -249,20 +251,22 @@ export function patchFetch({
                     kind: 'FETCH',
                     data: {
                       headers: Object.fromEntries(res.headers.entries()),
-                      body: base64Body,
+                      body: bodyBuffer.toString('base64'),
                       status: res.status,
                     },
                     revalidate,
                   },
                   revalidate,
-                  true
+                  true,
+                  originUrl,
+                  fetchIdx
                 )
               } catch (err) {
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(resBlob, {
-                headers: res.headers,
+              return new Response(bodyBuffer, {
+                headers: new Headers(res.headers),
                 status: res.status,
               })
             }
@@ -276,7 +280,9 @@ export function patchFetch({
             : await staticGenerationStore.incrementalCache.get(
                 cacheKey,
                 true,
-                revalidate
+                revalidate,
+                originUrl,
+                fetchIdx
               )
 
           if (entry?.value && entry.value.kind === 'FETCH') {

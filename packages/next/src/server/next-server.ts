@@ -24,6 +24,7 @@ import {
   Params,
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
+import type { RouteMatch } from './future/route-matches/route-match'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -100,7 +101,6 @@ import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { parseNextReferrerFromHeaders } from './lib/parse-next-referrer'
 import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { filterReqHeaders, invokeRequest } from './lib/server-ipc'
@@ -234,7 +234,7 @@ export default class NextNodeServer extends BaseServer {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    if (!options.dev) {
+    if (!options.dev && !this.nextConfig.experimental.appDocumentPreloading) {
       // pre-warm _document and _app as these will be
       // needed for most requests
       loadComponents({
@@ -1363,7 +1363,6 @@ export default class NextNodeServer extends BaseServer {
 
         const options: MatchOptions = {
           i18n: this.i18nProvider?.fromQuery(pathname, query),
-          referrer: parseNextReferrerFromHeaders(req.headers),
         }
 
         const match = await this.matchers.match(pathname, options)
@@ -1435,6 +1434,7 @@ export default class NextNodeServer extends BaseServer {
             const invokeHeaders: typeof req.headers = {
               'cache-control': '',
               ...req.headers,
+              'x-middleware-invoke': '',
               'x-invoke-path': invokePathname,
               'x-invoke-query': encodeURIComponent(invokeQuery),
             }
@@ -1522,6 +1522,7 @@ export default class NextNodeServer extends BaseServer {
                 query,
                 params: match.params,
                 page: match.definition.page,
+                match,
                 appPaths: null,
               })
 
@@ -2078,7 +2079,6 @@ export default class NextNodeServer extends BaseServer {
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.analyze(normalizedPathname),
-      referrer: parseNextReferrerFromHeaders(params.request.headers),
     }
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
@@ -2101,7 +2101,10 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const page: { name?: string; params?: { [key: string]: string } } = {}
+    const page: {
+      name?: string
+      params?: { [key: string]: string | string[] }
+    } = {}
 
     const match = await this.matchers.match(normalizedPathname, options)
     if (match) {
@@ -2255,6 +2258,8 @@ export default class NextNodeServer extends BaseServer {
 
                 const invokeHeaders: typeof req.headers = {
                   ...req.headers,
+                  'x-invoke-path': '',
+                  'x-invoke-query': '',
                   'x-middleware-invoke': '1',
                 }
                 const invokeRes = await invokeRequest(
@@ -2566,13 +2571,15 @@ export default class NextNodeServer extends BaseServer {
     params: Params | undefined
     page: string
     appPaths: string[] | null
+    match?: RouteMatch
     onWarning?: (warning: Error) => void
   }): Promise<FetchEventResult | null> {
     let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
 
-    const { query, page } = params
+    const { query, page, match } = params
 
-    await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
+    if (!match)
+      await this.ensureEdgeFunction({ page, appPaths: params.appPaths })
     edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,

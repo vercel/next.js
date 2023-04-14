@@ -20,7 +20,6 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 
 export type AppLoaderOptions = {
   name: string
@@ -238,6 +237,7 @@ async function createTreeCodeFromPath(
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
     const isRootLayer = segments.length === 0
+    const isRootLayoutOrRootPage = segments.length <= 1
 
     // We need to resolve all parallel routes in this level.
     const parallelSegments: [key: string, segment: string | string[]][] = []
@@ -255,9 +255,9 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
-          route: normalizeAppPath(segmentPath),
+          segment: segmentPath,
           resolvePath,
-          isRootLayer,
+          isRootLayoutOrRootPage,
           loaderContext,
           pageExtensions,
         })
@@ -348,7 +348,7 @@ async function createTreeCodeFromPath(
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
-          ${definedFilePaths.length ? createMetadataExportsCode(metadata) : ''}
+          ${createMetadataExportsCode(metadata)}
         }
       ]`
     }

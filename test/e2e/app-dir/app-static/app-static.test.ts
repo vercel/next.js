@@ -22,12 +22,6 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
-    // TODO: remove after v16 is officially deprecated
-    if (process.version.startsWith('v16.')) {
-      it('should skip for v16 node.js', () => {})
-      return
-    }
-
     let prerenderManifest
 
     beforeAll(async () => {
@@ -54,6 +48,16 @@ createNextDescribe(
           'A required parameter (slug) was not provided as a string received object'
         )
       })
+
+      it('should correctly handle multi-level generateStaticParams when some levels are missing', async () => {
+        const browser = await next.browser('/flight/foo/bar')
+        const v = ~~(Math.random() * 1000)
+        await browser.eval(`document.cookie = "test-cookie=${v}"`)
+        await browser.elementByCss('button').click()
+        await check(async () => {
+          return await browser.elementByCss('h1').text()
+        }, v.toString())
+      })
     }
 
     it('should correctly skip caching POST fetch for POST handler', async () => {
@@ -77,7 +81,7 @@ createNextDescribe(
     })
 
     // On-Demand Revalidate has not effect in dev
-    if (!(global as any).isNextDev) {
+    if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
       it('should revalidate all fetches during on-demand revalidate', async () => {
         const initRes = await next.fetch('/variable-revalidate/revalidate-360')
         const html = await initRes.text()
@@ -93,16 +97,19 @@ createNextDescribe(
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
-        const newRes = await next.fetch('/variable-revalidate/revalidate-360')
-        const newHtml = await newRes.text()
-        const new$ = cheerio.load(newHtml)
-        const newLayoutData = new$('#layout-data').text()
-        const newPageData = new$('#page-data').text()
+        await check(async () => {
+          const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+          const newHtml = await newRes.text()
+          const new$ = cheerio.load(newHtml)
+          const newLayoutData = new$('#layout-data').text()
+          const newPageData = new$('#page-data').text()
 
-        expect(newLayoutData).toBeTruthy()
-        expect(newPageData).toBeTruthy()
-        expect(newLayoutData).not.toBe(initLayoutData)
-        expect(newPageData).not.toBe(initPageData)
+          expect(newLayoutData).toBeTruthy()
+          expect(newPageData).toBeTruthy()
+          expect(newLayoutData).not.toBe(initLayoutData)
+          expect(newPageData).not.toBe(initPageData)
+          return 'success'
+        }, 'success')
       })
     }
 
@@ -168,13 +175,13 @@ createNextDescribe(
       })
     }
 
-    it('should include statusCode in cache', async () => {
-      const $ = await next.render$('/variable-revalidate/status-code')
-      const origData = JSON.parse($('#page-data').text())
-
-      expect(origData.status).toBe(404)
-
+    it('should not cache non-ok statusCode', async () => {
       await check(async () => {
+        const $ = await next.render$('/variable-revalidate/status-code')
+        const origData = JSON.parse($('#page-data').text())
+
+        expect(origData.status).toBe(404)
+
         const new$ = await next.render$('/variable-revalidate/status-code')
         const newData = JSON.parse(new$('#page-data').text())
         expect(newData.status).toBe(origData.status)
@@ -219,6 +226,7 @@ createNextDescribe(
           'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug]/page.js',
+          'flight/[slug]/[slug2]/page.js',
           'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
           'force-dynamic-no-prerender/[id]/page.js',
           'force-dynamic-prerender/[slug]/page.js',
@@ -288,6 +296,7 @@ createNextDescribe(
           'variable-config-revalidate/revalidate-3.html',
           'variable-config-revalidate/revalidate-3.rsc',
           'variable-config-revalidate/revalidate-3/page.js',
+          'variable-revalidate-edge/body/page.js',
           'variable-revalidate-edge/encoding/page.js',
           'variable-revalidate-edge/no-store/page.js',
           'variable-revalidate-edge/post-method-request/page.js',
@@ -313,8 +322,6 @@ createNextDescribe(
           'variable-revalidate/revalidate-360.html',
           'variable-revalidate/revalidate-360.rsc',
           'variable-revalidate/revalidate-360/page.js',
-          'variable-revalidate/status-code.html',
-          'variable-revalidate/status-code.rsc',
           'variable-revalidate/status-code/page.js',
         ])
       })
@@ -530,11 +537,6 @@ createNextDescribe(
             initialRevalidateSeconds: 10,
             srcRoute: '/variable-revalidate/revalidate-360',
           },
-          '/variable-revalidate/status-code': {
-            dataRoute: '/variable-revalidate/status-code.rsc',
-            initialRevalidateSeconds: 3,
-            srcRoute: '/variable-revalidate/status-code',
-          },
         })
         expect(curManifest.dynamicRoutes).toEqual({
           '/blog/[author]/[slug]': {
@@ -599,16 +601,6 @@ createNextDescribe(
             fallback: false,
             routeRegex: normalizeRegEx(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
-            ),
-          },
-          '/partial-gen-params/[lang]/[slug]': {
-            dataRoute: '/partial-gen-params/[lang]/[slug].rsc',
-            dataRouteRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$'
-            ),
-            fallback: null,
-            routeRegex: normalizeRegEx(
-              '^\\/partial\\-gen\\-params\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
           },
           '/force-static/[slug]': {
@@ -1161,6 +1153,35 @@ createNextDescribe(
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate-edge/encoding'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should cache correctly handle JSON body', async () => {
+      await check(async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
+        )
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        expect(pageData).toBe('{"hello":"world"}')
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/body'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()

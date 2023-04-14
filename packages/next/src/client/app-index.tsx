@@ -239,7 +239,9 @@ export function hydrate() {
             focusAndScrollRef: {
               apply: false,
               hashFragment: null,
+              segmentPaths: [],
             },
+            nextUrl: null,
           }}
         >
           <HotReload

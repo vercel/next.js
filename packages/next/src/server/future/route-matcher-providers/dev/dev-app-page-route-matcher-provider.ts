@@ -2,11 +2,7 @@ import { FileReader } from './helpers/file-reader/file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
-import {
-  extractInterceptionRouteInformation,
-  isIntersectionRouteAppPath,
-} from '../../helpers/interception-routes'
-import { AppPageInterceptingRouteMatcher } from '../../route-matchers/app-intercepting-route-matcher'
+
 import { DevAppNormalizers } from '../../normalizers/built/app'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
@@ -69,33 +65,16 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       }
       const { pathname, page, bundlePath } = cached
 
-      if (isIntersectionRouteAppPath(pathname)) {
-        const { interceptingRoute, interceptedRoute } =
-          extractInterceptionRouteInformation(pathname)
-        matchers.push(
-          new AppPageInterceptingRouteMatcher({
-            kind: RouteKind.APP_PAGE,
-            pathname: interceptedRoute,
-            page,
-            bundlePath,
-            filename,
-            appPaths: appPaths[pathname],
-            interceptingRoute: interceptingRoute,
-            pathnameOverride: pathname,
-          })
-        )
-      } else {
-        matchers.push(
-          new AppPageRouteMatcher({
-            kind: RouteKind.APP_PAGE,
-            pathname,
-            page,
-            bundlePath,
-            filename,
-            appPaths: appPaths[pathname],
-          })
-        )
-      }
+      matchers.push(
+        new AppPageRouteMatcher({
+          kind: RouteKind.APP_PAGE,
+          pathname,
+          page,
+          bundlePath,
+          filename,
+          appPaths: appPaths[pathname],
+        })
+      )
     }
     return matchers
   }

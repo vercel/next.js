@@ -80,5 +80,4 @@ declare module "CLIENT_CHUNKS" {
   export default moduleId;
 
   export const chunks: any[];
-  export const chunkListPath: string;
 }

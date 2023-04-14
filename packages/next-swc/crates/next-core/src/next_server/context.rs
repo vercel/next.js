@@ -32,8 +32,8 @@ use crate::{
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
     transform_options::{
-        get_decorators_transform_options, get_jsx_transform_options,
-        get_typescript_transform_options,
+        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
 };
@@ -234,7 +234,10 @@ pub async fn get_server_module_options_context(
 
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
-    let jsx_runtime_options = get_jsx_transform_options(project_path);
+    let mdx_rs_options = *next_config.mdx_rs().await?;
+    let jsx_runtime_options = get_jsx_transform_options(project_path, mdx_rs_options);
+    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
+    let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -245,9 +248,12 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -259,15 +265,23 @@ pub async fn get_server_module_options_context(
         }
         ServerContextType::AppSSR { .. } => {
             let module_options_context = ModuleOptionsContext {
+                custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+                    // ServerDirective is not implemented yet and always reports an issue.
+                    // We don't have to pass a valid transition name yet, but the API is prepared.
+                    StringVc::cell("TODO".to_string()),
+                )],
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_styled_jsx: true,
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -279,17 +293,28 @@ pub async fn get_server_module_options_context(
         }
         ServerContextType::AppRSC { .. } => {
             let module_options_context = ModuleOptionsContext {
-                custom_ecmascript_transforms: vec![EcmascriptInputTransform::ClientDirective(
-                    StringVc::cell("server-to-client".to_string()),
-                )],
+                custom_ecmascript_transforms: vec![
+                    EcmascriptInputTransform::ClientDirective(StringVc::cell(
+                        "server-to-client".to_string(),
+                    )),
+                    EcmascriptInputTransform::ServerDirective(
+                        // ServerDirective is not implemented yet and always reports an issue.
+                        // We don't have to pass a valid transition name yet, but the API is
+                        // prepared.
+                        StringVc::cell("TODO".to_string()),
+                    ),
+                ],
                 execution_context: Some(execution_context),
                 ..Default::default()
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
+                enable_emotion,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -308,6 +333,7 @@ pub async fn get_server_module_options_context(
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,
@@ -324,10 +350,13 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
+                enable_emotion,
                 enable_styled_jsx: true,
+                enable_styled_components,
                 enable_postcss_transform,
                 enable_webpack_loaders,
                 enable_typescript_transform: Some(tsconfig),
+                enable_mdx_rs: mdx_rs_options,
                 decorators: Some(decorators_options),
                 rules: vec![(
                     foreign_code_context_condition,

@@ -32,6 +32,24 @@ type MultiMetaContent =
   | null
   | undefined
 
+function camelToSnake(camelCaseStr: string) {
+  return camelCaseStr.replace(/([A-Z])/g, function (match) {
+    return '_' + match.toLowerCase()
+  })
+}
+
+function getMetaKey(prefix: string, key: string) {
+  // Use `twitter:image` and `og:image` instead of `twitter:image:url` and `og:image:url`
+  // to be more compatible as it's a more common format
+  if ((prefix === 'og:image' || prefix === 'twitter:image') && key === 'url') {
+    return prefix
+  }
+  if (prefix.startsWith('og:') || prefix.startsWith('twitter:')) {
+    key = camelToSnake(key)
+  }
+  return prefix + ':' + key
+}
+
 function ExtendMeta({
   content,
   namePrefix,
@@ -49,15 +67,8 @@ function ExtendMeta({
         return typeof v === 'undefined' ? null : (
           <Meta
             key={keyPrefix + ':' + k + '_' + index}
-            {...(propertyPrefix
-              ? // Use `og:image` instead of `og:image:url` to be more compatible as it's a more common format
-                {
-                  property:
-                    propertyPrefix === 'og:image' && k === 'url'
-                      ? 'og:image'
-                      : propertyPrefix + ':' + k,
-                }
-              : { name: namePrefix + ':' + k })}
+            {...(propertyPrefix && { property: getMetaKey(propertyPrefix, k) })}
+            {...(namePrefix && { name: getMetaKey(namePrefix, k) })}
             content={typeof v === 'string' ? v : v?.toString()}
           />
         )

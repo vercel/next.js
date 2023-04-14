@@ -187,8 +187,10 @@ describe('serverPatchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/somewhere-else',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -381,8 +383,10 @@ describe('serverPatchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/about',
       cache: {
         status: CacheStates.READY,
         data: null,
@@ -554,8 +558,12 @@ describe('serverPatchReducer', () => {
       focusAndScrollRef: {
         apply: true,
         hashFragment: null,
+        segmentPaths: [
+          ['children', 'linking', 'children', 'about', 'children', ''],
+        ],
       },
       canonicalUrl: '/linking/about',
+      nextUrl: '/linking/somewhere-else',
       cache: {
         status: CacheStates.READY,
         data: null,
