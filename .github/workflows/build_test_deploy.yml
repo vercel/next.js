@@ -1098,7 +1098,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-16-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: 'vercel'
@@ -1191,7 +1191,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-8-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
 
     steps:
       - uses: actions/checkout@v3
@@ -1215,7 +1215,7 @@ jobs:
 
   test-native-integration:
     name: Integration Test Native Code
-    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-16-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: build
 
     env:
@@ -1253,7 +1253,7 @@ jobs:
 
   test-bench-native-integration:
     name: Bench Integration Test Native Code
-    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]-16-core-oss
+    runs-on: [self-hosted, open-fire-ubuntu-18-04-4vcpu]
     needs: build
 
     env:
