@@ -10,6 +10,7 @@ autobenches = false
 name = "next-build"
 path = "src/main.rs"
 bench = false
+required-features = ["cli"]
 
 [lib]
 bench = false

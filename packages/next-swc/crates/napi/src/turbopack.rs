@@ -3,8 +3,12 @@ use std::{
     path::PathBuf,
 };
 
+use anyhow::Context;
 use napi::bindgen_prelude::*;
-use next_build::{build as turbo_next_build, BuildOptions as NextBuildOptions};
+use next_build::{
+    build as turbo_next_build, build_options::BuildContext, BuildOptions as NextBuildOptions,
+};
+use next_core::next_config::{Rewrite, Rewrites, RouteHas};
 use next_dev::{devserver_options::DevServerOptions, start_server};
 
 use crate::util::MapErr;
@@ -25,79 +29,9 @@ pub struct NextBuildContext {
     pub build_id: Option<String>,
     // pub app_dir: Option<String>,
     // pub pages_dir: Option<String>,
-    // pub rewrites: Option<Rewrites>,
+    pub rewrites: Option<NapiRewrites>,
     // pub original_rewrites: Option<Rewrites>,
     // pub original_redirects: Option<Vec<Redirect>>,
-}
-
-#[napi(object, object_to_js = false)]
-#[derive(Debug)]
-pub struct Rewrites {
-    pub fallback: Vec<Rewrite>,
-    pub after_files: Vec<Rewrite>,
-    pub before_files: Vec<Rewrite>,
-}
-
-#[napi(object, object_to_js = false)]
-#[derive(Debug)]
-pub struct Rewrite {
-    pub source: String,
-    pub destination: String,
-}
-
-#[napi(object, object_to_js = false)]
-#[derive(Debug)]
-pub struct Redirect {
-    pub source: String,
-    pub destination: String,
-    pub permanent: Option<bool>,
-    pub status_code: Option<u32>,
-    pub has: Option<RouteHas>,
-    pub missing: Option<RouteHas>,
-}
-
-#[derive(Debug)]
-pub struct RouteHas {
-    pub r#type: RouteType,
-    pub key: Option<String>,
-    pub value: Option<String>,
-}
-
-#[derive(Debug)]
-pub enum RouteType {
-    Header,
-    Query,
-    Cookie,
-    Host,
-}
-
-impl TryFrom<String> for RouteType {
-    type Error = napi::Error;
-
-    fn try_from(value: String) -> Result<Self> {
-        match value.as_str() {
-            "header" => Ok(RouteType::Header),
-            "query" => Ok(RouteType::Query),
-            "cookie" => Ok(RouteType::Cookie),
-            "host" => Ok(RouteType::Host),
-            _ => Err(napi::Error::new(
-                napi::Status::InvalidArg,
-                "Invalid route type",
-            )),
-        }
-    }
-}
-
-impl FromNapiValue for RouteHas {
-    unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
-        let object = Object::from_napi_value(env, napi_val)?;
-        let r#type = object.get_named_property::<String>("type")?;
-        Ok(RouteHas {
-            r#type: RouteType::try_from(r#type)?,
-            key: object.get("key")?,
-            value: object.get("value")?,
-        })
-    }
 }
 
 impl TryFrom<NextBuildContext> for NextBuildOptions {
@@ -107,14 +41,131 @@ impl TryFrom<NextBuildContext> for NextBuildOptions {
         Ok(Self {
             dir: value.dir.map(PathBuf::try_from).transpose()?,
             root: value.root.map(PathBuf::try_from).transpose()?,
-            build_id: value.build_id,
-            display_version: false,
             log_level: None,
             show_all: true,
             log_detail: true,
             full_stats: true,
             memory_limit: None,
+            build_context: Some(BuildContext {
+                build_id: value
+                    .build_id
+                    .context("NextBuildContext must provide a build ID")?,
+                rewrites: value
+                    .rewrites
+                    .context("NextBuildContext must provide rewrites")?
+                    .into(),
+            }),
         })
+    }
+}
+
+/// Keep in sync with [`next_core::next_config::Rewrites`]
+#[napi(object, object_to_js = false)]
+#[derive(Debug)]
+pub struct NapiRewrites {
+    pub fallback: Vec<NapiRewrite>,
+    pub after_files: Vec<NapiRewrite>,
+    pub before_files: Vec<NapiRewrite>,
+}
+
+impl Into<Rewrites> for NapiRewrites {
+    fn into(self) -> Rewrites {
+        Rewrites {
+            fallback: self
+                .fallback
+                .into_iter()
+                .map(|rewrite| rewrite.into())
+                .collect(),
+            after_files: self
+                .after_files
+                .into_iter()
+                .map(|rewrite| rewrite.into())
+                .collect(),
+            before_files: self
+                .before_files
+                .into_iter()
+                .map(|rewrite| rewrite.into())
+                .collect(),
+        }
+    }
+}
+
+/// Keep in sync with [`next_core::next_config::Rewrite`]
+#[napi(object, object_to_js = false)]
+#[derive(Debug)]
+pub struct NapiRewrite {
+    pub source: String,
+    pub destination: String,
+    pub base_path: Option<bool>,
+    pub locale: Option<bool>,
+    pub has: Option<Vec<NapiRouteHas>>,
+    pub missing: Option<Vec<NapiRouteHas>>,
+}
+
+impl Into<Rewrite> for NapiRewrite {
+    fn into(self) -> Rewrite {
+        Rewrite {
+            source: self.source,
+            destination: self.destination,
+            base_path: self.base_path,
+            locale: self.locale,
+            has: self
+                .has
+                .map(|has| has.into_iter().map(|has| has.into()).collect()),
+            missing: self
+                .missing
+                .map(|missing| missing.into_iter().map(|missing| missing.into()).collect()),
+        }
+    }
+}
+
+/// Keep in sync with [`next_core::next_config::RouteHas`]
+#[derive(Debug)]
+pub enum NapiRouteHas {
+    Header { key: String, value: Option<String> },
+    Query { key: String, value: Option<String> },
+    Cookie { key: String, value: Option<String> },
+    Host { value: String },
+}
+
+impl FromNapiValue for NapiRouteHas {
+    unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
+        let object = Object::from_napi_value(env, napi_val)?;
+        let type_ = object.get_named_property::<String>("type")?;
+        Ok(match type_.as_str() {
+            "header" => NapiRouteHas::Header {
+                key: object.get_named_property("key")?,
+                value: object.get_named_property("value")?,
+            },
+            "query" => NapiRouteHas::Query {
+                key: object.get_named_property("key")?,
+                value: object.get_named_property("value")?,
+            },
+            "cookie" => NapiRouteHas::Cookie {
+                key: object.get_named_property("key")?,
+                value: object.get_named_property("value")?,
+            },
+            "host" => NapiRouteHas::Host {
+                value: object.get_named_property("value")?,
+            },
+            _ => {
+                return Err(napi::Error::new(
+                    Status::GenericFailure,
+                    format!("invalid type for RouteHas: {}", type_),
+                ))
+            }
+        })
+    }
+}
+
+impl Into<RouteHas> for NapiRouteHas {
+    fn into(self) -> RouteHas {
+        match self {
+            NapiRouteHas::Header { key, value } => RouteHas::Header { key, value },
+            NapiRouteHas::Query { key, value } => RouteHas::Query { key, value },
+            NapiRouteHas::Cookie { key, value } => RouteHas::Cookie { key, value },
+            NapiRouteHas::Host { value } => RouteHas::Host { value },
+        }
     }
 }
 

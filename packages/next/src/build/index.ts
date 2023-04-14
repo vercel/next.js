@@ -960,8 +960,7 @@ export default async function build(
           })
         }
         await binding.turbo.nextBuild({
-          dir: NextBuildContext.dir,
-          buildId: NextBuildContext.buildId,
+          ...NextBuildContext,
           root,
         })
 

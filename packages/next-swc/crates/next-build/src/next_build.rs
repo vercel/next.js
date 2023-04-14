@@ -7,11 +7,13 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use dunce::canonicalize;
 use next_core::{
+    self,
     env::load_env,
     mode::NextMode,
-    next_config::{load_next_config, NextConfigVc},
+    next_config::{load_next_config, Rewrites},
     pages_structure::find_pages_structure,
-    turbopack::core::chunk::{ChunkingContext, EvaluatableAssetsVc},
+    turbopack::ecmascript::utils::StringifyJs,
+    url_node::get_sorted_routes,
 };
 use serde::Serialize;
 use turbo_binding::{
@@ -19,7 +21,7 @@ use turbo_binding::{
     turbopack::{
         cli_utils::issue::{ConsoleUiVc, LogOptions},
         core::{
-            asset::{Asset, AssetVc, AssetsVc},
+            asset::{Asset, AssetVc},
             environment::ServerAddrVc,
             issue::{IssueReporter, IssueReporterVc, IssueSeverity, IssueVc},
             virtual_fs::VirtualFileSystemVc,
@@ -36,7 +38,10 @@ use turbo_tasks::{
     Value, ValueToString,
 };
 
-use crate::{build_options::BuildOptions, next_pages::page_chunks::get_page_chunks};
+use crate::{
+    build_options::{BuildContext, BuildOptions},
+    next_pages::page_chunks::get_page_chunks,
+};
 
 #[turbo_tasks::function]
 pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Result<CompletionVc> {
@@ -70,10 +75,7 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
         current_dir: current_dir().unwrap(),
         show_all: options.show_all,
         log_detail: options.log_detail,
-        log_level: options
-            .log_level
-            .map(|l| l.0)
-            .unwrap_or(IssueSeverity::Warning),
+        log_level: options.log_level.unwrap_or(IssueSeverity::Warning),
     };
 
     let issue_reporter: IssueReporterVc =
@@ -331,16 +333,6 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                 .try_join()
                 .await?;
         }
-        // TODO(alexkirsz) These manifests should be assets.
-        let build_manifest = serde_json::to_string_pretty(&build_manifest)?;
-        let pages_manifest = serde_json::to_string_pretty(&pages_manifest)?;
-
-        build_manifest_path
-            .write(FileContent::Content(build_manifest.into()).cell())
-            .await?;
-        pages_manifest_path
-            .write(FileContent::Content(pages_manifest.into()).cell())
-            .await?;
 
         let middleware_manifest = serde_json::to_string_pretty(&MiddlewaresManifest {
             functions: HashMap::new(),
@@ -421,13 +413,20 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
             .write(FileContent::Content(app_build_manifest.into()).cell())
             .await?;
 
-        if let Some(build_id) = &options.build_id {
+        let sorted_pages =
+            get_sorted_routes(&pages_manifest.pages.keys().cloned().collect::<Vec<_>>())?;
+
+        if let Some(build_context) = &options.build_context {
+            let BuildContext { build_id, rewrites } = build_context;
+
             if debug {
                 eprintln!("Writing _ssgManifest.js for build id {}", build_id);
             }
 
-            let ssg_manifest_path = node_root.join(&format!("static/{build_id}/_ssgManifest.js"));
-            ssg_manifest_path
+            let ssg_manifest_path = format!("static/{build_id}/_ssgManifest.js");
+
+            let ssg_manifest_fs_path = node_root.join(&ssg_manifest_path);
+            ssg_manifest_fs_path
                 .write(
                     FileContent::Content(
                         "self.__SSG_MANIFEST=new \
@@ -437,7 +436,74 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
                     .cell(),
                 )
                 .await?;
+
+            build_manifest.low_priority_files.push(ssg_manifest_path);
+
+            let sorted_pages =
+                get_sorted_routes(&pages_manifest.pages.keys().cloned().collect::<Vec<_>>())?;
+
+            let app_dependencies: HashSet<&str> = pages_manifest
+                .pages
+                .get("/_app")
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+            let mut pages = HashMap::new();
+
+            for page in &sorted_pages {
+                if page == "_app" {
+                    continue;
+                }
+
+                let dependencies = pages_manifest
+                    .pages
+                    .get(page)
+                    .iter()
+                    .map(|dep| dep.as_str())
+                    .filter(|dep| !app_dependencies.contains(*dep))
+                    .collect::<Vec<_>>();
+
+                if !dependencies.is_empty() {
+                    pages.insert(page.to_string(), dependencies);
+                }
+            }
+
+            let client_manifest = ClientBuildManifest {
+                rewrites,
+                sorted_pages: &sorted_pages,
+                pages,
+            };
+
+            let client_manifest_path = format!("static/{build_id}/_buildManifest.js");
+
+            let client_manifest_fs_path = node_root.join(&client_manifest_path);
+            client_manifest_fs_path
+                .write(
+                    FileContent::Content(
+                        format!(
+                            "self.__BUILD_MANIFEST={};self.__BUILD_MANIFEST_CB && \
+                             self.__BUILD_MANIFEST_CB()",
+                            StringifyJs(&client_manifest)
+                        )
+                        .into(),
+                    )
+                    .cell(),
+                )
+                .await?;
+
+            build_manifest.low_priority_files.push(client_manifest_path);
         }
+
+        // TODO(alexkirsz) These manifests should be assets.
+        let build_manifest_contents = serde_json::to_string_pretty(&build_manifest)?;
+        let pages_manifest_contents = serde_json::to_string_pretty(&pages_manifest)?;
+
+        build_manifest_path
+            .write(FileContent::Content(build_manifest_contents.into()).cell())
+            .await?;
+        pages_manifest_path
+            .write(FileContent::Content(pages_manifest_contents.into()).cell())
+            .await?;
     }
 
     // let app_structure = find_app_structure(project_root, client_root,
@@ -448,13 +514,13 @@ pub(crate) async fn next_build(options: TransientInstance<BuildOptions>) -> Resu
     Ok(CompletionVc::immutable())
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 struct PagesManifest {
     #[serde(flatten)]
     pages: HashMap<String, String>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct BuildManifest {
     dev_files: Vec<String>,
@@ -465,7 +531,8 @@ struct BuildManifest {
     pages: HashMap<String, Vec<String>>,
     amp_first_pages: Vec<String>,
 }
-#[derive(Serialize, Default)]
+
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct MiddlewaresManifest {
     sorted_middleware: Vec<()>,
@@ -474,21 +541,21 @@ struct MiddlewaresManifest {
     version: u32,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ReactLoadableManifest {
     #[serde(flatten)]
     manifest: HashMap<String, ReactLoadableManifestEntry>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ReactLoadableManifestEntry {
     id: u32,
     files: Vec<String>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct NextFontManifest {
     pages: HashMap<String, Vec<String>>,
@@ -497,7 +564,7 @@ struct NextFontManifest {
     pages_using_size_adjust: bool,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct AppPathsManifest {
     #[serde(flatten)]
@@ -506,7 +573,7 @@ struct AppPathsManifest {
     node_server_app_paths: PagesManifest,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ServerReferenceManifest {
     #[serde(flatten)]
@@ -515,20 +582,20 @@ struct ServerReferenceManifest {
     edge_server_actions: ActionManifest,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ActionManifest {
     #[serde(flatten)]
     actions: HashMap<String, ActionManifestEntry>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ActionManifestEntry {
     workers: HashMap<String, ActionManifestWorkerEntry>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 enum ActionManifestWorkerEntry {
@@ -536,7 +603,7 @@ enum ActionManifestWorkerEntry {
     Number(f64),
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ClientReferenceManifest {
     client_modules: ManifestNode,
@@ -546,20 +613,20 @@ struct ClientReferenceManifest {
     css_files: HashMap<String, Vec<String>>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ClientCssReferenceManifest {
     css_imports: HashMap<String, Vec<String>>,
     css_modules: HashMap<String, Vec<String>>,
 }
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ManifestNode {
     #[serde(flatten)]
     module_exports: HashMap<String, ManifestNodeEntry>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct ManifestNodeEntry {
     id: ModuleId,
@@ -568,7 +635,7 @@ struct ManifestNodeEntry {
     r#async: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 enum ModuleId {
@@ -576,21 +643,34 @@ enum ModuleId {
     Number(f64),
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct FontManifest(Vec<FontManifestEntry>);
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct FontManifestEntry {
     url: String,
     content: String,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 struct AppBuildManifest {
     pages: HashMap<String, Vec<String>>,
+}
+
+// TODO(alexkirsz) Unify with the one for dev.
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ClientBuildManifest<'a> {
+    #[serde(rename = "__rewrites")]
+    rewrites: &'a Rewrites,
+
+    sorted_pages: &'a [String],
+
+    #[serde(flatten)]
+    pages: HashMap<String, Vec<&'a str>>,
 }
 
 #[turbo_tasks::function]

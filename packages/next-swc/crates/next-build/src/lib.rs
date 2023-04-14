@@ -8,8 +8,9 @@ pub(crate) mod next_build;
 pub(crate) mod next_pages;
 
 use anyhow::Result;
+use turbo_tasks::{StatsType, TurboTasksBackendApi};
 
-pub use crate::build_options::BuildOptions;
+pub use self::build_options::BuildOptions;
 
 pub async fn build(options: BuildOptions) -> Result<()> {
     #[cfg(feature = "tokio_console")]
@@ -19,6 +20,12 @@ pub async fn build(options: BuildOptions) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::new(
         options.memory_limit.map_or(usize::MAX, |l| l * 1024 * 1024),
     ));
+
+    let stats_type = match options.full_stats {
+        true => StatsType::Full,
+        false => StatsType::Essential,
+    };
+    tt.set_stats_type(stats_type);
 
     run_once(tt, async move {
         next_build::next_build(TransientInstance::new(options)).await?;
