@@ -141,7 +141,7 @@ describe('CLI Usage', () => {
       try {
         await check(() => stderr, /both `sass` and `node-sass` installed/)
       } finally {
-        await killApp(instance)
+        await killApp(instance).catch(() => {})
       }
     })
 

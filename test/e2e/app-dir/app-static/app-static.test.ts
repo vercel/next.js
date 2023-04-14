@@ -176,16 +176,18 @@ createNextDescribe(
     }
 
     it('should not cache non-ok statusCode', async () => {
-      const $ = await next.render$('/variable-revalidate/status-code')
-      require('console').error($.html())
-      const origData = JSON.parse($('#page-data').text())
+      await check(async () => {
+        const $ = await next.render$('/variable-revalidate/status-code')
+        const origData = JSON.parse($('#page-data').text())
 
-      expect(origData.status).toBe(404)
+        expect(origData.status).toBe(404)
 
-      const new$ = await next.render$('/variable-revalidate/status-code')
-      const newData = JSON.parse(new$('#page-data').text())
-      expect(newData.status).toBe(origData.status)
-      expect(newData.text).not.toBe(origData.text)
+        const new$ = await next.render$('/variable-revalidate/status-code')
+        const newData = JSON.parse(new$('#page-data').text())
+        expect(newData.status).toBe(origData.status)
+        expect(newData.text).not.toBe(origData.text)
+        return 'success'
+      }, 'success')
     })
 
     if (isNextStart) {

@@ -91,7 +91,6 @@ describe('Middleware development errors', () => {
 
     it('logs the error correctly', async () => {
       await fetchViaHTTP(context.appPort, '/')
-      const output = stripAnsi(context.logs.output)
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(`error - unhandledRejection: Error: async boom!`, 'm')
@@ -193,7 +192,6 @@ describe('Middleware development errors', () => {
 
     it('logs the error correctly', async () => {
       await fetchViaHTTP(context.appPort, '/')
-      const output = stripAnsi(context.logs.output)
       await check(
         () => stripAnsi(context.logs.output),
         new RegExp(`error - unhandledRejection: Error: you shall see me`, 'm')
