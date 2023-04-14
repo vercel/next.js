@@ -132,7 +132,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'clearImmediate',
   'setImmediate',
   'BroadcastChannel',
-  'Buffer',
   'ByteLengthQueuingStrategy',
   'CompressionStream',
   'CountQueuingStrategy',
@@ -144,8 +143,6 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'ReadableByteStreamController',
   'ReadableStreamBYOBRequest',
   'ReadableStreamDefaultController',
-  'TextDecoderStream',
-  'TextEncoderStream',
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]

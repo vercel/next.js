@@ -16,6 +16,7 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from '../../client/components/app-router-headers'
+import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 
 declare const _ENTRIES: any
 
@@ -69,6 +70,23 @@ export async function adapter(
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
   })
+
+  for (const key of requestUrl.searchParams.keys()) {
+    const value = requestUrl.searchParams.getAll(key)
+
+    if (
+      key !== NEXT_QUERY_PARAM_PREFIX &&
+      key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+    ) {
+      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+      requestUrl.searchParams.delete(normalizedKey)
+
+      for (const val of value) {
+        requestUrl.searchParams.append(normalizedKey, val)
+      }
+      requestUrl.searchParams.delete(key)
+    }
+  }
 
   // Ensure users only see page requests, never data requests.
   const buildId = requestUrl.buildId

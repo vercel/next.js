@@ -2101,7 +2101,10 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const page: { name?: string; params?: { [key: string]: string } } = {}
+    const page: {
+      name?: string
+      params?: { [key: string]: string | string[] }
+    } = {}
 
     const match = await this.matchers.match(normalizedPathname, options)
     if (match) {
