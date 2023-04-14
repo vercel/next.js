@@ -6,6 +6,5 @@ pub(crate) mod list;
 pub(crate) mod manifest;
 pub(crate) mod merged;
 pub(crate) mod module_factory;
-pub(crate) mod optimize;
 pub(crate) mod update;
 pub(crate) mod version;

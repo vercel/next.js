@@ -1,7 +1,7 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
-    "output/crates_turbopack-tests_tests_snapshot_css_css_input_index_97aff3.js",
+    "output/crates_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_index_082e10.js",
     {},
-    {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_css_css_input_index_b53fce.js","output/8697f_foo_style.module.css_a724a8._.js","output/8697f_foo_style.css","output/crates_turbopack-tests_tests_snapshot_css_css_input_style.css","output/8697f_foo_style.module_b5a149.css","output/crates_turbopack-tests_tests_snapshot_css_css_input_style.module_b5a149.css"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/css/css/input/index.js (ecmascript)"]}
+    {"otherChunks":["output/crates_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_index.css","output/crates_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_index_b53fce.js"],"runtimeModuleIds":["[project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.js (ecmascript)"]}
 ]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
