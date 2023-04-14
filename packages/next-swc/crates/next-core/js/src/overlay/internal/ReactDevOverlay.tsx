@@ -223,7 +223,10 @@ export default function ReactDevOverlay({
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
-        <ShadowPortal globalOverlay={globalOverlay}>
+        <ShadowPortal
+          key={'' + !state.reactError}
+          globalOverlay={globalOverlay}
+        >
           <CssReset />
           <Base />
           <ComponentStyles />
