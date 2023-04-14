@@ -236,7 +236,7 @@ export function patchFetch({
 
           return originFetch(input, clonedInit).then(async (res) => {
             if (
-              res.ok &&
+              res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
               typeof revalidate === 'number' &&
@@ -245,7 +245,6 @@ export function patchFetch({
               let base64Body = ''
               const resBlob = await res.blob()
               const arrayBuffer = await resBlob.arrayBuffer()
-              const is204Response = res.status === 204
 
               if (process.env.NEXT_RUNTIME === 'edge') {
                 const { encode } =
@@ -276,7 +275,7 @@ export function patchFetch({
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(is204Response ? null : resBlob, {
+              return new Response(resBlob, {
                 headers: res.headers,
                 status: res.status,
               })
