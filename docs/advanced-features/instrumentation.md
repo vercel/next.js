@@ -18,7 +18,7 @@ You can import files with side effects in `instrumentation.ts`, which you might 
 
 import { init } from 'package-init'
 
-export const register() {
+export function register() {
   init()
 }
 ```
@@ -28,7 +28,7 @@ However, we recommend importing files with side effects using `require` from wit
 ```ts
 // /instrumentation.ts
 
-export const register() {
+export function register() {
   require('package-with-side-effect')
 }
 ```
@@ -40,7 +40,7 @@ We call `register` in all environments, so it's necessary to conditionally requi
 ```ts
 // /instrumentation.ts
 
-export const register() {
+export function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     require('./instrumentation-node')
   }
