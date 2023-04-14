@@ -6,10 +6,7 @@ use turbo_tasks_fs::FileContent;
 use super::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 use crate::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
-    chunk::{
-        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType, ParallelChunkReference,
-        ParallelChunkReferenceVc,
-    },
+    chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingType},
     reference::{AssetReference, AssetReferencesVc},
     resolve::PrimaryResolveResult,
 };
@@ -127,10 +124,6 @@ pub async fn children_from_asset_references(
                 Some(ChunkingType::Separate) => key = separate_reference_ty(),
                 Some(ChunkingType::PlacedOrParallel) => key = placed_or_parallel_reference_ty(),
                 Some(ChunkingType::SeparateAsync) => key = async_reference_ty(),
-            }
-        } else if let Some(parallel) = ParallelChunkReferenceVc::resolve_from(reference).await? {
-            if *parallel.is_loaded_in_parallel().await? {
-                key = parallel_reference_ty();
             }
         }
 
