@@ -52,6 +52,8 @@ export const config = {
 }
 ```
 
+> **Note:** If you are using pageExtensions in your `next.config.js` make sure the middleware contains the appropriate name extensions.
+
 ## Matching Paths
 
 Middleware will be invoked for **every route in your project**. The following is the execution order:
