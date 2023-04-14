@@ -264,13 +264,11 @@ pub async fn get_intermediate_asset(
     main_entry: EvaluatableAssetVc,
     other_entries: EvaluatableAssetsVc,
 ) -> Result<AssetVc> {
-    let chunks = chunking_context.evaluated_chunk_group(
-        main_entry.as_root_chunk(chunking_context),
-        other_entries.with_entry(main_entry),
-    );
     Ok(NodeJsBootstrapAsset {
         path: chunking_context.chunk_path(main_entry.ident(), ".js"),
-        chunks,
+        chunking_context,
+        entry: main_entry.as_root_chunk(chunking_context),
+        evaluatable_assets: other_entries.with_entry(main_entry),
     }
     .cell()
     .into())

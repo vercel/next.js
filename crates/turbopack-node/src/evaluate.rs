@@ -182,10 +182,9 @@ pub async fn get_evaluate_pool(
 
     let bootstrap = NodeJsBootstrapAsset {
         path,
-        chunks: chunking_context.evaluated_chunk_group(
-            entry_module.as_root_chunk(chunking_context),
-            runtime_entries.with_entry(entry_module.into()),
-        ),
+        chunking_context,
+        entry: entry_module.as_root_chunk(chunking_context),
+        evaluatable_assets: runtime_entries.with_entry(entry_module.into()),
     }
     .cell()
     .into();
