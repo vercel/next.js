@@ -114,7 +114,7 @@ impl DevManifestContentSourceVc {
                     p,
                     vec![format!(
                         "_next/static/chunks/pages/{}",
-                        get_asset_path_from_route(p.split_at(1).1, ".js")
+                        get_asset_path_from_route(p, ".js")
                     )],
                 )
             })
