@@ -154,20 +154,24 @@ impl<'a> VisitAstPath for AssetReferencesVisitor<'a> {
 
         let src = url_string(u);
 
-        let issue_span = u.span;
-        self.references.push(
-            UrlAssetReferenceVc::new(
-                self.origin,
-                RequestVc::parse(Value::new(src.to_string().into())),
-                AstPathVc::cell(as_parent_path(ast_path)),
-                IssueSourceVc::from_byte_offset(
-                    self.source,
-                    issue_span.lo.to_usize(),
-                    issue_span.hi.to_usize(),
-                ),
-            )
-            .into(),
-        );
+        // ignore internal urls like `url(#noiseFilter)`
+        // ignore server-relative urls like `url(/foo)`
+        if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
+            let issue_span = u.span;
+            self.references.push(
+                UrlAssetReferenceVc::new(
+                    self.origin,
+                    RequestVc::parse(Value::new(src.to_string().into())),
+                    AstPathVc::cell(as_parent_path(ast_path)),
+                    IssueSourceVc::from_byte_offset(
+                        self.source,
+                        issue_span.lo.to_usize(),
+                        issue_span.hi.to_usize(),
+                    ),
+                )
+                .into(),
+            );
+        }
 
         u.visit_children_with_path(self, ast_path);
     }
