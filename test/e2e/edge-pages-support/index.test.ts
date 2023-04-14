@@ -39,6 +39,29 @@ describe('edge-render-getserversideprops', () => {
     })
   }
 
+  it('should have correct query for pages/api', async () => {
+    const res = await fetchViaHTTP(next.url, '/api/hello', { a: 'b' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      hello: 'world',
+      query: {
+        a: 'b',
+      },
+    })
+  })
+
+  it('should have correct query for pages/api dynamic', async () => {
+    const res = await fetchViaHTTP(next.url, '/api/id-1', { a: 'b' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      hello: 'again',
+      query: {
+        a: 'b',
+        id: 'id-1',
+      },
+    })
+  })
+
   it('should have correct query/params on index', async () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
