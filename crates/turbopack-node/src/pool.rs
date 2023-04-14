@@ -478,16 +478,22 @@ impl NodeJsPoolProcess {
 impl RunningNodeJsPoolProcess {
     async fn recv(&mut self) -> Result<Vec<u8>> {
         let connection = &mut self.connection;
+        async fn with_timeout<T, E: Into<anyhow::Error>>(
+            future: impl Future<Output = Result<T, E>> + Send,
+        ) -> Result<T> {
+            timeout(Duration::from_secs(60), future)
+                .await
+                .context("timeout while receiving message from process")?
+                .map_err(Into::into)
+        }
         let recv_future = async move {
-            let packet_len = connection
-                .read_u32()
+            let packet_len = with_timeout(connection.read_u32())
                 .await
                 .context("reading packet length")?
                 .try_into()
                 .context("storing packet length")?;
             let mut packet_data = vec![0; packet_len];
-            connection
-                .read_exact(&mut packet_data)
+            with_timeout(connection.read_exact(&mut packet_data))
                 .await
                 .context("reading packet data")?;
             Ok::<_, anyhow::Error>(packet_data)
@@ -651,10 +657,7 @@ impl NodeJsOperation {
     {
         let message = self
             .with_process(|process| async move {
-                timeout(Duration::from_secs(30), process.recv())
-                    .await
-                    .context("timeout while receiving message from process")?
-                    .context("failed to receive message")
+                process.recv().await.context("failed to receive message")
             })
             .await?;
         serde_json::from_slice(&message).context("failed to deserialize message")
