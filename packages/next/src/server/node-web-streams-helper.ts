@@ -1,8 +1,9 @@
 import type { FlightRouterState } from './app-render/types'
+import type RenderResult from './render-result'
+
 import { nonNullable } from '../lib/non-nullable'
 import { getTracer } from './lib/trace/tracer'
 import { AppRenderSpan } from './lib/trace/constants'
-import type RenderResult from './render-result'
 
 const queueTask =
   process.env.NEXT_RUNTIME === 'edge' ? globalThis.setTimeout : setImmediate

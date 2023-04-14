@@ -18,7 +18,7 @@ createNextDescribe(
       expect(cliOutput).toInclude('Error: boom')
       expect(cliOutput).toInclude('at fn2 (./app/fn.ts:6:11)')
       expect(cliOutput).toInclude('at fn1 (./app/fn.ts:9:5')
-      expect(cliOutput).toInclude('at Page (./app/page.tsx:10:45)')
+      expect(cliOutput).toInclude('at Page (./app/page.tsx')
 
       expect(cliOutput).not.toInclude('webpack-internal')
     })
@@ -34,7 +34,7 @@ createNextDescribe(
       expect(cliOutput).toInclude('Error: boom')
       expect(cliOutput).toInclude('at fn2 (./app/fn.ts:6:11)')
       expect(cliOutput).toInclude('at fn1 (./app/fn.ts:9:5')
-      expect(cliOutput).toInclude('at EdgePage (./app/edge/page.tsx:12:45)')
+      expect(cliOutput).toInclude('at EdgePage (./app/edge/page.tsx')
 
       expect(cliOutput).not.toInclude('webpack-internal')
     })

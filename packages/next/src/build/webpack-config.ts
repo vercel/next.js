@@ -1247,7 +1247,9 @@ export default async function getBaseWebpackConfig(
         const channel = useExperimentalReact ? '-experimental' : ''
         if (
           request === 'react-dom' &&
-          (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
+          (layer === WEBPACK_LAYERS.client ||
+            layer === WEBPACK_LAYERS.server ||
+            layer === WEBPACK_LAYERS.action)
         ) {
           request = `react-dom${channel}/server-rendering-stub`
         } else if (isAppLayer) {
