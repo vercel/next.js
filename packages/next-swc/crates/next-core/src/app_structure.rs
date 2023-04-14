@@ -1,3 +1,5 @@
+// Ensure this file stays in sync with app-structure.ts
+// which is a TypeScript implementation of the resolving logic.
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
