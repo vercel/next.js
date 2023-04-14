@@ -422,7 +422,9 @@ createNextDescribe(
       })
 
       it('should support redirect in generateMetadata', async () => {
-        const res = await next.fetch('/async/redirect')
+        const res = await next.fetch('/async/redirect', {
+          redirect: 'manual',
+        })
         expect(res.status).toBe(307)
       })
 

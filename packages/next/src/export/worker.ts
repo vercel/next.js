@@ -385,8 +385,7 @@ export default async function exportPage({
           // Create the context for the handler. This contains the params from
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
-            // Query contains the route parameters.
-            params: query,
+            params,
             staticGenerationContext: {
               nextExport: true,
               supportsDynamicHTML: false,

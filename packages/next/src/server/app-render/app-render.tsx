@@ -1518,6 +1518,7 @@ export async function renderToHTMLOrFlight(
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
+            res.setHeader('Location', getURLFromRedirectError(err))
           }
 
           const renderStream = await renderToInitialStream({

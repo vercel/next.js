@@ -14,7 +14,7 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <main className={styles.main}>
+      <main className={`${styles.main} ${inter.className}`}>
         <div className={styles.description}>
           <p>
             Get started by editing&nbsp;
@@ -57,10 +57,10 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <h2 className={inter.className}>
+            <h2>
               Docs <span>-&gt;</span>
             </h2>
-            <p className={inter.className}>
+            <p>
               Find in-depth information about Next.js features and&nbsp;API.
             </p>
           </a>
@@ -71,10 +71,10 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <h2 className={inter.className}>
+            <h2>
               Learn <span>-&gt;</span>
             </h2>
-            <p className={inter.className}>
+            <p>
               Learn about Next.js in an interactive course with&nbsp;quizzes!
             </p>
           </a>
@@ -85,10 +85,10 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <h2 className={inter.className}>
+            <h2>
               Templates <span>-&gt;</span>
             </h2>
-            <p className={inter.className}>
+            <p>
               Discover and deploy boilerplate example Next.js&nbsp;projects.
             </p>
           </a>
@@ -99,10 +99,10 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <h2 className={inter.className}>
+            <h2>
               Deploy <span>-&gt;</span>
             </h2>
-            <p className={inter.className}>
+            <p>
               Instantly deploy your Next.js site to a shareable URL
               with&nbsp;Vercel.
             </p>

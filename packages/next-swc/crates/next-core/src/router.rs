@@ -88,6 +88,7 @@ pub struct RouterRequest {
     pub pathname: String,
     pub raw_query: String,
     pub raw_headers: Vec<(String, String)>,
+    pub body: Vec<Bytes>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -129,8 +130,8 @@ pub struct MiddlewareResponse {
     pub body: Stream<Result<Bytes, SharedError>>,
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub enum RouterResult {
     Rewrite(RewriteResponse),
     Middleware(MiddlewareResponse),

@@ -81,51 +81,43 @@ export async function loadStaticPaths({
     )
   }
 
-  try {
-    if (isAppPath) {
-      const userland: AppRouteUserlandModule | undefined =
-        components.ComponentMod.routeModule?.userland
-      const generateParams: GenerateParams = userland
-        ? [
-            {
-              config: {
-                revalidate: userland.revalidate,
-                dynamic: userland.dynamic,
-                dynamicParams: userland.dynamicParams,
-              },
-              generateStaticParams: userland.generateStaticParams,
-              segmentPath: pathname,
+  if (isAppPath) {
+    const userland: AppRouteUserlandModule | undefined =
+      components.ComponentMod.routeModule?.userland
+    const generateParams: GenerateParams = userland
+      ? [
+          {
+            config: {
+              revalidate: userland.revalidate,
+              dynamic: userland.dynamic,
+              dynamicParams: userland.dynamicParams,
             },
-          ]
-        : await collectGenerateParams(components.ComponentMod.tree)
+            generateStaticParams: userland.generateStaticParams,
+            segmentPath: pathname,
+          },
+        ]
+      : await collectGenerateParams(components.ComponentMod.tree)
 
-      return await buildAppStaticPaths({
-        page: pathname,
-        generateParams,
-        configFileName: config.configFileName,
-        distDir,
-        requestHeaders,
-        incrementalCacheHandlerPath,
-        serverHooks,
-        staticGenerationAsyncStorage,
-        isrFlushToDisk,
-        fetchCacheKeyPrefix,
-        maxMemoryCacheSize,
-      })
-    }
-
-    return await buildStaticPaths({
+    return await buildAppStaticPaths({
       page: pathname,
-      getStaticPaths: components.getStaticPaths,
+      generateParams,
       configFileName: config.configFileName,
-      locales,
-      defaultLocale,
-    })
-  } finally {
-    setTimeout(() => {
-      // we only want to use each worker once to prevent any invalid
-      // caches
-      process.exit(1)
+      distDir,
+      requestHeaders,
+      incrementalCacheHandlerPath,
+      serverHooks,
+      staticGenerationAsyncStorage,
+      isrFlushToDisk,
+      fetchCacheKeyPrefix,
+      maxMemoryCacheSize,
     })
   }
+
+  return await buildStaticPaths({
+    page: pathname,
+    getStaticPaths: components.getStaticPaths,
+    configFileName: config.configFileName,
+    locales,
+    defaultLocale,
+  })
 }
