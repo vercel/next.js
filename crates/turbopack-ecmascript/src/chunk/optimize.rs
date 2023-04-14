@@ -2,26 +2,50 @@
 
 use std::{cmp::Ordering, collections::HashSet};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::FileSystemPathOptionVc;
-use turbopack_core::chunk::optimize::optimize_by_common_parent;
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkPlaceablesVc, EcmascriptChunkVc, EcmascriptChunksVc,
+use turbopack_core::chunk::{
+    optimize::{optimize_by_common_parent, ChunkOptimizer, ChunkOptimizerVc},
+    ChunkVc, ChunksVc,
 };
 
-#[turbo_tasks::function]
-pub async fn optimize_ecmascript_chunks(chunks: EcmascriptChunksVc) -> Result<EcmascriptChunksVc> {
-    optimize_by_common_parent(&*chunks.await?, get_common_parent, |local, children| {
-        optimize_ecmascript(local.map(EcmascriptChunksVc::cell), children)
-    })
-    .await
+use super::{EcmascriptChunkPlaceablesVc, EcmascriptChunkVc, EcmascriptChunkingContextVc};
+
+#[turbo_tasks::value]
+pub struct EcmascriptChunkOptimizer(EcmascriptChunkingContextVc);
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkOptimizerVc {
+    #[turbo_tasks::function]
+    pub fn new(context: EcmascriptChunkingContextVc) -> Self {
+        EcmascriptChunkOptimizer(context).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkOptimizer for EcmascriptChunkOptimizer {
+    #[turbo_tasks::function]
+    async fn optimize(&self, chunks: ChunksVc) -> Result<ChunksVc> {
+        optimize_by_common_parent(chunks, get_common_parent, |local, children| {
+            optimize_ecmascript(local, children)
+        })
+        .await
+    }
+}
+
+async fn ecma(chunk: ChunkVc) -> Result<EcmascriptChunkVc> {
+    if let Some(chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
+        Ok(chunk)
+    } else {
+        bail!("EcmascriptChunkOptimizer can only be used on EcmascriptChunks")
+    }
 }
 
 #[turbo_tasks::function]
-async fn get_common_parent(chunk: EcmascriptChunkVc) -> Result<FileSystemPathOptionVc> {
-    Ok(chunk.common_parent())
+async fn get_common_parent(chunk: ChunkVc) -> Result<FileSystemPathOptionVc> {
+    Ok(ecma(chunk).await?.common_parent())
 }
 
 /// Merge a few chunks into a single chunk.
@@ -67,7 +91,7 @@ const MAX_CHUNK_ITEMS_PER_CHUNK: usize = 3000;
 
 /// Merge chunks with high duplication between them.
 async fn merge_duplicated_and_contained(
-    chunks: &mut Vec<(EcmascriptChunkVc, Option<EcmascriptChunksVc>)>,
+    chunks: &mut Vec<(EcmascriptChunkVc, Option<ChunksVc>)>,
     mut unoptimized_count: usize,
 ) -> Result<()> {
     struct Comparison {
@@ -252,7 +276,7 @@ async fn merge_duplicated_and_contained(
 /// all chunks from a single source and if that's not enough it will merge
 /// chunks into equal sized groups.
 async fn merge_to_limit(
-    chunks: Vec<(EcmascriptChunkVc, Option<EcmascriptChunksVc>)>,
+    chunks: Vec<(EcmascriptChunkVc, Option<ChunksVc>)>,
     target_count: usize,
 ) -> Result<Vec<EcmascriptChunkVc>> {
     let mut remaining = chunks.len();
@@ -349,15 +373,12 @@ async fn merge_by_size(
 
 /// Chunk optimization for ecmascript chunks.
 #[turbo_tasks::function]
-async fn optimize_ecmascript(
-    local: Option<EcmascriptChunksVc>,
-    children: Vec<EcmascriptChunksVc>,
-) -> Result<EcmascriptChunksVc> {
-    let mut chunks = Vec::<(EcmascriptChunkVc, Option<EcmascriptChunksVc>)>::new();
+async fn optimize_ecmascript(local: Option<ChunksVc>, children: Vec<ChunksVc>) -> Result<ChunksVc> {
+    let mut chunks = Vec::<(EcmascriptChunkVc, Option<ChunksVc>)>::new();
     // TODO optimize
     let mut unoptimized_count = 0;
     if let Some(local) = local {
-        let mut local = local.await?.iter().copied().collect::<Vec<_>>();
+        let mut local = local.await?.iter().copied().map(ecma).try_join().await?;
         // Merge all local chunks when they are too many
         if local.len() > LOCAL_CHUNK_MERGE_THRESHOLD {
             local = merge_by_size(local).await?;
@@ -378,7 +399,7 @@ async fn optimize_ecmascript(
         let mut children = children_chunks
             .await?
             .iter()
-            .map(|child| async move { Ok((*child, Some(children_chunks))) })
+            .map(|child| async move { Ok((ecma(*child).await?, Some(children_chunks))) })
             .try_join()
             .await?;
         chunks.append(&mut children);
@@ -401,11 +422,14 @@ async fn optimize_ecmascript(
 
     // When there are too many chunks, try hard to reduce the number of chunks to
     // limit the request count.
-    let chunks = if chunks.len() > TOTAL_CHUNK_MERGE_THRESHOLD {
-        merge_to_limit(chunks, TOTAL_CHUNK_MERGE_THRESHOLD).await?
+    if chunks.len() > TOTAL_CHUNK_MERGE_THRESHOLD {
+        let chunks = merge_to_limit(chunks, TOTAL_CHUNK_MERGE_THRESHOLD).await?;
+        Ok(ChunksVc::cell(
+            chunks.into_iter().map(|c| c.as_chunk()).collect(),
+        ))
     } else {
-        chunks.into_iter().map(|(c, _)| c).collect()
-    };
-
-    Ok(EcmascriptChunksVc::cell(chunks))
+        Ok(ChunksVc::cell(
+            chunks.into_iter().map(|(c, _)| c.as_chunk()).collect(),
+        ))
+    }
 }

@@ -3,7 +3,7 @@ use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, ParallelChunkReference, ParallelChunkReferenceVc},
     ident::AssetIdentVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
     reference::AssetReferencesVc,
@@ -76,7 +76,15 @@ impl Asset for EcmascriptDevChunk {
         let chunk_references = this.chunk.references().await?;
         let mut references = Vec::with_capacity(chunk_references.len() + 1);
 
+        // In contrast to the inner chunk, the outer chunk should not have
+        // references of parallel chunk since these are already handled
+        // at the [ChunkGroup] level.
         for reference in &*chunk_references {
+            if let Some(parallel_ref) = ParallelChunkReferenceVc::resolve_from(*reference).await? {
+                if *parallel_ref.is_loaded_in_parallel().await? {
+                    continue;
+                }
+            }
             references.push(*reference);
         }
 
