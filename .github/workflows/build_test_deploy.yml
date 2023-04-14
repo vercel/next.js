@@ -339,7 +339,7 @@ jobs:
         group: [1, 2, 3, 4, 5]
     # we can't use "matrix" context in job level "if" so we have
     # to create a separate job which can skip
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -523,7 +523,7 @@ jobs:
       matrix:
         node: [16]
         group: [1, 2, 3, 4, 5]
-    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    # if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
