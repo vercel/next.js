@@ -4,7 +4,7 @@ description: Add client and server runtime configuration to your Next.js app.
 
 # Runtime Configuration
 
-> Note: This feature is considered legacy and does not work with [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md), [Output File Tracing](/docs/advanced-features/output-file-tracing.md#automatically-copying-traced-files), or [React Server Components](/docs/advanced-features/react-18/server-components.md). Please use [environment variables](/docs/basic-features/environment-variables.md) instead in order to avoid initialization overhead.
+> **Note**: This feature is considered legacy and does not work with [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md), [Output File Tracing](/docs/advanced-features/output-file-tracing.md#automatically-copying-traced-files), or [React Server Components](/docs/advanced-features/react-18/server-components.md). Please use [environment variables](/docs/basic-features/environment-variables.md) instead in order to avoid initialization overhead.
 
 To add runtime configuration to your app, open `next.config.js` and add the `publicRuntimeConfig` and `serverRuntimeConfig` configs:
 

@@ -13,9 +13,9 @@ description: Configure module path aliases that allow you to remap certain impor
 
 Next.js automatically supports the `tsconfig.json` and `jsconfig.json` `"paths"` and `"baseUrl"` options since [Next.js 9.4](https://nextjs.org/blog/next-9-4).
 
-> Note: `jsconfig.json` can be used when you don't use TypeScript
+> **Note**: `jsconfig.json` can be used when you don't use TypeScript
 
-> Note: you need to restart dev server to reflect modifications done in `tsconfig.json` / `jsconfig.json`
+> **Note**: you need to restart dev server to reflect modifications done in `tsconfig.json` / `jsconfig.json`
 
 These options allow you to configure module aliases, for example a common pattern is aliasing certain directories to use absolute paths.
 

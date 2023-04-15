@@ -18,7 +18,7 @@ function Avatar() {
 export default Avatar
 ```
 
-> Note: `next/image` requires Next.js 10 or later.
+> **Note**: `next/image` requires Next.js 10 or later.
 
 This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`)!
 

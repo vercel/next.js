@@ -134,7 +134,7 @@ One of the reasons for this restriction is that React needs to have all the requ
 
 Also, you must use export `getStaticProps` as a standalone function — it will **not** work if you add `getStaticProps` as a property of the page component.
 
-> Note: if you have created a [custom app](/docs/advanced-features/custom-app.md), ensure you are passing the `pageProps` to the page component as shown in the linked document, otherwise the props will be empty.
+> **Note**: if you have created a [custom app](/docs/advanced-features/custom-app.md), ensure you are passing the `pageProps` to the page component as shown in the linked document, otherwise the props will be empty.
 
 ## Runs on every request in development
 
