@@ -205,7 +205,7 @@ In some cases, you may need more advanced usage. The `<Image />` component optio
 
 Allows [passing CSS styles](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/style) to the underlying image element.
 
-Note that all `layout` modes apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
+**Note**: that all `layout` modes apply their own styles to the image element, and these automatic styles take precedence over the `style` prop.
 
 Also keep in mind that the required `width` and `height` props can interact with your styling. If you use styling to modify an image's `width`, you must set the `height="auto"` style as well, or your image will be distorted.
 
