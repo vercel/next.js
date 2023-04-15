@@ -396,7 +396,7 @@ You can listen to different events happening inside the Next.js Router. Here's a
 - `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
 - `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 
-> **Note:** Here `url` is the URL shown in the browser, including the [`basePath`](/docs/api-reference/next.config.js/basepath.md).
+> **Note**: Here `url` is the URL shown in the browser, including the [`basePath`](/docs/api-reference/next.config.js/basepath.md).
 
 #### Usage
 
