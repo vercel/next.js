@@ -263,3 +263,5 @@ If you already use a separate ESLint configuration and want to include `eslint-c
 ```
 
 The `next` configuration already handles setting default values for the `parser`, `plugins` and `settings` properties. There is no need to manually re-declare any of these properties unless you need a different configuration for your use case. If you include any other shareable configurations, **you will need to make sure that these properties are not overwritten or modified**. Otherwise, we recommend removing any configurations that share behavior with the `next` configuration or extending directly from the Next.js ESLint plugin as mentioned above.
+
+> Tip: if you want to enforce indentation, you probably need this 3 rules [indent](https://eslint.org/docs/latest/rules/indent), [react/jsx-indent](https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-indent.md) and [react/jsx-indent-props](https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/jsx-indent-props.md).
