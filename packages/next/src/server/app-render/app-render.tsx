@@ -138,12 +138,12 @@ function findDynamicParamFromRouterState(
   for (const parallelRouterState of Object.values(
     providedFlightRouterState[1]
   )) {
-    const maybeDynamicParma = findDynamicParamFromRouterState(
+    const maybeDynamicParam = findDynamicParamFromRouterState(
       parallelRouterState,
       segment
     )
-    if (maybeDynamicParma) {
-      return maybeDynamicParma
+    if (maybeDynamicParam) {
+      return maybeDynamicParam
     }
   }
 
@@ -1520,6 +1520,7 @@ export async function renderToHTMLOrFlight(
           }
           if (isRedirectError(err)) {
             res.statusCode = 307
+            res.setHeader('Location', getURLFromRedirectError(err))
           }
 
           const renderStream = await renderToInitialStream({

@@ -23,7 +23,7 @@ export interface RequestData {
   }
   page?: {
     name?: string
-    params?: { [key: string]: string }
+    params?: { [key: string]: string | string[] }
   }
   url: string
   body?: ReadableStream<Uint8Array>

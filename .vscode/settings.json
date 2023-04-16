@@ -71,8 +71,15 @@
   "cSpell.words": [
     "Entrypoints",
     "napi",
+    "nextjs",
     "opentelemetry",
     "Threadsafe",
     "zipkin"
+  ],
+  "grammarly.selectors": [
+    {
+      "language": "markdown",
+      "scheme": "file"
+    }
   ]
 }
