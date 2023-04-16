@@ -44,6 +44,7 @@ export type Redirect = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  internal?: true // used to indicate this is a redirect from a custom route
 } & (
   | {
       statusCode?: never
@@ -688,14 +689,14 @@ export default async function loadCustomRoutes(
               key: 'x-nextjs-data',
             },
           ],
-        } as Redirect,
+        },
         {
           source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
           destination: '/:notfile/',
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect
+        }
       )
       if (config.basePath) {
         redirects.unshift({
@@ -705,7 +706,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect)
+        })
       }
     } else {
       redirects.unshift({
@@ -714,7 +715,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         locale: config.i18n ? false : undefined,
         internal: true,
-      } as Redirect)
+      })
       if (config.basePath) {
         redirects.unshift({
           source: config.basePath + '/',
@@ -723,7 +724,7 @@ export default async function loadCustomRoutes(
           basePath: false,
           locale: config.i18n ? false : undefined,
           internal: true,
-        } as Redirect)
+        })
       }
     }
   }

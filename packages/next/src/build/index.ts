@@ -2,7 +2,10 @@ import type { RemotePattern } from '../shared/lib/image-config'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { ExportOptions } from '../export'
 
@@ -19,7 +22,7 @@ import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
+import { pathToRegexp, type Key } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -32,6 +35,7 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
+  Header,
   normalizeRouteRegex,
   Redirect,
   Rewrite,
@@ -235,11 +239,11 @@ export default async function build(
 
       let configOutDir = 'out'
       if (config.output === 'export' && config.distDir !== '.next') {
-        // In the past, a user had to run "next build" to generate
-        // ".next" (or whatever the distDir) followed by "next export"
-        // to generate "out" (or whatever the outDir). However, when
+        // In the past, a user had to run "next build" to generate ".next"
+        // (or whatever the configured distDir is) followed by "next export"
+        // to generate "out" (or whatever the outDir is). However, when
         // "output: export" is configured, "next build" does both steps.
-        // So the user-configured dirDir is actually the outDir.
+        // So the user-configured distDir is actually the outDir.
         configOutDir = config.distDir
         config.distDir = '.next'
       }
@@ -609,25 +613,19 @@ export default async function build(
       )
 
       const buildCustomRoute = (
-        r: {
-          source: string
-          locale?: false
-          basePath?: false
-          statusCode?: number
-          destination?: string
-        },
+        route: Redirect | Rewrite | Header,
         type: RouteType
       ) => {
-        const keys: any[] = []
+        const keys: Key[] = []
 
-        const routeRegex = pathToRegexp(r.source, keys, {
+        const routeRegex = pathToRegexp(route.source, keys, {
           strict: true,
           sensitive: false,
           delimiter: '/', // default is `/#?`, but Next does not pass query info
         })
         let regexSource = routeRegex.source
 
-        if (!(r as any).internal) {
+        if (!(route as Redirect).internal) {
           regexSource = modifyRouteRegex(
             routeRegex.source,
             type === 'redirect' ? restrictedRedirectPaths : undefined
@@ -635,10 +633,10 @@ export default async function build(
         }
 
         return {
-          ...r,
+          ...route,
           ...(type === 'redirect'
             ? {
-                statusCode: getRedirectStatus(r as Redirect),
+                statusCode: getRedirectStatus(route as Redirect),
                 permanent: undefined,
               }
             : {}),
@@ -714,8 +712,8 @@ export default async function build(
           version: 3,
           pages404: true,
           basePath: config.basePath,
-          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+          redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),
+          headers: headers.map((r) => buildCustomRoute(r, 'header')),
           dynamicRoutes,
           staticRoutes,
           dataRoutes: [],
@@ -730,18 +728,18 @@ export default async function build(
       })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
-        routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
+        routesManifest.rewrites = rewrites.afterFiles.map((r) =>
           buildCustomRoute(r, 'rewrite')
         )
       } else {
         routesManifest.rewrites = {
-          beforeFiles: rewrites.beforeFiles.map((r: any) =>
+          beforeFiles: rewrites.beforeFiles.map((r) =>
             buildCustomRoute(r, 'rewrite')
           ),
-          afterFiles: rewrites.afterFiles.map((r: any) =>
+          afterFiles: rewrites.afterFiles.map((r) =>
             buildCustomRoute(r, 'rewrite')
           ),
-          fallback: rewrites.fallback.map((r: any) =>
+          fallback: rewrites.fallback.map((r) =>
             buildCustomRoute(r, 'rewrite')
           ),
         }
@@ -754,7 +752,7 @@ export default async function build(
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
-          (r: any) => !r.internal
+          (r: Redirect) => !r.internal
         )
         const clientRouterFilters = createClientRouterFilter(
           appPageKeys,
@@ -1003,7 +1001,7 @@ export default async function build(
           }
           if (chunksTrace) {
             const { action, outputPath } = chunksTrace
-            action.input = action.input.filter((f: any) => {
+            action.input = action.input.filter((f: string) => {
               const outputPagesPath = path.join(outputPath, '..', 'pages')
               return (
                 !f.startsWith(outputPagesPath) ||
@@ -1374,7 +1372,7 @@ export default async function build(
 
                 if (pageType === 'app' || !isReservedPage(page)) {
                   try {
-                    let edgeInfo: any
+                    let edgeInfo: EdgeFunctionDefinition
 
                     if (isEdgeRuntime(pageRuntime)) {
                       if (pageType === 'app') {
@@ -1794,14 +1792,14 @@ export default async function build(
           .traceAsyncFn(async () => {
             let cacheKey: string | undefined
             // consider all lockFiles in tree in case user accidentally
-            // has both package-lock.json and yarn.lock
+            // has multiple lock files
             const lockFiles: string[] = (
               await Promise.all(
                 ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'].map(
                   (file) => findUp(file, { cwd: dir })
                 )
               )
-            ).filter(Boolean) as any // TypeScript doesn't like this filter
+            ).filter(Boolean) as string[]
 
             const cachedTracePath = path.join(
               distDir,
@@ -2749,10 +2747,9 @@ export default async function build(
           rewritesCount: combinedRewrites.length,
           headersCount: headers.length,
           redirectsCount: redirects.length - 1, // reduce one for trailing slash
-          headersWithHasCount: headers.filter((r: any) => !!r.has).length,
-          rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
-            .length,
-          redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
+          headersWithHasCount: headers.filter((r) => !!r.has).length,
+          rewritesWithHasCount: combinedRewrites.filter((r) => !!r.has).length,
+          redirectsWithHasCount: redirects.filter((r) => !!r.has).length,
           middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
           totalAppPagesCount,
           staticAppPagesCount,
