@@ -223,7 +223,7 @@ export function navigateReducer(
     )
 
     // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
-    if (res && !res.bailOptimistic) {
+    if (!res?.bailOptimistic) {
       mutable.previousTree = state.tree
       mutable.patchedTree = optimisticTree
       mutable.pendingPush = pendingPush
