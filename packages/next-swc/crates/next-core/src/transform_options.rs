@@ -123,6 +123,7 @@ pub async fn get_decorators_transform_options(
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
     project_path: FileSystemPathVc,
+    is_mdx_rs_enabled: bool,
 ) -> Result<JsxTransformOptionsVc> {
     let tsconfig = get_typescript_options(project_path).await;
 
@@ -152,6 +153,13 @@ pub async fn get_jsx_transform_options(
         })
         .await?
         .unwrap_or_default()
+    } else if is_mdx_rs_enabled {
+        // Mdx can implicitly includes jsx components, trying to enable jsx with default
+        // if jsx is not explicitly enabled
+        JsxTransformOptions {
+            import_source: None,
+            runtime: None,
+        }
     } else {
         Default::default()
     };

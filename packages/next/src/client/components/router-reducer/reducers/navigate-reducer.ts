@@ -1,5 +1,8 @@
 import { CacheStates } from '../../../../shared/lib/app-router-context'
-import type { FlightSegmentPath } from '../../../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../../../server/app-render/types'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
@@ -29,9 +32,35 @@ export function handleExternalUrl(
   mutable.mpaNavigation = true
   mutable.canonicalUrl = url
   mutable.pendingPush = pendingPush
-  mutable.applyFocusAndScroll = false
+  mutable.scrollableSegments = undefined
 
   return handleMutable(state, mutable)
+}
+
+function generateSegmentsFromPatch(
+  flightRouterPatch: FlightRouterState
+): FlightSegmentPath[] {
+  const segments: FlightSegmentPath[] = []
+  const [segment, parallelRoutes] = flightRouterPatch
+
+  if (Object.keys(parallelRoutes).length === 0) {
+    return [[segment]]
+  }
+
+  for (const [parallelRouteKey, parallelRoute] of Object.entries(
+    parallelRoutes
+  )) {
+    for (const childSegment of generateSegmentsFromPatch(parallelRoute)) {
+      // If the segment is empty, it means we are at the root of the tree
+      if (segment === '') {
+        segments.push([parallelRouteKey, ...childSegment])
+      } else {
+        segments.push([segment, parallelRouteKey, ...childSegment])
+      }
+    }
+  }
+
+  return segments
 }
 
 export function navigateReducer(
@@ -76,7 +105,7 @@ export function navigateReducer(
 
     let currentTree = state.tree
     let currentCache = state.cache
-
+    let scrollableSegments: FlightSegmentPath[] = []
     for (const flightDataPath of flightData) {
       const flightSegmentPath = flightDataPath.slice(
         0,
@@ -84,7 +113,7 @@ export function navigateReducer(
       ) as unknown as FlightSegmentPath
 
       // The one before last item is the router state tree patch
-      const [treePatch] = flightDataPath.slice(-3)
+      const [treePatch] = flightDataPath.slice(-3) as [FlightRouterState]
 
       // Create new tree based on the flightSegmentPath and router state patch
       let newTree = applyRouterStatePatchToTree(
@@ -141,12 +170,21 @@ export function navigateReducer(
 
         currentCache = cache
         currentTree = newTree
+
+        for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+          scrollableSegments.push(
+            // the last segment is the same as the first segment in the patch
+            [...flightSegmentPath.slice(0, -1), ...subSegment].filter(
+              (segment) => segment !== '__PAGE__'
+            )
+          )
+        }
       }
     }
 
     mutable.previousTree = state.tree
     mutable.patchedTree = currentTree
-    mutable.applyFocusAndScroll = true
+    mutable.scrollableSegments = scrollableSegments
     mutable.canonicalUrl = canonicalUrlOverride
       ? createHrefFromUrl(canonicalUrlOverride)
       : href
@@ -190,7 +228,7 @@ export function navigateReducer(
       mutable.patchedTree = optimisticTree
       mutable.pendingPush = pendingPush
       mutable.hashFragment = hash
-      mutable.applyFocusAndScroll = true
+      mutable.scrollableSegments = []
       mutable.cache = cache
       mutable.canonicalUrl = href
 
@@ -220,7 +258,7 @@ export function navigateReducer(
 
   let currentTree = state.tree
   let currentCache = state.cache
-
+  let scrollableSegments: FlightSegmentPath[] = []
   for (const flightDataPath of flightData) {
     // The one before last item is the router state tree patch
     const [treePatch] = flightDataPath.slice(-3, -2)
@@ -248,12 +286,6 @@ export function navigateReducer(
       ? createHrefFromUrl(canonicalUrlOverride)
       : href
 
-    mutable.previousTree = currentTree
-    mutable.patchedTree = newTree
-    mutable.applyFocusAndScroll = true
-    mutable.pendingPush = pendingPush
-    mutable.hashFragment = hash
-
     const applied = applyFlightData(currentCache, cache, flightDataPath)
     if (applied) {
       mutable.cache = cache
@@ -261,7 +293,21 @@ export function navigateReducer(
     }
 
     currentTree = newTree
+
+    for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+      scrollableSegments.push(
+        [...flightSegmentPath, ...subSegment].filter(
+          (segment) => segment !== '__PAGE__'
+        )
+      )
+    }
   }
+
+  mutable.previousTree = state.tree
+  mutable.patchedTree = currentTree
+  mutable.scrollableSegments = scrollableSegments
+  mutable.pendingPush = pendingPush
+  mutable.hashFragment = hash
 
   return handleMutable(state, mutable)
 }

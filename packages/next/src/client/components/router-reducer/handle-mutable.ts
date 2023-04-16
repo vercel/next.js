@@ -30,8 +30,8 @@ export function handleMutable(
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
       apply:
-        typeof mutable.applyFocusAndScroll !== 'undefined'
-          ? mutable.applyFocusAndScroll
+        mutable?.scrollableSegments !== undefined
+          ? true
           : state.focusAndScrollRef.apply,
       hashFragment:
         // Empty hash should trigger default behavior of scrolling layout into view.
@@ -40,6 +40,8 @@ export function handleMutable(
           ? // Remove leading # and decode hash to make non-latin hashes work.
             decodeURIComponent(mutable.hashFragment.slice(1))
           : null,
+      segmentPaths:
+        mutable?.scrollableSegments ?? state.focusAndScrollRef.segmentPaths,
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,

@@ -460,7 +460,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.3.1-canary.5
+      '@next/eslint-plugin-next': 13.3.1-canary.8
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -529,19 +529,19 @@ importers:
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
       '@capsizecss/metrics': 1.1.0
-      '@edge-runtime/cookies': 3.0.4
-      '@edge-runtime/primitives': 2.0.5
+      '@edge-runtime/cookies': 3.0.6
+      '@edge-runtime/primitives': 2.1.2
       '@hapi/accept': 5.0.2
       '@jest/transform': 29.5.0
       '@jest/types': 29.5.0
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.3.1-canary.5
-      '@next/polyfill-module': 13.3.1-canary.5
-      '@next/polyfill-nomodule': 13.3.1-canary.5
-      '@next/react-dev-overlay': 13.3.1-canary.5
-      '@next/react-refresh-utils': 13.3.1-canary.5
-      '@next/swc': 13.3.1-canary.5
+      '@next/env': 13.3.1-canary.8
+      '@next/polyfill-module': 13.3.1-canary.8
+      '@next/polyfill-nomodule': 13.3.1-canary.8
+      '@next/react-dev-overlay': 13.3.1-canary.8
+      '@next/react-refresh-utils': 13.3.1-canary.8
+      '@next/swc': 13.3.1-canary.8
       '@opentelemetry/api': 1.4.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
@@ -621,7 +621,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.0.0
+      edge-runtime: 2.1.4
       events: 3.3.0
       fibers: '>= 3.1.0'
       find-cache-dir: 3.3.1
@@ -751,8 +751,8 @@ importers:
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
       '@capsizecss/metrics': 1.1.0
-      '@edge-runtime/cookies': 3.0.4
-      '@edge-runtime/primitives': 2.0.5
+      '@edge-runtime/cookies': 3.0.6
+      '@edge-runtime/primitives': 2.1.2
       '@hapi/accept': 5.0.2
       '@jest/transform': 29.5.0
       '@jest/types': 29.5.0
@@ -839,7 +839,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.0.0
+      edge-runtime: 2.1.4
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -1016,7 +1016,8 @@ importers:
       '@types/react': ^18.0.26
       '@types/react-dom': ^18.0.9
       '@vercel/ncc': ^0.36.0
-      '@vercel/turbopack-dev-runtime': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230411.2
+      '@vercel/turbopack-dev': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230414.4
+      '@vercel/turbopack-node': https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230414.4
       anser: ^2.1.1
       css.escape: ^1.5.1
       find-up: ^6.3.0
@@ -1028,7 +1029,8 @@ importers:
       stacktrace-parser: ^0.1.10
       strip-ansi: ^7.0.1
     dependencies:
-      '@vercel/turbopack-dev-runtime': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230411.2_react-refresh@0.12.0'
+      '@vercel/turbopack-dev': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230414.4_react-refresh@0.12.0'
+      '@vercel/turbopack-node': '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230414.4'
       anser: 2.1.1
       css.escape: 1.5.1
       next: link:../../../../next
@@ -4453,13 +4455,14 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/cookies/3.0.4:
-    resolution: {integrity: sha512-q+Hm3Ekj7n/B/BRYSCGWkKspSuxlDIEeht6MI5SbYr0Xus1Zy20ZpazmcaKQYEqEdGdazEEV2zRgqRQ6NIjZWg==}
+  /@edge-runtime/cookies/3.0.6:
+    resolution: {integrity: sha512-fJ7I8K1kODB8alGj1u7JCxY2PDHba/8inO2NvDi7CaQ5F5VVdwqMiHrsSg/n7LMjKU40vzL+HRJBaPPRLetRhw==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/format/1.1.0:
-    resolution: {integrity: sha512-MkLDDtPhXZIMx83NykdFmOpF7gVWIdd6GBHYb8V/E+PKWvD2pK/qWx9B30oN1iDJ2XBm0SGDjz02S8nDHI9lMQ==}
+  /@edge-runtime/format/2.0.1:
+    resolution: {integrity: sha512-aE+9DtBvQyg349srixtXEUNauWtIv5HTKPy8Q9dvG1NvpldVIvvhcDBI+SuvDVM8kQl8phbYnp2NTNloBCn/Yg==}
+    engines: {node: '>=14'}
     dev: true
 
   /@edge-runtime/jest-environment/2.0.5:
@@ -4474,19 +4477,14 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/2.0.0:
-    resolution: {integrity: sha512-AXqUq1zruTJAICrllUvZcgciIcEGHdF6KJ3r6FM0n4k8LpFxZ62tPWVIJ9HKm+xt+ncTBUZxwgUaQ73QMUQEKw==}
-    dev: true
-
   /@edge-runtime/primitives/2.0.5:
     resolution: {integrity: sha512-jETA9w1MDTf2n0KMYl9b2eZqG7FZXSTaiB8y4CpMwZOD/0ZL/HBdq9Pj48o1c2jbvlDWjxxsn0NaoPWsqBCUGg==}
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/vm/2.0.0:
-    resolution: {integrity: sha512-BOLrAX8IWHRXu1siZocwLguKJPEUv7cr+rG8tI4hvHgMdIsBWHJlLeB8EjuUVnIURFrUiM49lVKn8DRrECmngw==}
-    dependencies:
-      '@edge-runtime/primitives': 2.0.0
+  /@edge-runtime/primitives/2.1.2:
+    resolution: {integrity: sha512-SR04SMDybALlhIYIi0hiuEUwIl0b7Sn+RKwQkX6hydg4+AKMzBNDFhj2nqHDD1+xkHArV9EhmJIb6iGjShwSzg==}
+    engines: {node: '>=14'}
     dev: true
 
   /@edge-runtime/vm/2.0.5:
@@ -4494,6 +4492,13 @@ packages:
     engines: {node: '>=14'}
     dependencies:
       '@edge-runtime/primitives': 2.0.5
+    dev: true
+
+  /@edge-runtime/vm/2.1.2:
+    resolution: {integrity: sha512-j4H5S26NJhYOyjVMN8T/YJuwwslfnEX1P0j6N2Rq1FaubgNowdYunA9nlO7lg8Rgjv6dqJ2zKuM7GD1HFtNSGw==}
+    engines: {node: '>=14'}
+    dependencies:
+      '@edge-runtime/primitives': 2.1.2
     dev: true
 
   /@emotion/unitless/0.7.5:
@@ -6050,8 +6055,8 @@ packages:
     resolution: {integrity: sha512-XQr74QaLeMiqhStEhLn1im9EOMnkypp7MZOwQhGzqp2Weu5eQJbpPxWxixxlYRKWPOmJjsk6qYfYH9kq43yc2w==}
     dev: true
 
-  /@next/react-refresh-utils/13.2.4_react-refresh@0.12.0:
-    resolution: {integrity: sha512-0gxe//fKl/jhG1DGAycj/2ytVPwovQXZt0TaAfwRRHE80f7LmGwD0iA/c+wlLELoJikgjnle/aFaS22uXkQ/kw==}
+  /@next/react-refresh-utils/13.3.0_react-refresh@0.12.0:
+    resolution: {integrity: sha512-2t6jzB+H3PLWSGMdULG0t9n/GX3dklUhkQZqS0LYvb2lBpETrm5Ng6Mck+S/U0iEfxFmAE8IJHhOxBAQO3FeLA==}
     peerDependencies:
       react-refresh: 0.12.0
       webpack: ^4 || ^5
@@ -8486,6 +8491,11 @@ packages:
   /async-foreach/0.1.3:
     resolution: {integrity: sha512-VUeSMD8nEGBWaZK4lizI1sf3yEC7pnAQ/mrI7pC2fBz2s/tq5jWWEngTwaf0Gruu/OoXRGLGg1XFqpYBiGTYJA==}
     dev: false
+
+  /async-listen/2.0.3:
+    resolution: {integrity: sha512-WVLi/FGIQaXyfYyNvmkwKT1RZbkzszLLnmW/gFCc5lbVvN/0QQCWpBwRBk2OWSdkkmKRBc8yD6BrKsjA3XKaSw==}
+    engines: {node: '>= 14'}
+    dev: true
 
   /async-retry/1.2.1:
     resolution: {integrity: sha512-FadV8UDcyZDjzb6eV7MCJj0bfrNjwKw7/X0QHPFCbYP6T20FXgZCYXpJKlQC8RxEQP1E6Xs8pNHdh3bcrZAuAw==}
@@ -11524,14 +11534,15 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime/2.0.0:
-    resolution: {integrity: sha512-TmRJhKi4mlM1e+zgF4CSzVU5gJ1sWj7ia+XhVgZ8PYyYUxk4PPjJU8qScpSLsAbdSxoBghLxdMuwuCzdYLd1sQ==}
+  /edge-runtime/2.1.4:
+    resolution: {integrity: sha512-SertKByzAmjm+MkLbFl1q0ko+/90V24dhZgQM8fcdguQaDYVEVtb6okEBGeg8IQgL1/JUP8oSlUIxSI/bvsVRQ==}
+    engines: {node: '>=14'}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0
-      '@edge-runtime/vm': 2.0.0
+      '@edge-runtime/format': 2.0.1
+      '@edge-runtime/vm': 2.1.2
+      async-listen: 2.0.3
       exit-hook: 2.2.1
-      http-status: 1.5.3
       mri: 1.2.0
       picocolors: 1.0.0
       pretty-bytes: 5.6.0
@@ -14280,11 +14291,6 @@ packages:
       assert-plus: 1.0.0
       jsprim: 1.4.1
       sshpk: 1.16.1
-
-  /http-status/1.5.3:
-    resolution: {integrity: sha512-jCClqdnnwigYslmtfb28vPplOgoiZ0siP2Z8C5Ua+3UKbx410v+c+jT+jh1bbI4TvcEySuX0vd/CfFZFbDkJeQ==}
-    engines: {node: '>= 0.4.0'}
-    dev: true
 
   /https-browserify/1.0.0:
     resolution: {integrity: sha1-7AbBDgo0wPL68Zn3/X/Hj//QPHM=}
@@ -25640,16 +25646,24 @@ packages:
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230411.2_react-refresh@0.12.0':
-    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230411.2}
-    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230411.2'
-    name: '@vercel/turbopack-dev-runtime'
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230414.4_react-refresh@0.12.0':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230414.4}
+    id: '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-dev/js?turbopack-230414.4'
+    name: '@vercel/turbopack-dev'
     version: 0.0.0
     dependencies:
-      '@next/react-refresh-utils': 13.2.4_react-refresh@0.12.0
+      '@next/react-refresh-utils': 13.3.0_react-refresh@0.12.0
     transitivePeerDependencies:
       - react-refresh
       - webpack
+    dev: false
+
+  '@gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230414.4':
+    resolution: {tarball: https://gitpkg.vercel.app/vercel/turbo/crates/turbopack-node/js?turbopack-230414.4}
+    name: '@vercel/turbopack-node'
+    version: 0.0.0
+    dependencies:
+      loader-runner: 4.3.0
     dev: false
 
   github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:

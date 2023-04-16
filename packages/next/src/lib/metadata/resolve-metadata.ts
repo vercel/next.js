@@ -45,7 +45,7 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata
 ) {
   if (!staticFilesMetadata) return
-  const { icon, apple, openGraph, twitter } = staticFilesMetadata
+  const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
   if (icon || apple) {
     metadata.icons = {
       icon: icon || [],
@@ -66,6 +66,9 @@ function mergeStaticMetadata(
       metadata.metadataBase
     )
     metadata.openGraph = resolvedOpenGraph
+  }
+  if (manifest) {
+    metadata.manifest = manifest
   }
 
   return metadata
@@ -227,10 +230,13 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (imageModule: (p: any) => Promise<MetadataImageModule>) =>
+    async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
       interopDefault(await imageModule(props))
   )
-  return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
+
+  return iconPromises?.length > 0
+    ? (await Promise.all(iconPromises))?.flat()
+    : undefined
 }
 
 async function resolveStaticMetadata(components: ComponentsType, props: any) {
@@ -249,6 +255,7 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
     apple,
     openGraph,
     twitter,
+    manifest: metadata.manifest,
   }
 
   return staticMetadata
