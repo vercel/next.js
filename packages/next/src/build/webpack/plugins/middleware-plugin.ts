@@ -605,6 +605,7 @@ async function findEntryEdgeFunctionConfig(
             nextConfig: {},
             pageFilePath,
             isDev: false,
+            pageType: 'root',
           })
         ).middleware,
       }
