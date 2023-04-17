@@ -45,13 +45,19 @@ export function normalizeMetadataRoute(page: string) {
       route += '.webmanifest'
     }
     // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
-    // If it's a metadata file route, we need to append /route to the page.
+    // If it's a metadata file route, we need to append /[id]/route to the page.
     if (!route.endsWith('/route')) {
       const { dir, name, ext } = path.parse(route)
+      const isSingleRoute =
+        page.startsWith('/sitemap') ||
+        page.startsWith('/robots') ||
+        page.startsWith('/manifest') ||
+        page === '/favicon.ico'
 
       route = path.join(
         dir,
         `${name}${suffix ? `-${suffix}` : ''}${ext}`,
+        isSingleRoute ? '' : '[[...__metadata_id__]]',
         'route'
       )
     }
