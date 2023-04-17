@@ -138,12 +138,12 @@ function findDynamicParamFromRouterState(
   for (const parallelRouterState of Object.values(
     providedFlightRouterState[1]
   )) {
-    const maybeDynamicParma = findDynamicParamFromRouterState(
+    const maybeDynamicParam = findDynamicParamFromRouterState(
       parallelRouterState,
       segment
     )
-    if (maybeDynamicParma) {
-      return maybeDynamicParma
+    if (maybeDynamicParam) {
+      return maybeDynamicParam
     }
   }
 
