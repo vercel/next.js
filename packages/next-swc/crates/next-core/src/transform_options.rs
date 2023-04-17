@@ -129,7 +129,7 @@ pub async fn get_jsx_transform_options(
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
     // jsconfig, it forces overrides into automatic runtime instead.
-    // [TODO]: we need to emit / validate config message as same as next.js devserver does
+    // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
         import_source: None,
         runtime: Some("automatic".to_string()),
