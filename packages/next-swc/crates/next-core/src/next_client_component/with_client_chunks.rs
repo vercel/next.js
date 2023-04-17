@@ -12,9 +12,12 @@ use turbo_binding::{
                 ChunkingTypeOptionVc,
             },
             ident::AssetIdentVc,
-            reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+            reference::{
+                AssetReference, AssetReferenceVc, AssetReferencesVc, SingleAssetReferenceVc,
+            },
             resolve::{ResolveResult, ResolveResultVc},
         },
+        dev::ChunkData,
         turbopack::ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -26,7 +29,7 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -127,24 +130,14 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
             .await?;
         let server_root = inner.server_root.await?;
 
-        let mut asset_paths = vec![];
-        for chunk in chunks.iter() {
-            for reference in chunk.references().await?.iter() {
-                let assets = &*reference.resolve_reference().primary_assets().await?;
-                for asset in assets.iter() {
-                    asset_paths.push(asset.ident().path().await?);
-                }
-            }
-
-            asset_paths.push(chunk.ident().path().await?);
-        }
-
-        let mut client_chunks = Vec::new();
-        for asset_path in asset_paths {
-            if let Some(path) = server_root.get_path_to(&asset_path) {
-                client_chunks.push(path.to_string());
-            }
-        }
+        let chunks_data = chunks
+            .iter()
+            .map(|&chunk| ChunkData::from_asset(&server_root, chunk))
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
 
         let module_id = inner.asset.as_chunk_item(self.context).id().await?;
         Ok(EcmascriptChunkItemContent {
@@ -159,7 +152,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
                     const chunks = {:#};
                 "#,
                 StringifyJs(&module_id),
-                StringifyJs(&client_chunks),
+                StringifyJs(&chunks_data),
             )
             .into(),
             ..Default::default()
@@ -176,8 +169,29 @@ impl ChunkItem for WithClientChunksChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        self.inner.references()
+    async fn references(&self) -> Result<AssetReferencesVc> {
+        let inner = self.inner.await?;
+        let mut references = Vec::new();
+        references.push(
+            WithClientChunksAssetReference {
+                asset: inner.asset.into(),
+            }
+            .cell()
+            .into(),
+        );
+        let group = self
+            .context
+            .chunk_group(inner.asset.as_root_chunk(self.context.into()));
+        let server_root = inner.server_root.await?;
+        let chunks = group.await?;
+        let client_chunk = StringVc::cell("client chunk".to_string());
+        for &chunk in chunks.iter() {
+            let path = chunk.ident().path().await?;
+            if path.is_inside(&server_root) {
+                references.push(SingleAssetReferenceVc::new(chunk, client_chunk).into());
+            }
+        }
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 
