@@ -605,7 +605,7 @@ export async function renderToHTMLOrFlight(
       asNotFound?: boolean
     }): Promise<{
       Component: React.ComponentType
-      assets: React.ReactNode
+      styles: React.ReactNode
     }> => {
       const { page, layoutOrPagePath, segment, components, parallelRoutes } =
         parseLoaderTree(tree)
@@ -854,7 +854,7 @@ export async function renderToHTMLOrFlight(
             }
 
             // Create the child component
-            const { Component: ChildComponent, assets: childAssets } =
+            const { Component: ChildComponent, styles: childStyles } =
               await createComponentTree({
                 createSegmentPath: (child) => {
                   return createSegmentPath([...currentSegmentPath, ...child])
@@ -902,7 +902,7 @@ export async function renderToHTMLOrFlight(
                 notFoundStyles={notFoundStyles}
                 asNotFound={asNotFound}
                 childProp={childProp}
-                assets={childAssets}
+                styles={childStyles}
               />,
             ]
           }
@@ -922,7 +922,7 @@ export async function renderToHTMLOrFlight(
       if (!Component) {
         return {
           Component: () => <>{parallelRouteComponents.children}</>,
-          assets: styles,
+          styles,
         }
       }
 
@@ -986,7 +986,7 @@ export async function renderToHTMLOrFlight(
             </>
           )
         },
-        assets: styles,
+        styles,
       }
     }
 
@@ -1320,7 +1320,7 @@ export async function renderToHTMLOrFlight(
         const injectedCSS = new Set<string>()
         const injectedFontPreloadTags = new Set<string>()
 
-        const { Component: ComponentTree, assets } = await createComponentTree({
+        const { Component: ComponentTree, styles } = await createComponentTree({
           createSegmentPath: (child) => child,
           loaderTree,
           parentParams: {},
@@ -1356,7 +1356,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
-            {assets}
+            {styles}
             <AppRouter
               assetPrefix={assetPrefix}
               initialCanonicalUrl={initialCanonicalUrl}
@@ -1375,13 +1375,10 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <>
-                    {assets}
-                    <RootLayout params={{}}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </RootLayout>
-                  </>
+                  <RootLayout params={{}}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </RootLayout>
                 ) : undefined
               }
               asNotFound={props.asNotFound}
