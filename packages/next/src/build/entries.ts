@@ -40,7 +40,6 @@ import {
   isMiddlewareFile,
   isMiddlewareFilename,
   isInstrumentationHookFile,
-  NestedMiddlewareError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -65,6 +64,32 @@ export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
   page = page.replace(/\/index$/, '')
 
   return page === '' ? '/' : page
+}
+
+function getPageFilePath({
+  absolutePagePath,
+  pagesDir,
+  appDir,
+  rootDir,
+}: {
+  absolutePagePath: string
+  pagesDir: string | undefined
+  appDir: string | undefined
+  rootDir: string
+}) {
+  if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
+    return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
+  }
+
+  if (absolutePagePath.startsWith(APP_DIR_ALIAS) && appDir) {
+    return absolutePagePath.replace(APP_DIR_ALIAS, appDir)
+  }
+
+  if (absolutePagePath.startsWith(ROOT_DIR_ALIAS)) {
+    return absolutePagePath.replace(ROOT_DIR_ALIAS, rootDir)
+  }
+
+  return require.resolve(absolutePagePath)
 }
 
 export function createPagesMapping({
@@ -328,7 +353,14 @@ export async function runDependingOnPageType<T>(params: {
   return
 }
 
-export async function createEntrypoints(params: CreateEntrypointsParams) {
+export async function createEntrypoints(
+  params: CreateEntrypointsParams
+): Promise<{
+  client: webpack.EntryObject
+  server: webpack.EntryObject
+  edgeServer: webpack.EntryObject
+  middlewareMatchers: undefined
+}> {
   const {
     config,
     pages,
@@ -343,7 +375,6 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const edgeServer: webpack.EntryObject = {}
   const server: webpack.EntryObject = {}
   const client: webpack.EntryObject = {}
-  const nestedMiddleware: string[] = []
   let middlewareMatchers: MiddlewareMatcher[] | undefined = undefined
 
   let appPathsPerRoute: Record<string, string[]> = {}
@@ -367,8 +398,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   }
 
   const getEntryHandler =
-    (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
-    async (page: string) => {
+    (
+      mappings: Record<string, string>,
+      pagesType: 'app' | 'pages' | 'root'
+    ): ((page: string) => void) =>
+    async (page) => {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
@@ -380,33 +414,12 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       const absolutePagePath = mappings[page]
 
       // Handle paths that have aliases
-      const pageFilePath = (() => {
-        if (absolutePagePath.startsWith(PAGES_DIR_ALIAS) && pagesDir) {
-          return absolutePagePath.replace(PAGES_DIR_ALIAS, pagesDir)
-        }
-
-        if (absolutePagePath.startsWith(APP_DIR_ALIAS) && appDir) {
-          return absolutePagePath.replace(APP_DIR_ALIAS, appDir)
-        }
-
-        if (absolutePagePath.startsWith(ROOT_DIR_ALIAS)) {
-          return absolutePagePath.replace(ROOT_DIR_ALIAS, rootDir)
-        }
-
-        return require.resolve(absolutePagePath)
-      })()
-
-      /**
-       * When we find a middleware file that is not in the ROOT_DIR we fail.
-       * There is no need to check on `dev` as this should only happen when
-       * building for production.
-       */
-      if (
-        !absolutePagePath.startsWith(ROOT_DIR_ALIAS) &&
-        /[\\\\/]_middleware$/.test(page)
-      ) {
-        nestedMiddleware.push(page)
-      }
+      const pageFilePath = getPageFilePath({
+        absolutePagePath,
+        pagesDir,
+        appDir,
+        rootDir,
+      })
 
       const isInsideAppDir =
         !!appDir &&
@@ -505,24 +518,24 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       })
     }
 
-  if (appDir && appPaths) {
+  const promises: Promise<void[]>[] = []
+
+  if (appPaths) {
     const entryHandler = getEntryHandler(appPaths, 'app')
-    await Promise.all(Object.keys(appPaths).map(entryHandler))
+    promises.push(Promise.all(Object.keys(appPaths).map(entryHandler)))
   }
   if (rootPaths) {
-    await Promise.all(
-      Object.keys(rootPaths).map(getEntryHandler(rootPaths, 'root'))
+    promises.push(
+      Promise.all(
+        Object.keys(rootPaths).map(getEntryHandler(rootPaths, 'root'))
+      )
     )
   }
-  await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+  promises.push(
+    Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+  )
 
-  if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(
-      nestedMiddleware,
-      rootDir,
-      (appDir || pagesDir)!
-    )
-  }
+  await Promise.all(promises)
 
   return {
     client,
@@ -551,69 +564,76 @@ export function finalizeEntrypoint({
       : value
 
   const isApi = name.startsWith('pages/api/')
-  if (compilerType === COMPILER_NAMES.server) {
-    return {
-      publicPath: isApi ? '' : undefined,
-      runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-      layer: isApi
-        ? WEBPACK_LAYERS.api
-        : isServerComponent
-        ? WEBPACK_LAYERS.server
-        : undefined,
-      ...entry,
-    }
-  }
 
-  if (compilerType === COMPILER_NAMES.edgeServer) {
-    return {
-      layer:
-        isMiddlewareFilename(name) || isApi
-          ? WEBPACK_LAYERS.middleware
-          : undefined,
-      library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
-      runtime: EDGE_RUNTIME_WEBPACK,
-      asyncChunks: false,
-      ...entry,
-    }
-  }
-
-  const isAppLayer =
-    hasAppDir &&
-    (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
-      name === APP_CLIENT_INTERNALS ||
-      name.startsWith('app/'))
-
-  if (
-    // Client special cases
-    name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
-    name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
-  ) {
-    if (isAppLayer) {
+  switch (compilerType) {
+    case COMPILER_NAMES.server: {
       return {
-        dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-        layer: WEBPACK_LAYERS.appClient,
+        publicPath: isApi ? '' : undefined,
+        runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
+        layer: isApi
+          ? WEBPACK_LAYERS.api
+          : isServerComponent
+          ? WEBPACK_LAYERS.server
+          : undefined,
         ...entry,
       }
     }
+    case COMPILER_NAMES.edgeServer: {
+      return {
+        layer:
+          isMiddlewareFilename(name) || isApi
+            ? WEBPACK_LAYERS.middleware
+            : undefined,
+        library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
+        runtime: EDGE_RUNTIME_WEBPACK,
+        asyncChunks: false,
+        ...entry,
+      }
+    }
+    case COMPILER_NAMES.client: {
+      const isAppLayer =
+        hasAppDir &&
+        (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
+          name === APP_CLIENT_INTERNALS ||
+          name.startsWith('app/'))
 
-    return {
-      dependOn:
-        name.startsWith('pages/') && name !== 'pages/_app'
-          ? 'pages/_app'
-          : CLIENT_STATIC_FILES_RUNTIME_MAIN,
-      ...entry,
+      if (
+        // Client special cases
+        name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
+        name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
+        name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
+        name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
+        name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
+      ) {
+        if (isAppLayer) {
+          return {
+            dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+            layer: WEBPACK_LAYERS.appClient,
+            ...entry,
+          }
+        }
+
+        return {
+          dependOn:
+            name.startsWith('pages/') && name !== 'pages/_app'
+              ? 'pages/_app'
+              : CLIENT_STATIC_FILES_RUNTIME_MAIN,
+          ...entry,
+        }
+      }
+
+      if (isAppLayer) {
+        return {
+          layer: WEBPACK_LAYERS.appClient,
+          ...entry,
+        }
+      }
+
+      return entry
+    }
+    default: {
+      // Should never happen.
+      throw new Error('Invalid compiler type')
     }
   }
-
-  if (isAppLayer) {
-    return {
-      layer: WEBPACK_LAYERS.appClient,
-      ...entry,
-    }
-  }
-
-  return entry
 }
