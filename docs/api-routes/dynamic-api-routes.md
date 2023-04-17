@@ -13,7 +13,7 @@ description: You can add the dynamic routes used for pages to API Routes too. Le
 
 API routes support [dynamic routes](/docs/routing/dynamic-routes.md), and follow the same file naming rules used for `pages`.
 
-For example, the API route `pages/api/note/[pid].js` has the following code:
+For example, the API route `pages/api/note/[nid].js` has the following code:
 
 ```js
 export default function handler(req, res) {
@@ -93,7 +93,7 @@ The `query` objects are as follows:
 
 - Predefined API routes take precedence over dynamic API routes, and dynamic API routes over catch all API routes. Take a look at the following examples:
   - `pages/api/note/create.js` - Will match `/api/note/create`
-  - `pages/api/note/[pid].js` - Will match `/api/note/1`, `/api/note/abc`, etc. But not `/api/note/create`
+  - `pages/api/note/[nid].js` - Will match `/api/note/1`, `/api/note/abc`, etc. But not `/api/note/create`
   - `pages/api/note/[...slug].js` - Will match `/api/note/1/2`, `/api/note/a/b/c`, etc. But not `/api/note/create`, `/api/note/abc`
 
 ## Related
