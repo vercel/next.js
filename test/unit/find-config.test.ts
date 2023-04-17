@@ -15,11 +15,23 @@ describe('find config', () => {
     expect(config).toEqual({ foo: 'bar' })
   })
 
+  // TODO: https://github.com/nodejs/node/issues/35889
+  it.skip('should resolve rc.mjs', async () => {
+    const config = await findConfig(join(fixtureDir, 'config-mjs'), 'test')
+    expect(config).toEqual({ foo: 'bar' })
+  })
+
   it('should resolve .config.json', async () => {
     const config = await findConfig(
       join(fixtureDir, 'config-long-json'),
       'test'
     )
+    expect(config).toEqual({ foo: 'bar' })
+  })
+
+  // TODO: https://github.com/nodejs/node/issues/35889
+  it.skip('should resolve .config.mjs', async () => {
+    const config = await findConfig(join(fixtureDir, 'config-long-mjs'), 'test')
     expect(config).toEqual({ foo: 'bar' })
   })
 

@@ -19,6 +19,8 @@ export function findConfigPath(
       `.${key}rc.js`,
       `${key}.config.js`,
       `${key}.config.cjs`,
+      `.${key}rc.mjs`,
+      `${key}.config.mjs`,
     ],
     {
       cwd: dir,
@@ -34,6 +36,7 @@ export async function findConfig<T>(
   key: string,
   _returnFile?: boolean
 ): Promise<RecursivePartial<T> | null> {
+  let isModule = false
   // `package.json` configuration always wins. Let's check that first.
   const packageJsonPath = await findUp('package.json', { cwd: directory })
   if (packageJsonPath) {
@@ -41,11 +44,19 @@ export async function findConfig<T>(
     if (packageJson[key] != null && typeof packageJson[key] === 'object') {
       return packageJson[key]
     }
+
+    isModule = packageJson.type === 'module'
   }
 
   const filePath = await findConfigPath(directory, key)
 
   if (filePath) {
+    if (filePath.endsWith('.mjs') || (isModule && filePath.endsWith('.js'))) {
+      const { default: config } = await import(filePath)
+
+      return config
+    }
+
     if (filePath.endsWith('.js') || filePath.endsWith('.cjs')) {
       return require(filePath)
     }
