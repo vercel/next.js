@@ -6,7 +6,13 @@ import {
   ALLOWED_PAGE_PROPS,
   NEXT_TS_ERRORS,
 } from '../constant'
-import { getTs, isPageFile, isPositionInsideNode } from '../utils'
+import {
+  getDynamicSegmentParams,
+  getParamsType,
+  getTs,
+  isPageFile,
+  isPositionInsideNode,
+} from '../utils'
 
 const entry = {
   // Give auto completion for the component's props
@@ -33,8 +39,19 @@ const entry = {
         if (isPageFile(fileName)) {
           // For page entries (page.js), it can only have `params` and `searchParams`
           // as the prop names.
+
+          // For page entries, the `params` prop is a dynamic object with
+          // the dynamic segment names as the keys. For example, if the page
+          // is `pages/[id]/[name].js`, the `params` prop will be
+          // `{ id: string, name: string }`.
+          // For catch all routes, the `params` prop will be `{ name: string[] }`
+          // For optional catch all routes, the `params` prop will be `{ name?: string[] }`
+          // If there's currently no dynamic segments, the `params` prop will not be typed.
+          const paramType = getParamsType(fileName)
+
           validProps = ALLOWED_PAGE_PROPS
-          validPropsWithType = ALLOWED_PAGE_PROPS
+          validPropsWithType = [paramType, 'searchParams']
+
           type = 'page'
         } else {
           // For layout entires, check if it has any named slots.
@@ -120,6 +137,7 @@ const entry = {
     if (isPageFile(fileName)) {
       // For page entries (page.js), it can only have `params` and `searchParams`
       // as the prop names.
+
       validProps = ALLOWED_PAGE_PROPS
       type = 'page'
     } else {
@@ -139,6 +157,7 @@ const entry = {
     const diagnostics: ts.Diagnostic[] = []
 
     const props = node.parameters?.[0]?.name
+
     if (props && ts.isObjectBindingPattern(props)) {
       for (const prop of (props as ts.ObjectBindingPattern).elements) {
         const propName = (prop.propertyName || prop.name).getText()
@@ -155,6 +174,115 @@ const entry = {
       }
     }
 
+    const dynamicSegmentParams = getDynamicSegmentParams(fileName)
+    const hasDynamicSegments = dynamicSegmentParams.isCatchAll
+      ? true
+      : dynamicSegmentParams.params.length > 0
+
+    if (!hasDynamicSegments) {
+      return diagnostics
+    }
+
+    const propType = node.parameters?.[0]?.type
+
+    if (propType && ts.isTypeLiteralNode(propType)) {
+      for (const prop of propType.members) {
+        const propName = prop.name?.getText()
+        const typeNode = prop.getChildren().at(-1)
+        if (!typeNode) {
+          continue
+        }
+
+        if (propName === 'params' && ts.isTypeLiteralNode(typeNode)) {
+          const correctType = getParamsType(fileName)
+
+          for (const propInParamsProp of typeNode.members) {
+            const isOptionalParamProp =
+              propInParamsProp.questionToken !== undefined
+
+            if (dynamicSegmentParams.isCatchAll) {
+              // name of property match
+              if (
+                propInParamsProp.name?.getText() !== dynamicSegmentParams.params
+              ) {
+                diagnostics.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
+                  start: prop.getStart(),
+                  length: prop.getWidth(),
+                })
+              }
+
+              // ensure that the type is a string[]
+              if (
+                //@ts-ignore
+                propInParamsProp.type.kind !== ts.SyntaxKind.ArrayType ||
+                //@ts-ignore
+                propInParamsProp.type.elementType.kind !==
+                  ts.SyntaxKind.StringKeyword
+              ) {
+                diagnostics.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
+                  start: prop.getStart(),
+                  length: prop.getWidth(),
+                })
+              }
+
+              // match if it's a optional catch all route, and the prop is optional
+              if (
+                isOptionalParamProp !== dynamicSegmentParams.isOptionalCatchAll
+              ) {
+                diagnostics.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
+                  start: prop.getStart(),
+                  length: prop.getWidth(),
+                })
+              }
+            } else {
+              // not a catch all
+              const propNameInParamsProp = propInParamsProp.name?.getText()
+
+              // name of property match
+              if (
+                !dynamicSegmentParams.params.includes(propNameInParamsProp!)
+              ) {
+                diagnostics.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
+                  start: prop.getStart(),
+                  length: prop.getWidth(),
+                })
+              }
+
+              // ensure that the type is a string
+              if (
+                //@ts-ignore
+                propInParamsProp.type.kind !== ts.SyntaxKind.StringKeyword
+              ) {
+                diagnostics.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                  messageText: `Type ${prop.getText()} does not match type: '${correctType}`,
+                  start: prop.getStart(),
+                  length: prop.getWidth(),
+                })
+              }
+            }
+          }
+        }
+      }
+    }
     return diagnostics
   },
 }

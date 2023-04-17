@@ -14,6 +14,7 @@ import { HTTP_METHODS } from '../../../server/web/http'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { getPageFromPath } from '../../entries'
+import { getDynamicSegmentParams } from '../../../server/typescript/utils'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -41,6 +42,8 @@ function createTypeGuardFile(
   options: {
     type: 'layout' | 'page' | 'route'
     slots?: string[]
+    params?: string[] | string // string for catch all route, array for nested dynamic routes
+    isOptionalCatchAll?: boolean
   }
 ) {
   return `// File: ${fullPath}
@@ -52,6 +55,16 @@ ${
 }
 
 type TEntry = typeof entry
+
+type Params = ${
+    options.params
+      ? Array.isArray(options.params)
+        ? `{${options.params.map((param) => `${param}: string`).join(', ')}}`
+        : `{${options.params}${
+            options.isOptionalCatchAll ? '?' : ''
+          }: string[]}`
+      : 'any'
+  }
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
@@ -100,7 +113,7 @@ if ('${method}' in entry) {
   >()
   checkFields<
     Diff<
-      ParamCheck<PageParams>,
+      ParamCheck<Params>,
       {
         __tag__: '${method}'
         __param_position__: 'second'
@@ -128,23 +141,23 @@ if ('generateMetadata' in entry) {
 }
 // Check the arguments and return type of the generateStaticParams function
 if ('generateStaticParams' in entry) {
-  checkFields<Diff<{ params: PageParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
+  checkFields<Diff<{ params: Params }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
   checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
 
-type PageParams = any
+
 export interface PageProps {
-  params?: any
+  params?: Params
   searchParams?: any
 }
 export interface LayoutProps {
   children?: React.ReactNode
+  params?: Params
 ${
   options.slots
     ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
     : ''
 }
-  params?: any
 }
 
 // =============
@@ -180,6 +193,7 @@ type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends n
 }
 
 async function collectNamedSlots(layoutPath: string) {
+  console.log('collecting named slots')
   const layoutDir = path.dirname(layoutPath)
   const items = await fs.readdir(layoutDir, { withFileTypes: true })
   const slots = []
@@ -188,6 +202,7 @@ async function collectNamedSlots(layoutPath: string) {
       slots.push(item.name.slice(1))
     }
   }
+  console.log({ slots })
   return slots
 }
 
@@ -595,23 +610,40 @@ export class NextTypesPlugin {
       const assetPath = assetDirRelative + '/' + normalizePathSep(typePath)
 
       if (IS_LAYOUT) {
-        const slots = await collectNamedSlots(mod.resource)
+        const [slots, params] = await Promise.all([
+          collectNamedSlots(mod.resource),
+          getDynamicSegmentParams(mod.resource),
+        ])
         assets[assetPath] = new sources.RawSource(
           createTypeGuardFile(mod.resource, relativeImportPath, {
             type: 'layout',
             slots,
+            params: params.params,
+            isOptionalCatchAll: params.isCatchAll
+              ? params.isOptionalCatchAll
+              : undefined,
           })
         )
       } else if (IS_PAGE) {
+        const params = await getDynamicSegmentParams(mod.resource)
         assets[assetPath] = new sources.RawSource(
           createTypeGuardFile(mod.resource, relativeImportPath, {
             type: 'page',
+            params: params.params,
+            isOptionalCatchAll: params.isCatchAll
+              ? params.isOptionalCatchAll
+              : undefined,
           })
         )
       } else if (IS_ROUTE) {
+        const params = await getDynamicSegmentParams(mod.resource)
         assets[assetPath] = new sources.RawSource(
           createTypeGuardFile(mod.resource, relativeImportPath, {
             type: 'route',
+            params: params.params,
+            isOptionalCatchAll: params.isCatchAll
+              ? params.isOptionalCatchAll
+              : undefined,
           })
         )
       }
