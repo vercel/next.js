@@ -255,6 +255,37 @@ createNextDescribe(
         // check that we didn't scroll back to the top
         await check(() => browser.eval('window.scrollY'), position)
       })
+
+      it('should apply the catch-all route to the parallel route if no matching route is found', async () => {
+        const browser = await next.browser('/parallel-catchall')
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'main catchall'
+        )
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/foo"]').click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo slot'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'main catchall'
+        )
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+      })
     })
 
     describe('route intercepting', () => {
