@@ -35,13 +35,47 @@ export async function handleAction({
     req.method === 'POST'
 
   if (isFetchAction || isFormAction || isMultipartAction) {
-    if (process.env.NEXT_RUNTIME !== 'edge') {
-      try {
-        let bound = []
+    let bound = []
 
-        const workerName = 'app' + pathname
-        const { decodeReply } = ComponentMod
+    const workerName = 'app' + pathname
+    const { decodeReply } = ComponentMod
 
+    try {
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        const webRequest = req as unknown as Request
+        if (!webRequest.body) {
+          throw new Error('invariant: Missing request body.')
+        }
+
+        if (isMultipartAction) {
+          throw new Error('invariant: Multipart form data is not supported.')
+        } else {
+          let actionData = ''
+
+          const reader = webRequest.body.getReader()
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) {
+              break
+            }
+
+            actionData += new TextDecoder().decode(value)
+          }
+
+          if (isFormAction) {
+            const formData = new URLSearchParams(actionData)
+            actionId = formData.get('$$id') as string
+
+            if (!actionId) {
+              throw new Error('Invariant: missing action ID.')
+            }
+            formData.delete('$$id')
+            bound = [formData]
+          } else {
+            bound = await decodeReply(actionData)
+          }
+        }
+      } else {
         if (isMultipartAction) {
           const formFields: any[] = []
 
@@ -68,7 +102,7 @@ export async function handleAction({
               {
                 get: (_, id: string) => {
                   return {
-                    id: serverActionsManifest[id].workers[workerName],
+                    id: serverActionsManifest.node[id].workers[workerName],
                     name: id,
                     chunks: [],
                   }
@@ -93,45 +127,46 @@ export async function handleAction({
             bound = await decodeReply(actionData)
           }
         }
-
-        const actionModId = serverActionsManifest[actionId].workers[workerName]
-        const actionHandler =
-          ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
-
-        const returnVal = await actionHandler.apply(null, bound)
-        const result = new ActionRenderResult(JSON.stringify([returnVal]))
-        // For form actions, we need to continue rendering the page.
-        if (isFetchAction) {
-          return result
-        }
-      } catch (err) {
-        if (isRedirectError(err)) {
-          if (isFetchAction) {
-            throw new Error('Invariant: not implemented.')
-          }
-          const redirectUrl = getURLFromRedirectError(err)
-          res.statusCode = 303
-          res.setHeader('Location', redirectUrl)
-          return new ActionRenderResult(JSON.stringify({}))
-        } else if (isNotFoundError(err)) {
-          if (isFetchAction) {
-            throw new Error('Invariant: not implemented.')
-          }
-          res.statusCode = 404
-          return 'not-found'
-        }
-
-        if (isFetchAction) {
-          res.statusCode = 500
-          return new RenderResult(
-            (err as Error)?.message ?? 'Internal Server Error'
-          )
-        }
-
-        throw err
       }
-    } else {
-      throw new Error('Not implemented in Edge Runtime.')
+
+      const actionModId =
+        serverActionsManifest[
+          process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+        ][actionId].workers[workerName]
+      const actionHandler =
+        ComponentMod.__next_app_webpack_require__(actionModId)[actionId]
+
+      const returnVal = await actionHandler.apply(null, bound)
+      const result = new ActionRenderResult(JSON.stringify([returnVal]))
+      // For form actions, we need to continue rendering the page.
+      if (isFetchAction) {
+        return result
+      }
+    } catch (err) {
+      if (isRedirectError(err)) {
+        if (isFetchAction || process.env.NEXT_RUNTIME === 'edge') {
+          throw new Error('Invariant: not implemented.')
+        }
+        const redirectUrl = getURLFromRedirectError(err)
+        res.statusCode = 303
+        res.setHeader('Location', redirectUrl)
+        return new ActionRenderResult(JSON.stringify({}))
+      } else if (isNotFoundError(err)) {
+        if (isFetchAction) {
+          throw new Error('Invariant: not implemented.')
+        }
+        res.statusCode = 404
+        return 'not-found'
+      }
+
+      if (isFetchAction) {
+        res.statusCode = 500
+        return new RenderResult(
+          (err as Error)?.message ?? 'Internal Server Error'
+        )
+      }
+
+      throw err
     }
   }
 }
