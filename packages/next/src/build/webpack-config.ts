@@ -683,20 +683,13 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
-  const useExperimentalReact = !!config.experimental.experimentalReact
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
-  const builtInReactChannel = useExperimentalReact ? '-experimental' : ''
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
         'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
-      )
-    }
-    if (useExperimentalReact && !hasAppDir) {
-      Log.warn(
-        'You are using `experimental.experimentalReact` which requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -1212,7 +1205,10 @@ export default async function getBaseWebpackConfig(
       request === 'react/jsx-runtime'
     ) {
       if (isAppLayer) {
-        const channel = useExperimentalReact ? '-experimental' : ''
+        const channel =
+          process.env.NEXT_PREBUNDLED_REACT === 'experimental'
+            ? '-experimental'
+            : ''
         return `commonjs next/dist/compiled/${request.replace(
           /^(react|react-dom)/,
           (m) => m + channel
@@ -1243,8 +1239,12 @@ export default async function getBaseWebpackConfig(
       }
 
       if (/^(react(?:$|\/)|react-dom(?:$|\/))/.test(request)) {
+        const channel =
+          process.env.NEXT_PREBUNDLED_REACT === 'experimental'
+            ? '-experimental'
+            : ''
+
         // override react-dom to server-rendering-stub for server
-        const channel = useExperimentalReact ? '-experimental' : ''
         if (
           request === 'react-dom' &&
           (layer === WEBPACK_LAYERS.client ||
@@ -1423,7 +1423,10 @@ export default async function getBaseWebpackConfig(
       // also map react to builtin ones with require-hook.
       if (layer === WEBPACK_LAYERS.client) {
         if (reactPackagesRegex.test(request)) {
-          const channel = useExperimentalReact ? '-experimental' : ''
+          const channel =
+            process.env.NEXT_PREBUNDLED_REACT === 'experimental'
+              ? '-experimental'
+              : ''
           return `commonjs next/dist/compiled/${request.replace(
             /^(react|react-dom)/,
             (m) => m + channel
@@ -1789,8 +1792,9 @@ export default async function getBaseWebpackConfig(
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
                     // will be ignored completely.
-                    react: `next/dist/compiled/react${builtInReactChannel}/react.shared-subset`,
-                    'react-dom$': `next/dist/compiled/react-dom${builtInReactChannel}/server-rendering-stub`,
+                    react: 'next/dist/compiled/react/react.shared-subset',
+                    'react-dom$':
+                      'next/dist/compiled/react-dom/server-rendering-stub',
                   },
                 },
                 use: {
@@ -1876,10 +1880,11 @@ export default async function getBaseWebpackConfig(
                       // It needs `conditionNames` here to require the proper asset,
                       // when react is acting as dependency of compiled/react-dom.
                       alias: {
-                        react: `next/dist/compiled/react${builtInReactChannel}/react.shared-subset`,
+                        react: 'next/dist/compiled/react/react.shared-subset',
                         // Use server rendering stub for RSC
                         // x-ref: https://github.com/facebook/react/pull/25436
-                        'react-dom$': `next/dist/compiled/react-dom${builtInReactChannel}/server-rendering-stub`,
+                        'react-dom$':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },
@@ -1888,8 +1893,9 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resolve: {
                       alias: {
-                        react: `next/dist/compiled/react${builtInReactChannel}`,
-                        'react-dom$': `next/dist/compiled/react-dom${builtInReactChannel}/server-rendering-stub`,
+                        react: 'next/dist/compiled/react',
+                        'react-dom$':
+                          'next/dist/compiled/react-dom/server-rendering-stub',
                       },
                     },
                   },
@@ -1898,11 +1904,12 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     resolve: {
                       alias: {
-                        react: `next/dist/compiled/react${builtInReactChannel}`,
+                        react: 'next/dist/compiled/react',
                         'react-dom$': reactProductionProfiling
-                          ? `next/dist/compiled/react-dom${builtInReactChannel}/cjs/react-dom.profiling.min`
-                          : `next/dist/compiled/react-dom${builtInReactChannel}`,
-                        'react-dom/client$': `next/dist/compiled/react-dom${builtInReactChannel}/client`,
+                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
+                          : 'next/dist/compiled/react-dom',
+                        'react-dom/client$':
+                          'next/dist/compiled/react-dom/client',
                       },
                     },
                   },
@@ -2261,7 +2268,8 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
-              useExperimentalReact,
+              useExperimentalReact:
+                process.env.NEXT_PREBUNDLED_REACT === 'experimental',
             })),
       hasAppDir &&
         !isClient &&

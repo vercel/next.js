@@ -151,7 +151,7 @@ export interface ExperimentalConfig {
   externalDir?: boolean
   /**
    * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#appdir
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#appdir
    */
   appDir?: boolean
   amp?: {
@@ -195,7 +195,7 @@ export interface ExperimentalConfig {
 
   /**
    * A list of packages that should be treated as external in the RSC server build.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#servercomponentsexternalpackages
    */
   serverComponentsExternalPackages?: string[]
 
@@ -222,14 +222,14 @@ export interface ExperimentalConfig {
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#mdxrs
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#mdxrs
    */
   mdxRs?: boolean
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
    * This option requires `appDir` to be enabled first.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#typedroutes
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#typedroutes
    */
   typedRoutes?: boolean
 
@@ -242,13 +242,6 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
-
-  /**
-   * Use the `experimental` channel of React and React DOM in the app/ directory.
-   * By default, this will be disable and the `next` channel will be used.
-   * This requires `appDir` to be enabled first.
-   */
-  experimentalReact?: boolean
 }
 
 export type ExportPathMap = {

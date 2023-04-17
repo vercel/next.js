@@ -239,6 +239,17 @@ createNextDescribe(
         })
       })
 
+      describe('css ordering', () => {
+        it('should have inner layers take precedence over outer layers', async () => {
+          const browser = await next.browser('/ordering')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      })
+
       if (isDev) {
         describe('multiple entries', () => {
           it('should only inject the same style once if used by different layers', async () => {
@@ -537,6 +548,15 @@ createNextDescribe(
           await check(async () => {
             return await browser.eval(`window.__log`)
           }, /background = rgb\(255, 255, 0\)/)
+        })
+
+        it('should timeout if the resource takes too long', async () => {
+          const browser = await next.browser('/suspensey-css')
+          await browser.elementByCss('#timeout').click()
+          await check(() => browser.eval(`document.body.innerText`), 'Get back')
+          expect(await browser.eval(`window.__log`)).toEqual(
+            'background = rgba(0, 0, 0, 0)'
+          )
         })
       })
     }

@@ -283,9 +283,7 @@ export default async function build(
       const useExperimentalReact = !!config.experimental.experimentalReact
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-          ? 'experimental'
-          : 'next'
+        process.env.NEXT_PREBUNDLED_REACT = 'next'
       }
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
@@ -378,31 +376,6 @@ export default async function build(
               )
           : []
 
-      let appPaths: string[] | undefined
-
-      if (appDir) {
-        appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              (absolutePath) => {
-                if (validFileMatcher.isAppRouterPage(absolutePath)) {
-                  return true
-                }
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback.
-                if (validFileMatcher.isRootNotFound(absolutePath)) {
-                  return true
-                }
-                return false
-              },
-              undefined,
-              (part) => part.startsWith('_')
-            )
-          )
-      }
-
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -454,12 +427,27 @@ export default async function build(
       let mappedAppPages: { [page: string]: string } | undefined
       let denormalizedAppPages: string[] | undefined
 
-      if (appPaths && appDir) {
+      if (appDir) {
+        const appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              appDir,
+              (absolutePath) =>
+                validFileMatcher.isAppRouterPage(absolutePath) ||
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback
+                validFileMatcher.isRootNotFound(absolutePath),
+              undefined,
+              (part) => part.startsWith('_')
+            )
+          )
+
         mappedAppPages = nextBuildSpan
           .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: appPaths!,
+              pagePaths: appPaths,
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,

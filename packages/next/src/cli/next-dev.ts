@@ -232,6 +232,7 @@ const nextDev: CliCommand = async (argv) => {
     const rawNextConfig = await validateTurboNextConfig({
       isCustomTurbopack,
       ...devServerOptions,
+      isDev: true,
     })
 
     const distDir = path.join(dir, rawNextConfig.distDir || '.next')

@@ -5,6 +5,7 @@ import type { FlightRouterState } from '../../../server/app-render/types'
 import { CacheStates } from '../../../shared/lib/app-router-context'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
+import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 export interface InitialRouterStateParameters {
   initialTree: FlightRouterState
@@ -51,6 +52,9 @@ export function createInitialRouterState({
         ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
           createHrefFromUrl(location)
         : initialCanonicalUrl,
-    nextUrl: location?.pathname ?? null,
+    nextUrl:
+      // the || operator is intentional, the pathname can be an empty string
+      (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
+      null,
   }
 }
