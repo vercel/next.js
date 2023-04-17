@@ -19,6 +19,7 @@ use turbopack_ecmascript::{
 };
 
 use super::chunk_asset::DevManifestChunkAssetVc;
+use crate::ecmascript::chunk_data::ChunkData;
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -88,7 +89,6 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
 
         let asset = manifest.asset.as_asset();
         let chunk = this.manifest.manifest_chunk();
-        let chunk_path = &*chunk.ident().path().await?;
 
         let output_root = manifest.chunking_context.output_root().await?;
 
@@ -96,15 +96,15 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
         // need the chunk path of the manifest chunk, relative from the output root. The
         // chunk is a servable file, which will contain the manifest chunk item, which
         // will perform the actual chunk traversal and generate load statements.
-        let chunk_server_path = if let Some(path) = output_root.get_path_to(chunk_path) {
-            path
-        } else {
-            bail!(
-                "chunk path {} is not in output root {}",
-                chunk.ident().path().to_string().await?,
-                manifest.chunking_context.output_root().to_string().await?
-            );
-        };
+        let chunk_server_data =
+            if let Some(data) = ChunkData::from_asset(&output_root, chunk).await? {
+                data
+            } else {
+                bail!(
+                    "chunk {} doesn't have chunk data",
+                    chunk.ident().to_string().await?,
+                );
+            };
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
@@ -134,7 +134,7 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
             code,
             r#"
                 __turbopack_export_value__((__turbopack_import__) => {{
-                    return __turbopack_load__({chunk_server_path}).then(() => {{
+                    return __turbopack_load__({chunk_server_data}).then(() => {{
                         return __turbopack_require__({item_id});
                     }}).then((chunks) => {{
                         return Promise.all(chunks.map((chunk_path) => __turbopack_load__(chunk_path)));
@@ -143,7 +143,7 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
                     }});
                 }});
             "#,
-            chunk_server_path = StringifyJs(chunk_server_path),
+            chunk_server_data = StringifyJs(&chunk_server_data),
             item_id = StringifyJs(item_id),
             dynamic_id = StringifyJs(dynamic_id),
         )?;

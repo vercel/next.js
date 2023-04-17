@@ -7,6 +7,7 @@ pub mod embed_js;
 pub mod react_refresh;
 
 pub use chunking_context::{DevChunkingContext, DevChunkingContextBuilder, DevChunkingContextVc};
+pub use ecmascript::chunk_data::ChunkData;
 
 pub fn register() {
     turbo_tasks::register();

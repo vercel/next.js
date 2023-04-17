@@ -16,21 +16,30 @@ let BACKEND;
         return;
       }
 
-      const chunksToWaitFor = [];
-      for (const otherChunkPath of params.otherChunks) {
+      for (const otherChunkData of params.otherChunks) {
+        const otherChunkPath =
+          typeof otherChunkData === "string"
+            ? otherChunkData
+            : otherChunkData.path;
         if (otherChunkPath.endsWith(".css")) {
           // Mark all CSS chunks within the same chunk group as this chunk as loaded.
+          // They are just injected as <link> tag and have to way to communicate completion.
           const cssResolver = getOrCreateResolver(otherChunkPath);
           cssResolver.resolve();
         } else if (otherChunkPath.endsWith(".js")) {
-          // Only wait for JS chunks to load.
-          chunksToWaitFor.push(otherChunkPath);
+          // Chunk might have started loading, so we want to avoid triggering another load.
+          getOrCreateResolver(otherChunkPath);
         }
       }
 
-      if (params.runtimeModuleIds.length > 0) {
-        await waitForChunksToLoad(chunksToWaitFor);
+      // This waits for chunks to be loaded, but also marks included items as available.
+      await Promise.all(
+        params.otherChunks.map((otherChunkData) =>
+          loadChunk({ type: SourceTypeRuntime, chunkPath }, otherChunkData)
+        )
+      );
 
+      if (params.runtimeModuleIds.length > 0) {
         for (const moduleId of params.runtimeModuleIds) {
           getOrInstantiateRuntimeModule(moduleId, chunkPath);
         }
@@ -38,7 +47,7 @@ let BACKEND;
     },
 
     loadChunk(chunkPath, source) {
-      return loadChunk(chunkPath, source);
+      return doLoadChunk(chunkPath, source);
     },
 
     unloadChunk(chunkPath) {
@@ -146,30 +155,13 @@ let BACKEND;
   }
 
   /**
-   * Waits for all provided chunks to load.
-   *
-   * @param {ChunkPath[]} chunks
-   * @returns {Promise<void>}
-   */
-  async function waitForChunksToLoad(chunks) {
-    const promises = [];
-    for (const chunkPath of chunks) {
-      const resolver = getOrCreateResolver(chunkPath);
-      if (!resolver.resolved) {
-        promises.push(resolver.promise);
-      }
-    }
-    await Promise.all(promises);
-  }
-
-  /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    *
    * @param {ChunkPath} chunkPath
    * @param {SourceInfo} source
    */
-  async function loadChunk(chunkPath, source) {
+  async function doLoadChunk(chunkPath, source) {
     const resolver = getOrCreateResolver(chunkPath);
     if (resolver.resolved) {
       return resolver.promise;

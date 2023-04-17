@@ -19,6 +19,6 @@ export type ModuleEffect =
     };
 
 export type DevRuntimeParams = {
-  otherChunks: ChunkPath[];
+  otherChunks: ChunkData[];
   runtimeModuleIds: ModuleId[];
 };

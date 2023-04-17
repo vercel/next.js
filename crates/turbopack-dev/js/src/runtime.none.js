@@ -2,6 +2,7 @@
 /** @typedef {import('../types/runtime.none').ChunkRunner} ChunkRunner */
 /** @typedef {import('../types').ModuleId} ModuleId */
 /** @typedef {import('../types').ChunkPath} ChunkPath */
+/** @typedef {import('../types').ChunkData} ChunkData */
 
 /** @type {RuntimeBackend} */
 let BACKEND;
@@ -55,7 +56,7 @@ let BACKEND;
    * dependencies of the chunk have been registered.
    *
    * @param {ChunkPath} chunkPath
-   * @param {ChunkPath[]} otherChunks
+   * @param {ChunkData[]} otherChunks
    * @param {ModuleId[]} runtimeModuleIds
    */
   function registerChunkRunner(chunkPath, otherChunks, runtimeModuleIds) {
@@ -66,7 +67,11 @@ let BACKEND;
       requiredChunks,
     };
 
-    for (const otherChunkPath of otherChunks) {
+    for (const otherChunkData of otherChunks) {
+      const otherChunkPath =
+        typeof otherChunkData === "string"
+          ? otherChunkData
+          : otherChunkData.path;
       if (registeredChunks.has(otherChunkPath)) {
         continue;
       }
