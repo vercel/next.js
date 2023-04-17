@@ -88,6 +88,12 @@ impl CssModuleAssetVc {
         let this = self.await?;
         Ok(parse(this.source, Value::new(this.ty), this.transforms))
     }
+
+    /// Retrns the asset ident of the source without the "css" modifier
+    #[turbo_tasks::function]
+    pub async fn source_ident(self) -> Result<AssetIdentVc> {
+        Ok(self.await?.source.ident())
+    }
 }
 
 #[turbo_tasks::value_impl]

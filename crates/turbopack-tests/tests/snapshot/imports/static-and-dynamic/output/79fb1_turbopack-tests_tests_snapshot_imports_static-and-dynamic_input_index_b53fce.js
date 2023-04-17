@@ -3,7 +3,7 @@
 "[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript, manifest chunk, loader)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, g: global, __dirname }) => (() => {
 
 __turbopack_export_value__((__turbopack_import__) => {
-    return __turbopack_load__("output/a587c_tests_snapshot_imports_static-and-dynamic_input_vercel.mjs_10fe7a._.js").then(() => {
+    return __turbopack_load__({"path":"output/a587c_tests_snapshot_imports_static-and-dynamic_input_vercel.mjs_10fe7a._.js","included":["[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript, manifest chunk)"]}).then(() => {
         return __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript, manifest chunk)");
     }).then((chunks) => {
         return Promise.all(chunks.map((chunk_path) => __turbopack_load__(chunk_path)));

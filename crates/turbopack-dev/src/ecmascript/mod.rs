@@ -1,4 +1,5 @@
 pub(crate) mod chunk;
+pub(crate) mod chunk_data;
 pub(crate) mod content;
 pub(crate) mod content_entry;
 pub(crate) mod evaluate;

@@ -19,6 +19,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
         Chunk, ChunkGroupReferenceVc, ChunkItem, ChunkReferenceVc, ChunkVc, ChunkingContextVc,
+        ModuleIdsVc,
     },
     ident::{AssetIdent, AssetIdentVc},
     introspect::{
@@ -150,6 +151,18 @@ impl EcmascriptChunkVc {
             }
         }
         Ok(FileSystemPathOptionVc::cell(Some(current)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn entry_ids(self) -> Result<ModuleIdsVc> {
+        let this = self.await?;
+        let entries = this
+            .main_entries
+            .await?
+            .iter()
+            .map(|&entry| entry.as_chunk_item(this.context).id())
+            .collect();
+        Ok(ModuleIdsVc::cell(entries))
     }
 
     #[turbo_tasks::function]

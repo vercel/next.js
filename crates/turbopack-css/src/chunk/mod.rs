@@ -16,7 +16,8 @@ use turbopack_core::{
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
         Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkItem, ChunkItemVc, ChunkReferenceVc,
         ChunkVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc, FromChunkableAsset,
-        ModuleId, ModuleIdVc,
+        ModuleId, ModuleIdVc, ModuleIdsVc, OutputChunk, OutputChunkRuntimeInfo,
+        OutputChunkRuntimeInfoVc, OutputChunkVc,
     },
     code_builder::{CodeBuilder, CodeVc},
     ident::{AssetIdent, AssetIdentVc},
@@ -287,6 +288,24 @@ impl OptimizableChunk for CssChunk {
     #[turbo_tasks::function]
     fn get_optimizer(&self) -> ChunkOptimizerVc {
         CssChunkOptimizerVc::new(self.context).into()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputChunk for CssChunk {
+    #[turbo_tasks::function]
+    async fn runtime_info(&self) -> Result<OutputChunkRuntimeInfoVc> {
+        let entries = self
+            .main_entries
+            .await?
+            .iter()
+            .map(|&entry| entry.as_chunk_item(self.context).id())
+            .collect();
+        Ok(OutputChunkRuntimeInfo {
+            included_ids: Some(ModuleIdsVc::cell(entries)),
+            ..Default::default()
+        }
+        .cell())
     }
 }
 

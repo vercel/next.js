@@ -72,7 +72,7 @@ impl ModuleCssModuleAssetVc {
 impl Asset for ModuleCssModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> AssetIdentVc {
-        self.inner.ident().with_modifier(modifier())
+        self.inner.source_ident().with_modifier(modifier())
     }
 
     #[turbo_tasks::function]
@@ -418,8 +418,8 @@ struct CssProxyModuleAsset {
 #[turbo_tasks::value_impl]
 impl Asset for CssProxyModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> AssetIdentVc {
-        self.module.ident()
+    async fn ident(&self) -> Result<AssetIdentVc> {
+        Ok(self.module.await?.inner.ident().with_modifier(modifier()))
     }
 
     #[turbo_tasks::function]
@@ -458,9 +458,9 @@ impl ChunkableAsset for CssProxyModuleAsset {
 #[turbo_tasks::value_impl]
 impl CssChunkPlaceable for CssProxyModuleAsset {
     #[turbo_tasks::function]
-    fn as_chunk_item(&self, context: ChunkingContextVc) -> CssChunkItemVc {
+    fn as_chunk_item(self_vc: CssProxyModuleAssetVc, context: ChunkingContextVc) -> CssChunkItemVc {
         CssProxyModuleChunkItemVc::cell(CssProxyModuleChunkItem {
-            module: self.module,
+            inner: self_vc,
             context,
         })
         .into()
@@ -482,7 +482,7 @@ impl ResolveOrigin for CssProxyModuleAsset {
 
 #[turbo_tasks::value]
 struct CssProxyModuleChunkItem {
-    module: ModuleCssModuleAssetVc,
+    inner: CssProxyModuleAssetVc,
     context: ChunkingContextVc,
 }
 
@@ -490,12 +490,12 @@ struct CssProxyModuleChunkItem {
 impl ChunkItem for CssProxyModuleChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> AssetIdentVc {
-        self.module.ident()
+        self.inner.ident()
     }
 
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        self.module.references()
+        self.inner.references()
     }
 }
 
@@ -504,6 +504,8 @@ impl CssChunkItem for CssProxyModuleChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<CssChunkItemContentVc> {
         Ok(self
+            .inner
+            .await?
             .module
             .await?
             .inner

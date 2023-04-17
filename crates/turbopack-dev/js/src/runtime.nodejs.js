@@ -13,11 +13,16 @@ let BACKEND;
       }
 
       if (params.runtimeModuleIds.length > 0) {
-        for (const otherChunkPath of params.otherChunks) {
-          loadChunk(otherChunkPath, {
-            type: SourceTypeRuntime,
-            chunkPath,
-          });
+        for (const otherChunkData of params.otherChunks) {
+          loadChunk(
+            typeof otherChunkData === "string"
+              ? otherChunkData
+              : otherChunkData.path,
+            {
+              type: SourceTypeRuntime,
+              chunkPath,
+            }
+          );
         }
 
         for (const moduleId of params.runtimeModuleIds) {

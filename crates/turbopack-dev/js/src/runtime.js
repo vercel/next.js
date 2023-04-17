@@ -9,6 +9,7 @@
 /** @typedef {import('../types').ChunkList} ChunkList */
 
 /** @typedef {import('../types').Module} Module */
+/** @typedef {import('../types').ChunkData} ChunkData */
 /** @typedef {import('../types').SourceInfo} SourceInfo */
 /** @typedef {import('../types').SourceType} SourceType */
 /** @typedef {import('../types').SourceType.Runtime} SourceTypeRuntime */
@@ -209,12 +210,45 @@ externalRequire.resolve = (name, opt) => {
   return require.resolve(name, opt);
 };
 
+/** @type {Map<ModuleId, Promise<any> | true>} */
+const availableModules = new Map();
+
 /**
  * @param {SourceInfo} source
- * @param {string} chunkPath
- * @returns {Promise<any> | undefined}
+ * @param {ChunkData} chunkData
+ * @returns {Promise<any>}
  */
-async function loadChunk(source, chunkPath) {
+async function loadChunk(source, chunkData) {
+  if (typeof chunkData === "string") {
+    return loadChunkPath(source, chunkData);
+  } else {
+    const includedList = chunkData.included || [];
+    const promises = includedList.map((included) => {
+      if (moduleFactories[included]) return true;
+      return availableModules.get(included);
+    });
+    if (promises.length > 0 && promises.every((p) => p)) {
+      // When all included items are already loaded or loading, we can skip loading ourselves
+      return Promise.all(promises);
+    }
+    const promise = loadChunkPath(source, chunkData.path);
+    for (const included of includedList) {
+      if (!availableModules.has(included)) {
+        // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
+        // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
+        availableModules.set(included, promise);
+      }
+    }
+    return promise;
+  }
+}
+
+/**
+ * @param {SourceInfo} source
+ * @param {ChunkPath} chunkPath
+ * @returns {Promise<any>}
+ */
+async function loadChunkPath(source, chunkPath) {
   try {
     await BACKEND.loadChunk(chunkPath, source);
   } catch (error) {
@@ -1208,6 +1242,7 @@ function disposeChunk(chunkPath) {
     if (noRemainingChunks) {
       moduleChunksMap.delete(moduleId);
       disposeModule(moduleId, "clear");
+      availableModules.delete(moduleId);
     }
   }
 
@@ -1253,7 +1288,11 @@ function registerChunkList(chunkList) {
   ]);
 
   // Adding chunks to chunk lists and vice versa.
-  const chunks = new Set(chunkList.chunks);
+  const chunks = new Set(
+    chunkList.chunks.map((chunkData) =>
+      typeof chunkData === "string" ? chunkData : chunkData.path
+    )
+  );
   chunkListChunksMap.set(chunkList.path, chunks);
   for (const chunkPath of chunks) {
     let chunkChunkLists = chunkChunkListsMap.get(chunkPath);

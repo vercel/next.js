@@ -8,6 +8,7 @@ use std::{
     collections::HashSet,
     fmt::{Debug, Display},
     future::Future,
+    hash::Hash,
     marker::PhantomData,
 };
 
@@ -114,6 +115,21 @@ pub trait Chunk: Asset {
     fn path(&self) -> FileSystemPathVc {
         self.ident().path()
     }
+}
+
+/// Aggregated information about a chunk content that can be used by the runtime
+/// code to optimize chunk loading.
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct OutputChunkRuntimeInfo {
+    pub included_ids: Option<ModuleIdsVc>,
+    pub excluded_ids: Option<ModuleIdsVc>,
+    pub placeholder_for_future_extensions: (),
+}
+
+#[turbo_tasks::value_trait]
+pub trait OutputChunk: Asset {
+    fn runtime_info(&self) -> OutputChunkRuntimeInfoVc;
 }
 
 /// see [Chunk] for explanation

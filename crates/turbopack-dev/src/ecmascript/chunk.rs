@@ -3,7 +3,10 @@ use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkingContext, ParallelChunkReference, ParallelChunkReferenceVc},
+    chunk::{
+        ChunkingContext, OutputChunk, OutputChunkRuntimeInfo, OutputChunkRuntimeInfoVc,
+        OutputChunkVc, ParallelChunkReference, ParallelChunkReferenceVc,
+    },
     ident::AssetIdentVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
     reference::AssetReferencesVc,
@@ -41,6 +44,18 @@ impl ValueToString for EcmascriptDevChunk {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell("Ecmascript Dev Chunk".to_string()))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputChunk for EcmascriptDevChunk {
+    #[turbo_tasks::function]
+    fn runtime_info(&self) -> OutputChunkRuntimeInfoVc {
+        OutputChunkRuntimeInfo {
+            included_ids: Some(self.chunk.entry_ids()),
+            ..Default::default()
+        }
+        .cell()
     }
 }
 

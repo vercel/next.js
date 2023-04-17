@@ -16,7 +16,7 @@ use turbopack_ecmascript::{
 };
 
 use super::chunk_asset::DevManifestChunkAssetVc;
-use crate::DevChunkingContextVc;
+use crate::{ecmascript::chunk_data::ChunkData, DevChunkingContextVc};
 
 /// The DevManifestChunkItem generates a __turbopack_load__ call for every chunk
 /// necessary to load the real asset. Once all the loads resolve, it is safe to
@@ -39,17 +39,13 @@ impl EcmascriptChunkItem for DevManifestChunkItem {
         let chunks = self.manifest.chunks().await?;
         let output_root = self.context.output_root().await?;
 
-        let mut chunk_server_paths = IndexSet::new();
-        for chunk in chunks.iter() {
-            // The "path" in this case is the chunk's path, not the chunk item's path.
-            // The difference is a chunk is a file served by the dev server, and an
-            // item is one of several that are contained in that chunk file.
-            let chunk_path = &*chunk.ident().path().await?;
-            // The pathname is the file path necessary to load the chunk from the server.
-            if let Some(path) = output_root.get_path_to(chunk_path) {
-                chunk_server_paths.insert(path.to_string());
+        let mut chunks_data = IndexSet::new();
+        for &chunk in chunks.iter() {
+            // The chunk data is necessary to load the chunk from the server.
+            if let Some(chunk_data) = ChunkData::from_asset(&output_root, chunk).await? {
+                chunks_data.insert(chunk_data);
             } else {
-                // ignore all chunks that are not in the output root
+                // ignore all chunks that don't have chunk data
                 // they need to be handled by some external mechanism
             };
         }
@@ -58,7 +54,7 @@ impl EcmascriptChunkItem for DevManifestChunkItem {
             r#"
                 __turbopack_export_value__({:#});
             "#,
-            StringifyJs(&chunk_server_paths)
+            StringifyJs(&chunks_data)
         };
 
         Ok(EcmascriptChunkItemContent {
