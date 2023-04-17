@@ -228,15 +228,15 @@ pub async fn get_client_module_options_context(
                 foreign_code_context_condition(next_config).await?,
                 module_options_context.clone().cell(),
             ),
-            // If module is internal assets (i.e overlay, fallback) coming from embed_js fs root
-            // We will not apply any user defined transforms
+            // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
+            // FS, don't apply user defined transforms.
             (
                 ContextCondition::InPath(next_js_fs().root()),
-                (ModuleOptionsContext {
+                ModuleOptionsContext {
                     enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                     enable_jsx: Some(JsxTransformOptions::default().cell()),
                     ..module_options_context.clone()
-                })
+                }
                 .cell(),
             ),
         ],
