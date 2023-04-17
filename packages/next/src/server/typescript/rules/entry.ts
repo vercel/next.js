@@ -36,17 +36,18 @@ const entry = {
         let validPropsWithType = []
         let type: string
 
+        // For both page and layout entries, the `params` prop is a dynamic object with
+        // the dynamic segment names as the keys. For example, if the page
+        // is `pages/[id]/[name].js`, the `params` prop will be
+        // `{ id: string, name: string }`.
+        // For catch all routes, the `params` prop will be `{ name: string[] }`
+        // For optional catch all routes, the `params` prop will be `{ name?: string[] }`
+        // If there's currently no dynamic segments, the `params` prop will not be typed.
+
         if (isPageFile(fileName)) {
           // For page entries (page.js), it can only have `params` and `searchParams`
           // as the prop names.
 
-          // For page entries, the `params` prop is a dynamic object with
-          // the dynamic segment names as the keys. For example, if the page
-          // is `pages/[id]/[name].js`, the `params` prop will be
-          // `{ id: string, name: string }`.
-          // For catch all routes, the `params` prop will be `{ name: string[] }`
-          // For optional catch all routes, the `params` prop will be `{ name?: string[] }`
-          // If there's currently no dynamic segments, the `params` prop will not be typed.
           const paramType = getParamsType(fileName)
 
           validProps = ALLOWED_PAGE_PROPS
@@ -65,10 +66,13 @@ const entry = {
               slots.push(item.name.slice(1))
             }
           }
+          const paramType = getParamsType(fileName)
+
           validProps = ALLOWED_LAYOUT_PROPS.concat(slots)
-          validPropsWithType = ALLOWED_LAYOUT_PROPS.concat(
+          validPropsWithType = [paramType, 'searchParams'].concat(
             slots.map((s) => `${s}: React.ReactNode`)
           )
+
           type = 'layout'
         }
 

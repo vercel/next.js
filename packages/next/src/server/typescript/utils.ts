@@ -142,10 +142,10 @@ export type DynamicSegmentParams =
     }
 
 export function getDynamicSegmentParams(
-  fileName: string
+  filePath: string
 ): DynamicSegmentParams {
   const dirNames: string[] = []
-  let currentPath = path.dirname(fileName)
+  let currentPath = path.dirname(filePath)
 
   let dynamicSegmentNames: string | string[] = []
   let isOptionalCatchAll = false
@@ -184,8 +184,8 @@ export function getDynamicSegmentParams(
       }
 }
 
-export function getParamsType(fileName: string) {
-  const dynamicSegmentParams = getDynamicSegmentParams(fileName)
+export function getParamsType(filePath: string) {
+  const dynamicSegmentParams = getDynamicSegmentParams(filePath)
 
   const hasDynamicSegments = dynamicSegmentParams.isCatchAll
     ? true
