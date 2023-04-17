@@ -102,7 +102,9 @@ export default async function route(
       routerRequest.rawHeaders
     )
 
-    const body = Buffer.concat(routerRequest.body.map((arr) => Buffer.from(arr)));
+    const body = Buffer.concat(
+      routerRequest.body.map((arr) => Buffer.from(arr))
+    )
 
     // Send the clientRequest, so the server parses everything. We can then pass
     // the serverRequest to Next.js to handle.
