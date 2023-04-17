@@ -383,7 +383,12 @@ export async function getPageStaticInfo(params: {
       warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
     }
 
-    if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
+    if (
+      resolvedRuntime === SERVER_RUNTIME.edge &&
+      pageType === 'pages' &&
+      page &&
+      !isAnAPIRoute
+    ) {
       const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
       if (isDev) {
         Log.error(message)
