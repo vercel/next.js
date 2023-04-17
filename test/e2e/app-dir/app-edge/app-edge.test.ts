@@ -17,20 +17,11 @@ createNextDescribe(
     })
 
     it('should warn the legacy object config export', async () => {
-      const logs = []
-      next.on('stderr', (log) => {
-        logs.push(log)
-      })
       await next.render('/edge/legacy')
-      expect(
-        logs.some(
-          (log) =>
-            log.includes('`export const config`') &&
-            log.includes(
-              'app/edge/legacy/page.tsx is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config'
-            )
-        )
-      ).toBe(true)
+      expect(next.cliOutput).toContain('`export const config`')
+      expect(next.cliOutput).toContain(
+        'app/edge/legacy/page.tsx is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config'
+      )
     })
 
     it('should retrieve cookies in a server component in the edge runtime', async () => {
