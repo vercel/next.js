@@ -329,17 +329,24 @@ export async function getPageStaticInfo(params: {
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
-    let config: any = {}
-    if (pageType === 'pages' || pageType === 'root') {
-      try {
-        config = extractExportedConstValue(swcAST, 'config')
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
-        // `export config` doesn't exist, or other unknown error throw by swc, silence them
+    let config: any
+    try {
+      config = extractExportedConstValue(swcAST, 'config')
+    } catch (e) {
+      if (e instanceof UnsupportedValueError) {
+        warnAboutUnsupportedValue(pageFilePath, page, e)
+      }
+      // `export config` doesn't exist, or other unknown error throw by swc, silence them
+    }
+    if (pageType === 'app') {
+      if (config) {
+        Log.warnOnce(
+          `\`export const config\` in ${pageFilePath} is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        )
+        config = {}
       }
     }
+    if (!config) config = {}
 
     // We use `export const config = { runtime: '...' }` to specify the page runtime for pages/.
     // In the new app directory, we prefer to use `export const runtime = '...'`
