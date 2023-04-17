@@ -1,6 +1,7 @@
 import type { NextConfigComplete } from '../config-shared'
 import type { AppRouteUserlandModule } from '../future/route-modules/app-route/module'
 
+import '../../server/require-hook'
 import '../node-polyfill-fetch'
 import {
   buildAppStaticPaths,
@@ -10,20 +11,11 @@ import {
 } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../config'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../../build/webpack/require-hook'
 import { IncrementalCache } from '../lib/incremental-cache'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 
 type RuntimeConfig = any
-
-loadRequireHook()
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  overrideBuiltInReactPackages()
-}
 
 // expose AsyncLocalStorage on globalThis for react usage
 const { AsyncLocalStorage } = require('async_hooks')
