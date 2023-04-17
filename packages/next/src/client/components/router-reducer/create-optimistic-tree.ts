@@ -33,7 +33,7 @@ export function createOptimisticTree(
 
   let childTree
 
-  // if there's multiple parallel routes at this level, we shoudn't create an
+  // if there's multiple parallel routes at this level, we shouldn't create an
   // optimistic tree for the next level because we don't know which one will
   // match the next segment.
   if (!isLastSegment && !hasMultipleParallelRoutes) {
