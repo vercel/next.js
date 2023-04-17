@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 
 export default function Page() {
   cookies()

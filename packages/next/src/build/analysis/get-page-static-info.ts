@@ -314,7 +314,7 @@ export async function getPageStaticInfo(params: {
   pageFilePath: string
   isDev?: boolean
   page?: string
-  pageType?: 'pages' | 'app'
+  pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
@@ -330,20 +330,27 @@ export async function getPageStaticInfo(params: {
 
     // default / failsafe value for config
     let config: any = {}
-    try {
-      config = extractExportedConstValue(swcAST, 'config')
-    } catch (e) {
-      if (e instanceof UnsupportedValueError) {
-        warnAboutUnsupportedValue(pageFilePath, page, e)
+    if (pageType === 'pages' || pageType === 'root') {
+      try {
+        config = extractExportedConstValue(swcAST, 'config')
+      } catch (e) {
+        if (e instanceof UnsupportedValueError) {
+          warnAboutUnsupportedValue(pageFilePath, page, e)
+        }
+        // `export config` doesn't exist, or other unknown error throw by swc, silence them
       }
-      // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
 
-    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
-    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // We use `export const config = { runtime: '...' }` to specify the page runtime for pages/.
+    // In the new app directory, we prefer to use `export const runtime = '...'`
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
-    let resolvedRuntime = runtime || config.runtime
+    let resolvedRuntime
+    if (pageType === 'app') {
+      resolvedRuntime = runtime
+    } else {
+      resolvedRuntime = runtime || config.runtime
+    }
 
     if (
       typeof resolvedRuntime !== 'undefined' &&
@@ -376,12 +383,7 @@ export async function getPageStaticInfo(params: {
       warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
     }
 
-    if (
-      resolvedRuntime === SERVER_RUNTIME.edge &&
-      pageType === 'pages' &&
-      page &&
-      !isAnAPIRoute
-    ) {
+    if (resolvedRuntime === SERVER_RUNTIME.edge && page && !isAnAPIRoute) {
       const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
       if (isDev) {
         Log.error(message)
