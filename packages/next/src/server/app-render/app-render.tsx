@@ -562,6 +562,26 @@ export async function renderToHTMLOrFlight(
       }
     }
 
+    const parseLoaderTree = (tree: LoaderTree) => {
+      const [segment, parallelRoutes, components] = tree
+      const { layout } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
+      const layoutOrPagePath = layout?.[1] || page?.[1]
+
+      return {
+        page,
+        segment,
+        components,
+        layoutOrPagePath,
+        parallelRoutes,
+      }
+    }
+
     /**
      * Use the provided loader tree to create the React Component tree.
      */
@@ -587,7 +607,9 @@ export async function renderToHTMLOrFlight(
       Component: React.ComponentType
       assets: React.ReactNode
     }> => {
-      const [segment, parallelRoutes, components] = tree
+      const { page, layoutOrPagePath, segment, components, parallelRoutes } =
+        parseLoaderTree(tree)
+
       const {
         layout,
         template,
@@ -595,13 +617,6 @@ export async function renderToHTMLOrFlight(
         loading,
         'not-found': notFound,
       } = components
-      let { page } = components
-      // a __DEFAULT__ segment means that this route didn't match any of the
-      // segments in the route, so we should use the default page
-
-      page = segment === '__DEFAULT__' ? components.defaultPage : page
-
-      const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
       const injectedFontPreloadTagsWithCurrentLayout = new Set(
@@ -1057,6 +1072,7 @@ export async function renderToHTMLOrFlight(
             canSegmentBeOverridden(actualSegment, flightRouterState[0])
               ? flightRouterState[0]
               : null
+
           return [
             [
               overriddenSegment ?? actualSegment,
@@ -1072,33 +1088,42 @@ export async function renderToHTMLOrFlight(
                 : // Create component tree using the slice of the loaderTree
                   // @ts-expect-error TODO-APP: fix async component type
                   React.createElement(async () => {
-                    const { Component, assets } = await createComponentTree(
+                    const { Component } = await createComponentTree(
                       // This ensures flightRouterPath is valid and filters down the tree
                       {
-                        createSegmentPath: (child) => {
-                          return createSegmentPath(child)
-                        },
+                        createSegmentPath,
                         loaderTree: loaderTreeToFilter,
                         parentParams: currentParams,
                         firstItem: isFirst,
                         injectedCSS,
                         injectedFontPreloadTags,
                         // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                        rootLayoutIncluded: rootLayoutIncluded,
+                        rootLayoutIncluded,
                         asNotFound,
                       }
                     )
 
-                    return (
-                      <>
-                        {assets}
-                        <Component />
-                      </>
-                    )
+                    return <Component />
                   }),
               isPrefetch && !Boolean(components.loading)
                 ? null
-                : rscPayloadHead,
+                : (() => {
+                    const { layoutOrPagePath } =
+                      parseLoaderTree(loaderTreeToFilter)
+
+                    const { styles } = getLayerAssets({
+                      layoutOrPagePath,
+                      injectedCSS: new Set(injectedCSS),
+                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                    })
+
+                    return (
+                      <>
+                        {styles}
+                        {rscPayloadHead}
+                      </>
+                    )
+                  })(),
             ],
           ]
         }
@@ -1330,38 +1355,40 @@ export async function renderToHTMLOrFlight(
         )
 
         return (
-          <AppRouter
-            assetPrefix={assetPrefix}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialHead={
-              <>
-                {/* Adding key={requestId} to make metadata remount for each render */}
-                {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree
-                  key={requestId}
-                  metadata={metadataItems}
-                  pathname={pathname}
-                />
-              </>
-            }
-            globalErrorComponent={GlobalError}
-            notFound={
-              NotFound && RootLayout ? (
-                <>
-                  {assets}
-                  <RootLayout params={{}}>
-                    {notFoundStyles}
-                    <NotFound />
-                  </RootLayout>
-                </>
-              ) : undefined
-            }
-            asNotFound={props.asNotFound}
-          >
+          <>
             {assets}
-            <ComponentTree />
-          </AppRouter>
+            <AppRouter
+              assetPrefix={assetPrefix}
+              initialCanonicalUrl={initialCanonicalUrl}
+              initialTree={initialTree}
+              initialHead={
+                <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree
+                    key={requestId}
+                    metadata={metadataItems}
+                    pathname={pathname}
+                  />
+                </>
+              }
+              globalErrorComponent={GlobalError}
+              notFound={
+                NotFound && RootLayout ? (
+                  <>
+                    {assets}
+                    <RootLayout params={{}}>
+                      {notFoundStyles}
+                      <NotFound />
+                    </RootLayout>
+                  </>
+                ) : undefined
+              }
+              asNotFound={props.asNotFound}
+            >
+              <ComponentTree />
+            </AppRouter>
+          </>
         )
       },
       ComponentMod,
