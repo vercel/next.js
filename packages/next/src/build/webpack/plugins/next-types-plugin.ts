@@ -193,7 +193,6 @@ type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends n
 }
 
 async function collectNamedSlots(layoutPath: string) {
-  console.log('collecting named slots')
   const layoutDir = path.dirname(layoutPath)
   const items = await fs.readdir(layoutDir, { withFileTypes: true })
   const slots = []
@@ -202,7 +201,6 @@ async function collectNamedSlots(layoutPath: string) {
       slots.push(item.name.slice(1))
     }
   }
-  console.log({ slots })
   return slots
 }
 
