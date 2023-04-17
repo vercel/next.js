@@ -375,15 +375,6 @@ declare module 'next/dist/compiled/react-dom' {
   export = m
 }
 
-declare module 'next/dist/compiled/react-experimental' {
-  import * as m from 'react'
-  export = m
-}
-declare module 'next/dist/compiled/react-dom-experimental' {
-  import * as m from 'react-dom'
-  export = m
-}
-
 declare module 'next/dist/compiled/stacktrace-parser' {
   import * as m from 'stacktrace-parser'
   export = m
