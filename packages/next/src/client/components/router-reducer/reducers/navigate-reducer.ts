@@ -67,6 +67,17 @@ function generateSegmentsFromPatch(
   return segments
 }
 
+function prunePrefetchCache(prefetchCache: ReducerState['prefetchCache']) {
+  for (const [href, prefetchCacheEntry] of prefetchCache) {
+    if (
+      getPrefetchEntryCacheStatus(prefetchCacheEntry) ===
+      PrefetchCacheEntryStatus.expired
+    ) {
+      prefetchCache.delete(href)
+    }
+  }
+}
+
 export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
@@ -94,15 +105,13 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
-  const prefetchEntryCacheStatus =
-    prefetchValues && getPrefetchEntryCacheStatus(prefetchValues)
+  // we want to prune the prefetch cache on every navigation to avoid it growing too large
+  prunePrefetchCache(state.prefetchCache)
 
-  if (
-    prefetchValues &&
-    prefetchEntryCacheStatus !== null &&
-    prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.expired
-  ) {
+  const prefetchValues = state.prefetchCache.get(createHrefFromUrl(url, false))
+
+  if (prefetchValues) {
+    const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
     prefetchValues.lastUsedTime = Date.now()
 
     // The one before last item is the router state tree patch
@@ -155,7 +164,7 @@ export function navigateReducer(
           currentCache,
           cache,
           flightDataPath,
-          // if the entry is stale, we don't want to use the data from the prefetch cache
+          // if the entry is stale, we'll revalidate below the tree and trigger a refetch from the layout router
           prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.stale
         )
 
@@ -205,11 +214,6 @@ export function navigateReducer(
     mutable.hashFragment = hash
 
     return handleMutable(state, mutable)
-  }
-
-  // clean up the prefetch cache if the entry is expired as we don't need it anymore
-  if (prefetchEntryCacheStatus === PrefetchCacheEntryStatus.expired) {
-    state.prefetchCache.delete(createHrefFromUrl(url, false))
   }
 
   // When doing a hard push there can be two cases: with optimistic tree and without
@@ -275,7 +279,18 @@ export function navigateReducer(
   }
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-  const [flightData, canonicalUrlOverride] = readRecordValue(cache.data!)
+  const data = readRecordValue(cache.data!)
+
+  state.prefetchCache.set(createHrefFromUrl(url, false), {
+    data: Promise.resolve(data),
+    // this will make sure that the entry will be discarded after 30s
+    kind: 'temporary',
+    prefetchTime: Date.now(),
+    treeAtTimeOfPrefetch: state.tree,
+    lastUsedTime: Date.now(),
+  })
+
+  const [flightData, canonicalUrlOverride] = data
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
