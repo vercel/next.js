@@ -224,6 +224,8 @@ export default function ReactDevOverlay({
       </ErrorBoundary>
       {isMounted ? (
         <ShadowPortal
+          // setting key ensures that ShadowPortal is re-mounted when the error changes
+          // this is necessary as nextjs-portal need to be reinjected when we re-render <body>
           key={'' + !state.reactError}
           globalOverlay={globalOverlay}
         >

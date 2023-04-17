@@ -163,7 +163,7 @@ async function runOperation(renderData: RenderData) {
             id = key.slice(0, pos)
             name = key.slice(pos + 1)
           } else {
-            throw new Error('key need to be in format of {file}#{name}')
+            throw new Error('keys need to be formatted as {file}#{name}')
           }
 
           return {
@@ -202,6 +202,7 @@ async function runOperation(renderData: RenderData) {
   const availableModules = new Set()
   const toPath = (chunk: ChunkData) =>
     typeof chunk === 'string' ? chunk : chunk.path
+  /// determines if a chunk is needed based on the current available modules
   const filterAvailable = (chunk: ChunkData) => {
     if (typeof chunk === 'string') {
       return true
@@ -223,14 +224,14 @@ async function runOperation(renderData: RenderData) {
   const cssFilesProxyMethods = {
     get(_target: any, prop: string) {
       const cssChunks = JSON.parse(prop)
-      // TODO subscribe to changes
+      // TODO(WEB-856) subscribe to changes
       return cssChunks.map(toPath)
     },
   }
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {
       const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
-      // TODO subscribe to changes
+      // TODO(WEB-856) subscribe to changes
 
       // This return value is passed to proxyMethodsNested for clientModules
       return cssChunks
