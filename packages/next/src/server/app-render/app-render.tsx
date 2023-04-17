@@ -468,7 +468,7 @@ export async function renderToHTMLOrFlight(
       return [Comp, styles]
     }
 
-    const createStaticAssets = ({
+    const getLayerAssets = ({
       layoutOrPagePath,
       injectedCSS: injectedCSSWithCurrentLayout,
       injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
@@ -476,7 +476,10 @@ export async function renderToHTMLOrFlight(
       layoutOrPagePath: string | undefined
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
-    }): React.ReactNode => {
+    }): {
+      styles: React.ReactNode
+      preloads: React.ReactNode
+    } => {
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             clientReferenceManifest,
@@ -498,17 +501,19 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
-      return (
+      const preloads = (
         <>
           {preloadedFontFiles?.length === 0 ? (
-            <link
-              data-next-font={
-                nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
-              }
-              rel="preconnect"
-              href="/"
-              crossOrigin="anonymous"
-            />
+            <>
+              <link
+                data-next-font={
+                  nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                }
+                rel="preconnect"
+                href="/"
+                crossOrigin="anonymous"
+              />
+            </>
           ) : null}
           {preloadedFontFiles
             ? preloadedFontFiles.map((fontFile) => {
@@ -528,27 +533,33 @@ export async function renderToHTMLOrFlight(
                 )
               })
             : null}
-          {stylesheets
-            ? stylesheets.map((href, index) => (
-                <link
-                  rel="stylesheet"
-                  // In dev, Safari will wrongly cache the resource if you preload it:
-                  // - https://github.com/vercel/next.js/issues/5860
-                  // - https://bugs.webkit.org/show_bug.cgi?id=187726
-                  // We used to add a `?ts=` query for resources in `pages` to bypass it,
-                  // but in this case it is fine as we don't need to preload the styles.
-                  href={`${assetPrefix}/_next/${href}`}
-                  // `Precedence` is an opt-in signal for React to handle
-                  // resource loading and deduplication, etc:
-                  // https://github.com/facebook/react/pull/25060
-                  // @ts-ignore
-                  precedence="next.js"
-                  key={index}
-                />
-              ))
-            : null}
         </>
       )
+
+      const styles = stylesheets
+        ? stylesheets.map((href, index) => (
+            <link
+              rel="stylesheet"
+              // In dev, Safari will wrongly cache the resource if you preload it:
+              // - https://github.com/vercel/next.js/issues/5860
+              // - https://bugs.webkit.org/show_bug.cgi?id=187726
+              // We used to add a `?ts=` query for resources in `pages` to bypass it,
+              // but in this case it is fine as we don't need to preload the styles.
+              href={`${assetPrefix}/_next/${href}`}
+              // `Precedence` is an opt-in signal for React to handle
+              // resource loading and deduplication, etc:
+              // https://github.com/facebook/react/pull/25060
+              // @ts-ignore
+              precedence="next.js"
+              key={index}
+            />
+          ))
+        : null
+
+      return {
+        styles,
+        preloads,
+      }
     }
 
     /**
@@ -597,7 +608,7 @@ export async function renderToHTMLOrFlight(
         injectedFontPreloadTags
       )
 
-      const assets = createStaticAssets({
+      const { styles, preloads } = getLayerAssets({
         layoutOrPagePath,
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
@@ -896,7 +907,7 @@ export async function renderToHTMLOrFlight(
       if (!Component) {
         return {
           Component: () => <>{parallelRouteComponents.children}</>,
-          assets,
+          assets: styles,
         }
       }
 
@@ -956,12 +967,11 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {/* Make sure the component isn't null to avoid breaking this: https://github.com/vercel/next.js/blob/faa8038d50386a43ef845e714f4f156f9bb916af/packages/next/src/client/components/layout-router.tsx#L261 */}
-              <React.Fragment />
+              {preloads}
             </>
           )
         },
-        assets,
+        assets: styles,
       }
     }
 
