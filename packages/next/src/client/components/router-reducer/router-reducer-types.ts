@@ -121,7 +121,7 @@ export interface ServerPatchAction {
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
- * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link.
+ * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
  */
 export type PrefetchKind = 'auto' | 'full' | 'temporary'
 
