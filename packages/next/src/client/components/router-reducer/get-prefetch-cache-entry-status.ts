@@ -4,9 +4,9 @@ const FIVE_MINUTES = 5 * 60 * 1000
 const THIRTY_SECONDS = 5 * 1000
 
 export enum PrefetchCacheEntryStatus {
-  'reusable',
-  'expired',
-  'stale',
+  reusable = 'reusable',
+  expired = 'expired',
+  stale = 'stale',
 }
 
 export function getPrefetchEntryCacheStatus({
