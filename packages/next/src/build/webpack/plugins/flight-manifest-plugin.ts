@@ -242,7 +242,10 @@ export class ClientReferenceManifestPlugin {
                 }
                 return null
               }),
-            ].flat()
+              ...(mod.buildInfo.rsc?.clientRefs || []),
+            ]
+              .filter(Boolean)
+              .flat()
           ),
         ]
 
