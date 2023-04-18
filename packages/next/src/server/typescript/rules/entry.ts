@@ -9,6 +9,7 @@ import {
 import {
   getDynamicSegmentParams,
   getParamsType,
+  getParamsTypeMismatchMessage,
   getTs,
   isPageFile,
   isPositionInsideNode,
@@ -160,9 +161,17 @@ const entry = {
 
     const diagnostics: ts.Diagnostic[] = []
 
-    const props = node.parameters?.[0]?.name
+    const paramNode = node.parameters?.[0] as
+      | ts.ParameterDeclaration
+      | undefined
 
-    if (props && ts.isObjectBindingPattern(props)) {
+    if (!paramNode) {
+      return diagnostics
+    }
+
+    const props = paramNode.name
+
+    if (ts.isObjectBindingPattern(props)) {
       for (const prop of (props as ts.ObjectBindingPattern).elements) {
         const propName = (prop.propertyName || prop.name).getText()
         if (!validProps.includes(propName)) {
@@ -179,6 +188,7 @@ const entry = {
     }
 
     const dynamicSegmentParams = getDynamicSegmentParams(fileName)
+
     const hasDynamicSegments = dynamicSegmentParams.isCatchAll
       ? true
       : dynamicSegmentParams.params.length > 0
@@ -187,17 +197,17 @@ const entry = {
       return diagnostics
     }
 
-    const propType = node.parameters?.[0]?.type
+    const propsType = paramNode.type
 
-    if (propType && ts.isTypeLiteralNode(propType)) {
-      for (const prop of propType.members) {
+    if (propsType && ts.isTypeLiteralNode(propsType)) {
+      for (const prop of propsType.members) {
         const propName = prop.name?.getText()
-        const typeNode = prop.getChildren().at(-1)
-        if (!typeNode) {
-          continue
-        }
 
-        if (propName === 'params' && ts.isTypeLiteralNode(typeNode)) {
+        if (propName === 'params') {
+          const typeNode = prop.getChildren().at(-1)
+
+          if (!typeNode || !ts.isTypeLiteralNode(typeNode)) break
+
           const correctType = getParamsType(fileName)
 
           for (const propInParamsProp of typeNode.members) {
@@ -213,9 +223,12 @@ const entry = {
                   file: source,
                   category: ts.DiagnosticCategory.Error,
                   code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
-                  start: prop.getStart(),
-                  length: prop.getWidth(),
+                  messageText: getParamsTypeMismatchMessage(
+                    prop.getText(),
+                    correctType
+                  ),
+                  start: propInParamsProp.getStart(),
+                  length: propInParamsProp.getWidth(),
                 })
               }
 
@@ -231,9 +244,12 @@ const entry = {
                   file: source,
                   category: ts.DiagnosticCategory.Error,
                   code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
-                  start: prop.getStart(),
-                  length: prop.getWidth(),
+                  messageText: getParamsTypeMismatchMessage(
+                    prop.getText(),
+                    correctType
+                  ),
+                  start: propInParamsProp.getStart(),
+                  length: propInParamsProp.getWidth(),
                 })
               }
 
@@ -245,9 +261,12 @@ const entry = {
                   file: source,
                   category: ts.DiagnosticCategory.Error,
                   code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
-                  start: prop.getStart(),
-                  length: prop.getWidth(),
+                  messageText: getParamsTypeMismatchMessage(
+                    prop.getText(),
+                    correctType
+                  ),
+                  start: propInParamsProp.getStart(),
+                  length: propInParamsProp.getWidth(),
                 })
               }
             } else {
@@ -262,9 +281,12 @@ const entry = {
                   file: source,
                   category: ts.DiagnosticCategory.Error,
                   code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                  messageText: `Type '${prop.getText()}' does not match type '${correctType}'.`,
-                  start: prop.getStart(),
-                  length: prop.getWidth(),
+                  messageText: getParamsTypeMismatchMessage(
+                    prop.getText(),
+                    correctType
+                  ),
+                  start: propInParamsProp.getStart(),
+                  length: propInParamsProp.getWidth(),
                 })
               }
 
@@ -277,9 +299,12 @@ const entry = {
                   file: source,
                   category: ts.DiagnosticCategory.Error,
                   code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                  messageText: `Type ${prop.getText()} does not match type: '${correctType}`,
-                  start: prop.getStart(),
-                  length: prop.getWidth(),
+                  messageText: getParamsTypeMismatchMessage(
+                    prop.getText(),
+                    correctType
+                  ),
+                  start: propInParamsProp.getStart(),
+                  length: propInParamsProp.getWidth(),
                 })
               }
             }

@@ -196,12 +196,19 @@ export function getParamsType(filePath: string) {
   if (!dynamicSegmentParams.isCatchAll) {
     return `params: { ${dynamicSegmentParams.params
       .map((s) => `${s}: string`)
-      .join(', ')}}`
+      .join(', ')} }`
   }
 
   if (!dynamicSegmentParams.isOptionalCatchAll) {
-    return `params: { ${dynamicSegmentParams.params}: string[]}`
+    return `params: { ${dynamicSegmentParams.params}: string[] }`
   }
 
   return `params: { ${dynamicSegmentParams.params}?: string[] }`
+}
+
+export function getParamsTypeMismatchMessage(
+  wrongType: string,
+  correctType: string
+) {
+  return `Type '${wrongType}' does not match params type from current file structure '${correctType}'.`
 }
