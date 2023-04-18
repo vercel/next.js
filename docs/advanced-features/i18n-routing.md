@@ -149,7 +149,7 @@ When using Sub-path Routing, the user would be redirected to `/fr`.
 
 With Next.js 12 and [Middleware](/docs/middleware.md), we can add a prefix to the default locale with a [workaround](https://github.com/vercel/next.js/discussions/18419).
 
-For example, here's a `next.config.js` file with support for a few languages. **Note**:the `"default"` locale has been added intentionally.
+For example, here's a `next.config.js` file with support for a few languages. Note the `"default"` locale has been added intentionally.
 
 ```js
 // next.config.js
@@ -259,7 +259,7 @@ export default function IndexPage(props) {
 }
 ```
 
-**Note**: that to handle switching only the `locale` while preserving all routing information such as [dynamic route](/docs/routing/dynamic-routes.md) query values or hidden href query values, you can provide the `href` parameter as an object:
+Note that to handle switching only the `locale` while preserving all routing information such as [dynamic route](/docs/routing/dynamic-routes.md) query values or hidden href query values, you can provide the `href` parameter as an object:
 
 ```jsx
 import { useRouter } from 'next/router'
@@ -299,7 +299,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ## How does this work with Static Generation?
 
-> **Note**: that Internationalized Routing does not integrate with [`output: 'export'`](/docs/advanced-features/static-html-export.md) as it does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `output: 'export'` are fully supported.
+> Note that Internationalized Routing does not integrate with [`output: 'export'`](/docs/advanced-features/static-html-export.md) as it does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `output: 'export'` are fully supported.
 
 ### Dynamic Routes and `getStaticProps` Pages
 

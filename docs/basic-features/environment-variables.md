@@ -102,7 +102,7 @@ function HomePage() {
 export default HomePage
 ```
 
-**Note**: that dynamic lookups will _not_ be inlined, such as:
+Note that dynamic lookups will _not_ be inlined, such as:
 
 ```js
 // This will NOT be inlined, because it uses a variable

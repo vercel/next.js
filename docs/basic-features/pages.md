@@ -86,7 +86,7 @@ function About() {
 export default About
 ```
 
-**Note**: that this page does not need to fetch any external data to be pre-rendered. In cases like this, Next.js generates a single HTML file per page during build time.
+Note that this page does not need to fetch any external data to be pre-rendered. In cases like this, Next.js generates a single HTML file per page during build time.
 
 ### Static Generation with data
 

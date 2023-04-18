@@ -223,7 +223,7 @@ The callback function will be called with one argument, a reference to the under
 
 A callback function that is invoked when the image is loaded.
 
-**Note**: that the load event might occur before the placeholder is removed and the image is fully decoded.
+Note that the load event might occur before the placeholder is removed and the image is fully decoded.
 
 Instead, use [`onLoadingComplete`](#onloadingcomplete).
 
