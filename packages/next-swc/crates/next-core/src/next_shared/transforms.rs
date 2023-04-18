@@ -90,6 +90,8 @@ pub fn get_next_image_rule() -> ModuleRule {
             ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
             ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
         ]),
         vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
             StructuredImageModuleTypeVc::new().into(),
