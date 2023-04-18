@@ -123,9 +123,17 @@ pub async fn get_decorators_transform_options(
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
     project_path: FileSystemPathVc,
-    is_mdx_rs_enabled: bool,
 ) -> Result<JsxTransformOptionsVc> {
     let tsconfig = get_typescript_options(project_path).await;
+
+    // [NOTE]: ref: WEB-901
+    // next.js does not allow to overriding react runtime config via tsconfig /
+    // jsconfig, it forces overrides into automatic runtime instead.
+    // [TODO]: we need to emit / validate config message like next.js devserver does
+    let react_transform_options = JsxTransformOptions {
+        import_source: None,
+        runtime: Some("automatic".to_string()),
+    };
 
     let react_transform_options = if let Some(tsconfig) = tsconfig {
         read_from_tsconfigs(&tsconfig, |json, _| {
@@ -133,35 +141,15 @@ pub async fn get_jsx_transform_options(
                 .as_str()
                 .map(|s| s.to_string());
 
-            // interop between tsconfig's jsx to swc's jsx runtime configuration. Swc's jsx
-            // runtime is a subset of tsconfig's jsx.
-            let runtime = if let Some(jsx_runtime) = json["compilerOptions"]["jsx"].as_str() {
-                match jsx_runtime {
-                    "react" => Some("classic".to_string()),
-                    "react-jsx" => Some("automatic".to_string()),
-                    "react-jsxdev" => Some("automatic".to_string()),
-                    _ => None,
-                }
-            } else {
-                None
-            };
-
             Some(JsxTransformOptions {
                 import_source: jsx_import_source,
-                runtime,
+                ..react_transform_options.clone()
             })
         })
         .await?
         .unwrap_or_default()
-    } else if is_mdx_rs_enabled {
-        // Mdx can implicitly includes jsx components, trying to enable jsx with default
-        // if jsx is not explicitly enabled
-        JsxTransformOptions {
-            import_source: None,
-            runtime: None,
-        }
     } else {
-        Default::default()
+        react_transform_options
     };
 
     Ok(react_transform_options.cell())
