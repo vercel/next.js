@@ -1,2 +1,4 @@
 !node_modules
 .vscode
+
+e2e/**/tsconfig.json
