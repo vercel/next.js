@@ -52,20 +52,22 @@ export function getRSCModuleInformation(
   isServerLayer = true
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
+  const isClientRef = !!clientInfoMatch
 
   if (!isServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
+      isClientRef,
     }
   }
 
-  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const clientRefs = clientInfoMatch?.[1]?.split(',')
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs, clientEntryType }
+  return { type, actions, clientRefs, clientEntryType, isClientRef }
 }
 
 /**
