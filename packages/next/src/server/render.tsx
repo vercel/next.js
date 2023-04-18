@@ -480,8 +480,8 @@ export async function renderToHTML(
     !defaultErrorGetInitialProps
   ) {
     warn(
-      `Detected getInitialProps on page '${pathname}'` +
-        ` while running export. It's recommended to use getStaticProps` +
+      `Detected getInitialProps on page '${pathname}' ` +
+        ` while running export. It's recommended to use getStaticProps ` +
         ` which has a more correct behavior for static exporting.` +
         `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
     )
