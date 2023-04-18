@@ -52,20 +52,22 @@ export function getRSCModuleInformation(
   isServerLayer = true
 ): RSCMeta {
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
+  const isClientRef = !!clientInfoMatch
 
   if (!isServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
+      isClientRef,
     }
   }
 
-  const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const clientRefs = clientInfoMatch?.[1]?.split(',')
   const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
 
   const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
-  return { type, actions, clientRefs, clientEntryType }
+  return { type, actions, clientRefs, clientEntryType, isClientRef }
 }
 
 /**
@@ -314,7 +316,7 @@ export async function getPageStaticInfo(params: {
   pageFilePath: string
   isDev?: boolean
   page?: string
-  pageType?: 'pages' | 'app'
+  pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
@@ -329,7 +331,7 @@ export async function getPageStaticInfo(params: {
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
-    let config: any = {}
+    let config: any
     try {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
@@ -338,12 +340,26 @@ export async function getPageStaticInfo(params: {
       }
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
+    if (pageType === 'app') {
+      if (config) {
+        Log.warnOnce(
+          `\`export const config\` in ${pageFilePath} is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        )
+        config = {}
+      }
+    }
+    if (!config) config = {}
 
-    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
-    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // We use `export const config = { runtime: '...' }` to specify the page runtime for pages/.
+    // In the new app directory, we prefer to use `export const runtime = '...'`
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
-    let resolvedRuntime = runtime || config.runtime
+    let resolvedRuntime
+    if (pageType === 'app') {
+      resolvedRuntime = runtime
+    } else {
+      resolvedRuntime = runtime || config.runtime
+    }
 
     if (
       typeof resolvedRuntime !== 'undefined' &&
