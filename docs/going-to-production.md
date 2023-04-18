@@ -41,7 +41,7 @@ Cache-Control: public, max-age=31536000, immutable
 
 `Cache-Control` headers set in `next.config.js` will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](/docs/basic-features/pages.md#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) function. If you're using `next/image`, you can configure the [`minimumCacheTTL`](/docs/api-reference/next/image#minimum-cache-ttl) for the default Image Optimization loader.
 
-**Note**: When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
+> **Note**: When running your application locally with `next dev`, your headers are overwritten to prevent caching locally.
 
 ```
 Cache-Control: no-cache, no-store, max-age=0, must-revalidate

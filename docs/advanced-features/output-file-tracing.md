@@ -34,9 +34,9 @@ This will create a folder at `.next/standalone` which can then be deployed on it
 
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 
-**Note**: `next.config.js` is read during `next build` and serialized into the `server.js` output file. If the legacy [`serverRuntimeConfig` or `publicRuntimeConfig` options](/docs/api-reference/next.config.js/runtime-configuration.md) are being used, the values will be specific to values at build time.
+> **Note**: `next.config.js` is read during `next build` and serialized into the `server.js` output file. If the legacy [`serverRuntimeConfig` or `publicRuntimeConfig` options](/docs/api-reference/next.config.js/runtime-configuration.md) are being used, the values will be specific to values at build time.
 
-If your project uses [Image Optimization](/docs/basic-features/image-optimization.md) with the default `loader`, you must install `sharp` as a dependency:
+> **Note**: If your project uses [Image Optimization](/docs/basic-features/image-optimization.md) with the default `loader`, you must install `sharp` as a dependency:
 
 ```bash
 npm i sharp
