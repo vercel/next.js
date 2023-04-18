@@ -34,6 +34,12 @@ export type Manifest = {
   description?: string
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
   display_override?: ('fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | 'window-controls-overlay')[]
+  file_handlers?: {
+    action: string
+    accept: {
+      [mimeType: string]: string[]
+    }[]
+  }[]
   icons?: {
     src: string
     type?: string
