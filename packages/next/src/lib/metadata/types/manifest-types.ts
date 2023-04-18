@@ -48,6 +48,7 @@ export type Manifest = {
     purpose?: 'any' | 'maskable' | 'monochrome' | 'badge'
   }[]
   id?: string
+  lang?: string
   launch_handler?: {
     platform?: 'windows' | 'macos' | 'linux'
     url?: string
