@@ -491,7 +491,7 @@ export async function optimizeImage({
       operations.push({ type: 'resize', width })
     }
 
-    const { processBuffer } = await import('./lib/squoosh/main')
+    const { processBuffer } = await import('./lib/squoosh/main.js')
 
     if (contentType === AVIF) {
       optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
@@ -636,7 +636,7 @@ export async function imageOptimizer(
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
-        const { getMetadata } = await import('./lib/squoosh/main')
+        const { getMetadata } = await import('./lib/squoosh/main.js')
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.
@@ -778,7 +778,7 @@ export async function getImageSize(
       const { width, height } = await transformer.metadata()
       return { width, height }
     } else {
-      const { decodeBuffer } = await import('./lib/squoosh/main')
+      const { decodeBuffer } = await import('./lib/squoosh/main.js')
       const { width, height } = await decodeBuffer(buffer)
       return { width, height }
     }
