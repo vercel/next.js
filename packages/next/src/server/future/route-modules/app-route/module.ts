@@ -160,11 +160,6 @@ export class AppRouteRouteModule extends RouteModule<
    * are valid.
    */
   public async setup() {
-    // Patch the global fetch.
-    patchFetch({
-      serverHooks: this.serverHooks,
-      staticGenerationAsyncStorage: this.staticGenerationAsyncStorage,
-    })
     // If we've already setup, then return.
     if (this.hasSetup) return
 
@@ -324,7 +319,13 @@ export class AppRouteRouteModule extends RouteModule<
                 },
               },
               async () => {
-                const res = handler(wrappedRequest, {
+                // Patch the global fetch.
+                patchFetch({
+                  serverHooks: this.serverHooks,
+                  staticGenerationAsyncStorage:
+                    this.staticGenerationAsyncStorage,
+                })
+                const res = await handler(wrappedRequest, {
                   params: context.params,
                 })
 

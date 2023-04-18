@@ -148,6 +148,7 @@ export async function adapter(
       appDir: true,
       fetchCache: true,
       minimalMode: true,
+      fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
       requestProtocol: 'https',

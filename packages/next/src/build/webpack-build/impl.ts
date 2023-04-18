@@ -109,6 +109,7 @@ export async function webpackBuildImpl(
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
     previewModeId: NextBuildContext.previewModeId!,
     allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
+    fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,
   }
 
   const configs = await runWebpackSpan

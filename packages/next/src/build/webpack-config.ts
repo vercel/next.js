@@ -187,6 +187,7 @@ export function getDefineEnv({
   middlewareMatchers,
   clientRouterFilters,
   previewModeId,
+  fetchCacheKeyPrefix,
   allowedRevalidateHeaderKeys,
 }: {
   dev?: boolean
@@ -201,6 +202,7 @@ export function getDefineEnv({
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
   previewModeId?: string
+  fetchCacheKeyPrefix?: string
   allowedRevalidateHeaderKeys?: string[]
 }) {
   return {
@@ -241,6 +243,8 @@ export function getDefineEnv({
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
     ),
+    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
+      JSON.stringify(fetchCacheKeyPrefix),
     'process.env.__NEXT_PREVIEW_MODE_ID': JSON.stringify(previewModeId),
     'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
       allowedRevalidateHeaderKeys
@@ -652,6 +656,7 @@ export default async function getBaseWebpackConfig(
     supportedBrowsers,
     clientRouterFilters,
     previewModeId,
+    fetchCacheKeyPrefix,
     allowedRevalidateHeaderKeys,
   }: {
     buildId: string
@@ -681,6 +686,7 @@ export default async function getBaseWebpackConfig(
       >
     }
     previewModeId?: string
+    fetchCacheKeyPrefix?: string
     allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
@@ -2136,6 +2142,7 @@ export default async function getBaseWebpackConfig(
           middlewareMatchers,
           clientRouterFilters,
           previewModeId,
+          fetchCacheKeyPrefix,
           allowedRevalidateHeaderKeys,
         })
       ),

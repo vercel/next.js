@@ -101,6 +101,16 @@ createNextDescribe(
           const initLayoutData = $('#layout-data').text()
           const initPageData = $('#page-data').text()
 
+          const routeHandlerRes = await next.fetch(
+            '/route-handler/revalidate-360'
+          )
+          const initRouteHandlerData = await routeHandlerRes.json()
+
+          const edgeRouteHandlerRes = await next.fetch(
+            '/route-handler-edge/revalidate-360'
+          )
+          const initEdgeRouteHandlerRes = await edgeRouteHandlerRes.json()
+
           expect(initLayoutData).toBeTruthy()
           expect(initPageData).toBeTruthy()
 
@@ -118,10 +128,24 @@ createNextDescribe(
             const newLayoutData = new$('#layout-data').text()
             const newPageData = new$('#page-data').text()
 
+            const newRouteHandlerRes = await next.fetch(
+              '/route-handler/revalidate-360'
+            )
+            const newRouteHandlerData = await newRouteHandlerRes.json()
+
+            const newEdgeRouteHandlerRes = await next.fetch(
+              '/route-handler-edge/revalidate-360'
+            )
+            const newEdgeRouteHandlerData = await newEdgeRouteHandlerRes.json()
+
             expect(newLayoutData).toBeTruthy()
             expect(newPageData).toBeTruthy()
+            expect(newRouteHandlerData).toBeTruthy()
+            expect(newEdgeRouteHandlerData).toBeTruthy()
             expect(newLayoutData).not.toBe(initLayoutData)
             expect(newPageData).not.toBe(initPageData)
+            expect(newRouteHandlerData).not.toBe(initRouteHandlerData)
+            expect(newEdgeRouteHandlerData).not.toBe(initEdgeRouteHandlerRes)
             return 'success'
           }, 'success')
         }

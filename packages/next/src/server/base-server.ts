@@ -1570,10 +1570,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    const protocol = new URL(
-      getRequestMeta(req, '__NEXT_INIT_URL') || '/',
-      'http://n'
-    ).protocol
+    let protocol: 'http:' | 'https:' = 'https:'
+
+    try {
+      const parsedFullUrl = new URL(
+        getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+        'http://n'
+      )
+      protocol = parsedFullUrl.protocol as 'https:' | 'http:'
+    } catch (_) {}
 
     // use existing incrementalCache instance if available
     const incrementalCache =
@@ -2012,6 +2017,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           body: isDataReq
             ? RenderResult.fromStatic(cachedData.pageData as string)
             : cachedData.html,
+          revalidateOptions,
         }
       }
 
