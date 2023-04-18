@@ -209,7 +209,7 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_server_transforms_rules(ty.into_value()).await?;
+    let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value()).await?;
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
