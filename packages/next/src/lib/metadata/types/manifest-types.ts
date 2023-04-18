@@ -32,6 +32,7 @@ export type Manifest = {
   background_color?: string
   categories?: ManifestCategory[]
   description?: string
+  dir?: 'ltr' | 'rtl' | 'auto'
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
   display_override?: ('fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | 'window-controls-overlay')[]
   file_handlers?: {
