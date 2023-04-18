@@ -1,6 +1,4 @@
-import { ModuleId } from "./index";
-import { RuntimeBackend, TurbopackGlobals } from "types";
-import { RefreshRuntimeGlobals } from "@next/react-refresh-utils/dist/runtime";
+import { ModuleId, ChunkPath } from "./index";
 
 export type ModuleEffect =
   | {

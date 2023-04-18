@@ -2,7 +2,7 @@ use async_recursion::async_recursion;
 use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
-use turbo_tasks_fs::{FileSystem, FileSystemPath, FileSystemPathVc};
+use turbo_tasks_fs::{FileSystemPath, FileSystemPathVc};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub enum ContextCondition {

@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     iter,
     mem::{replace, take},
-    sync::Arc,
 };
 
 use swc_core::{
@@ -303,7 +302,7 @@ impl EvalContext {
                             values.push(JsValue::from(v.clone()));
                         }
                         // This is actually unreachable
-                        None => return JsValue::Unknown(None, ""),
+                        None => return JsValue::unknown_empty(""),
                     }
                 }
             } else {
@@ -436,7 +435,7 @@ impl EvalContext {
                 {
                     self.eval_tpl(tpl, true)
                 } else {
-                    JsValue::Unknown(None, "tagged template literal is not supported yet")
+                    JsValue::unknown_empty("tagged template literal is not supported yet")
                 }
             }
 
@@ -457,7 +456,7 @@ impl EvalContext {
 
             Expr::Await(AwaitExpr { arg, .. }) => self.eval(arg),
 
-            Expr::New(..) => JsValue::Unknown(None, "unknown new expression"),
+            Expr::New(..) => JsValue::unknown_empty("unknown new expression"),
 
             Expr::Seq(e) => {
                 if let Some(e) = e.exprs.last() {
@@ -493,7 +492,7 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::Unknown(None, "spread in function calls is not supported");
+                    return JsValue::unknown_empty("spread in function calls is not supported");
                 }
 
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
@@ -503,8 +502,7 @@ impl EvalContext {
                         // TODO avoid clone
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
-                            return JsValue::Unknown(
-                                None,
+                            return JsValue::unknown_empty(
                                 "private names in function calls is not supported",
                             );
                         }
@@ -525,7 +523,7 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::Unknown(None, "spread in import() is not supported");
+                    return JsValue::unknown_empty("spread in import() is not supported");
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
@@ -536,7 +534,7 @@ impl EvalContext {
 
             Expr::Array(arr) => {
                 if arr.elems.iter().flatten().any(|v| v.spread.is_some()) {
-                    return JsValue::Unknown(None, "spread is not supported");
+                    return JsValue::unknown_empty("spread is not supported");
                 }
 
                 let arr = arr
@@ -566,8 +564,7 @@ impl EvalContext {
                                 ident.sym.clone().into(),
                                 self.eval(&Expr::Ident(ident.clone())),
                             ),
-                            _ => ObjectPart::Spread(JsValue::Unknown(
-                                None,
+                            _ => ObjectPart::Spread(JsValue::unknown_empty(
                                 "unsupported object part",
                             )),
                         })
@@ -575,7 +572,7 @@ impl EvalContext {
                 )
             }
 
-            _ => JsValue::Unknown(None, "unsupported expression"),
+            _ => JsValue::unknown_empty("unsupported expression"),
         }
     }
 }
@@ -1336,10 +1333,7 @@ impl VisitAstPath for Analyzer<'_> {
                 self.add_value(
                     i.to_id(),
                     value.unwrap_or_else(|| {
-                        JsValue::Unknown(
-                            Some(Arc::new(JsValue::Variable(i.to_id()))),
-                            "pattern without value",
-                        )
+                        JsValue::unknown(JsValue::Variable(i.to_id()), "pattern without value")
                     }),
                 );
             }

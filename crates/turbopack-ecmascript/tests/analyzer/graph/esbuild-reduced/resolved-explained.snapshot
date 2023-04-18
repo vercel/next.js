@@ -12,7 +12,7 @@ binPath = (???*0* | ???*1*)
               | ???*6*
             )}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | ???*8*)}`
     )
-  ⚠️  resolve.resolve non constant
+  ⚠️  require.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
 - *3* pkg
   ⚠️  pattern without value
@@ -93,7 +93,7 @@ x = (undefined | ???*0* | ???*1*)
               | ???*6*
             )}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | ???*8*)}`
     )
-  ⚠️  resolve.resolve non constant
+  ⚠️  require.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
 - *3* pkg
   ⚠️  pattern without value

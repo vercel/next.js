@@ -1,0 +1,141 @@
+[
+    (
+        "a",
+        MemberCall(
+            4,
+            Variable(
+                (
+                    Atom('context' type=inline),
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Word(
+                        Atom('resolve' type=inline),
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            Atom('./a' type=inline),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "context",
+        MemberCall(
+            6,
+            FreeVar(
+                Atom('require' type=static),
+            ),
+            Constant(
+                Str(
+                    Word(
+                        Atom('context' type=inline),
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Word(
+                            Atom('./test' type=inline),
+                        ),
+                    ),
+                ),
+                Constant(
+                    False,
+                ),
+                Constant(
+                    Regex(
+                        "\\.test\\.js$",
+                        "",
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "importAll",
+        Function(
+            9,
+            1,
+            Alternatives(
+                8,
+                [
+                    Constant(
+                        Undefined,
+                    ),
+                    MemberCall(
+                        6,
+                        MemberCall(
+                            3,
+                            Variable(
+                                (
+                                    Atom('r' type=inline),
+                                    #3,
+                                ),
+                            ),
+                            Constant(
+                                Str(
+                                    Word(
+                                        Atom('keys' type=inline),
+                                    ),
+                                ),
+                            ),
+                            [],
+                        ),
+                        Constant(
+                            Str(
+                                Word(
+                                    Atom('map' type=static),
+                                ),
+                            ),
+                        ),
+                        [
+                            Variable(
+                                (
+                                    Atom('r' type=inline),
+                                    #3,
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "items",
+        Call(
+            3,
+            Variable(
+                (
+                    Atom('importAll' type=dynamic),
+                    #2,
+                ),
+            ),
+            [
+                Variable(
+                    (
+                        Atom('context' type=inline),
+                        #2,
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "r",
+        Argument(
+            1,
+            0,
+        ),
+    ),
+]

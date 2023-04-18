@@ -80,6 +80,23 @@ type SourceInfo =
 type ModuleCache = Record<ModuleId, Module>;
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports;
+type CommonJsExport = (exports: Record<string, any>) => void;
+
+type RequireContextFactory = (
+  dir: string,
+  useSubdirectories = true
+) => RequireContext;
+
+type RequireContextMap = Record<
+  ModuleId,
+  { internal: boolean; id: () => ModuleId }
+>;
+
+interface RequireContext {
+  (moduleId: ModuleId): Exports | EsmInteropNamespace;
+  keys(): ModuleId[];
+  resolve(moduleId: ModuleId): ModuleId;
+}
 
 export type EsmInteropNamespace = Record<string, any>;
 type EsmImport = (
@@ -94,13 +111,17 @@ type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined;
 interface TurbopackContext {
   e: Module["exports"];
   r: CommonJsRequire;
+  x: NodeJS.Require;
+  f: RequireContextFactory;
   i: EsmImport;
   s: EsmExport;
+  j: CommonJsExport;
   v: ExportValue;
   m: Module;
   c: ModuleCache;
   l: LoadChunk;
-  p: Partial<NodeJS.Process> & Pick<NodeJS.Process, "env">;
+  g: globalThis;
+  __dirname: string;
 }
 
 type ModuleFactory = (

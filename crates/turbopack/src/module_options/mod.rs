@@ -7,7 +7,7 @@ pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_tasks::primitives::{OptionStringVc, StringsVc};
-use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc},

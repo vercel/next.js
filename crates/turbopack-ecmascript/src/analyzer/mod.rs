@@ -9,9 +9,12 @@ use std::{
     sync::Arc,
 };
 
-use indexmap::IndexSet;
+use anyhow::{bail, Context, Result};
+use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use swc_core::{
     common::Mark,
     ecma::{
@@ -24,7 +27,7 @@ use url::Url;
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::utils::StringifyJs;
+use crate::{references::require_context::RequireContextMapVc, utils::StringifyJs};
 
 pub mod builtin;
 pub mod graph;
@@ -167,6 +170,14 @@ impl ConstantValue {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Str(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Self::True => Some(true),
+            Self::False => Some(false),
             _ => None,
         }
     }
@@ -369,7 +380,7 @@ pub enum JsValue {
     WellKnownFunction(WellKnownFunctionKind),
     /// Not-analyzable value. Might contain the original value for additional
     /// info. Has a reason string for explanation.
-    Unknown(Option<Arc<JsValue>>, &'static str),
+    Unknown(Option<Arc<JsValue>>, Cow<'static, str>),
 
     // NESTED VALUES
     // ----------------------------
@@ -490,7 +501,7 @@ impl From<&CompileTimeDefineValue> for JsValue {
 
 impl Default for JsValue {
     fn default() -> Self {
-        JsValue::Unknown(None, "")
+        JsValue::unknown_empty("")
     }
 }
 
@@ -808,8 +819,17 @@ impl JsValue {
             args,
         )
     }
+
     pub fn member(o: Box<JsValue>, p: Box<JsValue>) -> Self {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
+    }
+
+    pub fn unknown(value: impl Into<Arc<JsValue>>, reason: impl Into<Cow<'static, str>>) -> Self {
+        Self::Unknown(Some(value.into()), reason.into())
+    }
+
+    pub fn unknown_empty(reason: impl Into<Cow<'static, str>>) -> Self {
+        Self::Unknown(None, reason.into())
     }
 }
 
@@ -1358,6 +1378,10 @@ impl JsValue {
                     ),
                     WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
+                    WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
+                    WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
+                    WellKnownFunctionKind::RequireContextRequireKeys(..) => ("require.context(...).keys".to_string(), "The require.context(...).keys method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext"),
+                    WellKnownFunctionKind::RequireContextRequireResolve(..) => ("require.context(...).resolve".to_string(), "The require.context(...).resolve method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext"),
                     WellKnownFunctionKind::Define => ("define".to_string(), "The define method from AMD"),
                     WellKnownFunctionKind::FsReadMethod(name) => (
                         format!("fs.{name}"),
@@ -1458,14 +1482,20 @@ impl JsValue {
 // Unknown management
 impl JsValue {
     /// Convert the value into unknown with a specific reason.
-    pub fn make_unknown(&mut self, reason: &'static str) {
-        *self = JsValue::Unknown(Some(Arc::new(take(self))), reason);
+    pub fn make_unknown(&mut self, reason: impl Into<Cow<'static, str>>) {
+        *self = JsValue::unknown(take(self), reason);
+    }
+
+    /// Convert the owned value into unknown with a specific reason.
+    pub fn into_unknown(mut self, reason: impl Into<Cow<'static, str>>) -> Self {
+        self.make_unknown(reason);
+        self
     }
 
     /// Convert the value into unknown with a specific reason, but don't retain
     /// the original value.
-    pub fn make_unknown_without_content(&mut self, reason: &'static str) {
-        *self = JsValue::Unknown(None, reason);
+    pub fn make_unknown_without_content(&mut self, reason: impl Into<Cow<'static, str>>) {
+        *self = JsValue::unknown_empty(reason);
     }
 
     /// Make all nested operations unknown when the value is an operation.
@@ -1486,7 +1516,7 @@ impl JsValue {
     }
 
     pub fn add_unknown_mutations(&mut self) {
-        self.add_alt(JsValue::Unknown(None, "unknown mutation"));
+        self.add_alt(JsValue::unknown_empty("unknown mutation"));
     }
 }
 
@@ -1567,6 +1597,14 @@ impl JsValue {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             JsValue::Constant(c) => c.as_str(),
+            _ => None,
+        }
+    }
+
+    /// Returns the constant bool if the value represents a constant boolean.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            JsValue::Constant(c) => c.as_bool(),
             _ => None,
         }
     }
@@ -2852,6 +2890,130 @@ impl WellKnownObjectKind {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct RequireContextOptions {
+    pub dir: String,
+    pub include_subdirs: bool,
+    /// this is a regex (pattern, flags)
+    pub filter: Regex,
+}
+
+/// Convert an ECMAScript regex to a Rust regex.
+fn regex_from_js(pattern: &str, flags: &str) -> Result<Regex> {
+    // rust regex doesn't allow escaped slashes, but they are necessary in js
+    let pattern = pattern.replace("\\/", "/");
+
+    let mut applied_flags = String::new();
+    for flag in flags.chars() {
+        match flag {
+            // indices for substring matches: not relevant for the regex itself
+            'd' => {}
+            // global: default in rust, ignore
+            'g' => {}
+            // case-insensitive: letters match both upper and lower case
+            'i' => applied_flags.push('i'),
+            // multi-line mode: ^ and $ match begin/end of line
+            'm' => applied_flags.push('m'),
+            // allow . to match \n
+            's' => applied_flags.push('s'),
+            // Unicode support (enabled by default)
+            'u' => applied_flags.push('u'),
+            // sticky search: not relevant for the regex itself
+            'y' => {}
+            _ => bail!("unsupported flag `{}` in regex", flag),
+        }
+    }
+
+    let regex = if !applied_flags.is_empty() {
+        format!("(?{}){}", applied_flags, pattern)
+    } else {
+        pattern
+    };
+
+    Regex::new(&regex).context("could not convert ECMAScript regex to Rust regex")
+}
+
+/// Parse the arguments passed to a require.context invocation, validate them
+/// and convert them to the appropriate rust values.
+pub fn parse_require_context(args: &Vec<JsValue>) -> Result<RequireContextOptions> {
+    if !(1..=3).contains(&args.len()) {
+        // https://linear.app/vercel/issue/WEB-910/add-support-for-requirecontexts-mode-argument
+        bail!("require.context() only supports 1-3 arguments (mode is not supported)");
+    }
+
+    let Some(dir) = args[0].as_str().map(|s| s.to_string()) else {
+        bail!("require.context(dir, ...) requires dir to be a constant string");
+    };
+
+    let include_subdirs = if let Some(include_subdirs) = args.get(1) {
+        if let Some(include_subdirs) = include_subdirs.as_bool() {
+            include_subdirs
+        } else {
+            bail!(
+                "require.context(..., includeSubdirs, ...) requires includeSubdirs to be a \
+                 constant boolean",
+            );
+        }
+    } else {
+        true
+    };
+
+    let filter = if let Some(filter) = args.get(2) {
+        if let JsValue::Constant(ConstantValue::Regex(pattern, flags)) = filter {
+            regex_from_js(pattern, flags)?
+        } else {
+            bail!("require.context(..., ..., filter) requires filter to be a regex");
+        }
+    } else {
+        // https://webpack.js.org/api/module-methods/#requirecontext
+        // > optional, default /^\.\/.*$/, any file
+        static DEFAULT_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\\./.*$").unwrap());
+
+        DEFAULT_REGEX.clone()
+    };
+
+    Ok(RequireContextOptions {
+        dir,
+        include_subdirs,
+        filter,
+    })
+}
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct RequireContextValue(IndexMap<String, String>);
+
+#[turbo_tasks::value_impl]
+impl RequireContextValueVc {
+    #[turbo_tasks::function]
+    pub async fn from_context_map(map: RequireContextMapVc) -> Result<Self> {
+        let mut context_map = IndexMap::new();
+
+        for (key, entry) in map.await?.iter() {
+            context_map.insert(key.clone(), entry.origin_relative.clone());
+        }
+
+        Ok(Self::cell(context_map))
+    }
+}
+
+impl From<RequireContextMapVc> for RequireContextValueVc {
+    fn from(map: RequireContextMapVc) -> Self {
+        Self::from_context_map(map)
+    }
+}
+
+impl Hash for RequireContextValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.len().hash(state);
+        for (i, (k, v)) in self.0.iter().enumerate() {
+            i.hash(state);
+            k.hash(state);
+            v.hash(state);
+        }
+    }
+}
+
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
@@ -2863,6 +3025,10 @@ pub enum WellKnownFunctionKind {
     Import,
     Require,
     RequireResolve,
+    RequireContext,
+    RequireContextRequire(RequireContextValueVc),
+    RequireContextRequireKeys(RequireContextValueVc),
+    RequireContextRequireResolve(RequireContextValueVc),
     Define,
     FsReadMethod(JsWord),
     PathToFileUrl,
@@ -2889,6 +3055,7 @@ impl WellKnownFunctionKind {
             Self::Import => Some(&["import"]),
             Self::Require => Some(&["require"]),
             Self::RequireResolve => Some(&["require", "resolve"]),
+            Self::RequireContext => Some(&["require", "context"]),
             Self::Define => Some(&["define"]),
             _ => None,
         }
@@ -2901,16 +3068,15 @@ fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
 
 #[doc(hidden)]
 pub mod test_utils {
-    use std::sync::Arc;
-
     use anyhow::Result;
-    use turbopack_core::compile_time_info::CompileTimeInfoVc;
+    use indexmap::IndexMap;
+    use turbopack_core::{compile_time_info::CompileTimeInfoVc, error::PrettyPrintError};
 
     use super::{
         builtin::early_replace_builtin, well_known::replace_well_known, JsValue, ModuleValue,
         WellKnownFunctionKind, WellKnownObjectKind,
     };
-    use crate::analyzer::builtin::replace_builtin;
+    use crate::analyzer::{builtin::replace_builtin, parse_require_context, RequireContextValueVc};
 
     pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
         let m = early_replace_builtin(&mut v);
@@ -2928,15 +3094,33 @@ pub mod test_utils {
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
-                _ => JsValue::Unknown(Some(Arc::new(v)), "resolve.resolve non constant"),
+                _ => v.into_unknown("require.resolve non constant"),
             },
-            JsValue::FreeVar(var) => match &*var {
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
+                ref args,
+            ) => match parse_require_context(args) {
+                Ok(options) => {
+                    let mut map = IndexMap::new();
+
+                    map.insert("./a".into(), format!("[context: {}]/a", options.dir));
+                    map.insert("./b".into(), format!("[context: {}]/b", options.dir));
+                    map.insert("./c".into(), format!("[context: {}]/c", options.dir));
+
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
+                        RequireContextValueVc::cell(map),
+                    ))
+                }
+                Err(err) => v.into_unknown(PrettyPrintError(&err).to_string()),
+            },
+            JsValue::FreeVar(ref var) => match &**var {
                 "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "__dirname" => "__dirname".into(),
                 "__filename" => "__filename".into(),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                _ => JsValue::Unknown(Some(Arc::new(JsValue::FreeVar(var))), "unknown global"),
+                _ => v.into_unknown("unknown global"),
             },
             JsValue::Module(ModuleValue {
                 module: ref name, ..
@@ -3141,7 +3325,7 @@ mod tests {
                                         );
                                     }
                                     EffectArg::Spread => {
-                                        new_args.push(JsValue::Unknown(None, "spread"));
+                                        new_args.push(JsValue::unknown_empty("spread"));
                                     }
                                 }
                             }

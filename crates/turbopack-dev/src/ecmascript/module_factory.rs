@@ -10,6 +10,7 @@ pub(super) async fn module_factory(content: EcmascriptChunkItemContentVc) -> Res
     let mut args = vec![
         "r: __turbopack_require__",
         "x: __turbopack_external_require__",
+        "f: __turbopack_require_context__",
         "i: __turbopack_import__",
         "s: __turbopack_esm__",
         "v: __turbopack_export_value__",
