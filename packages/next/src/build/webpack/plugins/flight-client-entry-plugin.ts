@@ -27,33 +27,38 @@ import {
   generateActionId,
   getActions,
   isClientComponentModule,
-  regexCSS,
+  isCSSMod,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
+import { warnOnce } from '../../../shared/lib/utils/warn-once'
 
 interface Options {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useExperimentalReact: boolean
 }
 
 const PLUGIN_NAME = 'ClientEntryPlugin'
 
 export type ActionManifest = {
-  [actionId: string]: {
-    workers: {
-      [name: string]: string | number
+  [key in 'node' | 'edge']: {
+    [actionId: string]: {
+      workers: {
+        [name: string]: string | number
+      }
     }
   }
 }
 
 const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
-  serverActions: {} as ActionManifest,
-  edgeServerActions: {} as ActionManifest,
-  actionModId: {} as Record<string, string | number>,
+  serverActions: {} as ActionManifest['node'],
+  edgeServerActions: {} as ActionManifest['edge'],
+  actionModServerId: {} as Record<string, string | number>,
+  actionModEdgeServerId: {} as Record<string, string | number>,
 
   // Manifest of CSS entry files for server/edge server.
   serverCSSManifest: {} as ClientCSSReferenceManifest,
@@ -75,11 +80,15 @@ export class ClientReferenceEntryPlugin {
   dev: boolean
   appDir: string
   isEdgeServer: boolean
+  useExperimentalReact: boolean
+  assetPrefix: string
 
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
     this.isEdgeServer = options.isEdgeServer
+    this.useExperimentalReact = options.useExperimentalReact
+    this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
   }
 
   apply(compiler: webpack.Compiler) {
@@ -148,8 +157,6 @@ export class ClientReferenceEntryPlugin {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
-          // Have to be in the optimize stage to run after updating the CSS
-          // asset hash via extract mini css plugin.
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
         (assets) => this.createAsset(compilation, assets)
@@ -233,14 +240,12 @@ export class ClientReferenceEntryPlugin {
         })
       )
 
-      // Create action entry
-      if (this.isEdgeServer) {
-        pluginState.edgeServerActions = {}
-      } else {
-        pluginState.serverActions = {}
-      }
-
       if (actionEntryImports.size > 0) {
+        if (!this.useExperimentalReact) {
+          warnOnce(
+            '\nServer Actions require `experimental.experimentalReact` option to be enabled in your Next.js config.\n'
+          )
+        }
         addActionEntryList.push(
           this.injectActionEntry({
             compiler,
@@ -345,7 +350,7 @@ export class ClientReferenceEntryPlugin {
         const resource = mod.resource
         const modId = resource
         if (modId) {
-          if (regexCSS.test(modId)) {
+          if (isCSSMod(mod)) {
             cssImportsForChunk[entryName].add(modId)
           }
         }
@@ -415,8 +420,6 @@ export class ClientReferenceEntryPlugin {
     compilation.hooks.processAssets.tap(
       {
         name: PLUGIN_NAME,
-        // Have to be in the optimize stage to run after updating the CSS
-        // asset hash via extract mini css plugin.
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
@@ -431,12 +434,14 @@ export class ClientReferenceEntryPlugin {
           },
         }
         const manifest = JSON.stringify(data, null, this.dev ? 2 : undefined)
-        assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
-          manifest
-        ) as unknown as webpack.sources.RawSource
-        assets[FLIGHT_SERVER_CSS_MANIFEST + '.js'] = new sources.RawSource(
-          'self.__RSC_CSS_MANIFEST=' + manifest
-        ) as unknown as webpack.sources.RawSource
+        assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.json`] =
+          new sources.RawSource(
+            manifest
+          ) as unknown as webpack.sources.RawSource
+        assets[`${this.assetPrefix}${FLIGHT_SERVER_CSS_MANIFEST}.js`] =
+          new sources.RawSource(
+            'self.__RSC_CSS_MANIFEST=' + manifest
+          ) as unknown as webpack.sources.RawSource
       }
     )
 
@@ -497,8 +502,7 @@ export class ClientReferenceEntryPlugin {
         compilation.moduleGraph.getResolvedModule(dependencyToFilter)
       if (!mod) return
 
-      const rawRequest = mod.rawRequest
-      const isCSS = regexCSS.test(rawRequest)
+      const isCSS = isCSSMod(mod)
 
       // We have to always use the resolved request here to make sure the
       // server and client are using the same module path (required by RSC), as
@@ -715,9 +719,9 @@ export class ClientReferenceEntryPlugin {
       actions: JSON.stringify(actionsArray),
     })}!`
 
-    let currentCompilerServerActions = this.isEdgeServer
-      ? pluginState.serverActions
-      : pluginState.edgeServerActions
+    const currentCompilerServerActions = this.isEdgeServer
+      ? pluginState.edgeServerActions
+      : pluginState.serverActions
     for (const [p, names] of actionsArray) {
       for (const name of names) {
         const id = generateActionId(p, name)
@@ -787,31 +791,46 @@ export class ClientReferenceEntryPlugin {
         mod.request &&
         /next-flight-action-entry-loader/.test(mod.request)
       ) {
-        pluginState.actionModId[chunkGroup.name] = modId
+        if (this.isEdgeServer) {
+          pluginState.actionModEdgeServerId[chunkGroup.name] = modId
+        } else {
+          pluginState.actionModServerId[chunkGroup.name] = modId
+        }
       }
     })
 
-    const fullServerActions = {
-      ...pluginState.serverActions,
-      ...pluginState.edgeServerActions,
-    }
-    for (let id in fullServerActions) {
-      const action = fullServerActions[id]
+    const serverActions: ActionManifest['node'] = {}
+    for (let id in pluginState.serverActions) {
+      const action = pluginState.serverActions[id]
       for (let name in action.workers) {
-        action.workers[name] = pluginState.actionModId[name]
+        action.workers[name] = pluginState.actionModServerId[name]
       }
+      serverActions[id] = action
+    }
+
+    const edgeServerActions: ActionManifest['edge'] = {}
+    for (let id in pluginState.edgeServerActions) {
+      const action = pluginState.edgeServerActions[id]
+      for (let name in action.workers) {
+        action.workers[name] = pluginState.actionModEdgeServerId[name]
+      }
+      edgeServerActions[id] = action
     }
 
     const json = JSON.stringify(
-      fullServerActions,
+      {
+        node: serverActions,
+        edge: edgeServerActions,
+      },
       null,
       this.dev ? 2 : undefined
     )
-    assets[SERVER_REFERENCE_MANIFEST + '.js'] = new sources.RawSource(
-      'self.__RSC_SERVER_MANIFEST=' + json
-    ) as unknown as webpack.sources.RawSource
-    assets[SERVER_REFERENCE_MANIFEST + '.json'] = new sources.RawSource(
-      json
-    ) as unknown as webpack.sources.RawSource
+
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+      new sources.RawSource(
+        'self.__RSC_SERVER_MANIFEST=' + json
+      ) as unknown as webpack.sources.RawSource
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
+      new sources.RawSource(json) as unknown as webpack.sources.RawSource
   }
 }

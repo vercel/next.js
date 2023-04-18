@@ -239,6 +239,17 @@ createNextDescribe(
         })
       })
 
+      describe('css ordering', () => {
+        it('should have inner layers take precedence over outer layers', async () => {
+          const browser = await next.browser('/ordering')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      })
+
       if (isDev) {
         describe('multiple entries', () => {
           it('should only inject the same style once if used by different layers', async () => {

@@ -7,7 +7,7 @@ export default function Page() {
       <ul>
         {Array.from({ length: 10 }).map((_, i) => (
           <li key={i}>
-            <Link href={`/intercepting-routes/photos/${i}`}>Link {i}</Link>
+            <Link href={`/intercepting-routes/feed/photos/${i}`}>Link {i}</Link>
           </li>
         ))}
       </ul>

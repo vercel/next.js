@@ -9,7 +9,7 @@ interface NextFetchCacheParams {
   internal?: boolean
   fetchType?: string
   fetchIdx?: number
-  originUrl?: string
+  fetchUrl?: string
 }
 
 export default class FetchCache implements CacheHandler {
@@ -76,7 +76,7 @@ export default class FetchCache implements CacheHandler {
   public async get(
     key: string,
     fetchCache?: boolean,
-    originUrl?: string,
+    fetchUrl?: string,
     fetchIdx?: number
   ) {
     if (!fetchCache) return null
@@ -96,7 +96,7 @@ export default class FetchCache implements CacheHandler {
         const fetchParams: NextFetchCacheParams = {
           internal: true,
           fetchType: 'fetch-get',
-          originUrl,
+          fetchUrl: fetchUrl,
           fetchIdx,
         }
         const res = await fetch(
@@ -168,7 +168,7 @@ export default class FetchCache implements CacheHandler {
     key: string,
     data: CacheHandlerValue['value'],
     fetchCache?: boolean,
-    originUrl?: string,
+    fetchUrl?: string,
     fetchIdx?: number
   ) {
     if (!fetchCache) return
@@ -196,7 +196,7 @@ export default class FetchCache implements CacheHandler {
         const fetchParams: NextFetchCacheParams = {
           internal: true,
           fetchType: 'fetch-set',
-          originUrl,
+          fetchUrl,
           fetchIdx,
         }
         const res = await fetch(

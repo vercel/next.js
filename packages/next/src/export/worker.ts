@@ -368,9 +368,9 @@ export default async function exportPage({
               notFoundRoutes: [],
             }),
             fs: {
-              readFile: (f) => fs.promises.readFile(f, 'utf8'),
-              readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-              writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+              readFile: (f) => fs.promises.readFile(f),
+              readFileSync: (f) => fs.readFileSync(f),
+              writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
             },
@@ -395,8 +395,7 @@ export default async function exportPage({
           // Create the context for the handler. This contains the params from
           // the route and the context for the request.
           const context: AppRouteRouteHandlerContext = {
-            // Query contains the route parameters.
-            params: query,
+            params,
             staticGenerationContext: {
               nextExport: true,
               supportsDynamicHTML: false,

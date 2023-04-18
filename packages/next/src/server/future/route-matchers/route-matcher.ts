@@ -4,13 +4,12 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import {
   getRouteMatcher,
-  type Params,
   type RouteMatchFn,
 } from '../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 
 type RouteMatchResult = {
-  params?: Params
+  params?: Record<string, string | string[]>
 }
 
 export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {

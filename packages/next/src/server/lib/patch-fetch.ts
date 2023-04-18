@@ -223,7 +223,7 @@ export function patchFetch({
           }
         }
 
-        const originUrl = url?.toString() ?? ''
+        const fetchUrl = url?.toString() ?? ''
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
@@ -231,28 +231,18 @@ export function patchFetch({
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
-            next: { ...init?.next, fetchType: 'origin', fetchIdx, originUrl },
+            next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
           return originFetch(input, clonedInit).then(async (res) => {
             if (
-              res.ok &&
+              res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
               typeof revalidate === 'number' &&
               revalidate > 0
             ) {
-              let base64Body = ''
-              const resBlob = await res.blob()
-              const arrayBuffer = await resBlob.arrayBuffer()
-
-              if (process.env.NEXT_RUNTIME === 'edge') {
-                const { encode } =
-                  require('../../shared/lib/bloom-filter/base64-arraybuffer') as typeof import('../../shared/lib/bloom-filter/base64-arraybuffer')
-                base64Body = encode(arrayBuffer)
-              } else {
-                base64Body = Buffer.from(arrayBuffer).toString('base64')
-              }
+              const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
               try {
                 await staticGenerationStore.incrementalCache.set(
@@ -261,22 +251,22 @@ export function patchFetch({
                     kind: 'FETCH',
                     data: {
                       headers: Object.fromEntries(res.headers.entries()),
-                      body: base64Body,
+                      body: bodyBuffer.toString('base64'),
                       status: res.status,
                     },
                     revalidate,
                   },
                   revalidate,
                   true,
-                  originUrl,
+                  fetchUrl,
                   fetchIdx
                 )
               } catch (err) {
                 console.warn(`Failed to set fetch cache`, input, err)
               }
 
-              return new Response(resBlob, {
-                headers: res.headers,
+              return new Response(bodyBuffer, {
+                headers: new Headers(res.headers),
                 status: res.status,
               })
             }
@@ -291,7 +281,7 @@ export function patchFetch({
                 cacheKey,
                 true,
                 revalidate,
-                originUrl,
+                fetchUrl,
                 fetchIdx
               )
 

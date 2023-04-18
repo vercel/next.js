@@ -3,19 +3,21 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use turbo_binding::{
-    turbo::tasks::TryJoinIterExt,
+    turbo::{
+        tasks::{primitives::StringVc, TryJoinIterExt, Value},
+        tasks_fs::rope::RopeBuilder,
+    },
     turbopack::{
         core::{
-            asset::{Asset, AssetContentVc, AssetVc},
+            asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
             chunk::{
-                availability_info::AvailabilityInfo, ChunkGroupReferenceVc, ChunkGroupVc,
-                ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext,
-                ChunkingContextVc,
+                availability_info::AvailabilityInfo, ChunkGroupReferenceVc, ChunkItem, ChunkItemVc,
+                ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
             },
             ident::AssetIdentVc,
             reference::AssetReferencesVc,
         },
-        dev::{ChunkListReferenceVc, DevChunkingContextVc},
+        dev::ChunkData,
         ecmascript::{
             chunk::{
                 EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
@@ -27,8 +29,6 @@ use turbo_binding::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_fs::rope::RopeBuilder;
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -56,18 +56,13 @@ impl Asset for WithChunksAsset {
     #[turbo_tasks::function]
     async fn references(self_vc: WithChunksAssetVc) -> Result<AssetReferencesVc> {
         let this = self_vc.await?;
-        let chunk_group = self_vc.chunk_group();
+        let entry_chunk = self_vc.entry_chunk();
 
-        let mut references = vec![ChunkGroupReferenceVc::new(chunk_group).into()];
-
-        if let Some(context) = DevChunkingContextVc::resolve_from(this.chunking_context).await? {
-            references.push(
-                ChunkListReferenceVc::new(context, chunk_group.entry(), chunk_group.chunks())
-                    .into(),
-            );
-        }
-
-        Ok(AssetReferencesVc::cell(references))
+        Ok(AssetReferencesVc::cell(vec![ChunkGroupReferenceVc::new(
+            this.chunking_context,
+            entry_chunk,
+        )
+        .into()]))
     }
 }
 
@@ -113,15 +108,15 @@ impl EcmascriptChunkPlaceable for WithChunksAsset {
 #[turbo_tasks::value_impl]
 impl WithChunksAssetVc {
     #[turbo_tasks::function]
-    async fn chunk_group(self) -> Result<ChunkGroupVc> {
+    async fn entry_chunk(self) -> Result<ChunkVc> {
         let this = self.await?;
-        Ok(ChunkGroupVc::from_asset(
-            this.asset.into(),
-            this.chunking_context,
-            Value::new(AvailabilityInfo::Root {
-                current_availability_root: this.asset.into(),
-            }),
-        ))
+        Ok(this.asset.as_root_chunk(this.chunking_context))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunks(self) -> Result<AssetsVc> {
+        let this = self.await?;
+        Ok(this.chunking_context.chunk_group(self.entry_chunk()))
     }
 }
 
@@ -145,21 +140,18 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
             bail!("the chunking context is not an EcmascriptChunkingContextVc");
         };
 
-        let group = self.inner.chunk_group();
-        let chunks = group.chunks().await?;
+        let chunks = self.inner.chunks().await?;
         let server_root = inner_chunking_context.output_root().await?;
-        let mut client_chunks = Vec::new();
 
-        for chunk_path in chunks
+        let chunks_data = chunks
             .iter()
-            .map(|chunk| chunk.ident().path())
+            .map(|&chunk| ChunkData::from_asset(&server_root, chunk))
             .try_join()
             .await?
-        {
-            if let Some(path) = server_root.get_path_to(&chunk_path) {
-                client_chunks.push(serde_json::Value::String(path.to_string()));
-            }
-        }
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
         let module_id = &*inner
             .asset
             .as_chunk_item(inner_chunking_context)
@@ -174,30 +166,11 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
             __turbopack_esm__({{
                 default: () => {},
                 chunks: () => chunks,
-            "#,
-            StringifyJs(&module_id),
-        )?;
-
-        if let Some(dev_chunking_context) =
-            DevChunkingContextVc::resolve_from(inner.chunking_context).await?
-        {
-            let chunk_list_path = dev_chunking_context
-                .chunk_list_path(group.entry().ident())
-                .await?;
-            if let Some(path) = server_root.get_path_to(&chunk_list_path) {
-                writeln!(code, "    chunkListPath: () => {}", StringifyJs(&path))?;
-            } else {
-                bail!("could not get path to chunk list");
-            }
-        }
-
-        writedoc!(
-            code,
-            r#"
             }});
             const chunks = {:#};
             "#,
-            StringifyJs(&client_chunks),
+            StringifyJs(&module_id),
+            StringifyJs(&chunks_data),
         )?;
 
         Ok(EcmascriptChunkItemContent {

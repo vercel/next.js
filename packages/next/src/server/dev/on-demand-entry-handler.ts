@@ -768,6 +768,7 @@ export function onDemandEntryHandler({
         }
 
         const staticInfo = await getPageStaticInfo({
+          page,
           pageFilePath: pagePathData.absolutePagePath,
           nextConfig,
           isDev: true,

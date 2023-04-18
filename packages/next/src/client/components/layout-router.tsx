@@ -8,7 +8,7 @@ import type {
   Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
-import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, { useContext, use } from 'react'
 import ReactDOM from 'react-dom'
@@ -86,7 +86,7 @@ function findDOMNode(
   instance: Parameters<typeof ReactDOM.findDOMNode>[0]
 ): ReturnType<typeof ReactDOM.findDOMNode> {
   // Tree-shake for server bundle
-  if (typeof window === undefined) return null
+  if (typeof window === 'undefined') return null
   // Only apply strict mode warning when not in production
   if (process.env.NODE_ENV !== 'production') {
     const originalConsoleError = console.error
@@ -135,6 +135,7 @@ function getHashFragmentDomNode(hashFragment: string) {
 interface ScrollAndFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
+  segmentPath: FlightSegmentPath
 }
 class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
   handlePotentialScroll = () => {
@@ -142,6 +143,22 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
     const { focusAndScrollRef } = this.props
 
     if (focusAndScrollRef.apply) {
+      // segmentPaths is an array of segment paths that should be scrolled to
+      // if the current segment path is not in the array, the scroll is not applied
+      // unless the array is empty, in which case the scroll is always applied
+      if (
+        focusAndScrollRef.segmentPaths.length !== 0 &&
+        !focusAndScrollRef.segmentPaths.some(
+          (segmentPath) =>
+            segmentPath.length === this.props.segmentPath.length &&
+            segmentPath.every((segment, index) =>
+              matchSegment(segment, this.props.segmentPath[index])
+            )
+        )
+      ) {
+        return
+      }
+
       let domNode:
         | ReturnType<typeof getHashFragmentDomNode>
         | ReturnType<typeof findDOMNode> = null
@@ -376,7 +393,10 @@ function InnerLayoutRouter({
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return (
-    <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
+    <ScrollAndFocusHandler
+      focusAndScrollRef={focusAndScrollRef}
+      segmentPath={segmentPath}
+    >
       {subtree}
     </ScrollAndFocusHandler>
   )
@@ -433,6 +453,7 @@ export default function OuterLayoutRouter({
   notFound,
   notFoundStyles,
   asNotFound,
+  styles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -447,6 +468,7 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
   asNotFound?: boolean
+  styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -481,6 +503,7 @@ export default function OuterLayoutRouter({
 
   return (
     <>
+      {styles}
       {preservedSegments.map((preservedSegment) => {
         const isChildPropSegment = matchSegment(
           preservedSegment,

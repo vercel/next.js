@@ -7,13 +7,14 @@ use turbo_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContentVc, AssetVc, AssetsVc},
-            chunk::{ChunkGroupVc, ChunkingContextVc, EvaluatableAssetsVc},
+            chunk::{ChunkableAsset, ChunkingContext, ChunkingContextVc, EvaluatableAssetsVc},
             context::{AssetContext, AssetContextVc},
             ident::AssetIdentVc,
             reference::{AssetReferencesVc, SingleAssetReferenceVc},
             reference_type::{EntryReferenceSubType, ReferenceType},
             virtual_asset::VirtualAssetVc,
         },
+        dev::ChunkData,
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         ecmascript::{
             utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
@@ -100,13 +101,10 @@ impl PageLoaderAssetVc {
             }),
         );
 
-        let chunk_group = ChunkGroupVc::evaluated(
-            this.client_chunking_context,
-            asset.into(),
-            EvaluatableAssetsVc::empty(),
-        );
-
-        Ok(chunk_group.chunks())
+        Ok(this.client_chunking_context.evaluated_chunk_group(
+            asset.as_root_chunk(this.client_chunking_context),
+            EvaluatableAssetsVc::one(asset.into()),
+        ))
     }
 }
 
@@ -133,16 +131,9 @@ impl Asset for PageLoaderAsset {
         let chunks = self_vc.get_page_chunks().await?;
         let server_root = this.server_root.await?;
 
-        let chunk_paths: Vec<_> = chunks
+        let chunks_data: Vec<_> = chunks
             .iter()
-            .map(|chunk| {
-                let server_root = server_root.clone();
-                async move {
-                    Ok(server_root
-                        .get_path_to(&*chunk.ident().path().await?)
-                        .map(|path| path.to_string()))
-                }
-            })
+            .map(|&chunk| ChunkData::from_asset(&server_root, chunk))
             .try_join()
             .await?
             .into_iter()
@@ -152,7 +143,7 @@ impl Asset for PageLoaderAsset {
         let content = format!(
             "__turbopack_load_page_chunks__({}, {:#})\n",
             StringifyJs(&this.pathname.await?),
-            StringifyJs(&chunk_paths)
+            StringifyJs(&chunks_data)
         );
 
         Ok(AssetContentVc::from(File::from(content)))

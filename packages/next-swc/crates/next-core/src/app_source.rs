@@ -707,7 +707,13 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         // IPC need to be the first import to allow it to catch errors happening during
         // the other imports
         let mut result =
-            RopeBuilder::from("import { IPC } from \"@vercel/turbopack-next/ipc/index\";\n");
+            RopeBuilder::from("import { IPC } from \"@vercel/turbopack-node/ipc/index\";\n");
+
+        let import_path = next_js_file_path("entry")
+            .await?
+            .get_relative_path_to(&*next_js_file_path("polyfill/app-polyfills.ts").await?)
+            .unwrap();
+        writeln!(result, "import \"{import_path}\";\n",)?;
 
         for import in imports {
             writeln!(result, "{import}")?;
@@ -813,10 +819,7 @@ impl AppRouteVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
-        let virtual_asset = VirtualAssetVc::new(
-            this.entry_path.join("route.ts"),
-            next_js_file("entry/app/route.ts").into(),
-        );
+        let internal_asset = SourceAssetVc::new(next_js_file_path("entry/app/route.ts"));
 
         let chunking_context = DevChunkingContextVc::builder(
             this.project_path,
@@ -843,7 +846,7 @@ impl AppRouteVc {
                     .collect(),
             ),
             module: EcmascriptModuleAssetVc::new_with_inner_assets(
-                virtual_asset.into(),
+                internal_asset.into(),
                 this.context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {

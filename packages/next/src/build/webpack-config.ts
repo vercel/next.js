@@ -2241,6 +2241,7 @@ export default async function getBaseWebpackConfig(
               appDir,
               dev,
               isEdgeServer,
+              useExperimentalReact: false,
             })),
       hasAppDir &&
         !isClient &&

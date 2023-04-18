@@ -7,8 +7,11 @@ const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
   'experimental.appDir',
+  'compiler.emotion',
+  'compiler.styledComponents',
   'experimental.serverComponentsExternalPackages',
   'experimental.turbo',
+  'experimental.mdxRs',
   'images',
   'pageExtensions',
   'onDemandEntries',
@@ -18,18 +21,37 @@ const supportedTurbopackNextConfigOptions = [
   'reactStrictMode',
   'swcMinify',
   'transpilePackages',
+  'experimental.swcFileReading',
+  'experimental.forceSwcTransforms',
+]
+
+// The following will need to be supported by `next build --turbo`
+const prodSpecificTurboNextConfigOptions = [
+  'eslint.ignoreDuringBuilds',
+  'typescript.ignoreDuringBuilds',
+  'staticPageGenerationTimeout',
+  'outputFileTracing',
+  'output',
+  'generateBuildId',
+  'analyticsId',
+  'compress',
+  'productionBrowserSourceMaps',
+  'optimizeFonts',
+  'poweredByHeader',
 ]
 
 // check for babelrc, swc plugins
 export async function validateTurboNextConfig({
   dir,
   isCustomTurbopack,
+  isDev,
 }: {
   allowRetry?: boolean
   isCustomTurbopack?: boolean
   dir: string
   port: number
   hostname?: string
+  isDev?: boolean
 }) {
   const { getPkgManager } =
     require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
@@ -71,6 +93,12 @@ export async function validateTurboNextConfig({
       })
     }
 
+    let supported = isDev
+      ? supportedTurbopackNextConfigOptions
+      : [
+          ...supportedTurbopackNextConfigOptions,
+          ...prodSpecificTurboNextConfigOptions,
+        ]
     const checkUnsupportedCustomConfig = (
       configKey = '',
       parentUserConfig: any,
@@ -80,7 +108,7 @@ export async function validateTurboNextConfig({
         // these should not error
         if (
           // we only want the key after the dot for experimental options
-          supportedTurbopackNextConfigOptions
+          supported
             .map((key) => key.split('.').splice(-1)[0])
             .includes(configKey)
         ) {

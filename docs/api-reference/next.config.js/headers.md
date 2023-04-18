@@ -416,6 +416,6 @@ For more information, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/security-headers.md">
     <b>Security Headers:</b>
-    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
+    <small>Improve the security of your Next.js application by adding HTTP response headers.</small>
   </a>
 </div>

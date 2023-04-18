@@ -1172,10 +1172,14 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
   }
 
-  protected getFallback(page: string): Promise<string> {
+  protected async getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
+    const html = await cacheFs.readFile(
+      join(this.serverDistDir, 'pages', `${page}.html`)
+    )
+
+    return html.toString('utf8')
   }
 
   protected generateRoutes(dev?: boolean): RouterOptions {
@@ -1434,6 +1438,7 @@ export default class NextNodeServer extends BaseServer {
             const invokeHeaders: typeof req.headers = {
               'cache-control': '',
               ...req.headers,
+              'x-middleware-invoke': '',
               'x-invoke-path': invokePathname,
               'x-invoke-query': encodeURIComponent(invokeQuery),
             }
@@ -2100,7 +2105,10 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    const page: { name?: string; params?: { [key: string]: string } } = {}
+    const page: {
+      name?: string
+      params?: { [key: string]: string | string[] }
+    } = {}
 
     const match = await this.matchers.match(normalizedPathname, options)
     if (match) {
@@ -2254,6 +2262,8 @@ export default class NextNodeServer extends BaseServer {
 
                 const invokeHeaders: typeof req.headers = {
                   ...req.headers,
+                  'x-invoke-path': '',
+                  'x-invoke-query': '',
                   'x-middleware-invoke': '1',
                 }
                 const invokeRes = await invokeRequest(

@@ -109,6 +109,55 @@ createNextDescribe(
         )
       })
 
+      it('should support generate multi images with generateImageMetadata', async () => {
+        const $ = await next.render$('/dynamic/big')
+        const iconUrls = $('link[rel="icon"]')
+          .toArray()
+          .map((el) => {
+            return {
+              href: $(el).attr('href').split('?')[0],
+              sizes: $(el).attr('sizes'),
+              type: $(el).attr('type'),
+            }
+          })
+        // slug is id param from generateImageMetadata
+        expect(iconUrls).toMatchObject([
+          {
+            href: '/dynamic/big/icon-48jo90/small',
+            sizes: '48x48',
+            type: 'image/png',
+          },
+          {
+            href: '/dynamic/big/icon-48jo90/medium',
+            sizes: '72x72',
+            type: 'image/png',
+          },
+        ])
+
+        const appleTouchIconUrls = $('link[rel="apple-touch-icon"]')
+          .toArray()
+          .map((el) => {
+            return {
+              href: $(el).attr('href').split('?')[0],
+              sizes: $(el).attr('sizes'),
+              type: $(el).attr('type'),
+            }
+          })
+        // slug is index by default
+        expect(appleTouchIconUrls).toEqual([
+          {
+            href: '/dynamic/big/apple-icon-48jo90/0',
+            sizes: '48x48',
+            type: 'image/png',
+          },
+          {
+            href: '/dynamic/big/apple-icon-48jo90/1',
+            sizes: '64x64',
+            type: 'image/png',
+          },
+        ])
+      })
+
       it('should fill params into dynamic routes url of metadata images', async () => {
         const $ = await next.render$('/dynamic/big')
         const ogImageUrl = $('meta[property="og:image"]').attr('content')
@@ -136,6 +185,15 @@ createNextDescribe(
         const sizeSmall = imageSize(bufferSmall)
         expect([sizeBig.width, sizeBig.height]).toEqual([1200, 630])
         expect([sizeSmall.width, sizeSmall.height]).toEqual([600, 315])
+      })
+
+      it('should fill params into routes groups url of static images', async () => {
+        const $ = await next.render$('/static')
+        const ogImageUrl = $('meta[property="og:image"]').attr('content')
+        expect(ogImageUrl).toMatch(hashRegex)
+        expect(ogImageUrl).toMatch('/static/opengraph-image')
+        // should already normalize the parallel routes segment to url
+        expect(ogImageUrl).not.toContain('(group)')
       })
     })
 
@@ -192,6 +250,11 @@ createNextDescribe(
 
       expect($('link[rel="favicon"]')).toHaveLength(0)
 
+      // manifest
+      expect($('link[rel="manifest"]').attr('href')).toBe(
+        '/manifest.webmanifest'
+      )
+
       // non absolute urls
       expect($icon.attr('href')).toContain('/icon')
       expect($icon.attr('href')).toMatch(hashRegex)
@@ -242,7 +305,9 @@ createNextDescribe(
         const edgeRoute = functionRoutes.find((route) =>
           route.startsWith('/(group)/twitter-image-')
         )
-        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+        expect(edgeRoute).toMatch(
+          /\/\(group\)\/twitter-image-\w{6}\/\[\[\.\.\.__metadata_id__\]\]\/route/
+        )
       })
     }
   }

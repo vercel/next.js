@@ -166,9 +166,14 @@ export function getMiddlewareMatchers(
   }
   const { i18n } = nextConfig
 
-  let routes = matchers.map(
-    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
-  )
+  const originalSourceMap = new Map<Middleware, string>()
+  let routes = matchers.map((m) => {
+    let middleware = (typeof m === 'string' ? { source: m } : m) as Middleware
+    if (middleware) {
+      originalSourceMap.set(middleware, middleware.source)
+    }
+    return middleware
+  })
 
   // check before we process the routes and after to ensure
   // they are still valid
@@ -195,7 +200,8 @@ export function getMiddlewareMatchers(
       source = `${nextConfig.basePath}${source}`
     }
 
-    return { ...r, source }
+    r.source = source
+    return r
   })
 
   checkCustomRoutes(routes, 'middleware')
@@ -208,10 +214,12 @@ export function getMiddlewareMatchers(
       throw new Error(`Invalid source: ${source}`)
     }
 
+    const originalSource = originalSourceMap.get(r)
+
     return {
       ...rest,
       regexp: parsedPage.regexStr,
-      originalSource: source,
+      originalSource: originalSource || source,
     }
   })
 }
@@ -306,7 +314,7 @@ export async function getPageStaticInfo(params: {
   pageFilePath: string
   isDev?: boolean
   page?: string
-  pageType?: 'pages' | 'app'
+  pageType: 'pages' | 'app' | 'root'
 }): Promise<PageStaticInfo> {
   const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
@@ -321,7 +329,7 @@ export async function getPageStaticInfo(params: {
     const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
-    let config: any = {}
+    let config: any
     try {
       config = extractExportedConstValue(swcAST, 'config')
     } catch (e) {
@@ -330,12 +338,26 @@ export async function getPageStaticInfo(params: {
       }
       // `export config` doesn't exist, or other unknown error throw by swc, silence them
     }
+    if (pageType === 'app') {
+      if (config) {
+        Log.warnOnce(
+          `\`export const config\` in ${pageFilePath} is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        )
+        config = {}
+      }
+    }
+    if (!config) config = {}
 
-    // Currently, we use `export const config = { runtime: '...' }` to specify the page runtime.
-    // But in the new app directory, we prefer to use `export const runtime = '...'`
+    // We use `export const config = { runtime: '...' }` to specify the page runtime for pages/.
+    // In the new app directory, we prefer to use `export const runtime = '...'`
     // and deprecate the old way. To prevent breaking changes for `pages`, we use the exported config
     // as the fallback value.
-    let resolvedRuntime = runtime || config.runtime
+    let resolvedRuntime
+    if (pageType === 'app') {
+      resolvedRuntime = runtime
+    } else {
+      resolvedRuntime = runtime || config.runtime
+    }
 
     if (
       typeof resolvedRuntime !== 'undefined' &&

@@ -1,6 +1,6 @@
 # Example app with dynamic-imports
 
-This examples shows how to dynamically import modules via [`import()`](https://github.com/tc39/proposal-dynamic-import) API
+This example shows how to dynamically import modules via [`import()`](https://github.com/tc39/proposal-dynamic-import) API
 
 ## Deploy your own
 

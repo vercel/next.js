@@ -548,7 +548,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'http.target': req.url,
         },
         // We will fire this from the renderer worker
-        hideSpan: this.serverOptions.dev && this.isRouterWorker,
+        hideSpan: this.isRouterWorker,
       },
       async (span) =>
         this.handleRequestImpl(req, res, parsedUrl).finally(() => {
@@ -2044,8 +2044,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     let page = pathname
     if (isAppPath) {
-      // When it's an array, we need to pass all parallel routes to the loader.
-      page = appPaths[0]
+      // the last item in the array is the root page, if there are parallel routes
+      page = appPaths[appPaths.length - 1]
     }
 
     const result = await this.findPageComponents({
