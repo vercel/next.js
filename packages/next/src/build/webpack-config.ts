@@ -1715,7 +1715,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-loader',
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
-        'next-flight-client-action-loader',
+        'next-flight-client-module-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1939,7 +1939,9 @@ export default async function getBaseWebpackConfig(
                           ]
                         : []),
                       {
-                        loader: 'next-flight-client-action-loader',
+                        // This loader handles actions and client entries
+                        // in the client layer.
+                        loader: 'next-flight-client-module-loader',
                       },
                       ...swcLoaderForClientLayer,
                     ],
