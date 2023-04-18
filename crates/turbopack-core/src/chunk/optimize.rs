@@ -4,35 +4,71 @@
 //! their size and eliminating duplicates between them.
 
 use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathOptionVc;
+use turbo_tasks::TryJoinIterExt;
+use turbo_tasks_fs::{FileSystemPathOptionVc, FileSystemPathVc};
 
-use crate::chunk::containment_tree::ContainmentTree;
+use crate::chunk::containment_tree::{ContainmentTree, ContainmentTreeKey};
 
-pub async fn optimize_by_common_parent<T, Acc>(
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct FileSystemPathKey(FileSystemPathVc);
+
+impl FileSystemPathKey {
+    async fn new(path: FileSystemPathVc) -> Result<Self> {
+        Ok(Self(path.resolve().await?))
+    }
+}
+
+#[async_trait::async_trait]
+impl ContainmentTreeKey for FileSystemPathKey {
+    async fn parent(&self) -> Result<Self> {
+        Ok(FileSystemPathKey::new(self.0.parent()).await?)
+    }
+}
+
+pub async fn optimize_by_common_parent<T, Acc, GetCommonParent, Optimize>(
     chunks: &[T],
-    get_common_parent: impl Fn(T) -> FileSystemPathOptionVc,
-    optimize: impl Fn(Option<Vec<T>>, Vec<Acc>) -> Acc,
+    get_common_parent: GetCommonParent,
+    optimize: Optimize,
 ) -> Result<Acc>
 where
     T: Clone,
+    GetCommonParent: Fn(T) -> FileSystemPathOptionVc + Clone,
+    Optimize: Fn(Option<Vec<T>>, Vec<Acc>) -> Acc,
 {
     let tree = ContainmentTree::build(
         chunks
             .iter()
-            .map(|chunk| (get_common_parent(chunk.clone()), chunk.clone())),
+            .map(move |chunk| {
+                let get_common_parent = get_common_parent.clone();
+                async move {
+                    let common_parent = get_common_parent(chunk.clone()).await?;
+
+                    Ok((
+                        if let Some(common_parent) = &*common_parent {
+                            Some(FileSystemPathKey::new(*common_parent).await?)
+                        } else {
+                            None
+                        },
+                        chunk.clone(),
+                    ))
+                }
+            })
+            .try_join()
+            .await?,
     )
     .await?;
 
-    fn optimize_tree<T, Acc>(
-        tree: ContainmentTree<T>,
-        optimize: &impl Fn(Option<Vec<T>>, Vec<Acc>) -> Acc,
+    fn optimize_tree<K, V, Acc>(
+        tree: ContainmentTree<K, V>,
+        optimize: &impl Fn(Option<Vec<V>>, Vec<Acc>) -> Acc,
     ) -> Acc {
         let children = tree
             .children
             .into_iter()
             .map(|tree| optimize_tree(tree, optimize))
             .collect::<Vec<_>>();
-        optimize(tree.chunks, children)
+
+        optimize(tree.values, children)
     }
 
     Ok(optimize_tree(tree, &optimize))
