@@ -782,6 +782,28 @@ createNextDescribe(
       }
     })
 
+    if (isNextStart) {
+      describe('static optimization', () => {
+        it('should build static files into static route', async () => {
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.body'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            )
+          ).toBe(false)
+        })
+      })
+    }
+
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {
         const browser = await next.browser('/cache-deduping')

@@ -41,7 +41,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 
-use crate::embed_js::next_asset;
+use crate::{embed_js::next_asset, next_shared::transforms::ModularizeImportPackageConfig};
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -57,6 +57,7 @@ pub struct NextConfig {
     pub react_strict_mode: Option<bool>,
     pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
+    pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
@@ -385,7 +386,6 @@ pub struct ExperimentalConfig {
     legacy_browsers: Option<bool>,
     manual_client_base_path: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
-    modularize_imports: Option<serde_json::Value>,
     new_next_link_behavior: Option<bool>,
     next_script_workers: Option<bool>,
     optimistic_client_cache: Option<bool>,
