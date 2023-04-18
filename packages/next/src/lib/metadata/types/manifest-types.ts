@@ -1,6 +1,36 @@
+type ManifestCategory = 
+    | "books"
+    | "business"
+    | "education"
+    | "entertainment"
+    | "finance"
+    | "fitness"
+    | "food"
+    | "games"
+    | "government"
+    | "health"
+    | "kids"
+    | "lifestyle"
+    | "magazines"
+    | "medical"
+    | "music"
+    | "navigation"
+    | "news"
+    | "personalization"
+    | "photo"
+    | "politics"
+    | "productivity"
+    | "security"
+    | "shopping"
+    | "social"
+    | "sports"
+    | "travel"
+    | "utilities"
+    | "weather" 
+    
 export type Manifest = {
   background_color?: string
-  categories?: string[]
+  categories?: ManifestCategory[]
   description?: string
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
   display_override?: string[]
