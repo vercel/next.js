@@ -9,12 +9,11 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
-import {
-  processBuffer,
-  decodeBuffer,
-  Operation,
-  getMetadata,
-} from './lib/squoosh/main'
+// Do not import anything other than types from this module
+// because it will throw an error when using `outputFileTracing`
+// because `jest-worker` is ignored in file tracing. Use `await import`
+// or `require` instead.
+import { Operation } from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
@@ -494,6 +493,8 @@ export async function optimizeImage({
       operations.push({ type: 'resize', width })
     }
 
+    const { processBuffer } = await import('./lib/squoosh/main')
+
     if (contentType === AVIF) {
       optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
     } else if (contentType === WEBP) {
@@ -637,6 +638,7 @@ export async function imageOptimizer(
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+        const { getMetadata } = await import('./lib/squoosh/main')
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.
@@ -778,6 +780,7 @@ export async function getImageSize(
       const { width, height } = await transformer.metadata()
       return { width, height }
     } else {
+      const { decodeBuffer } = await import('./lib/squoosh/main')
       const { width, height } = await decodeBuffer(buffer)
       return { width, height }
     }
