@@ -181,8 +181,8 @@ async fn apply_module_type(
     })
 }
 
-#[derive(Debug)]
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub struct ModuleAssetContext {
     pub transitions: TransitionsByNameVc,
     pub compile_time_info: CompileTimeInfoVc,

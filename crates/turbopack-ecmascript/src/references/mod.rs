@@ -5,6 +5,7 @@ pub mod esm;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
+pub mod require_context;
 pub mod typescript;
 pub mod unreachable;
 pub mod util;
@@ -15,7 +16,6 @@ use std::{
     future::Future,
     mem::take,
     pin::Pin,
-    sync::Arc,
 };
 
 use anyhow::Result;
@@ -37,11 +37,15 @@ use swc_core::{
         visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath},
     },
 };
-use turbo_tasks::{primitives::BoolVc, TryJoinIterExt, Value};
+use turbo_tasks::{
+    primitives::{BoolVc, RegexVc},
+    TryJoinIterExt, Value,
+};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetVc},
     compile_time_info::{CompileTimeInfoVc, FreeVarReference},
+    error::PrettyPrintError,
     issue::{IssueSourceVc, OptionIssueSourceVc},
     reference::{AssetReferenceVc, AssetReferencesVc, SourceMapReferenceVc},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -97,7 +101,7 @@ use crate::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
         imports::{ImportedSymbol, Reexport},
-        ModuleValue,
+        parse_require_context, ModuleValue, RequireContextValueVc,
     },
     chunk::{EcmascriptExports, EcmascriptExportsVc},
     code_gen::{
@@ -109,6 +113,7 @@ use crate::{
             CjsRequireAssetReferenceVc, CjsRequireCacheAccess, CjsRequireResolveAssetReferenceVc,
         },
         esm::{module_id::EsmModuleIdAssetReferenceVc, EsmBindingVc, EsmExportsVc},
+        require_context::{RequireContextAssetReferenceVc, RequireContextMapVc},
     },
     resolve::try_to_severity,
     tree_shake::{part_of_module, split},
@@ -585,7 +590,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                         value
                                     }
                                     EffectArg::Spread => {
-                                        JsValue::Unknown(None, "spread is not supported yet")
+                                        JsValue::unknown_empty("spread is not supported yet")
                                     }
                                 };
                                 state.link_value(value, in_try).await
@@ -723,6 +728,40 @@ pub(crate) async fn analyze_ecmascript_module(
                                 errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE.to_string(),
                             ),
                         )
+                    }
+
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext) => {
+                        let args = linked_args(args).await?;
+                        let options = match parse_require_context(&args) {
+                            Ok(options) => options,
+                            Err(err) => {
+                                let (args, hints) = explain_args(&args);
+                                handler.span_err_with_code(
+                                    span,
+                                    &format!(
+                                        "require.context({args}) is not statically analyze-able: \
+                                         {}{hints}",
+                                        PrettyPrintError(&err)
+                                    ),
+                                    DiagnosticId::Error(
+                                        errors::failed_to_analyse::ecmascript::REQUIRE_CONTEXT
+                                            .to_string(),
+                                    ),
+                                );
+                                return Ok(());
+                            }
+                        };
+
+                        analysis.add_reference(RequireContextAssetReferenceVc::new(
+                            source,
+                            origin,
+                            options.dir,
+                            options.include_subdirs,
+                            RegexVc::cell(options.filter),
+                            AstPathVc::cell(ast_path.to_vec()),
+                            OptionIssueSourceVc::some(issue_source(source, span)),
+                            in_try,
+                        ));
                     }
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
@@ -1340,6 +1379,7 @@ pub(crate) async fn analyze_ecmascript_module(
                             } => {
                                 let condition =
                                     analysis_state.link_value(condition, in_try).await?;
+
                                 macro_rules! inactive {
                                     ($block:ident) => {
                                         analysis.add_code_gen(UnreachableVc::new(AstPathVc::cell(
@@ -1455,7 +1495,7 @@ pub(crate) async fn analyze_ecmascript_module(
                                     &ast_path,
                                     span,
                                     func,
-                                    JsValue::Unknown(None, "no this provided"),
+                                    JsValue::unknown_empty("no this provided"),
                                     args,
                                     &analysis_state,
                                     &add_effects,
@@ -1870,52 +1910,24 @@ async fn value_visitor_inner(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
             args,
+        ) => require_resolve_visitor(origin, args, in_try).await?,
+        JsValue::Call(
+            _,
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
+            args,
+        ) => require_context_visitor(origin, args, in_try).await?,
+        JsValue::Call(
+            _,
+            box JsValue::WellKnownFunction(
+                WellKnownFunctionKind::RequireContextRequire(..)
+                | WellKnownFunctionKind::RequireContextRequireKeys(..)
+                | WellKnownFunctionKind::RequireContextRequireResolve(..),
+            ),
+            _,
         ) => {
-            if args.len() == 1 {
-                let pat = js_value_to_pattern(&args[0]);
-                let request = RequestVc::parse(Value::new(pat.clone()));
-                let resolved = cjs_resolve(
-                    origin,
-                    request,
-                    OptionIssueSourceVc::none(),
-                    try_to_severity(in_try),
-                )
-                .await?;
-                let mut values = resolved
-                    .primary
-                    .iter()
-                    .map(|result| async move {
-                        Ok(if let PrimaryResolveResult::Asset(asset) = result {
-                            Some(require_resolve(asset.ident().path()).await?)
-                        } else {
-                            None
-                        })
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<_>>();
-                match values.len() {
-                    0 => JsValue::Unknown(
-                        Some(Arc::new(JsValue::call(
-                            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-                            args,
-                        ))),
-                        "unresolveable request",
-                    ),
-                    1 => values.pop().unwrap(),
-                    _ => JsValue::alternatives(values),
-                }
-            } else {
-                JsValue::Unknown(
-                    Some(Arc::new(JsValue::call(
-                        box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-                        args,
-                    ))),
-                    "only a single argument is supported",
-                )
-            }
+            // TODO: figure out how to do static analysis without invalidating the while
+            // analysis when a new file gets added
+            v.into_unknown("require.context() static analysis is currently limited")
         }
         JsValue::FreeVar(ref kind) => match &**kind {
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
@@ -1958,22 +1970,13 @@ async fn value_visitor_inner(
                     "@grpc/proto-loader" => {
                         JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader)
                     }
-                    _ => JsValue::Unknown(
-                        Some(Arc::new(v)),
-                        "cross module analyzing is not yet supported",
-                    ),
+                    _ => v.into_unknown("cross module analyzing is not yet supported"),
                 }
             } else {
-                JsValue::Unknown(
-                    Some(Arc::new(v)),
-                    "cross module analyzing is not yet supported",
-                )
+                v.into_unknown("cross module analyzing is not yet supported")
             }
         }
-        JsValue::Argument(..) => JsValue::Unknown(
-            Some(Arc::new(v)),
-            "cross function analyzing is not yet supported",
-        ),
+        JsValue::Argument(..) => v.into_unknown("cross function analyzing is not yet supported"),
         _ => {
             let (mut v, mut modified) = replace_well_known(v, compile_time_info).await?;
             modified = replace_builtin(&mut v) || modified;
@@ -1982,6 +1985,93 @@ async fn value_visitor_inner(
         }
     };
     Ok((value, true))
+}
+
+async fn require_resolve_visitor(
+    origin: ResolveOriginVc,
+    args: Vec<JsValue>,
+    in_try: bool,
+) -> Result<JsValue> {
+    Ok(if args.len() == 1 {
+        let pat = js_value_to_pattern(&args[0]);
+        let request = RequestVc::parse(Value::new(pat.clone()));
+        let resolved = cjs_resolve(
+            origin,
+            request,
+            OptionIssueSourceVc::none(),
+            try_to_severity(in_try),
+        )
+        .await?;
+        let mut values = resolved
+            .primary
+            .iter()
+            .map(|result| async move {
+                Ok(if let PrimaryResolveResult::Asset(asset) = result {
+                    Some(require_resolve(asset.ident().path()).await?)
+                } else {
+                    None
+                })
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        match values.len() {
+            0 => JsValue::unknown(
+                JsValue::call(
+                    box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                    args,
+                ),
+                "unresolveable request",
+            ),
+            1 => values.pop().unwrap(),
+            _ => JsValue::alternatives(values),
+        }
+    } else {
+        JsValue::unknown(
+            JsValue::call(
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
+                args,
+            ),
+            "only a single argument is supported",
+        )
+    })
+}
+
+async fn require_context_visitor(
+    origin: ResolveOriginVc,
+    args: Vec<JsValue>,
+    in_try: bool,
+) -> Result<JsValue> {
+    let options = match parse_require_context(&args) {
+        Ok(options) => options,
+        Err(err) => {
+            return Ok(JsValue::unknown(
+                JsValue::call(
+                    box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
+                    args,
+                ),
+                PrettyPrintError(&err).to_string(),
+            ))
+        }
+    };
+
+    let dir = origin.origin_path().parent().join(&options.dir);
+
+    let map = RequireContextMapVc::generate(
+        origin,
+        dir,
+        options.include_subdirs,
+        RegexVc::cell(options.filter),
+        OptionIssueSourceVc::none(),
+        try_to_severity(in_try),
+    );
+
+    Ok(JsValue::WellKnownFunction(
+        WellKnownFunctionKind::RequireContextRequire(RequireContextValueVc::from_context_map(map)),
+    ))
 }
 
 #[derive(Debug)]

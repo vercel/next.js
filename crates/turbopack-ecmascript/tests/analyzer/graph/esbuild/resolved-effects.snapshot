@@ -75,7 +75,7 @@
 - *2* require.resolve*3*(
         `${(undefined["pkg"] | ???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
     )
-  ⚠️  resolve.resolve non constant
+  ⚠️  require.resolve non constant
 - *3* require.resolve: The require.resolve method from CommonJS
 - *4* pkg
   ⚠️  pattern without value
@@ -196,7 +196,7 @@
 - *2* require.resolve*3*(
         `${(undefined["pkg"] | ???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)}`
     )
-  ⚠️  resolve.resolve non constant
+  ⚠️  require.resolve non constant
 - *3* require.resolve: The require.resolve method from CommonJS
 - *4* pkg
   ⚠️  pattern without value

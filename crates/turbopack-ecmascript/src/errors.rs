@@ -6,6 +6,7 @@ pub mod failed_to_analyse {
         pub const FS_METHOD: &str = "TP1004";
         pub const CHILD_PROCESS_SPAWN: &str = "TP1005";
         pub const PATH_METHOD: &str = "TP1006";
+        pub const REQUIRE_CONTEXT: &str = "TP1007";
         pub const NODE_PRE_GYP_FIND: &str = "TP1100";
         pub const NODE_GYP_BUILD: &str = "TP1101";
         pub const NODE_BINDINGS: &str = "TP1102";

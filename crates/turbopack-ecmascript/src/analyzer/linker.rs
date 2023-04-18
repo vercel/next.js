@@ -2,7 +2,6 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     future::Future,
     mem::take,
-    sync::Arc,
 };
 
 use anyhow::Result;
@@ -78,8 +77,8 @@ where
             Step::Enter(JsValue::Variable(var)) => {
                 // Replace with unknown for now
                 if cycle_stack.contains(&var) {
-                    done.push(JsValue::Unknown(
-                        Some(Arc::new(JsValue::Variable(var.clone()))),
+                    done.push(JsValue::unknown(
+                        JsValue::Variable(var.clone()),
                         "circular variable reference",
                     ));
                 } else {
@@ -91,8 +90,8 @@ where
                         work_queue_stack.push(Step::Enter(val.clone()));
                     } else {
                         total_nodes += 1;
-                        done.push(JsValue::Unknown(
-                            Some(Arc::new(JsValue::Variable(var.clone()))),
+                        done.push(JsValue::unknown(
+                            JsValue::Variable(var.clone()),
                             "no value of this variable analysed",
                         ));
                     };
@@ -112,15 +111,14 @@ where
                         done.push(val.clone());
                     } else {
                         total_nodes += 1;
-                        done.push(JsValue::Unknown(
-                            None,
+                        done.push(JsValue::unknown_empty(
                             "unknown function argument (out of bounds)",
                         ));
                     }
                 } else {
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(
-                        Some(Arc::new(JsValue::Argument(func_ident, index))),
+                    done.push(JsValue::unknown(
+                        JsValue::Argument(func_ident, index),
                         "function calls are not analysed yet",
                     ));
                 }
@@ -148,11 +146,8 @@ where
                         total_nodes -= arg.total_nodes();
                     }
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(
-                        Some(Arc::new(JsValue::call(
-                            box JsValue::function(func_ident, return_value),
-                            args,
-                        ))),
+                    done.push(JsValue::unknown(
+                        JsValue::call(box JsValue::function(func_ident, return_value), args),
                         "recursive function call",
                     ));
                 }
@@ -205,7 +200,7 @@ where
                 total_nodes -= val.total_nodes();
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    done.push(JsValue::unknown_empty("node limit reached"));
                     continue;
                 }
 
@@ -213,7 +208,7 @@ where
                 val.debug_assert_total_nodes_up_to_date();
                 if visit_modified && val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    done.push(JsValue::unknown_empty("node limit reached"));
                     continue;
                 }
 
@@ -222,7 +217,7 @@ where
                     // There is always space for one more node since we just popped at least one
                     // count
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(None, "in progress nodes limit reached"));
+                    done.push(JsValue::unknown_empty("in progress nodes limit reached"));
                     continue;
                 }
                 total_nodes += count;
@@ -254,7 +249,7 @@ where
 
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    done.push(JsValue::unknown_empty("node limit reached"));
                     continue;
                 }
                 val.normalize_shallow();
@@ -277,7 +272,7 @@ where
 
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    done.push(JsValue::unknown_empty("node limit reached"));
                     continue;
                 }
                 val.normalize_shallow();
@@ -299,7 +294,7 @@ where
                     val.debug_assert_total_nodes_up_to_date();
                     if val.total_nodes() > LIMIT_NODE_SIZE {
                         total_nodes += 1;
-                        done.push(JsValue::Unknown(None, "node limit reached"));
+                        done.push(JsValue::unknown_empty("node limit reached"));
                         continue;
                     }
                 }
@@ -309,7 +304,7 @@ where
                     // There is always space for one more node since we just popped at least one
                     // count
                     total_nodes += 1;
-                    done.push(JsValue::Unknown(None, "in progress nodes limit reached"));
+                    done.push(JsValue::unknown_empty("in progress nodes limit reached"));
                     continue;
                 }
                 total_nodes += count;
@@ -321,8 +316,7 @@ where
             }
         }
         if steps > LIMIT_LINK_STEPS {
-            return Ok(JsValue::Unknown(
-                None,
+            return Ok(JsValue::unknown_empty(
                 "max number of linking steps reached",
             ));
         }

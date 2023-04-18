@@ -17,6 +17,8 @@
 /** @typedef {import('../types').SourceType.Update} SourceTypeUpdate */
 /** @typedef {import('../types').Exports} Exports */
 /** @typedef {import('../types').EsmInteropNamespace} EsmInteropNamespace */
+/** @typedef {import('../types').RequireContext} RequireContext */
+/** @typedef {import('../types').RequireContextMap} RequireContextMap */
 
 /** @typedef {import('../types').RefreshHelpers} RefreshHelpers */
 /** @typedef {import('../types/hot').Hot} Hot */
@@ -188,6 +190,61 @@ function commonJsRequire(sourceModule, id) {
   return module.exports;
 }
 
+/**
+ * @param {Module} sourceModule
+ * @param {RequireContextMap} map
+ * @returns {RequireContext}
+ */
+function requireContext(sourceModule, map) {
+  /**
+   * @param {ModuleId} id
+   * @returns {Exports}
+   */
+  function requireContext(id) {
+    const entry = map[id];
+
+    if (!entry) {
+      throw new Error(
+        `module ${id} is required from a require.context, but is not in the context`
+      );
+    }
+
+    return entry.internal
+      ? commonJsRequire(sourceModule, entry.id())
+      : externalRequire(entry.id(), false);
+  }
+
+  /**
+   * @returns {ModuleId[]}
+   */
+  requireContext.keys = () => {
+    return Object.keys(map);
+  };
+
+  /**
+   * @param {ModuleId} id
+   * @returns {ModuleId}
+   */
+  requireContext.resolve = (id) => {
+    const entry = map[id];
+
+    if (!entry) {
+      throw new Error(
+        `module ${id} is resolved from a require.context, but is not in the context`
+      );
+    }
+
+    return entry.id();
+  };
+
+  return requireContext;
+}
+
+/**
+ * @param {ModuleId} id
+ * @param {boolean} esm
+ * @returns {Exports | EsmInteropNamespace}
+ */
 function externalRequire(id, esm) {
   let raw;
   try {
@@ -286,6 +343,7 @@ const SourceTypeUpdate = 2;
  * @returns {Module}
  */
 function instantiateModule(id, source) {
+  /** @type {ModuleFactory} */
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -346,6 +404,7 @@ function instantiateModule(id, source) {
         e: module.exports,
         r: commonJsRequire.bind(null, module),
         x: externalRequire,
+        f: requireContext.bind(null, module),
         i: esmImport.bind(null, module),
         s: esm.bind(null, module.exports),
         j: cjs.bind(null, module.exports),

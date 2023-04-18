@@ -18,7 +18,7 @@ binPath = (???*0* | ???*1* | ???*8*)
 - *1* require.resolve*2*(
         `${(undefined["pkg"] | ???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
     )
-  ⚠️  resolve.resolve non constant
+  ⚠️  require.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
 - *3* pkg
   ⚠️  pattern without value

@@ -1,4 +1,4 @@
-use std::{mem::take, sync::Arc};
+use std::mem::take;
 
 use swc_core::ecma::atoms::js_word;
 
@@ -86,11 +86,8 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 ..
             } => {
                 fn items_to_alternatives(items: &mut Vec<JsValue>, prop: &mut JsValue) -> JsValue {
-                    items.push(JsValue::Unknown(
-                        Some(Arc::new(JsValue::member(
-                            box JsValue::array(Vec::new()),
-                            box take(prop),
-                        ))),
+                    items.push(JsValue::unknown(
+                        JsValue::member(box JsValue::array(Vec::new()), box take(prop)),
                         "unknown array prototype methods or values",
                     ));
                     JsValue::alternatives(take(items))
@@ -107,8 +104,8 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 }
                                 true
                             } else {
-                                *value = JsValue::Unknown(
-                                    Some(Arc::new(JsValue::member(box take(obj), box take(prop)))),
+                                *value = JsValue::unknown(
+                                    JsValue::member(box take(obj), box take(prop)),
                                     "invalid index",
                                 );
                                 true
@@ -161,22 +158,19 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 values.push(take(value));
                             }
                             ObjectPart::Spread(_) => {
-                                values.push(JsValue::Unknown(
-                                    Some(Arc::new(JsValue::member(
+                                values.push(JsValue::unknown(
+                                    JsValue::member(
                                         box JsValue::object(vec![take(part)]),
                                         prop.clone(),
-                                    ))),
+                                    ),
                                     "spreaded object",
                                 ));
                             }
                         }
                     }
                     if include_unknown {
-                        values.push(JsValue::Unknown(
-                            Some(Arc::new(JsValue::member(
-                                box JsValue::object(Vec::new()),
-                                box take(prop),
-                            ))),
+                        values.push(JsValue::unknown(
+                            JsValue::member(box JsValue::object(Vec::new()), box take(prop)),
                             "unknown object prototype methods or values",
                         ));
                     }
