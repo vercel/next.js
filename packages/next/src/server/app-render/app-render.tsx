@@ -1135,11 +1135,6 @@ export async function renderToHTMLOrFlight(
         return paths
       }
 
-      // const metadataItems = await resolveMetadata({
-      //   tree: loaderTree,
-      //   parentParams: {},
-      //   metadataItems: [],
-      // })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = (
@@ -1233,13 +1228,6 @@ export async function renderToHTMLOrFlight(
           },
         }
       : {}
-
-    // const metadataItems = await resolveMetadata({
-    //   tree: loaderTree,
-    //   parentParams: {},
-    //   metadataItems: [],
-    //   getDynamicParamFromSegment,
-    // })
 
     /**
      * A new React Component that renders the provided React Component
