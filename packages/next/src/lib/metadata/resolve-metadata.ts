@@ -263,23 +263,23 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata({
-  loaderTree,
+  tree,
   metadataItems: array,
   props,
   route,
 }: {
-  loaderTree: LoaderTree
+  tree: LoaderTree
   metadataItems: MetadataItems
   props: any
   route: string
 }) {
-  const [mod, modType] = await getLayoutOrPageModule(loaderTree)
+  const [mod, modType] = await getLayoutOrPageModule(tree)
 
   if (modType) {
     route += `/${modType}`
   }
 
-  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2], props)
+  const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
   const metadataExport = mod
     ? await getDefinedMetadata(mod, props, route)
     : null
