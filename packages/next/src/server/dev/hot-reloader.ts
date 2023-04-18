@@ -714,6 +714,7 @@ export default class HotReloader {
             const isAppPath = hasAppDir && bundlePath.startsWith('app/')
             const staticInfo = isEntry
               ? await getPageStaticInfo({
+                  page,
                   pageFilePath: entryData.absolutePagePath,
                   nextConfig: this.config,
                   isDev: true,

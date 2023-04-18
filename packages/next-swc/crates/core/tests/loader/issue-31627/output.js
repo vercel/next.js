@@ -1,4 +1,4 @@
-function _classCallCheck(instance, Constructor) {
+function _class_call_check(instance, Constructor) {
     if (!(instance instanceof Constructor)) {
         throw new TypeError("Cannot call a class as a function");
     }
@@ -17,7 +17,7 @@ export default function Home() {
 }
 var MyClass = function MyClass() {
     "use strict";
-    _classCallCheck(this, MyClass);
+    _class_call_check(this, MyClass);
     selectAll(".group").each(function() {
         select(this).selectAll("path");
     });
