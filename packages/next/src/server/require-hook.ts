@@ -8,7 +8,7 @@ const mod = require('module')
 const resolveFilename = mod._resolveFilename
 const hookPropertyMap = new Map()
 
-let overridedReact = false
+let aliasedPrebundledReact = false
 
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
@@ -30,6 +30,7 @@ addHookAliases([
 // Override built-in React packages if necessary
 function overrideReact() {
   if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
+    aliasedPrebundledReact = true
     addHookAliases([
       ['react', require.resolve(`next/dist/compiled/react`)],
       [
@@ -74,7 +75,7 @@ mod._resolveFilename = function (
   isMain: boolean,
   options: any
 ) {
-  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !overridedReact) {
+  if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT && !aliasedPrebundledReact) {
     // In case the environment variable is set after the module is loaded.
     overrideReact()
   }
