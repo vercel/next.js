@@ -280,7 +280,6 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const isAppDirEnabled = !!config.experimental.appDir
-      const useExperimentalReact = !!config.experimental.experimentalReact
       const initialRequireHookFilePath = require.resolve(
         'next/dist/server/initialize-require-hook'
       )
@@ -290,9 +289,7 @@ export default async function build(
       )
 
       if (isAppDirEnabled) {
-        process.env.NEXT_PREBUNDLED_REACT = useExperimentalReact
-          ? 'experimental'
-          : 'next'
+        process.env.NEXT_PREBUNDLED_REACT = '1'
       }
       await promises
         .writeFile(
@@ -398,31 +395,6 @@ export default async function build(
               )
           : []
 
-      let appPaths: string[] | undefined
-
-      if (appDir) {
-        appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(
-              appDir,
-              (absolutePath) => {
-                if (validFileMatcher.isAppRouterPage(absolutePath)) {
-                  return true
-                }
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback.
-                if (validFileMatcher.isRootNotFound(absolutePath)) {
-                  return true
-                }
-                return false
-              },
-              undefined,
-              (part) => part.startsWith('_')
-            )
-          )
-      }
-
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -474,12 +446,27 @@ export default async function build(
       let mappedAppPages: { [page: string]: string } | undefined
       let denormalizedAppPages: string[] | undefined
 
-      if (appPaths && appDir) {
+      if (appDir) {
+        const appPaths = await nextBuildSpan
+          .traceChild('collect-app-paths')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              appDir,
+              (absolutePath) =>
+                validFileMatcher.isAppRouterPage(absolutePath) ||
+                // For now we only collect the root /not-found page in the app
+                // directory as the 404 fallback
+                validFileMatcher.isRootNotFound(absolutePath),
+              undefined,
+              (part) => part.startsWith('_')
+            )
+          )
+
         mappedAppPages = nextBuildSpan
           .traceChild('create-app-mapping')
           .traceFn(() =>
             createPagesMapping({
-              pagePaths: appPaths!,
+              pagePaths: appPaths,
               isDev: false,
               pagesType: 'app',
               pageExtensions: config.pageExtensions,
@@ -1274,8 +1261,13 @@ export default async function build(
           : null
         const entriesWithAction = actionManifest ? new Set() : null
         if (actionManifest && entriesWithAction) {
-          for (const id in actionManifest) {
-            for (const entry in actionManifest[id].workers) {
+          for (const id in actionManifest.node) {
+            for (const entry in actionManifest.node[id].workers) {
+              entriesWithAction.add(entry)
+            }
+          }
+          for (const id in actionManifest.edge) {
+            for (const entry in actionManifest.edge[id].workers) {
               entriesWithAction.add(entry)
             }
           }

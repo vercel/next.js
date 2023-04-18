@@ -19,7 +19,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-b14f8da15-20230403';
+var ReactVersion = '18.3.0-next-85de6fde5-20230328';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -361,6 +361,29 @@ var enableFloat = true;
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
+// Attributes that aren't in the filter are presumed to have this type.
+
+var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
+// "enumerated" attributes with "true" and "false" as possible values.
+// When true, it should be set to a "true" string.
+// When false, it should be set to a "false" string.
+
+var BOOLEANISH_STRING = 2; // A real boolean attribute.
+// When true, it should be present (set either to an empty string or its name).
+// When false, it should be omitted.
+
+var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
+// When true, it should be present (set either to an empty string or its name).
+// When false, it should be omitted.
+// For any other value, should be present with that value.
+
+var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
+// When falsy, it should be removed.
+
+var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
+// When falsy, it should be removed.
+
+var POSITIVE_NUMERIC = 6;
 /* eslint-disable max-len */
 
 var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
@@ -392,38 +415,16 @@ function isAttributeNameSafe(attributeName) {
 
   return false;
 }
-
-// A simple string attribute.
-// Attributes that aren't in the filter are presumed to have this type.
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
-
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-// When falsy, it should be removed.
-
-var POSITIVE_NUMERIC = 6;
 function getPropertyInfo(name) {
   return properties.hasOwnProperty(name) ? properties[name] : null;
 } // $FlowFixMe[missing-this-annot]
 
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
+function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
   this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
   this.attributeName = attributeName;
   this.attributeNamespace = attributeNamespace;
+  this.mustUseProperty = mustUseProperty;
+  this.propertyName = name;
   this.type = type;
   this.sanitizeURL = sanitizeURL;
   this.removeEmptyString = removeEmptyString;
@@ -439,7 +440,8 @@ var properties = {}; // A few React string attributes have a different name.
   var name = _ref[0],
       attributeName = _ref[1];
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, // attributeName
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -449,7 +451,8 @@ var properties = {}; // A few React string attributes have a different name.
 
 ['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -460,7 +463,8 @@ var properties = {}; // A few React string attributes have a different name.
 
 ['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name, // attributeName
+  properties[name] = new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -471,7 +475,23 @@ var properties = {}; // A few React string attributes have a different name.
 'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
 'itemScope'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
+  null, // attributeNamespace
+  false, // sanitizeURL
+  false);
+}); // These are the few React props that we set as DOM properties
+// rather than attributes. These are all booleans.
+
+['checked', // Note: `option.selected` is not updated if `select.multiple` is
+// disabled with `removeAttribute`. We have special logic for handling this.
+'multiple', 'muted', 'selected' // NOTE: if you add a camelCased prop to this list,
+// you'll need to set attributeName to name.toLowerCase()
+// instead in the assignment below.
+].forEach(function (name) {
+  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
+  name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -483,7 +503,8 @@ var properties = {}; // A few React string attributes have a different name.
 // instead in the assignment below.
 ].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(OVERLOADED_BOOLEAN, name, // attributeName
+  properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
+  name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -494,7 +515,8 @@ var properties = {}; // A few React string attributes have a different name.
 // instead in the assignment below.
 ].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(POSITIVE_NUMERIC, name, // attributeName
+  properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
+  name, // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -502,7 +524,8 @@ var properties = {}; // A few React string attributes have a different name.
 
 ['rowSpan', 'start'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
+  properties[name] = new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -524,7 +547,8 @@ var capitalize = function (token) {
 ].forEach(function (attributeName) {
   var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, null, // attributeNamespace
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, null, // attributeNamespace
   false, // sanitizeURL
   false);
 }); // String SVG attributes with the xlink namespace.
@@ -535,7 +559,8 @@ var capitalize = function (token) {
 ].forEach(function (attributeName) {
   var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
   false);
 }); // String SVG attributes with the xml namespace.
 
@@ -545,7 +570,8 @@ var capitalize = function (token) {
 ].forEach(function (attributeName) {
   var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
+  properties[name] = new PropertyInfoRecord(name, STRING, false, // mustUseProperty
+  attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
   false);
 }); // These attribute exists both in HTML and SVG.
 // The attribute name is case-sensitive in SVG so we can't just use
@@ -553,7 +579,8 @@ var capitalize = function (token) {
 
 ['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -562,17 +589,20 @@ var capitalize = function (token) {
 
 var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-properties[xlinkHref] = new PropertyInfoRecord(STRING, 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
+properties[xlinkHref] = new PropertyInfoRecord('xlinkHref', STRING, false, // mustUseProperty
+'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
 false);
 var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
 
-properties[formAction] = new PropertyInfoRecord(STRING, 'formaction', // attributeName
+properties[formAction] = new PropertyInfoRecord('formAction', STRING, false, // mustUseProperty
+'formaction', // attributeName
 null, // attributeNamespace
 true, // sanitizeURL
 false);
 ['src', 'href', 'action'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
+  properties[attributeName] = new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
   true, // sanitizeURL
   true);
@@ -581,88 +611,77 @@ false);
 /**
  * CSS properties which accept numbers but are not in units of "px".
  */
-function isUnitlessNumber (name) {
-  switch (name) {
-    case 'animationIterationCount':
-    case 'aspectRatio':
-    case 'borderImageOutset':
-    case 'borderImageSlice':
-    case 'borderImageWidth':
-    case 'boxFlex':
-    case 'boxFlexGroup':
-    case 'boxOrdinalGroup':
-    case 'columnCount':
-    case 'columns':
-    case 'flex':
-    case 'flexGrow':
-    case 'flexPositive':
-    case 'flexShrink':
-    case 'flexNegative':
-    case 'flexOrder':
-    case 'gridArea':
-    case 'gridRow':
-    case 'gridRowEnd':
-    case 'gridRowSpan':
-    case 'gridRowStart':
-    case 'gridColumn':
-    case 'gridColumnEnd':
-    case 'gridColumnSpan':
-    case 'gridColumnStart':
-    case 'fontWeight':
-    case 'lineClamp':
-    case 'lineHeight':
-    case 'opacity':
-    case 'order':
-    case 'orphans':
-    case 'scale':
-    case 'tabSize':
-    case 'widows':
-    case 'zIndex':
-    case 'zoom':
-    case 'fillOpacity': // SVG-related properties
+var isUnitlessNumber = {
+  animationIterationCount: true,
+  aspectRatio: true,
+  borderImageOutset: true,
+  borderImageSlice: true,
+  borderImageWidth: true,
+  boxFlex: true,
+  boxFlexGroup: true,
+  boxOrdinalGroup: true,
+  columnCount: true,
+  columns: true,
+  flex: true,
+  flexGrow: true,
+  flexPositive: true,
+  flexShrink: true,
+  flexNegative: true,
+  flexOrder: true,
+  gridArea: true,
+  gridRow: true,
+  gridRowEnd: true,
+  gridRowSpan: true,
+  gridRowStart: true,
+  gridColumn: true,
+  gridColumnEnd: true,
+  gridColumnSpan: true,
+  gridColumnStart: true,
+  fontWeight: true,
+  lineClamp: true,
+  lineHeight: true,
+  opacity: true,
+  order: true,
+  orphans: true,
+  scale: true,
+  tabSize: true,
+  widows: true,
+  zIndex: true,
+  zoom: true,
+  // SVG-related properties
+  fillOpacity: true,
+  floodOpacity: true,
+  stopOpacity: true,
+  strokeDasharray: true,
+  strokeDashoffset: true,
+  strokeMiterlimit: true,
+  strokeOpacity: true,
+  strokeWidth: true
+};
+/**
+ * @param {string} prefix vendor-specific prefix, eg: Webkit
+ * @param {string} key style name, eg: transitionDuration
+ * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
+ * WebkitTransitionDuration
+ */
 
-    case 'floodOpacity':
-    case 'stopOpacity':
-    case 'strokeDasharray':
-    case 'strokeDashoffset':
-    case 'strokeMiterlimit':
-    case 'strokeOpacity':
-    case 'strokeWidth':
-    case 'MozAnimationIterationCount': // Known Prefixed Properties
-
-    case 'MozBoxFlex': // TODO: Remove these since they shouldn't be used in modern code
-
-    case 'MozBoxFlexGroup':
-    case 'MozLineClamp':
-    case 'msAnimationIterationCount':
-    case 'msFlex':
-    case 'msZoom':
-    case 'msFlexGrow':
-    case 'msFlexNegative':
-    case 'msFlexOrder':
-    case 'msFlexPositive':
-    case 'msFlexShrink':
-    case 'msGridColumn':
-    case 'msGridColumnSpan':
-    case 'msGridRow':
-    case 'msGridRowSpan':
-    case 'WebkitAnimationIterationCount':
-    case 'WebkitBoxFlex':
-    case 'WebKitBoxFlexGroup':
-    case 'WebkitBoxOrdinalGroup':
-    case 'WebkitColumnCount':
-    case 'WebkitColumns':
-    case 'WebkitFlex':
-    case 'WebkitFlexGrow':
-    case 'WebkitFlexPositive':
-    case 'WebkitFlexShrink':
-    case 'WebkitLineClamp':
-      return true;
-
-    default:
-      return false;
-  }
+function prefixKey(prefix, key) {
+  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
 }
+/**
+ * Support style names that may come passed in prefixed by adding permutations
+ * of vendor prefixes.
+ */
+
+
+var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
+// infinite loop, because it iterates over the newly added props too.
+
+Object.keys(isUnitlessNumber).forEach(function (prop) {
+  prefixes.forEach(function (prefix) {
+    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
+  });
+});
 
 var hasReadOnlyValue = {
   button: true,
@@ -682,6 +701,31 @@ function checkControlledValueProps(tagName, props) {
     if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
       error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
     }
+  }
+}
+
+function isCustomComponent(tagName, props) {
+  if (tagName.indexOf('-') === -1) {
+    return typeof props.is === 'string';
+  }
+
+  switch (tagName) {
+    // These are reserved SVG and MathML elements.
+    // We don't mind this list too much because we expect it to never grow.
+    // The alternative is to track the namespace in a few places which is convoluted.
+    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
+    case 'annotation-xml':
+    case 'color-profile':
+    case 'font-face':
+    case 'font-face-src':
+    case 'font-face-uri':
+    case 'font-face-format':
+    case 'font-face-name':
+    case 'missing-glyph':
+      return false;
+
+    default:
+      return true;
   }
 }
 
@@ -799,7 +843,7 @@ function validateProperty$1(tagName, name) {
   return true;
 }
 
-function validateProperties$2(type, props) {
+function warnInvalidARIAProps(type, props) {
   {
     var invalidProps = [];
 
@@ -823,6 +867,14 @@ function validateProperties$2(type, props) {
   }
 }
 
+function validateProperties$2(type, props) {
+  if (isCustomComponent(type, props)) {
+    return;
+  }
+
+  warnInvalidARIAProps(type, props);
+}
+
 var didWarnValueNull = false;
 function validateProperties$1(type, props) {
   {
@@ -839,31 +891,6 @@ function validateProperties$1(type, props) {
         error('`value` prop on `%s` should not be null. ' + 'Consider using an empty string to clear the component or `undefined` ' + 'for uncontrolled components.', type);
       }
     }
-  }
-}
-
-function isCustomElement(tagName, props) {
-  if (tagName.indexOf('-') === -1) {
-    return false;
-  }
-
-  switch (tagName) {
-    // These are reserved SVG and MathML elements.
-    // We don't mind this list too much because we expect it to never grow.
-    // The alternative is to track the namespace in a few places which is convoluted.
-    // https://w3c.github.io/webcomponents/spec/custom/#custom-elements-core-concepts
-    case 'annotation-xml':
-    case 'color-profile':
-    case 'font-face':
-    case 'font-face-src':
-    case 'font-face-uri':
-    case 'font-face-format':
-    case 'font-face-name':
-    case 'missing-glyph':
-      return false;
-
-    default:
-      return true;
   }
 }
 
@@ -1491,77 +1518,37 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
     }
 
-    switch (typeof value) {
-      case 'boolean':
-        {
-          switch (name) {
-            case 'checked':
-            case 'selected':
-            case 'multiple':
-            case 'muted':
-              {
-                // Boolean properties can accept boolean values
-                return true;
-              }
+    if (typeof value === 'boolean') {
+      var prefix = name.toLowerCase().slice(0, 5);
+      var acceptsBooleans = propertyInfo !== null ? propertyInfo.acceptsBooleans : prefix === 'data-' || prefix === 'aria-';
 
-            default:
-              {
-                if (propertyInfo === null) {
-                  var prefix = name.toLowerCase().slice(0, 5);
-
-                  if (prefix === 'data-' || prefix === 'aria-') {
-                    return true;
-                  }
-                } else if (propertyInfo.acceptsBooleans) {
-                  return true;
-                }
-
-                if (value) {
-                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
-                } else {
-                  error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
-                }
-
-                warnedProperties[name] = true;
-                return true;
-              }
-          }
+      if (!acceptsBooleans) {
+        if (value) {
+          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.', value, name, name, value, name);
+        } else {
+          error('Received `%s` for a non-boolean attribute `%s`.\n\n' + 'If you want to write it to the DOM, pass a string instead: ' + '%s="%s" or %s={value.toString()}.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', value, name, name, value, name, name, name);
         }
+      }
 
+      warnedProperties[name] = true;
+      return true;
+    } // Warn when a known attribute is a bad type
+
+
+    switch (typeof value) {
       case 'function':
       case 'symbol':
         // eslint-disable-line
-        // Warn when a known attribute is a bad type
         warnedProperties[name] = true;
         return false;
+    } // Warn when passing the strings 'false' or 'true' into a boolean prop
 
-      case 'string':
-        {
-          // Warn when passing the strings 'false' or 'true' into a boolean prop
-          if (value === 'false' || value === 'true') {
-            switch (name) {
-              case 'checked':
-              case 'selected':
-              case 'multiple':
-              case 'muted':
-                {
-                  break;
-                }
 
-              default:
-                {
-                  if (propertyInfo === null || propertyInfo.type !== BOOLEAN) {
-                    return true;
-                  }
-                }
-            }
+    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
+      error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
 
-            error('Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
-
-            warnedProperties[name] = true;
-            return true;
-          }
-        }
+      warnedProperties[name] = true;
+      return true;
     }
 
     return true;
@@ -1593,7 +1580,7 @@ function warnUnknownProperties(type, props, eventRegistry) {
 }
 
 function validateProperties(type, props, eventRegistry) {
-  if (isCustomElement(type) || typeof props.is === 'string') {
+  if (isCustomComponent(type, props)) {
     return;
   }
 
@@ -1823,19 +1810,13 @@ var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r
 var didWarn = false;
 
 function sanitizeURL(url) {
-  // We should never have symbols here because they get filtered out elsewhere.
-  // eslint-disable-next-line react-internal/safe-string-coercion
-  var stringifiedURL = '' + url;
-
   {
-    if (!didWarn && isJavaScriptProtocol.test(stringifiedURL)) {
+    if (!didWarn && isJavaScriptProtocol.test(url)) {
       didWarn = true;
 
-      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(stringifiedURL));
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(url));
     }
   }
-
-  return url;
 }
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
@@ -2504,7 +2485,7 @@ function pushStyleAttribute(target, style) {
       nameChunk = processStyleName(styleName);
 
       if (typeof styleValue === 'number') {
-        if (styleValue !== 0 && !isUnitlessNumber(styleName)) {
+        if (styleValue !== 0 && !hasOwnProperty.call(isUnitlessNumber, styleName)) {
           valueChunk = stringToChunk(styleValue + 'px'); // Presumes implicit 'px' suffix for unitless numbers
         } else {
           valueChunk = stringToChunk('' + styleValue);
@@ -2537,13 +2518,6 @@ var attributeAssign = stringToPrecomputedChunk('="');
 var attributeEnd = stringToPrecomputedChunk('"');
 var attributeEmptyString = stringToPrecomputedChunk('=""');
 
-function pushBooleanAttribute(target, name, value) // not null or undefined
-{
-  if (value && typeof value !== 'function' && typeof value !== 'symbol') {
-    target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
-  }
-}
-
 function pushAttribute(target, name, value) // not null or undefined
 {
   switch (name) {
@@ -2561,11 +2535,6 @@ function pushAttribute(target, name, value) // not null or undefined
     case 'suppressContentEditableWarning':
     case 'suppressHydrationWarning':
       // Ignored. These are built-in to React on the client.
-      return;
-
-    case 'multiple':
-    case 'muted':
-      pushBooleanAttribute(target, name, value);
       return;
   }
 
@@ -2628,14 +2597,13 @@ function pushAttribute(target, name, value) // not null or undefined
         break;
 
       default:
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
         if (propertyInfo.sanitizeURL) {
-          // We've already checked above.
-          // eslint-disable-next-line react-internal/safe-string-coercion
-          value = sanitizeURL('' + value);
+          {
+            checkAttributeStringCoercion(value, attributeName);
+          }
+
+          value = '' + value;
+          sanitizeURL(value);
         }
 
         target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
@@ -2959,9 +2927,9 @@ function pushInput(target, props) {
   }
 
   if (checked !== null) {
-    pushBooleanAttribute(target, 'checked', checked);
+    pushAttribute(target, 'checked', checked);
   } else if (defaultChecked !== null) {
-    pushBooleanAttribute(target, 'checked', defaultChecked);
+    pushAttribute(target, 'checked', defaultChecked);
   }
 
   if (value !== null) {
@@ -3999,7 +3967,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
     }
 
     if (formatContext.insertionMode !== SVG_MODE && formatContext.insertionMode !== MATHML_MODE) {
-      if (type.indexOf('-') === -1 && type.toLowerCase() !== type) {
+      if (type.indexOf('-') === -1 && typeof props.is !== 'string' && type.toLowerCase() !== type) {
         error('<%s /> is using incorrect casing. ' + 'Use PascalCase for React components, ' + 'or lowercase for HTML elements.', type);
       }
     }
@@ -4086,7 +4054,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
 
     default:
       {
-        if (type.indexOf('-') === -1) {
+        if (type.indexOf('-') === -1 && typeof props.is !== 'string') {
           // Generic element
           return pushStartGenericElement(target, props, type);
         } else {
@@ -5107,8 +5075,12 @@ function writeStyleResourceDependencyHrefOnlyInJS(destination, href) {
 }
 
 function writeStyleResourceDependencyInJS(destination, href, precedence, props) {
-  // eslint-disable-next-line react-internal/safe-string-coercion
-  var coercedHref = sanitizeURL('' + href);
+  {
+    checkAttributeStringCoercion(href, 'href');
+  }
+
+  var coercedHref = '' + href;
+  sanitizeURL(coercedHref);
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(coercedHref)));
 
   {
@@ -5194,7 +5166,8 @@ function writeStyleResourceAttributeInJS(destination, name, value) // not null o
           checkAttributeStringCoercion(value, attributeName);
         }
 
-        value = sanitizeURL(value);
+        attributeValue = '' + value;
+        sanitizeURL(attributeValue);
         break;
       }
 
@@ -5265,8 +5238,12 @@ function writeStyleResourceDependencyHrefOnlyInAttr(destination, href) {
 }
 
 function writeStyleResourceDependencyInAttr(destination, href, precedence, props) {
-  // eslint-disable-next-line react-internal/safe-string-coercion
-  var coercedHref = sanitizeURL('' + href);
+  {
+    checkAttributeStringCoercion(href, 'href');
+  }
+
+  var coercedHref = '' + href;
+  sanitizeURL(coercedHref);
   writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(coercedHref))));
 
   {
@@ -5352,7 +5329,8 @@ function writeStyleResourceAttributeInAttr(destination, name, value) // not null
           checkAttributeStringCoercion(value, attributeName);
         }
 
-        value = sanitizeURL(value);
+        attributeValue = '' + value;
+        sanitizeURL(attributeValue);
         break;
       }
 

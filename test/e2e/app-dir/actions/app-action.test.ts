@@ -131,5 +131,26 @@ createNextDescribe(
         })
       })
     }
+
+    describe('Edge SSR', () => {
+      it('should handle basic actions correctly', async () => {
+        const browser = await next.browser('/server/edge')
+
+        const cnt = await browser.elementByCss('h1').text()
+        expect(cnt).toBe('0')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '1')
+
+        await browser.elementByCss('#inc').click()
+        await check(() => browser.elementByCss('h1').text(), '2')
+
+        await browser.elementByCss('#double').click()
+        await check(() => browser.elementByCss('h1').text(), '4')
+
+        await browser.elementByCss('#dec').click()
+        await check(() => browser.elementByCss('h1').text(), '3')
+      })
+    })
   }
 )

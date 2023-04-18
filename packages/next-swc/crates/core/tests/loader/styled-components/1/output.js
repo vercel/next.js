@@ -1,4 +1,4 @@
-function _taggedTemplateLiteral(strings, raw) {
+function _tagged_template_literal(strings, raw) {
     if (!raw) {
         raw = strings.slice(0);
     }
@@ -9,7 +9,7 @@ function _taggedTemplateLiteral(strings, raw) {
     }));
 }
 function _templateObject() {
-    var data = _taggedTemplateLiteral([
+    var data = _tagged_template_literal([
         "\n  color: red;\n"
     ]);
     _templateObject = function _templateObject() {

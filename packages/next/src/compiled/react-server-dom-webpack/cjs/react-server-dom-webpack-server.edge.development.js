@@ -269,8 +269,8 @@ function getIteratorFn(maybeIterable) {
   return null;
 }
 
-// A simple string attribute.
 // Attributes that aren't in the filter are presumed to have this type.
+
 var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
 // "enumerated" attributes with "true" and "false" as possible values.
 // When true, it should be set to a "true" string.
@@ -290,10 +290,12 @@ var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a n
 
 var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
 
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
+function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
   this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
   this.attributeName = attributeName;
   this.attributeNamespace = attributeNamespace;
+  this.mustUseProperty = mustUseProperty;
+  this.propertyName = name;
   this.type = type;
   this.sanitizeURL = sanitizeURL;
   this.removeEmptyString = removeEmptyString;
@@ -303,7 +305,8 @@ function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL
 
 ['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
+  new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -314,15 +317,17 @@ function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL
 'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
 'itemScope'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
+  new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
+}); // These are the few React props that we set as DOM properties
 
 ['rowSpan', 'start'].forEach(function (name) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
+  new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
+  name.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
@@ -363,17 +368,94 @@ var capitalize = function (token) {
 
 ['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
+  new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
   false, // sanitizeURL
   false);
 }); // These attributes accept URLs. These must not allow javascript: URLS.
 ['src', 'href', 'action'].forEach(function (attributeName) {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
+  new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
+  attributeName.toLowerCase(), // attributeName
   null, // attributeNamespace
   true, // sanitizeURL
   true);
+});
+
+/**
+ * CSS properties which accept numbers but are not in units of "px".
+ */
+var isUnitlessNumber = {
+  animationIterationCount: true,
+  aspectRatio: true,
+  borderImageOutset: true,
+  borderImageSlice: true,
+  borderImageWidth: true,
+  boxFlex: true,
+  boxFlexGroup: true,
+  boxOrdinalGroup: true,
+  columnCount: true,
+  columns: true,
+  flex: true,
+  flexGrow: true,
+  flexPositive: true,
+  flexShrink: true,
+  flexNegative: true,
+  flexOrder: true,
+  gridArea: true,
+  gridRow: true,
+  gridRowEnd: true,
+  gridRowSpan: true,
+  gridRowStart: true,
+  gridColumn: true,
+  gridColumnEnd: true,
+  gridColumnSpan: true,
+  gridColumnStart: true,
+  fontWeight: true,
+  lineClamp: true,
+  lineHeight: true,
+  opacity: true,
+  order: true,
+  orphans: true,
+  scale: true,
+  tabSize: true,
+  widows: true,
+  zIndex: true,
+  zoom: true,
+  // SVG-related properties
+  fillOpacity: true,
+  floodOpacity: true,
+  stopOpacity: true,
+  strokeDasharray: true,
+  strokeDashoffset: true,
+  strokeMiterlimit: true,
+  strokeOpacity: true,
+  strokeWidth: true
+};
+/**
+ * @param {string} prefix vendor-specific prefix, eg: Webkit
+ * @param {string} key style name, eg: transitionDuration
+ * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
+ * WebkitTransitionDuration
+ */
+
+function prefixKey(prefix, key) {
+  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
+}
+/**
+ * Support style names that may come passed in prefixed by adding permutations
+ * of vendor prefixes.
+ */
+
+
+var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
+// infinite loop, because it iterates over the newly added props too.
+
+Object.keys(isUnitlessNumber).forEach(function (prop) {
+  prefixes.forEach(function (prefix) {
+    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
+  });
 });
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
@@ -1673,10 +1755,6 @@ function serializeUndefined() {
   return '$undefined';
 }
 
-function serializeBigInt(n) {
-  return '$n' + n.toString(10);
-}
-
 function serializeClientReference(request, parent, key, clientReference) {
   var clientReferenceKey = getClientReferenceKey(clientReference);
   var writtenClientReferences = request.writtenClientReferences;
@@ -1980,7 +2058,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'bigint') {
-    return serializeBigInt(value);
+    throw new Error("BigInt (" + value + ") is not yet supported in Client Component props." + describeObjectForErrorMessage(parent, key));
   }
 
   throw new Error("Type " + typeof value + " is not supported in Client Component props." + describeObjectForErrorMessage(parent, key));
@@ -2757,12 +2835,6 @@ function parseModelString(response, parentObject, key, value) {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
-        }
-
-      case 'n':
-        {
-          // BigInt
-          return BigInt(value.substring(2));
         }
 
       default:

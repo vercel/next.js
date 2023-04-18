@@ -48,35 +48,31 @@ export function loadRequireHook(aliases: [string, string][] = []) {
 }
 
 export function overrideBuiltInReactPackages() {
-  const channel =
-    process.env.NEXT_PREBUNDLED_REACT === 'experimental' ? '-experimental' : ''
   setRequireOverrides([
-    ['react', require.resolve(`next/dist/compiled/react${channel}`)],
+    ['react', require.resolve('next/dist/compiled/react')],
     [
       'react/jsx-runtime',
-      require.resolve(`next/dist/compiled/react${channel}/jsx-runtime`),
+      require.resolve('next/dist/compiled/react/jsx-runtime'),
     ],
     [
       'react/jsx-dev-runtime',
-      require.resolve(`next/dist/compiled/react${channel}/jsx-dev-runtime`),
+      require.resolve('next/dist/compiled/react/jsx-dev-runtime'),
     ],
     [
       'react-dom',
-      require.resolve(
-        `next/dist/compiled/react-dom${channel}/server-rendering-stub`
-      ),
+      require.resolve('next/dist/compiled/react-dom/server-rendering-stub'),
     ],
     [
       'react-dom/client',
-      require.resolve(`next/dist/compiled/react-dom${channel}/client`),
+      require.resolve('next/dist/compiled/react-dom/client'),
     ],
     [
       'react-dom/server',
-      require.resolve(`next/dist/compiled/react-dom${channel}/server`),
+      require.resolve('next/dist/compiled/react-dom/server'),
     ],
     [
       'react-dom/server.browser',
-      require.resolve(`next/dist/compiled/react-dom${channel}/server.browser`),
+      require.resolve('next/dist/compiled/react-dom/server.browser'),
     ],
   ])
 }

@@ -13,7 +13,9 @@ import type { StaticGenerationAsyncStorage } from '../../client/components/stati
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
 import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
-
+// Import builtin react directly to avoid require cache conflicts
+import React from 'next/dist/compiled/react'
+import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 
 // this needs to be required lazily so that `next-server` can set
@@ -76,18 +78,6 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 
-// Import builtin react directly to avoid require cache conflicts
-let React: typeof import('next/dist/compiled/react')
-let ReactDOMServer: typeof import('next/dist/compiled/react-dom/server.browser')
-
-if (process.env.NEXT_PREBUNDLED_REACT === 'experimental') {
-  React = require('next/dist/compiled/react-experimental')
-  ReactDOMServer = require('next/dist/compiled/react-dom-experimental/server.browser')
-} else {
-  React = require('next/dist/compiled/react')
-  ReactDOMServer = require('next/dist/compiled/react-dom/server.browser')
-}
-
 export const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 export type GetDynamicParamFromSegment = (
@@ -138,12 +128,12 @@ function findDynamicParamFromRouterState(
   for (const parallelRouterState of Object.values(
     providedFlightRouterState[1]
   )) {
-    const maybeDynamicParma = findDynamicParamFromRouterState(
+    const maybeDynamicParam = findDynamicParamFromRouterState(
       parallelRouterState,
       segment
     )
-    if (maybeDynamicParma) {
-      return maybeDynamicParma
+    if (maybeDynamicParam) {
+      return maybeDynamicParam
     }
   }
 
@@ -468,7 +458,7 @@ export async function renderToHTMLOrFlight(
       return [Comp, styles]
     }
 
-    const createStaticAssets = async ({
+    const getLayerAssets = ({
       layoutOrPagePath,
       injectedCSS: injectedCSSWithCurrentLayout,
       injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
@@ -476,7 +466,10 @@ export async function renderToHTMLOrFlight(
       layoutOrPagePath: string | undefined
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
-    }) => {
+    }): {
+      styles: React.ReactNode
+      preloads: React.ReactNode
+    } => {
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             clientReferenceManifest,
@@ -498,17 +491,19 @@ export async function renderToHTMLOrFlight(
           )
         : []
 
-      return (
+      const preloads = (
         <>
           {preloadedFontFiles?.length === 0 ? (
-            <link
-              data-next-font={
-                nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
-              }
-              rel="preconnect"
-              href="/"
-              crossOrigin="anonymous"
-            />
+            <>
+              <link
+                data-next-font={
+                  nextFontManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                }
+                rel="preconnect"
+                href="/"
+                crossOrigin="anonymous"
+              />
+            </>
           ) : null}
           {preloadedFontFiles
             ? preloadedFontFiles.map((fontFile) => {
@@ -528,27 +523,53 @@ export async function renderToHTMLOrFlight(
                 )
               })
             : null}
-          {stylesheets
-            ? stylesheets.map((href, index) => (
-                <link
-                  rel="stylesheet"
-                  // In dev, Safari will wrongly cache the resource if you preload it:
-                  // - https://github.com/vercel/next.js/issues/5860
-                  // - https://bugs.webkit.org/show_bug.cgi?id=187726
-                  // We used to add a `?ts=` query for resources in `pages` to bypass it,
-                  // but in this case it is fine as we don't need to preload the styles.
-                  href={`${assetPrefix}/_next/${href}`}
-                  // `Precedence` is an opt-in signal for React to handle
-                  // resource loading and deduplication, etc:
-                  // https://github.com/facebook/react/pull/25060
-                  // @ts-ignore
-                  precedence="next.js"
-                  key={index}
-                />
-              ))
-            : null}
         </>
       )
+
+      const styles = stylesheets
+        ? stylesheets.map((href, index) => (
+            <link
+              rel="stylesheet"
+              // In dev, Safari will wrongly cache the resource if you preload it:
+              // - https://github.com/vercel/next.js/issues/5860
+              // - https://bugs.webkit.org/show_bug.cgi?id=187726
+              // We used to add a `?ts=` query for resources in `pages` to bypass it,
+              // but in this case it is fine as we don't need to preload the styles.
+              href={`${assetPrefix}/_next/${href}`}
+              // `Precedence` is an opt-in signal for React to handle
+              // resource loading and deduplication, etc:
+              // https://github.com/facebook/react/pull/25060
+              // @ts-ignore
+              precedence="next.js"
+              key={index}
+            />
+          ))
+        : null
+
+      return {
+        styles,
+        preloads,
+      }
+    }
+
+    const parseLoaderTree = (tree: LoaderTree) => {
+      const [segment, parallelRoutes, components] = tree
+      const { layout } = components
+      let { page } = components
+      // a __DEFAULT__ segment means that this route didn't match any of the
+      // segments in the route, so we should use the default page
+
+      page = segment === '__DEFAULT__' ? components.defaultPage : page
+
+      const layoutOrPagePath = layout?.[1] || page?.[1]
+
+      return {
+        page,
+        segment,
+        components,
+        layoutOrPagePath,
+        parallelRoutes,
+      }
     }
 
     /**
@@ -572,8 +593,13 @@ export async function renderToHTMLOrFlight(
       injectedCSS: Set<string>
       injectedFontPreloadTags: Set<string>
       asNotFound?: boolean
-    }): Promise<{ Component: React.ComponentType }> => {
-      const [segment, parallelRoutes, components] = tree
+    }): Promise<{
+      Component: React.ComponentType
+      styles: React.ReactNode
+    }> => {
+      const { page, layoutOrPagePath, segment, components, parallelRoutes } =
+        parseLoaderTree(tree)
+
       const {
         layout,
         template,
@@ -581,20 +607,13 @@ export async function renderToHTMLOrFlight(
         loading,
         'not-found': notFound,
       } = components
-      let { page } = components
-      // a __DEFAULT__ segment means that this route didn't match any of the
-      // segments in the route, so we should use the default page
-
-      page = segment === '__DEFAULT__' ? components.defaultPage : page
-
-      const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
       const injectedFontPreloadTagsWithCurrentLayout = new Set(
         injectedFontPreloadTags
       )
 
-      const assets = createStaticAssets({
+      const { styles, preloads } = getLayerAssets({
         layoutOrPagePath,
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
@@ -825,17 +844,19 @@ export async function renderToHTMLOrFlight(
             }
 
             // Create the child component
-            const { Component: ChildComponent } = await createComponentTree({
-              createSegmentPath: (child) => {
-                return createSegmentPath([...currentSegmentPath, ...child])
-              },
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              asNotFound,
-            })
+            const { Component: ChildComponent, styles: childStyles } =
+              await createComponentTree({
+                createSegmentPath: (child) => {
+                  return createSegmentPath([...currentSegmentPath, ...child])
+                },
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                asNotFound,
+              })
 
             const childProp: ChildProp = {
               current: <ChildComponent />,
@@ -871,6 +892,7 @@ export async function renderToHTMLOrFlight(
                 notFoundStyles={notFoundStyles}
                 asNotFound={asNotFound}
                 childProp={childProp}
+                styles={childStyles}
               />,
             ]
           }
@@ -890,6 +912,7 @@ export async function renderToHTMLOrFlight(
       if (!Component) {
         return {
           Component: () => <>{parallelRouteComponents.children}</>,
+          styles,
         }
       }
 
@@ -940,7 +963,7 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
               {isPage && isClientComponent && isStaticGeneration ? (
                 <StaticGenerationSearchParamsBailoutProvider
                   propsForComponent={props}
@@ -949,10 +972,11 @@ export async function renderToHTMLOrFlight(
               ) : (
                 <Component {...props} />
               )}
-              {assets}
+              {preloads}
             </>
           )
         },
+        styles,
       }
     }
 
@@ -1038,6 +1062,7 @@ export async function renderToHTMLOrFlight(
             canSegmentBeOverridden(actualSegment, flightRouterState[0])
               ? flightRouterState[0]
               : null
+
           return [
             [
               overriddenSegment ?? actualSegment,
@@ -1056,16 +1081,14 @@ export async function renderToHTMLOrFlight(
                     const { Component } = await createComponentTree(
                       // This ensures flightRouterPath is valid and filters down the tree
                       {
-                        createSegmentPath: (child) => {
-                          return createSegmentPath(child)
-                        },
+                        createSegmentPath,
                         loaderTree: loaderTreeToFilter,
                         parentParams: currentParams,
                         firstItem: isFirst,
                         injectedCSS,
                         injectedFontPreloadTags,
                         // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
-                        rootLayoutIncluded: rootLayoutIncluded,
+                        rootLayoutIncluded,
                         asNotFound,
                       }
                     )
@@ -1074,7 +1097,23 @@ export async function renderToHTMLOrFlight(
                   }),
               isPrefetch && !Boolean(components.loading)
                 ? null
-                : rscPayloadHead,
+                : (() => {
+                    const { layoutOrPagePath } =
+                      parseLoaderTree(loaderTreeToFilter)
+
+                    const { styles } = getLayerAssets({
+                      layoutOrPagePath,
+                      injectedCSS: new Set(injectedCSS),
+                      injectedFontPreloadTags: new Set(injectedFontPreloadTags),
+                    })
+
+                    return (
+                      <>
+                        {styles}
+                        {rscPayloadHead}
+                      </>
+                    )
+                  })(),
             ],
           ]
         }
@@ -1271,7 +1310,7 @@ export async function renderToHTMLOrFlight(
         const injectedCSS = new Set<string>()
         const injectedFontPreloadTags = new Set<string>()
 
-        const { Component: ComponentTree } = await createComponentTree({
+        const { Component: ComponentTree, styles } = await createComponentTree({
           createSegmentPath: (child) => child,
           loaderTree,
           parentParams: {},
@@ -1299,12 +1338,6 @@ export async function renderToHTMLOrFlight(
           ? [DefaultNotFound]
           : []
 
-        const assets = createStaticAssets({
-          layoutOrPagePath: layout?.[1],
-          injectedCSS,
-          injectedFontPreloadTags,
-        })
-
         const initialTree = createFlightRouterStateFromLoaderTree(
           loaderTree,
           getDynamicParamFromSegment,
@@ -1313,6 +1346,7 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
+            {styles}
             <AppRouter
               assetPrefix={assetPrefix}
               initialCanonicalUrl={initialCanonicalUrl}
@@ -1331,13 +1365,10 @@ export async function renderToHTMLOrFlight(
               globalErrorComponent={GlobalError}
               notFound={
                 NotFound && RootLayout ? (
-                  <>
-                    {assets}
-                    <RootLayout params={{}}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </RootLayout>
-                  </>
+                  <RootLayout params={{}}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </RootLayout>
                 ) : undefined
               }
               asNotFound={props.asNotFound}

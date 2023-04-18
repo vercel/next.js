@@ -249,6 +249,7 @@ where
                             turbo_binding::swc::custom_transform::emotion::EmotionTransformer::new(
                                 config.clone(),
                                 path,
+                                file.src_hash as u32,
                                 cm,
                                 comments.clone(),
                             ),
