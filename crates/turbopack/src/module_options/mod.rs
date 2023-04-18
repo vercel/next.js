@@ -7,7 +7,7 @@ pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_tasks::primitives::{OptionStringVc, StringsVc};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack_core::{
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc},
@@ -84,8 +84,9 @@ impl ModuleOptionsVc {
         } = *context.await?;
         if !rules.is_empty() {
             let path_value = path.await?;
+
             for (condition, new_context) in rules.iter() {
-                if condition.matches(&path_value) {
+                if condition.matches(&path_value).await {
                     return Ok(ModuleOptionsVc::new(path, *new_context));
                 }
             }
