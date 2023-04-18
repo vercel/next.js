@@ -33,7 +33,7 @@ export type Manifest = {
   categories?: ManifestCategory[]
   description?: string
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
-  display_override?: string[]
+  display_override?: ('fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | 'window-controls-overlay')[]
   icons?: {
     src: string
     type?: string
