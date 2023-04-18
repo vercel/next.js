@@ -23,7 +23,7 @@ impl Emitter for IssueEmitter {
         let mut message = db
             .message
             .iter()
-            .map(|(s, _)| s.as_ref())
+            .map(|s| s.0.as_ref())
             .collect::<Vec<_>>()
             .join("");
         let code = db.code.as_ref().map(|d| match d {

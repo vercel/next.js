@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/node_modules/@swc/helpers/src/_class_call_check.mjs"],"sourcesContent":["\"purposefully empty stub\";\n\"@swc/helpers/src/_class_call_check.mjs\";\n"],"names":[],"mappings":"AAAA;AACA"}},
-    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
-}

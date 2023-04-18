@@ -40,6 +40,7 @@ url = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
+  "ecma_ast_serde",
   "common",
   "common_concurrent",
   "common_sourcemap",

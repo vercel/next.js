@@ -173,6 +173,7 @@ async fn parse_content(
     let config = ParserConfig {
         css_modules: matches!(ty, CssModuleAssetType::Module),
         legacy_nesting: true,
+        legacy_ie: true,
         ..Default::default()
     };
 

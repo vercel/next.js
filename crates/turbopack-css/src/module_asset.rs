@@ -155,17 +155,17 @@ impl ModuleCssModuleAssetVc {
                 for export_class_name in export_class_names {
                     export.push(match export_class_name {
                         CssClassName::Import { from, name } => ModuleCssClass::Import {
-                            original: name.to_string(),
+                            original: name.value.to_string(),
                             from: CssModuleComposeReferenceVc::new(
                                 self.as_resolve_origin(),
                                 RequestVc::parse(Value::new(from.to_string().into())),
                             ),
                         },
                         CssClassName::Local { name } => ModuleCssClass::Local {
-                            name: name.to_string(),
+                            name: name.value.to_string(),
                         },
                         CssClassName::Global { name } => ModuleCssClass::Global {
-                            name: name.to_string(),
+                            name: name.value.to_string(),
                         },
                     })
                 }
