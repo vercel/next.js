@@ -1057,10 +1057,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !(globalThis as any).__incrementalCache &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
-      const protocol = new URL(
-        getRequestMeta(req, '__NEXT_INIT_URL') || '/',
-        'http://n'
-      ).protocol
+      let protocol: 'http:' | 'https:' = 'https:'
+
+      try {
+        const parsedFullUrl = new URL(
+          getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+          'http://n'
+        )
+        protocol = parsedFullUrl.protocol as 'https:' | 'http:'
+      } catch (_) {}
 
       const incrementalCache = this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
