@@ -110,7 +110,7 @@ export default async function handler(req: NextRequest) {
 
 You may want to restrict your edge function to specific regions when deploying so that you can colocate near your data sources ensuring lower response times which can be achieved as shown.
 
-> **Note**: this config is available in `v12.3.2` of Next.js and up.
+> **Note**: This configuration is available in `v12.3.2` of Next.js and up.
 
 ```js
 import { NextResponse } from 'next/server'

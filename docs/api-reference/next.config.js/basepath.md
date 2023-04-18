@@ -23,7 +23,7 @@ module.exports = {
 }
 ```
 
-> **Note**: this value must be set at build time and can not be changed without re-building as the value is inlined in the client-side bundles.
+> **Note**: This value must be set at build time and cannot be changed without re-building as the value is inlined in the client-side bundles.
 
 ## Links
 
