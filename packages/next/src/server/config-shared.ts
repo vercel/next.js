@@ -47,6 +47,37 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
+export interface EmotionConfig {
+  sourceMap?: boolean
+  autoLabel?: 'dev-only' | 'always' | 'never'
+  labelFormat?: string
+  importMap?: {
+    [importName: string]: {
+      [exportName: string]: {
+        canonicalImport?: [string, string]
+        styledBaseImport?: [string, string]
+      }
+    }
+  }
+}
+
+export interface StyledComponentsConfig {
+  /**
+   * Enabled by default in development, disabled in production to reduce file size,
+   * setting this will override the default for all environments.
+   */
+  displayName?: boolean
+  topLevelImportPaths?: string[]
+  ssr?: boolean
+  fileName?: boolean
+  meaninglessFileNames?: string[]
+  minify?: boolean
+  transpileTemplateLiterals?: boolean
+  namespace?: string
+  pure?: boolean
+  cssProp?: boolean
+}
+
 type JSONValue =
   | string
   | number
@@ -151,7 +182,7 @@ export interface ExperimentalConfig {
   externalDir?: boolean
   /**
    * The App Router (app directory) enables support for layouts, Server Components, streaming, and colocated data fetching.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#appdir
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#appdir
    */
   appDir?: boolean
   amp?: {
@@ -195,7 +226,7 @@ export interface ExperimentalConfig {
 
   /**
    * A list of packages that should be treated as external in the RSC server build.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#servercomponentsexternalpackages
    */
   serverComponentsExternalPackages?: string[]
 
@@ -222,14 +253,14 @@ export interface ExperimentalConfig {
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#mdxrs
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#mdxrs
    */
   mdxRs?: boolean
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
    * This option requires `appDir` to be enabled first.
-   * @see https://beta.nextjs.org/docs/api-reference/next.config.js#typedroutes
+   * @see https://beta.nextjs.org/docs/api-reference/next-config#typedroutes
    */
   typedRoutes?: boolean
 
@@ -242,13 +273,6 @@ export interface ExperimentalConfig {
    *
    */
   instrumentationHook?: boolean
-
-  /**
-   * Use the `experimental` channel of React and React DOM in the app/ directory.
-   * By default, this will be disable and the `next` channel will be used.
-   * This requires `appDir` to be enabled first.
-   */
-  experimentalReact?: boolean
 }
 
 export type ExportPathMap = {
@@ -540,39 +564,8 @@ export interface NextConfig extends Record<string, any> {
       | {
           exclude?: string[]
         }
-    styledComponents?:
-      | boolean
-      | {
-          /**
-           * Enabled by default in development, disabled in production to reduce file size,
-           * setting this will override the default for all environments.
-           */
-          displayName?: boolean
-          topLevelImportPaths?: string[]
-          ssr?: boolean
-          fileName?: boolean
-          meaninglessFileNames?: string[]
-          minify?: boolean
-          transpileTemplateLiterals?: boolean
-          namespace?: string
-          pure?: boolean
-          cssProp?: boolean
-        }
-    emotion?:
-      | boolean
-      | {
-          sourceMap?: boolean
-          autoLabel?: 'dev-only' | 'always' | 'never'
-          labelFormat?: string
-          importMap?: {
-            [importName: string]: {
-              [exportName: string]: {
-                canonicalImport?: [string, string]
-                styledBaseImport?: [string, string]
-              }
-            }
-          }
-        }
+    styledComponents?: boolean | StyledComponentsConfig
+    emotion?: boolean | EmotionConfig
   }
 
   /**

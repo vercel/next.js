@@ -1,6 +1,5 @@
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { NextRequest } from '../../web/spec-extension/request'
-import type { Params } from '../../../shared/lib/router/utils/route-matcher'
 
 // These are imported weirdly like this because of the way that the bundling
 // works. We need to import the built files from the dist directory, but we
@@ -34,7 +33,7 @@ export interface RouteModuleHandleContext {
    * Any matched parameters for the request. This is only defined for dynamic
    * routes.
    */
-  params: Params | undefined
+  params: Record<string, string | string[]> | undefined
 }
 
 /**

@@ -173,6 +173,7 @@ describe('prefetchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
       cache: {
@@ -319,6 +320,7 @@ describe('prefetchReducer', () => {
       focusAndScrollRef: {
         apply: false,
         hashFragment: null,
+        segmentPaths: [],
       },
       canonicalUrl: '/linking',
       cache: {
