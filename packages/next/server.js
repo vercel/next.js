@@ -5,7 +5,7 @@ const serverExports = {
     .NextResponse,
   ImageResponse: require('next/dist/server/web/spec-extension/image-response')
     .ImageResponse,
-  unstable_cache: require('next/dist/server/web/spec-extension/unstable_cache')
+  unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
     .unstable_cache,
   unstable_revalidateTag:
     require('next/dist/server/web/spec-extension/unstable-revalidate-tag')
