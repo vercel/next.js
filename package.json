@@ -49,7 +49,7 @@
     "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
     "postinstall": "git config index.skipHash false && node scripts/install-native.mjs",
-    "version": "npx pnpm@7.24.3 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
+    "version": "npx pnpm@8.3.0 install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky install",
     "sync-react": "node ./scripts/sync-react.js"
   },
@@ -246,5 +246,5 @@
   "engines": {
     "node": ">=14.6.0"
   },
-  "packageManager": "pnpm@7.24.3"
+  "packageManager": "pnpm@8.3.0"
 }
