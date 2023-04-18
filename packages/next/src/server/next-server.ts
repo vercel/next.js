@@ -370,8 +370,10 @@ export default class NextNodeServer extends BaseServer {
 
   protected getIncrementalCache({
     requestHeaders,
+    requestProtocol,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
+    requestProtocol: 'http' | 'https'
   }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
@@ -383,6 +385,7 @@ export default class NextNodeServer extends BaseServer {
         : incrementalCacheHandlerPath)
       CacheHandler = CacheHandler.default || CacheHandler
     }
+
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -390,7 +393,10 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       requestHeaders,
+      requestProtocol,
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
       fetchCache: this.nextConfig.experimental.appDir,
@@ -405,7 +411,9 @@ export default class NextNodeServer extends BaseServer {
             routes: {},
             dynamicRoutes: {},
             notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
+            preview: {
+              previewModeId: 'development-id',
+            } as any, // `preview` is special case read in next-dev-server
           }
         } else {
           return this.getPrerenderManifest()

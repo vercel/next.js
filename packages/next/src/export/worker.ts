@@ -350,8 +350,7 @@ export default async function exportPage({
             CacheHandler = require(incrementalCacheHandlerPath)
             CacheHandler = CacheHandler.default || CacheHandler
           }
-
-          curRenderOpts.incrementalCache = new IncrementalCache({
+          const incrementalCache = new IncrementalCache({
             dev: false,
             requestHeaders: {},
             flushToDisk: true,
@@ -377,6 +376,8 @@ export default async function exportPage({
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
           })
+          ;(globalThis as any).__incrementalCache = incrementalCache
+          curRenderOpts.incrementalCache = incrementalCache
         }
 
         const isDynamicUsageError = (err: any) =>

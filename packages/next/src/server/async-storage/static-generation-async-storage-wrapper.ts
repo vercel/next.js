@@ -54,7 +54,10 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
     const store: StaticGenerationStore = {
       isStaticGeneration,
       pathname,
-      incrementalCache: renderOpts.incrementalCache,
+      incrementalCache:
+        // we fallback to a global incremental cache for edge-runtime locally
+        // so that it can access the fs cache without mocks
+        renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
       isRevalidate: renderOpts.isRevalidate,
       isPrerendering: renderOpts.nextExport,
       fetchCache: renderOpts.fetchCache,

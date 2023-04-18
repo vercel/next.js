@@ -17,6 +17,7 @@ import {
   RSC,
 } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
+import { IncrementalCache } from '../lib/incremental-cache'
 
 declare const _ENTRIES: any
 
@@ -139,6 +140,28 @@ export async function adapter(
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
+    })
+  }
+
+  if (!(globalThis as any).__incrementalCache) {
+    ;(globalThis as any).__incrementalCache = new IncrementalCache({
+      appDir: true,
+      fetchCache: true,
+      minimalMode: true,
+      dev: process.env.NODE_ENV === 'development',
+      requestHeaders: params.request.headers as any,
+      requestProtocol: 'https',
+      getPrerenderManifest: () => {
+        return {
+          version: -1 as any, // letting us know this doesn't conform to spec
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: {
+            previewModeId: 'development-id',
+          } as any, // `preview` is special case read in next-dev-server
+        }
+      },
     })
   }
 

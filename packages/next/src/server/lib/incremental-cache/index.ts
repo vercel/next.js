@@ -62,6 +62,8 @@ export class IncrementalCache {
   cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
+  requestProtocol?: 'http' | 'https'
+  allowedRevalidateHeaderKeys?: string[]
   minimalMode?: boolean
   fetchCacheKeyPrefix?: string
 
@@ -74,10 +76,12 @@ export class IncrementalCache {
     minimalMode,
     serverDistDir,
     requestHeaders,
+    requestProtocol,
     maxMemoryCacheSize,
     getPrerenderManifest,
     fetchCacheKeyPrefix,
     CurCacheHandler,
+    allowedRevalidateHeaderKeys,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -86,6 +90,8 @@ export class IncrementalCache {
     minimalMode?: boolean
     serverDistDir?: string
     flushToDisk?: boolean
+    requestProtocol?: 'http' | 'https'
+    allowedRevalidateHeaderKeys?: string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     getPrerenderManifest: () => PrerenderManifest
@@ -96,7 +102,6 @@ export class IncrementalCache {
       if (fs && serverDistDir) {
         CurCacheHandler = FileSystemCache
       }
-
       if (minimalMode && fetchCache) {
         CurCacheHandler = FetchCache
       }
@@ -109,6 +114,8 @@ export class IncrementalCache {
     this.dev = dev
     this.minimalMode = minimalMode
     this.requestHeaders = requestHeaders
+    this.requestProtocol = requestProtocol
+    this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
 

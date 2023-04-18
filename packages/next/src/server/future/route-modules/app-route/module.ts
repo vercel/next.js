@@ -160,14 +160,13 @@ export class AppRouteRouteModule extends RouteModule<
    * are valid.
    */
   public async setup() {
-    // If we've already setup, then return.
-    if (this.hasSetup) return
-
     // Patch the global fetch.
     patchFetch({
       serverHooks: this.serverHooks,
       staticGenerationAsyncStorage: this.staticGenerationAsyncStorage,
     })
+    // If we've already setup, then return.
+    if (this.hasSetup) return
 
     // Mark the module as setup. The following warnings about the userland
     // module will run if we're in development. If the module files are modified
@@ -324,10 +323,16 @@ export class AppRouteRouteModule extends RouteModule<
                   'next.route': route,
                 },
               },
-              () =>
-                handler(wrappedRequest, {
+              async () => {
+                const res = handler(wrappedRequest, {
                   params: context.params,
                 })
+
+                await Promise.all(
+                  staticGenerationStore.pendingRevalidates || []
+                )
+                return res
+              }
             )
           }
         )

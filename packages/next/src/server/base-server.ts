@@ -328,6 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
+    requestProtocol: 'http' | 'https'
   }): import('./lib/incremental-cache').IncrementalCache
 
   protected abstract getResponseCache(options: {
@@ -1056,8 +1057,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !(globalThis as any).__incrementalCache &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
+      const protocol = new URL(
+        getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+        'http://n'
+      ).protocol
+
       const incrementalCache = this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
+        requestProtocol: protocol.substring(0, protocol.length - 1) as
+          | 'http'
+          | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
     }
@@ -1556,12 +1565,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
+    const protocol = new URL(
+      getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+      'http://n'
+    ).protocol
 
     // use existing incrementalCache instance if available
     const incrementalCache =
       (globalThis as any).__incrementalCache ||
       this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
+        requestProtocol: protocol.substring(0, protocol.length - 1) as
+          | 'http'
+          | 'https',
       })
 
     let isRevalidate = false

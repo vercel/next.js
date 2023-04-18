@@ -2,6 +2,10 @@ import type { ServerRuntime } from '../../types'
 
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 
+export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
+export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
+  'x-prerender-revalidate-if-generated'
+
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
 

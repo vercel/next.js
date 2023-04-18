@@ -186,6 +186,8 @@ export function getDefineEnv({
   isEdgeServer,
   middlewareMatchers,
   clientRouterFilters,
+  previewModeId,
+  allowedRevalidateHeaderKeys,
 }: {
   dev?: boolean
   distDir: string
@@ -198,6 +200,8 @@ export function getDefineEnv({
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
+  previewModeId?: string
+  allowedRevalidateHeaderKeys?: string[]
 }) {
   return {
     // internal field to identify the plugin config
@@ -236,6 +240,10 @@ export function getDefineEnv({
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+    ),
+    'process.env.__NEXT_PREVIEW_MODE_ID': JSON.stringify(previewModeId),
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
+      allowedRevalidateHeaderKeys
     ),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
@@ -643,6 +651,8 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
+    previewModeId,
+    allowedRevalidateHeaderKeys,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -670,6 +680,8 @@ export default async function getBaseWebpackConfig(
         import('../shared/lib/bloom-filter').BloomFilter['export']
       >
     }
+    previewModeId?: string
+    allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -2123,6 +2135,8 @@ export default async function getBaseWebpackConfig(
           isEdgeServer,
           middlewareMatchers,
           clientRouterFilters,
+          previewModeId,
+          allowedRevalidateHeaderKeys,
         })
       ),
       isClient &&

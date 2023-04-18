@@ -2796,6 +2796,9 @@ export default async function build(
           notFoundRoutes: ssgNotFoundPaths,
           preview: previewProps,
         }
+        NextBuildContext.previewModeId = previewProps.previewModeId
+        NextBuildContext.allowedRevalidateHeaderKeys =
+          config.experimental.allowedRevalidateHeaderKeys
 
         await promises.writeFile(
           path.join(distDir, PRERENDER_MANIFEST),

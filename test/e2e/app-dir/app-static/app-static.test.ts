@@ -90,14 +90,6 @@ createNextDescribe(
           type: 'node route handler',
           revalidateApi: '/api/revalidate-tag-node',
         },
-        {
-          type: 'edge api handler',
-          revalidateApi: '/api/pages/revalidate-tag-edge',
-        },
-        {
-          type: 'node api handler',
-          revalidateApi: '/api/pages/revalidate-tag-node',
-        },
       ])(
         'it should revalidate tag correctly with $type',
         async ({ revalidateApi }) => {
@@ -112,10 +104,12 @@ createNextDescribe(
           expect(initLayoutData).toBeTruthy()
           expect(initPageData).toBeTruthy()
 
-          const revalidateRes = await next.fetch(`${revalidateApi}`)
-          expect((await revalidateRes.json()).revalidated).toBe(true)
-
           await check(async () => {
+            const revalidateRes = await next.fetch(
+              `${revalidateApi}?tag=thankyounext`
+            )
+            expect((await revalidateRes.json()).revalidated).toBe(true)
+
             const newRes = await next.fetch(
               '/variable-revalidate/revalidate-360'
             )
@@ -146,19 +140,11 @@ createNextDescribe(
           type: 'node route handler',
           revalidateApi: '/api/revalidate-path-node',
         },
-        {
-          type: 'edge api handler',
-          revalidateApi: '/api/pages/revalidate-path-edge',
-        },
-        {
-          type: 'node api handler',
-          revalidateApi: '/api/pages/revalidate-path-node',
-        },
       ])(
         'it should revalidate correctly with $type',
         async ({ revalidateApi }) => {
           const initRes = await next.fetch(
-            '/variable-revalidate/revalidate-360'
+            '/variable-revalidate/revalidate-360-isr'
           )
           const html = await initRes.text()
           const $ = cheerio.load(html)
@@ -168,14 +154,14 @@ createNextDescribe(
           expect(initLayoutData).toBeTruthy()
           expect(initPageData).toBeTruthy()
 
-          const revalidateRes = await next.fetch(
-            `${revalidateApi}?path=/variable-revalidate/revalidate-360`
-          )
-          expect((await revalidateRes.json()).revalidated).toBe(true)
-
           await check(async () => {
+            const revalidateRes = await next.fetch(
+              `${revalidateApi}?path=/variable-revalidate/revalidate-360-isr`
+            )
+            expect((await revalidateRes.json()).revalidated).toBe(true)
+
             const newRes = await next.fetch(
-              '/variable-revalidate/revalidate-360'
+              '/variable-revalidate/revalidate-360-isr'
             )
             const newHtml = await newRes.text()
             const new$ = cheerio.load(newHtml)
@@ -204,13 +190,15 @@ createNextDescribe(
         expect(initLayoutData).toBeTruthy()
         expect(initPageData).toBeTruthy()
 
-        const revalidateRes = await next.fetch(
-          '/api/revalidate?path=/variable-revalidate/revalidate-360'
-        )
-        expect((await revalidateRes.json()).revalidated).toBe(true)
-
         await check(async () => {
-          const newRes = await next.fetch('/variable-revalidate/revalidate-360')
+          const revalidateRes = await next.fetch(
+            '/api/revalidate-path-node?path=/variable-revalidate/revalidate-360-isr'
+          )
+          expect((await revalidateRes.json()).revalidated).toBe(true)
+
+          const newRes = await next.fetch(
+            '/variable-revalidate/revalidate-360-isr'
+          )
           const newHtml = await newRes.text()
           const new$ = cheerio.load(newHtml)
           const newLayoutData = new$('#layout-data').text()
@@ -396,7 +384,9 @@ createNextDescribe(
           'partial-gen-params-no-additional-slug/fr/second.html',
           'partial-gen-params-no-additional-slug/fr/second.rsc',
           'partial-gen-params/[lang]/[slug]/page.js',
+          'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
+          'route-handler/revalidate-360/route.js',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -435,8 +425,9 @@ createNextDescribe(
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
           'variable-revalidate/revalidate-3/page.js',
-          'variable-revalidate/revalidate-360.html',
-          'variable-revalidate/revalidate-360.rsc',
+          'variable-revalidate/revalidate-360-isr.html',
+          'variable-revalidate/revalidate-360-isr.rsc',
+          'variable-revalidate/revalidate-360-isr/page.js',
           'variable-revalidate/revalidate-360/page.js',
           'variable-revalidate/status-code/page.js',
         ])
@@ -648,10 +639,10 @@ createNextDescribe(
             initialRevalidateSeconds: 3,
             srcRoute: '/variable-revalidate/revalidate-3',
           },
-          '/variable-revalidate/revalidate-360': {
-            dataRoute: '/variable-revalidate/revalidate-360.rsc',
+          '/variable-revalidate/revalidate-360-isr': {
+            dataRoute: '/variable-revalidate/revalidate-360-isr.rsc',
             initialRevalidateSeconds: 10,
-            srcRoute: '/variable-revalidate/revalidate-360',
+            srcRoute: '/variable-revalidate/revalidate-360-isr',
           },
         })
         expect(curManifest.dynamicRoutes).toEqual({

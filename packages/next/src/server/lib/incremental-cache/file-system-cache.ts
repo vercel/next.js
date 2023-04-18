@@ -3,6 +3,7 @@ import path from '../../../shared/lib/isomorphic/path'
 import { CachedFetchValue } from '../../response-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import { CACHE_ONE_YEAR } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -54,7 +55,6 @@ export default class FileSystemCache implements CacheHandler {
         },
       })
     }
-
     if (this.serverDistDir && this.fs) {
       this.tagsManifestPath = path.join(
         this.serverDistDir,
@@ -63,18 +63,26 @@ export default class FileSystemCache implements CacheHandler {
         'fetch-cache',
         'tags-manifest.json'
       )
-      try {
-        tagsManifest = JSON.parse(
-          this.fs?.readFileSync(this.tagsManifestPath).toString('utf8')
-        )
-      } catch (err: any) {
-        tagsManifest = { version: 1, items: {} }
-      }
+      this.loadTagsManifest()
+    }
+  }
+
+  private loadTagsManifest() {
+    if (!this.tagsManifestPath || !this.fs) return
+    try {
+      tagsManifest = JSON.parse(
+        this.fs.readFileSync(this.tagsManifestPath).toString('utf8')
+      )
+    } catch (err: any) {
+      tagsManifest = { version: 1, items: {} }
     }
   }
 
   async setTags(key: string, tags: string[]) {
-    if (!tagsManifest || !this.tagsManifestPath) return
+    this.loadTagsManifest()
+    if (!tagsManifest || !this.tagsManifestPath) {
+      return
+    }
 
     for (const tag of tags) {
       const data = tagsManifest.items[tag] || { keys: [] }
@@ -85,31 +93,37 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     try {
-      await this.fs?.writeFile(
+      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
+      await this.fs.writeFile(
         this.tagsManifestPath,
         JSON.stringify(tagsManifest || {})
       )
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Failed to update tags manifest.', err)
     }
   }
 
   public async revalidateTag(tag: string) {
-    if (!tagsManifest || !this.tagsManifestPath) return
+    // we need to ensure the tagsManifest is refreshed
+    // since separate workers can be updating it at the same
+    // time and we can't flush out of sync data
+    this.loadTagsManifest()
+    if (!tagsManifest || !this.tagsManifestPath) {
+      return
+    }
 
     const data = tagsManifest.items[tag] || { keys: [] }
     data.revalidatedAt = Date.now()
     tagsManifest.items[tag] = data
 
     try {
-      await this.fs?.writeFile(
+      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
+      await this.fs.writeFile(
         this.tagsManifestPath,
         JSON.stringify(tagsManifest || {})
       )
     } catch (err: any) {
-      if (err.code !== 'ENOENT') {
-        console.warn('Failed to update tags manifest.', err)
-      }
+      console.warn('Failed to update tags manifest.', err)
     }
   }
 
@@ -204,6 +218,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     if (data && data?.value?.kind === 'FETCH') {
+      this.loadTagsManifest()
       const innerData = data.value.data
       const isStale = innerData.tags?.some((tag) => {
         return (
@@ -213,8 +228,7 @@ export default class FileSystemCache implements CacheHandler {
         )
       })
       if (isStale) {
-        data.lastModified =
-          (data?.lastModified || 0) - (data.value.revalidate || 0) * 1000
+        data.lastModified = Date.now() - CACHE_ONE_YEAR
       }
     }
 
@@ -267,6 +281,7 @@ export default class FileSystemCache implements CacheHandler {
       })
       await this.fs.mkdir(path.dirname(filePath))
       await this.fs.writeFile(filePath, JSON.stringify(data))
+      await this.setTags(key, data.data.tags || [])
     }
   }
 
