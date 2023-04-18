@@ -9,12 +9,11 @@ import contentDisposition from 'next/dist/compiled/content-disposition'
 import { join } from 'path'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { NextConfigComplete } from './config-shared'
-import {
-  processBuffer,
-  decodeBuffer,
-  Operation,
-  getMetadata,
-} from './lib/squoosh/main'
+// Do not import anything other than types from this module
+// because it will throw an error when using `outputFileTracing`
+// because `jest-worker` is ignored in file tracing. Use `await import`
+// or `require` instead.
+import { Operation } from './lib/squoosh/main'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import chalk from 'next/dist/compiled/chalk'
@@ -454,8 +453,6 @@ export async function optimizeImage({
     // End sharp transformation logic
   } else {
     if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
-      // TODO: should we ensure squoosh also works even though we don't
-      // recommend it be used in production and this is a production feature
       console.error(
         `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
       )
@@ -493,6 +490,9 @@ export async function optimizeImage({
     } else {
       operations.push({ type: 'resize', width })
     }
+
+    const { processBuffer } =
+      require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
 
     if (contentType === AVIF) {
       optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
@@ -637,6 +637,8 @@ export async function imageOptimizer(
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+        const { getMetadata } =
+          require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.
@@ -778,6 +780,8 @@ export async function getImageSize(
       const { width, height } = await transformer.metadata()
       return { width, height }
     } else {
+      const { decodeBuffer } =
+        require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
       const { width, height } = await decodeBuffer(buffer)
       return { width, height }
     }

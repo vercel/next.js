@@ -147,7 +147,7 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_client_transforms_rules(ty.into_value()).await?;
+    let custom_rules = get_next_client_transforms_rules(next_config, ty.into_value()).await?;
     let resolve_options_context =
         get_client_resolve_options_context(project_path, ty, next_config, execution_context);
     let enable_react_refresh =
