@@ -23,7 +23,6 @@
     "test": "pnpm testheadless",
     "testonly": "jest --runInBand",
     "testheadless": "cross-env HEADLESS=true pnpm testonly",
-    "test-pack": "cross-env TS_NODE_TRANSPILE_ONLY=1 node --loader ts-node/esm scripts/test-pack-package.mts",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",

@@ -8,9 +8,6 @@
     "url": "vercel/next.js",
     "directory": "packages/eslint-config-next"
   },
-  "scripts": {
-    "test-pack": "cd ../../ && pnpm test-pack eslint-config-next"
-  },
   "dependencies": {
     "@next/eslint-plugin-next": "13.3.1-canary.12",
     "@rushstack/eslint-patch": "^1.1.3",

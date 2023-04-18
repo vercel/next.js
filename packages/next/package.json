@@ -71,8 +71,7 @@
     "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
-    "ncc-compiled": "ncc cache clean && taskr ncc",
-    "test-pack": "cd ../../ && pnpm test-pack next"
+    "ncc-compiled": "ncc cache clean && taskr ncc"
   },
   "taskr": {
     "requires": [
