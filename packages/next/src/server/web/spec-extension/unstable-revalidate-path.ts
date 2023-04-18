@@ -9,7 +9,7 @@ import {
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../../lib/constants'
 
-export function revalidatePath(
+export function unstable_revalidatePath(
   path: string,
   ctx: {
     unstable_onlyGenerated?: boolean
@@ -24,7 +24,7 @@ export function revalidatePath(
 
   if (!store) {
     throw new Error(
-      `Invariant: static generation store missing in revalidatePath ${path}`
+      `Invariant: static generation store missing in unstable_revalidatePath ${path}`
     )
   }
 

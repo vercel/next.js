@@ -144,8 +144,8 @@ createNextDescribe(
             expect(newEdgeRouteHandlerData).toBeTruthy()
             expect(newLayoutData).not.toBe(initLayoutData)
             expect(newPageData).not.toBe(initPageData)
-            expect(newRouteHandlerData).not.toBe(initRouteHandlerData)
-            expect(newEdgeRouteHandlerData).not.toBe(initEdgeRouteHandlerRes)
+            expect(newRouteHandlerData).not.toEqual(initRouteHandlerData)
+            expect(newEdgeRouteHandlerData).not.toEqual(initEdgeRouteHandlerRes)
             return 'success'
           }, 'success')
         }
@@ -290,10 +290,10 @@ createNextDescribe(
           const curRandomData = $('#random-data').text()
 
           expect(curDate).not.toBe(prevInitialDate)
-          expect(curRandomData).toBe(prevInitialRandomData)
+          expect(curRandomData).not.toBe(prevInitialRandomData)
 
-          prevInitialDate = $('#date').text()
-          prevInitialRandomData = $('#random-data').text()
+          prevInitialDate = curDate
+          prevInitialRandomData = curRandomData
           return 'success'
         }, 'success')
       })
