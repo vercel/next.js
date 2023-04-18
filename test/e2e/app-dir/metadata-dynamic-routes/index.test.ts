@@ -237,6 +237,12 @@ createNextDescribe(
       expect(resTwitter.status).toBe(200)
     })
 
+    it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
+      const $ = await next.render$('/')
+      const canonicalUrl = $('link[rel="canonical"]').attr('href')
+      expect(canonicalUrl).toBe('https://mydomain.com/')
+    })
+
     it('should inject dynamic metadata properly to head', async () => {
       const $ = await next.render$('/')
       const $icon = $('link[rel="icon"]')
@@ -269,6 +275,7 @@ createNextDescribe(
       expect(twitterTitle).toBe('Twitter - Next.js App')
       expect(twitterDescription).toBe('Twitter - This is a Next.js App')
 
+      // Should prefer to pick up deployment url for metadata routes
       if (isNextDeploy) {
         // absolute urls
         expect(ogImageUrl).toMatch(
