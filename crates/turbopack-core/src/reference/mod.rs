@@ -14,11 +14,10 @@ pub use source_map::SourceMapReferenceVc;
 
 /// A reference to one or multiple [Asset]s or other special things.
 /// There are a bunch of optional traits that can influence how these references
-/// are handled. e. g. [ChunkableAssetReference] or [ParallelChunkReference]
+/// are handled. e. g. [ChunkableAssetReference]
 ///
 /// [Asset]: crate::asset::Asset
 /// [ChunkableAssetReference]: crate::chunk::ChunkableAssetReference
-/// [ParallelChunkReference]: crate::chunk::ParallelChunkReference
 #[turbo_tasks::value_trait]
 pub trait AssetReference: ValueToString {
     fn resolve_reference(&self) -> ResolveResultVc;

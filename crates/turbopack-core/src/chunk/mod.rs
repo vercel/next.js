@@ -1,6 +1,7 @@
 pub mod availability_info;
 pub mod available_assets;
 pub(crate) mod chunking_context;
+pub(crate) mod containment_tree;
 pub(crate) mod evaluate;
 pub mod optimize;
 
@@ -17,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{GraphTraversal, GraphTraversalResult, ReverseTopological, Visit, VisitControlFlow},
-    primitives::{BoolVc, StringVc},
+    primitives::StringVc,
     trace::TraceRawVcs,
     TryJoinIterExt, Value, ValueToString, ValueToStringVc,
 };
@@ -28,7 +29,6 @@ use self::availability_info::AvailabilityInfo;
 pub use self::{
     chunking_context::{ChunkingContext, ChunkingContextVc},
     evaluate::{EvaluatableAsset, EvaluatableAssetVc, EvaluatableAssets, EvaluatableAssetsVc},
-    optimize::optimize,
 };
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
@@ -98,13 +98,17 @@ pub trait ChunkableAsset: Asset {
 #[turbo_tasks::value(transparent)]
 pub struct Chunks(Vec<ChunkVc>);
 
+#[turbo_tasks::value_impl]
+impl ChunksVc {
+    /// Creates a new empty [ChunksVc].
+    #[turbo_tasks::function]
+    pub fn empty() -> ChunksVc {
+        Self::cell(vec![])
+    }
+}
+
 /// A chunk is one type of asset.
 /// It usually contains multiple chunk items.
-/// There is an optional trait [ParallelChunkReference] that
-/// [AssetReference]s from a [Chunk] can implement.
-/// If they implement that and [ParallelChunkReference::is_loaded_in_parallel]
-/// returns true, all referenced assets (if they are [Chunk]s) are placed in the
-/// same chunk group.
 #[turbo_tasks::value_trait]
 pub trait Chunk: Asset {
     fn chunking_context(&self) -> ChunkingContextVc;
@@ -114,6 +118,11 @@ pub trait Chunk: Asset {
     /// The path of the chunk.
     fn path(&self) -> FileSystemPathVc {
         self.ident().path()
+    }
+    /// Returns a list of chunks that should be loaded in parallel to this
+    /// chunk.
+    fn parallel_chunks(&self) -> ChunksVc {
+        ChunksVc::empty()
     }
 }
 
@@ -130,12 +139,6 @@ pub struct OutputChunkRuntimeInfo {
 #[turbo_tasks::value_trait]
 pub trait OutputChunk: Asset {
     fn runtime_info(&self) -> OutputChunkRuntimeInfoVc;
-}
-
-/// see [Chunk] for explanation
-#[turbo_tasks::value_trait]
-pub trait ParallelChunkReference: AssetReference + ValueToString {
-    fn is_loaded_in_parallel(&self) -> BoolVc;
 }
 
 /// Specifies how a chunk interacts with other chunks when building a chunk
@@ -179,59 +182,6 @@ pub struct ChunkingTypeOption(Option<ChunkingType>);
 pub trait ChunkableAssetReference: AssetReference + ValueToString {
     fn chunking_type(&self) -> ChunkingTypeOptionVc {
         ChunkingTypeOptionVc::cell(Some(ChunkingType::default()))
-    }
-}
-
-/// A reference to a [Chunk]. Can be loaded in parallel, see [Chunk].
-#[turbo_tasks::value]
-pub struct ChunkReference {
-    chunk: ChunkVc,
-    parallel: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkReferenceVc {
-    #[turbo_tasks::function]
-    pub fn new(chunk: ChunkVc) -> Self {
-        Self::cell(ChunkReference {
-            chunk,
-            parallel: false,
-        })
-    }
-
-    #[turbo_tasks::function]
-    pub fn new_parallel(chunk: ChunkVc) -> Self {
-        Self::cell(ChunkReference {
-            chunk,
-            parallel: true,
-        })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AssetReference for ChunkReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::asset(self.chunk.into()).into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ChunkReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(format!(
-            "chunk {}",
-            self.chunk.ident().to_string().await?
-        )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ParallelChunkReference for ChunkReference {
-    #[turbo_tasks::function]
-    fn is_loaded_in_parallel(&self) -> BoolVc {
-        BoolVc::cell(self.parallel)
     }
 }
 
@@ -419,12 +369,7 @@ where
                 ));
             }
             ChunkingType::IsolatedParallel => {
-                let chunk = chunkable_asset.as_chunk(
-                    context.chunking_context,
-                    Value::new(AvailabilityInfo::Root {
-                        current_availability_root: chunkable_asset.into(),
-                    }),
-                );
+                let chunk = chunkable_asset.as_root_chunk(context.chunking_context);
                 graph_nodes.push((
                     Some((asset, chunking_type)),
                     ChunkContentGraphNode::Chunk(chunk),
