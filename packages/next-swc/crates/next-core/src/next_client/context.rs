@@ -179,6 +179,8 @@ pub async fn get_client_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         custom_ecmascript_transforms: vec![EcmascriptInputTransform::ServerDirective(
+            // ServerDirective is not implemented yet and always reports an issue.
+            // We don't have to pass a valid transition name yet, but the API is prepared. 
             StringVc::cell("TODO".to_string()),
         )],
         preset_env_versions: Some(env),

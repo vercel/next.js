@@ -36,6 +36,7 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_dev_server",
   "__turbopack_ecmascript",
   "__turbopack_env",
+  "__turbopack_image",
   "__turbopack_node",
 ] }
 turbo-tasks = { workspace = true }
