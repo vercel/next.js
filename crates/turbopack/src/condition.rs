@@ -1,6 +1,8 @@
+use async_recursion::async_recursion;
+use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystem, FileSystemPath, FileSystemPathVc};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub enum ContextCondition {
@@ -8,6 +10,7 @@ pub enum ContextCondition {
     Any(Vec<ContextCondition>),
     Not(Box<ContextCondition>),
     InDirectory(String),
+    InPath(FileSystemPathVc),
 }
 
 impl ContextCondition {
@@ -27,12 +30,28 @@ impl ContextCondition {
         ContextCondition::Not(Box::new(condition))
     }
 
+    #[async_recursion]
     /// Returns true if the condition matches the context.
-    pub fn matches(&self, context: &FileSystemPath) -> bool {
+    pub async fn matches(&self, context: &FileSystemPath) -> bool {
         match self {
-            ContextCondition::All(conditions) => conditions.iter().all(|c| c.matches(context)),
-            ContextCondition::Any(conditions) => conditions.iter().any(|c| c.matches(context)),
-            ContextCondition::Not(condition) => !condition.matches(context),
+            ContextCondition::All(conditions) => {
+                stream::iter(conditions)
+                    .all(|c| async move { c.matches(context).await })
+                    .await
+            }
+            ContextCondition::Any(conditions) => {
+                stream::iter(conditions)
+                    .any(|c| async move { c.matches(context).await })
+                    .await
+            }
+            ContextCondition::Not(condition) => !condition.matches(context).await,
+            ContextCondition::InPath(path) => {
+                if let Ok(path) = path.await {
+                    context.is_inside(&path)
+                } else {
+                    false
+                }
+            }
             ContextCondition::InDirectory(dir) => {
                 context.path.starts_with(&format!("{dir}/"))
                     || context.path.contains(&format!("/{dir}/"))
