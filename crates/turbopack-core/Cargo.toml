@@ -36,6 +36,7 @@ turbo-tasks-build = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
+tokio = { workspace = true }
 
 [features]
 default = []
