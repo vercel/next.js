@@ -61,9 +61,17 @@ Options:
 
     Initialize as a `app/` directory project.
 
+  --no-experimental-app
+
+    Initialize as a `pages/` directory project. (default)
+
   --src-dir
 
     Initialize inside a `src/` directory.
+    
+  --no-src-dir
+  
+    Initialize without a `src/` directory. (default)
 
   --import-alias <alias-to-configure>
 
