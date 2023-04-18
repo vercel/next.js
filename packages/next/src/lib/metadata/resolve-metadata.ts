@@ -263,6 +263,32 @@ async function resolveStaticMetadata(components: ComponentsType, props: any) {
   return staticMetadata
 }
 
+// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
+export async function collectMetadata({
+  tree,
+  metadataItems: array,
+  props,
+  route,
+}: {
+  tree: LoaderTree
+  metadataItems: MetadataItems
+  props: any
+  route: string
+}) {
+  const [mod, modType] = await getLayoutOrPageModule(tree)
+
+  if (modType) {
+    route += `/${modType}`
+  }
+
+  const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
+  const metadataExport = mod
+    ? await getDefinedMetadata(mod, props, route)
+    : null
+
+  array.push([metadataExport, staticFilesMetadata])
+}
+
 export async function resolveMetadata({
   tree,
   parentParams,
@@ -325,32 +351,6 @@ export async function resolveMetadata({
   }
 
   return metadataItems
-}
-
-// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
-export async function collectMetadata({
-  tree,
-  metadataItems: array,
-  props,
-  route,
-}: {
-  tree: LoaderTree
-  metadataItems: MetadataItems
-  props: any
-  route: string
-}) {
-  const [mod, modType] = await getLayoutOrPageModule(tree)
-
-  if (modType) {
-    route += `/${modType}`
-  }
-
-  const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
-  const metadataExport = mod
-    ? await getDefinedMetadata(mod, props, route)
-    : null
-
-  array.push([metadataExport, staticFilesMetadata])
 }
 
 type MetadataAccumulationOptions = {
