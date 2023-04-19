@@ -1,12 +1,12 @@
-import Head from "next/head";
-import Image from "next/image";
-import { useEffect } from "react";
+import Head from 'next/head'
+import Image from 'next/image'
+import { useEffect } from 'react'
 
 const Home = () => {
   useEffect(() => {
     // Only run on client
-    import("@turbo/pack-test-harness").then(runTests);
-  });
+    import('@turbo/pack-test-harness').then(runTests)
+  })
   return (
     <div className="flex min-h-screen flex-col items-center justify-center py-2">
       <Head>
@@ -16,14 +16,14 @@ const Home = () => {
 
       <main className="flex w-full flex-1 flex-col items-center justify-center px-20 text-center">
         <h1 className="text-6xl font-bold">
-          Welcome to{" "}
+          Welcome to{' '}
           <a className="text-blue-600" href="https://nextjs.org">
             Next.js!
           </a>
         </h1>
 
         <p className="mt-3 text-2xl">
-          Get started by editing{" "}
+          Get started by editing{' '}
           <code className="rounded-md bg-gray-100 p-3 font-mono text-lg">
             pages/index.tsx
           </code>
@@ -79,20 +79,20 @@ const Home = () => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{" "}
+          Powered by{' '}
           <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
         </a>
       </footer>
     </div>
-  );
-};
+  )
+}
 
-export default Home;
+export default Home
 
 function runTests() {
-  console.log(document.querySelectorAll("footer"));
-  it("it should apply tailwind styles", function () {
-    const footer = document.querySelector("footer");
-    expect(getComputedStyle(footer).alignItems).toBe("center");
-  });
+  console.log(document.querySelectorAll('footer'))
+  it('it should apply tailwind styles', function () {
+    const footer = document.querySelector('footer')
+    expect(getComputedStyle(footer).alignItems).toBe('center')
+  })
 }

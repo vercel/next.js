@@ -1,3 +1,2 @@
 import 'my-module'
-
-'use server'
+;('use server')
