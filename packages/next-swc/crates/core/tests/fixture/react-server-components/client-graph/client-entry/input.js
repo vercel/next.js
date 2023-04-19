@@ -1,29 +1,27 @@
 // This is a comment.
 
-"use strict";
+'use strict'
 
 /**
  * This is a comment.
  */
 
-"use client";
+'use client'
 
 // This is a comment.
 
-"foo";
+'foo'
 
-"use client";
+'use client'
 
-import "fs"
-
-"bar";
+import 'fs'
+;('bar')
 
 // This is a comment.
 
-1 + 1;
-
-"baz";
+1 + 1
+;('baz')
 
 export default function () {
-  return null;
+  return null
 }

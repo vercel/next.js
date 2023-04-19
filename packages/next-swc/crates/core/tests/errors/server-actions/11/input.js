@@ -1,5 +1,4 @@
 import 'react'
-
-('use sevrer')
+;('use sevrer')
 
 // ^Tools like Prettier sometimes do this.

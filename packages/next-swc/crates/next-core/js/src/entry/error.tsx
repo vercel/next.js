@@ -7,4 +7,4 @@ export {
   __N_SSG,
   // @ts-expect-error
   __N_SSP,
-} from "@vercel/turbopack-next/internal/_error";
+} from '@vercel/turbopack-next/internal/_error'
