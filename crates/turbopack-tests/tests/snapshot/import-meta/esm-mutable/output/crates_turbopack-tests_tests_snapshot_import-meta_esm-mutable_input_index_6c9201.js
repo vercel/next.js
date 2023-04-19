@@ -1345,6 +1345,16 @@ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
 }
 
 /**
+ * Returns the path of a chunk defined by its data.
+ *
+ * @param {ChunkData} chunkData
+ * @returns {ChunkPath} the chunk path
+ */
+function getChunkPath(chunkData) {
+  return typeof chunkData === "string" ? chunkData : chunkData.path;
+}
+
+/**
  * Subscribes to chunk list updates from the update server and applies them.
  *
  * @param {ChunkList} chunkList
@@ -1356,11 +1366,7 @@ function registerChunkList(chunkList) {
   ]);
 
   // Adding chunks to chunk lists and vice versa.
-  const chunks = new Set(
-    chunkList.chunks.map((chunkData) =>
-      typeof chunkData === "string" ? chunkData : chunkData.path
-    )
-  );
+  const chunks = new Set(chunkList.chunks.map(getChunkPath));
   chunkListChunksMap.set(chunkList.path, chunks);
   for (const chunkPath of chunks) {
     let chunkChunkLists = chunkChunkListsMap.get(chunkPath);
@@ -1436,10 +1442,7 @@ let BACKEND;
       }
 
       for (const otherChunkData of params.otherChunks) {
-        const otherChunkPath =
-          typeof otherChunkData === "string"
-            ? otherChunkData
-            : otherChunkData.path;
+        const otherChunkPath = getChunkPath(otherChunkData);
         if (otherChunkPath.endsWith(".css")) {
           // Mark all CSS chunks within the same chunk group as this chunk as loaded.
           // They are just injected as <link> tag and have to way to communicate completion.

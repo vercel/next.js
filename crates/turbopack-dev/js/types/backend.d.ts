@@ -12,6 +12,7 @@ declare global {
   declare const RUNTIME_PARAMS: DevRuntimeParams;
   declare const getFirstModuleChunk: GetFirstModuleChunk;
   declare const getOrInstantiateRuntimeModule: GetOrInstantiateRuntimeModule;
+  declare const getChunkPath: GetChunkPath;
   declare const loadChunk: InternalLoadChunk;
   declare const SourceTypeRuntime: SourceType.Runtime;
   declare const SourceTypeParent: SourceType.Parent;

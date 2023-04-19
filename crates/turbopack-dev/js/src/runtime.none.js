@@ -68,10 +68,7 @@ let BACKEND;
     };
 
     for (const otherChunkData of otherChunks) {
-      const otherChunkPath =
-        typeof otherChunkData === "string"
-          ? otherChunkData
-          : otherChunkData.path;
+      const otherChunkPath = getChunkPath(otherChunkData);
       if (registeredChunks.has(otherChunkPath)) {
         continue;
       }
