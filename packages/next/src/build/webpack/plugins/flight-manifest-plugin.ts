@@ -135,6 +135,7 @@ export class ClientReferenceManifestPlugin {
       cssFiles: {},
       clientModules: {},
     }
+    const dev = this.dev
 
     const clientRequestsSet = new Set()
 
@@ -255,18 +256,13 @@ export class ClientReferenceManifestPlugin {
                 return null
               }
 
-              // Get the actual chunk file names from the chunk file list.
-              // It's possible that the chunk is generated via `import()`, in
-              // that case the chunk file name will be '[name].[contenthash]'
-              // instead of '[name]-[chunkhash]'.
-              return [...requiredChunk.files].map((file) => {
-                // It's possible that a chunk also emits CSS files, that will
-                // be handled separatedly.
-                if (!file.endsWith('.js')) return null
-                return requiredChunk.id + ':' + file
-              })
+              return (
+                requiredChunk.id +
+                ':' +
+                (requiredChunk.name || requiredChunk.id) +
+                (dev ? '' : '-' + requiredChunk.hash)
+              )
             })
-            .flat()
             .filter(nonNullable)
         }
         const requiredChunks = getAppPathRequiredChunks()
