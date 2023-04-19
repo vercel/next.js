@@ -126,7 +126,7 @@ If `fallback` is `true`, then the behavior of `getStaticProps` changes in the fo
 - When complete, the browser receives the `JSON` for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, like other pages pre-rendered at build time.
 
-> **Note:** `fallback: true` is not supported when using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
+> **Note**: `fallback: true` is not supported when using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
 
 #### When is `fallback: true` useful?
 
@@ -153,7 +153,7 @@ If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will w
 
 `fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md) in conjunction with `fallback: 'blocking'`.
 
-> **Note:** `fallback: 'blocking'` is not supported when using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
+> **Note**: `fallback: 'blocking'` is not supported when using [`output: 'export'`](/docs/advanced-features/static-html-export.md).
 
 ### Fallback pages
 
