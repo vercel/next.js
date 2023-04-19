@@ -6996,6 +6996,7 @@ dependencies = [
  "turbopack-env",
  "turbopack-image",
  "turbopack-node",
+ "turbopack-static",
  "turbopack-test-utils",
 ]
 

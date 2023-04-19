@@ -22,13 +22,14 @@ use turbo_binding::{
             CustomTransformVc, CustomTransformer, EcmascriptInputTransform,
             EcmascriptInputTransformsVc, TransformContext,
         },
-        image::module_type::StructuredImageModuleTypeVc,
         turbopack::module_options::{
             ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType,
         },
     },
 };
 use turbo_tasks::trace::TraceRawVcs;
+
+use crate::image::StructuredImageModuleTypeVc;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(

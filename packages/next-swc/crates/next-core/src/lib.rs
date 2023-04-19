@@ -9,6 +9,7 @@ mod babel;
 mod embed_js;
 pub mod env;
 mod fallback;
+mod image;
 pub mod manifest;
 mod next_build;
 pub mod next_client;
