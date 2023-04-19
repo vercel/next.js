@@ -6,7 +6,6 @@ use image::{
     codecs::{
         jpeg::JpegEncoder,
         png::{CompressionType, PngEncoder},
-        webp::{WebPEncoder, WebPQuality},
     },
     imageops::FilterType,
     GenericImageView, ImageEncoder, ImageFormat,
@@ -100,7 +99,9 @@ fn compute_blur_data(
                 Base64Display::new(&buf, &STANDARD)
             )
         }
+        #[cfg(feature = "webp")]
         ImageFormat::WebP => {
+            use image::webp::{WebPEncoder, WebPQuality};
             WebPEncoder::new_with_quality(&mut buf, WebPQuality::lossy(options.quality))
                 .write_image(
                     small_image.as_bytes(),
@@ -127,7 +128,10 @@ fn compute_blur_data(
                 Base64Display::new(&buf, &STANDARD)
             )
         }
-        _ => unreachable!(),
+        _ => bail!(
+            "Ecoding for image format {:?} has not been compiled into the current build",
+            format
+        ),
     };
 
     Ok((url, blur_width, blur_height))

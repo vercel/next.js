@@ -11,15 +11,17 @@ bench = false
 
 [features]
 avif = ["image/avif-decoder", "image/avif-encoder"]
+webp = ["image/webp", "image/webp-encoder"]
 
 [dependencies]
 anyhow = { workspace = true }
 base64 = "0.21.0"
 image = { workspace = true, default-features = false, features = [
-  "webp",
   "png",
   "jpeg",
-  "webp-encoder",
+  "ico",
+  "bmp",
+  "tga",
 ] }
 indexmap = { workspace = true }
 mime = { workspace = true }
