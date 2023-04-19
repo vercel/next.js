@@ -135,15 +135,6 @@ function stringToChunk(content) {
   return textEncoder.encode(content);
 }
 var precomputedChunkSet = new Set() ;
-function stringToPrecomputedChunk(content) {
-  var precomputedChunk = textEncoder.encode(content);
-
-  {
-    precomputedChunkSet.add(precomputedChunk);
-  }
-
-  return precomputedChunk;
-}
 function closeWithError(destination, error) {
   // $FlowFixMe[method-unbinding]
   if (typeof destination.error === 'function') {
@@ -215,18 +206,36 @@ function isServerReference(reference) {
   return reference.$$typeof === SERVER_REFERENCE_TAG;
 }
 function resolveClientReferenceMetadata(config, clientReference) {
-  var resolvedModuleData = config[clientReference.$$id];
+  var modulePath = clientReference.$$id;
+  var name = '';
+  var resolvedModuleData = config[modulePath];
 
-  if (clientReference.$$async) {
-    return {
-      id: resolvedModuleData.id,
-      chunks: resolvedModuleData.chunks,
-      name: resolvedModuleData.name,
-      async: true
-    };
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
   } else {
-    return resolvedModuleData;
+    // We didn't find this specific export name but we might have the * export
+    // which contains this name as well.
+    // TODO: It's unfortunate that we now have to parse this string. We should
+    // probably go back to encoding path and name separately on the client reference.
+    var idx = modulePath.lastIndexOf('#');
+
+    if (idx !== -1) {
+      name = modulePath.substr(idx + 1);
+      resolvedModuleData = config[modulePath.substr(0, idx)];
+    }
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + modulePath + '" in the React Client Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
   }
+
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: !!clientReference.$$async
+  };
 }
 function getServerReferenceId(config, serverReference) {
   return serverReference.$$id;
@@ -265,320 +274,6 @@ function getIteratorFn(maybeIterable) {
 
   return null;
 }
-
-// Attributes that aren't in the filter are presumed to have this type.
-
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
-
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-
-function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.mustUseProperty = mustUseProperty;
-  this.propertyName = name;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(name, BOOLEANISH_STRING, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(name, BOOLEAN, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are the few React props that we set as DOM properties
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(name, NUMERIC, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
-  attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  new PropertyInfoRecord(attributeName, STRING, false, // mustUseProperty
-  attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
-
-/**
- * CSS properties which accept numbers but are not in units of "px".
- */
-var isUnitlessNumber = {
-  animationIterationCount: true,
-  aspectRatio: true,
-  borderImageOutset: true,
-  borderImageSlice: true,
-  borderImageWidth: true,
-  boxFlex: true,
-  boxFlexGroup: true,
-  boxOrdinalGroup: true,
-  columnCount: true,
-  columns: true,
-  flex: true,
-  flexGrow: true,
-  flexPositive: true,
-  flexShrink: true,
-  flexNegative: true,
-  flexOrder: true,
-  gridArea: true,
-  gridRow: true,
-  gridRowEnd: true,
-  gridRowSpan: true,
-  gridRowStart: true,
-  gridColumn: true,
-  gridColumnEnd: true,
-  gridColumnSpan: true,
-  gridColumnStart: true,
-  fontWeight: true,
-  lineClamp: true,
-  lineHeight: true,
-  opacity: true,
-  order: true,
-  orphans: true,
-  scale: true,
-  tabSize: true,
-  widows: true,
-  zIndex: true,
-  zoom: true,
-  // SVG-related properties
-  fillOpacity: true,
-  floodOpacity: true,
-  stopOpacity: true,
-  strokeDasharray: true,
-  strokeDashoffset: true,
-  strokeMiterlimit: true,
-  strokeOpacity: true,
-  strokeWidth: true
-};
-/**
- * @param {string} prefix vendor-specific prefix, eg: Webkit
- * @param {string} key style name, eg: transitionDuration
- * @return {string} style name prefixed with `prefix`, properly camelCased, eg:
- * WebkitTransitionDuration
- */
-
-function prefixKey(prefix, key) {
-  return prefix + key.charAt(0).toUpperCase() + key.substring(1);
-}
-/**
- * Support style names that may come passed in prefixed by adding permutations
- * of vendor prefixes.
- */
-
-
-var prefixes = ['Webkit', 'ms', 'Moz', 'O']; // Using Object.keys here, or else the vanilla for-in loop makes IE8 go into an
-// infinite loop, because it iterates over the newly added props too.
-
-Object.keys(isUnitlessNumber).forEach(function (prop) {
-  prefixes.forEach(function (prefix) {
-    isUnitlessNumber[prefixKey(prefix, prop)] = isUnitlessNumber[prop];
-  });
-});
-
-var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
-}
-
-// The build script is at scripts/rollup/generate-inline-fizz-runtime.js.
-// Run `yarn generate-inline-fizz-runtime` to generate.
-var clientRenderBoundary = '$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};';
-var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
-var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
-
-stringToPrecomputedChunk('"></template>');
-stringToPrecomputedChunk('<script>');
-stringToPrecomputedChunk('</script>');
-stringToPrecomputedChunk('<script src="');
-stringToPrecomputedChunk('<script type="module" src="');
-stringToPrecomputedChunk('" integrity="');
-stringToPrecomputedChunk('" async=""></script>');
-
-stringToPrecomputedChunk('<!-- -->');
-
-stringToPrecomputedChunk(' style="');
-stringToPrecomputedChunk(':');
-stringToPrecomputedChunk(';');
-
-stringToPrecomputedChunk(' ');
-stringToPrecomputedChunk('="');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk('=""');
-
-stringToPrecomputedChunk('>');
-stringToPrecomputedChunk('/>');
-
-stringToPrecomputedChunk(' selected=""');
-
-stringToPrecomputedChunk('\n');
-
-stringToPrecomputedChunk('<!DOCTYPE html>');
-stringToPrecomputedChunk('</');
-stringToPrecomputedChunk('>');
-// A placeholder is a node inside a hidden partial tree that can be filled in later, but before
-// display. It's never visible to users. We use the template tag because it can be used in every
-// type of parent. <script> tags also work in every other tag except <colgroup>.
-
-stringToPrecomputedChunk('<template id="');
-stringToPrecomputedChunk('"></template>');
-
-stringToPrecomputedChunk('<!--$-->');
-stringToPrecomputedChunk('<!--$?--><template id="');
-stringToPrecomputedChunk('"></template>');
-stringToPrecomputedChunk('<!--$!-->');
-stringToPrecomputedChunk('<!--/$-->');
-stringToPrecomputedChunk('<template');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(' data-dgst="');
-stringToPrecomputedChunk(' data-msg="');
-stringToPrecomputedChunk(' data-stck="');
-stringToPrecomputedChunk('></template>');
-stringToPrecomputedChunk('<div hidden id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</div>');
-stringToPrecomputedChunk('<svg aria-hidden="true" style="display:none" id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</svg>');
-stringToPrecomputedChunk('<math aria-hidden="true" style="display:none" id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</math>');
-stringToPrecomputedChunk('<table hidden id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</table>');
-stringToPrecomputedChunk('<table hidden><tbody id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</tbody></table>');
-stringToPrecomputedChunk('<table hidden><tr id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</tr></table>');
-stringToPrecomputedChunk('<table hidden><colgroup id="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</colgroup></table>');
-stringToPrecomputedChunk(completeSegment + ';$RS("');
-stringToPrecomputedChunk('$RS("');
-stringToPrecomputedChunk('","');
-stringToPrecomputedChunk('")</script>');
-stringToPrecomputedChunk('<template data-rsi="" data-sid="');
-stringToPrecomputedChunk('" data-pid="');
-stringToPrecomputedChunk(completeBoundary + '$RC("');
-stringToPrecomputedChunk('$RC("');
-stringToPrecomputedChunk(completeBoundary + completeBoundaryWithStyles + '$RR("');
-stringToPrecomputedChunk(completeBoundaryWithStyles + '$RR("');
-stringToPrecomputedChunk('$RR("');
-stringToPrecomputedChunk('","');
-stringToPrecomputedChunk('",');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(')</script>');
-stringToPrecomputedChunk('<template data-rci="" data-bid="');
-stringToPrecomputedChunk('<template data-rri="" data-bid="');
-stringToPrecomputedChunk('" data-sid="');
-stringToPrecomputedChunk('" data-sty="');
-stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
-stringToPrecomputedChunk('$RX("');
-stringToPrecomputedChunk('"');
-stringToPrecomputedChunk(',');
-stringToPrecomputedChunk(')</script>');
-stringToPrecomputedChunk('<template data-rxi="" data-bid="');
-stringToPrecomputedChunk('" data-dgst="');
-stringToPrecomputedChunk('" data-msg="');
-stringToPrecomputedChunk('" data-stck="');
-
-stringToPrecomputedChunk('<style media="not all" data-precedence="');
-stringToPrecomputedChunk('" data-href="');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</style>'); // Tracks whether the boundary currently flushing is flushign style tags or has any
-
-stringToPrecomputedChunk('<style data-precedence="');
-stringToPrecomputedChunk('" data-href="');
-stringToPrecomputedChunk(' ');
-stringToPrecomputedChunk('">');
-stringToPrecomputedChunk('</style>');
-stringToPrecomputedChunk('[');
-stringToPrecomputedChunk(',[');
-stringToPrecomputedChunk(',');
-stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
 
 var rendererSigil;
 
@@ -1054,6 +749,12 @@ function setCurrentCache(cache) {
 }
 function getCurrentCache() {
   return currentCache;
+}
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
 }
 
 // in case they error.
@@ -1743,8 +1444,30 @@ function serializeProviderReference(name) {
   return '$P' + name;
 }
 
+function serializeNumber(number) {
+  if (Number.isFinite(number)) {
+    if (number === 0 && 1 / number === -Infinity) {
+      return '$-0';
+    } else {
+      return number;
+    }
+  } else {
+    if (number === Infinity) {
+      return '$Infinity';
+    } else if (number === -Infinity) {
+      return '$-Infinity';
+    } else {
+      return '$NaN';
+    }
+  }
+}
+
 function serializeUndefined() {
   return '$undefined';
+}
+
+function serializeBigInt(n) {
+  return '$n' + n.toString(10);
 }
 
 function serializeClientReference(request, parent, key, clientReference) {
@@ -2002,8 +1725,12 @@ function resolveModelToJSON(request, parent, key, value) {
     return escapeStringValue(value);
   }
 
-  if (typeof value === 'boolean' || typeof value === 'number') {
+  if (typeof value === 'boolean') {
     return value;
+  }
+
+  if (typeof value === 'number') {
+    return serializeNumber(value);
   }
 
   if (typeof value === 'undefined') {
@@ -2050,7 +1777,7 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'bigint') {
-    throw new Error("BigInt (" + value + ") is not yet supported in Client Component props." + describeObjectForErrorMessage(parent, key));
+    return serializeBigInt(value);
   }
 
   throw new Error("Type " + typeof value + " is not supported in Client Component props." + describeObjectForErrorMessage(parent, key));
@@ -2400,8 +2127,36 @@ function importServerContexts(contexts) {
 
 // eslint-disable-next-line no-unused-vars
 function resolveServerReference(bundlerConfig, id) {
-  // This needs to return async: true if it's an async module.
-  return bundlerConfig[id];
+  var name = '';
+  var resolvedModuleData = bundlerConfig[id];
+
+  if (resolvedModuleData) {
+    // The potentially aliased name.
+    name = resolvedModuleData.name;
+  } else {
+    // We didn't find this specific export name but we might have the * export
+    // which contains this name as well.
+    // TODO: It's unfortunate that we now have to parse this string. We should
+    // probably go back to encoding path and name separately on the client reference.
+    var idx = id.lastIndexOf('#');
+
+    if (idx !== -1) {
+      name = id.substr(idx + 1);
+      resolvedModuleData = bundlerConfig[id.substr(0, idx)];
+    }
+
+    if (!resolvedModuleData) {
+      throw new Error('Could not find the module "' + id + '" in the React Server Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+    }
+  } // TODO: This needs to return async: true if it's an async module.
+
+
+  return {
+    id: resolvedModuleData.id,
+    chunks: resolvedModuleData.chunks,
+    name: name,
+    async: false
+  };
 } // The chunk cache contains all the chunks we've preloaded so far.
 // If they're still pending they're a thenable. This map also exists
 // in Webpack but unfortunately it's not exposed so we have to
@@ -2818,11 +2573,39 @@ function parseModelString(response, parentObject, key, value) {
           return loadServerReference(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
         }
 
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
+        }
+
+      case 'n':
+        {
+          // BigInt
+          return BigInt(value.substring(2));
         }
 
       default:

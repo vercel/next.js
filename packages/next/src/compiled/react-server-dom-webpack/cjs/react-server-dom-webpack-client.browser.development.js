@@ -36,18 +36,30 @@ function parseModel(response, json) {
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
+    var moduleExports = bundlerConfig[metadata.id];
+    var resolvedModuleData = moduleExports[metadata.name];
+    var name;
 
-    if (metadata.async) {
-      return {
-        id: resolvedModuleData.id,
-        chunks: resolvedModuleData.chunks,
-        name: resolvedModuleData.name,
-        async: true
-      };
+    if (resolvedModuleData) {
+      // The potentially aliased name.
+      name = resolvedModuleData.name;
     } else {
-      return resolvedModuleData;
+      // If we don't have this specific name, we might have the full module.
+      resolvedModuleData = moduleExports['*'];
+
+      if (!resolvedModuleData) {
+        throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+      }
+
+      name = metadata.name;
     }
+
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: name,
+      async: !!metadata.async
+    };
   }
 
   return metadata;
@@ -151,6 +163,19 @@ function requireModule(metadata) {
 }
 
 var knownServerReferences = new WeakMap();
+function createServerReference(id, callServer) {
+  var proxy = function () {
+    // $FlowFixMe[method-unbinding]
+    var args = Array.prototype.slice.call(arguments);
+    return callServer(id, args);
+  };
+
+  knownServerReferences.set(proxy, {
+    id: id,
+    bound: null
+  });
+  return proxy;
+}
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -662,11 +687,39 @@ function parseModelString(response, parentObject, key, value) {
           }
         }
 
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
+        }
+
+      case 'n':
+        {
+          // BigInt
+          return BigInt(value.substring(2));
         }
 
       default:
@@ -1281,8 +1334,30 @@ function serializeSymbolReference(name) {
   return '$S' + name;
 }
 
+function serializeNumber(number) {
+  if (Number.isFinite(number)) {
+    if (number === 0 && 1 / number === -Infinity) {
+      return '$-0';
+    } else {
+      return number;
+    }
+  } else {
+    if (number === Infinity) {
+      return '$Infinity';
+    } else if (number === -Infinity) {
+      return '$-Infinity';
+    } else {
+      return '$NaN';
+    }
+  }
+}
+
 function serializeUndefined() {
   return '$undefined';
+}
+
+function serializeBigInt(n) {
+  return '$n' + n.toString(10);
 }
 
 function escapeStringValue(value) {
@@ -1391,8 +1466,12 @@ function processReply(root, resolve, reject) {
       return escapeStringValue(value);
     }
 
-    if (typeof value === 'boolean' || typeof value === 'number') {
+    if (typeof value === 'boolean') {
       return value;
+    }
+
+    if (typeof value === 'number') {
+      return serializeNumber(value);
     }
 
     if (typeof value === 'undefined') {
@@ -1433,7 +1512,7 @@ function processReply(root, resolve, reject) {
     }
 
     if (typeof value === 'bigint') {
-      throw new Error("BigInt (" + value + ") is not yet supported as an argument to a Server Function.");
+      return serializeBigInt(value);
     }
 
     throw new Error("Type " + typeof value + " is not supported as an argument to a Server Function.");
@@ -1538,6 +1617,7 @@ function encodeReply(value)
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
 exports.createFromXHR = createFromXHR;
+exports.createServerReference = createServerReference;
 exports.encodeReply = encodeReply;
   })();
 }
