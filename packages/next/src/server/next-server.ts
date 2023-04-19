@@ -1373,17 +1373,28 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRouterWorker) {
           let page = pathname
+          let matched = false
 
           if (!(await this.hasPage(page))) {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
+                matched = true
                 break
               }
             }
+          } else {
+            matched = true
           }
 
-          const renderKind = this.appPathRoutes?.[page] ? 'app' : 'pages'
+          let renderKind: 'app' | 'pages' = this.appPathRoutes?.[page]
+            ? 'app'
+            : 'pages'
+
+          // Handle app dir's /not-found feature
+          if (!matched && this.appPathRoutes?.['/not-found']) {
+            renderKind = 'app'
+          }
 
           if (this.renderWorkersPromises) {
             await this.renderWorkersPromises

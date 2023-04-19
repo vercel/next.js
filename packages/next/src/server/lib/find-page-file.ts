@@ -94,6 +94,9 @@ export function createValidFileMatcher(
   const leafOnlyNotFoundFileRegex = new RegExp(
     `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
   )
+  const leafOnlyNotFoundFilePathRegex = new RegExp(
+    `/not-found\\.${getExtensionRegexString(pageExtensions)}$`
+  )
   /** TODO-METADATA: support other metadata routes
    *  regex for:
    *
@@ -121,7 +124,11 @@ export function createValidFileMatcher(
   // Determine if the file is leaf node page file or route file under layouts,
   // 'page.<extension>' | 'route.<extension>'
   function isAppRouterPage(filePath: string) {
-    return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath)
+    return (
+      leafOnlyPageFileRegex.test(filePath) ||
+      isMetadataFile(filePath) ||
+      leafOnlyNotFoundFilePathRegex.test(filePath)
+    )
   }
 
   function isPageFile(filePath: string) {
