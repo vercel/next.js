@@ -47,6 +47,37 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
+export interface EmotionConfig {
+  sourceMap?: boolean
+  autoLabel?: 'dev-only' | 'always' | 'never'
+  labelFormat?: string
+  importMap?: {
+    [importName: string]: {
+      [exportName: string]: {
+        canonicalImport?: [string, string]
+        styledBaseImport?: [string, string]
+      }
+    }
+  }
+}
+
+export interface StyledComponentsConfig {
+  /**
+   * Enabled by default in development, disabled in production to reduce file size,
+   * setting this will override the default for all environments.
+   */
+  displayName?: boolean
+  topLevelImportPaths?: string[]
+  ssr?: boolean
+  fileName?: boolean
+  meaninglessFileNames?: string[]
+  minify?: boolean
+  transpileTemplateLiterals?: boolean
+  namespace?: string
+  pure?: boolean
+  cssProp?: boolean
+}
+
 type JSONValue =
   | string
   | number
@@ -533,39 +564,8 @@ export interface NextConfig extends Record<string, any> {
       | {
           exclude?: string[]
         }
-    styledComponents?:
-      | boolean
-      | {
-          /**
-           * Enabled by default in development, disabled in production to reduce file size,
-           * setting this will override the default for all environments.
-           */
-          displayName?: boolean
-          topLevelImportPaths?: string[]
-          ssr?: boolean
-          fileName?: boolean
-          meaninglessFileNames?: string[]
-          minify?: boolean
-          transpileTemplateLiterals?: boolean
-          namespace?: string
-          pure?: boolean
-          cssProp?: boolean
-        }
-    emotion?:
-      | boolean
-      | {
-          sourceMap?: boolean
-          autoLabel?: 'dev-only' | 'always' | 'never'
-          labelFormat?: string
-          importMap?: {
-            [importName: string]: {
-              [exportName: string]: {
-                canonicalImport?: [string, string]
-                styledBaseImport?: [string, string]
-              }
-            }
-          }
-        }
+    styledComponents?: boolean | StyledComponentsConfig
+    emotion?: boolean | EmotionConfig
   }
 
   /**

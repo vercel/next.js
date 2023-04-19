@@ -487,13 +487,19 @@ createNextDescribe(
           'og:image:height': '114',
           'og:image:type': 'image/png',
           'og:image:alt': 'A alt txt for og',
-          'og:image':
-            'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+          'og:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
         })
 
         await match('meta', 'name', 'content', {
-          'twitter:image':
-            'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
           'twitter:image:alt': 'A alt txt for twitter',
           'twitter:card': 'summary_large_image',
         })
@@ -781,6 +787,28 @@ createNextDescribe(
         })
       }
     })
+
+    if (isNextStart) {
+      describe('static optimization', () => {
+        it('should build static files into static route', async () => {
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png.body'
+            )
+          ).toBe(true)
+          expect(
+            await next.hasFile(
+              '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            )
+          ).toBe(false)
+        })
+      })
+    }
 
     describe('react cache', () => {
       it('should have same title and page value on initial load', async () => {

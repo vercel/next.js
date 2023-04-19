@@ -7,6 +7,7 @@ const supportedTurbopackNextConfigOptions = [
   'configFileName',
   'env',
   'experimental.appDir',
+  'modularizeImports',
   'compiler.emotion',
   'compiler.styledComponents',
   'experimental.serverComponentsExternalPackages',

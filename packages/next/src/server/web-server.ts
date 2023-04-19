@@ -378,8 +378,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       return await curRenderToHTML(
         {
           url: req.url,
+          method: req.method,
           cookies: req.cookies,
           headers: req.headers,
+          body: req.body,
         } as any,
         {} as any,
         pathname,

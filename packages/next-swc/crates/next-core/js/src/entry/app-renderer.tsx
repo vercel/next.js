@@ -23,9 +23,6 @@ import type {
 import type { RenderData } from 'types/turbopack'
 import type { RenderOpts } from 'next/dist/server/app-render/types'
 
-import 'next/dist/server/node-polyfill-fetch'
-import 'next/dist/server/node-polyfill-web-streams'
-import '../polyfill/async-local-storage'
 import { renderToHTMLOrFlight } from 'next/dist/server/app-render/app-render'
 import { RSC_VARY_HEADER } from 'next/dist/client/components/app-router-headers'
 import { ServerResponseShim } from '../internal/http'
@@ -127,7 +124,6 @@ type LoaderTree = [
 ]
 
 async function runOperation(renderData: RenderData) {
-  const layoutInfoChunks: Record<string, string[]> = {}
   let tree: LoaderTree = LOADER_TREE
 
   const proxyMethodsForModule = (
@@ -167,7 +163,7 @@ async function runOperation(renderData: RenderData) {
             id = key.slice(0, pos)
             name = key.slice(pos + 1)
           } else {
-            throw new Error('key need to be in format of ${file}#${name}')
+            throw new Error('keys need to be formatted as {file}#{name}')
           }
 
           return {
@@ -203,19 +199,45 @@ async function runOperation(renderData: RenderData) {
       },
     }
   }
+  const availableModules = new Set()
+  const toPath = (chunk: ChunkData) =>
+    typeof chunk === 'string' ? chunk : chunk.path
+  /// determines if a chunk is needed based on the current available modules
+  const filterAvailable = (chunk: ChunkData) => {
+    if (typeof chunk === 'string') {
+      return true
+    } else {
+      let includedList = chunk.included || []
+      if (includedList.length === 0) {
+        return true
+      }
+      let needed = false
+      for (const item of includedList) {
+        if (!availableModules.has(item)) {
+          availableModules.add(item)
+          needed = true
+        }
+      }
+      return needed
+    }
+  }
   const cssFilesProxyMethods = {
     get(_target: any, prop: string) {
-      const chunks = JSON.parse(prop)
-      const cssChunks = chunks.filter((path: string) => path.endsWith('.css'))
-      return cssChunks
+      const cssChunks = JSON.parse(prop)
+      // TODO(WEB-856) subscribe to changes
+      return cssChunks.map(toPath)
     },
   }
   const cssImportProxyMethods = {
     get(_target: any, prop: string) {
-      const chunks = JSON.parse(prop.replace(/\.js$/, ''))
+      const cssChunks = JSON.parse(prop.replace(/\.js$/, ''))
+      // TODO(WEB-856) subscribe to changes
 
-      const cssChunks = chunks.filter((path: string) => path.endsWith('.css'))
-      return cssChunks.map((chunk: string) => JSON.stringify([chunk, [chunk]]))
+      // This return value is passed to proxyMethodsNested for clientModules
+      return cssChunks
+        .filter(filterAvailable)
+        .map(toPath)
+        .map((chunk: string) => JSON.stringify([chunk, [chunk]]))
     },
   }
   const manifest: ClientReferenceManifest = new Proxy({} as any, proxyMethods())
@@ -241,10 +263,7 @@ async function runOperation(renderData: RenderData) {
     dev: true,
     buildManifest: {
       polyfillFiles: [],
-      rootMainFiles: Object.values(layoutInfoChunks)
-        .flat()
-        .concat(BOOTSTRAP)
-        .filter((path) => path.endsWith('.js')),
+      rootMainFiles: BOOTSTRAP.filter((path) => path.endsWith('.js')),
       devFiles: [],
       ampDevFiles: [],
       lowPriorityFiles: [],

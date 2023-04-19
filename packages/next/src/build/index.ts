@@ -1261,8 +1261,13 @@ export default async function build(
           : null
         const entriesWithAction = actionManifest ? new Set() : null
         if (actionManifest && entriesWithAction) {
-          for (const id in actionManifest) {
-            for (const entry in actionManifest[id].workers) {
+          for (const id in actionManifest.node) {
+            for (const entry in actionManifest.node[id].workers) {
+              entriesWithAction.add(entry)
+            }
+          }
+          for (const id in actionManifest.edge) {
+            for (const entry in actionManifest.edge[id].workers) {
               entriesWithAction.add(entry)
             }
           }

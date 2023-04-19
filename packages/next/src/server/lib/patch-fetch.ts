@@ -223,7 +223,7 @@ export function patchFetch({
           }
         }
 
-        const originUrl = url?.toString() ?? ''
+        const fetchUrl = url?.toString() ?? ''
         const fetchIdx = staticGenerationStore.nextFetchId ?? 1
         staticGenerationStore.nextFetchId = fetchIdx + 1
 
@@ -231,7 +231,7 @@ export function patchFetch({
           // add metadata to init without editing the original
           const clonedInit = {
             ...init,
-            next: { ...init?.next, fetchType: 'origin', fetchIdx, originUrl },
+            next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
           return originFetch(input, clonedInit).then(async (res) => {
@@ -258,7 +258,7 @@ export function patchFetch({
                   },
                   revalidate,
                   true,
-                  originUrl,
+                  fetchUrl,
                   fetchIdx
                 )
               } catch (err) {
@@ -281,7 +281,7 @@ export function patchFetch({
                 cacheKey,
                 true,
                 revalidate,
-                originUrl,
+                fetchUrl,
                 fetchIdx
               )
 

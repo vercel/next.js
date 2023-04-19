@@ -1,5 +1,5 @@
 // This is a comment.
-"use strict";
+/* __next_internal_client_entry_do_not_use__ default auto */ "use strict";
 // This is a comment.
 "foo";
 import "fs";

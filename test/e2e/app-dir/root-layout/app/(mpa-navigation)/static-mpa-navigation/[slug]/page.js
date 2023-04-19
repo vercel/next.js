@@ -1,8 +1,6 @@
 import Link from 'next/link'
 
-export const config = {
-  dynamicParams: false,
-}
+export const dynamicParams = false
 
 export default function Page({ params }) {
   return (
