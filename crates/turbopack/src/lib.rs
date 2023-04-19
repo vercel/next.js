@@ -37,6 +37,7 @@ use turbopack_core::{
     context::{AssetContext, AssetContextVc},
     ident::AssetIdentVc,
     issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
+    plugin::CustomModuleType,
     reference::all_referenced_assets,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
@@ -177,7 +178,7 @@ async fn apply_module_type(
             transforms,
             options,
         } => MdxModuleAssetVc::new(source, context.into(), *transforms, *options).into(),
-        ModuleType::Custom(_) => todo!(),
+        ModuleType::Custom(custom) => custom.create_module(source, context.into(), part),
     })
 }
 

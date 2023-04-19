@@ -1,0 +1,33 @@
+[package]
+name = "turbopack-image"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+avif = ["image/avif-decoder", "image/avif-encoder"]
+
+[dependencies]
+anyhow = { workspace = true }
+base64 = "0.21.0"
+image = { workspace = true, default-features = false, features = [
+  "webp",
+  "png",
+  "jpeg",
+  "webp-encoder",
+] }
+indexmap = { workspace = true }
+mime = { workspace = true }
+serde = { workspace = true }
+serde_with = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

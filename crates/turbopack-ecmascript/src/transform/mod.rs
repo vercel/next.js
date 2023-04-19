@@ -118,6 +118,11 @@ pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
 #[turbo_tasks::value_impl]
 impl EcmascriptInputTransformsVc {
     #[turbo_tasks::function]
+    pub fn empty() -> Self {
+        EcmascriptInputTransformsVc::cell(Vec::new())
+    }
+
+    #[turbo_tasks::function]
     pub async fn extend(self, other: EcmascriptInputTransformsVc) -> Result<Self> {
         let mut transforms = self.await?.clone_value();
         transforms.extend(other.await?.clone_value());
