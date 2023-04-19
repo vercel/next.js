@@ -135,7 +135,6 @@ export class ClientReferenceManifestPlugin {
       cssFiles: {},
       clientModules: {},
     }
-    const dev = this.dev
 
     const clientRequestsSet = new Set()
 
