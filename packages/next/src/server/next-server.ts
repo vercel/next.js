@@ -334,7 +334,7 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(join(
+        const instrumentationHook = await require(resolve(
           this.serverOptions.dir || '.',
           this.serverOptions.conf.distDir!,
           'server',
