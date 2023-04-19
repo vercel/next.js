@@ -90,7 +90,7 @@ describe('Instrumentation Hook', () => {
   })
 
   describeCase('with-async-edge-page', ({ next }) => {
-    it.skip('with-async-edge-page should run the instrumentation hook', async () => {
+    it('with-async-edge-page should run the instrumentation hook', async () => {
       const page = await next.render('/')
       expect(page).toContain('Edge - finished: true')
     })
