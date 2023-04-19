@@ -12,7 +12,6 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
-import type { MetadataItems } from '../../lib/metadata/resolve-metadata'
 // Import builtin react directly to avoid require cache conflicts
 import React from 'next/dist/compiled/react'
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
@@ -44,7 +43,6 @@ import {
 import { MetadataTree } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
-import { collectMetadata } from '../../lib/metadata/resolve-metadata'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule, LoaderTree } from '../lib/app-dir-module'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -74,7 +72,6 @@ import {
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn } from '../../build/output/log'
 
@@ -344,64 +341,6 @@ export async function renderToHTMLOrFlight(
         ],
         type: type,
       }
-    }
-
-    async function resolveMetadata({
-      tree,
-      parentParams,
-      metadataItems,
-      treePrefix = [],
-    }: {
-      tree: LoaderTree
-      parentParams: { [key: string]: any }
-      metadataItems: MetadataItems
-      /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
-      treePrefix?: string[]
-    }): Promise<MetadataItems> {
-      const [segment, parallelRoutes, { page }] = tree
-      const currentTreePrefix = [...treePrefix, segment]
-      const isPage = typeof page !== 'undefined'
-      // Handle dynamic segment params.
-      const segmentParam = getDynamicParamFromSegment(segment)
-      /**
-       * Create object holding the parent params and current params
-       */
-      const currentParams =
-        // Handle null case where dynamic param is optional
-        segmentParam && segmentParam.value !== null
-          ? {
-              ...parentParams,
-              [segmentParam.param]: segmentParam.value,
-            }
-          : // Pass through parent params to children
-            parentParams
-
-      const layerProps = {
-        params: currentParams,
-        ...(isPage && searchParamsProps),
-      }
-
-      await collectMetadata({
-        loaderTree: tree,
-        metadataItems,
-        props: layerProps,
-        route: currentTreePrefix
-          // __PAGE__ shouldn't be shown in a route
-          .filter((s) => s !== PAGE_SEGMENT_KEY)
-          .join('/'),
-      })
-
-      for (const key in parallelRoutes) {
-        const childTree = parallelRoutes[key]
-        await resolveMetadata({
-          tree: childTree,
-          metadataItems,
-          parentParams: currentParams,
-          treePrefix: currentTreePrefix,
-        })
-      }
-
-      return metadataItems
     }
 
     let defaultRevalidate: false | undefined | number = false
@@ -709,7 +648,8 @@ export async function renderToHTMLOrFlight(
 
         if (
           typeof staticGenerationStore.revalidate === 'undefined' ||
-          staticGenerationStore.revalidate > defaultRevalidate
+          (typeof staticGenerationStore.revalidate === 'number' &&
+            staticGenerationStore.revalidate > defaultRevalidate)
         ) {
           staticGenerationStore.revalidate = defaultRevalidate
         }
@@ -1195,11 +1135,6 @@ export async function renderToHTMLOrFlight(
         return paths
       }
 
-      const metadataItems = await resolveMetadata({
-        tree: loaderTree,
-        parentParams: {},
-        metadataItems: [],
-      })
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = (
@@ -1216,8 +1151,10 @@ export async function renderToHTMLOrFlight(
               {/* @ts-expect-error allow to use async server component */}
               <MetadataTree
                 key={requestId}
-                metadata={metadataItems}
+                tree={loaderTree}
                 pathname={pathname}
+                searchParams={providedSearchParams}
+                getDynamicParamFromSegment={getDynamicParamFromSegment}
               />
             </>
           ),
@@ -1292,12 +1229,6 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const metadataItems = await resolveMetadata({
-      tree: loaderTree,
-      parentParams: {},
-      metadataItems: [],
-    })
-
     /**
      * A new React Component that renders the provided React Component
      * using Flight which can then be rendered to HTML.
@@ -1357,8 +1288,10 @@ export async function renderToHTMLOrFlight(
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree
                     key={requestId}
-                    metadata={metadataItems}
+                    tree={loaderTree}
                     pathname={pathname}
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
                   />
                 </>
               }
@@ -1562,8 +1495,10 @@ export async function renderToHTMLOrFlight(
                   {/* @ts-expect-error allow to use async server component */}
                   <MetadataTree
                     key={requestId}
-                    metadata={[]}
+                    tree={['', {}, {}]}
                     pathname={pathname}
+                    searchParams={providedSearchParams}
+                    getDynamicParamFromSegment={getDynamicParamFromSegment}
                   />
                 </head>
                 <body></body>

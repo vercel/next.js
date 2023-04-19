@@ -4,6 +4,25 @@ function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
 
+function createLocalMetadataBase() {
+  return new URL(`http://localhost:${process.env.PORT || 3000}`)
+}
+
+// For deployment url for metadata routes, prefer to use the deployment url if possible
+// as these routes are unique to the deployments url.
+export function getFallbackMetadataBaseIfPresent(
+  metadataBase: URL | null
+): URL | null {
+  const defaultMetadataBase = createLocalMetadataBase()
+  return process.env.NODE_ENV === 'production' &&
+    process.env.VERCEL_URL &&
+    process.env.VERCEL_ENV === 'preview'
+    ? new URL(`https://${process.env.VERCEL_URL}`)
+    : process.env.NODE_ENV === 'development'
+    ? defaultMetadataBase
+    : metadataBase || defaultMetadataBase
+}
+
 function resolveUrl(url: null | undefined, metadataBase: URL | null): null
 function resolveUrl(url: string | URL, metadataBase: URL | null): URL
 function resolveUrl(
@@ -24,7 +43,7 @@ function resolveUrl(
   } catch (_) {}
 
   if (!metadataBase) {
-    metadataBase = new URL(`http://localhost:${process.env.PORT || 3000}`)
+    metadataBase = createLocalMetadataBase()
   }
 
   // Handle relative or absolute paths

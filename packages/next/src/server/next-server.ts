@@ -334,7 +334,7 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(join(
+        const instrumentationHook = await require(resolve(
           this.serverOptions.dir || '.',
           this.serverOptions.conf.distDir!,
           'server',
@@ -2077,13 +2077,8 @@ export default class NextNodeServer extends BaseServer {
     ) {
       return { finished: false }
     }
-    const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     let url: string
-
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.analyze(normalizedPathname),
-    }
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -2109,14 +2104,6 @@ export default class NextNodeServer extends BaseServer {
       name?: string
       params?: { [key: string]: string | string[] }
     } = {}
-
-    const match = await this.matchers.match(normalizedPathname, options)
-    if (match) {
-      page.name = match.params
-        ? match.definition.pathname
-        : params.parsedUrl.pathname
-      page.params = match.params
-    }
 
     const middleware = this.getMiddleware()
     if (!middleware) {

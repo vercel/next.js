@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "13.3.1-canary.12",
+  "version": "13.3.1-canary.14",
   "keywords": [
     "react",
     "next",
@@ -26,7 +26,6 @@
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "prepublishOnly": "cd ../../ && turbo run build",
     "build": "pnpm release",
-    "test-pack": "cd ../../ && pnpm test-pack create-next-app",
     "lint-fix": "pnpm prettier -w --plugin prettier-plugin-tailwindcss 'templates/*-tw/{ts,js}/{app,pages}/**/*.{js,ts,tsx}'"
   },
   "devDependencies": {
