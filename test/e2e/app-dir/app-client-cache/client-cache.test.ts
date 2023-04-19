@@ -16,6 +16,7 @@ const browserConfigWithFixedTime = {
 
       // Override the Date constructor
       // @ts-ignore
+      // eslint-disable-next-line no-native-reassign
       Date = class extends Date {
         constructor() {
           super()
@@ -38,6 +39,7 @@ const fastForwardTo = (ms) => {
 
   // Update the Date constructor to use the new fixed time
   // @ts-ignore
+  // eslint-disable-next-line no-native-reassign
   Date = class extends Date {
     constructor() {
       super()
