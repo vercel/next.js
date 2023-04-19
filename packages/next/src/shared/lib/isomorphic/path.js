@@ -3,5 +3,12 @@
  * It will use native path module for nodejs runtime.
  * It will use path-browserify polyfill for edge runtime.
  */
-// @ts-ignore
-export { default } from 'next/dist/compiled/path-browserify'
+let path
+
+if (process.env.NEXT_RUNTIME === 'edge') {
+  path = require('next/dist/compiled/path-browserify')
+} else {
+  path = require('path')
+}
+
+module.exports = path
