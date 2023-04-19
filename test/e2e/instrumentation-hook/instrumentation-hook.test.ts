@@ -82,6 +82,20 @@ describe('Instrumentation Hook', () => {
     })
   })
 
+  describeCase('with-async-node-page', ({ next }) => {
+    it('with-async-node-page should run the instrumentation hook', async () => {
+      const page = await next.render('/')
+      expect(page).toContain('Node - finished: true')
+    })
+  })
+
+  describeCase('with-async-edge-page', ({ next }) => {
+    it.skip('with-async-edge-page should run the instrumentation hook', async () => {
+      const page = await next.render('/')
+      expect(page).toContain('Edge - finished: true')
+    })
+  })
+
   describeCase('general', ({ next, isNextDev }) => {
     it('should not overlap with a instrumentation page', async () => {
       const page = await next.render('/instrumentation')

@@ -21,7 +21,10 @@ import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { ampValidation } from '../../build/output'
-import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
+import {
+  INSTRUMENTATION_HOOK_FILENAME,
+  PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+} from '../../lib/constants'
 import { fileExists } from '../../lib/file-exists'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
@@ -1493,9 +1496,9 @@ export default class DevServer extends Server {
         const instrumentationHook = await require(pathJoin(
           this.distDir,
           'server',
-          'instrumentation'
+          INSTRUMENTATION_HOOK_FILENAME
         ))
-        instrumentationHook.register()
+        await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
