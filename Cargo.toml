@@ -1,16 +1,16 @@
 [workspace]
 
 members = [
-  "crates/core",
-  "crates/napi",
-  "crates/wasm",
-  "crates/next-build",
-  "crates/next-core",
-  "crates/next-dev",
-  "crates/next-dev-tests",
-  "crates/next-transform-font",
-  "crates/next-transform-dynamic",
-  "crates/next-transform-strip-page-exports",
+  "packages/next-swc/crates/core",
+  "packages/next-swc/crates/napi",
+  "packages/next-swc/crates/wasm",
+  "packages/next-swc/crates/next-build",
+  "packages/next-swc/crates/next-core",
+  "packages/next-swc/crates/next-dev",
+  "packages/next-swc/crates/next-dev-tests",
+  "packages/next-swc/crates/next-transform-font",
+  "packages/next-swc/crates/next-transform-dynamic",
+  "packages/next-swc/crates/next-transform-strip-page-exports",
 ]
 
 [profile.dev.package.swc_css_prefixer]
@@ -25,15 +25,15 @@ lto = true
 
 [workspace.dependencies]
 # Workspace crates
-next-build = { path = "crates/next-build" }
-next-core = { path = "crates/next-core", default-features = false }
-next-dev = { path = "crates/next-dev", default-features = false, features = [
+next-build = { path = "packages/next-swc/crates/next-build" }
+next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
+next-dev = { path = "packages/next-swc/crates/next-dev", default-features = false, features = [
   "serializable",
 ] }
-next-dev-tests = { path = "crates/next-dev-tests" }
-next-transform-font = { path = "crates/next-transform-font" }
-next-transform-dynamic = { path = "crates/next-transform-dynamic" }
-next-transform-strip-page-exports = { path = "crates/next-transform-strip-page-exports" }
+next-dev-tests = { path = "packages/next-swc/crates/next-dev-tests" }
+next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
+next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
+next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
 
 # SWC crates
 # Keep consistent with preset_env_base through swc_core
