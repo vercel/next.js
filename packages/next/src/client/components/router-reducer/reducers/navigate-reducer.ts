@@ -261,7 +261,7 @@ export function navigateReducer(
   // The without optimistic tree case happens when there is no loading state, in that case we suspend in this reducer
 
   // forceOptimisticNavigation is used for links that have `prefetch={false}`.
-  if (forceOptimisticNavigation) {
+  if (false && forceOptimisticNavigation) {
     const segments = pathname.split('/')
     // TODO-APP: figure out something better for index pages
     segments.push('')
