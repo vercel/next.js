@@ -153,6 +153,7 @@ export const installTemplate = async ({
         .replace("'./pages/**/*.{js,ts,jsx,tsx,mdx}',\n", '')
         .replace("'./components/**/*.{js,ts,jsx,tsx,mdx}',", '')
         .replace("'./app/**/*.{js,ts,jsx,tsx,mdx}',", "'./src/**/*.{js,ts,jsx,tsx,mdx}',")  
+        .replace(/^\s*\n/gm, '')
       )
     }
   }
