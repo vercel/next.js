@@ -15,7 +15,8 @@ lerna.json
 .github/actions/issue-labeler/lib/index.js
 packages/next-swc/crates/next-core/js/src/compiled/**/*
 packages/next-swc/crates/**/tests/**/output*
-packages/next-swc/target/**/*
+packages/next-swc/crates/core/tests/loader/issue-32553/input.js
+target/**/*
 packages/next-swc/native/**/*
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
