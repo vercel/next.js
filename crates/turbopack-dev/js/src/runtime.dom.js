@@ -17,10 +17,7 @@ let BACKEND;
       }
 
       for (const otherChunkData of params.otherChunks) {
-        const otherChunkPath =
-          typeof otherChunkData === "string"
-            ? otherChunkData
-            : otherChunkData.path;
+        const otherChunkPath = getChunkPath(otherChunkData);
         if (otherChunkPath.endsWith(".css")) {
           // Mark all CSS chunks within the same chunk group as this chunk as loaded.
           // They are just injected as <link> tag and have to way to communicate completion.

@@ -157,6 +157,8 @@ export interface TurbopackGlobals {
   TURBOPACK_CHUNK_LISTS?: ChunkList[];
 }
 
+export type GetChunkPath = (chunkData: ChunkData) => ChunkPath;
+
 export type GetFirstModuleChunk = (moduleId: ModuleId) => ChunkPath | null;
 export type GetOrInstantiateRuntimeModule = (
   moduleId: ModuleId,
