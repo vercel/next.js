@@ -2,8 +2,8 @@ module.exports = {
   experimental: {
     turbo: {
       loaders: {
-        ".emit": ["emit-loader"],
+        '.emit': ['emit-loader'],
       },
     },
   },
-};
+}
