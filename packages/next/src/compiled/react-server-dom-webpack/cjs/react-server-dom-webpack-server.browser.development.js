@@ -1466,6 +1466,12 @@ function serializeUndefined() {
   return '$undefined';
 }
 
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
+}
+
 function serializeBigInt(n) {
   return '$n' + n.toString(10);
 }
@@ -1557,11 +1563,12 @@ function escapeStringValue(value) {
 var insideContextProps = null;
 var isInsideContextValue = false;
 function resolveModelToJSON(request, parent, key, value) {
+  // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
   {
     // $FlowFixMe[incompatible-use]
     var originalValue = parent[key];
 
-    if (typeof originalValue === 'object' && originalValue !== value) {
+    if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
       if (objectName(originalValue) !== 'Object') {
         var jsxParentType = jsxChildrenParents.get(parent);
 
@@ -1722,6 +1729,17 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
+    // TODO: Maybe too clever. If we support URL there's no similar trick.
+    if (value[value.length - 1] === 'Z') {
+      // Possibly a Date, whose toJSON automatically calls toISOString
+      // $FlowFixMe[incompatible-use]
+      var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+
+      if (_originalValue instanceof Date) {
+        return serializeDateFromDateJSON(value);
+      }
+    }
+
     return escapeStringValue(value);
   }
 
@@ -2332,27 +2350,6 @@ function wakeChunk(listeners, value) {
   }
 }
 
-function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
-  switch (chunk.status) {
-    case INITIALIZED:
-      wakeChunk(resolveListeners, chunk.value);
-      break;
-
-    case PENDING:
-    case BLOCKED:
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
-      break;
-
-    case ERRORED:
-      if (rejectListeners) {
-        wakeChunk(rejectListeners, chunk.reason);
-      }
-
-      break;
-  }
-}
-
 function triggerErrorOnChunk(chunk, error) {
   if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
     // We already resolved. We didn't expect to see this.
@@ -2372,28 +2369,6 @@ function triggerErrorOnChunk(chunk, error) {
 function createResolvedModelChunk(response, value) {
   // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
   return new Chunk(RESOLVED_MODEL, value, null, response);
-}
-
-function resolveModelChunk(chunk, value) {
-  if (chunk.status !== PENDING) {
-    // We already resolved. We didn't expect to see this.
-    return;
-  }
-
-  var resolveListeners = chunk.value;
-  var rejectListeners = chunk.reason;
-  var resolvedChunk = chunk;
-  resolvedChunk.status = RESOLVED_MODEL;
-  resolvedChunk.value = value;
-
-  if (resolveListeners !== null) {
-    // This is unfortunate that we're reading this eagerly if
-    // we already have listeners attached since they might no
-    // longer be rendered or might not be the highest pri.
-    initializeModelChunk(resolvedChunk); // The status might have changed after initialization.
-
-    wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
-  }
 }
 
 function bindArgs(fn, args) {
@@ -2482,7 +2457,19 @@ function getChunk(response, id) {
   var chunk = chunks.get(id);
 
   if (!chunk) {
-    chunk = createPendingChunk(response);
+    var prefix = response._prefix;
+    var key = prefix + id; // Check if we have this field in the backing store already.
+
+    var backingEntry = response._formData.get(key);
+
+    if (backingEntry != null) {
+      // We assume that this is a string entry for now.
+      chunk = createResolvedModelChunk(response, backingEntry);
+    } else {
+      // We're still waiting on this entry to stream in.
+      chunk = createPendingChunk(response);
+    }
+
     chunks.set(id, chunk);
   }
 
@@ -2573,6 +2560,25 @@ function parseModelString(response, parentObject, key, value) {
           return loadServerReference(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
         }
 
+      case 'K':
+        {
+          // FormData
+          var stringId = value.substring(2);
+          var formPrefix = response._prefix + stringId + '_';
+          var data = new FormData();
+          var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
+          // entry that it references so we can assume they all exist in the
+          // backing store already.
+          // $FlowFixMe[prop-missing] FormData has forEach on it.
+
+          backingFormData.forEach(function (entry, entryKey) {
+            if (entryKey.startsWith(formPrefix)) {
+              data.append(entryKey.substr(formPrefix.length), entry);
+            }
+          });
+          return data;
+        }
+
       case 'I':
         {
           // $Infinity
@@ -2600,6 +2606,12 @@ function parseModelString(response, parentObject, key, value) {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
+        }
+
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.substring(2)));
         }
 
       case 'n':
@@ -2644,10 +2656,13 @@ function parseModelString(response, parentObject, key, value) {
   return value;
 }
 
-function createResponse(bundlerConfig) {
+function createResponse(bundlerConfig, formFieldPrefix) {
+  var backingFormData = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : new FormData();
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
+    _prefix: formFieldPrefix,
+    _formData: backingFormData,
     _chunks: chunks,
     _fromJSON: function (key, value) {
       if (typeof value === 'string') {
@@ -2659,19 +2674,6 @@ function createResponse(bundlerConfig) {
     }
   };
   return response;
-}
-function resolveField(response, id, model) {
-  var chunks = response._chunks;
-  var chunk = chunks.get(id);
-
-  if (!chunk) {
-    chunks.set(id, createResolvedModelChunk(response, model));
-  } else {
-    resolveModelChunk(chunk, model);
-  }
-}
-function resolveFile(response, id, file) {
-  throw new Error('Not implemented.');
 }
 function close(response) {
   // In case there are any remaining unresolved chunks, they won't
@@ -2716,23 +2718,13 @@ function renderToReadableStream(model, webpackMap, options) {
 }
 
 function decodeReply(body, webpackMap) {
-  var response = createResponse(webpackMap);
-
   if (typeof body === 'string') {
-    resolveField(response, 0, body);
-  } else {
-    // $FlowFixMe[prop-missing] Flow doesn't know that forEach exists.
-    body.forEach(function (value, key) {
-      var id = +key;
-
-      if (typeof value === 'string') {
-        resolveField(response, id, value);
-      } else {
-        resolveFile();
-      }
-    });
+    var form = new FormData();
+    form.append('0', body);
+    body = form;
   }
 
+  var response = createResponse(webpackMap, '', body);
   close(response);
   return getRoot(response);
 }

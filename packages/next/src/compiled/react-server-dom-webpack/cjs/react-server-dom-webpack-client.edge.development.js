@@ -683,6 +683,12 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.substring(2)));
+        }
+
       case 'n':
         {
           // BigInt

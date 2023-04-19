@@ -1538,6 +1538,12 @@ function serializeUndefined() {
   return '$undefined';
 }
 
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
+}
+
 function serializeBigInt(n) {
   return '$n' + n.toString(10);
 }
@@ -1629,11 +1635,12 @@ function escapeStringValue(value) {
 var insideContextProps = null;
 var isInsideContextValue = false;
 function resolveModelToJSON(request, parent, key, value) {
+  // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
   {
     // $FlowFixMe[incompatible-use]
     var originalValue = parent[key];
 
-    if (typeof originalValue === 'object' && originalValue !== value) {
+    if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
       if (objectName(originalValue) !== 'Object') {
         var jsxParentType = jsxChildrenParents.get(parent);
 
@@ -1794,6 +1801,17 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'string') {
+    // TODO: Maybe too clever. If we support URL there's no similar trick.
+    if (value[value.length - 1] === 'Z') {
+      // Possibly a Date, whose toJSON automatically calls toISOString
+      // $FlowFixMe[incompatible-use]
+      var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+
+      if (_originalValue instanceof Date) {
+        return serializeDateFromDateJSON(value);
+      }
+    }
+
     return escapeStringValue(value);
   }
 
@@ -2488,7 +2506,19 @@ function getChunk(response, id) {
   var chunk = chunks.get(id);
 
   if (!chunk) {
-    chunk = createPendingChunk(response);
+    var prefix = response._prefix;
+    var key = prefix + id; // Check if we have this field in the backing store already.
+
+    var backingEntry = response._formData.get(key);
+
+    if (backingEntry != null) {
+      // We assume that this is a string entry for now.
+      chunk = createResolvedModelChunk(response, backingEntry);
+    } else {
+      // We're still waiting on this entry to stream in.
+      chunk = createPendingChunk(response);
+    }
+
     chunks.set(id, chunk);
   }
 
@@ -2579,6 +2609,25 @@ function parseModelString(response, parentObject, key, value) {
           return loadServerReference(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
         }
 
+      case 'K':
+        {
+          // FormData
+          var stringId = value.substring(2);
+          var formPrefix = response._prefix + stringId + '_';
+          var data = new FormData();
+          var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
+          // entry that it references so we can assume they all exist in the
+          // backing store already.
+          // $FlowFixMe[prop-missing] FormData has forEach on it.
+
+          backingFormData.forEach(function (entry, entryKey) {
+            if (entryKey.startsWith(formPrefix)) {
+              data.append(entryKey.substr(formPrefix.length), entry);
+            }
+          });
+          return data;
+        }
+
       case 'I':
         {
           // $Infinity
@@ -2606,6 +2655,12 @@ function parseModelString(response, parentObject, key, value) {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
+        }
+
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.substring(2)));
         }
 
       case 'n':
@@ -2650,10 +2705,13 @@ function parseModelString(response, parentObject, key, value) {
   return value;
 }
 
-function createResponse(bundlerConfig) {
+function createResponse(bundlerConfig, formFieldPrefix) {
+  var backingFormData = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : new FormData();
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
+    _prefix: formFieldPrefix,
+    _formData: backingFormData,
     _chunks: chunks,
     _fromJSON: function (key, value) {
       if (typeof value === 'string') {
@@ -2666,27 +2724,40 @@ function createResponse(bundlerConfig) {
   };
   return response;
 }
-function resolveField(response, id, model) {
-  var chunks = response._chunks;
-  var chunk = chunks.get(id);
+function resolveField(response, key, value) {
+  // Add this field to the backing store.
+  response._formData.append(key, value);
 
-  if (!chunk) {
-    chunks.set(id, createResolvedModelChunk(response, model));
-  } else {
-    resolveModelChunk(chunk, model);
+  var prefix = response._prefix;
+
+  if (key.startsWith(prefix)) {
+    var chunks = response._chunks;
+    var id = +key.substr(prefix.length);
+    var chunk = chunks.get(id);
+
+    if (chunk) {
+      // We were waiting on this key so now we can resolve it.
+      resolveModelChunk(chunk, value);
+    }
   }
 }
-function resolveFile(response, id, file) {
-  throw new Error('Not implemented.');
-}
-function resolveFileInfo(response, id, filename, mime) {
-  throw new Error('Not implemented.');
+function resolveFileInfo(response, key, filename, mime) {
+  return {
+    chunks: [],
+    filename: filename,
+    mime: mime
+  };
 }
 function resolveFileChunk(response, handle, chunk) {
-  throw new Error('Not implemented.');
+  handle.chunks.push(chunk);
 }
-function resolveFileComplete(response, handle) {
-  throw new Error('Not implemented.');
+function resolveFileComplete(response, key, handle) {
+  // Add this file to the backing store.
+  var file = new File(handle.chunks, handle.filename, {
+    type: handle.mime
+  });
+
+  response._formData.append(key, file);
 }
 function close(response) {
   // In case there are any remaining unresolved chunks, they won't
@@ -2724,23 +2795,25 @@ function renderToPipeableStream(model, webpackMap, options) {
 }
 
 function decodeReplyFromBusboy(busboyStream, webpackMap) {
-  var response = createResponse(webpackMap);
+  var response = createResponse(webpackMap, '');
   busboyStream.on('field', function (name, value) {
-    var id = +name;
-    resolveField(response, id, value);
+    resolveField(response, name, value);
   });
   busboyStream.on('file', function (name, value, _ref) {
-    var encoding = _ref.encoding;
+    var filename = _ref.filename,
+        encoding = _ref.encoding,
+        mimeType = _ref.mimeType;
 
     if (encoding.toLowerCase() === 'base64') {
       throw new Error("React doesn't accept base64 encoded file uploads because we don't expect " + "form data passed from a browser to ever encode data that way. If that's " + 'the wrong assumption, we can easily fix it.');
     }
-    resolveFileInfo();
+
+    var file = resolveFileInfo(response, name, filename, mimeType);
     value.on('data', function (chunk) {
-      resolveFileChunk();
+      resolveFileChunk(response, file, chunk);
     });
     value.on('end', function () {
-      resolveFileComplete();
+      resolveFileComplete(response, name, file);
     });
   });
   busboyStream.on('finish', function () {
@@ -2753,23 +2826,13 @@ function decodeReplyFromBusboy(busboyStream, webpackMap) {
 }
 
 function decodeReply(body, webpackMap) {
-  var response = createResponse(webpackMap);
-
   if (typeof body === 'string') {
-    resolveField(response, 0, body);
-  } else {
-    // $FlowFixMe[prop-missing] Flow doesn't know that forEach exists.
-    body.forEach(function (value, key) {
-      var id = +key;
-
-      if (typeof value === 'string') {
-        resolveField(response, id, value);
-      } else {
-        resolveFile();
-      }
-    });
+    var form = new FormData();
+    form.append('0', body);
+    body = form;
   }
 
+  var response = createResponse(webpackMap, '', body);
   close(response);
   return getRoot(response);
 }

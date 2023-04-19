@@ -716,6 +716,12 @@ function parseModelString(response, parentObject, key, value) {
           return undefined;
         }
 
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.substring(2)));
+        }
+
       case 'n':
         {
           // BigInt
@@ -1334,6 +1340,11 @@ function serializeSymbolReference(name) {
   return '$S' + name;
 }
 
+function serializeFormDataReference(id) {
+  // Why K? F is "Function". D is "Date". What else?
+  return '$K' + id.toString(16);
+}
+
 function serializeNumber(number) {
   if (Number.isFinite(number)) {
     if (number === 0 && 1 / number === -Infinity) {
@@ -1356,6 +1367,12 @@ function serializeUndefined() {
   return '$undefined';
 }
 
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
+}
+
 function serializeBigInt(n) {
   return '$n' + n.toString(10);
 }
@@ -1370,19 +1387,19 @@ function escapeStringValue(value) {
   }
 }
 
-function processReply(root, resolve, reject) {
+function processReply(root, formFieldPrefix, resolve, reject) {
   var nextPartId = 1;
   var pendingParts = 0;
   var formData = null;
 
   function resolveToJSON(key, value) {
-    var parent = this;
+    var parent = this; // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
 
     {
       // $FlowFixMe[incompatible-use]
-      var originalValue = this[key];
+      var originalValue = parent[key];
 
-      if (typeof originalValue === 'object' && originalValue !== value) {
+      if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
         if (objectName(originalValue) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(originalValue), describeObjectForErrorMessage(parent, key));
         } else {
@@ -1413,7 +1430,7 @@ function processReply(root, resolve, reject) {
 
           var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-          data.append('' + promiseId, partJSON);
+          data.append(formFieldPrefix + promiseId, partJSON);
           pendingParts--;
 
           if (pendingParts === 0) {
@@ -1425,6 +1442,26 @@ function processReply(root, resolve, reject) {
           reject(reason);
         });
         return serializePromiseID(promiseId);
+      } // TODO: Should we the Object.prototype.toString.call() to test for cross-realm objects?
+
+
+      if (value instanceof FormData) {
+        if (formData === null) {
+          // Upgrade to use FormData to allow us to use rich objects as its values.
+          formData = new FormData();
+        }
+
+        var data = formData;
+        var refId = nextPartId++; // Copy all the form fields with a prefix for this reference.
+        // These must come first in the form order because we assume that all the
+        // fields are available before this is referenced.
+
+        var prefix = formFieldPrefix + refId + '_'; // $FlowFixMe[prop-missing]: FormData has forEach.
+
+        value.forEach(function (originalValue, originalKey) {
+          data.append(prefix + originalKey, originalValue);
+        });
+        return serializeFormDataReference(refId);
       }
 
       if (!isArray(value)) {
@@ -1463,6 +1500,17 @@ function processReply(root, resolve, reject) {
     }
 
     if (typeof value === 'string') {
+      // TODO: Maybe too clever. If we support URL there's no similar trick.
+      if (value[value.length - 1] === 'Z') {
+        // Possibly a Date, whose toJSON automatically calls toISOString
+        // $FlowFixMe[incompatible-use]
+        var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+
+        if (_originalValue instanceof Date) {
+          return serializeDateFromDateJSON(value);
+        }
+      }
+
       return escapeStringValue(value);
     }
 
@@ -1490,10 +1538,11 @@ function processReply(root, resolve, reject) {
         } // The reference to this function came from the same client so we can pass it back.
 
 
-        var refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
+        var _refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
 
-        formData.set('' + refId, metaDataJSON);
-        return serializeServerReferenceID(refId);
+
+        formData.set(formFieldPrefix + _refId, metaDataJSON);
+        return serializeServerReferenceID(_refId);
       }
 
       throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
@@ -1526,7 +1575,7 @@ function processReply(root, resolve, reject) {
     resolve(json);
   } else {
     // Otherwise, we use FormData to let us stream in the result.
-    formData.set('0', json);
+    formData.set(formFieldPrefix + '0', json);
 
     if (pendingParts === 0) {
       // $FlowFixMe[incompatible-call] this has already been refined.
@@ -1610,7 +1659,7 @@ function encodeReply(value)
 /* We don't use URLSearchParams yet but maybe */
 {
   return new Promise(function (resolve, reject) {
-    processReply(value, resolve, reject);
+    processReply(value, '', resolve, reject);
   });
 }
 

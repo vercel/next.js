@@ -3205,34 +3205,22 @@ function validateInputProps(element, props) {
     }
   }
 }
-function updateInput(element, value, defaultValue, checked, defaultChecked, type) {
-  var node = element;
+function updateInput(element, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name) {
+  var node = element; // Temporarily disconnect the input from any radio buttons.
+  // Changing the type or name as the same time as changing the checked value
+  // needs to be atomically applied. We can only ensure that by disconnecting
+  // the name while do the mutations and then reapply the name after that's done.
 
-  {
-    // When syncing the value attribute, the value comes from a cascade of
-    // properties:
-    //  1. The value React property
-    //  2. The defaultValue React property
-    //  3. Otherwise there should be no change
-    if (value != null) {
-      setDefaultValue(node, type, getToStringValue(value));
-    } else if (defaultValue != null) {
-      setDefaultValue(node, type, getToStringValue(defaultValue));
-    } else {
-      node.removeAttribute('value');
+  node.name = '';
+
+  if (type != null && typeof type !== 'function' && typeof type !== 'symbol' && typeof type !== 'boolean') {
+    {
+      checkAttributeStringCoercion(type, 'type');
     }
-  }
 
-  {
-    // When syncing the checked attribute, it only changes when it needs
-    // to be removed, such as transitioning from a checkbox into a text input
-    if (checked == null && defaultChecked != null) {
-      node.defaultChecked = !!defaultChecked;
-    }
-  }
-
-  if (checked != null && node.checked !== !!checked) {
-    node.checked = checked;
+    node.type = type;
+  } else {
+    node.removeAttribute('type');
   }
 
   if (value != null) {
@@ -3252,9 +3240,54 @@ function updateInput(element, value, defaultValue, checked, defaultChecked, type
     node.removeAttribute('value');
     return;
   }
+
+  {
+    // When syncing the value attribute, the value comes from a cascade of
+    // properties:
+    //  1. The value React property
+    //  2. The defaultValue React property
+    //  3. Otherwise there should be no change
+    if (value != null) {
+      setDefaultValue(node, type, getToStringValue(value));
+    } else if (defaultValue != null) {
+      setDefaultValue(node, type, getToStringValue(defaultValue));
+    } else if (lastDefaultValue != null) {
+      node.removeAttribute('value');
+    }
+  }
+
+  {
+    // When syncing the checked attribute, it only changes when it needs
+    // to be removed, such as transitioning from a checkbox into a text input
+    if (checked == null && defaultChecked != null) {
+      node.defaultChecked = !!defaultChecked;
+    }
+  }
+
+  if (checked != null && node.checked !== !!checked) {
+    node.checked = checked;
+  }
+
+  if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
+    {
+      checkAttributeStringCoercion(name, 'name');
+    }
+
+    node.name = name;
+  } else {
+    node.removeAttribute('name');
+  }
 }
-function initInput(element, value, defaultValue, checked, defaultChecked, type, isHydrating) {
+function initInput(element, value, defaultValue, checked, defaultChecked, type, name, isHydrating) {
   var node = element;
+
+  if (type != null && typeof type !== 'function' && typeof type !== 'symbol' && typeof type !== 'boolean') {
+    {
+      checkAttributeStringCoercion(type, 'type');
+    }
+
+    node.type = type;
+  }
 
   if (value != null || defaultValue != null) {
     var isButton = type === 'submit' || type === 'reset'; // Avoid setting value attribute on submit/reset inputs as it overrides the
@@ -3295,12 +3328,6 @@ function initInput(element, value, defaultValue, checked, defaultChecked, type, 
   // We need to temporarily unset name to avoid disrupting radio button groups.
 
 
-  var name = node.name;
-
-  if (name !== '') {
-    node.name = '';
-  }
-
   var checkedOrDefault = checked != null ? checked : defaultChecked; // TODO: This 'function' or 'symbol' check isn't replicated in other places
   // so this semantic is inconsistent.
 
@@ -3323,15 +3350,20 @@ function initInput(element, value, defaultValue, checked, defaultChecked, type, 
     //   3. Otherwise, false
     node.defaultChecked = !node.defaultChecked;
     node.defaultChecked = !!initialChecked;
-  }
+  } // Name needs to be set at the end so that it applies atomically to connected radio buttons.
 
-  if (name !== '') {
+
+  if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
+    {
+      checkAttributeStringCoercion(name, 'name');
+    }
+
     node.name = name;
   }
 }
 function restoreControlledInputState(element, props) {
   var rootNode = element;
-  updateInput(rootNode, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type);
+  updateInput(rootNode, props.value, props.defaultValue, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name);
   var name = props.name;
 
   if (props.type === 'radio' && name != null) {
@@ -3377,7 +3409,7 @@ function restoreControlledInputState(element, props) {
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
-      updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type);
+      updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -26825,7 +26857,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-d962f35ca-20230418';
+var ReactVersion = '18.3.0-next-1f248bdd7-20230419';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -31611,6 +31643,7 @@ function setInitialProperties(domElement, tag, props) {
 
 
         listenToNonDelegatedEvent('invalid', domElement);
+        var name = null;
         var type = null;
         var value = null;
         var defaultValue = null;
@@ -31629,28 +31662,21 @@ function setInitialProperties(domElement, tag, props) {
           }
 
           switch (propKey) {
+            case 'name':
+              {
+                name = propValue;
+                break;
+              }
+
             case 'type':
               {
-                // Fast path since 'type' is very common on inputs
-                if (propValue != null && typeof propValue !== 'function' && typeof propValue !== 'symbol' && typeof propValue !== 'boolean') {
-                  type = propValue;
-
-                  {
-                    checkAttributeStringCoercion(propValue, propKey);
-                  }
-
-                  domElement.setAttribute(propKey, propValue);
-                }
-
+                type = propValue;
                 break;
               }
 
             case 'checked':
               {
                 checked = propValue;
-                var checkedValue = propValue != null ? propValue : props.defaultChecked;
-                var inputElement = domElement;
-                inputElement.checked = !!checkedValue && typeof checkedValue !== 'function' && checkedValue !== 'symbol';
                 break;
               }
 
@@ -31691,9 +31717,9 @@ function setInitialProperties(domElement, tag, props) {
         // up necessary since we never stop tracking anymore.
 
 
-        track(domElement);
         validateInputProps(domElement, props);
-        initInput(domElement, value, defaultValue, checked, defaultChecked, type, false);
+        initInput(domElement, value, defaultValue, checked, defaultChecked, type, name, false);
+        track(domElement);
         return;
       }
 
@@ -31819,9 +31845,9 @@ function setInitialProperties(domElement, tag, props) {
         // up necessary since we never stop tracking anymore.
 
 
-        track(domElement);
         validateTextareaProps(domElement, props);
         initTextarea(domElement, _value2, _defaultValue2, children);
+        track(domElement);
         return;
       }
 
@@ -32128,6 +32154,7 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
         var type = nextProps.type;
         var value = nextProps.value;
         var defaultValue = nextProps.defaultValue;
+        var lastDefaultValue = lastProps.defaultValue;
         var checked = nextProps.checked;
         var defaultChecked = nextProps.defaultChecked;
 
@@ -32138,17 +32165,6 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
           switch (propKey) {
             case 'type':
               {
-                // Fast path since 'type' is very common on inputs
-                if (propValue != null && typeof propValue !== 'function' && typeof propValue !== 'symbol' && typeof propValue !== 'boolean') {
-                  {
-                    checkAttributeStringCoercion(propValue, propKey);
-                  }
-
-                  domElement.setAttribute(propKey, propValue);
-                } else {
-                  domElement.removeAttribute(propKey);
-                }
-
                 break;
               }
 
@@ -32159,9 +32175,6 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             case 'checked':
               {
-                var checkedValue = propValue != null ? propValue : nextProps.defaultChecked;
-                var inputElement = domElement;
-                inputElement.checked = !!checkedValue && typeof checkedValue !== 'function' && checkedValue !== 'symbol';
                 break;
               }
 
@@ -32212,25 +32225,12 @@ function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nex
 
             didWarnControlledToUncontrolled = true;
           }
-        } // Update checked *before* name.
-        // In the middle of an update, it is possible to have multiple checked.
-        // When a checked radio tries to change name, browser makes another radio's checked false.
-
-
-        if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
-          {
-            checkAttributeStringCoercion(name, 'name');
-          }
-
-          domElement.setAttribute('name', name);
-        } else {
-          domElement.removeAttribute('name');
         } // Update the wrapper around inputs *after* updating props. This has to
         // happen after updating the rest of props. Otherwise HTML5 input validations
         // raise warnings and prevent the new value from being assigned.
 
 
-        updateInput(domElement, value, defaultValue, checked, defaultChecked, type);
+        updateInput(domElement, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name);
         return;
       }
 
@@ -33137,14 +33137,14 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
       // up necessary since we never stop tracking anymore.
 
-      track(domElement);
       validateInputProps(domElement, props); // For input and textarea we current always set the value property at
       // post mount to force it to diverge from attributes. However, for
       // option and select we don't quite do the same thing and select
       // is not resilient to the DOM state changing so we don't do that here.
       // TODO: Consider not doing this for input and textarea.
 
-      initInput(domElement, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type, true);
+      initInput(domElement, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name, true);
+      track(domElement);
       break;
 
     case 'option':
@@ -33172,9 +33172,9 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
       // up necessary since we never stop tracking anymore.
 
-      track(domElement);
       validateTextareaProps(domElement, props);
       initTextarea(domElement, props.value, props.defaultValue, props.children);
+      track(domElement);
       break;
   }
 
