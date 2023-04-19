@@ -14,15 +14,7 @@ export function unstable_cache(
     tags?: string[]
   }
 ): Callback {
-  if (!Array.isArray(keyParts) || keyParts.length === 0) {
-    throw new Error(
-      `Invariant keyParts must be an array with more than one item received ${JSON.stringify(
-        keyParts
-      )}`
-    )
-  }
-
-  const joinedKey = keyParts.join(', ')
+  const joinedKey = cb.toString() + '-' + keyParts.join(', ')
   const staticGenerationAsyncStorage = (
     fetch as any
   ).__nextGetStaticStore?.() as undefined | StaticGenerationAsyncStorage

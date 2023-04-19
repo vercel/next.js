@@ -126,7 +126,10 @@ export default class FetchCache implements CacheHandler {
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'GET',
-            headers: this.headers,
+            headers: {
+              ...this.headers,
+              'X-Vercel-Cache-Item-Name': fetchUrl,
+            } as any,
             next: fetchParams as NextFetchRequestConfig,
           }
         )
@@ -238,7 +241,10 @@ export default class FetchCache implements CacheHandler {
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
-            headers,
+            headers: {
+              ...headers,
+              'X-Vercel-Cache-Item-Name': fetchUrl || '',
+            },
             body: body,
             next: fetchParams as NextFetchRequestConfig,
           }

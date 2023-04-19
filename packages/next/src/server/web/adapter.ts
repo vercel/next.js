@@ -17,7 +17,6 @@ import {
   RSC,
 } from '../../client/components/app-router-headers'
 import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
-import { IncrementalCache } from '../lib/incremental-cache'
 
 declare const _ENTRIES: any
 
@@ -57,6 +56,7 @@ export type AdapterOptions = {
   handler: NextMiddleware
   page: string
   request: RequestData
+  IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
 }
 
 export async function adapter(
@@ -143,8 +143,13 @@ export async function adapter(
     })
   }
 
-  if (!(globalThis as any).__incrementalCache) {
-    ;(globalThis as any).__incrementalCache = new IncrementalCache({
+  if (
+    !(globalThis as any).__incrementalCache &&
+    (params as any).IncrementalCache
+  ) {
+    ;(globalThis as any).__incrementalCache = new (
+      params as any
+    ).IncrementalCache({
       appDir: true,
       fetchCache: true,
       minimalMode: true,
