@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import { img } from '../components/img'
+import broken from '../public/broken.jpeg'
 import { useEffect } from 'react'
 
 export default function Home() {
@@ -32,6 +33,11 @@ function runTests() {
     expect(img).toHaveProperty('height', 100)
   })
 
+  it('should not return image size for broken images', function () {
+    expect(broken).toHaveProperty('width', 0)
+    expect(broken).toHaveProperty('height', 0)
+  })
+
   it('should have blur placeholder', function () {
     expect(img).toHaveProperty(
       'blurDataURL',
@@ -39,6 +45,12 @@ function runTests() {
     )
     expect(img).toHaveProperty('blurWidth', 8)
     expect(img).toHaveProperty('blurHeight', 7)
+  })
+
+  it('should not have blur placeholder for broken images', function () {
+    expect(broken).toHaveProperty('blurDataURL', null)
+    expect(broken).toHaveProperty('blurWidth', 0)
+    expect(broken).toHaveProperty('blurHeight', 0)
   })
 
   it('should link to imported image', function () {
