@@ -154,7 +154,7 @@ createNextDescribe(
           const html = await next.render('/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
           )
         })
 
@@ -233,8 +233,11 @@ createNextDescribe(
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
           expect(
-            [...html.matchAll(/<link rel="stylesheet" href="[^.]+\.css"/g)]
-              .length
+            [
+              ...html.matchAll(
+                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+              ),
+            ].length
           ).toBe(3)
         })
       })
@@ -280,14 +283,14 @@ createNextDescribe(
             const browser = await next.browser('/css/css-duplicate/a')
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/a/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/a/page.css'))`
               )
             ).toBe(true)
 
             // Should not load the chunk from /b
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/b/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/b/page.css'))`
               )
             ).toBe(false)
           })
