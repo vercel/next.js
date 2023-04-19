@@ -1,7 +1,7 @@
 import { PrefetchCacheEntry } from './router-reducer-types'
 
 const FIVE_MINUTES = 5 * 60 * 1000
-const THIRTY_SECONDS = 5 * 1000
+const THIRTY_SECONDS = 30 * 1000
 
 export enum PrefetchCacheEntryStatus {
   reusable = 'reusable',

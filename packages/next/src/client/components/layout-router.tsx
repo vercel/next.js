@@ -277,28 +277,26 @@ function InnerLayoutRouter({
     // TODO-APP: verify if this can be null based on user code
     childProp.current !== null
   ) {
-    if (childNode) {
-      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
-        // @ts-expect-error we're changing it's type!
-        childNode.status = CacheStates.READY
-        // @ts-expect-error
-        childNode.subTreeData = childProp.current
-        // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-        childProp.current = null
+    if (!childNode || childNode.status !== CacheStates.READY) {
+      if (childNode) {
+        if (childNode.status === CacheStates.LAZY_INITIALIZED) {
+          // @ts-expect-error we're changing it's type!
+          childNode.status = CacheStates.READY
+          // @ts-expect-error
+          childNode.subTreeData = childProp.current
+        }
+      } else {
+        // Add the segment's subTreeData to the cache.
+        // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
+        childNodes.set(cacheKey, {
+          status: CacheStates.READY,
+          data: null,
+          subTreeData: childProp.current,
+          parallelRoutes: new Map(),
+        })
+        // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
+        childNode = childNodes.get(cacheKey)
       }
-    } else {
-      // Add the segment's subTreeData to the cache.
-      // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-      childNodes.set(cacheKey, {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: childProp.current,
-        parallelRoutes: new Map(),
-      })
-      // Mutates the prop in order to clean up the memory associated with the subTreeData as it is now part of the cache.
-      childProp.current = null
-      // In the above case childNode was set on childNodes, so we have to get it from the cacheNodes again.
-      childNode = childNodes.get(cacheKey)
     }
   }
 

@@ -23,16 +23,19 @@ export function prefetchReducer(
   )
 
   const cacheEntry = state.prefetchCache.get(href)
-  // If the href was already prefetched it is not necessary to prefetch it again
-  if (
-    cacheEntry &&
-    // unless the cache entry was prefetched with 'auto' and the current prefetch is 'full'
-    (!(cacheEntry.kind === 'auto' && action.kind === 'full') ||
-      // or the cache entry is expired
+
+  if (cacheEntry) {
+    /**
+     * 1 - if the entry is not expired, there's no need to prefetch again
+     * 2 - if the prefetch action was a full prefetch and that the current cache entry wasn't one, we want to re-prefetch, otherwise we can re-use the current cache entry
+     **/
+    if (
       getPrefetchEntryCacheStatus(cacheEntry) !==
-        PrefetchCacheEntryStatus.expired)
-  ) {
-    return state
+        PrefetchCacheEntryStatus.expired ||
+      !(cacheEntry.kind === 'auto' && action.kind === 'full')
+    ) {
+      return state
+    }
   }
 
   // fetchServerResponse is intentionally not awaited so that it can be unwrapped in the navigate-reducer

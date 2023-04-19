@@ -11,7 +11,7 @@ export function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightDataPath: FlightDataPath,
-  wasPrefetched: boolean
+  wasPrefetched?: boolean
 ): void {
   const isLastEntry = flightDataPath.length <= 5
   const [parallelRouteKey, segment] = flightDataPath

@@ -112,7 +112,6 @@ createNextDescribe(
             .click()
             .waitForElementByCss('#random-number')
 
-          console.log(getRequests())
           expect(
             getRequests().every(([url]) => getPathname(url) !== '/0')
           ).toEqual(true)
@@ -354,7 +353,11 @@ createNextDescribe(
             .waitForElementByCss('#random-number')
             .text()
 
-          await browser.elementByCss('[href="/"]').click()
+          await browser
+            .elementByCss('[href="/"]')
+            .click()
+            .waitForElementByCss('[href="/1?timeout=1000"]')
+
           await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
           const newLoadingNumber = await browser

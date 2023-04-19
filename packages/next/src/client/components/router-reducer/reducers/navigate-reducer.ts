@@ -1,4 +1,7 @@
-import { CacheStates } from '../../../../shared/lib/app-router-context'
+import {
+  CacheNode,
+  CacheStates,
+} from '../../../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -25,6 +28,7 @@ import {
   PrefetchCacheEntryStatus,
   getPrefetchEntryCacheStatus,
 } from '../get-prefetch-cache-entry-status'
+import { prunePrefetchCache } from './prune-prefetch-cache'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -67,17 +71,39 @@ function generateSegmentsFromPatch(
   return segments
 }
 
-function prunePrefetchCache(prefetchCache: ReducerState['prefetchCache']) {
-  for (const [href, prefetchCacheEntry] of prefetchCache) {
-    if (
-      getPrefetchEntryCacheStatus(prefetchCacheEntry) ===
-      PrefetchCacheEntryStatus.expired
-    ) {
-      prefetchCache.delete(href)
+function addRefetchToLeafSegments(
+  newCache: CacheNode,
+  currentCache: CacheNode,
+  currentTree: FlightRouterState,
+  flightSegmentPath: FlightSegmentPath,
+  treePatch: FlightRouterState,
+  url: URL,
+  nextUrl: string
+) {
+  let appliedPatch = false
+
+  newCache.status = CacheStates.READY
+  newCache.subTreeData = currentCache.subTreeData
+  newCache.parallelRoutes = new Map(currentCache.parallelRoutes)
+
+  const segmentPathsToFill = generateSegmentsFromPatch(treePatch).map(
+    (segment) => [...flightSegmentPath, ...segment]
+  )
+
+  for (const segmentPaths of segmentPathsToFill) {
+    const res = fillCacheWithDataProperty(
+      newCache,
+      currentCache,
+      segmentPaths,
+      () => fetchServerResponse(url, currentTree, nextUrl)
+    )
+    if (!res?.bailOptimistic) {
+      appliedPatch = true
     }
   }
-}
 
+  return appliedPatch
+}
 export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
@@ -131,7 +157,7 @@ export function navigateReducer(
     for (const flightDataPath of flightData) {
       const flightSegmentPath = flightDataPath.slice(
         0,
-        -3
+        -4
       ) as unknown as FlightSegmentPath
       // The one before last item is the router state tree patch
       const [treePatch] = flightDataPath.slice(-3) as [FlightRouterState]
@@ -160,13 +186,28 @@ export function navigateReducer(
           return handleExternalUrl(state, mutable, href, pendingPush)
         }
 
-        const applied = applyFlightData(
+        let applied = applyFlightData(
           currentCache,
           cache,
           flightDataPath,
-          // if the entry is stale, we'll revalidate below the tree and trigger a refetch from the layout router
-          prefetchEntryCacheStatus !== PrefetchCacheEntryStatus.stale
+          prefetchValues.kind === 'auto' &&
+            prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
         )
+
+        if (
+          !applied &&
+          prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
+        ) {
+          applied = addRefetchToLeafSegments(
+            cache,
+            currentCache,
+            currentTree,
+            flightSegmentPath,
+            treePatch,
+            url,
+            state.nextUrl!
+          )
+        }
 
         const hardNavigate = shouldHardNavigate(
           // TODO-APP: remove ''
@@ -235,14 +276,19 @@ export function navigateReducer(
     cache.subTreeData = state.cache.subTreeData
 
     const data = fetchServerResponse(url, optimisticTree, state.nextUrl)
+    // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
+    // TODO-APP: re-evaluate if we need to strip the last segment
+    const optimisticFlightSegmentPath = segments
+      .slice(1)
+      .map((segment) => ['children', segment])
+      .flat()
 
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
     // The `data` property is used to suspend in layout-router during render if it hasn't resolved yet by the time it renders.
     const res = fillCacheWithDataProperty(
       cache,
       state.cache,
-      // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
-      segments.slice(1),
+      optimisticFlightSegmentPath,
       () => data
     )
 
@@ -278,11 +324,8 @@ export function navigateReducer(
     )
   }
 
-  // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
-  const data = readRecordValue(cache.data!)
-
   state.prefetchCache.set(createHrefFromUrl(url, false), {
-    data: Promise.resolve(data),
+    data: Promise.resolve(cache.data!),
     // this will make sure that the entry will be discarded after 30s
     kind: 'temporary',
     prefetchTime: Date.now(),
@@ -290,8 +333,10 @@ export function navigateReducer(
     lastUsedTime: Date.now(),
   })
 
-  const [flightData, canonicalUrlOverride] = data
+  // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
+  const [flightData, canonicalUrlOverride] = readRecordValue(cache.data!)
 
+  console.log('reading flight data', flightData)
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
     return handleExternalUrl(state, mutable, flightData, pendingPush)
