@@ -1,12 +1,12 @@
-import { useEffect } from "react";
+import { useEffect } from 'react'
 
 export default function Home({ params }: { params: any }) {
   useEffect(() => {
     // Only run on client
-    import("@turbo/pack-test-harness").then(() => runTests(params));
-  });
+    import('@turbo/pack-test-harness').then(() => runTests(params))
+  })
 
-  return <div>Test</div>;
+  return <div>Test</div>
 }
 
 export function getServerSideProps(ctx: { params: any }) {
@@ -14,13 +14,13 @@ export function getServerSideProps(ctx: { params: any }) {
     props: {
       params: ctx.params,
     },
-  };
+  }
 }
 
 function runTests(params: any) {
-  describe("catch-all segments", () => {
-    it("should be passed a param array", () => {
-      expect(params.segment).toEqual("dynamic-segment");
-    });
-  });
+  describe('catch-all segments', () => {
+    it('should be passed a param array', () => {
+      expect(params.segment).toEqual('dynamic-segment')
+    })
+  })
 }

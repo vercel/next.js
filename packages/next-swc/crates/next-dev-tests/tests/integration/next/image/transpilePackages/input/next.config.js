@@ -1,7 +1,7 @@
 /**@type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
-  transpilePackages: ["magic-image"],
-};
+  transpilePackages: ['magic-image'],
+}
 
-module.exports = config;
+module.exports = config
