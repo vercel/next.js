@@ -1,7 +1,5 @@
 import { unstable_cache } from 'next/server'
 
-export const revalidate = 0
-
 export default async function Page() {
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?page',
