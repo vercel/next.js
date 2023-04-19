@@ -495,8 +495,11 @@ createNextDescribe(
         })
 
         await match('meta', 'name', 'content', {
-          'twitter:image':
-            'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
+          'twitter:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/twitter-image.png?b76e8f0282c93c8e',
           'twitter:image:alt': 'A alt txt for twitter',
           'twitter:card': 'summary_large_image',
         })
