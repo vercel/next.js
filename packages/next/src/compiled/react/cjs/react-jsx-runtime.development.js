@@ -230,6 +230,7 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
+      // eslint-disable-next-line no-fallthrough
     }
   }
 
