@@ -16,6 +16,7 @@ pub mod error;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
+pub mod plugin;
 pub mod reference;
 pub mod reference_type;
 pub mod resolve;
