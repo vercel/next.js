@@ -487,8 +487,11 @@ createNextDescribe(
           'og:image:height': '114',
           'og:image:type': 'image/png',
           'og:image:alt': 'A alt txt for og',
-          'og:image':
-            'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
+          'og:image': isNextDev
+            ? expect.stringMatching(
+                /http:\/\/localhost:\d+\/opengraph\/static\/opengraph-image.png\?b76e8f0282c93c8e/
+              )
+            : 'https://example.com/opengraph/static/opengraph-image.png?b76e8f0282c93c8e',
         })
 
         await match('meta', 'name', 'content', {

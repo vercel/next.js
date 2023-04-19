@@ -276,21 +276,23 @@ createNextDescribe(
       expect(twitterDescription).toBe('Twitter - This is a Next.js App')
 
       // Should prefer to pick up deployment url for metadata routes
+      let ogImageUrlPattern
+      let twitterImageUrlPattern
       if (isNextDeploy) {
         // absolute urls
-        expect(ogImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/opengraph-image\?/
-        )
-        expect(twitterImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/twitter-image\?/
-        )
+        ogImageUrlPattern = /https:\/\/\w+.vercel.app\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/\w+.vercel.app\/twitter-image\?/
+      } else if (isNextStart) {
+        // configured metadataBase for next start
+        ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/mydomain.com\/twitter-image\?/
       } else {
-        // absolute urls
-        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image\?/)
-        expect(twitterImageUrl).toMatch(
-          /http:\/\/localhost:\d+\/twitter-image\?/
-        )
+        // localhost for dev
+        ogImageUrlPattern = /http:\/\/localhost:\d+\/opengraph-image\?/
+        twitterImageUrlPattern = /http:\/\/localhost:\d+\/twitter-image\?/
       }
+      expect(ogImageUrl).toMatch(ogImageUrlPattern)
+      expect(twitterImageUrl).toMatch(twitterImageUrlPattern)
       expect(ogImageUrl).toMatch(hashRegex)
       expect(twitterImageUrl).toMatch(hashRegex)
 
