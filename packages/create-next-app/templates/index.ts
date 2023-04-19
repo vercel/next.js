@@ -149,10 +149,10 @@ export const installTemplate = async ({
         tailwindConfigFile,
         (
           await fs.promises.readFile(tailwindConfigFile, 'utf8')
-        ).replace(
-          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
-          './src/$1/**/*.{js,ts,jsx,tsx,mdx}'
         )
+        .replace("'./pages/**/*.{js,ts,jsx,tsx,mdx}',\n", '')
+        .replace("'./components/**/*.{js,ts,jsx,tsx,mdx}',", '')
+        .replace("'./app/**/*.{js,ts,jsx,tsx,mdx}',", "'./src/**/*.{js,ts,jsx,tsx,mdx}',")  
       )
     }
   }
