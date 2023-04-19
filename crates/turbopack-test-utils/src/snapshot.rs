@@ -31,19 +31,22 @@ pub async fn snapshot_issues<
     let expected_issues = expected(issues_path).await?;
     let mut seen = HashSet::new();
     for (plain_issue, debug_string) in captured_issues.into_iter() {
+        let title = plain_issue
+            .title
+            .replace('/', "__")
+            // We replace "*", "?", and '"' because they're not allowed in filenames on Windows.
+            .replace('*', "__star__")
+            .replace('"', "__quo__")
+            .replace('?', "__q__")
+            .replace(':', "__c__");
+        let title = if title.len() > 50 {
+            &title[0..50]
+        } else {
+            &title
+        };
         let hash = encode_hex(plain_issue.internal_hash(true));
 
-        let path = issues_path.join(&format!(
-            "{}-{}.txt",
-            plain_issue
-                .title
-                .replace('/', "__")
-                // We replace "*", "?", and '"' because they're not allowed in filenames on Windows.
-                .replace('*', "__star__")
-                .replace('"', "__quo__")
-                .replace('?', "__q__"),
-            &hash[0..6]
-        ));
+        let path = issues_path.join(&format!("{title}-{}.txt", &hash[0..6]));
         if !seen.insert(path) {
             continue;
         }
