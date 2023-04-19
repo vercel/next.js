@@ -305,6 +305,21 @@ createNextDescribe(
       )
     })
 
+    it('should use localhost for local prod and fallback to deployment url when metadataBase is falsy', async () => {
+      const $ = await next.render$('/metadata-base/unset')
+      const twitterImage = $('meta[name="twitter:image"]').attr('content')
+
+      if (isNextDeploy) {
+        expect(twitterImage).toMatch(
+          /https:\/\/\w+.vercel.app\/metadata-base\/unset\/twitter-image\.png/
+        )
+      } else {
+        expect(twitterImage).toMatch(
+          /http:\/\/localhost:\d+\/metadata-base\/unset\/twitter-image\.png/
+        )
+      }
+    })
+
     if (isNextStart) {
       it('should support edge runtime of image routes', async () => {
         const middlewareManifest = JSON.parse(
