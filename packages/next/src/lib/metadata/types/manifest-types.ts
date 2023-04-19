@@ -1,40 +1,16 @@
-type ManifestCategory = 
-    | "books"
-    | "business"
-    | "education"
-    | "entertainment"
-    | "finance"
-    | "fitness"
-    | "food"
-    | "games"
-    | "government"
-    | "health"
-    | "kids"
-    | "lifestyle"
-    | "magazines"
-    | "medical"
-    | "music"
-    | "navigation"
-    | "news"
-    | "personalization"
-    | "photo"
-    | "politics"
-    | "productivity"
-    | "security"
-    | "shopping"
-    | "social"
-    | "sports"
-    | "travel"
-    | "utilities"
-    | "weather" 
-    
 export type Manifest = {
   background_color?: string
-  categories?: ManifestCategory[]
+  categories?: string[]
   description?: string
   dir?: 'ltr' | 'rtl' | 'auto'
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
-  display_override?: ('fullscreen' | 'standalone' | 'minimal-ui' | 'browser' | 'window-controls-overlay')[]
+  display_override?: (
+    | 'fullscreen'
+    | 'standalone'
+    | 'minimal-ui'
+    | 'browser'
+    | 'window-controls-overlay'
+  )[]
   file_handlers?: {
     action: string
     accept: {
