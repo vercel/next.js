@@ -21,6 +21,8 @@ use self::source::StructuredImageSourceAsset;
 
 pub(crate) mod source;
 
+/// Module type that analyzes images and offers some meta information like
+/// width, height and blur placeholder as export from the module.
 #[turbo_tasks::value]
 pub struct StructuredImageModuleType {}
 

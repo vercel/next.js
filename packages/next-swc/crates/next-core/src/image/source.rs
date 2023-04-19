@@ -41,6 +41,8 @@ pub struct ImageExport<'a> {
     blur_height: u32,
 }
 
+/// An source asset that transforms an image into javascript code which exports
+/// an object with meta information like width, height and a blur placeholder.
 #[turbo_tasks::value(shared)]
 pub struct StructuredImageSourceAsset {
     pub image: AssetVc,
