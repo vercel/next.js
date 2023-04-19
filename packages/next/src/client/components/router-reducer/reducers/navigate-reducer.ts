@@ -236,8 +236,7 @@ export function navigateReducer(
 
         for (const subSegment of generateSegmentsFromPatch(treePatch)) {
           scrollableSegments.push(
-            // the last segment is the same as the first segment in the patch
-            [...flightSegmentPath.slice(0, -1), ...subSegment].filter(
+            [...flightSegmentPath, ...subSegment].filter(
               (segment) => segment !== '__PAGE__'
             )
           )
