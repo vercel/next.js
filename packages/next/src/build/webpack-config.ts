@@ -705,7 +705,10 @@ export default async function getBaseWebpackConfig(
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
-    if (isEdgeRuntime(config.experimental.runtime)) {
+    if (
+      'runtime' in config.experimental &&
+      isEdgeRuntime(config.experimental.runtime as unknown as string)
+    ) {
       Log.warn(
         'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
