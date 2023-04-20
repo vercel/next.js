@@ -1,11 +1,14 @@
 use anyhow::{Context, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
 use turbo_binding::{
     turbo::{tasks::TryJoinIterExt, tasks_fs::File},
     turbopack::{
-        core::asset::AssetContentVc,
+        core::{
+            asset::AssetContentVc,
+            introspect::{Introspectable, IntrospectableVc},
+        },
         dev_server::source::{
             ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
             ContentSourceVc,
@@ -77,10 +80,17 @@ impl DevManifestContentSourceVc {
         let mut routes = routes
             .into_iter()
             .flatten()
-            .map(|s| s.to_string())
+            .map(|s| {
+                if !s.starts_with('/') {
+                    format!("/{}", s)
+                } else {
+                    s.to_string()
+                }
+            })
             .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
+        routes.dedup();
 
         Ok(StringsVc::cell(routes))
     }
@@ -182,6 +192,22 @@ impl ContentSource for DevManifestContentSource {
             ContentSourceContentVc::static_content(AssetContentVc::from(manifest_file).into())
                 .into(),
         ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for DevManifestContentSource {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        StringVc::cell("dev manifest source".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn details(&self) -> StringVc {
+        StringVc::cell(
+            "provides _devPagesManifest.json, _buildManifest.js and _devMiddlewareManifest.json."
+                .to_string(),
+        )
     }
 }
 
