@@ -1,15 +1,15 @@
-import { foo, bar } from "thing";
+import { foo, bar } from 'thing'
 
 export default function Home() {
-  foo;
-  return <div />;
+  foo
+  return <div />
 }
 
 export function otherExport() {
-  foo;
-  bar;
+  foo
+  bar
 }
 
 export async function getStaticProps() {
-  bar;
+  bar
 }

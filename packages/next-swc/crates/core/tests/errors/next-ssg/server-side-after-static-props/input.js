@@ -1,3 +1,2 @@
 const getStaticProps = async () => {}
-export { a as getServerSideProps } 
-
+export { a as getServerSideProps }

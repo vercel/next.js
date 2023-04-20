@@ -28,7 +28,7 @@ The cases where the query will be updated after hydration triggering another ren
 
 To be able to distinguish if the query is fully updated and ready for use, you can leverage the `isReady` field on [`next/router`](/docs/api-reference/next/router.md#router-object).
 
-> **Note:** Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) will always be available inside the `query` object.
+> **Note**: Parameters added with [dynamic routes](/docs/routing/dynamic-routes.md) to a page that's using [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md) will always be available inside the `query` object.
 
 `next build` will emit `.html` files for statically optimized pages. For example, the result for the page `pages/about.js` would be:
 

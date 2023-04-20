@@ -1,4 +1,3 @@
-'use server';
+'use server'
 
 export const x = 1
-
