@@ -22,10 +22,14 @@ use turbo_binding::{
             CustomTransformVc, CustomTransformer, EcmascriptInputTransform,
             EcmascriptInputTransformsVc, TransformContext,
         },
-        turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect},
+        turbopack::module_options::{
+            ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType,
+        },
     },
 };
 use turbo_tasks::trace::TraceRawVcs;
+
+use crate::image::StructuredImageModuleTypeVc;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(
@@ -78,6 +82,24 @@ impl CustomTransformer for NextJsStripPageExports {
             )),
         )
     }
+}
+
+/// Returns a rule which applies the Next.js dynamic transform.
+pub fn get_next_image_rule() -> ModuleRule {
+    ModuleRule::new(
+        ModuleRuleCondition::any(vec![
+            ModuleRuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".png".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".webp".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".avif".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".apng".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".gif".to_string()),
+        ]),
+        vec![ModuleRuleEffect::ModuleType(ModuleType::Custom(
+            StructuredImageModuleTypeVc::new().into(),
+        ))],
+    )
 }
 
 /// Returns a rule which applies the Next.js dynamic transform.
