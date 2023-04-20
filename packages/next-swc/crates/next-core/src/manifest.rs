@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
 use turbo_binding::{
