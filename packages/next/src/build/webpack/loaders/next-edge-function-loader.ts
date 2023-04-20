@@ -19,6 +19,7 @@ export default function middlewareLoader(this: any) {
 
   return `
         import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+        import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
 
         enhanceGlobals()
 
@@ -32,6 +33,7 @@ export default function middlewareLoader(this: any) {
         export default function (opts) {
           return adapter({
               ...opts,
+              IncrementalCache,
               page: ${JSON.stringify(page)},
               handler,
           })

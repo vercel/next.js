@@ -1,11 +1,11 @@
-import { PropTypes } from "react";
+import { PropTypes } from 'react'
 
 export default function Page() {
-  return <div />;
+  return <div />
 }
 
 const propTypes = identity(
   (Page.propTypes = {
     prop: PropTypes.bool,
   })
-);
+)

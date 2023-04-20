@@ -1,16 +1,16 @@
-import { useContext, createContext } from "react";
+import { useContext, createContext } from 'react'
 
-export const context = createContext();
+export const context = createContext()
 
 export function getStaticProps() {
-  return { props: {} };
+  return { props: {} }
 }
 
 function El() {
-  const value = useContext(context);
-  return <div />;
+  const value = useContext(context)
+  return <div />
 }
 
-const a = 5;
+const a = 5
 
-export { El as default, a };
+export { El as default, a }

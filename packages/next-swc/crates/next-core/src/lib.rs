@@ -9,6 +9,7 @@ mod babel;
 mod embed_js;
 pub mod env;
 mod fallback;
+mod image;
 pub mod manifest;
 mod next_build;
 pub mod next_client;
@@ -46,5 +47,6 @@ pub fn register() {
     turbopack::dev_server::register();
     turbopack::node::register();
     turbopack::turbopack::register();
+    turbopack::image::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

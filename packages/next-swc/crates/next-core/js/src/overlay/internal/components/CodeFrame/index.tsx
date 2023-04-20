@@ -1,2 +1,2 @@
-export { CodeFrame } from "./CodeFrame";
-export { styles } from "./styles";
+export { CodeFrame } from './CodeFrame'
+export { styles } from './styles'
