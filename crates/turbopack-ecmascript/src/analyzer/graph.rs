@@ -320,21 +320,23 @@ impl EvalContext {
         JsValue::concat(values)
     }
 
+    fn eval_ident(&self, i: &Ident) -> JsValue {
+        let id = i.to_id();
+        if let Some(imported) = self.imports.get_import(&id) {
+            return imported;
+        }
+        if is_unresolved(i, self.unresolved_mark) {
+            JsValue::FreeVar(i.sym.clone())
+        } else {
+            JsValue::Variable(id)
+        }
+    }
+
     pub fn eval(&self, e: &Expr) -> JsValue {
         match e {
             Expr::Paren(e) => self.eval(&e.expr),
             Expr::Lit(e) => JsValue::Constant(e.clone().into()),
-            Expr::Ident(i) => {
-                let id = i.to_id();
-                if let Some(imported) = self.imports.get_import(&id) {
-                    return imported;
-                }
-                if is_unresolved(i, self.unresolved_mark) {
-                    JsValue::FreeVar(i.sym.clone())
-                } else {
-                    JsValue::Variable(id)
-                }
-            }
+            Expr::Ident(i) => self.eval_ident(i),
 
             Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
@@ -943,6 +945,29 @@ impl VisitAstPath for Analyzer<'_> {
             AstParentNodeRef::AssignExpr(n, AssignExprField::Left),
             |ast_path| match &n.left {
                 PatOrExpr::Expr(expr) => {
+                    if let Some(key) = expr.as_ident() {
+                        let value = match n.op {
+                            AssignOp::Assign => unreachable!(
+                                "AssignOp::Assign will never have an expression in n.left"
+                            ),
+                            AssignOp::AndAssign | AssignOp::OrAssign | AssignOp::NullishAssign => {
+                                let right = self.eval_context.eval(&n.right);
+                                // We can handle the right value as alternative to the existing
+                                // value
+                                Some(right)
+                            }
+                            AssignOp::AddAssign => {
+                                let left = self.eval_context.eval(expr);
+                                let right = self.eval_context.eval(&n.right);
+                                Some(JsValue::add(vec![left, right]))
+                            }
+                            _ => Some(JsValue::unknown_empty("unsupported assign operation")),
+                        };
+                        if let Some(value) = value {
+                            self.add_value(key.to_id(), value);
+                        }
+                    }
+
                     ast_path.with(
                         AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Expr),
                         |ast_path| {
@@ -951,6 +976,7 @@ impl VisitAstPath for Analyzer<'_> {
                     );
                 }
                 PatOrExpr::Pat(pat) => {
+                    debug_assert!(n.op == AssignOp::Assign);
                     ast_path.with(
                         AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Pat),
                         |ast_path| {
@@ -966,6 +992,26 @@ impl VisitAstPath for Analyzer<'_> {
             AstParentNodeRef::AssignExpr(n, AssignExprField::Right),
             |ast_path| {
                 self.visit_expr(&n.right, ast_path);
+            },
+        );
+    }
+
+    fn visit_update_expr<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast UpdateExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if let Some(key) = n.arg.as_ident() {
+            self.add_value(
+                key.to_id(),
+                JsValue::unknown_empty("updated with update expression"),
+            );
+        }
+
+        ast_path.with(
+            AstParentNodeRef::UpdateExpr(n, UpdateExprField::Arg),
+            |ast_path| {
+                self.visit_expr(&n.arg, ast_path);
             },
         );
     }

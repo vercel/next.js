@@ -365,7 +365,16 @@ endPosDetails = peg$computePosDetails(endPos)
 
 error = (...) => undefined
 
-escapedParts = ""
+escapedParts = (
+  | ""
+  | (
+      + escapedParts
+      + (
+          | `${classEscape(expectation["parts"][i][0])}-${classEscape(expectation["parts"][i][1])}`
+          | classEscape(expectation["parts"][i])
+        )
+    )
+)
 
 expectation#11 = arguments[0]
 
@@ -460,13 +469,15 @@ hex#7 = (...) => (
   | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
 )
 
-i#22 = (???*0* | 0 | 1)
+i#22 = (???*0* | 0 | ???*1* | 1)
 - *0* i
   ⚠️  pattern without value
+- *1* updated with update expression
 
-i#9 = (???*0* | 0)
+i#9 = (???*0* | 0 | ???*1*)
 - *0* i
   ⚠️  pattern without value
+- *1* updated with update expression
 
 ignoreCase#107 = arguments[1]
 
@@ -476,9 +487,10 @@ input = arguments[0]
 
 inverted = arguments[1]
 
-j = (???*0* | 1)
+j = (???*0* | 1 | ???*1*)
 - *0* j
   ⚠️  pattern without value
+- *1* updated with update expression
 
 joins = arguments[1]
 
@@ -539,10 +551,11 @@ order = arguments[1]
 
 orderBy = arguments[4]
 
-p = (???*0* | ???*1*)
+p = (???*0* | ???*1* | ???*2*)
 - *0* p
   ⚠️  pattern without value
 - *1* unsupported expression
+- *2* updated with update expression
 
 parent = arguments[1]
 
@@ -1013,6 +1026,7 @@ peg$currPos = (
   | s9
   | s11
   | s0
+  | ???*0*
   | s0
   | s3
   | s0
@@ -1029,6 +1043,8 @@ peg$currPos = (
   | s5
   | s0
   | s0
+  | (peg$currPos + 9)
+  | (peg$currPos + 2)
   | s4
   | s0
   | s0
@@ -1039,6 +1055,16 @@ peg$currPos = (
   | s4
   | s3
   | s0
+  | (peg$currPos + 6)
+  | s2
+  | s0
+  | (peg$currPos + 3)
+  | s2
+  | s0
+  | (peg$currPos + 4)
+  | s2
+  | s0
+  | (peg$currPos + 5)
   | s2
   | s0
   | s2
@@ -1063,12 +1089,7 @@ peg$currPos = (
   | s0
   | s2
   | s0
-  | s2
-  | s0
-  | s2
-  | s0
-  | s2
-  | s0
+  | (peg$currPos + 7)
   | s2
   | s0
   | s2
@@ -1135,6 +1156,7 @@ peg$currPos = (
   | s0
   | s0
 )
+- *0* updated with update expression
 
 peg$endExpectation = (...) => (undefined | {"type": "end"})
 
@@ -1424,7 +1446,8 @@ peg$savedPos = (
   | s0
 )
 
-peg$silentFails = 0
+peg$silentFails = (0 | ???*0*)
+- *0* updated with update expression
 
 peg$startRuleFunction = (peg$parsesql | peg$startRuleFunctions[options["startRule"]])
 

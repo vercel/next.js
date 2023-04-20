@@ -188,17 +188,18 @@ hex = (
 
 hexTab = "0123456789abcdef"
 
-i#3 = 0
+i#3 = (0 | ???*0*)
+- *0* updated with update expression
 
-i#5 = (???*0* | 0)
+i#5 = (???*0* | 0 | (i + 8))
 - *0* i
   ⚠️  pattern without value
 
-i#7 = (???*0* | 0)
+i#7 = (???*0* | 0 | (i + 16))
 - *0* i
   ⚠️  pattern without value
 
-i#9 = (???*0* | 0)
+i#9 = (???*0* | 0 | (i + 1) | (i + 8))
 - *0* i
   ⚠️  pattern without value
 

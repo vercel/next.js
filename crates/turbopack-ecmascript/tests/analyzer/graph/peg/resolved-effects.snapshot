@@ -901,12 +901,13 @@
 - *5* details
   ⚠️  circular variable reference
 
-233 -> 239 member call = ???*0*["charCodeAt"]((???*1* | ???*2*))
+233 -> 239 member call = ???*0*["charCodeAt"]((???*1* | ???*2* | ???*3*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* p
   ⚠️  pattern without value
 - *2* unsupported expression
+- *3* updated with update expression
 
 233 -> 240 conditional = (???*0* === 10)
 - *0* ???*1*["charCodeAt"](p)
@@ -1120,7 +1121,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-315 -> 316 conditional = true
+315 -> 316 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 316 -> 317 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1191,7 +1193,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-338 -> 339 conditional = true
+338 -> 339 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 339 -> 340 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1240,7 +1243,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-353 -> 354 conditional = true
+353 -> 354 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 354 -> 355 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1471,7 +1475,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-427 -> 428 conditional = true
+427 -> 428 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 428 -> 429 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1520,7 +1525,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-442 -> 443 conditional = true
+442 -> 443 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 443 -> 444 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1617,7 +1623,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-470 -> 471 conditional = true
+470 -> 471 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 471 -> 472 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1658,7 +1665,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-482 -> 483 conditional = true
+482 -> 483 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 483 -> 484 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1699,7 +1707,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-494 -> 495 conditional = true
+494 -> 495 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 495 -> 496 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1744,7 +1753,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-506 -> 507 conditional = true
+506 -> 507 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 507 -> 508 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1785,7 +1795,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-518 -> 519 conditional = true
+518 -> 519 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 519 -> 520 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1816,7 +1827,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-525 -> 526 conditional = true
+525 -> 526 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 526 -> 527 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1855,7 +1867,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-537 -> 538 conditional = true
+537 -> 538 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 538 -> 539 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1904,7 +1917,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-552 -> 553 conditional = true
+552 -> 553 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 553 -> 554 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1952,7 +1966,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-566 -> 567 conditional = true
+566 -> 567 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 567 -> 568 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -1984,7 +1999,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-573 -> 574 conditional = true
+573 -> 574 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 574 -> 575 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2024,7 +2040,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-585 -> 586 conditional = true
+585 -> 586 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 586 -> 587 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2086,7 +2103,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-605 -> 606 conditional = true
+605 -> 606 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 606 -> 607 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2136,7 +2154,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-622 -> 623 conditional = true
+622 -> 623 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 623 -> 624 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2164,7 +2183,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-628 -> 629 conditional = true
+628 -> 629 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 629 -> 630 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2199,7 +2219,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-636 -> 639 conditional = true
+636 -> 639 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 639 -> 640 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2238,7 +2259,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-648 -> 651 conditional = true
+648 -> 651 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 651 -> 652 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2262,7 +2284,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-656 -> 657 conditional = true
+656 -> 657 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 657 -> 658 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2301,7 +2324,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-664 -> 667 conditional = true
+664 -> 667 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 667 -> 668 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2350,7 +2374,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-676 -> 679 conditional = true
+676 -> 679 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 679 -> 680 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2383,7 +2408,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-685 -> 686 conditional = true
+685 -> 686 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 686 -> 687 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2435,7 +2461,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-696 -> 697 conditional = true
+696 -> 697 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 697 -> 698 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2468,7 +2495,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-704 -> 705 conditional = true
+704 -> 705 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 705 -> 706 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2520,7 +2548,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-715 -> 716 conditional = true
+715 -> 716 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 716 -> 717 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2550,7 +2579,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-722 -> 723 conditional = true
+722 -> 723 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 723 -> 724 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2589,7 +2619,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-734 -> 735 conditional = true
+734 -> 735 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 735 -> 736 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2638,7 +2669,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-749 -> 750 conditional = true
+749 -> 750 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 750 -> 751 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2686,7 +2718,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-763 -> 764 conditional = true
+763 -> 764 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 764 -> 765 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2715,7 +2748,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-770 -> 771 conditional = true
+770 -> 771 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 771 -> 772 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2754,7 +2788,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-782 -> 783 conditional = true
+782 -> 783 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 783 -> 784 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2803,7 +2838,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-797 -> 798 conditional = true
+797 -> 798 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 798 -> 799 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2851,7 +2887,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-811 -> 812 conditional = true
+811 -> 812 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 812 -> 813 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2910,7 +2947,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-828 -> 831 conditional = true
+828 -> 831 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 831 -> 832 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2930,7 +2968,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-835 -> 836 conditional = true
+835 -> 836 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 836 -> 837 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -2969,7 +3008,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-843 -> 846 conditional = true
+843 -> 846 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 846 -> 847 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3010,7 +3050,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-856 -> 859 conditional = true
+856 -> 859 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 859 -> 860 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3050,7 +3091,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-867 -> 870 conditional = true
+867 -> 870 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 870 -> 871 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3090,7 +3132,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-878 -> 881 conditional = true
+878 -> 881 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 881 -> 882 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3130,7 +3173,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-889 -> 892 conditional = true
+889 -> 892 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 892 -> 893 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3170,7 +3214,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-900 -> 903 conditional = true
+900 -> 903 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 903 -> 904 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3210,7 +3255,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-911 -> 914 conditional = true
+911 -> 914 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 914 -> 915 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3250,7 +3296,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-922 -> 925 conditional = true
+922 -> 925 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 925 -> 926 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3290,7 +3337,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-933 -> 936 conditional = true
+933 -> 936 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 936 -> 937 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3330,7 +3378,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-944 -> 947 conditional = true
+944 -> 947 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 947 -> 948 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3370,7 +3419,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-955 -> 958 conditional = true
+955 -> 958 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 958 -> 959 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3410,7 +3460,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-966 -> 969 conditional = true
+966 -> 969 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 969 -> 970 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3450,7 +3501,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-977 -> 980 conditional = true
+977 -> 980 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 980 -> 981 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3500,7 +3552,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-990 -> 993 conditional = true
+990 -> 993 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 993 -> 994 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3550,7 +3603,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1003 -> 1006 conditional = true
+1003 -> 1006 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1006 -> 1007 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3600,7 +3654,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1016 -> 1019 conditional = true
+1016 -> 1019 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1019 -> 1020 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3650,7 +3705,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1029 -> 1032 conditional = true
+1029 -> 1032 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1032 -> 1033 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3700,7 +3756,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1042 -> 1045 conditional = true
+1042 -> 1045 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1045 -> 1046 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3740,7 +3797,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1053 -> 1056 conditional = true
+1053 -> 1056 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1056 -> 1057 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3780,7 +3838,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1064 -> 1067 conditional = true
+1064 -> 1067 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1067 -> 1068 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3805,7 +3864,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1073 -> 1074 conditional = true
+1073 -> 1074 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1074 -> 1075 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3830,7 +3890,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1080 -> 1081 conditional = true
+1080 -> 1081 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1081 -> 1082 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3855,7 +3916,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1087 -> 1088 conditional = true
+1087 -> 1088 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1088 -> 1089 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -3880,7 +3942,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1094 -> 1095 conditional = true
+1094 -> 1095 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1095 -> 1096 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4036,7 +4099,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1151 -> 1154 conditional = true
+1151 -> 1154 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1154 -> 1155 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4089,7 +4153,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1162 -> 1165 conditional = true
+1162 -> 1165 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1165 -> 1166 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4135,7 +4200,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1173 -> 1176 conditional = true
+1173 -> 1176 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1176 -> 1177 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4187,7 +4253,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1182 -> 1183 conditional = true
+1182 -> 1183 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1183 -> 1184 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4228,7 +4295,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1191 -> 1192 conditional = true
+1191 -> 1192 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1192 -> 1193 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4251,7 +4319,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1197 -> 1198 conditional = true
+1197 -> 1198 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1198 -> 1199 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4274,7 +4343,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1203 -> 1204 conditional = true
+1203 -> 1204 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1204 -> 1205 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4299,7 +4369,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1210 -> 1211 conditional = true
+1210 -> 1211 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1211 -> 1212 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4322,7 +4393,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1216 -> 1217 conditional = true
+1216 -> 1217 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1217 -> 1218 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4355,7 +4427,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1226 -> 1227 conditional = true
+1226 -> 1227 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1227 -> 1228 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4386,7 +4459,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1235 -> 1236 conditional = true
+1235 -> 1236 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1236 -> 1237 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4409,7 +4483,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1241 -> 1242 conditional = true
+1241 -> 1242 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1242 -> 1243 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4442,7 +4517,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1251 -> 1252 conditional = true
+1251 -> 1252 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1252 -> 1253 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4467,7 +4543,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-0 -> 1261 conditional = true
+0 -> 1261 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1261 -> 1262 call = (...) => (undefined | FreeVar(undefined))((undefined | {"type": "any"}))
 
@@ -4496,7 +4573,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1271 -> 1272 conditional = true
+1271 -> 1272 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1272 -> 1273 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4519,7 +4597,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1277 -> 1278 conditional = true
+1277 -> 1278 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1278 -> 1279 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4542,7 +4621,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1283 -> 1284 conditional = true
+1283 -> 1284 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1284 -> 1285 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4565,7 +4645,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1289 -> 1290 conditional = true
+1289 -> 1290 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1290 -> 1291 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4594,7 +4675,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1297 -> 1298 conditional = true
+1297 -> 1298 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1298 -> 1299 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4623,7 +4705,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1305 -> 1306 conditional = true
+1305 -> 1306 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1306 -> 1307 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4652,7 +4735,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1313 -> 1314 conditional = true
+1313 -> 1314 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1314 -> 1315 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4681,7 +4765,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1321 -> 1322 conditional = true
+1321 -> 1322 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1322 -> 1323 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4724,7 +4809,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1335 -> 1336 conditional = true
+1335 -> 1336 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1336 -> 1337 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4744,7 +4830,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1340 -> 1341 conditional = true
+1340 -> 1341 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1341 -> 1342 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4859,7 +4946,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-1360 -> 1363 conditional = true
+1360 -> 1363 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1363 -> 1364 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4945,7 +5033,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1392 -> 1393 conditional = true
+1392 -> 1393 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1393 -> 1394 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -4985,7 +5074,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1404 -> 1405 conditional = true
+1404 -> 1405 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1405 -> 1406 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5089,7 +5179,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1437 -> 1438 conditional = true
+1437 -> 1438 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1438 -> 1439 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5142,7 +5233,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1453 -> 1454 conditional = true
+1453 -> 1454 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1454 -> 1455 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5193,7 +5285,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1469 -> 1470 conditional = true
+1469 -> 1470 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1470 -> 1471 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5231,7 +5324,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1480 -> 1481 conditional = true
+1480 -> 1481 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1481 -> 1482 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5284,7 +5378,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1496 -> 1497 conditional = true
+1496 -> 1497 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1497 -> 1498 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5335,7 +5430,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1512 -> 1513 conditional = true
+1512 -> 1513 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1513 -> 1514 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5416,7 +5512,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1536 -> 1537 conditional = true
+1536 -> 1537 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1537 -> 1538 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5457,7 +5554,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1548 -> 1549 conditional = true
+1548 -> 1549 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1549 -> 1550 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5525,7 +5623,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1567 -> 1568 conditional = true
+1567 -> 1568 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1568 -> 1569 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5571,7 +5670,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1582 -> 1583 conditional = true
+1582 -> 1583 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1583 -> 1584 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5676,7 +5776,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1617 -> 1618 conditional = true
+1617 -> 1618 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1618 -> 1619 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5700,7 +5801,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1623 -> 1624 conditional = true
+1623 -> 1624 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1624 -> 1625 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5724,7 +5826,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1629 -> 1630 conditional = true
+1629 -> 1630 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1630 -> 1631 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5766,7 +5869,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1642 -> 1643 conditional = true
+1642 -> 1643 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1643 -> 1644 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5790,7 +5894,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1648 -> 1649 conditional = true
+1648 -> 1649 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1649 -> 1650 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5814,7 +5919,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1654 -> 1655 conditional = true
+1654 -> 1655 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1655 -> 1656 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5865,7 +5971,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1669 -> 1670 conditional = true
+1669 -> 1670 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1670 -> 1671 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5889,7 +5996,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1675 -> 1676 conditional = true
+1675 -> 1676 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1676 -> 1677 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5913,7 +6021,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1681 -> 1682 conditional = true
+1681 -> 1682 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1682 -> 1683 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5937,7 +6046,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1687 -> 1688 conditional = true
+1687 -> 1688 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1688 -> 1689 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -5979,7 +6089,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1700 -> 1701 conditional = true
+1700 -> 1701 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1701 -> 1702 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6003,7 +6114,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1706 -> 1707 conditional = true
+1706 -> 1707 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1707 -> 1708 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6027,7 +6139,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1712 -> 1713 conditional = true
+1712 -> 1713 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1713 -> 1714 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6051,7 +6164,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1718 -> 1719 conditional = true
+1718 -> 1719 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1719 -> 1720 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6114,7 +6228,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1737 -> 1738 conditional = true
+1737 -> 1738 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1738 -> 1739 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6155,7 +6270,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1749 -> 1750 conditional = true
+1749 -> 1750 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1750 -> 1751 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6263,7 +6379,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1783 -> 1784 conditional = true
+1783 -> 1784 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1784 -> 1785 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6305,7 +6422,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1796 -> 1797 conditional = true
+1796 -> 1797 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1797 -> 1798 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6356,7 +6474,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1811 -> 1812 conditional = true
+1811 -> 1812 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1812 -> 1813 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6398,7 +6517,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1824 -> 1825 conditional = true
+1824 -> 1825 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1825 -> 1826 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6449,7 +6569,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1839 -> 1840 conditional = true
+1839 -> 1840 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1840 -> 1841 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6491,7 +6612,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1852 -> 1853 conditional = true
+1852 -> 1853 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1853 -> 1854 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6542,7 +6664,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1867 -> 1868 conditional = true
+1867 -> 1868 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1868 -> 1869 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6566,7 +6689,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1873 -> 1874 conditional = true
+1873 -> 1874 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1874 -> 1875 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6590,7 +6714,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1879 -> 1880 conditional = true
+1879 -> 1880 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1880 -> 1881 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6632,7 +6757,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1892 -> 1893 conditional = true
+1892 -> 1893 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1893 -> 1894 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6656,7 +6782,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1898 -> 1899 conditional = true
+1898 -> 1899 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1899 -> 1900 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6680,7 +6807,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1904 -> 1905 conditional = true
+1904 -> 1905 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1905 -> 1906 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6731,7 +6859,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1919 -> 1920 conditional = true
+1919 -> 1920 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1920 -> 1921 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6755,7 +6884,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1925 -> 1926 conditional = true
+1925 -> 1926 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1926 -> 1927 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6779,7 +6909,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1931 -> 1932 conditional = true
+1931 -> 1932 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1932 -> 1933 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6821,7 +6952,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1944 -> 1945 conditional = true
+1944 -> 1945 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1945 -> 1946 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6845,7 +6977,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1950 -> 1951 conditional = true
+1950 -> 1951 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1951 -> 1952 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6869,7 +7002,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1956 -> 1957 conditional = true
+1956 -> 1957 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1957 -> 1958 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6920,7 +7054,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1971 -> 1972 conditional = true
+1971 -> 1972 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1972 -> 1973 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6944,7 +7079,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1977 -> 1978 conditional = true
+1977 -> 1978 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1978 -> 1979 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -6968,7 +7104,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1983 -> 1984 conditional = true
+1983 -> 1984 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1984 -> 1985 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7010,7 +7147,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1996 -> 1997 conditional = true
+1996 -> 1997 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 1997 -> 1998 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7034,7 +7172,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2002 -> 2003 conditional = true
+2002 -> 2003 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2003 -> 2004 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7058,7 +7197,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2008 -> 2009 conditional = true
+2008 -> 2009 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2009 -> 2010 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7115,7 +7255,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2025 -> 2026 conditional = true
+2025 -> 2026 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2026 -> 2027 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7170,7 +7311,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2042 -> 2043 conditional = true
+2042 -> 2043 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2043 -> 2044 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7230,7 +7372,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2060 -> 2061 conditional = true
+2060 -> 2061 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2061 -> 2062 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7283,7 +7426,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2076 -> 2077 conditional = true
+2076 -> 2077 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2077 -> 2078 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7334,7 +7478,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2092 -> 2093 conditional = true
+2092 -> 2093 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2093 -> 2094 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7375,7 +7520,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2104 -> 2105 conditional = true
+2104 -> 2105 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2105 -> 2106 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7428,7 +7574,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2120 -> 2121 conditional = true
+2120 -> 2121 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2121 -> 2122 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7479,7 +7626,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2136 -> 2137 conditional = true
+2136 -> 2137 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2137 -> 2138 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7551,7 +7699,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-2155 -> 2158 conditional = true
+2155 -> 2158 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2158 -> 2159 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7604,7 +7753,8 @@
   ⚠️  function calls are not analysed yet
 - *1* max number of linking steps reached
 
-2167 -> 2170 conditional = true
+2167 -> 2170 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2170 -> 2171 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7647,7 +7797,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2180 -> 2181 conditional = true
+2180 -> 2181 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2181 -> 2182 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7696,7 +7847,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2195 -> 2196 conditional = true
+2195 -> 2196 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2196 -> 2197 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7745,7 +7897,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2208 -> 2209 conditional = true
+2208 -> 2209 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2209 -> 2210 call = (...) => (undefined | FreeVar(undefined))(
     (
@@ -7785,7 +7938,8 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2220 -> 2221 conditional = true
+2220 -> 2221 conditional = ((0 | ???*0*) === 0)
+- *0* updated with update expression
 
 2221 -> 2222 call = (...) => (undefined | FreeVar(undefined))(
     (

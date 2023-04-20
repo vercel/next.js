@@ -22,11 +22,12 @@
 
 1 -> 6 free var = FreeVar(Array)
 
-1 -> 11 member call = ???*0*["charCodeAt"](0)
+1 -> 11 member call = ???*0*["charCodeAt"]((0 | ???*2*))
 - *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
   ⚠️  unknown callee
 - *1* FreeVar(unescape)
   ⚠️  unknown global
+- *2* updated with update expression
 
 0 -> 12 call = (...) => (undefined | output)((???*0* | ???*1*))
 - *0* arguments[0]

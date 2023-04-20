@@ -5361,12 +5361,39 @@
     ),
     (
         "i",
-        Constant(
-            Num(
-                ConstantNumber(
-                    0.0,
+        Alternatives(
+            6,
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
                 ),
-            ),
+                Unknown(
+                    None,
+                    "updated with update expression",
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #4,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    16.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
         ),
     ),
     (

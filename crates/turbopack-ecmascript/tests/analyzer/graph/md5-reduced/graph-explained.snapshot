@@ -55,7 +55,7 @@ d#3 = (
 
 d#6 = arguments[3]
 
-i = (???*0* | 0)
+i = (???*0* | 0 | (i + 16))
 - *0* i
   ⚠️  pattern without value
 

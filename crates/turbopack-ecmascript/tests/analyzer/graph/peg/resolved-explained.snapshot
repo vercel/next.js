@@ -443,7 +443,61 @@ endPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*
 
 error = (...) => undefined
 
-escapedParts = ""
+escapedParts = ("" | (("" | ???*0*) + (???*13* | undefined | ???*22*)))
+- *0* (???*1* + (???*2* | undefined | ???*9*))
+  ⚠️  nested operation
+- *1* escapedParts
+  ⚠️  circular variable reference
+- *2* `${(undefined | ???*3*)}-${(undefined | ???*6*)}`
+  ⚠️  nested operation
+- *3* ???*4*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *4* ???*5*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *5* ???["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *6* ???*7*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *7* ???*8*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *8* ???["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *9* ???*10*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *10* ???*11*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *11* ???*12*["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *12* ???["replace"](/\n/g, "\\n")
+  ⚠️  unknown callee object
+- *13* `${(undefined | ???*14*)}-${(undefined | ???*18*)}`
+  ⚠️  nested operation
+- *14* ???*15*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *15* ???*16*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *16* ???*17*["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *17* ???["replace"](/\n/g, "\\n")
+  ⚠️  unknown callee object
+- *18* ???*19*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *19* ???*20*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *20* ???*21*["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *21* ???["replace"](/\n/g, "\\n")
+  ⚠️  unknown callee object
+- *22* ???*23*["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  ⚠️  unknown callee object
+- *23* ???*24*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *24* ???*25*["replace"](/\r/g, "\\r")
+  ⚠️  unknown callee object
+- *25* ???*26*["replace"](/\n/g, "\\n")
+  ⚠️  unknown callee object
+- *26* ???["replace"](/\t/g, "\\t")
+  ⚠️  unknown callee object
 
 expectation#11 = ???*0*
 - *0* arguments[0]
@@ -624,13 +678,15 @@ hex#7 = (...) => (
   | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
 )
 
-i#22 = (???*0* | 0 | 1)
+i#22 = (???*0* | 0 | ???*1* | 1)
 - *0* i
   ⚠️  pattern without value
+- *1* updated with update expression
 
-i#9 = (???*0* | 0)
+i#9 = (???*0* | 0 | ???*1*)
 - *0* i
   ⚠️  pattern without value
+- *1* updated with update expression
 
 ignoreCase#107 = ???*0*
 - *0* arguments[1]
@@ -648,9 +704,10 @@ inverted = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-j = (???*0* | 1)
+j = (???*0* | 1 | ???*1*)
 - *0* j
   ⚠️  pattern without value
+- *1* updated with update expression
 
 joins = ???*0*
 - *0* arguments[1]
@@ -747,10 +804,11 @@ orderBy = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-p = (???*0* | ???*1*)
+p = (???*0* | ???*1* | ???*2*)
 - *0* p
   ⚠️  pattern without value
 - *1* unsupported expression
+- *2* updated with update expression
 
 parent = ???*0*
 - *0* arguments[1]
@@ -1750,7 +1808,8 @@ peg$result = ???*0*
 peg$savedPos = ???*0*
 - *0* max number of linking steps reached
 
-peg$silentFails = 0
+peg$silentFails = (0 | ???*0*)
+- *0* updated with update expression
 
 peg$startRuleFunction = ((...) => (undefined | s0) | ???*0*)
 - *0* {}[???*1*]
