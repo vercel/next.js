@@ -2,6 +2,7 @@ import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
 export type DialogProps = {
+  children?: React.ReactNode
   type: 'error' | 'warning'
   'aria-labelledby': string
   'aria-describedby': string
@@ -15,7 +16,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   ...props
 }) {
   const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
-  const onDialog = React.useCallback((node) => {
+  const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
   useOnClickOutside(dialog, onClose)

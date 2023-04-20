@@ -224,7 +224,6 @@ function linkClicked(
   }
 
   if (isAppRouter) {
-    // @ts-expect-error startTransition exists.
     React.startTransition(navigate)
   } else {
     navigate()
