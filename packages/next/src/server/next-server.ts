@@ -1391,9 +1391,16 @@ export default class NextNodeServer extends BaseServer {
             ? 'app'
             : 'pages'
 
-          // Handle app dir's /not-found feature
-          if (!matched && this.appPathRoutes?.['/not-found']) {
-            renderKind = 'app'
+          // Handle app dir's /not-found feature: for 404 pages, they should be
+          // routed to the app renderer.
+          if (!matched && this.appPathRoutes) {
+            if (
+              this.appPathRoutes[
+                this.renderOpts.dev ? '/not-found' : '/_not-found'
+              ]
+            ) {
+              renderKind = 'app'
+            }
           }
 
           if (this.renderWorkersPromises) {
