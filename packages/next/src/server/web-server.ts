@@ -62,7 +62,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return new IncrementalCache({
       dev,
       requestHeaders,
+      requestProtocol: 'https',
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       fetchCache: this.nextConfig.experimental.appDir,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
@@ -77,7 +80,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
             routes: {},
             dynamicRoutes: {},
             notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
+            preview: {
+              previewModeId: 'development-id',
+            } as any, // `preview` is special case read in next-dev-server
           }
         } else {
           return this.getPrerenderManifest()
@@ -378,8 +383,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       return await curRenderToHTML(
         {
           url: req.url,
+          method: req.method,
           cookies: req.cookies,
           headers: req.headers,
+          body: req.body,
         } as any,
         {} as any,
         pathname,

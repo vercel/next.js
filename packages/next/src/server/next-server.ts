@@ -334,7 +334,7 @@ export default class NextNodeServer extends BaseServer {
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await require(join(
+        const instrumentationHook = await require(resolve(
           this.serverOptions.dir || '.',
           this.serverOptions.conf.distDir!,
           'server',
@@ -370,8 +370,10 @@ export default class NextNodeServer extends BaseServer {
 
   protected getIncrementalCache({
     requestHeaders,
+    requestProtocol,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
+    requestProtocol: 'http' | 'https'
   }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
@@ -383,6 +385,7 @@ export default class NextNodeServer extends BaseServer {
         : incrementalCacheHandlerPath)
       CacheHandler = CacheHandler.default || CacheHandler
     }
+
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -390,7 +393,10 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       requestHeaders,
+      requestProtocol,
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
       fetchCache: this.nextConfig.experimental.appDir,
@@ -405,7 +411,9 @@ export default class NextNodeServer extends BaseServer {
             routes: {},
             dynamicRoutes: {},
             notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
+            preview: {
+              previewModeId: 'development-id',
+            } as any, // `preview` is special case read in next-dev-server
           }
         } else {
           return this.getPrerenderManifest()
@@ -1172,10 +1180,14 @@ export default class NextNodeServer extends BaseServer {
     return require(join(this.distDir, 'server', `${NEXT_FONT_MANIFEST}.json`))
   }
 
-  protected getFallback(page: string): Promise<string> {
+  protected async getFallback(page: string): Promise<string> {
     page = normalizePagePath(page)
     const cacheFs = this.getCacheFilesystem()
-    return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
+    const html = await cacheFs.readFile(
+      join(this.serverDistDir, 'pages', `${page}.html`)
+    )
+
+    return html.toString('utf8')
   }
 
   protected generateRoutes(dev?: boolean): RouterOptions {
@@ -2073,13 +2085,8 @@ export default class NextNodeServer extends BaseServer {
     ) {
       return { finished: false }
     }
-    const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
     let url: string
-
-    const options: MatchOptions = {
-      i18n: this.i18nProvider?.analyze(normalizedPathname),
-    }
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
@@ -2105,14 +2112,6 @@ export default class NextNodeServer extends BaseServer {
       name?: string
       params?: { [key: string]: string | string[] }
     } = {}
-
-    const match = await this.matchers.match(normalizedPathname, options)
-    if (match) {
-      page.name = match.params
-        ? match.definition.pathname
-        : params.parsedUrl.pathname
-      page.params = match.params
-    }
 
     const middleware = this.getMiddleware()
     if (!middleware) {

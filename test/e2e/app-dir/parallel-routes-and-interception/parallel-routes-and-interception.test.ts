@@ -5,8 +5,6 @@ createNextDescribe(
   'parallel-routes-and-interception',
   {
     files: __dirname,
-    // TODO: remove after deployment handling is updated
-    skipDeployment: true,
   },
   ({ next }) => {
     describe('parallel routes', () => {
@@ -254,6 +252,58 @@ createNextDescribe(
         await browser.waitForElementByCss('#modal')
         // check that we didn't scroll back to the top
         await check(() => browser.eval('window.scrollY'), position)
+      })
+
+      it('should apply the catch-all route to the parallel route if no matching route is found', async () => {
+        const browser = await next.browser('/parallel-catchall')
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'main catchall'
+        )
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/foo"]').click()
+        await check(() => browser.waitForElementByCss('#main').text(), 'foo')
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'foo slot'
+        )
+
+        await browser.elementByCss('[href="/parallel-catchall/bar"]').click()
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          'main catchall'
+        )
+        await check(
+          () => browser.waitForElementByCss('#slot-content').text(),
+          'slot catchall'
+        )
+      })
+
+      it('should navigate with a link with prefetch=false', async () => {
+        const browser = await next.browser('/parallel-prefetch-false')
+
+        // check if the default view loads
+        await check(
+          () => browser.waitForElementByCss('#default-parallel').text(),
+          'default view for parallel'
+        )
+
+        // check that navigating to /foo re-renders the layout to display @parallel/foo
+        await check(
+          () =>
+            browser
+              .elementByCss('[href="/parallel-prefetch-false/foo"]')
+              .click()
+              .waitForElementByCss('#parallel-foo')
+              .text(),
+          'parallel for foo'
+        )
       })
     })
 

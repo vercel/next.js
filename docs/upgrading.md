@@ -19,7 +19,7 @@ pnpm up next react react-dom eslint-config-next --latest
 ### v13 Summary
 
 - The [Supported Browsers](/docs/basic-features/supported-browsers-features.md) have been changed to drop Internet Explorer and target modern browsers.
-- The minimum Node.js version has been bumped from 12.22.0 to 14.6.0, since 12.x has reached end-of-life.
+- The minimum Node.js version has been bumped from 12.22.0 to 14.18.0, since 12.x has reached end-of-life.
 - The minimum React version has been bumped from 17.0.2 to 18.2.0.
 - The `swcMinify` configuration property was changed from `false` to `true`. See [Next.js Compiler](/docs/advanced-features/compiler.md) for more info.
 - The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`. A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.

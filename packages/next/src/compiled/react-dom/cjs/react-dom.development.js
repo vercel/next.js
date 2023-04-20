@@ -227,6 +227,12 @@ function popHostContext(fiber) {
 }
 
 // -----------------------------------------------------------------------------
+// Killswitch
+//
+// Flags that exist solely to turn off a change in case it causes a regression
+// when it rolls out to prod. We should remove these as soon as possible.
+// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // Land or remove (moderate effort)
 //
 // Flags that can be probably deleted or landed, but might require extra effort
@@ -254,6 +260,8 @@ var enableSuspenseCallback = false; // Experimental Scope support.
 var enableLazyContextPropagation = false; // FB-only usage. The new API has different semantics.
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
+
+var diffInCommitPhase = false; // -----------------------------------------------------------------------------
 // Chopping Block
 //
 // Planned feature deprecations and breaking changes. Sorted roughly in order of
@@ -1265,24 +1273,6 @@ function getNextLanes(root, wipLanes) {
 
   return nextLanes;
 }
-function getMostRecentEventTime(root, lanes) {
-  var eventTimes = root.eventTimes;
-  var mostRecentEventTime = NoTimestamp;
-
-  while (lanes > 0) {
-    var index = pickArbitraryLaneIndex(lanes);
-    var lane = 1 << index;
-    var eventTime = eventTimes[index];
-
-    if (eventTime > mostRecentEventTime) {
-      mostRecentEventTime = eventTime;
-    }
-
-    lanes &= ~lane;
-  }
-
-  return mostRecentEventTime;
-}
 
 function computeExpirationTime(lane, currentTime) {
   switch (lane) {
@@ -1518,7 +1508,7 @@ function createLaneMap(initial) {
 
   return laneMap;
 }
-function markRootUpdated(root, updateLane, eventTime) {
+function markRootUpdated(root, updateLane) {
   root.pendingLanes |= updateLane; // If there are any suspended transitions, it's possible this new update
   // could unblock them. Clear the suspended lanes so that we can try rendering
   // them again.
@@ -1536,12 +1526,6 @@ function markRootUpdated(root, updateLane, eventTime) {
     root.suspendedLanes = NoLanes;
     root.pingedLanes = NoLanes;
   }
-
-  var eventTimes = root.eventTimes;
-  var index = laneToIndex(updateLane); // We can always overwrite an existing timestamp because we prefer the most
-  // recent event, and we assume time is monotonically increasing.
-
-  eventTimes[index] = eventTime;
 }
 function markRootSuspended$1(root, suspendedLanes) {
   root.suspendedLanes |= suspendedLanes;
@@ -1571,7 +1555,6 @@ function markRootFinished(root, remainingLanes) {
   root.entangledLanes &= remainingLanes;
   root.errorRecoveryDisabledLanes &= remainingLanes;
   var entanglements = root.entanglements;
-  var eventTimes = root.eventTimes;
   var expirationTimes = root.expirationTimes;
   var hiddenUpdates = root.hiddenUpdates; // Clear the lanes that no longer have pending work
 
@@ -1581,7 +1564,6 @@ function markRootFinished(root, remainingLanes) {
     var index = pickArbitraryLaneIndex(lanes);
     var lane = 1 << index;
     entanglements[index] = NoLanes;
-    eventTimes[index] = NoTimestamp;
     expirationTimes[index] = NoTimestamp;
     var hiddenUpdatesForLane = hiddenUpdates[index];
 
@@ -2193,190 +2175,26 @@ function registerDirectEvent(registrationName, dependencies) {
 
 var canUseDOM = !!(typeof window !== 'undefined' && typeof window.document !== 'undefined' && typeof window.document.createElement !== 'undefined');
 
-// A simple string attribute.
-// Attributes that aren't in the filter are presumed to have this type.
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
+var hasReadOnlyValue = {
+  button: true,
+  checkbox: true,
+  image: true,
+  hidden: true,
+  radio: true,
+  reset: true,
+  submit: true
+};
+function checkControlledValueProps(tagName, props) {
+  {
+    if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
+      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
 
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-// When falsy, it should be removed.
-
-var POSITIVE_NUMERIC = 6;
-function getPropertyInfo(name) {
-  return properties.hasOwnProperty(name) ? properties[name] : null;
-} // $FlowFixMe[missing-this-annot]
-
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// the `possibleStandardNames` module to ensure casing and incorrect
-// name warnings.
-
-
-var properties = {}; // A few React string attributes have a different name.
-// This is a mapping from React prop names to the attribute names.
-
-[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
-  var name = _ref[0],
-      attributeName = _ref[1];
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" HTML attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-// Since these are SVG attributes, their attribute names are case-sensitive.
-
-['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML boolean attributes.
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-// booleans, but can also accept a string value.
-
-['capture', 'download' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(OVERLOADED_BOOLEAN, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be positive numbers.
-
-['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(POSITIVE_NUMERIC, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be numbers.
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
-  false);
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-// These will also need to accept Trusted Types object in the future.
-
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[xlinkHref] = new PropertyInfoRecord(STRING, 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
-false);
-var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[formAction] = new PropertyInfoRecord(STRING, 'formaction', // attributeName
-null, // attributeNamespace
-true, // sanitizeURL
-false);
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
+    if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
+      error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
+    }
+  }
+}
 
 /* eslint-disable max-len */
 
@@ -2410,196 +2228,6 @@ function isAttributeNameSafe(attributeName) {
   return false;
 }
 
-// and any newline or tab are filtered out as if they're not part of the URL.
-// https://url.spec.whatwg.org/#url-parsing
-// Tab or newline are defined as \r\n\t:
-// https://infra.spec.whatwg.org/#ascii-tab-or-newline
-// A C0 control is a code point in the range \u0000 NULL to \u001F
-// INFORMATION SEPARATOR ONE, inclusive:
-// https://infra.spec.whatwg.org/#c0-control-or-space
-
-/* eslint-disable max-len */
-
-var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
-var didWarn$1 = false;
-
-function sanitizeURL(url) {
-  // We should never have symbols here because they get filtered out elsewhere.
-  // eslint-disable-next-line react-internal/safe-string-coercion
-  var stringifiedURL = '' + url;
-
-  {
-    if (!didWarn$1 && isJavaScriptProtocol.test(stringifiedURL)) {
-      didWarn$1 = true;
-
-      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(stringifiedURL));
-    }
-  }
-
-  return url;
-}
-
-/**
- * Get the value for a property on a node. Only used in DEV for SSR validation.
- * The "expected" argument is used as a hint of what the expected value is.
- * Some properties have multiple equivalent values.
- */
-
-function getValueForProperty(node, name, expected, propertyInfo) {
-  {
-    var attributeName = propertyInfo.attributeName;
-
-    if (!node.hasAttribute(attributeName)) {
-      // shouldRemoveAttribute
-      switch (typeof expected) {
-        case 'function':
-        case 'symbol':
-          // eslint-disable-line
-          return expected;
-
-        case 'boolean':
-          {
-            if (!propertyInfo.acceptsBooleans) {
-              return expected;
-            }
-          }
-      }
-
-      switch (propertyInfo.type) {
-        case BOOLEAN:
-          {
-            if (!expected) {
-              return expected;
-            }
-
-            break;
-          }
-
-        case OVERLOADED_BOOLEAN:
-          {
-            if (expected === false) {
-              return expected;
-            }
-
-            break;
-          }
-
-        case NUMERIC:
-          {
-            if (isNaN(expected)) {
-              return expected;
-            }
-
-            break;
-          }
-
-        case POSITIVE_NUMERIC:
-          {
-            if (isNaN(expected) || expected < 1) {
-              return expected;
-            }
-
-            break;
-          }
-      }
-
-      return expected === undefined ? undefined : null;
-    } // Even if this property uses a namespace we use getAttribute
-    // because we assume its namespaced name is the same as our config.
-    // To use getAttributeNS we need the local name which we don't have
-    // in our config atm.
-
-
-    var value = node.getAttribute(attributeName);
-
-    if (expected == null) {
-      // We had an attribute but shouldn't have had one, so read it
-      // for the error message.
-      return value;
-    } // shouldRemoveAttribute
-
-
-    switch (typeof expected) {
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
-        return value;
-    }
-
-    switch (propertyInfo.type) {
-      case BOOLEAN:
-        {
-          if (expected) {
-            // If this was a boolean, it doesn't matter what the value is
-            // the fact that we have it is the same as the expected.
-            // As long as it's positive.
-            return expected;
-          }
-
-          return value;
-        }
-
-      case OVERLOADED_BOOLEAN:
-        {
-          if (value === '') {
-            return true;
-          }
-
-          if (expected === false) {
-            // We had an attribute but shouldn't have had one, so read it
-            // for the error message.
-            return value;
-          }
-
-          break;
-        }
-
-      case NUMERIC:
-        {
-          if (isNaN(expected)) {
-            // We had an attribute but shouldn't have had one, so read it
-            // for the error message.
-            return value;
-          }
-
-          break;
-        }
-
-      case POSITIVE_NUMERIC:
-        {
-          if (isNaN(expected) || expected < 1) {
-            // We had an attribute but shouldn't have had one, so read it
-            // for the error message.
-            return value;
-          }
-
-          break;
-        }
-    }
-
-    {
-      checkAttributeStringCoercion(expected, name);
-    }
-
-    if (propertyInfo.sanitizeURL) {
-      // We have already verified this above.
-      // eslint-disable-next-line react-internal/safe-string-coercion
-      if (value === '' + sanitizeURL(expected)) {
-        return expected;
-      }
-
-      return value;
-    } // We have already verified this above.
-    // eslint-disable-next-line react-internal/safe-string-coercion
-
-
-    if (value === '' + expected) {
-      return expected;
-    }
-
-    return value;
-  }
-}
 /**
  * Get the value for a attribute on a node. Only used in DEV for SSR validation.
  * The third argument is used as a hint of what the expected value is. Some
@@ -2679,121 +2307,6 @@ function getValueForAttributeOnCustomComponent(node, name, expected) {
     return value;
   }
 }
-/**
- * Sets the value for a property on a node.
- *
- * @param {DOMElement} node
- * @param {string} name
- * @param {*} value
- */
-
-function setValueForProperty(node, propertyInfo, value) {
-  var attributeName = propertyInfo.attributeName;
-
-  if (value === null) {
-    node.removeAttribute(attributeName);
-    return;
-  } // shouldRemoveAttribute
-
-
-  switch (typeof value) {
-    case 'undefined':
-    case 'function':
-    case 'symbol':
-      // eslint-disable-line
-      node.removeAttribute(attributeName);
-      return;
-
-    case 'boolean':
-      {
-        if (!propertyInfo.acceptsBooleans) {
-          node.removeAttribute(attributeName);
-          return;
-        }
-      }
-  }
-
-  switch (propertyInfo.type) {
-    case BOOLEAN:
-      if (value) {
-        node.setAttribute(attributeName, '');
-      } else {
-        node.removeAttribute(attributeName);
-        return;
-      }
-
-      break;
-
-    case OVERLOADED_BOOLEAN:
-      if (value === true) {
-        node.setAttribute(attributeName, '');
-      } else if (value === false) {
-        node.removeAttribute(attributeName);
-      } else {
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
-        node.setAttribute(attributeName, value);
-      }
-
-      return;
-
-    case NUMERIC:
-      if (!isNaN(value)) {
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
-        node.setAttribute(attributeName, value);
-      } else {
-        node.removeAttribute(attributeName);
-      }
-
-      break;
-
-    case POSITIVE_NUMERIC:
-      if (!isNaN(value) && value >= 1) {
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
-        node.setAttribute(attributeName, value);
-      } else {
-        node.removeAttribute(attributeName);
-      }
-
-      break;
-
-    default:
-      {
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
-        var attributeValue; // `setAttribute` with objects becomes only `[object]` in IE8/9,
-        // ('' + value) makes it output the correct toString()-value.
-
-        {
-          // We have already verified this above.
-          // eslint-disable-next-line react-internal/safe-string-coercion
-          attributeValue = '' + value;
-
-          if (propertyInfo.sanitizeURL) {
-            attributeValue = sanitizeURL(attributeValue);
-          }
-        }
-
-        var attributeNamespace = propertyInfo.attributeNamespace;
-
-        if (attributeNamespace) {
-          node.setAttributeNS(attributeNamespace, attributeName, attributeValue);
-        } else {
-          node.setAttribute(attributeName, attributeValue);
-        }
-      }
-  }
-}
 function setValueForAttribute(node, name, value) {
   if (isAttributeNameSafe(name)) {
     // If the prop isn't in the special list, treat it as a simple attribute.
@@ -2828,6 +2341,52 @@ function setValueForAttribute(node, name, value) {
 
     node.setAttribute(name, '' + value);
   }
+}
+function setValueForKnownAttribute(node, name, value) {
+  if (value === null) {
+    node.removeAttribute(name);
+    return;
+  }
+
+  switch (typeof value) {
+    case 'undefined':
+    case 'function':
+    case 'symbol':
+    case 'boolean':
+      {
+        node.removeAttribute(name);
+        return;
+      }
+  }
+
+  {
+    checkAttributeStringCoercion(value, name);
+  }
+
+  node.setAttribute(name, '' + value);
+}
+function setValueForNamespacedAttribute(node, namespace, name, value) {
+  if (value === null) {
+    node.removeAttribute(name);
+    return;
+  }
+
+  switch (typeof value) {
+    case 'undefined':
+    case 'function':
+    case 'symbol':
+    case 'boolean':
+      {
+        node.removeAttribute(name);
+        return;
+      }
+  }
+
+  {
+    checkAttributeStringCoercion(value, name);
+  }
+
+  node.setAttributeNS(namespace, name, '' + value);
 }
 
 // ATTENTION
@@ -3280,7 +2839,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -3474,27 +3032,6 @@ function getToStringValue(value) {
   }
 }
 
-var hasReadOnlyValue = {
-  button: true,
-  checkbox: true,
-  image: true,
-  hidden: true,
-  radio: true,
-  reset: true,
-  submit: true
-};
-function checkControlledValueProps(tagName, props) {
-  {
-    if (!(hasReadOnlyValue[props.type] || props.onChange || props.onInput || props.readOnly || props.disabled || props.value == null)) {
-      error('You provided a `value` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultValue`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
-    }
-
-    if (!(props.onChange || props.readOnly || props.disabled || props.checked == null)) {
-      error('You provided a `checked` prop to a form field without an ' + '`onChange` handler. This will render a read-only field. If ' + 'the field should be mutable use `defaultChecked`. Otherwise, ' + 'set either `onChange` or `readOnly`.');
-    }
-  }
-}
-
 function isCheckable(elem) {
   var type = elem.type;
   var nodeName = elem.nodeName;
@@ -3590,8 +3127,7 @@ function trackValueOnNode(node) {
 function track(node) {
   if (getTracker(node)) {
     return;
-  } // TODO: Once it's just Fiber we can move this to node._wrapperState
-
+  }
 
   node._valueTracker = trackValueOnNode(node);
 }
@@ -3634,13 +3170,6 @@ function getActiveElement(doc) {
 
 var didWarnValueDefaultValue$1 = false;
 var didWarnCheckedDefaultChecked = false;
-var didWarnControlledToUncontrolled = false;
-var didWarnUncontrolledToControlled = false;
-
-function isControlled(props) {
-  var usesChecked = props.type === 'checkbox' || props.type === 'radio';
-  return usesChecked ? props.checked != null : props.value != null;
-}
 /**
  * Implements an <input> host component that allows setting these optional
  * props: `checked`, `value`, `defaultChecked`, and `defaultValue`.
@@ -3658,11 +3187,11 @@ function isControlled(props) {
  * See http://www.w3.org/TR/2012/WD-html5-20121025/the-input-element.html
  */
 
-
-function initWrapperState$2(element, props) {
+function validateInputProps(element, props) {
   {
-    checkControlledValueProps('input', props);
-
+    // Normally we check for undefined and null the same, but explicitly specifying both
+    // properties, at all is probably worth warning for. We could move this either direction
+    // and just make it ok to pass null or just check hasOwnProperty.
     if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnCheckedDefaultChecked) {
       error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component', props.type);
 
@@ -3675,46 +3204,24 @@ function initWrapperState$2(element, props) {
       didWarnValueDefaultValue$1 = true;
     }
   }
-
-  var node = element;
-  var defaultValue = props.defaultValue == null ? '' : props.defaultValue;
-  var initialChecked = props.checked != null ? props.checked : props.defaultChecked;
-  node._wrapperState = {
-    initialChecked: typeof initialChecked !== 'function' && typeof initialChecked !== 'symbol' && !!initialChecked,
-    initialValue: getToStringValue(props.value != null ? props.value : defaultValue),
-    controlled: isControlled(props)
-  };
 }
-function updateChecked(element, props) {
-  var node = element;
-  var checked = props.checked;
+function updateInput(element, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name) {
+  var node = element; // Temporarily disconnect the input from any radio buttons.
+  // Changing the type or name as the same time as changing the checked value
+  // needs to be atomically applied. We can only ensure that by disconnecting
+  // the name while do the mutations and then reapply the name after that's done.
 
-  if (checked != null) {
-    node.checked = checked;
-  }
-}
-function updateWrapper$1(element, props) {
-  var node = element;
+  node.name = '';
 
-  {
-    var controlled = isControlled(props);
-
-    if (!node._wrapperState.controlled && controlled && !didWarnUncontrolledToControlled) {
-      error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
-
-      didWarnUncontrolledToControlled = true;
+  if (type != null && typeof type !== 'function' && typeof type !== 'symbol' && typeof type !== 'boolean') {
+    {
+      checkAttributeStringCoercion(type, 'type');
     }
 
-    if (node._wrapperState.controlled && !controlled && !didWarnControlledToUncontrolled) {
-      error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
-
-      didWarnControlledToUncontrolled = true;
-    }
+    node.type = type;
+  } else {
+    node.removeAttribute('type');
   }
-
-  updateChecked(element, props);
-  var value = getToStringValue(props.value);
-  var type = props.type;
 
   if (value != null) {
     if (type === 'number') {
@@ -3722,10 +3229,10 @@ function updateWrapper$1(element, props) {
       value === 0 && node.value === '' || // We explicitly want to coerce to number here if possible.
       // eslint-disable-next-line
       node.value != value) {
-        node.value = toString(value);
+        node.value = toString(getToStringValue(value));
       }
-    } else if (node.value !== toString(value)) {
-      node.value = toString(value);
+    } else if (node.value !== toString(getToStringValue(value))) {
+      node.value = toString(getToStringValue(value));
     }
   } else if (type === 'submit' || type === 'reset') {
     // Submit/reset inputs need the attribute removed completely to avoid
@@ -3740,35 +3247,58 @@ function updateWrapper$1(element, props) {
     //  1. The value React property
     //  2. The defaultValue React property
     //  3. Otherwise there should be no change
-    if (props.hasOwnProperty('value')) {
-      setDefaultValue(node, props.type, value);
-    } else if (props.hasOwnProperty('defaultValue')) {
-      setDefaultValue(node, props.type, getToStringValue(props.defaultValue));
+    if (value != null) {
+      setDefaultValue(node, type, getToStringValue(value));
+    } else if (defaultValue != null) {
+      setDefaultValue(node, type, getToStringValue(defaultValue));
+    } else if (lastDefaultValue != null) {
+      node.removeAttribute('value');
     }
   }
 
   {
     // When syncing the checked attribute, it only changes when it needs
     // to be removed, such as transitioning from a checkbox into a text input
-    if (props.checked == null && props.defaultChecked != null) {
-      node.defaultChecked = !!props.defaultChecked;
+    if (checked == null && defaultChecked != null) {
+      node.defaultChecked = !!defaultChecked;
     }
   }
-}
-function postMountWrapper$3(element, props, isHydrating) {
-  var node = element; // Do not assign value if it is already set. This prevents user text input
-  // from being lost during SSR hydration.
 
-  if (props.hasOwnProperty('value') || props.hasOwnProperty('defaultValue')) {
-    var type = props.type;
+  if (checked != null && node.checked !== !!checked) {
+    node.checked = checked;
+  }
+
+  if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
+    {
+      checkAttributeStringCoercion(name, 'name');
+    }
+
+    node.name = name;
+  } else {
+    node.removeAttribute('name');
+  }
+}
+function initInput(element, value, defaultValue, checked, defaultChecked, type, name, isHydrating) {
+  var node = element;
+
+  if (type != null && typeof type !== 'function' && typeof type !== 'symbol' && typeof type !== 'boolean') {
+    {
+      checkAttributeStringCoercion(type, 'type');
+    }
+
+    node.type = type;
+  }
+
+  if (value != null || defaultValue != null) {
     var isButton = type === 'submit' || type === 'reset'; // Avoid setting value attribute on submit/reset inputs as it overrides the
     // default value provided by the browser. See: #12872
 
-    if (isButton && (props.value === undefined || props.value === null)) {
+    if (isButton && (value === undefined || value === null)) {
       return;
     }
 
-    var initialValue = toString(node._wrapperState.initialValue); // Do not assign value if it is already set. This prevents user text input
+    var defaultValueStr = defaultValue != null ? toString(getToStringValue(defaultValue)) : '';
+    var initialValue = value != null ? toString(getToStringValue(value)) : defaultValueStr; // Do not assign value if it is already set. This prevents user text input
     // from being lost during SSR hydration.
 
     if (!isHydrating) {
@@ -3798,19 +3328,17 @@ function postMountWrapper$3(element, props, isHydrating) {
   // We need to temporarily unset name to avoid disrupting radio button groups.
 
 
-  var name = node.name;
+  var checkedOrDefault = checked != null ? checked : defaultChecked; // TODO: This 'function' or 'symbol' check isn't replicated in other places
+  // so this semantic is inconsistent.
 
-  if (name !== '') {
-    node.name = '';
-  } // The checked property never gets assigned. It must be manually set.
+  var initialChecked = typeof checkedOrDefault !== 'function' && typeof checkedOrDefault !== 'symbol' && !!checkedOrDefault; // The checked property never gets assigned. It must be manually set.
   // We don't want to do this when hydrating so that existing user input isn't
   // modified
   // TODO: I'm pretty sure this is a bug because initialValueTracking won't be
   // correct for the hydration case then.
 
-
   if (!isHydrating) {
-    node.checked = !!node._wrapperState.initialChecked;
+    node.checked = !!initialChecked;
   }
 
   {
@@ -3821,20 +3349,21 @@ function postMountWrapper$3(element, props, isHydrating) {
     //   2. The defaultChecked React property when present
     //   3. Otherwise, false
     node.defaultChecked = !node.defaultChecked;
-    node.defaultChecked = !!node._wrapperState.initialChecked;
-  }
+    node.defaultChecked = !!initialChecked;
+  } // Name needs to be set at the end so that it applies atomically to connected radio buttons.
 
-  if (name !== '') {
+
+  if (name != null && typeof name !== 'function' && typeof name !== 'symbol' && typeof name !== 'boolean') {
+    {
+      checkAttributeStringCoercion(name, 'name');
+    }
+
     node.name = name;
   }
 }
-function restoreControlledState$3(element, props) {
-  var node = element;
-  updateWrapper$1(node, props);
-  updateNamedCousins(node, props);
-}
-
-function updateNamedCousins(rootNode, props) {
+function restoreControlledInputState(element, props) {
+  var rootNode = element;
+  updateInput(rootNode, props.value, props.defaultValue, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name);
   var name = props.name;
 
   if (props.type === 'radio' && name != null) {
@@ -3880,7 +3409,7 @@ function updateNamedCousins(rootNode, props) {
       // was previously checked to update will cause it to be come re-checked
       // as appropriate.
 
-      updateWrapper$1(otherNode, otherProps);
+      updateInput(otherNode, otherProps.value, otherProps.defaultValue, otherProps.defaultValue, otherProps.checked, otherProps.defaultChecked, otherProps.type, otherProps.name);
     }
   }
 } // In Chrome, assigning defaultValue to certain input types triggers input validation.
@@ -3892,13 +3421,10 @@ function updateNamedCousins(rootNode, props) {
 //
 // https://github.com/facebook/react/issues/7253
 
-
 function setDefaultValue(node, type, value) {
   if ( // Focused number inputs synchronize on blur. See ChangeEventPlugin.js
   type !== 'number' || getActiveElement(node.ownerDocument) !== node) {
-    if (value == null) {
-      node.defaultValue = toString(node._wrapperState.initialValue);
-    } else if (node.defaultValue !== toString(value)) {
+    if (node.defaultValue !== toString(value)) {
       node.defaultValue = toString(value);
     }
   }
@@ -3911,7 +3437,7 @@ var didWarnInvalidInnerHTML = false;
  * Implements an <option> host component that warns when `selected` is set.
  */
 
-function validateProps(element, props) {
+function validateOptionProps(element, props) {
   {
     // If a value is not provided, then the children must be simple.
     if (props.value == null) {
@@ -3948,12 +3474,6 @@ function validateProps(element, props) {
     }
   }
 }
-function postMountWrapper$2(element, props) {
-  // value="" should make a value attribute (#6219)
-  if (props.value != null) {
-    element.setAttribute('value', toString(getToStringValue(props.value)));
-  }
-}
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
@@ -3984,8 +3504,6 @@ var valuePropNames = ['value', 'defaultValue'];
 
 function checkSelectPropTypes(props) {
   {
-    checkControlledValueProps('select', props);
-
     for (var i = 0; i < valuePropNames.length; i++) {
       var propName = valuePropNames[i];
 
@@ -4072,18 +3590,10 @@ function updateOptions(node, multiple, propValue, setDefaultSelected) {
  */
 
 
-function initWrapperState$1(element, props) {
-  var node = element;
-
+function validateSelectProps(element, props) {
   {
     checkSelectPropTypes(props);
-  }
 
-  node._wrapperState = {
-    wasMultiple: !!props.multiple
-  };
-
-  {
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValueDefaultValue) {
       error('Select elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled select ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components');
 
@@ -4091,36 +3601,32 @@ function initWrapperState$1(element, props) {
     }
   }
 }
-function postMountWrapper$1(element, props) {
+function initSelect(element, value, defaultValue, multiple) {
   var node = element;
-  node.multiple = !!props.multiple;
-  var value = props.value;
+  node.multiple = !!multiple;
 
   if (value != null) {
-    updateOptions(node, !!props.multiple, value, false);
-  } else if (props.defaultValue != null) {
-    updateOptions(node, !!props.multiple, props.defaultValue, true);
+    updateOptions(node, !!multiple, value, false);
+  } else if (defaultValue != null) {
+    updateOptions(node, !!multiple, defaultValue, true);
   }
 }
-function postUpdateWrapper(element, props) {
+function updateSelect(element, value, defaultValue, multiple, wasMultiple) {
   var node = element;
-  var wasMultiple = node._wrapperState.wasMultiple;
-  node._wrapperState.wasMultiple = !!props.multiple;
-  var value = props.value;
 
   if (value != null) {
-    updateOptions(node, !!props.multiple, value, false);
-  } else if (wasMultiple !== !!props.multiple) {
+    updateOptions(node, !!multiple, value, false);
+  } else if (!!wasMultiple !== !!multiple) {
     // For simplicity, reapply `defaultValue` if `multiple` is toggled.
-    if (props.defaultValue != null) {
-      updateOptions(node, !!props.multiple, props.defaultValue, true);
+    if (defaultValue != null) {
+      updateOptions(node, !!multiple, defaultValue, true);
     } else {
       // Revert the select back to its default unselected state.
-      updateOptions(node, !!props.multiple, props.multiple ? [] : '', false);
+      updateOptions(node, !!multiple, multiple ? [] : '', false);
     }
   }
 }
-function restoreControlledState$2(element, props) {
+function restoreControlledSelectState(element, props) {
   var node = element;
   var value = props.value;
 
@@ -4146,30 +3652,53 @@ var didWarnValDefaultVal = false;
  * `defaultValue` if specified, or the children content (deprecated).
  */
 
-function initWrapperState(element, props) {
-  var node = element;
-
+function validateTextareaProps(element, props) {
   {
-    checkControlledValueProps('textarea', props);
-
     if (props.value !== undefined && props.defaultValue !== undefined && !didWarnValDefaultVal) {
       error('%s contains a textarea with both value and defaultValue props. ' + 'Textarea elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled textarea ' + 'and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', getCurrentFiberOwnerNameInDevOrNull() || 'A component');
 
       didWarnValDefaultVal = true;
     }
+
+    if (props.children != null && props.value == null) {
+      error('Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
+    }
   }
+}
+function updateTextarea(element, value, defaultValue) {
+  var node = element;
 
-  var initialValue = props.value; // Only bother fetching default value if we're going to use it
+  if (value != null) {
+    // Cast `value` to a string to ensure the value is set correctly. While
+    // browsers typically do this as necessary, jsdom doesn't.
+    var newValue = toString(getToStringValue(value)); // To avoid side effects (such as losing text selection), only set value if changed
 
-  if (initialValue == null) {
-    var children = props.children,
-        defaultValue = props.defaultValue;
+    if (newValue !== node.value) {
+      node.value = newValue;
+    } // TOOO: This should respect disableInputAttributeSyncing flag.
 
-    if (children != null) {
-      {
-        error('Use the `defaultValue` or `value` props instead of setting ' + 'children on <textarea>.');
+
+    if (defaultValue == null) {
+      if (node.defaultValue !== newValue) {
+        node.defaultValue = newValue;
       }
 
+      return;
+    }
+  }
+
+  if (defaultValue != null) {
+    node.defaultValue = toString(getToStringValue(defaultValue));
+  } else {
+    node.defaultValue = '';
+  }
+}
+function initTextarea(element, value, defaultValue, children) {
+  var node = element;
+  var initialValue = value; // Only bother fetching default value if we're going to use it
+
+  if (initialValue == null) {
+    if (children != null) {
       {
         if (defaultValue != null) {
           throw new Error('If you supply `defaultValue` on a <textarea>, do not pass children.');
@@ -4196,36 +3725,7 @@ function initWrapperState(element, props) {
 
   var stringValue = getToStringValue(initialValue);
   node.defaultValue = stringValue; // This will be toString:ed.
-
-  node._wrapperState = {
-    initialValue: stringValue
-  };
-}
-function updateWrapper(element, props) {
-  var node = element;
-  var value = getToStringValue(props.value);
-  var defaultValue = getToStringValue(props.defaultValue);
-
-  if (value != null) {
-    // Cast `value` to a string to ensure the value is set correctly. While
-    // browsers typically do this as necessary, jsdom doesn't.
-    var newValue = toString(value); // To avoid side effects (such as losing text selection), only set value if changed
-
-    if (newValue !== node.value) {
-      node.value = newValue;
-    }
-
-    if (props.defaultValue == null && node.defaultValue !== newValue) {
-      node.defaultValue = newValue;
-    }
-  }
-
-  if (defaultValue != null) {
-    node.defaultValue = toString(defaultValue);
-  }
-}
-function postMountWrapper(element, props) {
-  var node = element; // This is in postMount because we need access to the DOM node, which is not
+  // This is in postMount because we need access to the DOM node, which is not
   // available until after the component has mounted.
 
   var textContent = node.textContent; // Only set node.value if textContent is equal to the expected
@@ -4233,15 +3733,340 @@ function postMountWrapper(element, props) {
   // will populate textContent as well.
   // https://developer.microsoft.com/microsoft-edge/platform/issues/101525/
 
-  if (textContent === node._wrapperState.initialValue) {
+  if (textContent === stringValue) {
     if (textContent !== '' && textContent !== null) {
       node.value = textContent;
     }
   }
 }
-function restoreControlledState$1(element, props) {
+function restoreControlledTextareaState(element, props) {
   // DOM component is still mounted; update
-  updateWrapper(element, props);
+  updateTextarea(element, props.value, props.defaultValue);
+}
+
+// This validation code was written based on the HTML5 parsing spec:
+// https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
+//
+// Note: this does not catch all invalid nesting, nor does it try to (as it's
+// not clear what practical benefit doing so provides); instead, we warn only
+// for cases where the parser will give a parse tree differing from what React
+// intended. For example, <b><div></div></b> is invalid but we don't warn
+// because it still parses correctly; we do warn for other cases like nested
+// <p> tags where the beginning of the second element implicitly closes the
+// first, causing a confusing mess.
+// https://html.spec.whatwg.org/multipage/syntax.html#special
+var specialTags = ['address', 'applet', 'area', 'article', 'aside', 'base', 'basefont', 'bgsound', 'blockquote', 'body', 'br', 'button', 'caption', 'center', 'col', 'colgroup', 'dd', 'details', 'dir', 'div', 'dl', 'dt', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'iframe', 'img', 'input', 'isindex', 'li', 'link', 'listing', 'main', 'marquee', 'menu', 'menuitem', 'meta', 'nav', 'noembed', 'noframes', 'noscript', 'object', 'ol', 'p', 'param', 'plaintext', 'pre', 'script', 'section', 'select', 'source', 'style', 'summary', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'track', 'ul', 'wbr', 'xmp']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
+
+var inScopeTags = ['applet', 'caption', 'html', 'table', 'td', 'th', 'marquee', 'object', 'template', // https://html.spec.whatwg.org/multipage/syntax.html#html-integration-point
+// TODO: Distinguish by namespace here -- for <title>, including it here
+// errs on the side of fewer warnings
+'foreignObject', 'desc', 'title']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-button-scope
+
+var buttonScopeTags = inScopeTags.concat(['button']) ; // https://html.spec.whatwg.org/multipage/syntax.html#generate-implied-end-tags
+
+var impliedEndTags = ['dd', 'dt', 'li', 'option', 'optgroup', 'p', 'rp', 'rt'];
+var emptyAncestorInfoDev = {
+  current: null,
+  formTag: null,
+  aTagInScope: null,
+  buttonTagInScope: null,
+  nobrTagInScope: null,
+  pTagInButtonScope: null,
+  listItemTagAutoclosing: null,
+  dlItemTagAutoclosing: null,
+  containerTagInScope: null
+};
+
+function updatedAncestorInfoDev(oldInfo, tag) {
+  {
+    var ancestorInfo = assign({}, oldInfo || emptyAncestorInfoDev);
+
+    var info = {
+      tag: tag
+    };
+
+    if (inScopeTags.indexOf(tag) !== -1) {
+      ancestorInfo.aTagInScope = null;
+      ancestorInfo.buttonTagInScope = null;
+      ancestorInfo.nobrTagInScope = null;
+    }
+
+    if (buttonScopeTags.indexOf(tag) !== -1) {
+      ancestorInfo.pTagInButtonScope = null;
+    } // See rules for 'li', 'dd', 'dt' start tags in
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
+
+
+    if (specialTags.indexOf(tag) !== -1 && tag !== 'address' && tag !== 'div' && tag !== 'p') {
+      ancestorInfo.listItemTagAutoclosing = null;
+      ancestorInfo.dlItemTagAutoclosing = null;
+    }
+
+    ancestorInfo.current = info;
+
+    if (tag === 'form') {
+      ancestorInfo.formTag = info;
+    }
+
+    if (tag === 'a') {
+      ancestorInfo.aTagInScope = info;
+    }
+
+    if (tag === 'button') {
+      ancestorInfo.buttonTagInScope = info;
+    }
+
+    if (tag === 'nobr') {
+      ancestorInfo.nobrTagInScope = info;
+    }
+
+    if (tag === 'p') {
+      ancestorInfo.pTagInButtonScope = info;
+    }
+
+    if (tag === 'li') {
+      ancestorInfo.listItemTagAutoclosing = info;
+    }
+
+    if (tag === 'dd' || tag === 'dt') {
+      ancestorInfo.dlItemTagAutoclosing = info;
+    }
+
+    if (tag === '#document' || tag === 'html') {
+      ancestorInfo.containerTagInScope = null;
+    } else if (!ancestorInfo.containerTagInScope) {
+      ancestorInfo.containerTagInScope = info;
+    }
+
+    return ancestorInfo;
+  }
+}
+/**
+ * Returns whether
+ */
+
+
+function isTagValidWithParent(tag, parentTag) {
+  // First, let's check if we're in an unusual parsing mode...
+  switch (parentTag) {
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect
+    case 'select':
+      return tag === 'option' || tag === 'optgroup' || tag === '#text';
+
+    case 'optgroup':
+      return tag === 'option' || tag === '#text';
+    // Strictly speaking, seeing an <option> doesn't mean we're in a <select>
+    // but
+
+    case 'option':
+      return tag === '#text';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intd
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incaption
+    // No special behavior since these rules fall back to "in body" mode for
+    // all except special table nodes which cause bad parsing behavior anyway.
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intr
+
+    case 'tr':
+      return tag === 'th' || tag === 'td' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intbody
+
+    case 'tbody':
+    case 'thead':
+    case 'tfoot':
+      return tag === 'tr' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incolgroup
+
+    case 'colgroup':
+      return tag === 'col' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intable
+
+    case 'table':
+      return tag === 'caption' || tag === 'colgroup' || tag === 'tbody' || tag === 'tfoot' || tag === 'thead' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inhead
+
+    case 'head':
+      return tag === 'base' || tag === 'basefont' || tag === 'bgsound' || tag === 'link' || tag === 'meta' || tag === 'title' || tag === 'noscript' || tag === 'noframes' || tag === 'style' || tag === 'script' || tag === 'template';
+    // https://html.spec.whatwg.org/multipage/semantics.html#the-html-element
+
+    case 'html':
+      return tag === 'head' || tag === 'body' || tag === 'frameset';
+
+    case 'frameset':
+      return tag === 'frame';
+
+    case '#document':
+      return tag === 'html';
+  } // Probably in the "in body" parsing mode, so we outlaw only tag combos
+  // where the parsing rules cause implicit opens or closes to be added.
+  // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
+
+
+  switch (tag) {
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
+      return parentTag !== 'h1' && parentTag !== 'h2' && parentTag !== 'h3' && parentTag !== 'h4' && parentTag !== 'h5' && parentTag !== 'h6';
+
+    case 'rp':
+    case 'rt':
+      return impliedEndTags.indexOf(parentTag) === -1;
+
+    case 'body':
+    case 'caption':
+    case 'col':
+    case 'colgroup':
+    case 'frameset':
+    case 'frame':
+    case 'head':
+    case 'html':
+    case 'tbody':
+    case 'td':
+    case 'tfoot':
+    case 'th':
+    case 'thead':
+    case 'tr':
+      // These tags are only valid with a few parents that have special child
+      // parsing rules -- if we're down here, then none of those matched and
+      // so we allow it only if we don't know what the parent is, as all other
+      // cases are invalid.
+      return parentTag == null;
+  }
+
+  return true;
+}
+/**
+ * Returns whether
+ */
+
+
+function findInvalidAncestorForTag(tag, ancestorInfo) {
+  switch (tag) {
+    case 'address':
+    case 'article':
+    case 'aside':
+    case 'blockquote':
+    case 'center':
+    case 'details':
+    case 'dialog':
+    case 'dir':
+    case 'div':
+    case 'dl':
+    case 'fieldset':
+    case 'figcaption':
+    case 'figure':
+    case 'footer':
+    case 'header':
+    case 'hgroup':
+    case 'main':
+    case 'menu':
+    case 'nav':
+    case 'ol':
+    case 'p':
+    case 'section':
+    case 'summary':
+    case 'ul':
+    case 'pre':
+    case 'listing':
+    case 'table':
+    case 'hr':
+    case 'xmp':
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6':
+      return ancestorInfo.pTagInButtonScope;
+
+    case 'form':
+      return ancestorInfo.formTag || ancestorInfo.pTagInButtonScope;
+
+    case 'li':
+      return ancestorInfo.listItemTagAutoclosing;
+
+    case 'dd':
+    case 'dt':
+      return ancestorInfo.dlItemTagAutoclosing;
+
+    case 'button':
+      return ancestorInfo.buttonTagInScope;
+
+    case 'a':
+      // Spec says something about storing a list of markers, but it sounds
+      // equivalent to this check.
+      return ancestorInfo.aTagInScope;
+
+    case 'nobr':
+      return ancestorInfo.nobrTagInScope;
+  }
+
+  return null;
+}
+
+var didWarn$1 = {};
+
+function validateDOMNesting(childTag, ancestorInfo) {
+  {
+    ancestorInfo = ancestorInfo || emptyAncestorInfoDev;
+    var parentInfo = ancestorInfo.current;
+    var parentTag = parentInfo && parentInfo.tag;
+    var invalidParent = isTagValidWithParent(childTag, parentTag) ? null : parentInfo;
+    var invalidAncestor = invalidParent ? null : findInvalidAncestorForTag(childTag, ancestorInfo);
+    var invalidParentOrAncestor = invalidParent || invalidAncestor;
+
+    if (!invalidParentOrAncestor) {
+      return;
+    }
+
+    var ancestorTag = invalidParentOrAncestor.tag;
+    var warnKey = // eslint-disable-next-line react-internal/safe-string-coercion
+    String(!!invalidParent) + '|' + childTag + '|' + ancestorTag;
+
+    if (didWarn$1[warnKey]) {
+      return;
+    }
+
+    didWarn$1[warnKey] = true;
+    var tagDisplayName = '<' + childTag + '>';
+
+    if (invalidParent) {
+      var info = '';
+
+      if (ancestorTag === 'table' && childTag === 'tr') {
+        info += ' Add a <tbody>, <thead> or <tfoot> to your code to match the DOM tree generated by ' + 'the browser.';
+      }
+
+      error('validateDOMNesting(...): %s cannot appear as a child of <%s>.%s', tagDisplayName, ancestorTag, info);
+    } else {
+      error('validateDOMNesting(...): %s cannot appear as a descendant of ' + '<%s>.', tagDisplayName, ancestorTag);
+    }
+  }
+}
+
+function validateTextNesting(childText, parentTag) {
+  {
+    if (isTagValidWithParent('#text', parentTag)) {
+      return;
+    } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+    var warnKey = '#text|' + parentTag;
+
+    if (didWarn$1[warnKey]) {
+      return;
+    }
+
+    didWarn$1[warnKey] = true;
+
+    if (/\S/.test(childText)) {
+      error('validateDOMNesting(...): Text nodes cannot appear as a child of <%s>.', parentTag);
+    } else {
+      error('validateDOMNesting(...): Whitespace text nodes cannot appear as a child of <%s>. ' + "Make sure you don't have any extra whitespace between tags on " + 'each line of your source code.', parentTag);
+    }
+  }
 }
 
 var HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
@@ -4529,87 +4354,12 @@ function warnValidStyle(name, value) {
 /**
  * CSS properties which accept numbers but are not in units of "px".
  */
+var unitlessNumbers = new Set(['animationIterationCount', 'aspectRatio', 'borderImageOutset', 'borderImageSlice', 'borderImageWidth', 'boxFlex', 'boxFlexGroup', 'boxOrdinalGroup', 'columnCount', 'columns', 'flex', 'flexGrow', 'flexPositive', 'flexShrink', 'flexNegative', 'flexOrder', 'gridArea', 'gridRow', 'gridRowEnd', 'gridRowSpan', 'gridRowStart', 'gridColumn', 'gridColumnEnd', 'gridColumnSpan', 'gridColumnStart', 'fontWeight', 'lineClamp', 'lineHeight', 'opacity', 'order', 'orphans', 'scale', 'tabSize', 'widows', 'zIndex', 'zoom', 'fillOpacity', // SVG-related properties
+'floodOpacity', 'stopOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeMiterlimit', 'strokeOpacity', 'strokeWidth', 'MozAnimationIterationCount', // Known Prefixed Properties
+'MozBoxFlex', // TODO: Remove these since they shouldn't be used in modern code
+'MozBoxFlexGroup', 'MozLineClamp', 'msAnimationIterationCount', 'msFlex', 'msZoom', 'msFlexGrow', 'msFlexNegative', 'msFlexOrder', 'msFlexPositive', 'msFlexShrink', 'msGridColumn', 'msGridColumnSpan', 'msGridRow', 'msGridRowSpan', 'WebkitAnimationIterationCount', 'WebkitBoxFlex', 'WebKitBoxFlexGroup', 'WebkitBoxOrdinalGroup', 'WebkitColumnCount', 'WebkitColumns', 'WebkitFlex', 'WebkitFlexGrow', 'WebkitFlexPositive', 'WebkitFlexShrink', 'WebkitLineClamp']);
 function isUnitlessNumber (name) {
-  switch (name) {
-    case 'animationIterationCount':
-    case 'aspectRatio':
-    case 'borderImageOutset':
-    case 'borderImageSlice':
-    case 'borderImageWidth':
-    case 'boxFlex':
-    case 'boxFlexGroup':
-    case 'boxOrdinalGroup':
-    case 'columnCount':
-    case 'columns':
-    case 'flex':
-    case 'flexGrow':
-    case 'flexPositive':
-    case 'flexShrink':
-    case 'flexNegative':
-    case 'flexOrder':
-    case 'gridArea':
-    case 'gridRow':
-    case 'gridRowEnd':
-    case 'gridRowSpan':
-    case 'gridRowStart':
-    case 'gridColumn':
-    case 'gridColumnEnd':
-    case 'gridColumnSpan':
-    case 'gridColumnStart':
-    case 'fontWeight':
-    case 'lineClamp':
-    case 'lineHeight':
-    case 'opacity':
-    case 'order':
-    case 'orphans':
-    case 'scale':
-    case 'tabSize':
-    case 'widows':
-    case 'zIndex':
-    case 'zoom':
-    case 'fillOpacity': // SVG-related properties
-
-    case 'floodOpacity':
-    case 'stopOpacity':
-    case 'strokeDasharray':
-    case 'strokeDashoffset':
-    case 'strokeMiterlimit':
-    case 'strokeOpacity':
-    case 'strokeWidth':
-    case 'MozAnimationIterationCount': // Known Prefixed Properties
-
-    case 'MozBoxFlex': // TODO: Remove these since they shouldn't be used in modern code
-
-    case 'MozBoxFlexGroup':
-    case 'MozLineClamp':
-    case 'msAnimationIterationCount':
-    case 'msFlex':
-    case 'msZoom':
-    case 'msFlexGrow':
-    case 'msFlexNegative':
-    case 'msFlexOrder':
-    case 'msFlexPositive':
-    case 'msFlexShrink':
-    case 'msGridColumn':
-    case 'msGridColumnSpan':
-    case 'msGridRow':
-    case 'msGridRowSpan':
-    case 'WebkitAnimationIterationCount':
-    case 'WebkitBoxFlex':
-    case 'WebKitBoxFlexGroup':
-    case 'WebkitBoxOrdinalGroup':
-    case 'WebkitColumnCount':
-    case 'WebkitColumns':
-    case 'WebkitFlex':
-    case 'WebkitFlexGrow':
-    case 'WebkitFlexPositive':
-    case 'WebkitFlexShrink':
-    case 'WebkitLineClamp':
-      return true;
-
-    default:
-      return false;
-  }
+  return unitlessNumbers.has(name);
 }
 
 /**
@@ -4663,6 +4413,40 @@ function createDangerousStringForStyles(styles) {
     return serialized || null;
   }
 }
+
+function setValueForStyle(style, styleName, value) {
+  var isCustomProperty = styleName.indexOf('--') === 0;
+
+  {
+    if (!isCustomProperty) {
+      warnValidStyle(styleName, value);
+    }
+  }
+
+  if (value == null || typeof value === 'boolean' || value === '') {
+    if (isCustomProperty) {
+      style.setProperty(styleName, '');
+    } else if (styleName === 'float') {
+      style.cssFloat = '';
+    } else {
+      style[styleName] = '';
+    }
+  } else if (isCustomProperty) {
+    style.setProperty(styleName, value);
+  } else if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(styleName)) {
+    style[styleName] = value + 'px'; // Presumes implicit 'px' suffix for unitless numbers
+  } else {
+    if (styleName === 'float') {
+      style.cssFloat = value;
+    } else {
+      {
+        checkCSSPropertyStringCoercion(value, styleName);
+      }
+
+      style[styleName] = ('' + value).trim();
+    }
+  }
+}
 /**
  * Sets the value for multiple styles on a node.  If a value is specified as
  * '' (empty string), the corresponding style property will be unset.
@@ -4671,44 +4455,27 @@ function createDangerousStringForStyles(styles) {
  * @param {object} styles
  */
 
-function setValueForStyles(node, styles) {
+
+function setValueForStyles(node, styles, prevStyles) {
+  if (styles != null && typeof styles !== 'object') {
+    throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
+  }
+
+  {
+    if (styles) {
+      // Freeze the next style object so that we can assume it won't be
+      // mutated. We have already warned for this in the past.
+      Object.freeze(styles);
+    }
+  }
+
   var style = node.style;
 
-  for (var styleName in styles) {
-    if (!styles.hasOwnProperty(styleName)) {
-      continue;
-    }
-
-    var value = styles[styleName];
-    var isCustomProperty = styleName.indexOf('--') === 0;
-
-    {
-      if (!isCustomProperty) {
-        warnValidStyle(styleName, value);
-      }
-    }
-
-    if (value == null || typeof value === 'boolean' || value === '') {
-      if (isCustomProperty) {
-        style.setProperty(styleName, '');
-      } else if (styleName === 'float') {
-        style.cssFloat = '';
-      } else {
-        style[styleName] = '';
-      }
-    } else if (isCustomProperty) {
-      style.setProperty(styleName, value);
-    } else if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(styleName)) {
-      style[styleName] = value + 'px'; // Presumes implicit 'px' suffix for unitless numbers
-    } else {
-      if (styleName === 'float') {
-        style.cssFloat = value;
-      } else {
-        {
-          checkCSSPropertyStringCoercion(value, styleName);
-        }
-
-        style[styleName] = ('' + value).trim();
+  {
+    for (var _styleName2 in styles) {
+      if (styles.hasOwnProperty(_styleName2)) {
+        var _value = styles[_styleName2];
+        setValueForStyle(style, _styleName2, _value);
       }
     }
   }
@@ -4756,19 +4523,43 @@ function expandShorthandMap(styles) {
  */
 
 
-function validateShorthandPropertyCollisionInDev(styleUpdates, nextStyles) {
+function validateShorthandPropertyCollisionInDev(prevStyles, nextStyles) {
   {
     if (!nextStyles) {
       return;
+    } // Compute the diff as it would happen elsewhere.
+
+
+    var expandedUpdates = {};
+
+    if (prevStyles) {
+      for (var key in prevStyles) {
+        if (prevStyles.hasOwnProperty(key) && !nextStyles.hasOwnProperty(key)) {
+          var longhands = shorthandToLonghand[key] || [key];
+
+          for (var i = 0; i < longhands.length; i++) {
+            expandedUpdates[longhands[i]] = key;
+          }
+        }
+      }
     }
 
-    var expandedUpdates = expandShorthandMap(styleUpdates);
+    for (var _key in nextStyles) {
+      if (nextStyles.hasOwnProperty(_key) && (!prevStyles || prevStyles[_key] !== nextStyles[_key])) {
+        var _longhands = shorthandToLonghand[_key] || [_key];
+
+        for (var _i = 0; _i < _longhands.length; _i++) {
+          expandedUpdates[_longhands[_i]] = _key;
+        }
+      }
+    }
+
     var expandedStyles = expandShorthandMap(nextStyles);
     var warnedAbout = {};
 
-    for (var key in expandedUpdates) {
-      var originalKey = expandedUpdates[key];
-      var correctOriginalKey = expandedStyles[key];
+    for (var _key2 in expandedUpdates) {
+      var originalKey = expandedUpdates[_key2];
+      var correctOriginalKey = expandedStyles[_key2];
 
       if (correctOriginalKey && originalKey !== correctOriginalKey) {
         var warningKey = originalKey + ',' + correctOriginalKey;
@@ -4779,7 +4570,7 @@ function validateShorthandPropertyCollisionInDev(styleUpdates, nextStyles) {
 
         warnedAbout[warningKey] = true;
 
-        error('%s a style property during rerender (%s) when a ' + 'conflicting property is set (%s) can lead to styling bugs. To ' + "avoid this, don't mix shorthand and non-shorthand properties " + 'for the same value; instead, replace the shorthand with ' + 'separate values.', isValueEmpty(styleUpdates[originalKey]) ? 'Removing' : 'Updating', originalKey, correctOriginalKey);
+        error('%s a style property during rerender (%s) when a ' + 'conflicting property is set (%s) can lead to styling bugs. To ' + "avoid this, don't mix shorthand and non-shorthand properties " + 'for the same value; instead, replace the shorthand with ' + 'separate values.', isValueEmpty(nextStyles[originalKey]) ? 'Removing' : 'Updating', originalKey, correctOriginalKey);
       }
     }
   }
@@ -4808,6 +4599,14 @@ function isCustomElement(tagName, props) {
     default:
       return true;
   }
+}
+
+var aliases = new Map([['acceptCharset', 'accept-charset'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv'], // HTML and SVG attributes, but the SVG attribute is case sensitive.],
+['crossOrigin', 'crossorigin'], // This is a list of all SVG attributes that need special casing.
+// Regular attributes that just accept strings.],
+['accentHeight', 'accent-height'], ['alignmentBaseline', 'alignment-baseline'], ['arabicForm', 'arabic-form'], ['baselineShift', 'baseline-shift'], ['capHeight', 'cap-height'], ['clipPath', 'clip-path'], ['clipRule', 'clip-rule'], ['colorInterpolation', 'color-interpolation'], ['colorInterpolationFilters', 'color-interpolation-filters'], ['colorProfile', 'color-profile'], ['colorRendering', 'color-rendering'], ['dominantBaseline', 'dominant-baseline'], ['enableBackground', 'enable-background'], ['fillOpacity', 'fill-opacity'], ['fillRule', 'fill-rule'], ['floodColor', 'flood-color'], ['floodOpacity', 'flood-opacity'], ['fontFamily', 'font-family'], ['fontSize', 'font-size'], ['fontSizeAdjust', 'font-size-adjust'], ['fontStretch', 'font-stretch'], ['fontStyle', 'font-style'], ['fontVariant', 'font-variant'], ['fontWeight', 'font-weight'], ['glyphName', 'glyph-name'], ['glyphOrientationHorizontal', 'glyph-orientation-horizontal'], ['glyphOrientationVertical', 'glyph-orientation-vertical'], ['horizAdvX', 'horiz-adv-x'], ['horizOriginX', 'horiz-origin-x'], ['imageRendering', 'image-rendering'], ['letterSpacing', 'letter-spacing'], ['lightingColor', 'lighting-color'], ['markerEnd', 'marker-end'], ['markerMid', 'marker-mid'], ['markerStart', 'marker-start'], ['overlinePosition', 'overline-position'], ['overlineThickness', 'overline-thickness'], ['paintOrder', 'paint-order'], ['panose-1', 'panose-1'], ['pointerEvents', 'pointer-events'], ['renderingIntent', 'rendering-intent'], ['shapeRendering', 'shape-rendering'], ['stopColor', 'stop-color'], ['stopOpacity', 'stop-opacity'], ['strikethroughPosition', 'strikethrough-position'], ['strikethroughThickness', 'strikethrough-thickness'], ['strokeDasharray', 'stroke-dasharray'], ['strokeDashoffset', 'stroke-dashoffset'], ['strokeLinecap', 'stroke-linecap'], ['strokeLinejoin', 'stroke-linejoin'], ['strokeMiterlimit', 'stroke-miterlimit'], ['strokeOpacity', 'stroke-opacity'], ['strokeWidth', 'stroke-width'], ['textAnchor', 'text-anchor'], ['textDecoration', 'text-decoration'], ['textRendering', 'text-rendering'], ['transformOrigin', 'transform-origin'], ['underlinePosition', 'underline-position'], ['underlineThickness', 'underline-thickness'], ['unicodeBidi', 'unicode-bidi'], ['unicodeRange', 'unicode-range'], ['unitsPerEm', 'units-per-em'], ['vAlphabetic', 'v-alphabetic'], ['vHanging', 'v-hanging'], ['vIdeographic', 'v-ideographic'], ['vMathematical', 'v-mathematical'], ['vectorEffect', 'vector-effect'], ['vertAdvY', 'vert-adv-y'], ['vertOriginX', 'vert-origin-x'], ['vertOriginY', 'vert-origin-y'], ['wordSpacing', 'word-spacing'], ['writingMode', 'writing-mode'], ['xmlnsXlink', 'xmlns:xlink'], ['xHeight', 'x-height']]);
+function getAttributeAlias (name) {
+  return aliases.get(name) || name;
 }
 
 // When adding attributes to the HTML or SVG allowed attribute list, be sure to
@@ -5551,9 +5350,8 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    }
+    } // Known attributes should match the casing specified in the property config.
 
-    var propertyInfo = getPropertyInfo(name); // Known attributes should match the casing specified in the property config.
 
     if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
       var standardName = possibleStandardNames[lowerCasedName];
@@ -5595,10 +5393,43 @@ function validateProperty(tagName, name, value, eventRegistry) {
       case 'boolean':
         {
           switch (name) {
+            case 'autoFocus':
             case 'checked':
-            case 'selected':
             case 'multiple':
             case 'muted':
+            case 'selected':
+            case 'contentEditable':
+            case 'spellCheck':
+            case 'draggable':
+            case 'value':
+            case 'autoReverse':
+            case 'externalResourcesRequired':
+            case 'focusable':
+            case 'preserveAlpha':
+            case 'allowFullScreen':
+            case 'async':
+            case 'autoPlay':
+            case 'controls':
+            case 'default':
+            case 'defer':
+            case 'disabled':
+            case 'disablePictureInPicture':
+            case 'disableRemotePlayback':
+            case 'formNoValidate':
+            case 'hidden':
+            case 'loop':
+            case 'noModule':
+            case 'noValidate':
+            case 'open':
+            case 'playsInline':
+            case 'readOnly':
+            case 'required':
+            case 'reversed':
+            case 'scoped':
+            case 'seamless':
+            case 'itemScope':
+            case 'capture':
+            case 'download':
               {
                 // Boolean properties can accept boolean values
                 return true;
@@ -5606,13 +5437,9 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
             default:
               {
-                if (propertyInfo === null) {
-                  var prefix = name.toLowerCase().slice(0, 5);
+                var prefix = name.toLowerCase().slice(0, 5);
 
-                  if (prefix === 'data-' || prefix === 'aria-') {
-                    return true;
-                  }
-                } else if (propertyInfo.acceptsBooleans) {
+                if (prefix === 'data-' || prefix === 'aria-') {
                   return true;
                 }
 
@@ -5644,15 +5471,35 @@ function validateProperty(tagName, name, value, eventRegistry) {
               case 'selected':
               case 'multiple':
               case 'muted':
+              case 'allowFullScreen':
+              case 'async':
+              case 'autoPlay':
+              case 'controls':
+              case 'default':
+              case 'defer':
+              case 'disabled':
+              case 'disablePictureInPicture':
+              case 'disableRemotePlayback':
+              case 'formNoValidate':
+              case 'hidden':
+              case 'loop':
+              case 'noModule':
+              case 'noValidate':
+              case 'open':
+              case 'playsInline':
+              case 'readOnly':
+              case 'required':
+              case 'reversed':
+              case 'scoped':
+              case 'seamless':
+              case 'itemScope':
                 {
                   break;
                 }
 
               default:
                 {
-                  if (propertyInfo === null || propertyInfo.type !== BOOLEAN) {
-                    return true;
-                  }
+                  return true;
                 }
             }
 
@@ -5698,6 +5545,35 @@ function validateProperties(type, props, eventRegistry) {
   }
 
   warnUnknownProperties(type, props, eventRegistry);
+}
+
+// and any newline or tab are filtered out as if they're not part of the URL.
+// https://url.spec.whatwg.org/#url-parsing
+// Tab or newline are defined as \r\n\t:
+// https://infra.spec.whatwg.org/#ascii-tab-or-newline
+// A C0 control is a code point in the range \u0000 NULL to \u001F
+// INFORMATION SEPARATOR ONE, inclusive:
+// https://infra.spec.whatwg.org/#c0-control-or-space
+
+/* eslint-disable max-len */
+
+var isJavaScriptProtocol = /^[\u0000-\u001F ]*j[\r\n\t]*a[\r\n\t]*v[\r\n\t]*a[\r\n\t]*s[\r\n\t]*c[\r\n\t]*r[\r\n\t]*i[\r\n\t]*p[\r\n\t]*t[\r\n\t]*\:/i;
+var didWarn = false;
+
+function sanitizeURL(url) {
+  // We should never have symbols here because they get filtered out elsewhere.
+  // eslint-disable-next-line react-internal/safe-string-coercion
+  var stringifiedURL = '' + url;
+
+  {
+    if (!didWarn && isJavaScriptProtocol.test(stringifiedURL)) {
+      didWarn = true;
+
+      error('A future version of React will block javascript: URLs as a security precaution. ' + 'Use event handlers instead if you can. If you need to generate unsafe HTML try ' + 'using dangerouslySetInnerHTML instead. React was passed %s.', JSON.stringify(stringifiedURL));
+    }
+  }
+
+  return url;
 }
 
 var IS_EVENT_HANDLE_NON_MANAGED_NODE = 1;
@@ -7174,11 +7050,13 @@ function prepareToHydrateHostInstance(fiber, hostContext) {
   var shouldWarnIfMismatchDev = !didSuspendOrErrorDEV;
   var updatePayload = hydrateInstance(instance, fiber.type, fiber.memoizedProps, hostContext, fiber, shouldWarnIfMismatchDev); // TODO: Type this specific to this type of component.
 
-  fiber.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
-  // is a new ref we mark this as an update.
+  {
+    fiber.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
+    // is a new ref we mark this as an update.
 
-  if (updatePayload !== null) {
-    return true;
+    if (updatePayload !== null) {
+      return true;
+    }
   }
 
   return false;
@@ -10068,7 +9946,21 @@ var didWarnAboutUseWrappedInTryCatch;
 {
   didWarnAboutMismatchedHooksForComponent = new Set();
   didWarnAboutUseWrappedInTryCatch = new Set();
-} // These are set right before calling the component.
+} // The effect "instance" is a shared object that remains the same for the entire
+// lifetime of an effect. In Rust terms, a RefCell. We use it to store the
+// "destroy" function that is returned from an effect, because that is stateful.
+// The field is `undefined` if the effect is unmounted, or if the effect ran
+// but is not stateful. We don't explicitly track whether the effect is mounted
+// or unmounted because that can be inferred by the hiddenness of the fiber in
+// the tree, i.e. whether there is a hidden Offscreen fiber above it.
+//
+// It's unfortunate that this is stored on a separate object, because it adds
+// more memory per effect instance, but it's conceptually sound. I think there's
+// likely a better data structure we could use for effects; perhaps just one
+// array of effect instances per fiber. But I think this is OK for now despite
+// the additional memory and we can follow up with performance
+// optimizations later.
+// These are set right before calling the component.
 
 
 var renderLanes$1 = NoLanes; // The work-in-progress fiber. I've named it differently to distinguish it from
@@ -10969,7 +10861,7 @@ function mountSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // consistency check. See the next comment.
 
   fiber.flags |= Passive$1;
-  pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), undefined, null);
+  pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), createEffectInstance(), null);
   return nextSnapshot;
 }
 
@@ -11011,7 +10903,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   // checking whether we scheduled a subscription effect above.
   workInProgressHook !== null && workInProgressHook.memoizedState.tag & HasEffect) {
     fiber.flags |= Passive$1;
-    pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), undefined, null); // Unless we're rendering a blocking lane, schedule a consistency check.
+    pushEffect(HasEffect | Passive, updateStoreInstance.bind(null, fiber, inst, nextSnapshot, getSnapshot), createEffectInstance(), null); // Unless we're rendering a blocking lane, schedule a consistency check.
     // Right before committing, we will walk the tree and check if any of the
     // stores were mutated.
 
@@ -11096,7 +10988,7 @@ function forceStoreRerender(fiber) {
   var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
   if (root !== null) {
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    scheduleUpdateOnFiber(root, fiber, SyncLane);
   }
 }
 
@@ -11129,11 +11021,11 @@ function rerenderState(initialState) {
   return rerenderReducer(basicStateReducer);
 }
 
-function pushEffect(tag, create, destroy, deps) {
+function pushEffect(tag, create, inst, deps) {
   var effect = {
     tag: tag,
     create: create,
-    destroy: destroy,
+    inst: inst,
     deps: deps,
     // Circular
     next: null
@@ -11160,6 +11052,12 @@ function pushEffect(tag, create, destroy, deps) {
   return effect;
 }
 
+function createEffectInstance() {
+  return {
+    destroy: undefined
+  };
+}
+
 function mountRef(initialValue) {
   var hook = mountWorkInProgressHook();
 
@@ -11181,30 +11079,29 @@ function mountEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = mountWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
   currentlyRenderingFiber$1.flags |= fiberFlags;
-  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, undefined, nextDeps);
+  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, createEffectInstance(), nextDeps);
 }
 
 function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
   var hook = updateWorkInProgressHook();
   var nextDeps = deps === undefined ? null : deps;
-  var destroy = undefined; // currentHook is null when rerendering after a render phase state update.
+  var effect = hook.memoizedState;
+  var inst = effect.inst; // currentHook is null when rerendering after a render phase state update.
 
   if (currentHook !== null) {
-    var prevEffect = currentHook.memoizedState;
-    destroy = prevEffect.destroy;
-
     if (nextDeps !== null) {
+      var prevEffect = currentHook.memoizedState;
       var prevDeps = prevEffect.deps;
 
       if (areHookInputsEqual(nextDeps, prevDeps)) {
-        hook.memoizedState = pushEffect(hookFlags, create, destroy, nextDeps);
+        hook.memoizedState = pushEffect(hookFlags, create, inst, nextDeps);
         return;
       }
     }
   }
 
   currentlyRenderingFiber$1.flags |= fiberFlags;
-  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, destroy, nextDeps);
+  hook.memoizedState = pushEffect(HasEffect | hookFlags, create, inst, nextDeps);
 }
 
 function mountEffect(create, deps) {
@@ -11563,8 +11460,7 @@ function refreshCache(fiber, seedKey, seedValue) {
           var root = enqueueUpdate(provider, refreshUpdate, lane);
 
           if (root !== null) {
-            var eventTime = requestEventTime();
-            scheduleUpdateOnFiber(root, provider, lane, eventTime);
+            scheduleUpdateOnFiber(root, provider, lane);
             entangleTransitions(root, provider, lane);
           } // TODO: If a refresh never commits, the new cache created here must be
           // released. A simple case is start refreshing a cache boundary, but then
@@ -11616,8 +11512,7 @@ function dispatchReducerAction(fiber, queue, action) {
     var root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitionUpdate(root, queue, lane);
     }
   }
@@ -11691,8 +11586,7 @@ function dispatchSetState(fiber, queue, action) {
     var root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitionUpdate(root, queue, lane);
     }
   }
@@ -13003,8 +12897,7 @@ var classComponentUpdater = {
     var root = enqueueUpdate(fiber, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitions(root, fiber, lane);
     }
 
@@ -13030,8 +12923,7 @@ var classComponentUpdater = {
     var root = enqueueUpdate(fiber, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitions(root, fiber, lane);
     }
 
@@ -13057,8 +12949,7 @@ var classComponentUpdater = {
     var root = enqueueUpdate(fiber, update, lane);
 
     if (root !== null) {
-      var eventTime = requestEventTime();
-      scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+      scheduleUpdateOnFiber(root, fiber, lane);
       entangleTransitions(root, fiber, lane);
     }
 
@@ -14106,9 +13997,9 @@ function throwException(root, returnFiber, sourceFiber, value, rootRenderLanes) 
               }
 
               break;
-            }
+            } // Fall through
+
           }
-        // eslint-disable-next-line no-fallthrough
 
         default:
           {
@@ -16001,11 +15892,9 @@ function updateDehydratedSuspenseComponent(current, workInProgress, didSuspend, 
           // Intentionally mutating since this render will get interrupted. This
           // is one of the very rare times where we mutate the current tree
           // during the render phase.
-          suspenseState.retryLane = attemptHydrationAtLane; // TODO: Ideally this would inherit the event time of the current render
-
-          var eventTime = NoTimestamp;
+          suspenseState.retryLane = attemptHydrationAtLane;
           enqueueConcurrentRenderForLane(current, attemptHydrationAtLane);
-          scheduleUpdateOnFiber(root, current, attemptHydrationAtLane, eventTime); // Throw a special object that signals to the work loop that it should
+          scheduleUpdateOnFiber(root, current, attemptHydrationAtLane); // Throw a special object that signals to the work loop that it should
           // interrupt the current render.
           //
           // Because we're inside a React-only execution stack, we don't
@@ -16974,14 +16863,14 @@ function beginWork$1(current, workInProgress, renderLanes) {
         return updateHostHoistable(current, workInProgress);
       }
 
-    // eslint-disable-next-line no-fallthrough
+    // Fall through
 
     case HostSingleton:
       {
         return updateHostSingleton(current, workInProgress, renderLanes);
       }
 
-    // eslint-disable-next-line no-fallthrough
+    // Fall through
 
     case HostComponent:
       return updateHostComponent$1(current, workInProgress, renderLanes);
@@ -17653,24 +17542,26 @@ function updateHostComponent(current, workInProgress, type, newProps, renderLane
       // In mutation mode, this is sufficient for a bailout because
       // we won't touch this node even if children changed.
       return;
-    } // If we get updated because one of our children updated, we don't
-    // have newProps so we'll have to reuse them.
-    // TODO: Split the update API as separate for the props vs. children.
-    // Even better would be if children weren't special cased at all tho.
+    }
 
+    {
+      // If we get updated because one of our children updated, we don't
+      // have newProps so we'll have to reuse them.
+      // TODO: Split the update API as separate for the props vs. children.
+      // Even better would be if children weren't special cased at all tho.
+      var instance = workInProgress.stateNode; // TODO: Experiencing an error where oldProps is null. Suggests a host
+      // component is hitting the resume path. Figure out why. Possibly
+      // related to `hidden`.
 
-    var instance = workInProgress.stateNode;
-    var currentHostContext = getHostContext(); // TODO: Experiencing an error where oldProps is null. Suggests a host
-    // component is hitting the resume path. Figure out why. Possibly
-    // related to `hidden`.
+      getHostContext();
+      var updatePayload = prepareUpdate(instance, type, oldProps, newProps); // TODO: Type this specific to this type of component.
 
-    var updatePayload = prepareUpdate(instance, type, oldProps, newProps, currentHostContext); // TODO: Type this specific to this type of component.
+      workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
+      // is a new ref we mark this as an update. All the work is done in commitWork.
 
-    workInProgress.updateQueue = updatePayload; // If the update payload indicates that there is a change or if there
-    // is a new ref we mark this as an update. All the work is done in commitWork.
-
-    if (updatePayload) {
-      markUpdate(workInProgress);
+      if (updatePayload) {
+        markUpdate(workInProgress);
+      }
     }
   }
 } // This function must be called at the very end of the complete phase, because
@@ -18187,9 +18078,9 @@ function completeWork(current, workInProgress, renderLanes) {
               return null;
             }
           }
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostSingleton:
       {
@@ -18241,9 +18132,9 @@ function completeWork(current, workInProgress, renderLanes) {
 
           bubbleProperties(workInProgress);
           return null;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostComponent:
       {
@@ -19542,10 +19433,12 @@ function commitHookEffectListUnmount(flags, finishedWork, nearestMountedAncestor
     do {
       if ((effect.tag & flags) === flags) {
         // Unmount
-        var destroy = effect.destroy;
-        effect.destroy = undefined;
+        var inst = effect.inst;
+        var destroy = inst.destroy;
 
         if (destroy !== undefined) {
+          inst.destroy = undefined;
+
           {
             if ((flags & Passive) !== NoFlags) {
               markComponentPassiveEffectUnmountStarted(finishedWork);
@@ -19610,7 +19503,9 @@ function commitHookEffectListMount(flags, finishedWork) {
           }
         }
 
-        effect.destroy = create();
+        var inst = effect.inst;
+        var destroy = create();
+        inst.destroy = destroy;
 
         {
           if ((flags & Insertion) !== NoFlags) {
@@ -19627,8 +19522,6 @@ function commitHookEffectListMount(flags, finishedWork) {
         }
 
         {
-          var destroy = effect.destroy;
-
           if (destroy !== undefined && typeof destroy !== 'function') {
             var hookName = void 0;
 
@@ -19990,9 +19883,9 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork, committe
           }
 
           break;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostSingleton:
     case HostComponent:
@@ -20371,9 +20264,9 @@ function commitPlacement(finishedWork) {
 
           insertOrAppendPlacementNode(finishedWork, before, parent);
           break;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line no-fallthrough
 
     case HostComponent:
       {
@@ -20404,7 +20297,6 @@ function commitPlacement(finishedWork) {
         insertOrAppendPlacementNodeIntoContainer(finishedWork, _before2, _parent2);
         break;
       }
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       throw new Error('Invalid host parent fiber. This error is likely caused by a bug ' + 'in React. Please file an issue.');
@@ -20563,9 +20455,9 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
           }
 
           return;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line no-fallthrough
 
     case HostSingleton:
       {
@@ -20587,9 +20479,9 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
           hostParent = prevHostParent;
           hostParentIsContainer = prevHostParentIsContainer;
           return;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line no-fallthrough
 
     case HostComponent:
       {
@@ -20598,7 +20490,6 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
         } // Intentional fallthrough to next branch
 
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostText:
       {
@@ -20677,12 +20568,13 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
               var effect = firstEffect;
 
               do {
-                var _effect = effect,
-                    destroy = _effect.destroy,
-                    tag = _effect.tag;
+                var tag = effect.tag;
+                var inst = effect.inst;
+                var destroy = inst.destroy;
 
                 if (destroy !== undefined) {
                   if ((tag & Insertion) !== NoFlags) {
+                    inst.destroy = undefined;
                     safelyCallDestroy(deletedFiber, nearestMountedAncestor, destroy);
                   } else if ((tag & Layout) !== NoFlags) {
                     {
@@ -20691,9 +20583,11 @@ function commitDeletionEffectsOnFiber(finishedRoot, nearestMountedAncestor, dele
 
                     if (shouldProfile(deletedFiber)) {
                       startLayoutEffectTimer();
+                      inst.destroy = undefined;
                       safelyCallDestroy(deletedFiber, nearestMountedAncestor, destroy);
                       recordLayoutEffectDuration(deletedFiber);
                     } else {
+                      inst.destroy = undefined;
                       safelyCallDestroy(deletedFiber, nearestMountedAncestor, destroy);
                     }
 
@@ -20851,7 +20745,7 @@ function detachOffscreenInstance(instance) {
 
   if (root !== null) {
     instance._pendingVisibility |= OffscreenDetached;
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    scheduleUpdateOnFiber(root, fiber, SyncLane);
   }
 }
 function attachOffscreenInstance(instance) {
@@ -20870,7 +20764,7 @@ function attachOffscreenInstance(instance) {
 
   if (root !== null) {
     instance._pendingVisibility &= ~OffscreenDetached;
-    scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+    scheduleUpdateOnFiber(root, fiber, SyncLane);
   }
 }
 
@@ -21079,9 +20973,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
           }
 
           return;
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostSingleton:
       {
@@ -21097,9 +20991,9 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               acquireSingletonInstance(finishedWork.type, props, singleton, finishedWork);
             }
           }
-        }
+        } // Fall through
+
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case HostComponent:
       {
@@ -21144,7 +21038,7 @@ function commitMutationEffectsOnFiber(finishedWork, root, lanes) {
               var _updatePayload = finishedWork.updateQueue;
               finishedWork.updateQueue = null;
 
-              if (_updatePayload !== null) {
+              if (_updatePayload !== null || diffInCommitPhase) {
                 try {
                   commitUpdate(_instance2, _updatePayload, type, oldProps, newProps, finishedWork);
                 } catch (error) {
@@ -21871,7 +21765,6 @@ function commitPassiveMountOnFiber(finishedRoot, finishedWork, committedLanes, c
       }
 
     case TracingMarkerComponent:
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       {
@@ -21987,7 +21880,6 @@ includeWorkInProgressEffects) {
       }
 
     case TracingMarkerComponent:
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       {
@@ -22048,7 +21940,6 @@ function commitAtomicPassiveEffects(finishedRoot, finishedWork, committedLanes, 
 
         break;
       }
-    // eslint-disable-next-line-no-fallthrough
 
     default:
       {
@@ -22633,6 +22524,7 @@ var didScheduleMicrotask_act = false; // Used to quickly bail out of flushSync i
 
 var mightHavePendingSyncWork = false;
 var isFlushingWork = false;
+var currentEventTransitionLane = NoLanes;
 function ensureRootIsScheduled(root) {
   // This function is called whenever a root receives an update. It does two
   // things 1) it ensures the root is in the root schedule, and 2) it ensures
@@ -22667,6 +22559,11 @@ function ensureRootIsScheduled(root) {
       didScheduleMicrotask = true;
       scheduleImmediateTask(processRootScheduleInMicrotask);
     }
+  }
+
+  if (ReactCurrentActQueue$1.isBatchingLegacy && root.tag === LegacyRoot) {
+    // Special `act` case: Record whenever a legacy update is scheduled.
+    ReactCurrentActQueue$1.didScheduleLegacyUpdate = true;
   }
 }
 function flushSyncWorkOnAllRoots() {
@@ -22775,6 +22672,11 @@ function processRootScheduleInMicrotask() {
 
   while (root !== null) {
     var next = root.next;
+
+    if (currentEventTransitionLane !== NoLane && shouldAttemptEagerTransition()) {
+      markRootEntangled(root, mergeLanes(currentEventTransitionLane, SyncLane));
+    }
+
     var nextLanes = scheduleTaskForRootDuringMicrotask(root, currentTime);
 
     if (nextLanes === NoLane) {
@@ -22806,9 +22708,10 @@ function processRootScheduleInMicrotask() {
     }
 
     root = next;
-  } // At the end of the microtask, flush any pending synchronous work. This has
-  // to come at the end, because it does actual rendering work that might throw.
+  }
 
+  currentEventTransitionLane = NoLane; // At the end of the microtask, flush any pending synchronous work. This has
+  // to come at the end, because it does actual rendering work that might throw.
 
   flushSyncWorkOnAllRoots();
 }
@@ -22986,7 +22889,13 @@ function scheduleImmediateTask(cb) {
   }
 }
 
-var ceil = Math.ceil;
+function getCurrentEventTransitionLane() {
+  return currentEventTransitionLane;
+}
+function setCurrentEventTransitionLane(lane) {
+  currentEventTransitionLane = lane;
+}
+
 var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher,
     ReactCurrentCache = ReactSharedInternals.ReactCurrentCache,
@@ -23100,12 +23009,7 @@ var isFlushingPassiveEffects = false;
 var didScheduleUpdateDuringPassiveEffects = false;
 var NESTED_PASSIVE_UPDATE_LIMIT = 50;
 var nestedPassiveUpdateCount = 0;
-var rootWithPassiveNestedUpdates = null; // If two updates are scheduled within the same event, we should treat their
-// event times as simultaneous, even if the actual clock time has advanced
-// between the first and second call.
-
-var currentEventTime = NoTimestamp;
-var currentEventTransitionLane = NoLanes;
+var rootWithPassiveNestedUpdates = null;
 var isRunningInsertionEffect = false;
 function getWorkInProgressRoot() {
   return workInProgressRoot;
@@ -23115,22 +23019,6 @@ function getWorkInProgressRootRenderLanes() {
 }
 function isWorkLoopSuspendedOnData() {
   return workInProgressSuspendedReason === SuspendedOnData;
-}
-function requestEventTime() {
-  if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-    // We're inside React, so it's fine to read the actual time.
-    return now$1();
-  } // We're not inside React, so we may be in the middle of a browser event.
-
-
-  if (currentEventTime !== NoTimestamp) {
-    // Use the same start time for all updates until we enter React again.
-    return currentEventTime;
-  } // This is the first update since React yielded. Compute a new start time.
-
-
-  currentEventTime = now$1();
-  return currentEventTime;
 }
 function requestUpdateLane(fiber) {
   // Special cases
@@ -23171,12 +23059,12 @@ function requestUpdateLane(fiber) {
     // over. Our heuristic for that is whenever we enter a concurrent work loop.
 
 
-    if (currentEventTransitionLane === NoLane) {
+    if (getCurrentEventTransitionLane() === NoLane) {
       // All transitions within the same event are assigned the same lane.
-      currentEventTransitionLane = claimNextTransitionLane();
+      setCurrentEventTransitionLane(claimNextTransitionLane());
     }
 
-    return currentEventTransitionLane;
+    return getCurrentEventTransitionLane();
   } // Updates originating inside certain React methods, like flushSync, have
   // their priority set by tracking it with a context variable.
   //
@@ -23215,7 +23103,7 @@ function requestRetryLane(fiber) {
   return claimNextRetryLane();
 }
 
-function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
+function scheduleUpdateOnFiber(root, fiber, lane) {
   {
     if (isRunningInsertionEffect) {
       error('useInsertionEffect must not schedule updates.');
@@ -23240,7 +23128,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
   } // Mark that the root has a pending update.
 
 
-  markRootUpdated(root, lane, eventTime);
+  markRootUpdated(root, lane);
 
   if ((executionContext & RenderContext) !== NoLanes && root === workInProgressRoot) {
     // This update was dispatched during the render phase. This is a mistake
@@ -23281,10 +23169,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
     ensureRootIsScheduled(root);
 
     if (lane === SyncLane && executionContext === NoContext && (fiber.mode & ConcurrentMode) === NoMode) {
-      if (ReactCurrentActQueue.isBatchingLegacy) {
-        // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
-        ReactCurrentActQueue.didScheduleLegacyUpdate = true;
-      } else {
+      if (ReactCurrentActQueue.isBatchingLegacy) ; else {
         // Flush the synchronous work now, unless we're already working or inside
         // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
         // scheduleCallbackForFiber to preserve the ability to schedule a callback
@@ -23296,7 +23181,7 @@ function scheduleUpdateOnFiber(root, fiber, lane, eventTime) {
     }
   }
 }
-function scheduleInitialHydrationOnRoot(root, lane, eventTime) {
+function scheduleInitialHydrationOnRoot(root, lane) {
   // This is a special fork of scheduleUpdateOnFiber that is only used to
   // schedule the initial hydration of a root that has just been created. Most
   // of the stuff in scheduleUpdateOnFiber can be skipped.
@@ -23308,7 +23193,7 @@ function scheduleInitialHydrationOnRoot(root, lane, eventTime) {
   // match what was rendered on the server.
   var current = root.current;
   current.lanes = lane;
-  markRootUpdated(root, lane, eventTime);
+  markRootUpdated(root, lane);
   ensureRootIsScheduled(root);
 }
 function isUnsafeClassRenderPhaseUpdate(fiber) {
@@ -23321,12 +23206,7 @@ function isUnsafeClassRenderPhaseUpdate(fiber) {
 function performConcurrentWorkOnRoot(root, didTimeout) {
   {
     resetNestedUpdateFlag();
-  } // Since we know we're in a React event, we can clear the current
-  // event time. The next update will compute a new event time.
-
-
-  currentEventTime = NoTimestamp;
-  currentEventTransitionLane = NoLanes;
+  }
 
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     throw new Error('Should not already be working.');
@@ -23523,98 +23403,34 @@ function queueRecoverableErrors(errors) {
 }
 
 function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
+  // TODO: The fact that most of these branches are identical suggests that some
+  // of the exit statuses are not best modeled as exit statuses and should be
+  // tracked orthogonally.
   switch (exitStatus) {
     case RootInProgress:
     case RootFatalErrored:
       {
         throw new Error('Root did not complete. This is a bug in React.');
       }
-    // Flow knows about invariant, so it complains if I add a break
-    // statement, but eslint doesn't know about invariant, so it complains
-    // if I do. eslint-disable-next-line no-fallthrough
-
-    case RootErrored:
-      {
-        // We should have already attempted to retry this tree. If we reached
-        // this point, it errored again. Commit it.
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
-        break;
-      }
-
-    case RootSuspended:
-      {
-        markRootSuspended(root, lanes); // We have an acceptable loading state. We need to figure out if we
-        // should immediately commit it or wait a bit.
-
-        if (includesOnlyRetries(lanes) && // do not delay if we're inside an act() scope
-        !shouldForceFlushFallbacksInDEV()) {
-          // This render only included retries, no updates. Throttle committing
-          // retries so that we don't show too many loading states too quickly.
-          var msUntilTimeout = globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS - now$1(); // Don't bother with a very short suspense time.
-
-          if (msUntilTimeout > 10) {
-            var nextLanes = getNextLanes(root, NoLanes);
-
-            if (nextLanes !== NoLanes) {
-              // There's additional work on this root.
-              break;
-            } // The render is suspended, it hasn't timed out, and there's no
-            // lower priority work to do. Instead of committing the fallback
-            // immediately, wait for more data to arrive.
-
-
-            root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), msUntilTimeout);
-            break;
-          }
-        } // The work expired. Commit immediately.
-
-
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
-        break;
-      }
 
     case RootSuspendedWithDelay:
       {
-        markRootSuspended(root, lanes);
-
         if (includesOnlyTransitions(lanes)) {
           // This is a transition, so we should exit without committing a
           // placeholder and without scheduling a timeout. Delay indefinitely
           // until we receive more data.
-          break;
-        }
-
-        if (!shouldForceFlushFallbacksInDEV()) {
-          // This is not a transition, but we did trigger an avoided state.
-          // Schedule a placeholder to display after a short delay, using the Just
-          // Noticeable Difference.
-          // TODO: Is the JND optimization worth the added complexity? If this is
-          // the only reason we track the event time, then probably not.
-          // Consider removing.
-          var mostRecentEventTime = getMostRecentEventTime(root, lanes);
-          var eventTimeMs = mostRecentEventTime;
-          var timeElapsedMs = now$1() - eventTimeMs;
-
-          var _msUntilTimeout = jnd(timeElapsedMs) - timeElapsedMs; // Don't bother with a very short suspense time.
-
-
-          if (_msUntilTimeout > 10) {
-            // Instead of committing the fallback immediately, wait for more data
-            // to arrive.
-            root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), _msUntilTimeout);
-            break;
-          }
+          markRootSuspended(root, lanes);
+          return;
         } // Commit the placeholder.
 
 
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
         break;
       }
 
+    case RootErrored:
+    case RootSuspended:
     case RootCompleted:
       {
-        // The work completed.
-        commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
         break;
       }
 
@@ -23623,9 +23439,43 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
         throw new Error('Unknown root exit status.');
       }
   }
+
+  if (shouldForceFlushFallbacksInDEV()) {
+    // We're inside an `act` scope. Commit immediately.
+    commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions);
+  } else {
+    if (includesOnlyRetries(lanes)) {
+      // This render only included retries, no updates. Throttle committing
+      // retries so that we don't show too many loading states too quickly.
+      var msUntilTimeout = globalMostRecentFallbackTime + FALLBACK_THROTTLE_MS - now$1(); // Don't bother with a very short suspense time.
+
+      if (msUntilTimeout > 10) {
+        markRootSuspended(root, lanes);
+        var nextLanes = getNextLanes(root, NoLanes);
+
+        if (nextLanes !== NoLanes) {
+          // There's additional work we can do on this root. We might as well
+          // attempt to work on that while we're suspended.
+          return;
+        } // The render is suspended, it hasn't timed out, and there's no
+        // lower priority work to do. Instead of committing the fallback
+        // immediately, wait for more data to arrive.
+        // TODO: Combine retry throttling with Suspensey commits. Right now they
+        // run one after the other.
+
+
+        root.timeoutHandle = scheduleTimeout(commitRootWhenReady.bind(null, root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes), msUntilTimeout);
+        return;
+      }
+    }
+
+    commitRootWhenReady(root, finishedWork, workInProgressRootRecoverableErrors, workInProgressTransitions, lanes);
+  }
 }
 
 function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions, lanes) {
+  // TODO: Combine retry throttling with Suspensey commits. Right now they run
+  // one after the other.
   if (includesOnlyNonUrgentLanes(lanes)) {
     // Before committing, ask the renderer whether the host tree is ready.
     // If it's not, we'll wait until it notifies us.
@@ -23647,13 +23497,14 @@ function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions,
       // Not yet ready to commit. Delay the commit until the renderer notifies
       // us that it's ready. This will be canceled if we start work on the
       // root again.
-      root.cancelPendingCommit = schedulePendingCommit(commitRoot.bind(null, root, workInProgressRootRecoverableErrors, workInProgressTransitions));
+      root.cancelPendingCommit = schedulePendingCommit(commitRoot.bind(null, root, recoverableErrors, transitions));
+      markRootSuspended(root, lanes);
       return;
     }
   } // Otherwise, commit immediately.
 
 
-  commitRoot(root, workInProgressRootRecoverableErrors, workInProgressTransitions);
+  commitRoot(root, recoverableErrors, transitions);
 }
 
 function isRenderConsistentWithExternalStores(finishedWork) {
@@ -24616,7 +24467,6 @@ function replaySuspendedUnitOfWork(unitOfWork) {
         // function component.
         unitOfWork.tag = FunctionComponent; // Fallthrough to the next branch.
       }
-    // eslint-disable-next-line no-fallthrough
 
     case SimpleMemoComponent:
     case FunctionComponent:
@@ -24753,12 +24603,10 @@ function completeUnitOfWork(unitOfWork) {
 
   do {
     {
-      {
-        if ((completedWork.flags & Incomplete) !== NoFlags$1) {
-          // NOTE: If we re-enable sibling prerendering in some cases, this branch
-          // is where we would switch to the unwinding path.
-          error('Internal React error: Expected this fiber to be complete, but ' + "it isn't. It should have been unwound. This is a bug in React.");
-        }
+      if ((completedWork.flags & Incomplete) !== NoFlags$1) {
+        // NOTE: If we re-enable sibling prerendering in some cases, this branch
+        // is where we would switch to the unwinding path.
+        error('Internal React error: Expected this fiber to be complete, but ' + "it isn't. It should have been unwound. This is a bug in React.");
       }
     } // The current, flushed, state of this fiber is the alternate. Ideally
     // nothing should rely on this, but relying on it here means that we don't
@@ -24862,7 +24710,10 @@ function unwindUnitOfWork(unitOfWork) {
       returnFiber.flags |= Incomplete;
       returnFiber.subtreeFlags = NoFlags$1;
       returnFiber.deletions = null;
-    }
+    } // NOTE: If we re-enable sibling prerendering in some cases, here we
+    // would switch to the normal completion path: check if a sibling
+    // exists, and if so, begin work on it.
+    // Otherwise, return to the parent
     // $FlowFixMe[incompatible-type] we bail out when we get a null
 
 
@@ -25372,10 +25223,9 @@ function captureCommitPhaseErrorOnRoot(rootFiber, sourceFiber, error) {
   var errorInfo = createCapturedValueAtFiber(error, sourceFiber);
   var update = createRootErrorUpdate(rootFiber, errorInfo, SyncLane);
   var root = enqueueUpdate(rootFiber, update, SyncLane);
-  var eventTime = requestEventTime();
 
   if (root !== null) {
-    markRootUpdated(root, SyncLane, eventTime);
+    markRootUpdated(root, SyncLane);
     ensureRootIsScheduled(root);
   }
 }
@@ -25407,10 +25257,9 @@ function captureCommitPhaseError(sourceFiber, nearestMountedAncestor, error$1) {
         var errorInfo = createCapturedValueAtFiber(error$1, sourceFiber);
         var update = createClassErrorUpdate(fiber, errorInfo, SyncLane);
         var root = enqueueUpdate(fiber, update, SyncLane);
-        var eventTime = requestEventTime();
 
         if (root !== null) {
-          markRootUpdated(root, SyncLane, eventTime);
+          markRootUpdated(root, SyncLane);
           ensureRootIsScheduled(root);
         }
 
@@ -25519,11 +25368,10 @@ function retryTimedOutBoundary(boundaryFiber, retryLane) {
   } // TODO: Special case idle priority?
 
 
-  var eventTime = requestEventTime();
   var root = enqueueConcurrentRenderForLane(boundaryFiber, retryLane);
 
   if (root !== null) {
-    markRootUpdated(root, retryLane, eventTime);
+    markRootUpdated(root, retryLane);
     ensureRootIsScheduled(root);
   }
 }
@@ -25576,20 +25424,7 @@ function resolveRetryWakeable(boundaryFiber, wakeable) {
   }
 
   retryTimedOutBoundary(boundaryFiber, retryLane);
-} // Computes the next Just Noticeable Difference (JND) boundary.
-// The theory is that a person can't tell the difference between small differences in time.
-// Therefore, if we wait a bit longer than necessary that won't translate to a noticeable
-// difference in the experience. However, waiting for longer might mean that we can avoid
-// showing an intermediate loading state. The longer we have already waited, the harder it
-// is to tell small differences in time. Therefore, the longer we've already waited,
-// the longer we can wait additionally. At some point we have to give up though.
-// We pick a train model where the next boundary commits at a consistent schedule.
-// These particular numbers are vague estimates. We expect to adjust them based on research.
-
-function jnd(timeElapsed) {
-  return timeElapsed < 120 ? 120 : timeElapsed < 480 ? 480 : timeElapsed < 1080 ? 1080 : timeElapsed < 1920 ? 1920 : timeElapsed < 3000 ? 3000 : timeElapsed < 4320 ? 4320 : ceil(timeElapsed / 1960) * 1960;
 }
-
 function throwIfInfiniteUpdateLoopDetected() {
   if (nestedUpdateCount > NESTED_UPDATE_LIMIT) {
     nestedUpdateCount = 0;
@@ -26168,7 +26003,7 @@ function scheduleFibersWithFamiliesRecursively(fiber, updatedFamilies, staleFami
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
 
@@ -26670,26 +26505,26 @@ key, pendingProps, owner, mode, lanes) {
 
       case REACT_LEGACY_HIDDEN_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_SCOPE_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_CACHE_TYPE:
         {
           return createFiberFromCache(pendingProps, mode, lanes, key);
         }
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_TRACING_MARKER_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case REACT_DEBUG_TRACING_MODE_TYPE:
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       default:
         {
@@ -26932,7 +26767,6 @@ tag, hydrate, identifierPrefix, onRecoverableError) {
   this.next = null;
   this.callbackNode = null;
   this.callbackPriority = NoLane;
-  this.eventTimes = createLaneMap(NoLanes);
   this.expirationTimes = createLaneMap(NoTimestamp);
   this.pendingLanes = NoLanes;
   this.suspendedLanes = NoLanes;
@@ -27023,7 +26857,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-b14f8da15-20230403';
+var ReactVersion = '18.3.0-next-1f248bdd7-20230419';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -27143,9 +26977,8 @@ callback, containerInfo, tag, hydrationCallbacks, isStrictMode, concurrentUpdate
   var lane = requestUpdateLane(current);
   var update = createUpdate(lane);
   update.callback = callback !== undefined && callback !== null ? callback : null;
-  var eventTime = requestEventTime();
   enqueueUpdate(current, update, lane);
-  scheduleInitialHydrationOnRoot(root, lane, eventTime);
+  scheduleInitialHydrationOnRoot(root, lane);
   return root;
 }
 function updateContainer(element, container, parentComponent, callback) {
@@ -27197,8 +27030,7 @@ function updateContainer(element, container, parentComponent, callback) {
   var root = enqueueUpdate(current$1, update, lane);
 
   if (root !== null) {
-    var eventTime = requestEventTime();
-    scheduleUpdateOnFiber(root, current$1, lane, eventTime);
+    scheduleUpdateOnFiber(root, current$1, lane);
     entangleTransitions(root, current$1, lane);
   }
 
@@ -27241,8 +27073,7 @@ function attemptSynchronousHydration(fiber) {
           var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
           if (root !== null) {
-            var eventTime = requestEventTime();
-            scheduleUpdateOnFiber(root, fiber, SyncLane, eventTime);
+            scheduleUpdateOnFiber(root, fiber, SyncLane);
           }
         }); // If we're still blocked after this, we need to increase
         // the priority of any promises resolving within this
@@ -27286,8 +27117,7 @@ function attemptContinuousHydration(fiber) {
   var root = enqueueConcurrentRenderForLane(fiber, lane);
 
   if (root !== null) {
-    var eventTime = requestEventTime();
-    scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+    scheduleUpdateOnFiber(root, fiber, lane);
   }
 
   markRetryLaneIfNotHydrated(fiber, lane);
@@ -27303,8 +27133,7 @@ function attemptHydrationAtCurrentPriority(fiber) {
   var root = enqueueConcurrentRenderForLane(fiber, lane);
 
   if (root !== null) {
-    var eventTime = requestEventTime();
-    scheduleUpdateOnFiber(root, fiber, lane, eventTime);
+    scheduleUpdateOnFiber(root, fiber, lane);
   }
 
   markRetryLaneIfNotHydrated(fiber, lane);
@@ -27455,7 +27284,7 @@ var setSuspenseHandler = null;
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
   };
@@ -27476,7 +27305,7 @@ var setSuspenseHandler = null;
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
   };
@@ -27497,7 +27326,7 @@ var setSuspenseHandler = null;
       var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
       if (root !== null) {
-        scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+        scheduleUpdateOnFiber(root, fiber, SyncLane);
       }
     }
   }; // Support DevTools props for function components, forwardRef, memo, host components, etc.
@@ -27513,7 +27342,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27527,7 +27356,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27541,7 +27370,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27549,7 +27378,7 @@ var setSuspenseHandler = null;
     var root = enqueueConcurrentRenderForLane(fiber, SyncLane);
 
     if (root !== null) {
-      scheduleUpdateOnFiber(root, fiber, SyncLane, NoTimestamp);
+      scheduleUpdateOnFiber(root, fiber, SyncLane);
     }
   };
 
@@ -27733,9 +27562,7 @@ if (canUseDOM) {
 
 // has this definition built-in.
 
-var hasScheduledReplayAttempt = false; // The queue of discrete events to be replayed.
-
-var queuedDiscreteEvents = []; // Indicates if any continuous event targets are non-null for early bailout.
+var hasScheduledReplayAttempt = false; // The last of each continuous event type. We only need to replay the last one
 // if the last target was dehydrated.
 
 var queuedFocus = null;
@@ -27948,8 +27775,7 @@ function attemptReplayContinuousQueuedEvent(queuedEvent) {
   var targetContainers = queuedEvent.targetContainers;
 
   while (targetContainers.length > 0) {
-    var targetContainer = targetContainers[0];
-    var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.domEventName, queuedEvent.eventSystemFlags, targetContainer, queuedEvent.nativeEvent);
+    var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.nativeEvent);
 
     if (nextBlockedOn === null) {
       var nativeEvent = queuedEvent.nativeEvent;
@@ -28016,22 +27842,6 @@ function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
 }
 
 function retryIfBlockedOn(unblocked) {
-  // Mark anything that was blocked on this as no longer blocked
-  // and eligible for a replay.
-  if (queuedDiscreteEvents.length > 0) {
-    scheduleCallbackIfUnblocked(queuedDiscreteEvents[0], unblocked); // This is a exponential search for each boundary that commits. I think it's
-    // worth it because we expect very few discrete events to queue up and once
-    // we are actually fully unblocked it will be fast to replay them.
-
-    for (var i = 1; i < queuedDiscreteEvents.length; i++) {
-      var queuedEvent = queuedDiscreteEvents[i];
-
-      if (queuedEvent.blockedOn === unblocked) {
-        queuedEvent.blockedOn = null;
-      }
-    }
-  }
-
   if (queuedFocus !== null) {
     scheduleCallbackIfUnblocked(queuedFocus, unblocked);
   }
@@ -28051,8 +27861,8 @@ function retryIfBlockedOn(unblocked) {
   queuedPointers.forEach(unblock);
   queuedPointerCaptures.forEach(unblock);
 
-  for (var _i = 0; _i < queuedExplicitHydrationTargets.length; _i++) {
-    var queuedTarget = queuedExplicitHydrationTargets[_i];
+  for (var i = 0; i < queuedExplicitHydrationTargets.length; i++) {
+    var queuedTarget = queuedExplicitHydrationTargets[i];
 
     if (queuedTarget.blockedOn === unblocked) {
       queuedTarget.blockedOn = null;
@@ -28142,7 +27952,7 @@ function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEv
     return;
   }
 
-  var blockedOn = findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent);
+  var blockedOn = findInstanceBlockingEvent(nativeEvent);
 
   if (blockedOn === null) {
     dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
@@ -28167,7 +27977,7 @@ function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEv
         attemptSynchronousHydration(fiber);
       }
 
-      var nextBlockedOn = findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent);
+      var nextBlockedOn = findInstanceBlockingEvent(nativeEvent);
 
       if (nextBlockedOn === null) {
         dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, return_targetInst, targetContainer);
@@ -28194,7 +28004,7 @@ function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEv
 var return_targetInst = null; // Returns a SuspenseInstance or Container if it's blocked.
 // The return_targetInst field above is conceptually part of the return value.
 
-function findInstanceBlockingEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
+function findInstanceBlockingEvent(nativeEvent) {
   // TODO: Warn if _enabled is false.
   return_targetInst = null;
   var nativeEventTarget = getEventTarget(nativeEvent);
@@ -28285,20 +28095,17 @@ function getEventPriority(domEventName) {
     case 'touchcancel':
     case 'touchend':
     case 'touchstart':
-    case 'volumechange': // Used by polyfills:
-    // eslint-disable-next-line no-fallthrough
+    case 'volumechange': // Used by polyfills: (fall through)
 
     case 'change':
     case 'selectionchange':
     case 'textInput':
     case 'compositionstart':
     case 'compositionend':
-    case 'compositionupdate': // Only enableCreateEventHandleAPI:
-    // eslint-disable-next-line no-fallthrough
+    case 'compositionupdate': // Only enableCreateEventHandleAPI: (fall through)
 
     case 'beforeblur':
-    case 'afterblur': // Not used by React but could be by user code:
-    // eslint-disable-next-line no-fallthrough
+    case 'afterblur': // Not used by React but could be by user code: (fall through)
 
     case 'beforeinput':
     case 'blur':
@@ -28324,8 +28131,7 @@ function getEventPriority(domEventName) {
     case 'scroll':
     case 'toggle':
     case 'touchmove':
-    case 'wheel': // Not used by React but could be by user code:
-    // eslint-disable-next-line no-fallthrough
+    case 'wheel': // Not used by React but could be by user code: (fall through)
 
     case 'mouseenter':
     case 'mouseleave':
@@ -29638,16 +29444,18 @@ function getTargetInstForInputOrChangeEvent(domEventName, targetInst) {
   }
 }
 
-function handleControlledInputBlur(node) {
-  var state = node._wrapperState;
-
-  if (!state || !state.controlled || node.type !== 'number') {
+function handleControlledInputBlur(node, props) {
+  if (node.type !== 'number') {
     return;
   }
 
   {
-    // If controlled, assign the value attribute to the current value on blur
-    setDefaultValue(node, 'number', node.value);
+    var isControlled = props.value != null;
+
+    if (isControlled) {
+      // If controlled, assign the value attribute to the current value on blur
+      setDefaultValue(node, 'number', node.value);
+    }
   }
 }
 /**
@@ -29693,8 +29501,12 @@ function extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, n
   } // When blurring, set the value attribute for number inputs
 
 
-  if (domEventName === 'focusout') {
-    handleControlledInputBlur(targetNode);
+  if (domEventName === 'focusout' && targetInst) {
+    // These props aren't necessarily the most current but we warn for changing
+    // between controlled and uncontrolled, so it doesn't matter and the previous
+    // code was also broken for changes.
+    var props = targetInst.memoizedProps;
+    handleControlledInputBlur(targetNode, props);
   }
 }
 
@@ -31164,6 +30976,8 @@ function getListenerSetKey(domEventName, capture) {
   return domEventName + "__" + (capture ? 'capture' : 'bubble');
 }
 
+var didWarnControlledToUncontrolled = false;
+var didWarnUncontrolledToControlled = false;
 var didWarnInvalidHydration = false;
 var canDiffStyleForHydrationWarning;
 
@@ -31197,6 +31011,10 @@ function validatePropertiesInDevelopment(type, props) {
 function warnForPropDifference(propName, serverValue, clientValue) {
   {
     if (didWarnInvalidHydration) {
+      return;
+    }
+
+    if (serverValue === clientValue) {
       return;
     }
 
@@ -31309,25 +31127,119 @@ function trapClickOnNonInteractiveElement(node) {
   // TODO: Only do this for the relevant Safaris maybe?
   node.onclick = noop$1;
 }
+var xlinkNamespace = 'http://www.w3.org/1999/xlink';
+var xmlNamespace = 'http://www.w3.org/XML/1998/namespace';
 
-function setProp(domElement, tag, key, value, isCustomElementTag, props) {
+function setProp(domElement, tag, key, value, props, prevValue) {
   switch (key) {
-    case 'style':
+    case 'children':
       {
-        if (value != null && typeof value !== 'object') {
-          throw new Error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
+        if (typeof value === 'string') {
+          {
+            validateTextNesting(value, tag);
+          } // Avoid setting initial textContent when the text is empty. In IE11 setting
+          // textContent on a <textarea> will cause the placeholder to not
+          // show within the <textarea> until it has been focused and blurred again.
+          // https://github.com/facebook/react/issues/6731#issuecomment-254874553
+
+
+          var canSetTextContent = (tag !== 'body') && (tag !== 'textarea' || value !== '');
+
+          if (canSetTextContent) {
+            setTextContent(domElement, value);
+          }
+        } else if (typeof value === 'number') {
+          {
+            validateTextNesting('' + value, tag);
+          }
+
+          var _canSetTextContent = tag !== 'body';
+
+          if (_canSetTextContent) {
+            setTextContent(domElement, '' + value);
+          }
         }
 
-        {
-          if (value) {
-            // Freeze the next style object so that we can assume it won't be
-            // mutated. We have already warned for this in the past.
-            Object.freeze(value);
-          }
-        } // Relies on `updateStylesByID` not mutating `styleUpdates`.
+        break;
+      }
+    // These are very common props and therefore are in the beginning of the switch.
+    // TODO: aria-label is a very common prop but allows booleans so is not like the others
+    // but should ideally go in this list too.
 
+    case 'className':
+      setValueForKnownAttribute(domElement, 'class', value);
+      break;
 
+    case 'tabIndex':
+      // This has to be case sensitive in SVG.
+      setValueForKnownAttribute(domElement, 'tabindex', value);
+      break;
+
+    case 'dir':
+    case 'role':
+    case 'viewBox':
+    case 'width':
+    case 'height':
+      {
+        setValueForKnownAttribute(domElement, key, value);
+        break;
+      }
+
+    case 'style':
+      {
         setValueForStyles(domElement, value);
+        break;
+      }
+    // These attributes accept URLs. These must not allow javascript: URLS.
+
+    case 'src':
+    case 'href':
+    case 'action':
+
+    // Fall through to the last case which shouldn't remove empty strings.
+
+    case 'formAction':
+      {
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          domElement.removeAttribute(key);
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var sanitizedValue = sanitizeURL('' + value);
+        domElement.setAttribute(key, sanitizedValue);
+        break;
+      }
+
+    case 'onClick':
+      {
+        // TODO: This cast may not be sound for SVG, MathML or custom elements.
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          trapClickOnNonInteractiveElement(domElement);
+        }
+
+        break;
+      }
+
+    case 'onScroll':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scroll', domElement);
+        }
+
         break;
       }
 
@@ -31349,56 +31261,6 @@ function setProp(domElement, tag, key, value, isCustomElementTag, props) {
               setInnerHTML$1(domElement, nextHtml);
             }
           }
-        }
-
-        break;
-      }
-
-    case 'children':
-      {
-        if (typeof value === 'string') {
-          // Avoid setting initial textContent when the text is empty. In IE11 setting
-          // textContent on a <textarea> will cause the placeholder to not
-          // show within the <textarea> until it has been focused and blurred again.
-          // https://github.com/facebook/react/issues/6731#issuecomment-254874553
-          var canSetTextContent = (tag !== 'body') && (tag !== 'textarea' || value !== '');
-
-          if (canSetTextContent) {
-            setTextContent(domElement, value);
-          }
-        } else if (typeof value === 'number') {
-          var _canSetTextContent = tag !== 'body';
-
-          if (_canSetTextContent) {
-            setTextContent(domElement, '' + value);
-          }
-        }
-
-        break;
-      }
-
-    case 'onScroll':
-      {
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          listenToNonDelegatedEvent('scroll', domElement);
-        }
-
-        break;
-      }
-
-    case 'onClick':
-      {
-        // TODO: This cast may not be sound for SVG, MathML or custom elements.
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          trapClickOnNonInteractiveElement(domElement);
         }
 
         break;
@@ -31438,11 +31300,299 @@ function setProp(domElement, tag, key, value, isCustomElementTag, props) {
         break;
       }
 
+    case 'xlinkHref':
+      {
+        if (value == null || typeof value === 'function' || typeof value === 'boolean' || typeof value === 'symbol') {
+          domElement.removeAttribute('xlink:href');
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var _sanitizedValue = sanitizeURL('' + value);
+
+        domElement.setAttributeNS(xlinkNamespace, 'xlink:href', _sanitizedValue);
+        break;
+      }
+
+    case 'contentEditable':
+    case 'spellCheck':
+    case 'draggable':
+    case 'value':
+    case 'autoReverse':
+    case 'externalResourcesRequired':
+    case 'focusable':
+    case 'preserveAlpha':
+      {
+        // Booleanish String
+        // These are "enumerated" attributes that accept "true" and "false".
+        // In React, we let users pass `true` and `false` even though technically
+        // these aren't boolean attributes (they are coerced to strings).
+        // The SVG attributes are case-sensitive. Since the HTML attributes are
+        // insensitive they also work even though we canonically use lower case.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol') {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+    // Boolean
+
+    case 'allowFullScreen':
+    case 'async':
+    case 'autoPlay':
+    case 'controls':
+    case 'default':
+    case 'defer':
+    case 'disabled':
+    case 'disablePictureInPicture':
+    case 'disableRemotePlayback':
+    case 'formNoValidate':
+    case 'hidden':
+    case 'loop':
+    case 'noModule':
+    case 'noValidate':
+    case 'open':
+    case 'playsInline':
+    case 'readOnly':
+    case 'required':
+    case 'reversed':
+    case 'scoped':
+    case 'seamless':
+    case 'itemScope':
+      {
+        if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+          domElement.setAttribute(key, '');
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+    // Overloaded Boolean
+
+    case 'capture':
+    case 'download':
+      {
+        // An attribute that can be used as a flag as well as with a value.
+        // When true, it should be present (set either to an empty string or its name).
+        // When false, it should be omitted.
+        // For any other value, should be present with that value.
+        if (value === true) {
+          domElement.setAttribute(key, '');
+        } else if (value !== false && value != null && typeof value !== 'function' && typeof value !== 'symbol') {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'cols':
+    case 'rows':
+    case 'size':
+    case 'span':
+      {
+        // These are HTML attributes that must be positive numbers.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value) && value >= 1) {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'rowSpan':
+    case 'start':
+      {
+        // These are HTML attributes that must be numbers.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value)) {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'xlinkActuate':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:actuate', value);
+      break;
+
+    case 'xlinkArcrole':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:arcrole', value);
+      break;
+
+    case 'xlinkRole':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:role', value);
+      break;
+
+    case 'xlinkShow':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:show', value);
+      break;
+
+    case 'xlinkTitle':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:title', value);
+      break;
+
+    case 'xlinkType':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:type', value);
+      break;
+
+    case 'xmlBase':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:base', value);
+      break;
+
+    case 'xmlLang':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:lang', value);
+      break;
+
+    case 'xmlSpace':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:space', value);
+      break;
+    // Properties that should not be allowed on custom elements.
+
+    case 'is':
+      {
+        {
+          if (prevValue != null) {
+            error('Cannot update the "is" prop after it has been initialized.');
+          }
+        } // TODO: We shouldn't actually set this attribute, because we've already
+        // passed it to createElement. We don't also need the attribute.
+        // However, our tests currently query for it so it's plausible someone
+        // else does too so it's break.
+
+
+        setValueForAttribute(domElement, 'is', value);
+        break;
+      }
+
+    case 'innerText':
+    case 'textContent':
+
+    // Fall through
+
+    default:
+      {
+        if (key.length > 2 && (key[0] === 'o' || key[0] === 'O') && (key[1] === 'n' || key[1] === 'N')) {
+          if (registrationNameDependencies.hasOwnProperty(key) && value != null && typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+        } else {
+          var attributeName = getAttributeAlias(key);
+          setValueForAttribute(domElement, attributeName, value);
+        }
+      }
+  }
+}
+
+function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
+  switch (key) {
+    case 'style':
+      {
+        setValueForStyles(domElement, value);
+        break;
+      }
+
+    case 'dangerouslySetInnerHTML':
+      {
+        if (value != null) {
+          if (typeof value !== 'object' || !('__html' in value)) {
+            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://reactjs.org/link/dangerously-set-inner-html ' + 'for more information.');
+          }
+
+          var nextHtml = value.__html;
+
+          if (nextHtml != null) {
+            if (props.children != null) {
+              throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+            }
+
+            {
+              setInnerHTML$1(domElement, nextHtml);
+            }
+          }
+        }
+
+        break;
+      }
+
+    case 'children':
+      {
+        if (typeof value === 'string') {
+          setTextContent(domElement, value);
+        } else if (typeof value === 'number') {
+          setTextContent(domElement, '' + value);
+        }
+
+        break;
+      }
+
+    case 'onScroll':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scroll', domElement);
+        }
+
+        break;
+      }
+
+    case 'onClick':
+      {
+        // TODO: This cast may not be sound for SVG, MathML or custom elements.
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          trapClickOnNonInteractiveElement(domElement);
+        }
+
+        break;
+      }
+
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+    case 'innerHTML':
+      {
+        // Noop
+        break;
+      }
+
     case 'innerText': // Properties
 
     case 'textContent':
 
-    // eslint-disable-next-line no-fallthrough
+    // Fall through
 
     default:
       {
@@ -31451,29 +31601,13 @@ function setProp(domElement, tag, key, value, isCustomElementTag, props) {
             warnForInvalidEventListener(key, value);
           }
         } else {
-          if (isCustomElementTag) {
-            {
-              if (typeof value === 'boolean') {
-                // Special case before the new flag is on
-                value = '' + value;
-              }
-
-              setValueForAttribute(domElement, key, value);
-            }
-          } else {
-            if ( // shouldIgnoreAttribute
-            // We have already filtered out reserved words.
-            key.length > 2 && (key[0] === 'o' || key[0] === 'O') && (key[1] === 'n' || key[1] === 'N')) {
-              return;
+          {
+            if (typeof value === 'boolean') {
+              // Special case before the new flag is on
+              value = '' + value;
             }
 
-            var propertyInfo = getPropertyInfo(key);
-
-            if (propertyInfo !== null) {
-              setValueForProperty(domElement, propertyInfo, value);
-            } else {
-              setValueForAttribute(domElement, key, value);
-            }
+            setValueForAttribute(domElement, key, value);
           }
         }
       }
@@ -31487,12 +31621,34 @@ function setInitialProperties(domElement, tag, props) {
 
 
   switch (tag) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      {
+        // Fast track the most common tag types
+        break;
+      }
+
     case 'input':
       {
-        initWrapperState$2(domElement, props); // We listen to this event in case to ensure emulated bubble
+        {
+          checkControlledValueProps('input', props);
+        } // We listen to this event in case to ensure emulated bubble
         // listeners still fire for the invalid event.
 
+
         listenToNonDelegatedEvent('invalid', domElement);
+        var name = null;
+        var type = null;
+        var value = null;
+        var defaultValue = null;
+        var checked = null;
+        var defaultChecked = null;
 
         for (var propKey in props) {
           if (!props.hasOwnProperty(propKey)) {
@@ -31506,17 +31662,39 @@ function setInitialProperties(domElement, tag, props) {
           }
 
           switch (propKey) {
+            case 'name':
+              {
+                name = propValue;
+                break;
+              }
+
+            case 'type':
+              {
+                type = propValue;
+                break;
+              }
+
             case 'checked':
               {
-                var node = domElement;
-                var checked = propValue != null ? propValue : node._wrapperState.initialChecked;
-                node.checked = !!checked && typeof checked !== 'function' && checked !== 'symbol';
+                checked = propValue;
+                break;
+              }
+
+            case 'defaultChecked':
+              {
+                defaultChecked = propValue;
                 break;
               }
 
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                value = propValue;
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                defaultValue = propValue;
                 break;
               }
 
@@ -31529,28 +31707,34 @@ function setInitialProperties(domElement, tag, props) {
 
                 break;
               }
-            // defaultChecked and defaultValue are ignored by setProp
 
             default:
               {
-                setProp(domElement, tag, propKey, propValue, false, props);
+                setProp(domElement, tag, propKey, propValue, props, null);
               }
           }
         } // TODO: Make sure we check if this is still unmounted or do any clean
         // up necessary since we never stop tracking anymore.
 
 
+        validateInputProps(domElement, props);
+        initInput(domElement, value, defaultValue, checked, defaultChecked, type, name, false);
         track(domElement);
-        postMountWrapper$3(domElement, props, false);
         return;
       }
 
     case 'select':
       {
-        initWrapperState$1(domElement, props); // We listen to this event in case to ensure emulated bubble
+        {
+          checkControlledValueProps('select', props);
+        } // We listen to this event in case to ensure emulated bubble
         // listeners still fire for the invalid event.
 
+
         listenToNonDelegatedEvent('invalid', domElement);
+        var _value = null;
+        var _defaultValue = null;
+        var multiple = null;
 
         for (var _propKey in props) {
           if (!props.hasOwnProperty(_propKey)) {
@@ -31566,28 +31750,49 @@ function setInitialProperties(domElement, tag, props) {
           switch (_propKey) {
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                _value = _propValue; // This is handled by initSelect below.
+
                 break;
               }
-            // defaultValue are ignored by setProp
+
+            case 'defaultValue':
+              {
+                _defaultValue = _propValue; // This is handled by initSelect below.
+
+                break;
+              }
+
+            case 'multiple':
+              {
+                multiple = _propValue; // TODO: We don't actually have to fall through here because we set it
+                // in initSelect anyway. We can remove the special case in setProp.
+              }
+            // Fallthrough
 
             default:
               {
-                setProp(domElement, tag, _propKey, _propValue, false, props);
+                setProp(domElement, tag, _propKey, _propValue, props, null);
               }
           }
         }
 
-        postMountWrapper$1(domElement, props);
+        validateSelectProps(domElement, props);
+        initSelect(domElement, _value, _defaultValue, multiple);
         return;
       }
 
     case 'textarea':
       {
-        initWrapperState(domElement, props); // We listen to this event in case to ensure emulated bubble
+        {
+          checkControlledValueProps('textarea', props);
+        } // We listen to this event in case to ensure emulated bubble
         // listeners still fire for the invalid event.
 
+
         listenToNonDelegatedEvent('invalid', domElement);
+        var _value2 = null;
+        var _defaultValue2 = null;
+        var children = null;
 
         for (var _propKey2 in props) {
           if (!props.hasOwnProperty(_propKey2)) {
@@ -31603,13 +31808,21 @@ function setInitialProperties(domElement, tag, props) {
           switch (_propKey2) {
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                _value2 = _propValue2; // This is handled by initTextarea below.
+
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                _defaultValue2 = _propValue2;
                 break;
               }
 
             case 'children':
               {
-                // TODO: Handled by initWrapperState above.
+                children = _propValue2; // Handled by initTextarea above.
+
                 break;
               }
 
@@ -31622,25 +31835,25 @@ function setInitialProperties(domElement, tag, props) {
 
                 break;
               }
-            // defaultValue is ignored by setProp
 
             default:
               {
-                setProp(domElement, tag, _propKey2, _propValue2, false, props);
+                setProp(domElement, tag, _propKey2, _propValue2, props);
               }
           }
         } // TODO: Make sure we check if this is still unmounted or do any clean
         // up necessary since we never stop tracking anymore.
 
 
+        validateTextareaProps(domElement, props);
+        initTextarea(domElement, _value2, _defaultValue2, children);
         track(domElement);
-        postMountWrapper(domElement);
         return;
       }
 
     case 'option':
       {
-        validateProps(domElement, props);
+        validateOptionProps(domElement, props);
 
         for (var _propKey3 in props) {
           if (!props.hasOwnProperty(_propKey3)) {
@@ -31663,12 +31876,11 @@ function setInitialProperties(domElement, tag, props) {
 
             default:
               {
-                setProp(domElement, tag, _propKey3, _propValue3, false, props);
+                setProp(domElement, tag, _propKey3, _propValue3, props);
               }
           }
         }
 
-        postMountWrapper$2(domElement, props);
         return;
       }
 
@@ -31726,7 +31938,6 @@ function setInitialProperties(domElement, tag, props) {
         listenToNonDelegatedEvent('error', domElement);
         listenToNonDelegatedEvent('load', domElement); // We fallthrough to the return of the void elements
       }
-    // eslint-disable-next-line no-fallthrough
 
     case 'area':
     case 'base':
@@ -31763,29 +31974,48 @@ function setInitialProperties(domElement, tag, props) {
 
             default:
               {
-                setProp(domElement, tag, _propKey4, _propValue4, false, props);
+                setProp(domElement, tag, _propKey4, _propValue4, props, null);
               }
           }
         }
 
         return;
       }
+
+    default:
+      {
+        if (isCustomElement(tag)) {
+          for (var _propKey5 in props) {
+            if (!props.hasOwnProperty(_propKey5)) {
+              continue;
+            }
+
+            var _propValue5 = props[_propKey5];
+
+            if (_propValue5 == null) {
+              continue;
+            }
+
+            setPropOnCustomElement(domElement, tag, _propKey5, _propValue5, props);
+          }
+
+          return;
+        }
+      }
   }
 
-  var isCustomElementTag = isCustomElement(tag);
-
-  for (var _propKey5 in props) {
-    if (!props.hasOwnProperty(_propKey5)) {
+  for (var _propKey6 in props) {
+    if (!props.hasOwnProperty(_propKey6)) {
       continue;
     }
 
-    var _propValue5 = props[_propKey5];
+    var _propValue6 = props[_propKey6];
 
-    if (_propValue5 == null) {
+    if (_propValue6 == null) {
       continue;
     }
 
-    setProp(domElement, tag, _propKey5, _propValue5, isCustomElementTag, props);
+    setProp(domElement, tag, _propKey6, _propValue6, props, null);
   }
 } // Calculate the diff between the two objects.
 
@@ -31882,7 +32112,7 @@ function diffProperties(domElement, tag, lastProps, nextProps) {
             error('Cannot update the "is" prop after it has been initialized.');
           }
 
-        // eslint-disable-next-line no-fallthrough
+        // Fall through
 
         default:
           {
@@ -31894,42 +32124,72 @@ function diffProperties(domElement, tag, lastProps, nextProps) {
 
   if (styleUpdates) {
     {
-      validateShorthandPropertyCollisionInDev(styleUpdates, nextProps.style);
+      validateShorthandPropertyCollisionInDev(lastProps.style, nextProps.style);
     }
 
     (updatePayload = updatePayload || []).push('style', styleUpdates);
   }
 
   return updatePayload;
-} // Apply the diff.
+}
 
-function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) {
+function updatePropertiesWithDiff(domElement, updatePayload, tag, lastProps, nextProps) {
   switch (tag) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      {
+        // Fast track the most common tag types
+        break;
+      }
+
     case 'input':
       {
-        // Update checked *before* name.
-        // In the middle of an update, it is possible to have multiple checked.
-        // When a checked radio tries to change name, browser makes another radio's checked false.
-        if (nextProps.type === 'radio' && nextProps.name != null) {
-          updateChecked(domElement, nextProps);
-        }
+        var name = nextProps.name;
+        var type = nextProps.type;
+        var value = nextProps.value;
+        var defaultValue = nextProps.defaultValue;
+        var lastDefaultValue = lastProps.defaultValue;
+        var checked = nextProps.checked;
+        var defaultChecked = nextProps.defaultChecked;
 
         for (var i = 0; i < updatePayload.length; i += 2) {
           var propKey = updatePayload[i];
           var propValue = updatePayload[i + 1];
 
           switch (propKey) {
+            case 'type':
+              {
+                break;
+              }
+
+            case 'name':
+              {
+                break;
+              }
+
             case 'checked':
               {
-                var node = domElement;
-                var checked = propValue != null ? propValue : node._wrapperState.initialChecked;
-                node.checked = !!checked && typeof checked !== 'function' && checked !== 'symbol';
+                break;
+              }
+
+            case 'defaultChecked':
+              {
                 break;
               }
 
             case 'value':
               {
-                // This is handled by updateWrapper below.
+                break;
+              }
+
+            case 'defaultValue':
+              {
                 break;
               }
 
@@ -31942,29 +32202,50 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
                 break;
               }
-            // defaultChecked and defaultValue are ignored by setProp
 
             default:
               {
-                setProp(domElement, tag, propKey, propValue, false, nextProps);
+                setProp(domElement, tag, propKey, propValue, nextProps, null);
               }
+          }
+        }
+
+        {
+          var wasControlled = lastProps.type === 'checkbox' || lastProps.type === 'radio' ? lastProps.checked != null : lastProps.value != null;
+          var isControlled = nextProps.type === 'checkbox' || nextProps.type === 'radio' ? nextProps.checked != null : nextProps.value != null;
+
+          if (!wasControlled && isControlled && !didWarnUncontrolledToControlled) {
+            error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
+
+            didWarnUncontrolledToControlled = true;
+          }
+
+          if (wasControlled && !isControlled && !didWarnControlledToUncontrolled) {
+            error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components');
+
+            didWarnControlledToUncontrolled = true;
           }
         } // Update the wrapper around inputs *after* updating props. This has to
         // happen after updating the rest of props. Otherwise HTML5 input validations
         // raise warnings and prevent the new value from being assigned.
 
 
-        updateWrapper$1(domElement, nextProps);
+        updateInput(domElement, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name);
         return;
       }
 
     case 'select':
       {
-        for (var _i = 0; _i < updatePayload.length; _i += 2) {
-          var _propKey6 = updatePayload[_i];
-          var _propValue6 = updatePayload[_i + 1];
+        var _value5 = nextProps.value;
+        var _defaultValue5 = nextProps.defaultValue;
+        var multiple = nextProps.multiple;
+        var wasMultiple = lastProps.multiple;
 
-          switch (_propKey6) {
+        for (var _i = 0; _i < updatePayload.length; _i += 2) {
+          var _propKey20 = updatePayload[_i];
+          var _propValue7 = updatePayload[_i + 1];
+
+          switch (_propKey20) {
             case 'value':
               {
                 // This is handled by updateWrapper below.
@@ -31974,24 +32255,27 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                setProp(domElement, tag, _propKey6, _propValue6, false, nextProps);
+                setProp(domElement, tag, _propKey20, _propValue7, nextProps, null);
               }
           }
         } // <select> value update needs to occur after <option> children
         // reconciliation
 
 
-        postUpdateWrapper(domElement, nextProps);
+        updateSelect(domElement, _value5, _defaultValue5, multiple, wasMultiple);
         return;
       }
 
     case 'textarea':
       {
-        for (var _i2 = 0; _i2 < updatePayload.length; _i2 += 2) {
-          var _propKey7 = updatePayload[_i2];
-          var _propValue7 = updatePayload[_i2 + 1];
+        var _value6 = nextProps.value;
+        var _defaultValue6 = nextProps.defaultValue;
 
-          switch (_propKey7) {
+        for (var _i2 = 0; _i2 < updatePayload.length; _i2 += 2) {
+          var _propKey21 = updatePayload[_i2];
+          var _propValue8 = updatePayload[_i2 + 1];
+
+          switch (_propKey21) {
             case 'value':
               {
                 // This is handled by updateWrapper below.
@@ -32006,7 +32290,7 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             case 'dangerouslySetInnerHTML':
               {
-                if (_propValue7 != null) {
+                if (_propValue8 != null) {
                   // TODO: Do we really need a special error message for this. It's also pretty blunt.
                   throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
                 }
@@ -32017,32 +32301,32 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                setProp(domElement, tag, _propKey7, _propValue7, false, nextProps);
+                setProp(domElement, tag, _propKey21, _propValue8, nextProps, null);
               }
           }
         }
 
-        updateWrapper(domElement, nextProps);
+        updateTextarea(domElement, _value6, _defaultValue6);
         return;
       }
 
     case 'option':
       {
         for (var _i3 = 0; _i3 < updatePayload.length; _i3 += 2) {
-          var _propKey8 = updatePayload[_i3];
-          var _propValue8 = updatePayload[_i3 + 1];
+          var _propKey22 = updatePayload[_i3];
+          var _propValue9 = updatePayload[_i3 + 1];
 
-          switch (_propKey8) {
+          switch (_propKey22) {
             case 'selected':
               {
                 // TODO: Remove support for selected on option.
-                domElement.selected = _propValue8 && typeof _propValue8 !== 'function' && typeof _propValue8 !== 'symbol';
+                domElement.selected = _propValue9 && typeof _propValue9 !== 'function' && typeof _propValue9 !== 'symbol';
                 break;
               }
 
             default:
               {
-                setProp(domElement, tag, _propKey8, _propValue8, false, nextProps);
+                setProp(domElement, tag, _propKey22, _propValue9, nextProps, null);
               }
           }
         }
@@ -32068,14 +32352,14 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
       {
         // Void elements
         for (var _i4 = 0; _i4 < updatePayload.length; _i4 += 2) {
-          var _propKey9 = updatePayload[_i4];
-          var _propValue9 = updatePayload[_i4 + 1];
+          var _propKey23 = updatePayload[_i4];
+          var _propValue10 = updatePayload[_i4 + 1];
 
-          switch (_propKey9) {
+          switch (_propKey23) {
             case 'children':
             case 'dangerouslySetInnerHTML':
               {
-                if (_propValue9 != null) {
+                if (_propValue10 != null) {
                   // TODO: Can we make this a DEV warning to avoid this deny list?
                   throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
                 }
@@ -32086,21 +32370,33 @@ function updateProperties(domElement, updatePayload, tag, lastProps, nextProps) 
 
             default:
               {
-                setProp(domElement, tag, _propKey9, _propValue9, false, nextProps);
+                setProp(domElement, tag, _propKey23, _propValue10, nextProps, null);
               }
           }
         }
 
         return;
       }
-  }
 
-  var isCustomElementTag = isCustomElement(tag); // Apply the diff.
+    default:
+      {
+        if (isCustomElement(tag)) {
+          for (var _i5 = 0; _i5 < updatePayload.length; _i5 += 2) {
+            var _propKey24 = updatePayload[_i5];
+            var _propValue11 = updatePayload[_i5 + 1];
+            setPropOnCustomElement(domElement, tag, _propKey24, _propValue11, nextProps);
+          }
 
-  for (var _i5 = 0; _i5 < updatePayload.length; _i5 += 2) {
-    var _propKey10 = updatePayload[_i5];
-    var _propValue10 = updatePayload[_i5 + 1];
-    setProp(domElement, tag, _propKey10, _propValue10, isCustomElementTag, nextProps);
+          return;
+        }
+      }
+  } // Apply the diff.
+
+
+  for (var _i6 = 0; _i6 < updatePayload.length; _i6 += 2) {
+    var _propKey25 = updatePayload[_i6];
+    var _propValue12 = updatePayload[_i6 + 1];
+    setProp(domElement, tag, _propKey25, _propValue12, nextProps, null);
   }
 }
 
@@ -32124,28 +32420,317 @@ function diffHydratedStyles(domElement, value) {
   if (canDiffStyleForHydrationWarning) {
     var expectedStyle = createDangerousStringForStyles(value);
     var serverValue = domElement.getAttribute('style');
-
-    if (expectedStyle !== serverValue) {
-      warnForPropDifference('style', serverValue, expectedStyle);
-    }
+    warnForPropDifference('style', serverValue, expectedStyle);
   }
 }
 
-function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributeNames) {
+function hydrateAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        return;
+    }
+
+    if (!value) {
+      return;
+    }
+  } else {
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        break;
+
+      default:
+        {
+          if (value) {
+            // If this was a boolean, it doesn't matter what the value is
+            // the fact that we have it is the same as the expected.
+            // As long as it's positive.
+            return;
+          }
+        }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateOverloadedBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        return;
+
+      default:
+        if (value === false) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+          break;
+
+        case 'boolean':
+          if (value === true && serverValue === '') {
+            return;
+          }
+
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateBooleanishAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, attributeName);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateNumericAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+
+      default:
+        if (isNaN(value)) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            if (isNaN(value)) {
+              // We had an attribute but shouldn't have had one, so read it
+              // for the error message.
+              break;
+            }
+
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydratePositiveNumericAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+
+      default:
+        if (isNaN(value) || value < 1) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            if (isNaN(value) || value < 1) {
+              // We had an attribute but shouldn't have had one, so read it
+              // for the error message.
+              break;
+            }
+
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function hydrateSanitizedAttribute(domElement, propKey, attributeName, value, extraAttributes) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            var sanitizedValue = sanitizeURL('' + value);
+
+            if (serverValue === sanitizedValue) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value);
+}
+
+function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributes) {
   for (var propKey in props) {
     if (!props.hasOwnProperty(propKey)) {
       continue;
     }
 
-    var nextProp = props[propKey];
+    var value = props[propKey];
 
-    if (nextProp == null) {
+    if (value == null) {
       continue;
     }
 
     if (registrationNameDependencies.hasOwnProperty(propKey)) {
-      if (typeof nextProp !== 'function') {
-        warnForInvalidEventListener(propKey, nextProp);
+      if (typeof value !== 'function') {
+        warnForInvalidEventListener(propKey, value);
       }
 
       continue;
@@ -32170,21 +32755,18 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
 
       case 'dangerouslySetInnerHTML':
         var serverHTML = domElement.innerHTML;
-        var nextHtml = nextProp ? nextProp.__html : undefined;
+        var nextHtml = value ? value.__html : undefined;
 
         if (nextHtml != null) {
           var expectedHTML = normalizeHTML(domElement, nextHtml);
-
-          if (expectedHTML !== serverHTML) {
-            warnForPropDifference(propKey, serverHTML, expectedHTML);
-          }
+          warnForPropDifference(propKey, serverHTML, expectedHTML);
         }
 
         continue;
 
       case 'style':
-        extraAttributeNames.delete(propKey);
-        diffHydratedStyles(domElement, nextProp);
+        extraAttributes.delete(propKey);
+        diffHydratedStyles(domElement, value);
         continue;
 
       case 'offsetParent':
@@ -32196,11 +32778,11 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
       case 'outerText':
       case 'outerHTML':
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       case 'className':
 
-      // eslint-disable-next-line no-fallthrough
+      // Fall through
 
       default:
         {
@@ -32211,36 +32793,34 @@ function diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev,
           }
 
           if (ownNamespaceDev === HTML_NAMESPACE) {
-            extraAttributeNames.delete(propKey.toLowerCase());
+            extraAttributes.delete(propKey.toLowerCase());
           } else {
-            extraAttributeNames.delete(propKey);
+            extraAttributes.delete(propKey);
           }
 
-          var _serverValue = getValueForAttributeOnCustomComponent(domElement, propKey, nextProp);
+          var _serverValue = getValueForAttributeOnCustomComponent(domElement, propKey, value);
 
-          if (nextProp !== _serverValue) {
-            warnForPropDifference(propKey, _serverValue, nextProp);
-          }
+          warnForPropDifference(propKey, _serverValue, value);
         }
     }
   }
 }
 
-function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributeNames) {
+function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributes) {
   for (var propKey in props) {
     if (!props.hasOwnProperty(propKey)) {
       continue;
     }
 
-    var nextProp = props[propKey];
+    var value = props[propKey];
 
-    if (nextProp == null) {
+    if (value == null) {
       continue;
     }
 
     if (registrationNameDependencies.hasOwnProperty(propKey)) {
-      if (typeof nextProp !== 'function') {
-        warnForInvalidEventListener(propKey, nextProp);
+      if (typeof value !== 'function') {
+        warnForInvalidEventListener(propKey, value);
       }
 
       continue;
@@ -32270,62 +32850,198 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
 
       case 'dangerouslySetInnerHTML':
         var serverHTML = domElement.innerHTML;
-        var nextHtml = nextProp ? nextProp.__html : undefined;
+        var nextHtml = value ? value.__html : undefined;
 
         if (nextHtml != null) {
           var expectedHTML = normalizeHTML(domElement, nextHtml);
-
-          if (expectedHTML !== serverHTML) {
-            warnForPropDifference(propKey, serverHTML, expectedHTML);
-          }
+          warnForPropDifference(propKey, serverHTML, expectedHTML);
         }
 
         continue;
 
+      case 'className':
+        hydrateAttribute(domElement, propKey, 'class', value, extraAttributes);
+        continue;
+
+      case 'tabIndex':
+        hydrateAttribute(domElement, propKey, 'tabindex', value, extraAttributes);
+        continue;
+
       case 'style':
-        extraAttributeNames.delete(propKey);
-        diffHydratedStyles(domElement, nextProp);
+        extraAttributes.delete(propKey);
+        diffHydratedStyles(domElement, value);
         continue;
 
       case 'multiple':
         {
-          extraAttributeNames.delete(propKey);
-          var _serverValue2 = domElement.multiple;
-
-          if (nextProp !== _serverValue2) {
-            warnForPropDifference('multiple', _serverValue2, nextProp);
-          }
-
+          extraAttributes.delete(propKey);
+          var serverValue = domElement.multiple;
+          warnForPropDifference(propKey, serverValue, value);
           continue;
         }
 
       case 'muted':
         {
-          extraAttributeNames.delete(propKey);
-          var _serverValue3 = domElement.muted;
-
-          if (nextProp !== _serverValue3) {
-            warnForPropDifference('muted', _serverValue3, nextProp);
-          }
-
+          extraAttributes.delete(propKey);
+          var _serverValue2 = domElement.muted;
+          warnForPropDifference(propKey, _serverValue2, value);
           continue;
         }
+
+      case 'autoFocus':
+        {
+          extraAttributes.delete('autofocus');
+          var _serverValue3 = domElement.autofocus;
+          warnForPropDifference(propKey, _serverValue3, value);
+          continue;
+        }
+
+      case 'src':
+      case 'href':
+      case 'action':
+
+        hydrateSanitizedAttribute(domElement, propKey, propKey, value, extraAttributes);
+        continue;
+
+      case 'formAction':
+        hydrateSanitizedAttribute(domElement, propKey, 'formaction', value, extraAttributes);
+        continue;
+
+      case 'xlinkHref':
+        hydrateSanitizedAttribute(domElement, propKey, 'xlink:href', value, extraAttributes);
+        continue;
+
+      case 'contentEditable':
+        {
+          // Lower-case Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, 'contenteditable', value, extraAttributes);
+          continue;
+        }
+
+      case 'spellCheck':
+        {
+          // Lower-case Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, 'spellcheck', value, extraAttributes);
+          continue;
+        }
+
+      case 'draggable':
+      case 'autoReverse':
+      case 'externalResourcesRequired':
+      case 'focusable':
+      case 'preserveAlpha':
+        {
+          // Case-sensitive Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'allowFullScreen':
+      case 'async':
+      case 'autoPlay':
+      case 'controls':
+      case 'default':
+      case 'defer':
+      case 'disabled':
+      case 'disablePictureInPicture':
+      case 'disableRemotePlayback':
+      case 'formNoValidate':
+      case 'hidden':
+      case 'loop':
+      case 'noModule':
+      case 'noValidate':
+      case 'open':
+      case 'playsInline':
+      case 'readOnly':
+      case 'required':
+      case 'reversed':
+      case 'scoped':
+      case 'seamless':
+      case 'itemScope':
+        {
+          // Some of these need to be lower case to remove them from the extraAttributes list.
+          hydrateBooleanAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes);
+          continue;
+        }
+
+      case 'capture':
+      case 'download':
+        {
+          hydrateOverloadedBooleanAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'cols':
+      case 'rows':
+      case 'size':
+      case 'span':
+        {
+          hydratePositiveNumericAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'rowSpan':
+        {
+          hydrateNumericAttribute(domElement, propKey, 'rowspan', value, extraAttributes);
+          continue;
+        }
+
+      case 'start':
+        {
+          hydrateNumericAttribute(domElement, propKey, propKey, value, extraAttributes);
+          continue;
+        }
+
+      case 'xHeight':
+        hydrateAttribute(domElement, propKey, 'x-height', value, extraAttributes);
+        continue;
+
+      case 'xlinkActuate':
+        hydrateAttribute(domElement, propKey, 'xlink:actuate', value, extraAttributes);
+        continue;
+
+      case 'xlinkArcrole':
+        hydrateAttribute(domElement, propKey, 'xlink:arcrole', value, extraAttributes);
+        continue;
+
+      case 'xlinkRole':
+        hydrateAttribute(domElement, propKey, 'xlink:role', value, extraAttributes);
+        continue;
+
+      case 'xlinkShow':
+        hydrateAttribute(domElement, propKey, 'xlink:show', value, extraAttributes);
+        continue;
+
+      case 'xlinkTitle':
+        hydrateAttribute(domElement, propKey, 'xlink:title', value, extraAttributes);
+        continue;
+
+      case 'xlinkType':
+        hydrateAttribute(domElement, propKey, 'xlink:type', value, extraAttributes);
+        continue;
+
+      case 'xmlBase':
+        hydrateAttribute(domElement, propKey, 'xml:base', value, extraAttributes);
+        continue;
+
+      case 'xmlLang':
+        hydrateAttribute(domElement, propKey, 'xml:lang', value, extraAttributes);
+        continue;
+
+      case 'xmlSpace':
+        hydrateAttribute(domElement, propKey, 'xml:space', value, extraAttributes);
+        continue;
 
       default:
-        if ( // shouldIgnoreAttribute
-        // We have already filtered out null/undefined and reserved words.
-        propKey.length > 2 && (propKey[0] === 'o' || propKey[0] === 'O') && (propKey[1] === 'n' || propKey[1] === 'N')) {
-          continue;
-        }
+        {
+          if ( // shouldIgnoreAttribute
+          // We have already filtered out null/undefined and reserved words.
+          propKey.length > 2 && (propKey[0] === 'o' || propKey[0] === 'O') && (propKey[1] === 'n' || propKey[1] === 'N')) {
+            continue;
+          }
 
-        var propertyInfo = getPropertyInfo(propKey);
-        var isMismatchDueToBadCasing = false;
-        var serverValue = void 0;
-
-        if (propertyInfo !== null) {
-          extraAttributeNames.delete(propertyInfo.attributeName);
-          serverValue = getValueForProperty(domElement, propKey, nextProp, propertyInfo);
-        } else {
+          var attributeName = getAttributeAlias(propKey);
+          var isMismatchDueToBadCasing = false;
           var ownNamespaceDev = parentNamespaceDev;
 
           if (ownNamespaceDev === HTML_NAMESPACE) {
@@ -32333,7 +33049,7 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
           }
 
           if (ownNamespaceDev === HTML_NAMESPACE) {
-            extraAttributeNames.delete(propKey.toLowerCase());
+            extraAttributes.delete(attributeName.toLowerCase());
           } else {
             var standardName = getPossibleStandardName(propKey);
 
@@ -32344,19 +33060,18 @@ function diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, 
               // However, we already warn about bad casing elsewhere.
               // So we'll skip the misleading extra mismatch warning in this case.
               isMismatchDueToBadCasing = true;
-              extraAttributeNames.delete(standardName);
+              extraAttributes.delete(standardName);
             }
 
-            extraAttributeNames.delete(propKey);
+            extraAttributes.delete(attributeName);
           }
 
-          serverValue = getValueForAttribute(domElement, propKey, nextProp);
-        }
+          var _serverValue4 = getValueForAttribute(domElement, attributeName, value);
 
-        if (nextProp !== serverValue && !isMismatchDueToBadCasing) {
-          warnForPropDifference(propKey, serverValue, nextProp);
+          if (!isMismatchDueToBadCasing) {
+            warnForPropDifference(propKey, _serverValue4, value);
+          }
         }
-
     }
   }
 }
@@ -32413,41 +33128,53 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       break;
 
     case 'input':
-      initWrapperState$2(domElement, props); // We listen to this event in case to ensure emulated bubble
+      {
+        checkControlledValueProps('input', props);
+      } // We listen to this event in case to ensure emulated bubble
       // listeners still fire for the invalid event.
+
 
       listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
       // up necessary since we never stop tracking anymore.
 
-      track(domElement); // For input and textarea we current always set the value property at
+      validateInputProps(domElement, props); // For input and textarea we current always set the value property at
       // post mount to force it to diverge from attributes. However, for
       // option and select we don't quite do the same thing and select
       // is not resilient to the DOM state changing so we don't do that here.
       // TODO: Consider not doing this for input and textarea.
 
-      postMountWrapper$3(domElement, props, true);
+      initInput(domElement, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name, true);
+      track(domElement);
       break;
 
     case 'option':
-      validateProps(domElement, props);
+      validateOptionProps(domElement, props);
       break;
 
     case 'select':
-      initWrapperState$1(domElement, props); // We listen to this event in case to ensure emulated bubble
+      {
+        checkControlledValueProps('select', props);
+      } // We listen to this event in case to ensure emulated bubble
       // listeners still fire for the invalid event.
 
+
       listenToNonDelegatedEvent('invalid', domElement);
+      validateSelectProps(domElement, props);
       break;
 
     case 'textarea':
-      initWrapperState(domElement, props); // We listen to this event in case to ensure emulated bubble
+      {
+        checkControlledValueProps('textarea', props);
+      } // We listen to this event in case to ensure emulated bubble
       // listeners still fire for the invalid event.
+
 
       listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
       // up necessary since we never stop tracking anymore.
 
+      validateTextareaProps(domElement, props);
+      initTextarea(domElement, props.value, props.defaultValue, props.children);
       track(domElement);
-      postMountWrapper(domElement);
       break;
   }
 
@@ -32469,7 +33196,9 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
       }
 
       if (!isConcurrentMode || !enableClientRenderFallbackOnTextMismatch) {
-        updatePayload = ['children', children];
+        {
+          updatePayload = ['children', children];
+        }
       }
     }
   }
@@ -32484,11 +33213,11 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
   }
 
   if (shouldWarnDev) {
-    var extraAttributeNames = new Set();
+    var extraAttributes = new Set();
     var attributes = domElement.attributes;
 
-    for (var _i6 = 0; _i6 < attributes.length; _i6++) {
-      var name = attributes[_i6].name.toLowerCase();
+    for (var _i7 = 0; _i7 < attributes.length; _i7++) {
+      var name = attributes[_i7].name.toLowerCase();
 
       switch (name) {
         // Controlled attributes are not validated
@@ -32505,18 +33234,18 @@ function diffHydratedProperties(domElement, tag, props, isConcurrentMode, should
         default:
           // Intentionally use the original name.
           // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributeNames.add(attributes[_i6].name);
+          extraAttributes.add(attributes[_i7].name);
       }
     }
 
     if (isCustomElement(tag)) {
-      diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributeNames);
+      diffHydratedCustomComponent(domElement, tag, props, parentNamespaceDev, extraAttributes);
     } else {
-      diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributeNames);
+      diffHydratedGenericElement(domElement, tag, props, parentNamespaceDev, extraAttributes);
     }
 
-    if (extraAttributeNames.size > 0 && props.suppressHydrationWarning !== true) {
-      warnForExtraAttributes(extraAttributeNames);
+    if (extraAttributes.size > 0 && props.suppressHydrationWarning !== true) {
+      warnForExtraAttributes(extraAttributes);
     }
   }
 
@@ -32581,343 +33310,16 @@ function warnForInsertedHydratedText(parentNode, text) {
 function restoreControlledState(domElement, tag, props) {
   switch (tag) {
     case 'input':
-      restoreControlledState$3(domElement, props);
+      restoreControlledInputState(domElement, props);
       return;
 
     case 'textarea':
-      restoreControlledState$1(domElement, props);
+      restoreControlledTextareaState(domElement, props);
       return;
 
     case 'select':
-      restoreControlledState$2(domElement, props);
+      restoreControlledSelectState(domElement, props);
       return;
-  }
-}
-
-// This validation code was written based on the HTML5 parsing spec:
-// https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
-//
-// Note: this does not catch all invalid nesting, nor does it try to (as it's
-// not clear what practical benefit doing so provides); instead, we warn only
-// for cases where the parser will give a parse tree differing from what React
-// intended. For example, <b><div></div></b> is invalid but we don't warn
-// because it still parses correctly; we do warn for other cases like nested
-// <p> tags where the beginning of the second element implicitly closes the
-// first, causing a confusing mess.
-// https://html.spec.whatwg.org/multipage/syntax.html#special
-var specialTags = ['address', 'applet', 'area', 'article', 'aside', 'base', 'basefont', 'bgsound', 'blockquote', 'body', 'br', 'button', 'caption', 'center', 'col', 'colgroup', 'dd', 'details', 'dir', 'div', 'dl', 'dt', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr', 'html', 'iframe', 'img', 'input', 'isindex', 'li', 'link', 'listing', 'main', 'marquee', 'menu', 'menuitem', 'meta', 'nav', 'noembed', 'noframes', 'noscript', 'object', 'ol', 'p', 'param', 'plaintext', 'pre', 'script', 'section', 'select', 'source', 'style', 'summary', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'track', 'ul', 'wbr', 'xmp']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-scope
-
-var inScopeTags = ['applet', 'caption', 'html', 'table', 'td', 'th', 'marquee', 'object', 'template', // https://html.spec.whatwg.org/multipage/syntax.html#html-integration-point
-// TODO: Distinguish by namespace here -- for <title>, including it here
-// errs on the side of fewer warnings
-'foreignObject', 'desc', 'title']; // https://html.spec.whatwg.org/multipage/syntax.html#has-an-element-in-button-scope
-
-var buttonScopeTags = inScopeTags.concat(['button']) ; // https://html.spec.whatwg.org/multipage/syntax.html#generate-implied-end-tags
-
-var impliedEndTags = ['dd', 'dt', 'li', 'option', 'optgroup', 'p', 'rp', 'rt'];
-var emptyAncestorInfoDev = {
-  current: null,
-  formTag: null,
-  aTagInScope: null,
-  buttonTagInScope: null,
-  nobrTagInScope: null,
-  pTagInButtonScope: null,
-  listItemTagAutoclosing: null,
-  dlItemTagAutoclosing: null,
-  containerTagInScope: null
-};
-
-function updatedAncestorInfoDev(oldInfo, tag) {
-  {
-    var ancestorInfo = assign({}, oldInfo || emptyAncestorInfoDev);
-
-    var info = {
-      tag: tag
-    };
-
-    if (inScopeTags.indexOf(tag) !== -1) {
-      ancestorInfo.aTagInScope = null;
-      ancestorInfo.buttonTagInScope = null;
-      ancestorInfo.nobrTagInScope = null;
-    }
-
-    if (buttonScopeTags.indexOf(tag) !== -1) {
-      ancestorInfo.pTagInButtonScope = null;
-    } // See rules for 'li', 'dd', 'dt' start tags in
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
-
-
-    if (specialTags.indexOf(tag) !== -1 && tag !== 'address' && tag !== 'div' && tag !== 'p') {
-      ancestorInfo.listItemTagAutoclosing = null;
-      ancestorInfo.dlItemTagAutoclosing = null;
-    }
-
-    ancestorInfo.current = info;
-
-    if (tag === 'form') {
-      ancestorInfo.formTag = info;
-    }
-
-    if (tag === 'a') {
-      ancestorInfo.aTagInScope = info;
-    }
-
-    if (tag === 'button') {
-      ancestorInfo.buttonTagInScope = info;
-    }
-
-    if (tag === 'nobr') {
-      ancestorInfo.nobrTagInScope = info;
-    }
-
-    if (tag === 'p') {
-      ancestorInfo.pTagInButtonScope = info;
-    }
-
-    if (tag === 'li') {
-      ancestorInfo.listItemTagAutoclosing = info;
-    }
-
-    if (tag === 'dd' || tag === 'dt') {
-      ancestorInfo.dlItemTagAutoclosing = info;
-    }
-
-    if (tag === '#document' || tag === 'html') {
-      ancestorInfo.containerTagInScope = null;
-    } else if (!ancestorInfo.containerTagInScope) {
-      ancestorInfo.containerTagInScope = info;
-    }
-
-    return ancestorInfo;
-  }
-}
-/**
- * Returns whether
- */
-
-
-function isTagValidWithParent(tag, parentTag) {
-  // First, let's check if we're in an unusual parsing mode...
-  switch (parentTag) {
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inselect
-    case 'select':
-      return tag === 'option' || tag === 'optgroup' || tag === '#text';
-
-    case 'optgroup':
-      return tag === 'option' || tag === '#text';
-    // Strictly speaking, seeing an <option> doesn't mean we're in a <select>
-    // but
-
-    case 'option':
-      return tag === '#text';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intd
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incaption
-    // No special behavior since these rules fall back to "in body" mode for
-    // all except special table nodes which cause bad parsing behavior anyway.
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intr
-
-    case 'tr':
-      return tag === 'th' || tag === 'td' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intbody
-
-    case 'tbody':
-    case 'thead':
-    case 'tfoot':
-      return tag === 'tr' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-incolgroup
-
-    case 'colgroup':
-      return tag === 'col' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-intable
-
-    case 'table':
-      return tag === 'caption' || tag === 'colgroup' || tag === 'tbody' || tag === 'tfoot' || tag === 'thead' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inhead
-
-    case 'head':
-      return tag === 'base' || tag === 'basefont' || tag === 'bgsound' || tag === 'link' || tag === 'meta' || tag === 'title' || tag === 'noscript' || tag === 'noframes' || tag === 'style' || tag === 'script' || tag === 'template';
-    // https://html.spec.whatwg.org/multipage/semantics.html#the-html-element
-
-    case 'html':
-      return tag === 'head' || tag === 'body' || tag === 'frameset';
-
-    case 'frameset':
-      return tag === 'frame';
-
-    case '#document':
-      return tag === 'html';
-  } // Probably in the "in body" parsing mode, so we outlaw only tag combos
-  // where the parsing rules cause implicit opens or closes to be added.
-  // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inbody
-
-
-  switch (tag) {
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-      return parentTag !== 'h1' && parentTag !== 'h2' && parentTag !== 'h3' && parentTag !== 'h4' && parentTag !== 'h5' && parentTag !== 'h6';
-
-    case 'rp':
-    case 'rt':
-      return impliedEndTags.indexOf(parentTag) === -1;
-
-    case 'body':
-    case 'caption':
-    case 'col':
-    case 'colgroup':
-    case 'frameset':
-    case 'frame':
-    case 'head':
-    case 'html':
-    case 'tbody':
-    case 'td':
-    case 'tfoot':
-    case 'th':
-    case 'thead':
-    case 'tr':
-      // These tags are only valid with a few parents that have special child
-      // parsing rules -- if we're down here, then none of those matched and
-      // so we allow it only if we don't know what the parent is, as all other
-      // cases are invalid.
-      return parentTag == null;
-  }
-
-  return true;
-}
-/**
- * Returns whether
- */
-
-
-function findInvalidAncestorForTag(tag, ancestorInfo) {
-  switch (tag) {
-    case 'address':
-    case 'article':
-    case 'aside':
-    case 'blockquote':
-    case 'center':
-    case 'details':
-    case 'dialog':
-    case 'dir':
-    case 'div':
-    case 'dl':
-    case 'fieldset':
-    case 'figcaption':
-    case 'figure':
-    case 'footer':
-    case 'header':
-    case 'hgroup':
-    case 'main':
-    case 'menu':
-    case 'nav':
-    case 'ol':
-    case 'p':
-    case 'section':
-    case 'summary':
-    case 'ul':
-    case 'pre':
-    case 'listing':
-    case 'table':
-    case 'hr':
-    case 'xmp':
-    case 'h1':
-    case 'h2':
-    case 'h3':
-    case 'h4':
-    case 'h5':
-    case 'h6':
-      return ancestorInfo.pTagInButtonScope;
-
-    case 'form':
-      return ancestorInfo.formTag || ancestorInfo.pTagInButtonScope;
-
-    case 'li':
-      return ancestorInfo.listItemTagAutoclosing;
-
-    case 'dd':
-    case 'dt':
-      return ancestorInfo.dlItemTagAutoclosing;
-
-    case 'button':
-      return ancestorInfo.buttonTagInScope;
-
-    case 'a':
-      // Spec says something about storing a list of markers, but it sounds
-      // equivalent to this check.
-      return ancestorInfo.aTagInScope;
-
-    case 'nobr':
-      return ancestorInfo.nobrTagInScope;
-  }
-
-  return null;
-}
-
-var didWarn = {};
-
-function validateDOMNesting(childTag, childText, ancestorInfo) {
-  {
-    ancestorInfo = ancestorInfo || emptyAncestorInfoDev;
-    var parentInfo = ancestorInfo.current;
-    var parentTag = parentInfo && parentInfo.tag;
-
-    if (childText != null) {
-      if (childTag != null) {
-        error('validateDOMNesting: when childText is passed, childTag should be null');
-      }
-
-      childTag = '#text';
-    } else if (childTag == null) {
-      error('validateDOMNesting: when childText or childTag must be provided');
-
-      return;
-    }
-
-    var invalidParent = isTagValidWithParent(childTag, parentTag) ? null : parentInfo;
-    var invalidAncestor = invalidParent ? null : findInvalidAncestorForTag(childTag, ancestorInfo);
-    var invalidParentOrAncestor = invalidParent || invalidAncestor;
-
-    if (!invalidParentOrAncestor) {
-      return;
-    }
-
-    var ancestorTag = invalidParentOrAncestor.tag;
-    var warnKey = // eslint-disable-next-line react-internal/safe-string-coercion
-    String(!!invalidParent) + '|' + childTag + '|' + ancestorTag;
-
-    if (didWarn[warnKey]) {
-      return;
-    }
-
-    didWarn[warnKey] = true;
-    var tagDisplayName = childTag;
-    var whitespaceInfo = '';
-
-    if (childTag === '#text') {
-      if (childText != null && /\S/.test(childText)) {
-        tagDisplayName = 'Text nodes';
-      } else {
-        tagDisplayName = 'Whitespace text nodes';
-        whitespaceInfo = " Make sure you don't have any extra whitespace between tags on " + 'each line of your source code.';
-      }
-    } else {
-      tagDisplayName = '<' + childTag + '>';
-    }
-
-    if (invalidParent) {
-      var info = '';
-
-      if (ancestorTag === 'table' && childTag === 'tr') {
-        info += ' Add a <tbody>, <thead> or <tfoot> to your code to match the DOM tree generated by ' + 'the browser.';
-      }
-
-      error('validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s', tagDisplayName, ancestorTag, whitespaceInfo, info);
-    } else {
-      error('validateDOMNesting(...): %s cannot appear as a descendant of ' + '<%s>.', tagDisplayName, ancestorTag);
-    }
   }
 }
 
@@ -33143,14 +33545,7 @@ function createInstance(type, props, rootContainerInstance, hostContext, interna
   {
     // TODO: take namespace into account when validating.
     var hostContextDev = hostContext;
-    validateDOMNesting(type, null, hostContextDev.ancestorInfo);
-
-    if (typeof props.children === 'string' || typeof props.children === 'number') {
-      var string = '' + props.children;
-      var ownAncestorInfo = updatedAncestorInfoDev(hostContextDev.ancestorInfo, type);
-      validateDOMNesting(null, string, ownAncestorInfo);
-    }
-
+    validateDOMNesting(type, hostContextDev.ancestorInfo);
     namespace = hostContextDev.namespace;
   }
 
@@ -33276,15 +33671,6 @@ function finalizeInitialChildren(domElement, type, props, hostContext) {
   }
 }
 function prepareUpdate(domElement, type, oldProps, newProps, hostContext) {
-  {
-    var hostContextDev = hostContext;
-
-    if (typeof newProps.children !== typeof oldProps.children && (typeof newProps.children === 'string' || typeof newProps.children === 'number')) {
-      var string = '' + newProps.children;
-      var ownAncestorInfo = updatedAncestorInfoDev(hostContextDev.ancestorInfo, type);
-      validateDOMNesting(null, string, ownAncestorInfo);
-    }
-  }
 
   return diffProperties(domElement, type, oldProps, newProps);
 }
@@ -33294,7 +33680,11 @@ function shouldSetTextContent(type, props) {
 function createTextInstance(text, rootContainerInstance, hostContext, internalInstanceHandle) {
   {
     var hostContextDev = hostContext;
-    validateDOMNesting(null, text, hostContextDev.ancestorInfo);
+    var ancestor = hostContextDev.ancestorInfo.current;
+
+    if (ancestor != null) {
+      validateTextNesting(text, ancestor.tag);
+    }
   }
 
   var textNode = getOwnerDocumentFromRootContainer(rootContainerInstance).createTextNode(text);
@@ -33309,6 +33699,9 @@ function getCurrentEventPriority() {
   }
 
   return getEventPriority(currentEvent.type);
+}
+function shouldAttemptEagerTransition() {
+  return window.event && window.event.type === 'popstate';
 }
 // if a component just imports ReactDOM (e.g. for findDOMNode).
 // Some environments might not have setTimeout or clearTimeout.
@@ -33358,9 +33751,12 @@ function commitMount(domElement, type, newProps, internalInstanceHandle) {
   }
 }
 function commitUpdate(domElement, updatePayload, type, oldProps, newProps, internalInstanceHandle) {
-  // Apply the diff to the DOM node.
-  updateProperties(domElement, updatePayload, type, oldProps, newProps); // Update the props handle so that we know which props are the ones with
+  {
+    // Apply the diff to the DOM node.
+    updatePropertiesWithDiff(domElement, updatePayload, type, oldProps, newProps);
+  } // Update the props handle so that we know which props are the ones with
   // with current event handlers.
+
 
   updateFiberProps(domElement, newProps);
 }
@@ -33957,7 +34353,7 @@ function resolveSingletonInstance(type, props, rootContainerInstance, hostContex
     var hostContextDev = hostContext;
 
     if (validateDOMNestingDev) {
-      validateDOMNesting(type, null, hostContextDev.ancestorInfo);
+      validateDOMNesting(type, hostContextDev.ancestorInfo);
     }
   }
 

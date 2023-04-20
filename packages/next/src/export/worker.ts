@@ -93,6 +93,7 @@ interface ExportPageInput {
   isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
   fetchCache?: boolean
   incrementalCacheHandlerPath?: string
+  fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
 }
 
@@ -152,6 +153,7 @@ export default async function exportPage({
   debugOutput,
   isrMemoryCacheSize,
   fetchCache,
+  fetchCacheKeyPrefix,
   incrementalCacheHandlerPath,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
@@ -350,12 +352,13 @@ export default async function exportPage({
             CacheHandler = require(incrementalCacheHandlerPath)
             CacheHandler = CacheHandler.default || CacheHandler
           }
-
-          curRenderOpts.incrementalCache = new IncrementalCache({
+          const incrementalCache = new IncrementalCache({
             dev: false,
             requestHeaders: {},
             flushToDisk: true,
+            fetchCache: true,
             maxMemoryCacheSize: isrMemoryCacheSize,
+            fetchCacheKeyPrefix,
             getPrerenderManifest: () => ({
               version: 4,
               routes: {},
@@ -368,15 +371,17 @@ export default async function exportPage({
               notFoundRoutes: [],
             }),
             fs: {
-              readFile: (f) => fs.promises.readFile(f, 'utf8'),
-              readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-              writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+              readFile: (f) => fs.promises.readFile(f),
+              readFileSync: (f) => fs.readFileSync(f),
+              writeFile: (f, d) => fs.promises.writeFile(f, d),
               mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
               stat: (f) => fs.promises.stat(f),
             },
             serverDistDir: join(distDir, 'server'),
             CurCacheHandler: CacheHandler,
           })
+          ;(globalThis as any).__incrementalCache = incrementalCache
+          curRenderOpts.incrementalCache = incrementalCache
         }
 
         const isDynamicUsageError = (err: any) =>

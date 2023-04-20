@@ -287,9 +287,6 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        experimentalReact: {
-          type: 'boolean',
-        },
         extensionAlias: {
           type: 'object',
         },

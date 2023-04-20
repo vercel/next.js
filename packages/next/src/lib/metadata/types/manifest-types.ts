@@ -2,8 +2,21 @@ export type Manifest = {
   background_color?: string
   categories?: string[]
   description?: string
+  dir?: 'ltr' | 'rtl' | 'auto'
   display?: 'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'
-  display_override?: string[]
+  display_override?: (
+    | 'fullscreen'
+    | 'standalone'
+    | 'minimal-ui'
+    | 'browser'
+    | 'window-controls-overlay'
+  )[]
+  file_handlers?: {
+    action: string
+    accept: {
+      [mimeType: string]: string[]
+    }[]
+  }[]
   icons?: {
     src: string
     type?: string
@@ -11,6 +24,7 @@ export type Manifest = {
     purpose?: 'any' | 'maskable' | 'monochrome' | 'badge'
   }[]
   id?: string
+  lang?: string
   launch_handler?: {
     platform?: 'windows' | 'macos' | 'linux'
     url?: string

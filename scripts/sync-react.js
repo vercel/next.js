@@ -12,29 +12,24 @@ const fetch = require('node-fetch')
 // Basic usage (defaults to most recent React canary version):
 //   pnpm run sync-react
 //
+// Specify a canary version:
+//   pnpm run sync-react --version 18.3.0-next-41110021f-20230301
+//
 // Update package.json but skip installing the dependencies automatically:
 //   pnpm run sync-react --no-install
 
-async function sync(channel = 'next') {
+async function main() {
   const noInstall = readBoolArg(process.argv, 'no-install')
-  const useExperimental = channel === 'experimental'
   let newVersionStr = readStringArg(process.argv, 'version')
   if (newVersionStr === null) {
-    const { stdout, stderr } = await execa(
-      'npm',
-      [
-        'view',
-        useExperimental ? 'react@experimental' : 'react@next',
-        'version',
-      ],
-      {
-        // Avoid "Usage Error: This project is configured to use pnpm".
-        cwd: '/tmp',
-      }
-    )
+    const { stdout, stderr } = await execa('npm', [
+      'view',
+      'react@next',
+      'version',
+    ])
     if (stderr) {
       console.error(stderr)
-      throw new Error(`Failed to read latest React canary version from npm.`)
+      throw new Error('Failed to read latest React canary version from npm.')
     }
     newVersionStr = stdout.trim()
   }
@@ -54,9 +49,10 @@ Or, run this command with no arguments to use the most recently published versio
   const cwd = process.cwd()
   const pkgJson = await readJson(path.join(cwd, 'package.json'))
   const devDependencies = pkgJson.devDependencies
-  const baseVersionStr = devDependencies[
-    useExperimental ? 'react-experimental-builtin' : 'react-builtin'
-  ].replace(/^npm:react@/, '')
+  const baseVersionStr = devDependencies['react-builtin'].replace(
+    /^npm:react@/,
+    ''
+  )
 
   const baseVersionInfo = extractInfoFromReactCanaryVersion(baseVersionStr)
   if (!baseVersionInfo) {
@@ -68,7 +64,7 @@ Or, run this command with no arguments to use the most recently published versio
   const { sha: newSha, dateString: newDateString } = newVersionInfo
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
 
-  console.log(`Updating "react@${channel}" to ${newSha}...\n`)
+  console.log(`Updating React to ${newSha}...\n`)
   if (newSha === baseSha) {
     console.log('Already up to date.')
     return
@@ -103,7 +99,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
 
     console.log('Building vendored React files...\n')
-    const nccSubprocess = execa('pnpm', ['taskr', 'copy_vendor_react'], {
+    const nccSubprocess = execa('pnpm', ['taskr', 'ncc'], {
       cwd: path.join(cwd, 'packages', 'next'),
     })
     if (nccSubprocess.stdout) {
@@ -202,9 +198,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('next')
-  .then(() => sync('experimental'))
-  .catch((error) => {
-    console.error(error)
-    process.exit(1)
-  })
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
+})

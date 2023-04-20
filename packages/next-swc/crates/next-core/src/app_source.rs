@@ -709,6 +709,12 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         let mut result =
             RopeBuilder::from("import { IPC } from \"@vercel/turbopack-node/ipc/index\";\n");
 
+        let import_path = next_js_file_path("entry")
+            .await?
+            .get_relative_path_to(&*next_js_file_path("polyfill/app-polyfills.ts").await?)
+            .unwrap();
+        writeln!(result, "import \"{import_path}\";\n",)?;
+
         for import in imports {
             writeln!(result, "{import}")?;
         }

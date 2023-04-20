@@ -37,4 +37,4 @@ After:
 ]
 ```
 
-Note: the manifest is checked automatically in the "lint" step in CI when opening a PR.
+> **Note**: The manifest is checked automatically in the "lint" step in CI when opening a PR.

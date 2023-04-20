@@ -17,7 +17,7 @@ use turbo_binding::{
 };
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    primitives::{StringVc, StringsVc},
+    primitives::{StringReadRef, StringVc, StringsVc},
 };
 
 use crate::{
@@ -43,16 +43,16 @@ impl DevManifestContentSourceVc {
 
         async fn content_source_to_pathname(
             content_source: ContentSourceVc,
-        ) -> Result<Option<String>> {
+        ) -> Result<Option<StringReadRef>> {
             // TODO This shouldn't use casts but an public api instead
             if let Some(api_source) = NodeApiContentSourceVc::resolve_from(content_source).await? {
-                return Ok(Some(format!("/{}", api_source.get_pathname().await?)));
+                return Ok(Some(api_source.get_pathname().await?));
             }
 
             if let Some(page_source) =
                 NodeRenderContentSourceVc::resolve_from(content_source).await?
             {
-                return Ok(Some(format!("/{}", page_source.get_pathname().await?)));
+                return Ok(Some(page_source.get_pathname().await?));
             }
 
             Ok(None)
@@ -64,7 +64,7 @@ impl DevManifestContentSourceVc {
             Ok(content_source.get_children().await?.clone_value())
         }
 
-        let mut routes = GraphTraversal::<NonDeterministic<_>>::visit(
+        let routes = GraphTraversal::<NonDeterministic<_>>::visit(
             this.page_roots.iter().copied(),
             get_content_source_children,
         )
@@ -73,10 +73,12 @@ impl DevManifestContentSourceVc {
         .into_iter()
         .map(content_source_to_pathname)
         .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+        .await?;
+        let mut routes = routes
+            .into_iter()
+            .flatten()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
 
@@ -112,7 +114,7 @@ impl DevManifestContentSourceVc {
                     p,
                     vec![format!(
                         "_next/static/chunks/pages/{}",
-                        get_asset_path_from_route(p.split_at(1).1, ".js")
+                        get_asset_path_from_route(p, ".js")
                     )],
                 )
             })

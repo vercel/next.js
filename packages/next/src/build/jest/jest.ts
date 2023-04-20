@@ -7,6 +7,7 @@ import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
+import type { JestTransformerConfig } from '../swc/jest-transformer'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -96,6 +97,17 @@ export default function nextJest(options: { dir?: string } = {}) {
       }
 
       const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
+
+      const jestTransformerConfig: JestTransformerConfig = {
+        modularizeImports: nextConfig?.modularizeImports,
+        swcPlugins: nextConfig?.experimental?.swcPlugins,
+        compilerOptions: nextConfig?.compiler,
+        jsConfig,
+        resolvedBaseUrl,
+        hasServerComponents,
+        isEsmProject,
+        pagesDir,
+      }
       return {
         ...resolvedJestConfig,
 
@@ -140,14 +152,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Use SWC to compile tests
           '^.+\\.(js|jsx|ts|tsx|mjs)$': [
             require.resolve('../swc/jest-transformer'),
-            {
-              nextConfig,
-              jsConfig,
-              resolvedBaseUrl,
-              hasServerComponents,
-              isEsmProject,
-              pagesDir,
-            },
+            jestTransformerConfig,
           ],
           // Allow for appending/overriding the default transforms
           ...(resolvedJestConfig.transform || {}),

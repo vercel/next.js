@@ -1617,158 +1617,95 @@ export async function ncc_icss_utils(task, opts) {
     .target('src/compiled/icss-utils')
 }
 
-externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
 externals['scheduler'] = 'next/dist/compiled/scheduler'
-export async function copy_vendor_react(task_) {
-  function* copy_vendor_react_impl(task, opts) {
-    const channel = opts.experimental ? `experimental-builtin` : `builtin`
-    const packageSuffix = opts.experimental ? `-experimental` : ``
+export async function copy_vendor_react(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('scheduler')))
+    .ncc({ packageName: 'scheduler', externals })
+    .target('src/compiled/scheduler')
 
-    // Override the `react`, `react-dom` and `scheduler`'s package names to avoid
-    // "The name `react` was looked up in the Haste module map" warnings.
-    // TODO-APP: remove unused fields from package.json and unused files
-    function overridePackageName(source) {
-      const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
-      return JSON.stringify(
-        {
-          name: json.name,
-          main: json.main,
-          exports: json.exports,
-          dependencies: json.dependencies,
-          peerDependencies: json.peerDependencies,
-          browser: json.browser,
-        },
-        null,
-        2
+  const reactDir = dirname(
+    relative(__dirname, require.resolve(`react-builtin/package.json`))
+  )
+  const reactDomDir = dirname(
+    relative(__dirname, require.resolve(`react-dom-builtin/package.json`))
+  )
+
+  // TODO-APP: remove unused fields from package.json and unused files
+  await task.source(join(reactDir, '*.{json,js}')).target(`src/compiled/react`)
+  await task.source(join(reactDir, 'LICENSE')).target(`src/compiled/react`)
+  await task
+    .source(join(reactDir, 'cjs/**/*.js'))
+    .target(`src/compiled/react/cjs`)
+
+  await task
+    .source(join(reactDomDir, '*.{json,js}'))
+    .target(`src/compiled/react-dom`)
+  await task
+    .source(join(reactDomDir, 'LICENSE'))
+    .target(`src/compiled/react-dom`)
+  await task
+    .source(join(reactDomDir, 'cjs/**/*.js'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source.replace(
+        /require\(["']scheduler["']\)/g,
+        'require("next/dist/compiled/scheduler")'
       )
-    }
+    })
+    .target(`src/compiled/react-dom/cjs`)
 
-    const schedulerDir = dirname(
-      relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
-    )
-    yield task
-      .source(join(schedulerDir, '*.{json,js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
-        }
-      })
-      .target(`src/compiled/scheduler${packageSuffix}`)
-    yield task
-      .source(join(schedulerDir, 'cjs/**/*.js'))
-      .target(`src/compiled/scheduler${packageSuffix}/cjs`)
-    yield task
-      .source(join(schedulerDir, 'LICENSE'))
-      .target(`src/compiled/scheduler${packageSuffix}`)
+  // Remove unused files
+  const reactDomCompiledDir = join(__dirname, 'src/compiled/react-dom')
+  await fs.remove(join(reactDomCompiledDir, 'static.js'))
+  await fs.remove(join(reactDomCompiledDir, 'static.node.js'))
+  await fs.remove(join(reactDomCompiledDir, 'static.browser.js'))
+  await fs.remove(join(reactDomCompiledDir, 'unstable_testing.js'))
+  await fs.remove(join(reactDomCompiledDir, 'test-utils.js'))
+  await fs.remove(join(reactDomCompiledDir, 'profiling.js'))
+  await fs.remove(join(reactDomCompiledDir, 'server.bun.js'))
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-server.bun.development.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-server.bun.production.min.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-test-utils.development.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-test-utils.production.min.js')
+  )
 
-    const reactDir = dirname(
-      relative(__dirname, require.resolve(`react-${channel}/package.json`))
-    )
-    const reactDomDir = dirname(
-      relative(__dirname, require.resolve(`react-dom-${channel}/package.json`))
-    )
+  await fs.remove(
+    join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
+  )
 
-    yield task
-      .source(join(reactDir, '*.{json,js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
-        }
-      })
-      .target(`src/compiled/react${packageSuffix}`)
-    yield task
-      .source(join(reactDir, 'LICENSE'))
-      .target(`src/compiled/react${packageSuffix}`)
-    yield task
-      .source(join(reactDir, 'cjs/**/*.js'))
-      .target(`src/compiled/react${packageSuffix}/cjs`)
-
-    yield task
-      .source(join(reactDomDir, '*.{json,js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        if (file.base === 'package.json') {
-          file.data = overridePackageName(file.data.toString())
-        }
-      })
-      .target(`src/compiled/react-dom${packageSuffix}`)
-    yield task
-      .source(join(reactDomDir, 'LICENSE'))
-      .target(`src/compiled/react-dom${packageSuffix}`)
-    yield task
-      .source(join(reactDomDir, 'cjs/**/*.js'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']scheduler["']\)/g,
-          `require("next/dist/compiled/scheduler${packageSuffix}")`
-        )
-      })
-      .target(`src/compiled/react-dom${packageSuffix}/cjs`)
-
-    // Remove unused files
-    const reactDomCompiledDir = join(
+  // react-server-dom-webpack
+  const reactServerDomDir = dirname(
+    relative(
       __dirname,
-      `src/compiled/react-dom${packageSuffix}`
+      require.resolve(`react-server-dom-webpack/package.json`)
     )
-    const itemsToRemove = [
-      'static.js',
-      'static.node.js',
-      'static.browser.js',
-      'unstable_testing.js',
-      'test-utils.js',
-      'profiling.js',
-      'server.bun.js',
-      'cjs/react-dom-server.bun.development.js',
-      'cjs/react-dom-server.bun.production.min.js',
-      'cjs/react-dom-test-utils.development.js',
-      'cjs/react-dom-test-utils.production.min.js',
-      'unstable_server-external-runtime.js',
-    ]
-    for (const item of itemsToRemove) {
-      yield fs.remove(join(reactDomCompiledDir, item))
-    }
-
-    // react-server-dom-webpack
-    // Currently, this `next` and `experimental` channels are always in sync so
-    // we can use the same version for both.
-    const reactServerDomDir = dirname(
-      relative(
-        __dirname,
-        require.resolve(`react-server-dom-webpack/package.json`)
-      )
-    )
-    yield task
-      .source(join(reactServerDomDir, 'LICENSE'))
-      .target(`src/compiled/react-server-dom-webpack`)
-    yield task
-      .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
-      // eslint-disable-next-line require-yield
-      .run({ every: true }, function* (file) {
-        const source = file.data.toString()
-        // We replace the module/chunk loading code with our own implementation in Next.js.
-        // NOTE: We don't alias react and react-dom here since they could change while bundling,
-        // let bundling picking logic controlled by webpack.
-        file.data = source
-          .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
-          .replace(/__webpack_require__/g, 'globalThis.__next_require__')
-      })
-      .target(`src/compiled/react-server-dom-webpack`)
-  }
-
-  // As taskr transpiles async functions into generators, to reuse the same logic
-  // we need to directly write this iteration logic here.
-  for (const res of copy_vendor_react_impl(task_, { experimental: false })) {
-    await res
-  }
-  for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
-    await res
-  }
+  )
+  await task
+    .source(join(reactServerDomDir, 'LICENSE'))
+    .target(`src/compiled/react-server-dom-webpack`)
+  await task
+    .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      // NOTE: We don't alias react and react-dom here since they could change while bundling,
+      // let bundling picking logic controlled by webpack.
+      file.data = source
+        .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
+        .replace(/__webpack_require__/g, 'globalThis.__next_require__')
+    })
+    .target(`src/compiled/react-server-dom-webpack`)
 }
 
 // eslint-disable-next-line camelcase

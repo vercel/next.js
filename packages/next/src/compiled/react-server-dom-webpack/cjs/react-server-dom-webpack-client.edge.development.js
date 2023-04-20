@@ -36,18 +36,30 @@ function parseModel(response, json) {
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
+    var moduleExports = bundlerConfig[metadata.id];
+    var resolvedModuleData = moduleExports[metadata.name];
+    var name;
 
-    if (metadata.async) {
-      return {
-        id: resolvedModuleData.id,
-        chunks: resolvedModuleData.chunks,
-        name: resolvedModuleData.name,
-        async: true
-      };
+    if (resolvedModuleData) {
+      // The potentially aliased name.
+      name = resolvedModuleData.name;
     } else {
-      return resolvedModuleData;
+      // If we don't have this specific name, we might have the full module.
+      resolvedModuleData = moduleExports['*'];
+
+      if (!resolvedModuleData) {
+        throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+      }
+
+      name = metadata.name;
     }
+
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: name,
+      async: !!metadata.async
+    };
   }
 
   return metadata;
@@ -642,11 +654,39 @@ function parseModelString(response, parentObject, key, value) {
           }
         }
 
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
+        }
+
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.substring(2)));
         }
 
       case 'n':
@@ -883,6 +923,10 @@ function noServerCall() {
   throw new Error('Server Functions cannot be called during initial render. ' + 'This would create a fetch waterfall. Try to use a Server Component ' + 'to pass data to Client Components instead.');
 }
 
+function createServerReference(id, callServer) {
+  return noServerCall;
+}
+
 function createResponseFromOptions(options) {
   return createResponse(options && options.moduleMap ? options.moduleMap : null, noServerCall);
 }
@@ -929,5 +973,6 @@ function createFromFetch(promiseForResponse, options) {
 
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
+exports.createServerReference = createServerReference;
   })();
 }
