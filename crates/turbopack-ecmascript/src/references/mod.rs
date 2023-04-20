@@ -1,6 +1,7 @@
 pub mod amd;
 pub mod cjs;
 pub mod constant_condition;
+pub mod constant_value;
 pub mod esm;
 pub mod node;
 pub mod pattern_mapping;
@@ -20,6 +21,7 @@ use std::{
 
 use anyhow::Result;
 use constant_condition::{ConstantConditionValue, ConstantConditionVc};
+use constant_value::ConstantValueVc;
 use indexmap::IndexSet;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -1275,6 +1277,12 @@ pub(crate) async fn analyze_ecmascript_module(
                             .eq(name.iter().map(Cow::Borrowed).rev())
                         {
                             match value {
+                                FreeVarReference::Value(value) => {
+                                    analysis.add_code_gen(ConstantValueVc::new(
+                                        Value::new(value.clone()),
+                                        AstPathVc::cell(ast_path.to_vec()),
+                                    ));
+                                }
                                 FreeVarReference::EcmaScriptModule {
                                     request,
                                     context,

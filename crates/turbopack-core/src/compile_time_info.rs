@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::environment::EnvironmentVc;
@@ -10,6 +8,14 @@ use crate::environment::EnvironmentVc;
 // TODO stringify split map collect could be optimized with a marco
 #[macro_export]
 macro_rules! definable_name_map_internal {
+    ($map:ident, .. $value:expr) => {
+        for (key, value) in $value {
+            $map.insert(
+                key.into(),
+                value.into()
+            );
+        }
+    };
     ($map:ident, $($name:ident).+ = $value:expr) => {
         $map.insert(
             $crate::definable_name_map_internal!($($name).+).into(),
@@ -24,6 +30,10 @@ macro_rules! definable_name_map_internal {
     };
     ($map:ident, $($name:ident).+ = $value:expr, $($more:tt)+) => {
         $crate::definable_name_map_internal!($map, $($name).+ = $value);
+        $crate::definable_name_map_internal!($map, $($more)+);
+    };
+    ($map:ident, .. $value:expr, $($more:tt)+) => {
+        $crate::definable_name_map_internal!($map, .. $value);
         $crate::definable_name_map_internal!($map, $($more)+);
     };
     ($name:ident) => {
@@ -62,7 +72,8 @@ macro_rules! free_var_references {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub enum CompileTimeDefineValue {
     Bool(bool),
     String(String),
@@ -89,6 +100,15 @@ impl From<&str> for CompileTimeDefineValue {
 #[turbo_tasks::value(transparent)]
 pub struct CompileTimeDefines(pub HashMap<Vec<String>, CompileTimeDefineValue>);
 
+impl IntoIterator for CompileTimeDefines {
+    type Item = (Vec<String>, CompileTimeDefineValue);
+    type IntoIter = std::collections::hash_map::IntoIter<Vec<String>, CompileTimeDefineValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl CompileTimeDefinesVc {
     #[turbo_tasks::function]
@@ -104,6 +124,31 @@ pub enum FreeVarReference {
         context: Option<FileSystemPathVc>,
         export: Option<String>,
     },
+    Value(CompileTimeDefineValue),
+}
+
+impl From<bool> for FreeVarReference {
+    fn from(value: bool) -> Self {
+        Self::Value(value.into())
+    }
+}
+
+impl From<String> for FreeVarReference {
+    fn from(value: String) -> Self {
+        Self::Value(value.into())
+    }
+}
+
+impl From<&str> for FreeVarReference {
+    fn from(value: &str) -> Self {
+        Self::Value(value.into())
+    }
+}
+
+impl From<CompileTimeDefineValue> for FreeVarReference {
+    fn from(value: CompileTimeDefineValue) -> Self {
+        Self::Value(value)
+    }
 }
 
 #[turbo_tasks::value(transparent)]
