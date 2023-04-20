@@ -65,7 +65,7 @@ impl ContentSource for NextImageContentSource {
             })));
         };
 
-        let Some(QueryValue::String(url)): &String = match query.get("url") else {
+        let Some(QueryValue::String(url)) = query.get("url") else {
             return Ok(ContentSourceResultVc::not_found());
         };
 
