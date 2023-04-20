@@ -1397,7 +1397,7 @@ function markChunkListAsRuntime(chunkListPath) {
 /**
  * @param {ChunkRegistration} chunkRegistration
  */
-async function registerChunk([chunkPath, chunkModules, runtimeParams]) {
+function registerChunk([chunkPath, chunkModules, runtimeParams]) {
   for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
     if (!moduleFactories[moduleId]) {
       moduleFactories[moduleId] = moduleFactory;
@@ -1405,7 +1405,7 @@ async function registerChunk([chunkPath, chunkModules, runtimeParams]) {
     addModuleToChunk(moduleId, chunkPath);
   }
 
-  BACKEND.registerChunk(chunkPath, runtimeParams);
+  return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
 
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS =
