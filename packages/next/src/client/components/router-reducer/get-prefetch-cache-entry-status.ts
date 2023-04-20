@@ -4,6 +4,7 @@ const FIVE_MINUTES = 5 * 60 * 1000
 const THIRTY_SECONDS = 30 * 1000
 
 export enum PrefetchCacheEntryStatus {
+  fresh = 'fresh',
   reusable = 'reusable',
   expired = 'expired',
   stale = 'stale',
@@ -16,7 +17,9 @@ export function getPrefetchEntryCacheStatus({
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
   // if the cache entry was prefetched or read less than 30s ago, then we want to re-use it
   if (Date.now() < (lastUsedTime ?? prefetchTime) + THIRTY_SECONDS) {
-    return PrefetchCacheEntryStatus.reusable
+    return lastUsedTime
+      ? PrefetchCacheEntryStatus.reusable
+      : PrefetchCacheEntryStatus.fresh
   }
 
   // if the cache entry was prefetched less than 5 mins ago, then we want to re-use only the loading state

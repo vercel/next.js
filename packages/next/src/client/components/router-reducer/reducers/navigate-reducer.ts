@@ -74,11 +74,9 @@ function generateSegmentsFromPatch(
 function addRefetchToLeafSegments(
   newCache: CacheNode,
   currentCache: CacheNode,
-  currentTree: FlightRouterState,
   flightSegmentPath: FlightSegmentPath,
   treePatch: FlightRouterState,
-  url: URL,
-  nextUrl: string
+  data: () => ReturnType<typeof fetchServerResponse>
 ) {
   let appliedPatch = false
 
@@ -95,7 +93,7 @@ function addRefetchToLeafSegments(
       newCache,
       currentCache,
       segmentPaths,
-      () => fetchServerResponse(url, currentTree, nextUrl)
+      data
     )
     if (!res?.bailOptimistic) {
       appliedPatch = true
@@ -201,11 +199,9 @@ export function navigateReducer(
           applied = addRefetchToLeafSegments(
             cache,
             currentCache,
-            currentTree,
             flightSegmentPath,
             treePatch,
-            url,
-            state.nextUrl!
+            () => fetchServerResponse(url, newTree!, state.nextUrl)
           )
         }
 
@@ -329,13 +325,12 @@ export function navigateReducer(
     kind: 'temporary',
     prefetchTime: Date.now(),
     treeAtTimeOfPrefetch: state.tree,
-    lastUsedTime: Date.now(),
+    lastUsedTime: null,
   })
 
   // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
   const [flightData, canonicalUrlOverride] = readRecordValue(cache.data!)
 
-  console.log('reading flight data', flightData)
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
     return handleExternalUrl(state, mutable, flightData, pendingPush)

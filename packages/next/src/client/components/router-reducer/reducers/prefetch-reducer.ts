@@ -26,6 +26,18 @@ export function prefetchReducer(
 
   if (cacheEntry) {
     /**
+     * If the cache entry present was marked as temporary, it means that we prefetched it from the navigate reducer,
+     * where we didn't have the prefetch intent. We want to update it to the new, more accurate, kind here.
+     */
+    if (cacheEntry.kind === 'temporary') {
+      console.log(href, action.kind, cacheEntry)
+      state.prefetchCache.set(href, {
+        ...cacheEntry,
+        kind: action.kind,
+      })
+    }
+
+    /**
      * 1 - if the entry is not expired, there's no need to prefetch again
      * 2 - if the prefetch action was a full prefetch and that the current cache entry wasn't one, we want to re-prefetch, otherwise we can re-use the current cache entry
      **/
