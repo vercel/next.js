@@ -61,6 +61,8 @@ fn defines() -> CompileTimeDefines {
         process.env.__NEXT_HAS_REWRITES = true,
         process.env.__NEXT_I18N_SUPPORT = false,
     )
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
 }
 
 #[turbo_tasks::function]
