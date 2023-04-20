@@ -424,6 +424,6 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
-    runtime: 'nodejs',
+    runtime: undefined,
   }
 }
