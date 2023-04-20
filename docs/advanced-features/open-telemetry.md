@@ -57,7 +57,6 @@ Firstly you need to install OpenTelemetry packages:
 
 ```bash
 npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
-`
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
