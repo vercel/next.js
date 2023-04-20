@@ -706,8 +706,8 @@ export default async function getBaseWebpackConfig(
 
   if (isClient) {
     if (
-      'runtime' in config.experimental &&
-      isEdgeRuntime(config.experimental.runtime as unknown as string)
+      // @ts-expect-error: experimental.runtime is deprecated
+      isEdgeRuntime(config.experimental.runtime)
     ) {
       Log.warn(
         'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
