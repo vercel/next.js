@@ -263,6 +263,8 @@ export class ClientReferenceManifestPlugin {
                 // It's possible that a chunk also emits CSS files, that will
                 // be handled separatedly.
                 if (!file.endsWith('.js')) return null
+                if (file.endsWith('.hot-update.js')) return null
+
                 return requiredChunk.id + ':' + file
               })
             })
