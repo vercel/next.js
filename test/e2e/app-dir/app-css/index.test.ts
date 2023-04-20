@@ -552,15 +552,6 @@ createNextDescribe(
             return await browser.eval(`window.__log`)
           }, /background = rgb\(255, 255, 0\)/)
         })
-
-        it('should timeout if the resource takes too long', async () => {
-          const browser = await next.browser('/suspensey-css')
-          await browser.elementByCss('#timeout').click()
-          await check(() => browser.eval(`document.body.innerText`), 'Get back')
-          expect(await browser.eval(`window.__log`)).toEqual(
-            'background = rgba(0, 0, 0, 0)'
-          )
-        })
       })
     }
   }

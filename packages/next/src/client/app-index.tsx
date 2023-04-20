@@ -69,8 +69,8 @@ self.__next_require__ =
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
   if (!chunk) return Promise.resolve()
-  const [chunkId, chunkFilePath] = chunk.split(':')
-  chunkFilenameMap[chunkId] = chunkFilePath
+  const [chunkId, chunkFileName] = chunk.split(':')
+  chunkFilenameMap[chunkId] = `static/chunks/${chunkFileName}.js`
 
   // @ts-ignore
   // eslint-disable-next-line no-undef
