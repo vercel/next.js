@@ -8,10 +8,14 @@ use turbo_binding::{
         core::{
             chunk::{ChunkableAsset, ChunkableAssetVc, ChunkingContext},
             compile_time_defines,
-            compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+            compile_time_info::{
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReferencesVc,
+            },
             environment::{
                 BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
             },
+            free_var_references,
             reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
             source_asset::SourceAssetVc,
@@ -38,12 +42,21 @@ use crate::{
     next_config::NextConfigVc,
 };
 
-pub fn web_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
     )
-    .cell()
+}
+
+#[turbo_tasks::function]
+pub fn web_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn web_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
 #[turbo_tasks::function]
@@ -61,6 +74,7 @@ pub fn get_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
         Value::new(EnvironmentIntention::Client),
     ))
     .defines(web_defines())
+    .free_var_references(web_free_vars())
     .cell()
 }
 
