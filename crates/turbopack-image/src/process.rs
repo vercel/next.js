@@ -8,13 +8,13 @@ use image::{
         png::{CompressionType, PngEncoder},
     },
     imageops::FilterType,
-    GenericImageView, ImageEncoder, ImageFormat,
+    DynamicImage, GenericImageView, ImageEncoder, ImageFormat,
 };
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use turbo_tasks::{debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileContent, FileContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack_core::{
     error::PrettyPrintError,
     ident::AssetIdentVc,
@@ -50,54 +50,117 @@ pub struct BlurPlaceholderOptions {
     pub size: u32,
 }
 
-fn load_image(bytes: &[u8]) -> Result<(image::DynamicImage, Option<ImageFormat>)> {
+fn extension_to_image_format(extension: &str) -> Option<ImageFormat> {
+    Some(match extension {
+        "avif" => ImageFormat::Avif,
+        "jpg" | "jpeg" => ImageFormat::Jpeg,
+        "png" => ImageFormat::Png,
+        "gif" => ImageFormat::Gif,
+        "webp" => ImageFormat::WebP,
+        "tif" | "tiff" => ImageFormat::Tiff,
+        "tga" => ImageFormat::Tga,
+        "dds" => ImageFormat::Dds,
+        "bmp" => ImageFormat::Bmp,
+        "ico" => ImageFormat::Ico,
+        "hdr" => ImageFormat::Hdr,
+        "exr" => ImageFormat::OpenExr,
+        "pbm" | "pam" | "ppm" | "pgm" => ImageFormat::Pnm,
+        "ff" | "farbfeld" => ImageFormat::Farbfeld,
+        "qoi" => ImageFormat::Qoi,
+        _ => return None,
+    })
+}
+
+fn result_to_issue<T>(ident: AssetIdentVc, result: Result<T>) -> Option<T> {
+    match result {
+        Ok(r) => Some(r),
+        Err(err) => {
+            ImageProcessingIssue {
+                path: ident.path(),
+                message: StringVc::cell(format!("{}", PrettyPrintError(&err))),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+            None
+        }
+    }
+}
+
+fn load_image(
+    ident: AssetIdentVc,
+    bytes: &[u8],
+    extension: Option<&str>,
+) -> Option<(image::DynamicImage, Option<ImageFormat>)> {
+    result_to_issue(ident, load_image_internal(bytes, extension))
+}
+
+fn load_image_internal(
+    bytes: &[u8],
+    extension: Option<&str>,
+) -> Result<(image::DynamicImage, Option<ImageFormat>)> {
     let reader = image::io::Reader::new(Cursor::new(&bytes));
-    let reader = reader
+    let mut reader = reader
         .with_guessed_format()
         .context("unable to determine image format from file content")?;
-    let format = reader.format();
+    let mut format = reader.format();
+    if format.is_none() {
+        if let Some(extension) = extension {
+            if let Some(new_format) = extension_to_image_format(extension) {
+                format = Some(new_format);
+                reader.set_format(new_format);
+            }
+        }
+    }
     let image = reader.decode().context("unable to decode image data")?;
     Ok((image, format))
 }
 
 fn compute_blur_data(
+    ident: AssetIdentVc,
     image: image::DynamicImage,
     format: ImageFormat,
     options: &BlurPlaceholderOptions,
-) -> Result<(String, u32, u32)> {
-    let small_image = image.resize(options.size, options.size, FilterType::Triangle);
+) -> Option<BlurPlaceholder> {
+    match compute_blur_data_internal(image, format, options)
+        .context("unable to compute blur placeholder")
+    {
+        Ok(r) => Some(r),
+        Err(err) => {
+            ImageProcessingIssue {
+                path: ident.path(),
+                message: StringVc::cell(format!("{}", PrettyPrintError(&err))),
+            }
+            .cell()
+            .as_issue()
+            .emit();
+            None
+        }
+    }
+}
+
+fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result<(Vec<u8>, Mime)> {
     let mut buf = Vec::new();
-    let blur_width = small_image.width();
-    let blur_height = small_image.height();
-    let url = match format {
+    let (width, height) = image.dimensions();
+
+    Ok(match format {
         ImageFormat::Png => {
             PngEncoder::new_with_quality(
                 &mut buf,
                 CompressionType::Best,
                 image::codecs::png::FilterType::NoFilter,
             )
-            .write_image(
-                small_image.as_bytes(),
-                blur_width,
-                blur_height,
-                small_image.color(),
-            )?;
-            format!(
-                "data:image/png;base64,{}",
-                Base64Display::new(&buf, &STANDARD)
-            )
+            .write_image(image.as_bytes(), width, height, image.color())?;
+            (buf, mime::IMAGE_PNG)
         }
         ImageFormat::Jpeg => {
-            JpegEncoder::new_with_quality(&mut buf, options.quality).write_image(
-                small_image.as_bytes(),
-                blur_width,
-                blur_height,
-                small_image.color(),
+            JpegEncoder::new_with_quality(&mut buf, quality).write_image(
+                image.as_bytes(),
+                width,
+                height,
+                image.color(),
             )?;
-            format!(
-                "data:image/jpeg;base64,{}",
-                Base64Display::new(&buf, &STANDARD)
-            )
+            (buf, mime::IMAGE_JPEG)
         }
         #[cfg(feature = "webp")]
         ImageFormat::WebP => {
@@ -109,32 +172,45 @@ fn compute_blur_data(
                     blur_height,
                     small_image.color(),
                 )?;
-            format!(
-                "data:image/webp;base64,{}",
-                Base64Display::new(&buf, &STANDARD)
-            )
+            (buf, Mime::from_str("image/webp")?)
         }
         #[cfg(feature = "avif")]
         ImageFormat::Avif => {
             use image::codecs::avif::AvifEncoder;
-            AvifEncoder::new_with_speed_quality(&mut buf, 6, options.quality).write_image(
-                small_image.as_bytes(),
-                blur_width,
-                blur_height,
-                small_image.color(),
+            AvifEncoder::new_with_speed_quality(&mut buf, 6, quality).write_image(
+                image.as_bytes(),
+                width,
+                height,
+                image.color(),
             )?;
-            format!(
-                "data:image/avif;base64,{}",
-                Base64Display::new(&buf, &STANDARD)
-            )
+            (buf, Mime::from_str("image/avif")?)
         }
         _ => bail!(
             "Ecoding for image format {:?} has not been compiled into the current build",
             format
         ),
-    };
+    })
+}
 
-    Ok((url, blur_width, blur_height))
+fn compute_blur_data_internal(
+    image: image::DynamicImage,
+    format: ImageFormat,
+    options: &BlurPlaceholderOptions,
+) -> Result<BlurPlaceholder> {
+    let small_image = image.resize(options.size, options.size, FilterType::Triangle);
+    let width = small_image.width();
+    let height = small_image.height();
+    let (data, mime) = encode_image(small_image, format, options.quality)?;
+    let data_url = format!(
+        "data:{mime};base64,{}",
+        Base64Display::new(&data, &STANDARD)
+    );
+
+    Ok(BlurPlaceholder {
+        data_url,
+        width,
+        height,
+    })
 }
 
 fn image_format_to_mime_type(format: ImageFormat) -> Result<Option<Mime>> {
@@ -170,18 +246,8 @@ pub async fn get_meta_data(
       bail!("Input image not found");
     };
     let bytes = content.content().to_bytes()?;
-    let (image, format) = match load_image(&bytes) {
-        Ok(r) => r,
-        Err(err) => {
-            ImageProcessingIssue {
-                path: ident.path(),
-                message: StringVc::cell(format!("{}", PrettyPrintError(&err))),
-            }
-            .cell()
-            .as_issue()
-            .emit();
-            return Ok(ImageMetaData::default().cell());
-        }
+    let Some((image, format)) = load_image(ident, &bytes, ident.path().await?.extension()) else {
+        return Ok(ImageMetaData::default().cell());
     };
     let (width, height) = image.dimensions();
     let blur_placeholder = if let Some(blur_placeholder) = blur_placeholder {
@@ -193,25 +259,7 @@ pub async fn get_meta_data(
                 | Some(ImageFormat::WebP)
                 | Some(ImageFormat::Avif)
         ) {
-            match compute_blur_data(image, format.unwrap(), &*blur_placeholder.await?)
-                .context("unable to compute blur placeholder")
-            {
-                Ok((url, blur_width, blur_height)) => Some(BlurPlaceholder {
-                    data_url: url,
-                    width: blur_width,
-                    height: blur_height,
-                }),
-                Err(err) => {
-                    ImageProcessingIssue {
-                        path: ident.path(),
-                        message: StringVc::cell(format!("{}", PrettyPrintError(&err))),
-                    }
-                    .cell()
-                    .as_issue()
-                    .emit();
-                    None
-                }
-            }
+            compute_blur_data(ident, image, format.unwrap(), &*blur_placeholder.await?)
         } else {
             None
         }
@@ -231,6 +279,41 @@ pub async fn get_meta_data(
         placeholder_for_future_extensions: (),
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+pub async fn optimize(
+    ident: AssetIdentVc,
+    content: FileContentVc,
+    max_width: u32,
+    max_height: u32,
+    quality: u8,
+) -> Result<FileContentVc> {
+    let FileContent::Content(content) = &*content.await? else {
+        return Ok(FileContent::NotFound.cell());
+    };
+    let bytes = content.content().to_bytes()?;
+    let Some((image, mut format)) = load_image(ident, &bytes, ident.path().await?.extension()) else {
+        return Ok(FileContent::NotFound.cell());
+    };
+    let (width, height) = image.dimensions();
+    let image = if width > max_width || height > max_height {
+        image.resize(max_width, max_height, FilterType::Lanczos3)
+    } else {
+        image
+    };
+    #[cfg(not(feature = "avif"))]
+    if matches!(format, Some(ImageFormat::Avif)) {
+        format = Some(ImageFormat::Jpeg);
+    }
+    #[cfg(not(feature = "webp"))]
+    if matches!(format, Some(ImageFormat::WebP)) {
+        format = Some(ImageFormat::Jpeg);
+    }
+    let format = format.unwrap_or(ImageFormat::Jpeg);
+    let (data, mime_type) = encode_image(image, format, quality)?;
+
+    Ok(FileContent::Content(File::from(data).with_content_type(mime_type)).cell())
 }
 
 #[turbo_tasks::value]

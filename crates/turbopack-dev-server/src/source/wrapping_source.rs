@@ -1,3 +1,5 @@
+use std::{borrow::Cow, iter::once};
+
 use anyhow::Result;
 use turbo_tasks::Value;
 
@@ -18,6 +20,17 @@ use crate::source::{ContentSourceContent, Rewrite};
 #[turbo_tasks::value_trait]
 pub trait ContentSourceProcessor {
     fn process(&self, content: ContentSourceContentVc) -> ContentSourceContentVc;
+}
+
+pub fn encode_pathname_to_url(pathname: &str) -> String {
+    once(Cow::Borrowed("/"))
+        .chain(
+            pathname
+                .split('/')
+                .map(urlencoding::encode)
+                .intersperse(Cow::Borrowed("/")),
+        )
+        .collect()
 }
 
 /// A ContentSourceProcessor allows a [ContentSource] implementation to easily
