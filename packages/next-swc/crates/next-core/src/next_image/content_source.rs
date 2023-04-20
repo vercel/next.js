@@ -137,22 +137,27 @@ impl Introspectable for NextImageContentSource {
 
     #[turbo_tasks::function]
     fn details(&self) -> StringVc {
-        StringVc::cell("suports dynamic serving of any statically imported image".to_string())
+        StringVc::cell("supports dynamic serving of any statically imported image".to_string())
     }
 }
 
 #[turbo_tasks::value]
 struct NextImageContentSourceProcessor {
     path: String,
-    w: u32,
-    q: u8,
+    width: u32,
+    quality: u8,
 }
 
 #[turbo_tasks::value_impl]
 impl NextImageContentSourceProcessorVc {
     #[turbo_tasks::function]
-    pub fn new(path: String, w: u32, q: u8) -> NextImageContentSourceProcessorVc {
-        NextImageContentSourceProcessor { path, w, q }.cell()
+    pub fn new(path: String, width: u32, quality: u8) -> NextImageContentSourceProcessorVc {
+        NextImageContentSourceProcessor {
+            path,
+            width,
+            quality,
+        }
+        .cell()
     }
 }
 
@@ -171,9 +176,9 @@ impl ContentSourceProcessor for NextImageContentSourceProcessor {
         let optimized_file_content = optimize(
             AssetIdentVc::from_path(ServerFileSystemVc::new().root().join(&self.path)),
             file_content,
-            self.w,
+            self.width,
             u32::MAX,
-            self.q,
+            self.quality,
         );
         Ok(ContentSourceContentVc::static_content(
             AssetContent::File(optimized_file_content).into(),
