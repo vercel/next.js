@@ -2106,7 +2106,8 @@ export default async function build(
               denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
-              middlewareManifest
+              middlewareManifest,
+              Boolean(config.experimental.instrumentationHook)
             )
           })
       }
