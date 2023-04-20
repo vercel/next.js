@@ -14,13 +14,16 @@ export function getFallbackMetadataBaseIfPresent(
   metadataBase: URL | null
 ): URL | null {
   const defaultMetadataBase = createLocalMetadataBase()
+  const deploymentUrl =
+    process.env.VERCEL_URL && new URL(`https://${process.env.VERCEL_URL}`)
+  if (process.env.NODE_ENV === 'development') {
+    return defaultMetadataBase
+  }
   return process.env.NODE_ENV === 'production' &&
-    process.env.VERCEL_URL &&
+    deploymentUrl &&
     process.env.VERCEL_ENV === 'preview'
-    ? new URL(`https://${process.env.VERCEL_URL}`)
-    : process.env.NODE_ENV === 'development'
-    ? defaultMetadataBase
-    : metadataBase || defaultMetadataBase
+    ? deploymentUrl
+    : metadataBase || deploymentUrl || defaultMetadataBase
 }
 
 function resolveUrl(url: null | undefined, metadataBase: URL | null): null

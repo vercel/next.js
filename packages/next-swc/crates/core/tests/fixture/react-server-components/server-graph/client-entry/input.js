@@ -1,29 +1,27 @@
 // This is a comment.
 
-"use strict";
+'use strict'
 
 /**
  * This is a comment.
  */
 
-"use client";
+'use client'
 
 // This is a comment.
 
-"random-directive";
+'random-directive'
 
-import "fs"
-
-"qwerty";
+import 'fs'
+;('qwerty')
 
 // This is a comment.
 
-1 + 1;
-
-"sasaya";
+1 + 1
+;('sasaya')
 
 export default function () {
-  return null;
+  return null
 }
 
 export const a = 1

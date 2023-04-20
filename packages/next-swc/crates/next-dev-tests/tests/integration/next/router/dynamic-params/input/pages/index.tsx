@@ -1,7 +1,7 @@
 export function getServerSideProps() {
   return {
     redirect: {
-      destination: "/dynamic-segment",
+      destination: '/dynamic-segment',
     },
-  };
+  }
 }

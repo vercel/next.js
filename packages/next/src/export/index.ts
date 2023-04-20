@@ -719,6 +719,7 @@ export default async function exportApp(
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,
+            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
             incrementalCacheHandlerPath:
               nextConfig.experimental.incrementalCacheHandlerPath,
           })
