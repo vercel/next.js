@@ -49,28 +49,24 @@ impl ContentSource for NextImageContentSource {
     ) -> Result<ContentSourceResultVc> {
         let this = self_vc.await?;
 
-        let query = match &data.query {
-            None => {
-                let queries = ["url".to_string(), "w".to_string(), "q".to_string()]
-                    .into_iter()
-                    .collect::<BTreeSet<_>>();
+        let Some(query) = &data.query else {
+            let queries = ["url".to_string(), "w".to_string(), "q".to_string()]
+                .into_iter()
+                .collect::<BTreeSet<_>>();
 
-                return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
-                    source: self_vc.into(),
-                    path: path.to_string(),
-                    vary: ContentSourceDataVary {
-                        url: true,
-                        query: Some(ContentSourceDataFilter::Subset(queries)),
-                        ..Default::default()
-                    },
-                })));
-            }
-            Some(query) => query,
+            return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
+                source: self_vc.into(),
+                path: path.to_string(),
+                vary: ContentSourceDataVary {
+                    url: true,
+                    query: Some(ContentSourceDataFilter::Subset(queries)),
+                    ..Default::default()
+                },
+            })));
         };
 
-        let url: &String = match query.get("url") {
-            Some(QueryValue::String(s)) => s,
-            _ => return Ok(ContentSourceResultVc::not_found()),
+        let Some(QueryValue::String(url)): &String = match query.get("url") else {
+            return Ok(ContentSourceResultVc::not_found());
         };
 
         let q = match query.get("q") {
@@ -94,8 +90,7 @@ impl ContentSource for NextImageContentSource {
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
 
-        // TODO: consume the assets, resize and reduce quality, re-encode into next-gen
-        // formats.
+        // TODO: re-encode into next-gen formats.
         if let Some(path) = url.strip_prefix('/') {
             let wrapped = WrappedContentSourceVc::new(
                 this.asset_source,
