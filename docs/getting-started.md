@@ -29,23 +29,25 @@ yarn create next-app
 pnpm create next-app
 ```
 
-If you want to start with a TypeScript project you can use the `--typescript` flag:
+If you specified no tags, you will be promoted with:
 
-```bash
-npx create-next-app@latest --typescript
-# or
-yarn create next-app --typescript
-# or
-pnpm create next-app --typescript
-```
+- ``? What is your project named? ...`` Can only contain URL-friendly characters ( uppercase not allowed ).
+- ``? Would you like to use TypeScript with this project? ... No / Yes``  Initialize with [Typescript](https://www.typescriptlang.org/docs/) ( --ts, --typescript ).
+- ``? Would you like to use ESLint with this project? ... No / Yes`` Initialize with [ESLint](https://eslint.org) config ( --eslint ).
+- ``? Would you like to use Tailwind CSS with this project? ... No / Yes``  Initialize with [Tailwind](https://tailwindcss.com/) CSS config ( --tailwind, or --no-tailwind if you don't want tailwind ).
+- ``? Would you like to use src/ directory with this project? ... No / Yes`` Initialize inside a [`src/`](/docs/advanced-features/src-directory.md) directory.
+- ``? Would you like to use experimental app/ directory with this project? ... No / Yes`` Initialize as a [`app/`](/blog/next-13#new-app-directory-beta.md) directory project.
+ 
+  *if you chose 'No' for both options, `create-next-app will` initialize your project with the default [pages](/docs/basic-features/pages.md) dir*
+- ``? What import alias would you like configured? » @/*`` Specify import alias to use (default "@/*").
+
+For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/api-reference/create-next-app.md).
 
 After the installation is complete:
 
 - Run `npm run dev` or `yarn dev` or `pnpm dev` to start the development server on `http://localhost:3000`
 - Visit `http://localhost:3000` to view your application
 - Edit `pages/index.js` and see the updated result in your browser
-
-For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/api-reference/create-next-app.md).
 
 ## Manual Setup
 
