@@ -270,9 +270,9 @@
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 0)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     7,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -292,16 +292,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 52 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 1)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     12,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -321,14 +326,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 54 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 2)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     17,
     606105819
 )
@@ -350,15 +360,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 56 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 3)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     22,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -378,16 +393,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 58 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 4)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     7,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -407,14 +427,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 60 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 5)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     12,
     1200080426
 )
@@ -436,15 +461,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 62 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 6)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     17,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -464,16 +494,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 64 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 7)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     22,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -493,14 +528,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 66 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 8)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 8)],
     7,
     1770035416
 )
@@ -522,15 +562,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 68 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 9)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     12,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -550,16 +595,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 70 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 10)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     17,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -579,16 +629,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 72 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 11)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     22,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -608,14 +663,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 74 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 12)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     7,
     1804603682
 )
@@ -637,15 +697,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 76 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 13)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     12,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -665,16 +730,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 78 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 14)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     17,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -694,14 +764,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 80 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 15)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     22,
     1236535329
 )
@@ -723,15 +798,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 82 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 1)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     5,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -751,16 +831,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 84 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 6)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     9,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -780,14 +865,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 86 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 11)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     14,
     643717713
 )
@@ -809,15 +899,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 88 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 0)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     20,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -837,16 +932,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 90 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 5)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     5,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -866,14 +966,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 92 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 10)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     9,
     38016083
 )
@@ -895,15 +1000,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 94 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 15)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     14,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -923,16 +1033,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 96 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 4)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     20,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -952,14 +1067,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 98 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 9)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     5,
     568446438
 )
@@ -981,15 +1101,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 100 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 14)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     9,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1009,16 +1134,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 102 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 3)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     14,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1038,14 +1168,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 104 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 8)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 8)],
     20,
     1163531501
 )
@@ -1067,15 +1202,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 106 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 13)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     5,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1095,16 +1235,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 108 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 2)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     9,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1124,14 +1269,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 110 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 7)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     14,
     1735328473
 )
@@ -1153,15 +1303,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 112 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 12)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     20,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1181,16 +1336,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 114 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 5)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     4,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1210,16 +1370,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 116 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 8)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 8)],
     11,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1239,14 +1404,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 118 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 11)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     16,
     1839030562
 )
@@ -1268,15 +1438,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 120 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 14)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     23,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1296,16 +1471,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 122 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 1)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     4,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1325,14 +1505,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 124 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 4)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     11,
     1272893353
 )
@@ -1354,15 +1539,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 126 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 7)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     16,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1382,16 +1572,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 128 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 10)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     23,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1411,14 +1606,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 130 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 13)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     4,
     681279174
 )
@@ -1440,15 +1640,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 132 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 0)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     11,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1468,16 +1673,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 134 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 3)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     16,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1497,14 +1707,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 136 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 6)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     23,
     76029189
 )
@@ -1526,15 +1741,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 138 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 9)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     4,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1554,16 +1774,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 140 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 12)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     11,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1583,14 +1808,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 142 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 15)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     16,
     530742520
 )
@@ -1612,15 +1842,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 144 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 2)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     23,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1640,16 +1875,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 146 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 0)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 0)],
     6,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1669,14 +1909,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 148 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 7)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 7)],
     10,
     1126891415
 )
@@ -1698,15 +1943,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 150 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 14)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 14)],
     15,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1726,16 +1976,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 152 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 5)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 5)],
     21,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1755,14 +2010,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 154 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 12)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 12)],
     6,
     1700485571
 )
@@ -1784,15 +2044,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 156 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 3)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 3)],
     10,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1812,16 +2077,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 158 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 10)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 10)],
     15,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1841,16 +2111,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 160 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 1)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 1)],
     21,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1870,14 +2145,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 162 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 8)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 8)],
     6,
     1873313359
 )
@@ -1899,15 +2179,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 164 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 15)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 15)],
     10,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1927,16 +2212,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 166 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 6)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 6)],
     15,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -1956,14 +2246,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 168 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 13)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 13)],
     21,
     1309151649
 )
@@ -1985,15 +2280,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 170 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 4)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 4)],
     6,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -2013,16 +2313,21 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 172 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 11)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 11)],
     10,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -2042,14 +2347,19 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 174 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 2)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 2)],
     15,
     718787259
 )
@@ -2071,15 +2381,20 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
 
 0 -> 176 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"](
     ???*0*,
     ???*1*,
     ???*2*,
     ???*3*,
-    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[(0 + 9)],
+    module<crypt, {}>["bytesToWords"]((???*4* | ???*5* | ???*7*))[((0 | ???*11* | ???*12*) + 9)],
     21,
-    ???*11*
+    ???*14*
 )
 - *0* max number of linking steps reached
 - *1* max number of linking steps reached
@@ -2099,7 +2414,12 @@
   ⚠️  unknown object
 - *10* FreeVar(Array)
   ⚠️  unknown global
-- *11* unsupported expression
+- *11* updated with update expression
+- *12* (???*13* + 16)
+  ⚠️  nested operation
+- *13* i
+  ⚠️  circular variable reference
+- *14* unsupported expression
 
 0 -> 178 member call = module<crypt, {}>["endian"](???*0*)
 - *0* max number of linking steps reached

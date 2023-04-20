@@ -636,7 +636,8 @@ Jj = (...) => (undefined | b | null)
 
 Jk = (...) => (undefined | T)
 
-K = (0 | e | c | b | c | h | e)
+K = (0 | ???*0* | e | c | b | c | h | e)
+- *0* unsupported assign operation
 
 Ka = (...) => (undefined | null | a)
 
@@ -1035,8 +1036,9 @@ Td = rd(Sd)
 
 Te = (!(1) | !(0))
 
-Tf = ???*0*
+Tf = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* updated with update expression
 
 Tg = (...) => undefined
 
@@ -1087,7 +1089,8 @@ Uf = (...) => (undefined | {"current": a})
 
 Ug = (!(0) | !(1))
 
-Uh = 0
+Uh = (0 | ???*0*)
+- *0* updated with update expression
 
 Ui = (...) => undefined
 
@@ -1145,7 +1148,8 @@ Vf = {}
 
 Vg = (...) => (undefined | b)
 
-Vh = 0
+Vh = (0 | ???*0*)
+- *0* updated with update expression
 
 Vi = (...) => (undefined | a | null)
 
@@ -1350,7 +1354,8 @@ a#1016 = arguments[0]
 
 a#1017 = arguments[0]
 
-a#1018 = (arguments[0] | 0)
+a#1018 = (arguments[0] | 0 | ???*0*)
+- *0* updated with update expression
 
 a#1019 = arguments[0]
 
@@ -1376,7 +1381,8 @@ a#11 = arguments[0]
 
 a#111 = arguments[0]
 
-a#112 = (zb | 0)
+a#112 = (zb | 0 | ???*0*)
+- *0* updated with update expression
 
 a#114 = arguments[0]
 
@@ -1418,7 +1424,8 @@ a#152 = (arguments[0] | a["child"] | a["sibling"])
 
 a#154 = arguments[0]
 
-a#157 = arguments[0]
+a#157 = (arguments[0] | ???*0*)
+- *0* unsupported assign operation
 
 a#158 = arguments[0]
 
@@ -1445,7 +1452,8 @@ a#17 = arguments[0]
 
 a#171 = (arguments[0] | a["entanglements"])
 
-a#173 = arguments[0]
+a#173 = (arguments[0] | ???*0*)
+- *0* unsupported assign operation
 
 a#174 = arguments[0]
 
@@ -1488,9 +1496,10 @@ a#203 = (arguments[0] | xb(d) | Wc(a) | null | Wb(b))
 
 a#206 = arguments[0]
 
-a#207 = (???*0* | 0)
+a#207 = (???*0* | 0 | ???*1*)
 - *0* a
   ⚠️  pattern without value
+- *1* updated with update expression
 
 a#208 = (arguments[0] | a["charCode"] | 13 | b)
 
@@ -1682,7 +1691,8 @@ a#348 = arguments[0]
 
 a#349 = arguments[0]
 
-a#350 = 0
+a#350 = (0 | ???*0*)
+- *0* updated with update expression
 
 a#356 = arguments[0]
 
@@ -1808,7 +1818,8 @@ a#475 = arguments[0]
 
 a#476 = arguments[0]
 
-a#482 = 0
+a#482 = (0 | ???*0*)
+- *0* updated with update expression
 
 a#484 = arguments[0]
 
@@ -1838,7 +1849,8 @@ a#493 = arguments[0]
 
 a#494 = (arguments[0] | c["interleaved"])
 
-a#5 = (arguments[0] | 0)
+a#5 = (arguments[0] | 0 | ???*0*)
+- *0* updated with update expression
 
 a#50 = (
   | arguments[0]
@@ -2353,7 +2365,8 @@ b#100 = (
 
 b#1001 = arguments[1]
 
-b#1004 = (arguments[1] | c["name"] | 0 | c["value"])
+b#1004 = (arguments[1] | c["name"] | 0 | ???*0* | c["value"])
+- *0* updated with update expression
 
 b#101 = arguments[1]
 
@@ -2407,7 +2420,8 @@ b#156 = ???*0*
 - *0* b
   ⚠️  pattern without value
 
-b#159 = (arguments[1] | a["entangledLanes"])
+b#159 = (arguments[1] | a["entangledLanes"] | ???*0*)
+- *0* unsupported assign operation
 
 b#161 = arguments[1]
 
@@ -2534,7 +2548,10 @@ b#285 = arguments[1]
 
 b#286 = arguments[1]
 
-b#3 = `https://reactjs.org/docs/error-decoder.html?invariant=${a}`
+b#3 = (
+  | `https://reactjs.org/docs/error-decoder.html?invariant=${a}`
+  | `${b}${`&args[]=${FreeVar(encodeURIComponent)(FreeVar(arguments)[c])}`}`
+)
 
 b#30 = (arguments[1] | *anonymous function 6811*)
 
@@ -2552,7 +2569,8 @@ b#320 = arguments[1]
 
 b#324 = (a["nodeType"] | a["data"])
 
-b#327 = 0
+b#327 = (0 | ???*0*)
+- *0* updated with update expression
 
 b#331 = (a[Of] | (c[uf] || c[Of]))
 
@@ -2587,9 +2605,11 @@ b#370 = (
   | yg
   | Lf(b["nextSibling"])
   | 0
+  | ???*1*
 )
 - *0* b
   ⚠️  pattern without value
+- *1* updated with update expression
 
 b#381 = (arguments[1] | A({}, b))
 
@@ -2619,7 +2639,8 @@ b#400 = arguments[1]
 
 b#404 = (arguments[1] | e["shared"]["interleaved"])
 
-b#412 = (arguments[1] | 0)
+b#412 = (arguments[1] | 0 | ???*0*)
+- *0* updated with update expression
 
 b#415 = (arguments[1] | a["memoizedState"])
 
@@ -2776,7 +2797,13 @@ b#559 = arguments[1]
 
 b#56 = ("checked" | "value")
 
-b#562 = (R["identifierPrefix"] | `:${b}R${c}` | `:${b}r${c["toString"](32)}:`)
+b#562 = (
+  | R["identifierPrefix"]
+  | `:${b}R${c}`
+  | `${b}${`H${c["toString"](32)}`}`
+  | `${b}:`
+  | `:${b}r${c["toString"](32)}:`
+)
 
 b#565 = di()
 
@@ -2944,7 +2971,8 @@ b#819 = (a | c | b["return"] | b["sibling"])
 
 b#82 = arguments[1]
 
-b#827 = arguments[1]
+b#827 = (arguments[1] | ???*0*)
+- *0* unsupported assign operation
 
 b#829 = (uc(a, 0) | d)
 
@@ -2954,9 +2982,11 @@ b#831 = arguments[1]
 
 b#834 = K
 
-b#838 = (arguments[1] | 0)
+b#838 = (arguments[1] | 0 | ???*0*)
+- *0* updated with update expression
 
-b#843 = (arguments[1] | Z | y | na)
+b#843 = (arguments[1] | Z | y | ???*0* | na)
+- *0* unsupported assign operation
 
 b#863 = arguments[1]
 
@@ -3026,7 +3056,8 @@ b#951 = (arguments[1] | Bg(4, (a["children"] | []), a["key"], b))
 
 b#952 = arguments[1]
 
-b#953 = (arguments[1] | 1 | 0)
+b#953 = (arguments[1] | 1 | ???*0* | 0)
+- *0* unsupported assign operation
 
 b#954 = arguments[1]
 
@@ -3140,15 +3171,18 @@ c#159 = (a["pendingLanes"] | ???*0*)
 
 c#162 = a["suspendedLanes"]
 
-c#167 = 0
+c#167 = (0 | ???*0*)
+- *0* updated with update expression
 
 c#168 = arguments[2]
 
-c#169 = ???*0*
+c#169 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* unsupported assign operation
 
-c#171 = ???*0*
+c#171 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* unsupported assign operation
 
 c#175 = arguments[2]
 
@@ -3163,7 +3197,8 @@ c#183 = (
 
 c#186 = arguments[2]
 
-c#189 = (1 | 0 | Qc[0])
+c#189 = (1 | ???*0* | 0 | Qc[0])
+- *0* updated with update expression
 
 c#193 = arguments[2]
 
@@ -3194,7 +3229,8 @@ c#254 = (Je(a) | c["nextSibling"] | c["parentNode"] | ???*0* | Je(c))
 c#261 = (("string" === ???*0*) | !(1))
 - *0* unsupported expression
 
-c#266 = (a["focusedElem"] | 0)
+c#266 = (a["focusedElem"] | 0 | ???*0*)
+- *0* updated with update expression
 
 c#269 = arguments[2]
 
@@ -3206,7 +3242,8 @@ c#271 = ???*0*
 
 c#274 = arguments[2]
 
-c#275 = 0
+c#275 = (0 | ???*0*)
+- *0* updated with update expression
 
 c#280 = (b[of] | ???*0*)
 - *0* unsupported expression
@@ -3221,7 +3258,8 @@ c#29 = ???*0*
 - *0* c
   ⚠️  pattern without value
 
-c#3 = 1
+c#3 = (1 | ???*0*)
+- *0* updated with update expression
 
 c#30 = FreeVar(Error)["prepareStackTrace"]
 
@@ -3249,7 +3287,7 @@ c#347 = arguments[2]
 
 c#350 = eg
 
-c#357 = arguments[2]
+c#357 = (arguments[2] | (c + 1))
 
 c#361 = Bg(5, null, null, 0)
 
@@ -3271,7 +3309,8 @@ c#392 = (a["alternate"] | a)
 
 c#396 = arguments[2]
 
-c#398 = arguments[2]
+c#398 = (arguments[2] | ???*0*)
+- *0* unsupported assign operation
 
 c#400 = (
   | a["updateQueue"]
@@ -3337,7 +3376,8 @@ c#474 = lb(b, a["type"])
 
 c#476 = (b["memoizedState"] | c["dehydrated"])
 
-c#484 = 0
+c#484 = (0 | ???*0*)
+- *0* updated with update expression
 
 c#485 = arguments[2]
 
@@ -3385,7 +3425,8 @@ c#539 = (arguments[2] | Yg(a, b, e, d))
 
 c#546 = a["pending"]
 
-c#547 = arguments[2]
+c#547 = (arguments[2] | ???*0*)
+- *0* unsupported assign operation
 
 c#550 = (arguments[2] | c["concat"]([a]) | null)
 
@@ -3401,7 +3442,7 @@ c#562 = (sg | (???*0*["toString"](32) + c) | ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
-c#570 = ""
+c#570 = ("" | (c + Pa(d)))
 
 c#573 = arguments[2]
 
@@ -3468,7 +3509,8 @@ c#644 = arguments[2]
 
 c#645 = (null | b | a["tail"] | c["sibling"])
 
-c#646 = 0
+c#646 = (0 | ???*0*)
+- *0* unsupported assign operation
 
 c#647 = (
   | arguments[2]
@@ -3539,7 +3581,8 @@ c#764 = arguments[2]
 
 c#768 = (b["alternate"] | null | b["child"]["stateNode"] | h | b["sibling"])
 
-c#77 = (arguments[2] | 0 | `${Sa(c)}`)
+c#77 = (arguments[2] | 0 | ???*0* | `${Sa(c)}`)
+- *0* updated with update expression
 
 c#781 = b["sibling"]
 
@@ -3580,7 +3623,8 @@ c#87 = (Sa(b["value"]) | `${c}`)
 
 c#877 = arguments[2]
 
-c#880 = (arguments[2] | a["finishedWork"] | 0)
+c#880 = (arguments[2] | a["finishedWork"] | 0 | ???*0*)
+- *0* updated with update expression
 
 c#883 = C
 
@@ -3634,7 +3678,8 @@ c#961 = (arguments[2] | el(c))
 
 c#963 = a["retryLane"]
 
-c#974 = 0
+c#974 = (0 | ???*0*)
+- *0* updated with update expression
 
 c#979 = arguments[2]
 
@@ -3700,7 +3745,8 @@ d#128 = arguments[3]
 
 d#136 = (b | e["return"] | f | e)
 
-d#159 = (0 | tc(h) | tc(f) | tc(g))
+d#159 = (0 | tc(h) | tc(f) | tc(g) | ???*0*)
+- *0* unsupported assign operation
 
 d#162 = a["pingedLanes"]
 
@@ -3726,9 +3772,10 @@ d#199 = arguments[3]
 
 d#203 = arguments[3]
 
-d#207 = (???*0* | 1)
+d#207 = (???*0* | 1 | ???*1*)
 - *0* d
   ⚠️  pattern without value
+- *1* updated with update expression
 
 d#212 = arguments[1]
 
@@ -3736,7 +3783,8 @@ d#236 = arguments[3]
 
 d#25 = (arguments[3] | e["attributeNamespace"])
 
-d#251 = (FreeVar(Object)["keys"](b) | 0)
+d#251 = (FreeVar(Object)["keys"](b) | 0 | ???*0*)
+- *0* updated with update expression
 
 d#254 = (???*0* | (a + c["textContent"]["length"]))
 - *0* d
@@ -3773,7 +3821,8 @@ d#275 = (a[c] | d["listeners"])
 
 d#280 = `${a}__bubble`
 
-d#281 = 0
+d#281 = (0 | ???*0*)
+- *0* unsupported assign operation
 
 d#285 = arguments[3]
 
@@ -3788,7 +3837,8 @@ d#308 = []
 
 d#311 = arguments[3]
 
-d#320 = 0
+d#320 = (0 | ???*0*)
+- *0* updated with update expression
 
 d#341 = a["stateNode"]
 
@@ -3798,7 +3848,8 @@ d#347 = a["stateNode"]
 
 d#350 = (c[a] | d(!(0)))
 
-d#357 = rg
+d#357 = (rg | ???*0*)
+- *0* unsupported assign operation
 
 d#364 = xg
 
@@ -3808,7 +3859,8 @@ d#391 = arguments[3]
 
 d#396 = (a["updateQueue"] | d["shared"])
 
-d#398 = b["lanes"]
+d#398 = (b["lanes"] | ???*0*)
+- *0* unsupported assign operation
 
 d#400 = (a["alternate"] | d["updateQueue"])
 
@@ -3903,7 +3955,8 @@ d#537 = lh(a)
 
 d#539 = lh(a)
 
-d#547 = b["lanes"]
+d#547 = (b["lanes"] | ???*0*)
+- *0* unsupported assign operation
 
 d#554 = ci()
 
@@ -3970,8 +4023,9 @@ d#619 = a["alternate"]
 
 d#620 = arguments[3]
 
-d#621 = (b["pendingProps"] | M["current"] | ???*0*)
+d#621 = (b["pendingProps"] | M["current"] | ???*0* | ???*1*)
 - *0* unsupported expression
+- *1* unsupported assign operation
 
 d#631 = (b["type"]["_context"] | b["memoizedState"] | (0 !== ???*0*))
 - *0* unsupported expression
@@ -3985,7 +4039,8 @@ d#644 = arguments[3]
 
 d#645 = (null | c)
 
-d#646 = 0
+d#646 = (0 | ???*0*)
+- *0* unsupported assign operation
 
 d#647 = (
   | b["pendingProps"]
@@ -4032,7 +4087,8 @@ d#71 = b["type"]
 
 d#715 = ck["bind"](null, a, b)
 
-d#716 = 0
+d#716 = (0 | ???*0*)
+- *0* updated with update expression
 
 d#721 = (a["flags"] | r)
 
@@ -4055,10 +4111,12 @@ d#802 = arguments[3]
 
 d#803 = uc(a, (Z | 0))
 
-d#807 = (uc(a, (Z | 0)) | e | f | ???*0*)
-- *0* unsupported expression
+d#807 = (uc(a, (Z | 0)) | e | f | ???*0* | ???*1*)
+- *0* unsupported assign operation
+- *1* unsupported expression
 
-d#819 = 0
+d#819 = (0 | ???*0*)
+- *0* updated with update expression
 
 d#827 = ???*0*
 - *0* unsupported expression
@@ -4234,8 +4292,9 @@ e#354 = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-e#357 = ???*0*
+e#357 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* unsupported assign operation
 
 e#391 = b["interleaved"]
 
@@ -4325,7 +4384,8 @@ e#605 = arguments[4]
 
 e#607 = arguments[4]
 
-e#609 = (M["current"] | a["memoizedState"] | a["child"])
+e#609 = (M["current"] | ???*0* | a["memoizedState"] | a["child"])
+- *0* unsupported assign operation
 
 e#614 = (arguments[4] | b["mode"] | 2 | 8 | 32 | 268435456 | 0 | e)
 
@@ -4343,15 +4403,17 @@ e#646 = (a["child"] | e["sibling"])
 e#647 = (
   | Hh(Gh["current"])
   | 0
+  | ???*0*
   | null
   | ["children", h]
   | ["children", `${h}`]
   | d
   | Ya(a, d)
-  | A({}, d, {"value": ???*0*})
+  | A({}, d, {"value": ???*1*})
   | gb(a, d)
 )
-- *0* unsupported expression
+- *0* updated with update expression
+- *1* unsupported expression
 
 e#673 = d["anchorOffset"]
 
@@ -4371,7 +4433,8 @@ e#764 = V
 
 e#768 = (c["memoizedProps"] | Lg(b["type"], c["memoizedProps"]))
 
-e#77 = (0 | b["hasOwnProperty"](`$${a[c]["value"]}`))
+e#77 = (0 | ???*0* | b["hasOwnProperty"](`$${a[c]["value"]}`))
+- *0* updated with update expression
 
 e#785 = b["return"]
 
@@ -4418,7 +4481,8 @@ e#919 = (
 
 e#92 = arguments[3]
 
-e#947 = arguments[4]
+e#947 = (arguments[4] | ???*0*)
+- *0* unsupported assign operation
 
 e#952 = arguments[4]
 
@@ -4466,10 +4530,12 @@ f#128 = arguments[5]
 
 f#136 = (e["alternate"] | e["child"] | f["sibling"])
 
-f#159 = (a["pingedLanes"] | ???*0*)
-- *0* unsupported expression
+f#159 = (a["pingedLanes"] | ???*0* | ???*1*)
+- *0* unsupported assign operation
+- *1* unsupported expression
 
-f#162 = a["pendingLanes"]
+f#162 = (a["pendingLanes"] | ???*0*)
+- *0* unsupported assign operation
 
 f#169 = ???*0*
 - *0* unsupported expression
@@ -4536,7 +4602,7 @@ f#447 = d["_init"]
 
 f#459 = (arguments[2] | f["props"]["children"] | `${f}`)
 
-f#485 = (arguments[5] | 0)
+f#485 = (arguments[5] | 0 | (f + 1))
 
 f#494 = (c["pending"] | e["next"] | e["lane"])
 
@@ -4723,15 +4789,17 @@ g#212 = arguments[4]
 
 g#266 = Ke(c, d)
 
-g#275 = (???*0* | 0)
+g#275 = (???*0* | ???*1* | 0)
 - *0* unsupported expression
+- *1* updated with update expression
 
 g#286 = (d["tag"] | d["return"] | g["return"] | Wc(h))
 
 g#292 = []
 
-g#30 = ???*0*
+g#30 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* updated with update expression
 
 g#311 = []
 
@@ -4747,7 +4815,8 @@ g#400 = {
     "next": null
 }
 
-g#404 = (e["lastBaseUpdate"] | k | 0)
+g#404 = (e["lastBaseUpdate"] | k | 0 | ???*0*)
+- *0* unsupported assign operation
 
 g#420 = arguments[6]
 
@@ -4795,13 +4864,13 @@ g#647 = (???*0* | e | e["ownerDocument"] | a | vb(c, d) | f["rendering"] | Mh(a)
 - *0* g
   ⚠️  pattern without value
 
-g#673 = 0
+g#673 = (0 | (g + q["nodeValue"]["length"]))
 
 g#706 = f["destroy"]
 
 g#716 = b
 
-g#721 = (c["memoizedProps"] | f | 0 | k["display"] | null)
+g#721 = (c["memoizedProps"] | f | 0 | (g + 2) | k["display"] | null)
 
 g#756 = d["stateNode"]["containerInfo"]
 
@@ -4874,7 +4943,8 @@ gd = (...) => undefined
 ge = (...) => (undefined | (???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1))
 - *0* unsupported expression
 
-gf = 0
+gf = (0 | ???*0*)
+- *0* updated with update expression
 
 gg = (!(1) | !(0))
 
@@ -4882,7 +4952,8 @@ gh = (...) => undefined
 
 gi = (...) => (undefined | [f, d])
 
-gj = (0 | fj["current"] | b)
+gj = (???*0* | 0 | fj["current"] | b)
+- *0* unsupported assign operation
 
 gk = (B() | 0)
 
@@ -4918,8 +4989,9 @@ h#292 = (
 )
 - *0* unknown new expression
 
-h#30 = ???*0*
+h#30 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* updated with update expression
 
 h#311 = (c | l)
 
@@ -5015,7 +5087,8 @@ hf = ef[gf]
 
 hg = (...) => undefined
 
-hh = 0
+hh = (???*0* | 0)
+- *0* unsupported assign operation
 
 hi = (...) => undefined
 
@@ -5180,7 +5253,8 @@ k#797 = ???*0*
 
 k#843 = (b | l | FreeVar(Error)(p(426)) | Ki(k, h))
 
-k#883 = 0
+k#883 = (0 | ???*0*)
+- *0* updated with update expression
 
 k#919 = (h["firstContext"] | ch(???*0*, ???*1*) | f["alternate"] | k["next"])
 - *0* unsupported expression
@@ -5277,7 +5351,8 @@ l#639 = (???*0* | f)
 - *0* l
   ⚠️  pattern without value
 
-l#673 = 0
+l#673 = (0 | ???*0*)
+- *0* updated with update expression
 
 l#720 = ???*0*
 - *0* l
@@ -5324,7 +5399,8 @@ le = {
 
 lf = "abort canplay canplaythrough durationchange emptied encrypted ended error loadeddata loadedmetadata loadstart pause play playing progress ratechange resize seeked seeking stalled suspend timeupdate volumechange waiting"["split"](" ")
 
-lg = 0
+lg = (0 | ???*0*)
+- *0* updated with update expression
 
 lh = (...) => (undefined | 1 | ???*0* | Ck | a)
 - *0* unsupported expression
@@ -5359,7 +5435,8 @@ m#601 = (
 - *0* unsupported expression
 - *1* unsupported expression
 
-m#673 = 0
+m#673 = (0 | ???*0*)
+- *0* updated with update expression
 
 m#721 = (k[g] | ((null !== c) && (null !== c["memoizedState"])) | a["child"] | m["sibling"] | null | q)
 
@@ -5569,7 +5646,8 @@ pe = (null | b)
 
 pf = (...) => undefined
 
-pg = 0
+pg = (0 | ???*0*)
+- *0* updated with update expression
 
 ph = (...) => (undefined | b)
 
@@ -5682,7 +5760,8 @@ ra = /[\-:]([a-z])/g
 
 rb = (...) => (undefined | "" | `${b}`["trim"]() | `${b}px`)
 
-rc = 64
+rc = (64 | ???*0*)
+- *0* unsupported assign operation
 
 rd = (...) => (undefined | b)
 
@@ -5701,8 +5780,9 @@ ri = (...) => (undefined | FreeVar(undefined))
 rj = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
-rk = (0 | ???*0*)
-- *0* unsupported expression
+rk = (0 | ???*0* | ???*1*)
+- *0* unsupported assign operation
+- *1* unsupported expression
 
 rl = (...) => (undefined | g | k)
 
@@ -5710,7 +5790,8 @@ sa = (...) => (undefined | a[1]["toUpperCase"]())
 
 sb = (...) => undefined
 
-sc = 4194304
+sc = (4194304 | ???*0*)
+- *0* unsupported assign operation
 
 sd = {
     "eventPhase": 0,
@@ -5734,8 +5815,9 @@ si = (...) => (undefined | di()["memoizedState"])
 
 sj = (...) => (undefined | tj(a, b, g, d) | null | f | tj(a, b, g, null) | b)
 
-sk = (0 | ???*0*)
+sk = (0 | ???*0* | ???*1*)
 - *0* unsupported expression
+- *1* unsupported assign operation
 
 sl = (...) => (undefined | hl(g))
 
@@ -5836,9 +5918,10 @@ tk = (null | [f])
 
 tl = {"usingClientEntryPoint": !(1), "Events": [Cb, ue, Db, Eb, Fb, Rk]}
 
-u#292 = (???*0* | w | F | h | ue(n) | t | vf(u) | 0)
+u#292 = (???*0* | w | F | h | ue(n) | t | vf(u) | 0 | ???*1*)
 - *0* u
   ⚠️  pattern without value
+- *1* updated with update expression
 
 u#449 = (g | null | x | q(e, h[w], k) | d(e, u))
 
@@ -5932,13 +6015,16 @@ vl = {
     "reconcilerVersion": "18.2.0-next-9e3b772b8-20220608"
 }
 
-w#292 = (d | w["return"] | "mouse" | "pointer" | 0)
+w#292 = (d | w["return"] | "mouse" | "pointer" | 0 | ???*0*)
+- *0* updated with update expression
 
-w#449 = ???*0*
+w#449 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* updated with update expression
 
-w#454 = ???*0*
+w#454 = (???*0* | ???*1*)
 - *0* unsupported expression
+- *1* updated with update expression
 
 w#673 = x["getSnapshotBeforeUpdate"]((t | Lg(b["type"], t)), J)
 
@@ -6111,4 +6197,5 @@ zi = (...) => (undefined | ui(4, 4, yi["bind"](null, b, a), c))
 
 zj = (...) => (undefined | null | pj(a, b, c) | a["sibling"] | yj(a, b, c) | ej(a, b, c) | $i(a, b, c))
 
-zk = 0
+zk = (0 | ???*0*)
+- *0* updated with update expression

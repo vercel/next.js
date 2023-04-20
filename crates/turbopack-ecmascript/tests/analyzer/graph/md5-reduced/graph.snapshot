@@ -1269,7 +1269,7 @@
     (
         "i",
         Alternatives(
-            3,
+            6,
             [
                 Unknown(
                     Some(
@@ -1288,6 +1288,24 @@
                             0.0,
                         ),
                     ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #3,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    16.0,
+                                ),
+                            ),
+                        ),
+                    ],
                 ),
             ],
         ),

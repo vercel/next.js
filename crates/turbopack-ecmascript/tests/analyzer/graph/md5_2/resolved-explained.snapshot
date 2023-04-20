@@ -117,7 +117,13 @@ dd = ???*0*
 digestbytes = ???*0*
 - *0* max number of linking steps reached
 
-i = 0
+i = (0 | ???*0* | ((0 | ???*1* | ???*2*) + 16))
+- *0* updated with update expression
+- *1* updated with update expression
+- *2* (???*3* + 16)
+  ⚠️  nested operation
+- *3* i
+  ⚠️  circular variable reference
 
 isBuffer = module<is-buffer, {}>
 
