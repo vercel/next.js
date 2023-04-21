@@ -1,9 +1,14 @@
+import type { RequestHandler } from '../next'
+
 import v8 from 'v8'
 import http from 'http'
-import next from '../next'
 import { isIPv6 } from 'net'
+
+// This is required before other imports to ensure the require hook is setup.
+import '../require-hook'
+
+import next from '../next'
 import { warn } from '../../build/output/log'
-import type { RequestHandler } from '../next'
 import {
   deleteCache as _deleteCache,
   deleteAppClientCache as _deleteAppClientCache,
