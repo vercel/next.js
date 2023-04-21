@@ -20,8 +20,9 @@ export function fillCacheWithDataProperty(
   const existingChildSegmentMap =
     existingCache.parallelRoutes.get(parallelRouteKey)
 
-  if (!existingChildSegmentMap) {
+  if (!existingChildSegmentMap || existingCache.parallelRoutes.size > 1) {
     // Bailout because the existing cache does not have the path to the leaf node
+    // or the existing cache has multiple parallel routes
     // Will trigger lazy fetch in layout-router because of missing segment
     return { bailOptimistic: true }
   }

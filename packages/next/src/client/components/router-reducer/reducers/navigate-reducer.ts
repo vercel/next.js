@@ -146,9 +146,16 @@ export function navigateReducer(
     // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
     const optimisticTree = createOptimisticTree(segments, state.tree, false)
 
+    // we need a copy of the cache in case we need to revert to it
+    const temporaryCacheNode: CacheNode = {
+      ...cache,
+    }
+
     // Copy subTreeData for the root node of the cache.
-    cache.status = CacheStates.READY
-    cache.subTreeData = state.cache.subTreeData
+    // Note: didn't do it above because typescript doesn't like it.
+    temporaryCacheNode.status = CacheStates.READY
+    temporaryCacheNode.subTreeData = state.cache.subTreeData
+    temporaryCacheNode.parallelRoutes = new Map(state.cache.parallelRoutes)
 
     const data = createRecordFromThenable(
       fetchServerResponse(url, optimisticTree, state.nextUrl)
@@ -158,13 +165,13 @@ export function navigateReducer(
     // TODO-APP: re-evaluate if we need to strip the last segment
     const optimisticFlightSegmentPath = segments
       .slice(1)
-      .map((segment) => ['children', segment])
+      .map((segment) => (segment === '' ? [] : ['children', segment]))
       .flat()
 
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
     // The `data` property is used to suspend in layout-router during render if it hasn't resolved yet by the time it renders.
     const res = fillCacheWithDataProperty(
-      cache,
+      temporaryCacheNode,
       state.cache,
       optimisticFlightSegmentPath,
       () => data
@@ -177,7 +184,7 @@ export function navigateReducer(
       mutable.pendingPush = pendingPush
       mutable.hashFragment = hash
       mutable.scrollableSegments = []
-      mutable.cache = cache
+      mutable.cache = temporaryCacheNode
       mutable.canonicalUrl = href
 
       state.prefetchCache.set(createHrefFromUrl(url, false), {
