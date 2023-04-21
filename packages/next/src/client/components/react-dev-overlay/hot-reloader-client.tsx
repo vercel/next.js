@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useReducer,
   useMemo,
-  // @ts-expect-error TODO-APP: startTransition exists
   startTransition,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'

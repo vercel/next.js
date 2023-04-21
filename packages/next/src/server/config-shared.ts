@@ -6,7 +6,6 @@ import {
   ImageConfigComplete,
   imageConfigDefault,
 } from '../shared/lib/image-config'
-import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -195,7 +194,6 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<ServerRuntime, undefined>
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -662,7 +660,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    runtime: undefined,
     manualClientBasePath: false,
     legacyBrowsers: false,
     newNextLinkBehavior: true,

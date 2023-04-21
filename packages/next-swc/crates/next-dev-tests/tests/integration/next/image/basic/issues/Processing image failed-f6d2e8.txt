@@ -3,7 +3,7 @@ PlainIssue {
     context: "[project]/packages/next-swc/crates/next-dev-tests/tests/integration/next/image/basic/input/public/broken.jpeg",
     category: "image",
     title: "Processing image failed",
-    description: "unable to decode image data\n\nCaused by:\n- The image format could not be determined",
+    description: "unable to decode image data\n\nCaused by:\n- failed to fill whole buffer",
     detail: "",
     documentation_link: "",
     source: None,
