@@ -818,10 +818,15 @@ export default async function build(
               trustHostHeader: ciEnvironment.hasNextSupport,
               incrementalCacheHandlerPath: config.experimental
                 .incrementalCacheHandlerPath
-                ? path.relative(
-                    distDir,
-                    config.experimental.incrementalCacheHandlerPath
-                  )
+                ? config.output === 'standalone'
+                  ? path.relative(
+                      path.join(distDir, 'standalone'),
+                      config.experimental.incrementalCacheHandlerPath
+                    )
+                  : path.relative(
+                      distDir,
+                      config.experimental.incrementalCacheHandlerPath
+                    )
                 : undefined,
             },
           },
