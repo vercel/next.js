@@ -8,7 +8,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
-import { resolveAsArrayOrUndefined } from './generate/utils'
+import { resolveArray, resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../client-reference'
 import {
   getLayoutOrPageModule,
@@ -161,11 +161,12 @@ function merge({
       case 'archives':
       case 'assets':
       case 'bookmarks':
-      case 'keywords':
+      case 'keywords': {
+        target[key] = resolveAsArrayOrUndefined(source[key])
+        break
+      }
       case 'authors': {
-        // FIXME: type inferring
-        // @ts-ignore
-        target[key] = resolveAsArrayOrUndefined(source[key]) || null
+        target[key] = resolveAsArrayOrUndefined(source.authors)
         break
       }
       // directly assign fields that fallback to null

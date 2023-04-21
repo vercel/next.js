@@ -1,20 +1,17 @@
-function resolveArray<T>(value: T): T[] {
+function resolveArray<T>(value: T): T extends Array<any> ? T : T[] {
   if (Array.isArray(value)) {
-    return value
+    return value as any
   }
-  return [value]
+  return [value] as any
 }
 
-function resolveAsArrayOrUndefined<T extends unknown | readonly unknown[]>(
-  value: T | T[] | undefined | null
-): undefined | T[] {
+function resolveAsArrayOrUndefined<T>(
+  value: T | undefined | null
+): T extends undefined | null ? undefined : T extends Array<any> ? T : T[] {
   if (typeof value === 'undefined' || value === null) {
-    return undefined
+    return undefined as any
   }
-  if (Array.isArray(value)) {
-    return value
-  }
-  return [value]
+  return resolveArray(value) as any
 }
 
 export { resolveAsArrayOrUndefined, resolveArray }
