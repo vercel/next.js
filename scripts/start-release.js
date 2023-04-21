@@ -52,6 +52,7 @@ async function main() {
     shell: true,
   })
 
+  console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const child = execa(`pnpm release-${isCanary ? 'canary' : 'stable'}`, {
     stdio: 'pipe',
     shell: true,
@@ -65,12 +66,13 @@ async function main() {
     child.stdin.write('y\n')
   } else {
     if (semverType === 'minor') {
-      console.log('Releasing minor: cursor down 1\n')
+      console.log('Releasing minor: cursor down > 1\n')
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
     if (semverType === 'major') {
-      console.log('Releasing major: cursor down 2\n')
+      console.log('Releasing major: curser down > 1')
       child.stdin.write(ansiEscapes.cursorDown(1))
+      console.log('Releasing major: curser down > 2')
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
     if (semverType === 'patch') {
