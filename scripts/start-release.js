@@ -52,6 +52,7 @@ async function main() {
     shell: true,
   })
 
+  console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const child = execa(`pnpm release-${isCanary ? 'canary' : 'stable'}`, {
     stdio: 'pipe',
     shell: true,
@@ -61,19 +62,30 @@ async function main() {
   child.stderr.pipe(process.stderr)
 
   if (isCanary) {
+    console.log("Releasing canary: enter 'y'\n")
     child.stdin.write('y\n')
   } else {
     if (semverType === 'minor') {
+      console.log('Releasing minor: cursor down > 1\n')
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
     if (semverType === 'major') {
+      console.log('Releasing major: curser down > 1')
       child.stdin.write(ansiEscapes.cursorDown(1))
+      console.log('Releasing major: curser down > 2')
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
+    if (semverType === 'patch') {
+      console.log('Releasing patch: cursor stay\n')
+    }
+    console.log("Enter newline")
     child.stdin.write('\n')
+    console.log("Enter y")
     child.stdin.write('y\n')
   }
+  console.log('Await child process...')
   await child
+  console.log('Release process is finished')
 
   if (isCanary) {
     try {
