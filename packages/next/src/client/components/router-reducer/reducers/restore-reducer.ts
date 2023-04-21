@@ -4,7 +4,6 @@ import {
   ReducerState,
   RestoreAction,
 } from '../router-reducer-types'
-import { prunePrefetchCache } from './prune-prefetch-cache'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -12,7 +11,6 @@ export function restoreReducer(
 ): ReducerState {
   const { url, tree } = action
   const href = createHrefFromUrl(url)
-  prunePrefetchCache(state.prefetchCache)
 
   return {
     // Set canonical url

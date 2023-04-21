@@ -355,12 +355,12 @@ createNextDescribe(
             .waitForElementByCss('#random-number')
             .text()
 
+          await browser.eval(fastForwardTo, 5 * 60 * 1000)
+
           await browser
             .elementByCss('[href="/"]')
             .click()
             .waitForElementByCss('[href="/1?timeout=1000"]')
-
-          await browser.eval(fastForwardTo, 5 * 60 * 1000)
 
           const newLoadingNumber = await browser
             .elementByCss('[href="/1?timeout=1000"]')

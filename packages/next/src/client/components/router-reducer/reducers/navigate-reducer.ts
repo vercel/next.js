@@ -136,13 +136,15 @@ export function navigateReducer(
 
   if (prefetchValues) {
     const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-    prefetchValues.lastUsedTime = Date.now()
 
     // The one before last item is the router state tree patch
     const { treeAtTimeOfPrefetch, data } = prefetchValues
 
     // Unwrap cache data with `use` to suspend here (in the reducer) until the fetch resolves.
     const [flightData, canonicalUrlOverride] = readRecordValue(data!)
+
+    // important: we should only mark the cache node as dirty after we unsuspend from the call above
+    prefetchValues.lastUsedTime = Date.now()
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {

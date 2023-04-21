@@ -6,15 +6,15 @@ import {
   ReadonlyReducerState,
 } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
-import {
-  PrefetchCacheEntryStatus,
-  getPrefetchEntryCacheStatus,
-} from '../get-prefetch-cache-entry-status'
+import { prunePrefetchCache } from './prune-prefetch-cache'
 
 export function prefetchReducer(
   state: ReadonlyReducerState,
   action: PrefetchAction
 ): ReducerState {
+  // let's prune the prefetch cache before we do anything else
+  prunePrefetchCache(state.prefetchCache)
+
   const { url } = action
   const href = createHrefFromUrl(
     url,
@@ -23,7 +23,6 @@ export function prefetchReducer(
   )
 
   const cacheEntry = state.prefetchCache.get(href)
-
   if (cacheEntry) {
     /**
      * If the cache entry present was marked as temporary, it means that we prefetched it from the navigate reducer,
@@ -38,14 +37,10 @@ export function prefetchReducer(
     }
 
     /**
-     * 1 - if the entry is not expired, there's no need to prefetch again
-     * 2 - if the prefetch action was a full prefetch and that the current cache entry wasn't one, we want to re-prefetch, otherwise we can re-use the current cache entry
+     * if the prefetch action was a full prefetch and that the current cache entry wasn't one, we want to re-prefetch,
+     * otherwise we can re-use the current cache entry
      **/
-    if (
-      getPrefetchEntryCacheStatus(cacheEntry) !==
-        PrefetchCacheEntryStatus.expired ||
-      !(cacheEntry.kind === 'auto' && action.kind === 'full')
-    ) {
+    if (!(cacheEntry.kind === 'auto' && action.kind === 'full')) {
       return state
     }
   }
