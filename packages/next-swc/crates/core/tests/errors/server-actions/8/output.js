@@ -5,5 +5,6 @@ export const $$ACTION_1 = async (closure)=>{
 var $$ACTION_0;
 const bar = async ()=>{
     const x = 1;
+    // prettier-ignore
     'use server';
 };

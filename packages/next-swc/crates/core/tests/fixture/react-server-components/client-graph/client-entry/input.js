@@ -15,12 +15,16 @@
 'use client'
 
 import 'fs'
-;('bar')
+
+// prettier-ignore
+'bar'
 
 // This is a comment.
 
 1 + 1
-;('baz')
+
+// prettier-ignore
+'baz'
 
 export default function () {
   return null
