@@ -25,7 +25,6 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
-  PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -235,7 +234,7 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: async (href, options) => {
+      prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
         if (isBot(window.navigator.userAgent)) {
           return
@@ -245,12 +244,12 @@ function Router({
         if (isExternalURL(url)) {
           return
         }
+
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
             type: ACTION_PREFETCH,
             url,
-            kind: options?.kind ?? PrefetchKind.FULL,
           })
         })
       },

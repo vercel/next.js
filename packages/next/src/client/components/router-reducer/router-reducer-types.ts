@@ -118,19 +118,6 @@ export interface ServerPatchAction {
 }
 
 /**
- * PrefetchKind defines the type of prefetching that should be done.
- * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
- * - `full` - prefetch the page data fully.
- * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
- */
-
-export enum PrefetchKind {
-  AUTO = 'auto',
-  FULL = 'full',
-  TEMPORARY = 'temporary',
-}
-
-/**
  * Prefetch adds the provided FlightData to the prefetch cache
  * - Creates the router state tree based on the patch in FlightData
  * - Adds the FlightData to the prefetch cache
@@ -139,7 +126,6 @@ export enum PrefetchKind {
 export interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
-  kind: PrefetchKind
 }
 
 interface PushRef {
@@ -168,14 +154,6 @@ export type FocusAndScrollRef = {
   segmentPaths: FlightSegmentPath[]
 }
 
-export type PrefetchCacheEntry = {
-  treeAtTimeOfPrefetch: FlightRouterState
-  data: ReturnType<typeof fetchServerResponse> | null
-  kind: PrefetchKind
-  prefetchTime: number
-  lastUsedTime: number | null
-}
-
 /**
  * Handles keeping the state of app-router.
  */
@@ -195,7 +173,13 @@ export type AppRouterState = {
   /**
    * Cache that holds prefetched Flight responses keyed by url.
    */
-  prefetchCache: Map<string, PrefetchCacheEntry>
+  prefetchCache: Map<
+    string,
+    {
+      treeAtTimeOfPrefetch: FlightRouterState
+      data: ReturnType<typeof fetchServerResponse> | null
+    }
+  >
   /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
