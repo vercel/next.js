@@ -42,7 +42,7 @@ impl InvalidationReasonKind for ServerRequestKind {
             .unwrap();
         write!(
             f,
-            "{} requests (e. g. {} {})",
+            "{} requests ({} {}, ...)",
             reasons.len(),
             example.method,
             example.uri.path()
