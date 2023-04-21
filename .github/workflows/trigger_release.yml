@@ -50,6 +50,9 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
+      # https://github.blog/2023-04-19-introducing-npm-package-provenance/
+      - run: npm i -g npm@9
+
       - run: npm i -g pnpm@${PNPM_VERSION}
 
       - id: get-store-path
