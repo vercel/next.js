@@ -78,7 +78,9 @@ async function main() {
     if (semverType === 'patch') {
       console.log('Releasing patch: cursor stay\n')
     }
+    console.log("Enter newline")
     child.stdin.write('\n')
+    console.log("Enter y")
     child.stdin.write('y\n')
   }
   console.log('Await child process...')
