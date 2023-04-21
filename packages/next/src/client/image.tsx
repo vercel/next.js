@@ -145,7 +145,6 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   imgStyle: ImgElementStyle
   blurStyle: ImgElementStyle
   isLazy: boolean
-  fetchPriority: string
   fill?: boolean
   loading: LoadingValue
   config: ImageConfig
@@ -420,7 +419,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         <img
           {...rest}
           {...getDynamicProps(fetchPriority)}
-          // @ts-expect-error - TODO: upgrade to `@types/react@18`
           loading={loading}
           width={widthInt}
           height={heightInt}
@@ -534,7 +532,6 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       onLoadingComplete,
       placeholder = 'empty',
       blurDataURL,
-      // @ts-expect-error - TODO: upgrade to `@types/react@18`
       fetchPriority,
       layout,
       objectFit,
@@ -972,7 +969,6 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
               rel="preload"
               as="image"
               href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-              // @ts-expect-error - TODO: upgrade to `@types/react@18`
               imageSrcSet={imgAttributes.srcSet}
               imageSizes={imgAttributes.sizes}
               crossOrigin={rest.crossOrigin}
