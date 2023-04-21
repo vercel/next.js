@@ -4,6 +4,12 @@ const resolveFrom = require('resolve-from')
 const ansiEscapes = require('ansi-escapes')
 const fetch = require('node-fetch')
 
+function getPromptErrorDetails(rawAssertion, mostRecentChunk) {
+  const assertion = rawAssertion.toString().trim()
+  const mostRecent = (mostRecentChunk || '').trim()
+  return `Waiting for:\n  "${assertion}"\nmost recent chunk was:\n  "${mostRecent}"`
+}
+
 async function waitForPrompt(cp, rawAssertion, timeout = 3000) {
   let assertion
   if (typeof rawAssertion === 'string') {
