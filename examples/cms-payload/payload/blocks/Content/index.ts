@@ -1,7 +1,7 @@
-import { Block, Field } from 'payload/types'
-import { backgroundColor } from '../../fields/backgroundColor'
-import link from '../../fields/link'
-import richText from '../../fields/richText'
+import { Block, Field } from "payload/types";
+import { backgroundColor } from "../../fields/backgroundColor";
+import link from "../../fields/link";
+import richText from "../../fields/richText";
 
 const columnFields: Field[] = [
   richText(),
@@ -12,10 +12,10 @@ const columnFields: Field[] = [
   link({
     overrides: {
       admin: {
-        condition: (_, { enableLink }) => Boolean(enableLink),
-      },
-    },
-  }),
+        condition: (_, { enableLink }) => Boolean(enableLink)
+      }
+    }
+  })
 ]
 
 export const Content: Block = {
@@ -46,9 +46,9 @@ export const Content: Block = {
               label: 'Three Columns',
               value: 'threeColumns',
             },
-          ],
+          ]
         },
-      ],
+      ]
     },
     {
       name: 'columnOne',
@@ -60,9 +60,8 @@ export const Content: Block = {
       type: 'group',
       fields: columnFields,
       admin: {
-        condition: (_, { layout }) =>
-          ['twoThirdsOneThird', 'halfAndHalf', 'threeColumns'].includes(layout),
-      },
+        condition: (_, { layout }) => ['twoThirdsOneThird', 'halfAndHalf', 'threeColumns'].includes(layout),
+      }
     },
     {
       name: 'columnThree',
@@ -70,7 +69,7 @@ export const Content: Block = {
       fields: columnFields,
       admin: {
         condition: (_, { layout }) => layout === 'threeColumns',
-      },
-    },
-  ],
+      }
+    }
+  ]
 }

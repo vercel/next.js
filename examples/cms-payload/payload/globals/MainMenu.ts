@@ -1,5 +1,5 @@
-import { GlobalConfig } from 'payload/types'
-import link from '../fields/link'
+import { GlobalConfig } from "payload/types";
+import link from "../fields/link";
 
 export const MainMenu: GlobalConfig = {
   slug: 'main-menu',
@@ -18,7 +18,7 @@ export const MainMenu: GlobalConfig = {
         link({
           appearances: false,
         }),
-      ],
-    },
-  ],
+      ]
+    }
+  ]
 }

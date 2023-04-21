@@ -1,5 +1,5 @@
-import { Block } from 'payload/types'
-import { backgroundColor } from '../../fields/backgroundColor'
+import { Block } from "payload/types";
+import { backgroundColor } from "../../fields/backgroundColor";
 
 export const MediaBlock: Block = {
   slug: 'mediaBlock',
@@ -20,10 +20,10 @@ export const MediaBlock: Block = {
             {
               label: 'Fullscreen',
               value: 'fullscreen',
-            },
-          ],
+            }
+          ]
         },
-      ],
+      ]
     },
     {
       name: 'media',
@@ -35,8 +35,10 @@ export const MediaBlock: Block = {
       name: 'caption',
       type: 'richText',
       admin: {
-        elements: ['link'],
-      },
-    },
-  ],
+        elements: [
+          'link',
+        ]
+      }
+    }
+  ]
 }

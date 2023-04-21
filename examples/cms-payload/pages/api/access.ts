@@ -1,20 +1,5 @@
-import authenticate from '@payloadcms/next-payload/middleware/authenticate'
-import initializePassport from '@payloadcms/next-payload/middleware/initializePassport'
-import withPayload from '@payloadcms/next-payload/middleware/withPayload'
-import access from 'payload/dist/auth/operations/access'
+import handler, { config as handlerConfig } from '@payloadcms/next-payload/dist/handlers/access'
 
-async function handler(req, res) {
-  const accessResult = await access({
-    req,
-  })
+export default handler
 
-  return res.status(200).json(accessResult)
-}
-
-export default withPayload(initializePassport(authenticate(handler)))
-
-export const config = {
-  api: {
-    externalResolver: true,
-  },
-}
+export const config = handlerConfig

@@ -1,5 +1,5 @@
-import { CollectionConfig } from 'payload/types'
-import path from 'path'
+import { CollectionConfig } from 'payload/types';
+import path from 'path';
 
 export const Media: CollectionConfig = {
   slug: 'media',
@@ -15,5 +15,5 @@ export const Media: CollectionConfig = {
       type: 'text',
       required: true,
     },
-  ],
+  ]
 }

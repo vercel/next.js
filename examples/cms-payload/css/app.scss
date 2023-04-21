@@ -3,10 +3,10 @@
 @use './type.scss' as *;
 
 :root {
-  --breakpoint-xs-width: #{$breakpoint-xs-width};
-  --breakpoint-s-width: #{$breakpoint-s-width};
-  --breakpoint-m-width: #{$breakpoint-m-width};
-  --breakpoint-l-width: #{$breakpoint-l-width};
+  --breakpoint-xs-width : #{$breakpoint-xs-width};
+  --breakpoint-s-width : #{$breakpoint-s-width};
+  --breakpoint-m-width : #{$breakpoint-m-width};
+  --breakpoint-l-width : #{$breakpoint-l-width};
   --scrollbar-width: 17px;
 
   --base: 24px;
@@ -100,7 +100,7 @@ p {
   margin: var(--base) 0;
 
   @include mid-break {
-    margin: calc(var(--base) * 0.75) 0;
+    margin: calc(var(--base) * .75) 0;
   }
 }
 
@@ -114,12 +114,12 @@ a {
   color: currentColor;
 
   &:focus {
-    opacity: 0.8;
+    opacity: .8;
     outline: none;
   }
 
   &:active {
-    opacity: 0.7;
+    opacity: .7;
     outline: none;
   }
 }
