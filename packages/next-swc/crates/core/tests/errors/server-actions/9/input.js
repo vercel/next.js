@@ -1,2 +1,4 @@
 import 'my-module'
-;('use server')
+
+// prettier-ignore
+'use server'
