@@ -165,7 +165,7 @@ export function navigateReducer(
     // TODO-APP: re-evaluate if we need to strip the last segment
     const optimisticFlightSegmentPath = segments
       .slice(1)
-      .map((segment) => (segment === '' ? [] : ['children', segment]))
+      .map((segment) => ['children', segment === '' ? '__PAGE__' : segment])
       .flat()
 
     // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
