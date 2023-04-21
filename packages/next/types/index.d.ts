@@ -36,7 +36,7 @@ export type {
   ResolvingMetadata, // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/lib/metadata/types/metadata-interface'
 
-// Extend the React types with missing properties
+// Extend the React types with non-standard properties
 declare module 'react' {
   // <html amp=""> support
   interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
