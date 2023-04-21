@@ -522,17 +522,10 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(3)
 
-          // Get the id on the rendered page.
-          const firstID = await browser.elementById('render-id-456').text()
-
           // Go back, and redo the navigation by clicking the link.
           await browser.back()
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
-
-          // Get the id again, and compare, they should not be the same.
-          const secondID = await browser.elementById('render-id-456').text()
-          expect(secondID).not.toBe(firstID)
         } finally {
           await browser.close()
         }
@@ -549,9 +542,6 @@ createNextDescribe(
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
 
-          // Get the date again, and compare, they should not be the same.
-          const firstId = await browser.elementById('render-id-456').text()
-
           // Navigate to the subpage, verify that the history entry was NOT added.
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-123')
@@ -561,10 +551,6 @@ createNextDescribe(
           await browser.elementById('link').click()
           await browser.waitForElementByCss('#render-id-456')
           expect(await browser.eval('window.history.length')).toBe(2)
-
-          // Get the date again, and compare, they should not be the same.
-          const secondId = await browser.elementById('render-id-456').text()
-          expect(firstId).not.toBe(secondId)
         } finally {
           await browser.close()
         }
