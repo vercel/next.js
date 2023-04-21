@@ -65,15 +65,17 @@ async function main() {
     child.stdin.write('y\n')
   } else {
     if (semverType === 'minor') {
-      console.log("Releasing minor: enter 'y'\n")
+      console.log('Releasing minor: cursor down 1\n')
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
     if (semverType === 'major') {
-      console.log("Releasing major: enter 'y'\n")
+      console.log('Releasing major: cursor down 2\n')
       child.stdin.write(ansiEscapes.cursorDown(1))
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
-    console.log("Releasing patch: enter 'y'\n")
+    if (semverType === 'patch') {
+      console.log('Releasing patch: cursor stay\n')
+    }
     child.stdin.write('\n')
     child.stdin.write('y\n')
   }
