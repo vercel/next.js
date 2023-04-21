@@ -47,6 +47,12 @@ declare module 'react' {
     nonce?: string
   }
 
+  // <img fetchPriority=""> support
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
+  interface ImgHTMLAttributes<T> {
+    fetchPriority?: 'high' | 'low' | 'auto' | undefined
+  }
+
   function use<T>(promise: Promise<T> | React.Context<T>): T
   function cache<T extends Function>(fn: T): T
 }

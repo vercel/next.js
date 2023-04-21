@@ -24,7 +24,7 @@ export { DocumentContext, DocumentInitialProps, DocumentProps }
 
 export type OriginProps = {
   nonce?: string
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   children?: React.ReactNode
 }
 
@@ -259,9 +259,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
 
           let srcProps: {
             src?: string
-            dangerouslySetInnerHTML?: {
-              __html: string
-            }
+            dangerouslySetInnerHTML?: ScriptProps['dangerouslySetInnerHTML']
           } = {}
 
           if (src) {
@@ -582,7 +580,9 @@ export class Head extends React.Component<HeadProps> {
           src,
           ...scriptProps
         } = file
-        let html = ''
+        let html: NonNullable<
+          ScriptProps['dangerouslySetInnerHTML']
+        >['__html'] = ''
 
         if (dangerouslySetInnerHTML && dangerouslySetInnerHTML.__html) {
           html = dangerouslySetInnerHTML.__html
@@ -602,7 +602,10 @@ export class Head extends React.Component<HeadProps> {
             key={scriptProps.id || index}
             nonce={nonce}
             data-nscript="beforeInteractive"
-            crossOrigin={crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+            crossOrigin={
+              crossOrigin ||
+              (process.env.__NEXT_CROSS_ORIGIN as typeof crossOrigin)
+            }
           />
         )
       })
@@ -624,7 +627,7 @@ export class Head extends React.Component<HeadProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  makeStylesheetInert(node: ReactNode): ReactNode[] {
+  makeStylesheetInert(node: ReactNode[]): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
         c?.type === 'link' &&
@@ -650,7 +653,8 @@ export class Head extends React.Component<HeadProps> {
       }
 
       return c
-    }).filter(Boolean)
+      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
+    })!.filter(Boolean)
   }
 
   render() {
@@ -711,7 +715,9 @@ export class Head extends React.Component<HeadProps> {
       })
       head = cssPreloads.concat(otherHeadElements)
     }
-    let children = React.Children.toArray(this.props.children).filter(Boolean)
+    let children: React.ReactNode[] = React.Children.toArray(
+      this.props.children
+    ).filter(Boolean)
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
@@ -731,7 +737,8 @@ export class Head extends React.Component<HeadProps> {
           }
         }
         return child
-      })
+        // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
+      })!
       if (this.props.crossOrigin)
         console.warn(
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
@@ -791,7 +798,8 @@ export class Head extends React.Component<HeadProps> {
         }
       }
       return child
-    })
+      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
+    })!
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
