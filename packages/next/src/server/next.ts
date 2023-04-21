@@ -3,6 +3,7 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 
+import './require-hook'
 import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
