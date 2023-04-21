@@ -1,6 +1,4 @@
-import { FlightSegmentPath } from '../../../server/app-render/types'
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
-import { createRouterCacheKey } from './create-router-cache-key'
 import { fetchServerResponse } from './fetch-server-response'
 
 /**
@@ -9,24 +7,19 @@ import { fetchServerResponse } from './fetch-server-response'
 export function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightSegmentPath: FlightSegmentPath,
-  fetchResponse: () => ReturnType<typeof fetchServerResponse>,
-  bailOnParallelRoutes: boolean = false
+  segments: string[],
+  fetchResponse: () => ReturnType<typeof fetchServerResponse>
 ): { bailOptimistic: boolean } | undefined {
-  const isLastEntry = flightSegmentPath.length <= 2
+  const isLastEntry = segments.length === 1
 
-  const [parallelRouteKey, segment] = flightSegmentPath
-  const cacheKey = createRouterCacheKey(segment)
+  const parallelRouteKey = 'children'
+  const [segment] = segments
 
   const existingChildSegmentMap =
     existingCache.parallelRoutes.get(parallelRouteKey)
 
-  if (
-    !existingChildSegmentMap ||
-    (bailOnParallelRoutes && existingCache.parallelRoutes.size > 1)
-  ) {
+  if (!existingChildSegmentMap) {
     // Bailout because the existing cache does not have the path to the leaf node
-    // or the existing cache has multiple parallel routes
     // Will trigger lazy fetch in layout-router because of missing segment
     return { bailOptimistic: true }
   }
@@ -38,8 +31,8 @@ export function fillCacheWithDataProperty(
     newCache.parallelRoutes.set(parallelRouteKey, childSegmentMap)
   }
 
-  const existingChildCacheNode = existingChildSegmentMap.get(cacheKey)
-  let childCacheNode = childSegmentMap.get(cacheKey)
+  const existingChildCacheNode = existingChildSegmentMap.get(segment)
+  let childCacheNode = childSegmentMap.get(segment)
 
   // In case of last segment start off the fetch at this level and don't copy further down.
   if (isLastEntry) {
@@ -48,7 +41,7 @@ export function fillCacheWithDataProperty(
       !childCacheNode.data ||
       childCacheNode === existingChildCacheNode
     ) {
-      childSegmentMap.set(cacheKey, {
+      childSegmentMap.set(segment, {
         status: CacheStates.DATA_FETCH,
         data: fetchResponse(),
         subTreeData: null,
@@ -61,7 +54,7 @@ export function fillCacheWithDataProperty(
   if (!childCacheNode || !existingChildCacheNode) {
     // Start fetch in the place where the existing cache doesn't have the data yet.
     if (!childCacheNode) {
-      childSegmentMap.set(cacheKey, {
+      childSegmentMap.set(segment, {
         status: CacheStates.DATA_FETCH,
         data: fetchResponse(),
         subTreeData: null,
@@ -78,13 +71,13 @@ export function fillCacheWithDataProperty(
       subTreeData: childCacheNode.subTreeData,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode
-    childSegmentMap.set(cacheKey, childCacheNode)
+    childSegmentMap.set(segment, childCacheNode)
   }
 
   return fillCacheWithDataProperty(
     childCacheNode,
     existingChildCacheNode,
-    flightSegmentPath.slice(2),
+    segments.slice(1),
     fetchResponse
   )
 }
