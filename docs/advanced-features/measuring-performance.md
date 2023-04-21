@@ -144,7 +144,7 @@ These metrics work in all browsers that support the [User Timing API](https://ca
 
 ## Sending results to 3rd party analytics
 
-With the relay function, you can send any of results to an 3rd party analytics endpoint to measure and track
+With the relay function, you can send results to a 3rd party analytics endpoint to measure and track
 real user performance on your site. For example:
 
 ```js
