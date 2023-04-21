@@ -369,7 +369,7 @@ async fn source(
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
     let manifest_source = DevManifestContentSource {
-        page_roots: vec![app_source, page_source],
+        page_roots: vec![page_source],
         next_config,
     }
     .cell()

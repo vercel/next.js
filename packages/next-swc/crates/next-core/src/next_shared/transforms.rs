@@ -29,7 +29,7 @@ use turbo_binding::{
 };
 use turbo_tasks::trace::TraceRawVcs;
 
-use crate::image::StructuredImageModuleTypeVc;
+use crate::next_image::StructuredImageModuleTypeVc;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
 pub async fn get_next_pages_transforms_rule(

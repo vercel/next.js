@@ -23,10 +23,10 @@ async function main() {
     return
   }
 
-  const githubToken = process.env.START_RELEASE_TOKEN
+  const githubToken = process.env.RELEASE_BOT_TOKEN
 
   if (!githubToken) {
-    console.log(`Missing START_RELEASE_TOKEN`)
+    console.log(`Missing RELEASE_BOT_TOKEN`)
     return
   }
 
@@ -40,14 +40,14 @@ async function main() {
   config.set('token', githubToken)
 
   await execa(
-    `git remote set-url origin https://ijjk:${githubToken}@github.com/vercel/next.js.git`,
+    `git remote set-url origin https://vercel-release-bot:${githubToken}@github.com/vercel/next.js.git`,
     { stdio: 'inherit', shell: true }
   )
-  await execa(`git config user.name "JJ Kasper"`, {
+  await execa(`git config user.name "vercel-release-bot"`, {
     stdio: 'inherit',
     shell: true,
   })
-  await execa(`git config user.email "jj@jjsweb.site"`, {
+  await execa(`git config user.email "infra+release@vercel.com"`, {
     stdio: 'inherit',
     shell: true,
   })
