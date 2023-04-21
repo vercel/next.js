@@ -224,7 +224,7 @@ fn next_layout_entry_transition(
 }
 
 #[turbo_tasks::function]
-fn next_route_transition(
+fn next_edge_route_transition(
     project_path: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
@@ -260,7 +260,7 @@ fn next_route_transition(
         edge_resolve_options_context,
         output_path,
         base_path: app_dir,
-        bootstrap_file: next_js_file("entry/app/route-bootstrap.ts"),
+        bootstrap_file: next_js_file("entry/app/edge-route-bootstrap.ts"),
         entry_name: "edge".to_string(),
     }
     .cell()
@@ -285,8 +285,8 @@ fn app_context(
 
     let mut transitions = HashMap::new();
     transitions.insert(
-        "next-route".to_string(),
-        next_route_transition(
+        "next-edge-route".to_string(),
+        next_edge_route_transition(
             project_path,
             app_dir,
             server_root,
@@ -1002,7 +1002,7 @@ impl AppRouteVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
-        let internal_asset = SourceAssetVc::new(next_js_file_path("entry/app/route.ts"));
+        let internal_asset = SourceAssetVc::new(next_js_file_path("entry/app/edge-route.ts"));
 
         let chunking_context = DevChunkingContextVc::builder(
             this.project_path,
