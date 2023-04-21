@@ -5,5 +5,7 @@ const foo = async () => {
 
 const bar = async () => {
   const x = 1
-  ;('use server')
+
+  // prettier-ignore
+  'use server'
 }
