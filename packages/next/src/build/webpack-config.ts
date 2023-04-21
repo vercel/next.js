@@ -1040,9 +1040,6 @@ export default async function getBaseWebpackConfig(
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
 
-      'react/jsx-dev-runtime': require.resolve('react/jsx-dev-runtime'),
-      'react/jsx-runtime': require.resolve('react/jsx-runtime'),
-
       ...customAppAliases,
       ...customErrorAlias,
       ...customDocumentAliases,

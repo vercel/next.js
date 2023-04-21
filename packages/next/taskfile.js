@@ -1636,6 +1636,14 @@ export async function copy_vendor_react(task, opts) {
   await task.source(join(reactDir, 'LICENSE')).target(`src/compiled/react`)
   await task
     .source(join(reactDir, 'cjs/**/*.js'))
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source.replace(
+        /require\(["']react["']\)/g,
+        'require("next/dist/compiled/react")'
+      )
+    })
     .target(`src/compiled/react/cjs`)
 
   await task
