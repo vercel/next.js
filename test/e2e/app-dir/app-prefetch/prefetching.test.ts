@@ -1,30 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
-const browserConfigWithFixedTime = {
-  beforePageLoad: (page) => {
-    page.addInitScript(() => {
-      const startTime = new Date()
-      const fixedTime = new Date('2023-04-17T00:00:00Z')
-
-      // Override the Date constructor
-      // @ts-ignore
-      // eslint-disable-next-line no-native-reassign
-      Date = class extends Date {
-        constructor() {
-          super()
-          // @ts-ignore
-          return new startTime.constructor(fixedTime)
-        }
-
-        static now() {
-          return fixedTime.getTime()
-        }
-      }
-    })
-  },
-}
-
 createNextDescribe(
   'app dir prefetching',
   {
@@ -39,7 +15,7 @@ createNextDescribe(
     }
 
     it('should show layout eagerly when prefetched with loading one level down', async () => {
-      const browser = await next.browser('/', browserConfigWithFixedTime)
+      const browser = await next.browser('/')
       // Ensure the page is prefetched
       await waitFor(1000)
 
@@ -74,7 +50,7 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched', async () => {
-      const browser = await next.browser('/404', browserConfigWithFixedTime)
+      const browser = await next.browser('/404')
       let requests: string[] = []
 
       browser.on('request', (req) => {
@@ -102,7 +78,7 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
-      const browser = await next.browser('/404', browserConfigWithFixedTime)
+      const browser = await next.browser('/404')
       let requests: string[] = []
 
       browser.on('request', (req) => {

@@ -350,10 +350,10 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  eval<T = any>(fn: any, ...args: any[]): Promise<T> {
+  eval<T = any>(snippet): Promise<T> {
     return this.chainWithReturnValue(() =>
       page
-        .evaluate(fn, ...args)
+        .evaluate(snippet)
         .catch((err) => {
           console.error('eval error:', err)
           return null
@@ -365,15 +365,15 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync<T = any>(fn: any, ...args: any[]) {
-    if (typeof fn === 'function') {
-      fn = fn.toString()
+  async evalAsync<T = any>(snippet) {
+    if (typeof snippet === 'function') {
+      snippet = snippet.toString()
     }
 
-    if (fn.includes(`var callback = arguments[arguments.length - 1]`)) {
-      fn = `(function() {
+    if (snippet.includes(`var callback = arguments[arguments.length - 1]`)) {
+      snippet = `(function() {
         return new Promise((resolve, reject) => {
-          const origFunc = ${fn}
+          const origFunc = ${snippet}
           try {
             origFunc(resolve)
           } catch (err) {
@@ -383,7 +383,7 @@ export class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate<T>(fn).catch(() => null)
+    return page.evaluate<T>(snippet).catch(() => null)
   }
 
   async log() {
@@ -396,11 +396,5 @@ export class Playwright extends BrowserInterface {
 
   async url() {
     return this.chain(() => page.evaluate('window.location.href')) as any
-  }
-
-  async waitForIdleNetwork(): Promise<void> {
-    return this.chain(() => {
-      return page.waitForLoadState('networkidle')
-    })
   }
 }
