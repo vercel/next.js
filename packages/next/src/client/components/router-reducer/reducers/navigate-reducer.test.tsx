@@ -80,7 +80,6 @@ import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   PrefetchAction,
-  PrefetchKind,
 } from '../router-reducer-types'
 import { navigateReducer } from './navigate-reducer'
 import { prefetchReducer } from './prefetch-reducer'
@@ -1006,7 +1005,6 @@ describe('navigateReducer', () => {
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      kind: PrefetchKind.AUTO,
     }
 
     const state = createInitialRouterState({
@@ -1088,9 +1086,6 @@ describe('navigateReducer', () => {
           '/linking/about',
           {
             data: record,
-            kind: PrefetchKind.AUTO,
-            lastUsedTime: null,
-            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {
