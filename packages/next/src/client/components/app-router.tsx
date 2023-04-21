@@ -25,6 +25,7 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
+  PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -249,7 +250,7 @@ function Router({
           dispatch({
             type: ACTION_PREFETCH,
             url,
-            kind: options?.kind ?? 'full',
+            kind: options?.kind ?? PrefetchKind.FULL,
           })
         })
       },

@@ -16,9 +16,10 @@ import { createOptimisticTree } from '../create-optimistic-tree'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import type {
+import {
   Mutable,
   NavigateAction,
+  PrefetchKind,
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
@@ -302,7 +303,7 @@ export function navigateReducer(
       state.prefetchCache.set(createHrefFromUrl(url, false), {
         data: Promise.resolve(data),
         // this will make sure that the entry will be discarded after 30s
-        kind: 'temporary',
+        kind: PrefetchKind.TEMPORARY,
         prefetchTime: Date.now(),
         treeAtTimeOfPrefetch: state.tree,
         lastUsedTime: Date.now(),
@@ -324,7 +325,7 @@ export function navigateReducer(
   state.prefetchCache.set(createHrefFromUrl(url, false), {
     data: Promise.resolve(cache.data!),
     // this will make sure that the entry will be discarded after 30s
-    kind: 'temporary',
+    kind: PrefetchKind.TEMPORARY,
     prefetchTime: Date.now(),
     treeAtTimeOfPrefetch: state.tree,
     lastUsedTime: null,

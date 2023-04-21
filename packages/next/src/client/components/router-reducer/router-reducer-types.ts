@@ -123,7 +123,12 @@ export interface ServerPatchAction {
  * - `full` - prefetch the page data fully.
  * - `temporary` - a temporary prefetch entry is added to the cache, this is used when prefetch={false} is used in next/link or when you push a route programmatically.
  */
-export type PrefetchKind = 'auto' | 'full' | 'temporary'
+
+export enum PrefetchKind {
+  AUTO = 'auto',
+  FULL = 'full',
+  TEMPORARY = 'temporary',
+}
 
 /**
  * Prefetch adds the provided FlightData to the prefetch cache

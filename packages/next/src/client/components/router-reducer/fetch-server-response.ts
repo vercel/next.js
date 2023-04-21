@@ -44,7 +44,7 @@ export async function fetchServerResponse(
    * - `prefetchKind` is `full` - we want to prefetch the whole page so same as above
    * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
    */
-  if (prefetchKind === 'auto') {
+  if (prefetchKind === PrefetchKind.AUTO) {
     headers[NEXT_ROUTER_PREFETCH] = '1'
   }
 

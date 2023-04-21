@@ -21,6 +21,7 @@ import {
 import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
+import { PrefetchKind } from './components/router-reducer/router-reducer-types'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -261,7 +262,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       href: hrefProp,
       as: asProp,
       children: childrenProp,
-      prefetch: prefetchProp,
+      prefetch: prefetchProp = null,
       passHref,
       replace,
       shallow,
@@ -291,7 +292,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
      * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
      * - false: we will not prefetch if in the viewport at all
      */
-    const appPrefetchKind = prefetchProp == null ? 'auto' : 'full'
+    const appPrefetchKind =
+      prefetchProp === null ? PrefetchKind.AUTO : PrefetchKind.FULL
 
     const pagesRouter = React.useContext(RouterContext)
     const appRouter = React.useContext(AppRouterContext)
