@@ -5,7 +5,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     fmt::Debug,
     hash::{Hash, Hasher},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -295,7 +295,7 @@ impl EcmascriptInputTransform {
                 }
 
                 program.visit_mut_with(&mut styled_components::styled_components(
-                    FileName::Anon,
+                    FileName::Real(PathBuf::from(file_path.await?.path.clone())),
                     file_name_hash,
                     options,
                 ));
