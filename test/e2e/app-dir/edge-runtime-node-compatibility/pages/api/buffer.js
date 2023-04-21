@@ -2,7 +2,7 @@ import B from 'node:buffer'
 import B2 from 'buffer'
 import { NextResponse } from 'next/server'
 
-export const config = { runtime: 'edge' }
+export const runtime = 'edge'
 
 /**
  * @param {Request} req
