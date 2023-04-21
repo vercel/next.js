@@ -234,7 +234,7 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: async (href: string, options) => {
+      prefetch: async (href, options) => {
         // If prefetch has already been triggered, don't trigger it again.
         if (isBot(window.navigator.userAgent)) {
           return
