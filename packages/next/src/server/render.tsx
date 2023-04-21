@@ -263,7 +263,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean

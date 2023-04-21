@@ -10,7 +10,8 @@ import { createRouterCacheKey } from './create-router-cache-key'
 export function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
   existingCache: CacheNode,
-  flightDataPath: FlightDataPath
+  flightDataPath: FlightDataPath,
+  wasPrefetched?: boolean
 ): void {
   const isLastEntry = flightDataPath.length <= 5
   const [parallelRouteKey, segment] = flightDataPath
@@ -63,7 +64,8 @@ export function fillCacheWithNewSubTreeData(
         childCacheNode,
         existingChildCacheNode,
         flightDataPath[2],
-        flightDataPath[4]
+        flightDataPath[4],
+        wasPrefetched
       )
 
       childSegmentMap.set(cacheKey, childCacheNode)
@@ -90,6 +92,7 @@ export function fillCacheWithNewSubTreeData(
   fillCacheWithNewSubTreeData(
     childCacheNode,
     existingChildCacheNode,
-    flightDataPath.slice(2)
+    flightDataPath.slice(2),
+    wasPrefetched
   )
 }
