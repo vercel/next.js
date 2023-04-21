@@ -1,9 +1,6 @@
 'use client'
 
-import {
-  FocusAndScrollRef,
-  PrefetchKind,
-} from '../../client/components/router-reducer/router-reducer-types'
+import { FocusAndScrollRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FlightRouterState,
@@ -71,10 +68,6 @@ export interface NavigateOptions {
   forceOptimisticNavigation?: boolean
 }
 
-export interface PrefetchOptions {
-  kind: PrefetchKind
-}
-
 export interface AppRouterInstance {
   /**
    * Navigate to the previous history entry.
@@ -101,7 +94,7 @@ export interface AppRouterInstance {
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string, options?: PrefetchOptions): void
+  prefetch(href: string): void
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
