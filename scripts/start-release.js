@@ -139,7 +139,6 @@ async function main() {
   } else {
     console.log('Wait for the version prompt to show up')
     await waitForPrompt(child, 'Select a new version')
-    await waitForPrompt(child, 'Changes:')
     console.log('Releasing stable')
     if (semverType === 'minor') {
       console.log('Releasing minor: cursor down > 1\n')
@@ -156,6 +155,7 @@ async function main() {
     }
     console.log('Enter newline')
     child.stdin.write('\n')
+    await waitForPrompt(child, 'Changes:')
     console.log('Enter y')
     child.stdin.write('y\n')
   }
