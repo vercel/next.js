@@ -9,8 +9,8 @@ use turbo_binding::{
             chunk::ChunkingContextVc,
             compile_time_defines,
             compile_time_info::{
-                CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc, FreeVarReference,
-                FreeVarReferencesVc,
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReference, FreeVarReferencesVc,
             },
             context::AssetContextVc,
             environment::{
@@ -53,17 +53,27 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-pub fn next_client_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
-        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false
+        process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
+        process.env.__NEXT_HAS_REWRITES = true,
+        process.env.__NEXT_I18N_SUPPORT = false,
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
 }
 
-pub fn next_client_free_vars() -> FreeVarReferencesVc {
-    free_var_references!(
+#[turbo_tasks::function]
+pub fn next_client_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn next_client_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(
+        ..defines().into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: "node:buffer".to_string(),
             context: None,
@@ -75,7 +85,7 @@ pub fn next_client_free_vars() -> FreeVarReferencesVc {
             export: Some("default".to_string()),
         }
     )
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
