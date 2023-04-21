@@ -35,7 +35,7 @@ impl InvalidationReasonKind for WatchChangeKind {
     ) -> std::fmt::Result {
         write!(
             f,
-            "{} files changed (e. g. {})",
+            "{} files changed ({}, ...)",
             reasons.len(),
             reasons[0]
                 .as_any()
