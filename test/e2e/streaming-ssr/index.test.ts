@@ -157,9 +157,6 @@ if (isNextProd) {
           }`,
         },
         nextConfig: {
-          experimental: {
-            runtime: 'nodejs',
-          },
           webpack(config, { nextRuntime }) {
             const path = require('path')
             const fs = require('fs')
