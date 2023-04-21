@@ -1758,6 +1758,38 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(hasAppDir
+          ? [
+              {
+                test: codeCondition.test,
+                issuerLayer: {
+                  or: [
+                    WEBPACK_LAYERS.server,
+                    WEBPACK_LAYERS.client,
+                    WEBPACK_LAYERS.appClient,
+                    WEBPACK_LAYERS.action,
+                    WEBPACK_LAYERS.shared,
+                  ],
+                },
+                resolve: {
+                  alias: {
+                    // Alias next/head component to noop for RSC
+                    [require.resolve('next/head')]: require.resolve(
+                      'next/dist/client/components/noop-head'
+                    ),
+                    // Alias next/dynamic
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/shared/lib/app-dynamic'
+                    ),
+                    'react/jsx-runtime$':
+                      'next/dist/compiled/react/jsx-runtime',
+                    'react/jsx-dev-runtime$':
+                      'next/dist/compiled/react/jsx-dev-runtime',
+                  },
+                },
+              },
+            ]
+          : []),
         ...(hasAppDir && !isClient
           ? [
               {
@@ -1825,29 +1857,6 @@ export default async function getBaseWebpackConfig(
           : []),
         ...(hasServerComponents
           ? [
-              {
-                test: codeCondition.test,
-                issuerLayer: {
-                  or: [
-                    WEBPACK_LAYERS.server,
-                    WEBPACK_LAYERS.client,
-                    WEBPACK_LAYERS.appClient,
-                    WEBPACK_LAYERS.action,
-                  ],
-                },
-                resolve: {
-                  alias: {
-                    // Alias next/head component to noop for RSC
-                    [require.resolve('next/head')]: require.resolve(
-                      'next/dist/client/components/noop-head'
-                    ),
-                    // Alias next/dynamic
-                    [require.resolve('next/dynamic')]: require.resolve(
-                      'next/dist/shared/lib/app-dynamic'
-                    ),
-                  },
-                },
-              },
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
