@@ -61,19 +61,25 @@ async function main() {
   child.stderr.pipe(process.stderr)
 
   if (isCanary) {
+    console.log("Releasing canary: enter 'y'\n")
     child.stdin.write('y\n')
   } else {
     if (semverType === 'minor') {
+      console.log("Releasing minor: enter 'y'\n")
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
     if (semverType === 'major') {
+      console.log("Releasing major: enter 'y'\n")
       child.stdin.write(ansiEscapes.cursorDown(1))
       child.stdin.write(ansiEscapes.cursorDown(1))
     }
+    console.log("Releasing patch: enter 'y'\n")
     child.stdin.write('\n')
     child.stdin.write('y\n')
   }
+  console.log('Await child process...')
   await child
+  console.log('Release process is finished')
 
   if (isCanary) {
     try {
