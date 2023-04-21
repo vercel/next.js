@@ -4,6 +4,7 @@ import {
   PrefetchAction,
   ReducerState,
   ReadonlyReducerState,
+  PrefetchKind,
 } from '../router-reducer-types'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { prunePrefetchCache } from './prune-prefetch-cache'
@@ -28,7 +29,7 @@ export function prefetchReducer(
      * If the cache entry present was marked as temporary, it means that we prefetched it from the navigate reducer,
      * where we didn't have the prefetch intent. We want to update it to the new, more accurate, kind here.
      */
-    if (cacheEntry.kind === 'temporary') {
+    if (cacheEntry.kind === PrefetchKind.TEMPORARY) {
       console.log(href, action.kind, cacheEntry)
       state.prefetchCache.set(href, {
         ...cacheEntry,
@@ -40,7 +41,12 @@ export function prefetchReducer(
      * if the prefetch action was a full prefetch and that the current cache entry wasn't one, we want to re-prefetch,
      * otherwise we can re-use the current cache entry
      **/
-    if (!(cacheEntry.kind === 'auto' && action.kind === 'full')) {
+    if (
+      !(
+        cacheEntry.kind === PrefetchKind.AUTO &&
+        action.kind === PrefetchKind.FULL
+      )
+    ) {
       return state
     }
   }
