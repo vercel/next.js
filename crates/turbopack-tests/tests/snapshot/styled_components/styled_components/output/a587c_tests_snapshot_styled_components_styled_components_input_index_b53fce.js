@@ -6,7 +6,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 const MyButton = __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f$styled$2d$components$2f$index$2e$js__$28$ecmascript$29$__["default"].button.withConfig({
-    displayName: "MyButton",
+    displayName: "input__MyButton",
     componentId: "sc-86737cfc-0"
 })`
   background: blue;
