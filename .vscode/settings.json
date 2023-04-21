@@ -58,8 +58,6 @@
     "*.ts": "$(capture).test.ts, $(capture).test.tsx",
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx"
   },
-  // Allow to find the cargo project for rust-analyzer.
-  "rust-analyzer.linkedProjects": ["packages/next-swc/Cargo.toml"],
   // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
   "rust-analyzer.checkOnSave.extraEnv": {
     "CARGO_TARGET_DIR": "target/rust-analyzer"
@@ -67,6 +65,9 @@
   "rust-analyzer.server.extraEnv": {
     "CARGO_TARGET_DIR": "target/rust-analyzer",
     "RUST_BACKTRACE": "0"
+  },
+  "rust-analyzer.cargo.extraEnv": {
+    "CARGO_TARGET_DIR": "target/rust_analyzer"
   },
   "cSpell.words": [
     "Entrypoints",

@@ -77,7 +77,7 @@ export async function handleAction({
         }
       } else {
         if (isMultipartAction) {
-          const formFields: any[] = []
+          const formFields = new FormData()
 
           const busboy = require('busboy')
           const bb = busboy({ headers: req.headers })
@@ -90,7 +90,7 @@ export async function handleAction({
             innerRejector(new Error('File upload is not supported.'))
           )
           bb.on('error', (err: any) => innerRejector(err))
-          bb.on('field', (id: any, val: any) => (formFields[+id] = val))
+          bb.on('field', (id: any, val: any) => formFields.append(id, val))
           bb.on('finish', () => innerResolvor())
           req.pipe(bb)
           await promise

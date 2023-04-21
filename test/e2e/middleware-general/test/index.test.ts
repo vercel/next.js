@@ -138,11 +138,11 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: [
+            env: expect.arrayContaining([
               'MIDDLEWARE_TEST',
               'ANOTHER_MIDDLEWARE_TEST',
               'STRING_ENV_VAR',
-            ],
+            ]),
             files: expect.arrayContaining([
               'server/edge-runtime-webpack.js',
               'server/middleware.js',

@@ -20,5 +20,5 @@ function _templateObject() {
 import styled from "styled-components";
 export var foo = styled.input.withConfig({
     displayName: "input__foo",
-    componentId: "sc-12c52e68-0"
+    componentId: "sc-21a13c03-0"
 })(_templateObject());

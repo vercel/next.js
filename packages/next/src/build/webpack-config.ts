@@ -186,6 +186,9 @@ export function getDefineEnv({
   isEdgeServer,
   middlewareMatchers,
   clientRouterFilters,
+  previewModeId,
+  fetchCacheKeyPrefix,
+  allowedRevalidateHeaderKeys,
 }: {
   dev?: boolean
   distDir: string
@@ -198,6 +201,9 @@ export function getDefineEnv({
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
+  previewModeId?: string
+  fetchCacheKeyPrefix?: string
+  allowedRevalidateHeaderKeys?: string[]
 }) {
   return {
     // internal field to identify the plugin config
@@ -236,6 +242,12 @@ export function getDefineEnv({
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+    ),
+    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
+      JSON.stringify(fetchCacheKeyPrefix),
+    'process.env.__NEXT_PREVIEW_MODE_ID': JSON.stringify(previewModeId),
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
+      allowedRevalidateHeaderKeys
     ),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
@@ -643,6 +655,9 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
+    previewModeId,
+    fetchCacheKeyPrefix,
+    allowedRevalidateHeaderKeys,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -670,6 +685,9 @@ export default async function getBaseWebpackConfig(
         import('../shared/lib/bloom-filter').BloomFilter['export']
       >
     }
+    previewModeId?: string
+    fetchCacheKeyPrefix?: string
+    allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -687,7 +705,10 @@ export default async function getBaseWebpackConfig(
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
-    if (isEdgeRuntime(config.experimental.runtime)) {
+    if (
+      // @ts-expect-error: experimental.runtime is deprecated
+      isEdgeRuntime(config.experimental.runtime)
+    ) {
       Log.warn(
         'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
@@ -2125,6 +2146,9 @@ export default async function getBaseWebpackConfig(
           isEdgeServer,
           middlewareMatchers,
           clientRouterFilters,
+          previewModeId,
+          fetchCacheKeyPrefix,
+          allowedRevalidateHeaderKeys,
         })
       ),
       isClient &&

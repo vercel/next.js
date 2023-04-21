@@ -1,3 +1,3 @@
-'use server';
+'use server'
 
 export * from 'foo'
