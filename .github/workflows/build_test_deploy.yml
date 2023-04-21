@@ -998,6 +998,7 @@ jobs:
           path: packages/next-swc/crates/wasm
 
       - run: npm i -g pnpm@${PNPM_VERSION}
+      - run: npm i -g npm@9 # need latest version for provenance
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
