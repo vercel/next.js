@@ -15,7 +15,7 @@ if (process.env.NODE_ENV !== "production") {
 'use strict';
 
 var React = require("next/dist/compiled/react");
-var ReactDOM = require("next/dist/compiled/react-dom");
+var ReactDOM = require('react-dom');
 
 var ReactVersion = '18.3.0-next-1f248bdd7-20230419';
 
