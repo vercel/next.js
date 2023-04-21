@@ -1,4 +1,5 @@
-import "react";
-export default function () {
-  return null;
+import 'react';
+'use client';
+export default function() {
+    return null;
 }

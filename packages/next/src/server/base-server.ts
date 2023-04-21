@@ -236,7 +236,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     distDir: string
     runtime?: ServerRuntime
     serverComponents?: boolean
-    crossOrigin?: string
+    crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest
@@ -328,6 +328,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
+    requestProtocol: 'http' | 'https'
   }): import('./lib/incremental-cache').IncrementalCache
 
   protected abstract getResponseCache(options: {
@@ -1056,8 +1057,21 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       !(globalThis as any).__incrementalCache &&
       !getRequestMeta(req, '_nextIncrementalCache')
     ) {
+      let protocol: 'http:' | 'https:' = 'https:'
+
+      try {
+        const parsedFullUrl = new URL(
+          getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+          'http://n'
+        )
+        protocol = parsedFullUrl.protocol as 'https:' | 'http:'
+      } catch (_) {}
+
       const incrementalCache = this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
+        requestProtocol: protocol.substring(0, protocol.length - 1) as
+          | 'http'
+          | 'https',
       })
       addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
     }
@@ -1556,12 +1570,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
+    let protocol: 'http:' | 'https:' = 'https:'
+
+    try {
+      const parsedFullUrl = new URL(
+        getRequestMeta(req, '__NEXT_INIT_URL') || '/',
+        'http://n'
+      )
+      protocol = parsedFullUrl.protocol as 'https:' | 'http:'
+    } catch (_) {}
 
     // use existing incrementalCache instance if available
     const incrementalCache =
       (globalThis as any).__incrementalCache ||
       this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
+        requestProtocol: protocol.substring(0, protocol.length - 1) as
+          | 'http'
+          | 'https',
       })
 
     let isRevalidate = false
@@ -1991,6 +2017,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           body: isDataReq
             ? RenderResult.fromStatic(cachedData.pageData as string)
             : cachedData.html,
+          revalidateOptions,
         }
       }
 

@@ -5,5 +5,5 @@ const foo = async () => {
 
 const bar = async () => {
   const x = 1
-  'use server'
+  ;('use server')
 }

@@ -1,11 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../shared/lib/utils'
 import type { PageConfig, ResponseLimit, SizeLimit } from 'next/types'
-import {
-  checkIsOnDemandRevalidate,
-  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
-  __ApiPreviewProps,
-} from '.'
+import { checkIsOnDemandRevalidate, __ApiPreviewProps } from '.'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { PreviewData } from 'next/types'
@@ -26,7 +22,6 @@ import {
   clearPreviewData,
   sendError,
   ApiError,
-  PRERENDER_REVALIDATE_HEADER,
   COOKIE_NAME_PRERENDER_BYPASS,
   COOKIE_NAME_PRERENDER_DATA,
   SYMBOL_PREVIEW_DATA,
@@ -37,6 +32,10 @@ import { getTracer } from '../lib/trace/tracer'
 import { NodeSpan } from '../lib/trace/constants'
 import { RequestCookies } from '../web/spec-extension/cookies'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import {
+  PRERENDER_REVALIDATE_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
+} from '../../lib/constants'
 
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,

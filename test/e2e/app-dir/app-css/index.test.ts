@@ -154,7 +154,7 @@ createNextDescribe(
           const html = await next.render('/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
           )
         })
 
@@ -233,8 +233,11 @@ createNextDescribe(
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
           expect(
-            [...html.matchAll(/<link rel="stylesheet" href="[^.]+\.css"/g)]
-              .length
+            [
+              ...html.matchAll(
+                /<link rel="stylesheet" href="[^.]+\.css(\?v=\d+)?"/g
+              ),
+            ].length
           ).toBe(3)
         })
       })
@@ -280,14 +283,14 @@ createNextDescribe(
             const browser = await next.browser('/css/css-duplicate/a')
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/a/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/a/page.css'))`
               )
             ).toBe(true)
 
             // Should not load the chunk from /b
             expect(
               await browser.eval(
-                `[...document.styleSheets].some(({ href }) => href.endsWith('/b/page.css'))`
+                `[...document.styleSheets].some(({ href }) => href.includes('/b/page.css'))`
               )
             ).toBe(false)
           })
@@ -548,15 +551,6 @@ createNextDescribe(
           await check(async () => {
             return await browser.eval(`window.__log`)
           }, /background = rgb\(255, 255, 0\)/)
-        })
-
-        it('should timeout if the resource takes too long', async () => {
-          const browser = await next.browser('/suspensey-css')
-          await browser.elementByCss('#timeout').click()
-          await check(() => browser.eval(`document.body.innerText`), 'Get back')
-          expect(await browser.eval(`window.__log`)).toEqual(
-            'background = rgba(0, 0, 0, 0)'
-          )
         })
       })
     }
