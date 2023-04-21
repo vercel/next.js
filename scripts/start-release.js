@@ -133,14 +133,13 @@ async function main() {
   child.stdout.pipe(process.stdout)
   child.stderr.pipe(process.stderr)
 
-  // Wait for the versioning prompt to show up
-  await waitForPrompt(child, 'Select a new version')
-  await waitForPrompt(child, 'Changes:')
-
   if (isCanary) {
     console.log("Releasing canary: enter 'y'\n")
     child.stdin.write('y\n')
   } else {
+    console.log('Wait for the version prompt to show up')
+    await waitForPrompt(child, 'Select a new version')
+    await waitForPrompt(child, 'Changes:')
     console.log('Releasing stable')
     if (semverType === 'minor') {
       console.log('Releasing minor: cursor down > 1\n')
