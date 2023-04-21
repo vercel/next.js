@@ -118,7 +118,7 @@ export default class FetchCache implements CacheHandler {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
           internal: true,
-          fetchType: 'fetch-get',
+          fetchType: 'cache-get',
           fetchUrl: fetchUrl,
           fetchIdx,
         }
@@ -233,7 +233,7 @@ export default class FetchCache implements CacheHandler {
         }
         const fetchParams: NextFetchCacheParams = {
           internal: true,
-          fetchType: 'fetch-set',
+          fetchType: 'cache-set',
           fetchUrl,
           fetchIdx,
         }
