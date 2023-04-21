@@ -211,10 +211,11 @@ export async function writeConfigurationDefaults(
     // because that will override the parent config's plugins.
     // Instead we have to show a message to the user to add the plugin manually.
     if (
-      plugins.length &&
-      !hasNextPlugin &&
-      'extends' in rawConfig &&
-      (!rawConfig.compilerOptions || !rawConfig.compilerOptions.plugins)
+      !userTsConfig.compilerOptions ||
+      (plugins.length &&
+        !hasNextPlugin &&
+        'extends' in rawConfig &&
+        (!rawConfig.compilerOptions || !rawConfig.compilerOptions.plugins))
     ) {
       console.log(
         `\nYour ${chalk.cyan(
@@ -224,13 +225,7 @@ export async function writeConfigurationDefaults(
         )}\`) manually to your TypeScript configuration. Learn more: https://beta.nextjs.org/docs/configuring/typescript#using-the-typescript-plugin\n`
       )
     } else if (!hasNextPlugin) {
-      if (!userTsConfig.compilerOptions) {
-        userTsConfig.compilerOptions = {}
-      }
-      if (
-        userTsConfig.compilerOptions &&
-        !('plugins' in userTsConfig.compilerOptions)
-      ) {
+      if (!('plugins' in userTsConfig.compilerOptions)) {
         userTsConfig.compilerOptions.plugins = []
       }
       userTsConfig.compilerOptions.plugins.push({ name: 'next' })
