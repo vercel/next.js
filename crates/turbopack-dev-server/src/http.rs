@@ -144,6 +144,14 @@ pub async fn process_request_with_content_source(
                     )?);
                 }
 
+                if !header_map.contains_key("cache-control") {
+                    // The dev server contents might change at any time, we can't cache them.
+                    header_map.append(
+                        "cache-control",
+                        hyper::header::HeaderValue::try_from("must-revalidate")?,
+                    );
+                }
+
                 let content = file.content();
                 let response = if should_compress {
                     header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
