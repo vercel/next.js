@@ -7,7 +7,7 @@ export function applyFlightData(
   existingCache: CacheNode,
   cache: CacheNode,
   flightDataPath: FlightDataPath,
-  wasPrefetched: boolean = false
+  wasPrefetched?: boolean
 ): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
@@ -33,12 +33,7 @@ export function applyFlightData(
     cache.subTreeData = existingCache.subTreeData
     cache.parallelRoutes = new Map(existingCache.parallelRoutes)
     // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(
-      cache,
-      existingCache,
-      flightDataPath,
-      wasPrefetched
-    )
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
   }
 
   return true

@@ -38,11 +38,7 @@ import {
   CacheStates,
 } from '../../../../shared/lib/app-router-context'
 import { createInitialRouterState } from '../create-initial-router-state'
-import {
-  PrefetchAction,
-  ACTION_PREFETCH,
-  PrefetchKind,
-} from '../router-reducer-types'
+import { PrefetchAction, ACTION_PREFETCH } from '../router-reducer-types'
 import { prefetchReducer } from './prefetch-reducer'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
@@ -132,12 +128,11 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
-      PrefetchKind.AUTO
+      true
     )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      kind: PrefetchKind.AUTO,
     }
 
     const newState = await runPromiseThrowChain(() =>
@@ -154,9 +149,6 @@ describe('prefetchReducer', () => {
           '/linking/about',
           {
             data: record,
-            kind: PrefetchKind.AUTO,
-            lastUsedTime: null,
-            prefetchTime: expect.any(Number),
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -281,12 +273,11 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
-      PrefetchKind.AUTO
+      true
     )
     const action: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
-      kind: PrefetchKind.AUTO,
     }
 
     await runPromiseThrowChain(() => prefetchReducer(state, action))
@@ -305,9 +296,6 @@ describe('prefetchReducer', () => {
           '/linking/about',
           {
             data: record,
-            prefetchTime: expect.any(Number),
-            kind: PrefetchKind.AUTO,
-            lastUsedTime: null,
             treeAtTimeOfPrefetch: [
               '',
               {
