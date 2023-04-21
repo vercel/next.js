@@ -10,7 +10,8 @@ export function fillCacheWithDataProperty(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightSegmentPath: FlightSegmentPath,
-  fetchResponse: () => ReturnType<typeof fetchServerResponse>
+  fetchResponse: () => ReturnType<typeof fetchServerResponse>,
+  bailOnParallelRoutes: boolean = false
 ): { bailOptimistic: boolean } | undefined {
   const isLastEntry = flightSegmentPath.length <= 2
 
@@ -20,7 +21,10 @@ export function fillCacheWithDataProperty(
   const existingChildSegmentMap =
     existingCache.parallelRoutes.get(parallelRouteKey)
 
-  if (!existingChildSegmentMap || existingCache.parallelRoutes.size > 1) {
+  if (
+    !existingChildSegmentMap ||
+    (bailOnParallelRoutes && existingCache.parallelRoutes.size > 1)
+  ) {
     // Bailout because the existing cache does not have the path to the leaf node
     // or the existing cache has multiple parallel routes
     // Will trigger lazy fetch in layout-router because of missing segment

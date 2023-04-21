@@ -174,7 +174,8 @@ export function navigateReducer(
       temporaryCacheNode,
       state.cache,
       optimisticFlightSegmentPath,
-      () => data
+      () => data,
+      true
     )
 
     // If optimistic fetch couldn't happen it falls back to the non-optimistic case.
