@@ -4,12 +4,6 @@ The example shows a simple way of how to add http basic auth (RFC 7235) to your 
 
 Upon successful authentication, a user is directed to the page they requested. Otherwise, they are either prompted to retry entering their credentials, or sent to a 401 plain text page if the prompt is cancelled.
 
-## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/auth-http-basic&project-name=auth-http-basic&repository-name=auth-http-basic)
-
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
