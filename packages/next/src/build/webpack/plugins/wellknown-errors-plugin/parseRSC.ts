@@ -40,6 +40,7 @@ function formatRSCErrorMessage(
     formattedVerboseMessage =
       '\n\nMaybe one of these should be marked as a client entry with "use client":\n'
   } else if (NEXT_RSC_ERR_SERVER_IMPORT.test(message)) {
+    let shouldAddUseClient = true
     const matches = message.match(NEXT_RSC_ERR_SERVER_IMPORT)
     switch (matches && matches[1]) {
       case 'react-dom/server':
@@ -49,6 +50,7 @@ function formatRSCErrorMessage(
       case 'next/router':
         // If importing "next/router", we should tell them to use "next/navigation".
         formattedMessage = `\n\nYou have a Server Component that imports next/router. Use next/navigation instead.`
+        shouldAddUseClient = false
         break
       default:
         formattedMessage = message.replace(
@@ -56,8 +58,9 @@ function formatRSCErrorMessage(
           `\n\nYou're importing a component that imports $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
         )
     }
-    formattedVerboseMessage =
-      '\n\nMaybe one of these should be marked as a client entry "use client":\n'
+    formattedVerboseMessage = shouldAddUseClient
+      ? '\n\nMaybe one of these should be marked as a client entry "use client":\n'
+      : '\n\nImport trace:\n'
   } else if (NEXT_RSC_ERR_CLIENT_IMPORT.test(message)) {
     if (isPagesDir) {
       formattedMessage = message.replace(
