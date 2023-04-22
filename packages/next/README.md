@@ -5,8 +5,10 @@
       <img src="https://assets.vercel.com/image/upload/v1662130559/nextjs/Icon_light_background.png" height="128">
     </picture>
     <h1 align="center">Next.js</h1>
+    <p align="center">The React Framework</p>
   </a>
 </p>
+
 
 <p align="center">
   <a aria-label="Vercel logo" href="https://vercel.com">
@@ -23,35 +25,35 @@
   </a>
 </p>
 
-## Getting Started
+# Getting Started
 
-Visit <a aria-label="next.js learn" href="https://nextjs.org/learn">https://nextjs.org/learn</a> to get started with Next.js.
+Next.js is a powerful and flexible React framework that enables developers to build high-performance web applications with ease. It is used by the world's leading companies. Check out the [Next.js Showcase](https://nextjs.org/showcase) to learn more.
 
-## Documentation
+Visit this [link](https://nextjs.org/learn) to get started with Next.js.
 
-Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.
+# Documentation
 
-## Who is using Next.js?
+Next.js has a comphrehensive documentation to help you. To get started, click [here](https://nextjs.org/docs).
 
-Next.js is used by the world's leading companies. Check out the [Next.js Showcase](https://nextjs.org/showcase) to learn more.
+# Community
 
-## Community
+The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions) where you can ask questions, voice ideas, and share your projects with other people.
 
-The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions), where you can ask questions, voice ideas, and share your projects.
+To chat with other community members you can join the Next.js [Discord](https://nextjs.org/discord) server.
 
-To chat with other community members you can join the [Next.js Discord](https://nextjs.org/discord).
+Do note that our [Code of Conduct](https://github.com/vercel/next.js/blob/canary/CODE_OF_CONDUCT.md) applies to all Next.js community channels. Users are **highly encouraged** to read and adhere to them to avoid repercussions.
 
-Our [Code of Conduct](https://github.com/vercel/next.js/blob/canary/CODE_OF_CONDUCT.md) applies to all Next.js community channels.
+# Contributing
 
-## Contributing
+Contributions to Next.js are welcome and highly appreciated. However, before you jump right into it, we would like you to review our [Contribution Guidelines](/contributing.md) to make sure you have a smooth experience contributing to Next.js.
 
-Please see our [contributing.md](/contributing.md).
+### Good First Issues:
 
-### Good First Issues
+We have a list of **good first issues** that contain bugs that have a relatively limited scope. This is a great place for newcomers and beginenrs alike to get started, gain experience, and get familiar with our contribution process. Have a look at these issues [here](https://github.com/vercel/next.js/labels/good%20first%20issue).
 
-We have a list of [good first issues](https://github.com/vercel/next.js/labels/good%20first%20issue) that contain bugs that have a relatively limited scope. This is a great place to get started, gain experience, and get familiar with our contribution process.
+# Authors
 
-## Authors
+A list of the people who co-authored Next.js and bought this amazing framework to life!
 
 - Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens))
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa))
@@ -60,8 +62,10 @@ We have a list of [good first issues](https://github.com/vercel/next.js/labels/g
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen))
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable))
 
-## Security
+---
 
-If you believe you have found a security vulnerability in Next.js, we encourage you to responsibly disclose this and not open a public issue. We will investigate all legitimate reports. Email `security@vercel.com` to disclose any security vulnerabilities.
+# Security
 
-https://vercel.com/security
+If you believe you have found a security vulnerability in Next.js, we encourage you to ***responsibly disclose this and NOT open a public issue***. We will investigate all legitimate reports. Email `security@vercel.com` to disclose any security vulnerabilities. Alternatively, you can visit this [link](https://vercel.com/security) to know more about Vercel's security and report any security vulnerabilities.
+
+
