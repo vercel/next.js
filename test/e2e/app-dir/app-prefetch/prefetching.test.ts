@@ -82,7 +82,9 @@ createNextDescribe(
       })
       await browser.eval('location.href = "/"')
 
-      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await browser.eval(
+        'window.nd.router.prefetch("/static-page", {kind: "auto"})'
+      )
       await check(() => {
         return requests.some((req) => req.includes('static-page'))
           ? 'success'
@@ -108,7 +110,9 @@ createNextDescribe(
       })
       await browser.eval('location.href = "/"')
 
-      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await browser.eval(
+        `window.nd.router.prefetch("/static-page", {kind: "auto"})`
+      )
       await check(() => {
         return requests.some((req) => req.includes('static-page'))
           ? 'success'
