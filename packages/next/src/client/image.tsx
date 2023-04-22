@@ -157,6 +157,19 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   setShowAltText: (b: boolean) => void
 }
 
+/**
+ * Returns only widths smaller than imageWidth and the next wider one
+ */
+function onlyRelevantWidths(widths: number[], imageWidth: number | undefined) {
+  if (!imageWidth) return widths
+  const wider = widths.find((s) => s >= imageWidth)
+  const smallerWidths = widths.filter((s) => s < imageWidth)
+  if (wider) {
+    smallerWidths.push(wider)
+  }
+  return smallerWidths
+}
+
 function getWidths(
   { deviceSizes, allSizes }: ImageConfig,
   width: number | undefined,
@@ -169,14 +182,14 @@ function getWidths(
     for (let match; (match = viewportWidthRe.exec(sizes)); match) {
       percentSizes.push(parseInt(match[2]))
     }
+    let widths: number[]
     if (percentSizes.length) {
       const smallestRatio = Math.min(...percentSizes) * 0.01
-      return {
-        widths: allSizes.filter((s) => s >= deviceSizes[0] * smallestRatio),
-        kind: 'w',
-      }
+      widths = allSizes.filter((s) => s >= deviceSizes[0] * smallestRatio)
+    } else {
+      widths = allSizes
     }
-    return { widths: allSizes, kind: 'w' }
+    return { widths: onlyRelevantWidths(widths, width), kind: 'w' }
   }
   if (typeof width !== 'number') {
     return { widths: deviceSizes, kind: 'w' }
