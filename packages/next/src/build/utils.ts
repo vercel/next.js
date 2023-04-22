@@ -1835,22 +1835,10 @@ export async function copyTracedFiles(
     )
   }
 
-  for (const middleware of Object.values(middlewareManifest.middleware) || []) {
-    if (isMiddlewareFilename(middleware.name)) {
-      for (const file of middleware.files) {
-        const originalPath = path.join(distDir, file)
-        const fileOutputPath = path.join(
-          outputPath,
-          path.relative(tracingRoot, distDir),
-          file
-        )
-        await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-        await fs.copyFile(originalPath, fileOutputPath)
-      }
-    }
-  }
-
-  for (const page of Object.values(middlewareManifest.functions)) {
+  for (const page of Object.values({
+    ...middlewareManifest.functions,
+    ...middlewareManifest.middleware,
+  })) {
     for (const file of page.files) {
       const originalPath = path.join(distDir, file)
       const fileOutputPath = path.join(
