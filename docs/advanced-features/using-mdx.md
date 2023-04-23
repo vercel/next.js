@@ -191,7 +191,7 @@ import Image from 'next/image'
 import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
 
 const ResponsiveImage = (props) => (
-  <Image alt={props.alt} fill {...props} />
+  <Image alt={props.alt} sizes="100vw" style={ width: '100%', height: 'auto' }  {...props} />
 )
 
 const components = {
