@@ -152,6 +152,7 @@ export type GetStaticPropsContext<
   params?: Params
   preview?: boolean
   previewData?: Preview
+  draftMode?: boolean
   locale?: string
   locales?: string[]
   defaultLocale?: string
