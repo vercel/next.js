@@ -221,7 +221,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
         ) {
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
-            { parseData: true }
+            { nextConfig, parseData: true }
           )
 
           as = addBasePath(parsedSource.pathname)
