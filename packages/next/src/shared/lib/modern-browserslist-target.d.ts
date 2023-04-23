@@ -1,3 +1,4 @@
+// Keep in sync with the `.js` file.
 declare const MODERN_BROWSERSLIST_TARGET: [
   'chrome 64',
   'edge 79',
