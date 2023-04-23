@@ -3,6 +3,7 @@ import type { NodeRequestHandler } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
 import type { NextConfigComplete } from './config-shared'
 
+import './require-hook'
 import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
@@ -13,14 +14,8 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
 import { NextUrlWithParsedQuery } from './request-meta'
-import {
-  loadRequireHook,
-  overrideBuiltInReactPackages,
-} from '../build/webpack/require-hook'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
-
-loadRequireHook()
 
 let ServerImpl: typeof Server
 
@@ -184,7 +179,6 @@ export class NextServer {
         }
         if (conf.experimental.appDir) {
           process.env.NEXT_PREBUNDLED_REACT = '1'
-          overrideBuiltInReactPackages()
         }
         this.server = await this.createServer({
           ...this.options,
