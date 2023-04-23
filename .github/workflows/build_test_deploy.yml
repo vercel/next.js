@@ -959,6 +959,9 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   publishRelease:
+    permissions:
+      contents: write
+      id-token: write
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
