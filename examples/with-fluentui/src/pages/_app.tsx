@@ -7,21 +7,21 @@ import {
   webLightTheme,
   webDarkTheme,
   Switch,
-  SwitchOnChangeData
-} from '@fluentui/react-components';
-import type { AppProps } from 'next/app';
-import { ChangeEvent, useCallback, useState } from 'react';
+  SwitchOnChangeData,
+} from '@fluentui/react-components'
+import type { AppProps } from 'next/app'
+import { ChangeEvent, useCallback, useState } from 'react'
 
-type EnhancedAppProps = AppProps & { renderer?: GriffelRenderer };
+type EnhancedAppProps = AppProps & { renderer?: GriffelRenderer }
 
 function MyApp({ Component, pageProps, renderer }: EnhancedAppProps) {
-  const [checked, setChecked] = useState(true);
+  const [checked, setChecked] = useState(true)
   const onChange = useCallback(
-    (ev : ChangeEvent<HTMLInputElement> , onChangeData:SwitchOnChangeData) => {
-      setChecked(onChangeData.checked);
+    (ev: ChangeEvent<HTMLInputElement>, onChangeData: SwitchOnChangeData) => {
+      setChecked(onChangeData.checked)
     },
     [setChecked]
-  );
+  )
 
   return (
     // 👇 Accepts a renderer from <Document /> or creates a default one
@@ -29,16 +29,16 @@ function MyApp({ Component, pageProps, renderer }: EnhancedAppProps) {
     <RendererProvider renderer={renderer || createDOMRenderer()}>
       <SSRProvider>
         <FluentProvider theme={checked ? webLightTheme : webDarkTheme}>
-        <Switch
-          checked={checked}
-          onChange={onChange}
-          label={checked ? "Light Mode" : "Dark Mode"}
-        />
+          <Switch
+            checked={checked}
+            onChange={onChange}
+            label={checked ? 'Light Mode' : 'Dark Mode'}
+          />
           <Component {...pageProps} />
         </FluentProvider>
       </SSRProvider>
     </RendererProvider>
-  );
+  )
 }
 
-export default MyApp;
+export default MyApp
