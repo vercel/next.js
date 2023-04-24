@@ -6,7 +6,7 @@ use turbo_binding::{
     },
     turbopack::{
         core::{
-            chunk::{ChunkableAsset, ChunkableAssetVc, ChunkingContext},
+            chunk::ChunkableAssetVc,
             compile_time_defines,
             compile_time_info::{
                 CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
@@ -156,20 +156,20 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let chunk_groups: Vec<_> = entries
+    let entries: Vec<_> = entries
         .into_iter()
         .flatten()
         .map(|module| async move {
             if let Some(ecmascript) = EcmascriptModuleAssetVc::resolve_from(module).await? {
-                let chunk_group = chunking_context.evaluated_chunk_group(
-                    ecmascript.as_root_chunk(chunking_context),
-                    runtime_entries.with_entry(ecmascript.into()),
-                );
-                Ok(chunk_group)
+                Ok((
+                    ecmascript.into(),
+                    chunking_context,
+                    Some(runtime_entries.with_entry(ecmascript.into())),
+                ))
             } else if let Some(chunkable) = ChunkableAssetVc::resolve_from(module).await? {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code
-                Ok(chunking_context.chunk_group(chunkable.as_root_chunk(chunking_context)))
+                Ok((chunkable, chunking_context, None))
             } else {
                 // TODO convert into a serve-able asset
                 Err(anyhow!(
@@ -181,7 +181,7 @@ pub async fn create_web_entry_source(
         .try_join()
         .await?;
 
-    let entry_asset = DevHtmlAssetVc::new(server_root.join("index.html"), chunk_groups).into();
+    let entry_asset = DevHtmlAssetVc::new(server_root.join("index.html"), entries).into();
 
     let graph = if eager_compile {
         AssetGraphContentSourceVc::new_eager(server_root, entry_asset)
