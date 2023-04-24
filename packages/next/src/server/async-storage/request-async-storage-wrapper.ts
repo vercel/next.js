@@ -62,10 +62,12 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
     { req, renderOpts }: RequestContext,
     callback: (store: RequestStore) => Result
   ): Result {
-    // TODO: investigate why previewProps isn't on RenderOpts
-    const previewProps = (renderOpts as any).previewProps as
-      | __ApiPreviewProps
-      | undefined
+    let previewProps: __ApiPreviewProps | undefined = undefined
+
+    if (renderOpts && 'previewProps' in renderOpts) {
+      // TODO: investigate why previewProps isn't on RenderOpts
+      previewProps = (renderOpts as any).previewProps
+    }
 
     const cache: {
       headers?: ReadonlyHeaders
