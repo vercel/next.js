@@ -1,4 +1,4 @@
-export default function Root({ children }: { children: React.ReactNode }) {
+export default function Root({ children }) {
   return (
     <html>
       <head></head>
