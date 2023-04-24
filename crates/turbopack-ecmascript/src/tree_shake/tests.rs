@@ -8,8 +8,9 @@ use std::{
 use anyhow::Error;
 use indexmap::IndexSet;
 use rustc_hash::FxHasher;
+use serde::Deserialize;
 use swc_core::{
-    common::SourceMap,
+    common::{util::take::Take, SourceMap},
     ecma::{
         ast::{EsVersion, Id, Module},
         atoms::JsWord,
@@ -24,7 +25,7 @@ use super::{
         DepGraph, Dependency, InternedGraph, ItemId, ItemIdGroupKind, Mode, SplitModuleResult,
     },
     merge::Merger,
-    Analyzer,
+    Analyzer, Key,
 };
 
 #[fixture("tests/tree-shaker/analyzer/**/input.js")]
@@ -32,7 +33,21 @@ fn test_fixture(input: PathBuf) {
     run(input);
 }
 
+#[derive(Deserialize)]
+struct TestConfig {
+    /// Enabled exports. This is `Vec<Vec<String>>` because we test multiple
+    /// exports at once.
+    #[serde(default)]
+    exports: Vec<Vec<String>>,
+}
+
 fn run(input: PathBuf) {
+    let config = input.with_file_name("config.json");
+    let config = std::fs::read_to_string(&config).unwrap_or_else(|_| "{}".into());
+    let config = serde_json::from_str::<TestConfig>(&config).unwrap_or_else(|e| {
+        panic!("failed to parse config.json: {}", config);
+    });
+
     testing::run_test(false, |cm, _handler| {
         let fm = cm.load_file(&input).unwrap();
 
@@ -151,46 +166,73 @@ fn run(input: PathBuf) {
 
         let uri_of_module: JsWord = "entry.js".into();
 
-        {
-            let mut g = analyzer.g.clone();
-            g.handle_weak(Mode::Development);
-            let SplitModuleResult { modules, .. } = g.split_module(&uri_of_module, analyzer.items);
+        let mut describe =
+            |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {
+                let mut g = analyzer.g.clone();
+                g.handle_weak(if is_debug {
+                    Mode::Development
+                } else {
+                    Mode::Production
+                });
+                let SplitModuleResult {
+                    modules,
+                    entrypoints,
+                    ..
+                } = g.split_module(&uri_of_module, analyzer.items);
 
-            writeln!(s, "# Modules (dev)").unwrap();
-            for (i, module) in modules.iter().enumerate() {
-                writeln!(s, "## Part {}", i).unwrap();
-                writeln!(s, "```js\n{}\n```", print(&cm, &[module])).unwrap();
-            }
+                if !skip_parts {
+                    writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();
+                    for (i, module) in modules.iter().enumerate() {
+                        writeln!(s, "## Part {}", i).unwrap();
+                        writeln!(s, "```js\n{}\n```", print(&cm, &[module])).unwrap();
+                    }
+                }
 
-            let mut merger = Merger::new(SingleModuleLoader {
-                modules: &modules,
-                entry_module_uri: &uri_of_module,
-            });
-            let module = merger.merge_recursively(modules[0].clone()).unwrap();
+                let mut merger = Merger::new(SingleModuleLoader {
+                    modules: &modules,
+                    entry_module_uri: &uri_of_module,
+                });
+                let mut entry = Module::dummy();
 
-            writeln!(s, "## Merged (module eval)").unwrap();
-            writeln!(s, "```js\n{}\n```", print(&cm, &[&module])).unwrap();
-        }
+                for e in &entries {
+                    let key = match e {
+                        ItemIdGroupKind::ModuleEvaluation => Key::ModuleEvaluation,
+                        ItemIdGroupKind::Export(e) => Key::Export(e.0.to_string()),
+                        _ => continue,
+                    };
 
-        {
-            let mut g = analyzer.g.clone();
-            g.handle_weak(Mode::Production);
-            let SplitModuleResult { modules, .. } = g.split_module(&uri_of_module, analyzer.items);
+                    let index = entrypoints[&key];
+                    entry.body.extend(modules[index as usize].body.clone());
+                }
 
-            writeln!(s, "# Modules (prod)").unwrap();
-            for (i, module) in modules.iter().enumerate() {
-                writeln!(s, "## Part {}", i).unwrap();
-                writeln!(s, "```js\n{}\n```", print(&cm, &[module])).unwrap();
-            }
+                let module = merger.merge_recursively(entry).unwrap();
 
-            let mut merger = Merger::new(SingleModuleLoader {
-                modules: &modules,
-                entry_module_uri: &uri_of_module,
-            });
-            let module = merger.merge_recursively(modules[0].clone()).unwrap();
+                writeln!(s, "## Merged ({})", title).unwrap();
+                writeln!(s, "```js\n{}\n```", print(&cm, &[&module])).unwrap();
+            };
+        describe(
+            true,
+            "module eval",
+            vec![ItemIdGroupKind::ModuleEvaluation],
+            false,
+        );
+        describe(
+            false,
+            "module eval",
+            vec![ItemIdGroupKind::ModuleEvaluation],
+            false,
+        );
 
-            writeln!(s, "## Merged (module eval)").unwrap();
-            writeln!(s, "```js\n{}\n```", print(&cm, &[&module])).unwrap();
+        for exports in config.exports {
+            describe(
+                false,
+                &exports.join(","),
+                exports
+                    .into_iter()
+                    .map(|e| ItemIdGroupKind::Export((e.into(), Default::default())))
+                    .collect(),
+                true,
+            );
         }
 
         NormalizedOutput::from(s)
