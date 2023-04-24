@@ -1,4 +1,4 @@
-function resolveArray<T>(value: T): T extends Array<any> ? T : T[] {
+function resolveArray<T>(value: T | T[]): T[] {
   if (Array.isArray(value)) {
     return value as any
   }
@@ -6,8 +6,8 @@ function resolveArray<T>(value: T): T extends Array<any> ? T : T[] {
 }
 
 function resolveAsArrayOrUndefined<T>(
-  value: T | undefined | null
-): T extends undefined | null ? undefined : T extends Array<any> ? T : T[] {
+  value: T | T[] | undefined | null
+): T extends undefined | null ? undefined : T[] {
   if (typeof value === 'undefined' || value === null) {
     return undefined as any
   }
