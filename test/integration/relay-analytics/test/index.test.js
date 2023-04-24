@@ -105,7 +105,7 @@ function runTest() {
       expect(isNaN(parseFloat(beacon.value))).toBe(false)
     }
 
-    expect(stdout).toMatch('Next.js Analytics')
+    expect(stdout).toMatch('Next.js Speed Insights')
     await browser.close()
   })
 
