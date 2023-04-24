@@ -142,7 +142,7 @@ export function reportWebVitals(metric) {
 
 These metrics work in all browsers that support the [User Timing API](https://caniuse.com/#feat=user-timing).
 
-## Sending results to 3rd party analytics
+## Sending results to external systems
 
 With the relay function, you can send results to a 3rd party analytics endpoint to measure and track
 real user performance on your site. For example:
