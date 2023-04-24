@@ -10,16 +10,8 @@ import type {
 } from '../server/config-shared'
 import type { OutgoingHttpHeaders } from 'http'
 
-// `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
-// then override react packages here for export worker.
-if (process.env.NEXT_PREBUNDLED_REACT) {
-  require('../build/webpack/require-hook').overrideBuiltInReactPackages()
-}
-
 // Polyfill fetch for the export worker.
 import '../server/node-polyfill-fetch'
-
-import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
@@ -53,8 +45,6 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { toNodeHeaders } from '../server/web/utils'
 import { RouteModuleLoader } from '../server/future/helpers/module-loader/route-module-loader'
 import { NextRequestAdapter } from '../server/web/spec-extension/adapters/next-request'
-
-loadRequireHook()
 
 const envConfig = require('../shared/lib/runtime-config')
 

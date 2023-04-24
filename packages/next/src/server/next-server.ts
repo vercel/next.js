@@ -1,5 +1,6 @@
-import './initialize-require-hook'
+import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-form'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
@@ -340,8 +341,7 @@ export default class NextNodeServer extends BaseServer {
           'server',
           INSTRUMENTATION_HOOK_FILENAME
         ))
-
-        instrumentationHook.register?.()
+        await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
           err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -1381,17 +1381,35 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRouterWorker) {
           let page = pathname
+          let matched = false
 
           if (!(await this.hasPage(page))) {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
+                matched = true
                 break
               }
             }
+          } else {
+            matched = true
           }
 
-          const renderKind = this.appPathRoutes?.[page] ? 'app' : 'pages'
+          let renderKind: 'app' | 'pages' = this.appPathRoutes?.[page]
+            ? 'app'
+            : 'pages'
+
+          // Handle app dir's /not-found feature: for 404 pages, they should be
+          // routed to the app renderer.
+          if (!matched && this.appPathRoutes) {
+            if (
+              this.appPathRoutes[
+                this.renderOpts.dev ? '/not-found' : '/_not-found'
+              ]
+            ) {
+              renderKind = 'app'
+            }
+          }
 
           if (this.renderWorkersPromises) {
             await this.renderWorkersPromises

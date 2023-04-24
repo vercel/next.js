@@ -86,13 +86,13 @@
     "@types/jest": "24.0.13",
     "@types/node": "14.14.31",
     "@types/node-fetch": "2.6.1",
-    "@types/react": "16.9.17",
-    "@types/react-dom": "16.9.4",
+    "@types/react": "18.0.37",
+    "@types/react-dom": "18.0.11",
     "@types/relay-runtime": "13.0.0",
     "@types/selenium-webdriver": "4.0.15",
     "@types/sharp": "0.29.3",
     "@types/string-hash": "1.1.1",
-    "@types/trusted-types": "2.0.2",
+    "@types/trusted-types": "2.0.3",
     "@typescript-eslint/eslint-plugin": "4.29.1",
     "@typescript-eslint/parser": "4.29.1",
     "@vercel/fetch": "6.1.1",
@@ -240,7 +240,9 @@
     "@babel/core": "7.18.0",
     "@babel/parser": "7.18.0",
     "@babel/types": "7.18.0",
-    "@babel/traverse": "7.18.0"
+    "@babel/traverse": "7.18.0",
+    "@types/react": "18.0.37",
+    "@types/react-dom": "18.0.11"
   },
   "engines": {
     "node": ">=14.18.0"

@@ -4,11 +4,15 @@ use turbo_binding::{
     turbopack::{
         core::{
             compile_time_defines,
-            compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+            compile_time_info::{
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReferencesVc,
+            },
             environment::{
                 EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
                 ServerAddrVc,
             },
+            free_var_references,
         },
         ecmascript::EcmascriptInputTransform,
         node::execution_context::ExecutionContextVc,
@@ -168,14 +172,25 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-pub fn next_server_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "nodejs"
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
+}
+
+#[turbo_tasks::function]
+pub fn next_server_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn next_server_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
 #[turbo_tasks::function]
@@ -199,6 +214,7 @@ pub fn get_server_compile_time_info(
         },
     ))
     .defines(next_server_defines())
+    .free_var_references(next_server_free_vars())
     .cell()
 }
 

@@ -48,5 +48,5 @@ If you want to report a bug on GitHub, you should upgrade to the newest canary r
 - [Video: How to Contribute to Open Source (Next.js)](https://www.youtube.com/watch?v=cuoNzXFLitc)
 - [Contributing to Next.js](https://github.com/vercel/next.js/blob/canary/contributing.md)
 - [Triaging issues](https://github.com/vercel/next.js/blob/canary/contributing/repository/triaging.md)
-- [Verifiying canary](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/canary.md)
+- [Verifying canary](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/canary.md)
 - [Adding a reproduction](https://github.com/vercel/next.js/blob/canary/.github/actions/issue-validator/repro.md)

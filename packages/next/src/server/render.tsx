@@ -263,7 +263,7 @@ export type RenderOptsPartial = {
   runtime?: ServerRuntime
   serverComponents?: boolean
   customServer?: boolean
-  crossOrigin?: string
+  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
@@ -807,7 +807,7 @@ export async function renderToHTML(
               ? { params: query as ParsedUrlQuery }
               : undefined),
             ...(isPreview
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
@@ -1023,7 +1023,7 @@ export async function renderToHTML(
               ? { params: params as ParsedUrlQuery }
               : undefined),
             ...(previewData !== false
-              ? { preview: true, previewData: previewData }
+              ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
             locales: renderOpts.locales,
             locale: renderOpts.locale,
