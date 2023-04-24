@@ -1791,7 +1791,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest,
-  instrumentationHook: boolean
+  hasInstrumentationHook: boolean
 ) {
   const outputPath = path.join(distDir, 'standalone')
   let moduleType = false
@@ -1911,7 +1911,7 @@ export async function copyTracedFiles(
     }
   }
 
-  if (instrumentationHook) {
+  if (hasInstrumentationHook) {
     await handleTraceFiles(
       path.join(distDir, 'server', 'instrumentation.js.nft.json')
     )

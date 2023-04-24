@@ -2107,7 +2107,7 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest,
-              Boolean(config.experimental.instrumentationHook)
+              hasInstrumentationHook
             )
           })
       }
