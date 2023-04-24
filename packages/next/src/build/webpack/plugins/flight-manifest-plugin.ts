@@ -300,32 +300,33 @@ export class ClientReferenceManifestPlugin {
           }
         }
 
+        const unifiedNamedModuleId = ssrNamedModuleId.replace(
+          /\/next\/dist\/esm\//,
+          '/next/dist/'
+        )
+
         function addSSRIdMapping(name: string) {
           const exportName = getClientReferenceModuleKey(resource, name)
-          console.log('addSSRIdMapping', {
-            name,
-            exportName,
-            ssrNamedModuleId,
-            modThing: pluginState.serverModuleIds[ssrNamedModuleId],
-          })
+
           if (
-            typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
+            typeof pluginState.serverModuleIds[unifiedNamedModuleId] !==
+            'undefined'
           ) {
             moduleIdMapping[id] = moduleIdMapping[id] || {}
             moduleIdMapping[id][name] = {
               ...manifest.clientModules[exportName],
-              id: pluginState.serverModuleIds[ssrNamedModuleId],
+              id: pluginState.serverModuleIds[unifiedNamedModuleId],
             }
           }
 
           if (
-            typeof pluginState.edgeServerModuleIds[ssrNamedModuleId] !==
+            typeof pluginState.edgeServerModuleIds[unifiedNamedModuleId] !==
             'undefined'
           ) {
             edgeModuleIdMapping[id] = edgeModuleIdMapping[id] || {}
             edgeModuleIdMapping[id][name] = {
               ...manifest.clientModules[exportName],
-              id: pluginState.edgeServerModuleIds[ssrNamedModuleId],
+              id: pluginState.edgeServerModuleIds[unifiedNamedModuleId],
             }
           }
         }

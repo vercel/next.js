@@ -114,7 +114,7 @@ export class ClientReferenceEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        console.log({ modResource, modLayer: mod.layer, modId })
+        // console.log({ modResource, modLayer: mod.layer, modId })
         if (mod.layer !== WEBPACK_LAYERS.client) {
           return
         }
@@ -131,12 +131,14 @@ export class ClientReferenceEntryPlugin {
             ssrNamedModuleId = `./${normalizePathSep(ssrNamedModuleId)}`
           }
 
+          const unifiedNamedModuleId = ssrNamedModuleId.replace(
+            /\/next\/dist\/esm\//,
+            '/next/dist/'
+          )
           if (this.isEdgeServer) {
-            pluginState.edgeServerModuleIds[
-              ssrNamedModuleId.replace(/\/next\/dist\/esm\//, '/next/dist/')
-            ] = modId
+            pluginState.edgeServerModuleIds[unifiedNamedModuleId] = modId
           } else {
-            pluginState.serverModuleIds[ssrNamedModuleId] = modId
+            pluginState.serverModuleIds[unifiedNamedModuleId] = modId
           }
         }
       }
