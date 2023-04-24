@@ -412,11 +412,11 @@ export interface NextConfig extends Record<string, any> {
   compress?: boolean
 
   /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
-   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
+   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
    */
   analyticsId?: string
 
