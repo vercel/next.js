@@ -56,7 +56,7 @@ export function normalizeMetadataRoute(page: string) {
         page.startsWith('/manifest') ||
         isStaticMetadataFile
 
-      route = path.join(
+      route = path.posix.join(
         dir,
         `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
         isSingleRoute ? '' : '[[...__metadata_id__]]',
