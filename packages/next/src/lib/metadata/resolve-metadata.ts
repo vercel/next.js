@@ -8,7 +8,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
-import { resolveArray, resolveAsArrayOrUndefined } from './generate/utils'
+import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../client-reference'
 import {
   getLayoutOrPageModule,
