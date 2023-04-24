@@ -6,7 +6,6 @@ import {
   ImageConfigComplete,
   imageConfigDefault,
 } from '../shared/lib/image-config'
-import { ServerRuntime } from 'next/types'
 import { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
@@ -195,7 +194,6 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   isrMemoryCacheSize?: number
-  runtime?: Exclude<ServerRuntime, undefined>
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -414,11 +412,11 @@ export interface NextConfig extends Record<string, any> {
   compress?: boolean
 
   /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Analytics.
-   * Vercel provides zero-configuration analytics for Next.js projects hosted on Vercel.
+   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
+   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Analytics](https://nextjs.org/analytics)
+   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
    */
   analyticsId?: string
 
@@ -662,7 +660,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    runtime: undefined,
     manualClientBasePath: false,
     legacyBrowsers: false,
     newNextLinkBehavior: true,

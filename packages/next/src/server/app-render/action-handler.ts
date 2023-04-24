@@ -38,10 +38,24 @@ export async function handleAction({
     let bound = []
 
     const workerName = 'app' + pathname
-    const { decodeReply } = ComponentMod
+    const serverModuleMap = new Proxy(
+      {},
+      {
+        get: (_, id: string) => {
+          return {
+            id: serverActionsManifest.node[id].workers[workerName],
+            name: id,
+            chunks: [],
+          }
+        },
+      }
+    )
 
     try {
       if (process.env.NEXT_RUNTIME === 'edge') {
+        // Use react-server-dom-webpack/server.edge
+        const { decodeReply } = ComponentMod
+
         const webRequest = req as unknown as Request
         if (!webRequest.body) {
           throw new Error('invariant: Missing request body.')
@@ -72,44 +86,22 @@ export async function handleAction({
             formData.delete('$$id')
             bound = [formData]
           } else {
-            bound = await decodeReply(actionData)
+            bound = await decodeReply(actionData, serverModuleMap)
           }
         }
       } else {
-        if (isMultipartAction) {
-          const formFields: any[] = []
+        // Use react-server-dom-webpack/server.node which supports streaming
+        const {
+          decodeReply,
+          decodeReplyFromBusboy,
+        } = require('next/dist/compiled/react-server-dom-webpack/server.node')
 
+        if (isMultipartAction) {
           const busboy = require('busboy')
           const bb = busboy({ headers: req.headers })
-          let innerResolvor: () => void, innerRejector: (e: any) => void
-          const promise = new Promise<void>((resolve, reject) => {
-            innerResolvor = resolve
-            innerRejector = reject
-          })
-          bb.on('file', () =>
-            innerRejector(new Error('File upload is not supported.'))
-          )
-          bb.on('error', (err: any) => innerRejector(err))
-          bb.on('field', (id: any, val: any) => (formFields[+id] = val))
-          bb.on('finish', () => innerResolvor())
           req.pipe(bb)
-          await promise
 
-          bound = await decodeReply(
-            formFields,
-            new Proxy(
-              {},
-              {
-                get: (_, id: string) => {
-                  return {
-                    id: serverActionsManifest.node[id].workers[workerName],
-                    name: id,
-                    chunks: [],
-                  }
-                },
-              }
-            )
-          )
+          bound = await decodeReplyFromBusboy(bb, serverModuleMap)
         } else {
           const { parseBody } =
             require('../api-utils/node') as typeof import('../api-utils/node')
@@ -124,7 +116,7 @@ export async function handleAction({
             formData.delete('$$id')
             bound = [formData]
           } else {
-            bound = await decodeReply(actionData)
+            bound = await decodeReply(actionData, serverModuleMap)
           }
         }
       }

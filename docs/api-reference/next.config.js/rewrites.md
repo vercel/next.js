@@ -89,7 +89,7 @@ module.exports = {
 }
 ```
 
-Note: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
+> **Note**: rewrites in `beforeFiles` do not check the filesystem/dynamic routes immediately after matching a source, they continue until all `beforeFiles` have been checked.
 
 The order Next.js routes are checked is:
 
@@ -150,7 +150,7 @@ module.exports = {
 }
 ```
 
-Note: for static pages from the [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or [prerendering](/docs/basic-features/data-fetching/get-static-props.md) params from rewrites will be parsed on the client after hydration and provided in the query.
+> **Note**: Static pages from [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) or [prerendering](/docs/basic-features/data-fetching/get-static-props.md) params from rewrites will be parsed on the client after hydration and provided in the query.
 
 ## Path Matching
 

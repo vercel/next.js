@@ -19,7 +19,7 @@ This documentation uses terms like _Span_, _Trace_ or _Exporter_ throughout this
 Next.js supports OpenTelemetry instrumentation out of the box, which means that we already instrumented Next.js itself.
 When you enable OpenTelemetry we will automatically wrap all your code like `getStaticProps` in _spans_ with helpful attributes.
 
-> **Note:** We currently support OpenTelemetry bindings only in serverless functions.
+> **Note**: We currently support OpenTelemetry bindings only in serverless functions.
 > We don't provide any for `edge` or client side code.
 
 ## Getting Started
@@ -57,7 +57,6 @@ Firstly you need to install OpenTelemetry packages:
 
 ```bash
 npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-base @opentelemetry/exporter-trace-otlp-http
-`
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.

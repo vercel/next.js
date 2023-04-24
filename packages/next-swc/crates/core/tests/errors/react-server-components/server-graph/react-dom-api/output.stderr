@@ -1,24 +1,18 @@
 
   x NEXT_RSC_ERR_REACT_API: findDOMNode
    ,-[input.js:1:1]
- 1 | import {
- 2 | 	findDOMNode,
-   :  ^^^^^^^^^^^
- 3 |   flushSync,
+ 1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
+   :          ^^^^^^^^^^^
    `----
 
   x NEXT_RSC_ERR_REACT_API: flushSync
-   ,-[input.js:2:1]
- 2 | 	findDOMNode,
- 3 |   flushSync,
-   :   ^^^^^^^^^
- 4 |   unstable_batchedUpdates,
+   ,-[input.js:1:1]
+ 1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
+   :                       ^^^^^^^^^
    `----
 
   x NEXT_RSC_ERR_REACT_API: unstable_batchedUpdates
-   ,-[input.js:3:1]
- 3 |   flushSync,
- 4 |   unstable_batchedUpdates,
-   :   ^^^^^^^^^^^^^^^^^^^^^^^
- 5 | } from "react-dom"
+   ,-[input.js:1:1]
+ 1 | import { findDOMNode, flushSync, unstable_batchedUpdates } from 'react-dom'
+   :                                  ^^^^^^^^^^^^^^^^^^^^^^^
    `----

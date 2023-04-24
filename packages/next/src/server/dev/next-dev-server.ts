@@ -552,7 +552,10 @@ export default class DevServer extends Server {
           }
 
           if (isAppPath) {
-            if (!validFileMatcher.isAppRouterPage(fileName)) {
+            if (
+              !validFileMatcher.isAppRouterPage(fileName) &&
+              !validFileMatcher.isRootNotFound(fileName)
+            ) {
               continue
             }
             // Ignore files/directories starting with `_` in the app directory

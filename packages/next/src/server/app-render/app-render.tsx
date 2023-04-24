@@ -379,12 +379,15 @@ export async function renderToHTMLOrFlight(
         ? cssHrefs.map((href, index) => (
             <link
               rel="stylesheet"
-              // In dev, Safari will wrongly cache the resource if you preload it:
+              // In dev, Safari and Firefox will cache the resource during HMR:
               // - https://github.com/vercel/next.js/issues/5860
               // - https://bugs.webkit.org/show_bug.cgi?id=187726
-              // We used to add a `?ts=` query for resources in `pages` to bypass it,
-              // but in this case it is fine as we don't need to preload the styles.
-              href={`${assetPrefix}/_next/${href}`}
+              // Because of this, we add a `?v=` query to bypass the cache during
+              // development. We need to also make sure that the number is always
+              // increasing.
+              href={`${assetPrefix}/_next/${href}${
+                process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+              }`}
               // @ts-ignore
               precedence={shouldPreload ? 'high' : undefined}
               key={index}
@@ -469,12 +472,15 @@ export async function renderToHTMLOrFlight(
         ? stylesheets.map((href, index) => (
             <link
               rel="stylesheet"
-              // In dev, Safari will wrongly cache the resource if you preload it:
+              // In dev, Safari and Firefox will cache the resource during HMR:
               // - https://github.com/vercel/next.js/issues/5860
               // - https://bugs.webkit.org/show_bug.cgi?id=187726
-              // We used to add a `?ts=` query for resources in `pages` to bypass it,
-              // but in this case it is fine as we don't need to preload the styles.
-              href={`${assetPrefix}/_next/${href}`}
+              // Because of this, we add a `?v=` query to bypass the cache during
+              // development. We need to also make sure that the number is always
+              // increasing.
+              href={`${assetPrefix}/_next/${href}${
+                process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+              }`}
               // `Precedence` is an opt-in signal for React to handle
               // resource loading and deduplication, etc:
               // https://github.com/facebook/react/pull/25060
@@ -705,15 +711,6 @@ export async function renderToHTMLOrFlight(
         if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
           throw new Error(
             `The default export of notFound is not a React Component in ${segment}`
-          )
-        }
-
-        if (
-          !isClientReference(layoutOrPageMod) &&
-          layoutOrPageMod?.config?.amp
-        ) {
-          throw new Error(
-            'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
         }
       }

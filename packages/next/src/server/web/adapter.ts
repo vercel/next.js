@@ -56,6 +56,7 @@ export type AdapterOptions = {
   handler: NextMiddleware
   page: string
   request: RequestData
+  IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
 }
 
 async function registerInstrumentation() {
@@ -164,6 +165,34 @@ export async function adapter(
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
+    })
+  }
+
+  if (
+    !(globalThis as any).__incrementalCache &&
+    (params as any).IncrementalCache
+  ) {
+    ;(globalThis as any).__incrementalCache = new (
+      params as any
+    ).IncrementalCache({
+      appDir: true,
+      fetchCache: true,
+      minimalMode: true,
+      fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
+      dev: process.env.NODE_ENV === 'development',
+      requestHeaders: params.request.headers as any,
+      requestProtocol: 'https',
+      getPrerenderManifest: () => {
+        return {
+          version: -1 as any, // letting us know this doesn't conform to spec
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: {
+            previewModeId: 'development-id',
+          } as any, // `preview` is special case read in next-dev-server
+        }
+      },
     })
   }
 

@@ -41,7 +41,7 @@ When deploying to Vercel, the platform [automatically detects Next.js](https://v
 
 In addition, Vercel provides features like:
 
-- Automatic performance monitoring with [Next.js Analytics](https://vercel.com/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- Automatic performance monitoring with [Next.js Speed Insights](https://vercel.com/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - Automatic HTTPS and SSL certificates
 - Automatic CI/CD (through GitHub, GitLab, Bitbucket, etc.)
 - Support for [Environment Variables](https://vercel.com/docs/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
@@ -103,7 +103,7 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 - [Railway](https://docs.railway.app/getting-started)
 - [Render](https://render.com/docs/deploy-nextjs-app)
 
-> **Note:** There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](/docs/deployment.md#docker-image).
+> **Note**: There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](/docs/deployment.md#docker-image).
 
 ### Static Only
 
@@ -123,7 +123,7 @@ You can also manually deploy the output from [`output: 'export'`](/docs/advanced
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 - [SST](https://docs.sst.dev/start/nextjs)
 
-> **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
+> **Note**: Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 
 ## Automatic Updates
 
@@ -131,7 +131,7 @@ When you deploy your Next.js application, you want to see the latest version wit
 
 Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
 
-**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
+**Note**: If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
 
 ## Manual Graceful shutdowns
 

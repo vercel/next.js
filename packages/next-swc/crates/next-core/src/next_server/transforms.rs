@@ -6,7 +6,7 @@ use crate::{
     next_config::NextConfigVc,
     next_server::context::ServerContextType,
     next_shared::transforms::{
-        get_next_dynamic_transform_rule, get_next_font_transform_rule,
+        get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
         get_next_modularize_imports_rule, get_next_pages_transforms_rule,
     },
 };
@@ -40,6 +40,8 @@ pub async fn get_next_server_transforms_rules(
     };
 
     rules.push(get_next_dynamic_transform_rule(true, true, is_server_components, pages_dir).await?);
+
+    rules.push(get_next_image_rule());
 
     Ok(rules)
 }
