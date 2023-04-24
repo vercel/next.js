@@ -9,6 +9,15 @@ import {
 import RenderResult from '../render-result'
 import { ActionRenderResult } from './action-render-result'
 
+function formDataFromSearchQueryString(query: string) {
+  const searchParams = new URLSearchParams(query)
+  const formData = new FormData()
+  for (const [key, value] of searchParams) {
+    formData.append(key, value)
+  }
+  return formData
+}
+
 export async function handleAction({
   req,
   res,
@@ -77,7 +86,7 @@ export async function handleAction({
           }
 
           if (isFormAction) {
-            const formData = new URLSearchParams(actionData)
+            const formData = formDataFromSearchQueryString(actionData)
             actionId = formData.get('$$id') as string
 
             if (!actionId) {
@@ -112,7 +121,7 @@ export async function handleAction({
             if (!actionId) {
               throw new Error('Invariant: missing action ID.')
             }
-            const formData = new URLSearchParams(actionData)
+            const formData = formDataFromSearchQueryString(actionData)
             formData.delete('$$id')
             bound = [formData]
           } else {

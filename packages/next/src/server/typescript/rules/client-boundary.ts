@@ -40,6 +40,7 @@ const clientBoundary = {
     const diagnostics: ts.Diagnostic[] = []
 
     const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
+    const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
 
     const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
@@ -57,7 +58,7 @@ const clientBoundary = {
             // There's a special case for the error file that the `reset` prop is allowed
             // to be a function:
             // https://github.com/vercel/next.js/issues/46573
-            if (!isErrorFile || propName !== 'reset') {
+            if (!(isErrorFile || isGlobalErrorFile) || propName !== 'reset') {
               diagnostics.push({
                 file: source,
                 category: ts.DiagnosticCategory.Warning,
