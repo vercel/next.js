@@ -113,7 +113,7 @@
         "examples/**/*",
         "packages/create-next-app/templates/**/*"
       ],
-      "rules": { "react/react-in-jsx-scope": "off" }
+      "rules": { "react/react-in-jsx-scope": "off", "react/jsx-curly-brace-presence": "error" }
     },
     {
       "files": ["examples/**/*"],
