@@ -2,7 +2,7 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 
-describe('vercel analytics', () => {
+describe('vercel speed insights', () => {
   const isDev = (global as any).isNextDev
 
   if ((global as any).isNextDeploy) {
