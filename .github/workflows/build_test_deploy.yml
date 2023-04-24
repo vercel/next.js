@@ -959,9 +959,6 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   publishRelease:
-    permissions:
-      contents: write
-      id-token: write
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
@@ -969,6 +966,9 @@ jobs:
       - build
       - build-wasm
       - build-native
+    permissions:
+      contents: write
+      id-token: write
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
