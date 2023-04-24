@@ -342,9 +342,12 @@ export async function getPageStaticInfo(params: {
     }
     if (pageType === 'app') {
       if (config) {
-        Log.warnOnce(
-          `\`export const config\` in ${pageFilePath} is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
-        )
+        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        if (isDev) {
+          Log.warnOnce(message)
+        } else {
+          throw new Error(message)
+        }
         config = {}
       }
     }
