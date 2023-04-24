@@ -1,5 +1,6 @@
 import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-form'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
@@ -340,8 +341,7 @@ export default class NextNodeServer extends BaseServer {
           'server',
           INSTRUMENTATION_HOOK_FILENAME
         ))
-
-        instrumentationHook.register?.()
+        await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
           err.message = `An error occurred while loading instrumentation hook: ${err.message}`
