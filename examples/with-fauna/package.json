@@ -23,6 +23,6 @@
     "postcss": "8.3.6",
     "prettier": "2.3.2",
     "stream-to-promise": "3.0.0",
-    "tailwindcss": "2.2.7"
+    "tailwindcss": "3.1.5"
   }
 }
