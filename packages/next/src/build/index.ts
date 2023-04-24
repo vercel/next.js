@@ -2947,7 +2947,7 @@ export default async function build(
 
       if (config.analyticsId) {
         console.log(
-          chalk.bold.green('Next.js Analytics') +
+          chalk.bold.green('Next.js Speed Insights') +
             ' is enabled for this production build. ' +
             "You'll receive a Real Experience Score computed by all of your visitors."
         )
