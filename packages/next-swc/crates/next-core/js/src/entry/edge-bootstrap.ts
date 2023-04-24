@@ -1,5 +1,5 @@
 import { adapter, enhanceGlobals } from 'next/dist/server/web/adapter'
-import { NAME, PAGE } from "BOOTSTRAP_CONFIG";
+import { NAME, PAGE } from 'BOOTSTRAP_CONFIG'
 
 enhanceGlobals()
 

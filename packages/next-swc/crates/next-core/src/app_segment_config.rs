@@ -189,7 +189,7 @@ fn parse_config_value(
     module_asset: AssetVc,
     config: &mut NextSegmentConfig,
     ident: &Ident,
-    init: &Box<Expr>,
+    init: &Expr,
     eval_context: &EvalContext,
 ) {
     let span = init.span();

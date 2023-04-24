@@ -128,7 +128,7 @@ pub async fn bootstrap(
 
     let asset = EcmascriptModuleAssetVc::new_with_inner_assets(
         bootstrap_asset,
-        context.into(),
+        context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
             use_define_for_class_fields: false,
