@@ -40,7 +40,7 @@ export default async function transformSource(
   // noop exports of `callServer` wrappers for each action.
   if (buildInfo.rsc?.actions) {
     source = `
-import { callServer } from 'next/dist/client/app-call-server'
+import { callServer } from 'next/dist/esm/client/app-call-server'
 
 function __build_action__(action, args) {
   return callServer(action.$$id, args)

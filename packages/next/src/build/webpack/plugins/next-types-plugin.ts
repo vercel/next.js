@@ -413,7 +413,7 @@ declare module 'next' {
 }
 
 declare module 'next/link' {
-  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+  import type { LinkProps as OriginalLinkProps } from 'next/dist/esm/client/link'
   import type { AnchorHTMLAttributes } from 'react'
   import type { UrlObject } from 'url'
   
@@ -435,7 +435,7 @@ declare module 'next/link' {
 }
 
 declare module 'next/navigation' {
-  export * from 'next/dist/client/components/navigation'
+  export * from 'next/dist/esm/client/components/navigation'
 
   import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context'
   interface AppRouterInstance extends OriginalAppRouterInstance {

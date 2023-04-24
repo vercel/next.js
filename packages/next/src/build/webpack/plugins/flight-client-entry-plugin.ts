@@ -114,6 +114,7 @@ export class ClientReferenceEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
+        console.log({ modResource, modLayer: mod.layer, modId })
         if (mod.layer !== WEBPACK_LAYERS.client) {
           return
         }
@@ -611,30 +612,24 @@ export class ClientReferenceEntryPlugin {
   }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
     let shouldInvalidate = false
 
-    const loaderOptions: NextFlightClientEntryLoaderOptions = {
-      modules: clientImports,
-      server: false,
-    }
-
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
-      modules: this.isEdgeServer
-        ? clientImports.map((importPath) =>
-            importPath.replace(
-              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-              '/next/dist/'.replace(/\//g, path.sep)
-            )
-          )
-        : clientImports,
+      modules: clientImports,
       server: false,
-    })}!`
+      entryName,
+    } as NextFlightClientEntryLoaderOptions)}!`
 
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-      ...loaderOptions,
+      modules: clientImports.map((importPath) =>
+        importPath.replace(
+          /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+          '/next/dist/'.replace(/\//g, path.sep)
+        )
+      ),
       server: true,
-    })}!`
+    } as NextFlightClientEntryLoaderOptions)}!`
 
     // Add for the client compilation
     // Inject the entry to the client compiler.

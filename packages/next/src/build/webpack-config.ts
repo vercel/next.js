@@ -71,6 +71,7 @@ const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   NEXT_PROJECT_ROOT_DIST,
+  'esm',
   'client'
 )
 
@@ -993,7 +994,7 @@ export default async function getBaseWebpackConfig(
     alias: {
       // Alias next/dist imports to next/dist/esm assets,
       // let this alias hit before `next` alias.
-      ...(isEdgeServer
+      ...(isEdgeServer || isClient
         ? {
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
@@ -1018,9 +1019,9 @@ export default async function getBaseWebpackConfig(
             [require.resolve('next/dist/pages/_app')]:
               'next/dist/esm/pages/_app',
             [require.resolve('next/dist/client/components/navigation')]:
-              'next/dist/client/components/navigation',
+              'next/dist/esm/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
-              'next/dist/client/components/headers',
+              'next/dist/esm/client/components/headers',
           }
         : undefined),
 
@@ -1778,11 +1779,11 @@ export default async function getBaseWebpackConfig(
                   alias: {
                     // Alias next/head component to noop for RSC
                     [require.resolve('next/head')]: require.resolve(
-                      'next/dist/client/components/noop-head'
+                      'next/dist/esm/client/components/noop-head'
                     ),
                     // Alias next/dynamic
                     [require.resolve('next/dynamic')]: require.resolve(
-                      'next/dist/shared/lib/app-dynamic'
+                      'next/dist/esm/shared/lib/app-dynamic'
                     ),
                     'react/jsx-runtime$':
                       'next/dist/compiled/react/jsx-runtime',

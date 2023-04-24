@@ -4,7 +4,9 @@ import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
-const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
+const noopHeadPath = require.resolve(
+  'next/dist/esm/client/components/noop-head'
+)
 
 export default async function transformSource(
   this: any,

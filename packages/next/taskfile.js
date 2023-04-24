@@ -12,15 +12,31 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
+export async function next__polyfill_nomodule_esm(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@next/polyfill-nomodule')))
+    .target('dist/esm/build/polyfills')
+}
+
 export async function next__polyfill_module(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('@next/polyfill-module')))
     .target('dist/build/polyfills')
 }
+export async function next__polyfill_module_esm(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@next/polyfill-module')))
+    .target('dist/esm/build/polyfills')
+}
 
 export async function browser_polyfills(task, opts) {
   await task.parallel(
-    ['next__polyfill_nomodule', 'next__polyfill_module'],
+    [
+      'next__polyfill_nomodule',
+      'next__polyfill_nomodule_esm',
+      'next__polyfill_module',
+      'next__polyfill_module_esm',
+    ],
     opts
   )
 }

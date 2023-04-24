@@ -3,7 +3,7 @@ module.exports =
   (nextConfig = {}) => {
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
-        if (enabled) {
+        if (enabled && !options.isServer) {
           const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
           config.plugins.push(
             new BundleAnalyzerPlugin({
@@ -14,6 +14,7 @@ module.exports =
                 : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
                     options.nextRuntime
                   }.html`,
+              generateStatsFile: true,
             })
           )
         }

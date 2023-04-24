@@ -302,6 +302,12 @@ export class ClientReferenceManifestPlugin {
 
         function addSSRIdMapping(name: string) {
           const exportName = getClientReferenceModuleKey(resource, name)
+          console.log('addSSRIdMapping', {
+            name,
+            exportName,
+            ssrNamedModuleId,
+            modThing: pluginState.serverModuleIds[ssrNamedModuleId],
+          })
           if (
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
