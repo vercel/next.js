@@ -17,7 +17,7 @@ export function getCssInlinedLinkTags(
 ): string[] {
   const layoutOrPageCssModules = serverCSSManifest.cssImports[filePath]
 
-  const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
+  const filePathWithoutExt = filePath.replace(/(\.[^.\/]+)+$/, '')
   const cssFilesForEntry = new Set(
     clientReferenceManifest.cssFiles?.[filePathWithoutExt] || []
   )
