@@ -13,12 +13,16 @@
 'random-directive'
 
 import 'fs'
-;('qwerty')
+
+// prettier-ignore
+'qwerty'
 
 // This is a comment.
 
 1 + 1
-;('sasaya')
+
+// prettier-ignore
+'sasaya'
 
 export default function () {
   return null

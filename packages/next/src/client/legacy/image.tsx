@@ -976,7 +976,6 @@ export default function Image({
     React.LinkHTMLAttributes<HTMLLinkElement>,
     HTMLLinkElement
   > = {
-    // @ts-expect-error upgrade react types to react 18
     imageSrcSet: imgAttributes.srcSet,
     imageSizes: imgAttributes.sizes,
     crossOrigin: rest.crossOrigin,

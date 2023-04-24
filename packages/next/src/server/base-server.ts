@@ -236,7 +236,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     distDir: string
     runtime?: ServerRuntime
     serverComponents?: boolean
-    crossOrigin?: string
+    crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
     supportsDynamicHTML?: boolean
     isBot?: boolean
     clientReferenceManifest?: ClientReferenceManifest

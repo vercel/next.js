@@ -17,9 +17,7 @@ use turbo_binding::{
     },
 };
 
-use self::source::StructuredImageSourceAsset;
-
-pub(crate) mod source;
+use super::source_asset::StructuredImageSourceAsset;
 
 /// Module type that analyzes images and offers some meta information like
 /// width, height and blur placeholder as export from the module.
