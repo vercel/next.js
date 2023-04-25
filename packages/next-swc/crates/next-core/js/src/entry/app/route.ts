@@ -14,7 +14,7 @@ import { sendResponse } from 'next/dist/server/send-response'
 import { NextRequestAdapter } from 'next/dist/server/web/spec-extension/adapters/next-request'
 import { RouteHandlerManagerContext } from 'next/dist/server/future/route-handler-managers/route-handler-manager'
 
-import { attachRequestMeta } from "../../internal/next-request-helpers";
+import { attachRequestMeta } from '../../internal/next-request-helpers'
 
 import RouteModule from 'ROUTE_MODULE'
 import * as userland from 'ENTRY'

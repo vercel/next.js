@@ -13,7 +13,7 @@ import {
   NodeNextResponse,
 } from 'next/dist/server/base-http/node'
 
-import { attachRequestMeta } from "../internal/next-request-helpers";
+import { attachRequestMeta } from '../internal/next-request-helpers'
 
 import * as allExports from 'INNER'
 

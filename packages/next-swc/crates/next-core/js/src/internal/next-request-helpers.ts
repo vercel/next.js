@@ -10,7 +10,7 @@ import { getCloneableBody } from 'next/dist/server/body-streams'
 export function attachRequestMeta(
   req: BaseNextRequest,
   parsedUrl: NextUrlWithParsedQuery,
-  host: string,
+  host: string
 ) {
   const protocol = (
     (req as NodeNextRequest).originalRequest?.socket as TLSSocket

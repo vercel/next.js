@@ -22,4 +22,4 @@ export const PUT = helloHandler
 export const DELETE = helloHandler
 export const PATCH = helloHandler
 
-export const runtime = "experimental-edge";
+export const runtime = 'experimental-edge'
