@@ -10,6 +10,12 @@ const hookPropertyMap = new Map()
 
 let aliasedPrebundledReact = false
 
+export function getPrecompiledReactChannelSuffix() {
+  return process.env.__NEXT_PRIVATE_PREBUNDLED_REACT === 'experimental'
+    ? '-experimental'
+    : ''
+}
+
 export function addHookAliases(aliases: [string, string][] = []) {
   for (const [key, value] of aliases) {
     hookPropertyMap.set(key, value)
@@ -30,32 +36,50 @@ addHookAliases([
 // Override built-in React packages if necessary
 function overrideReact() {
   if (process.env.__NEXT_PRIVATE_PREBUNDLED_REACT) {
+    const channel = getPrecompiledReactChannelSuffix()
+
     aliasedPrebundledReact = true
     addHookAliases([
-      ['react', require.resolve(`next/dist/compiled/react`)],
+      ['react', require.resolve(`next/dist/compiled/react${channel}`)],
       [
         'react/jsx-runtime',
-        require.resolve(`next/dist/compiled/react/jsx-runtime`),
+        require.resolve(`next/dist/compiled/react${channel}/jsx-runtime`),
       ],
       [
         'react/jsx-dev-runtime',
-        require.resolve(`next/dist/compiled/react/jsx-dev-runtime`),
+        require.resolve(`next/dist/compiled/react${channel}/jsx-dev-runtime`),
       ],
       [
         'react-dom',
-        require.resolve(`next/dist/compiled/react-dom/server-rendering-stub`),
+        require.resolve(
+          `next/dist/compiled/react-dom${channel}/server-rendering-stub`
+        ),
       ],
       [
         'react-dom/client',
-        require.resolve(`next/dist/compiled/react-dom/client`),
+        require.resolve(`next/dist/compiled/react-dom${channel}/client`),
       ],
       [
         'react-dom/server',
-        require.resolve(`next/dist/compiled/react-dom/server`),
+        require.resolve(`next/dist/compiled/react-dom${channel}/server`),
       ],
       [
         'react-dom/server.browser',
-        require.resolve(`next/dist/compiled/react-dom/server.browser`),
+        require.resolve(
+          `next/dist/compiled/react-dom${channel}/server.browser`
+        ),
+      ],
+      [
+        'react-server-dom-webpack/client',
+        require.resolve(
+          `next/dist/compiled/react-server-dom-webpack${channel}/client`
+        ),
+      ],
+      [
+        'react-server-dom-webpack/server.edge',
+        require.resolve(
+          `next/dist/compiled/react-server-dom-webpack${channel}/server.edge`
+        ),
       ],
     ])
   } else {

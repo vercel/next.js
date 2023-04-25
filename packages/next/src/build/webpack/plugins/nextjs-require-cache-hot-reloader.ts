@@ -3,6 +3,7 @@ import { clearModuleContext } from '../../../server/web/sandbox'
 import { realpathSync } from '../../../lib/realpath'
 import path from 'path'
 import isError from '../../../lib/is-error'
+import { getPrecompiledReactChannelSuffix } from '../../../server/require-hook'
 
 type Compiler = webpack.Compiler
 type WebpackPluginInstance = webpack.WebpackPluginInstance
@@ -12,6 +13,9 @@ const originModules = [
   require.resolve('../../../server/load-components'),
   require.resolve('../../../server/next-server'),
   require.resolve('../../../compiled/react-server-dom-webpack/client.edge'),
+  require.resolve(
+    '../../../compiled/react-server-dom-webpack-experimental/client.edge'
+  ),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
@@ -23,7 +27,7 @@ export function deleteAppClientCache() {
   // ensure we reset the cache for sc_server components
   // loaded via react-server-dom-webpack
   const reactServerDomModId = require.resolve(
-    'next/dist/compiled/react-server-dom-webpack/client.edge'
+    `next/dist/compiled/react-server-dom-webpack${getPrecompiledReactChannelSuffix()}/client.edge`
   )
   const reactServerDomMod = require.cache[reactServerDomModId]
 

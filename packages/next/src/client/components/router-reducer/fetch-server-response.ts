@@ -1,6 +1,7 @@
 'use client'
 
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
+// @ts-ignore
+import { createFromFetch } from 'react-server-dom-webpack/client'
 import type {
   FlightRouterState,
   FlightData,

@@ -12,10 +12,10 @@ import type {
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import type { StaticGenerationBailout } from '../../client/components/static-generation-bailout'
 import type { RequestAsyncStorage } from '../../client/components/request-async-storage'
-// Import builtin react directly to avoid require cache conflicts
-import React from 'next/dist/compiled/react'
-import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
+
+import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
+import { createServerComponentRenderer } from './create-server-components-renderer'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -57,7 +57,6 @@ import { interopDefault } from './interop-default'
 import { preloadComponent } from './preload-component'
 import { FlightRenderResult } from './flight-render-result'
 import { createErrorHandler } from './create-error-handler'
-import { createServerComponentRenderer } from './create-server-components-renderer'
 import { getShortDynamicParamType } from './get-short-dynamic-param-type'
 import { getSegmentParam } from './get-segment-param'
 import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
@@ -1431,7 +1430,6 @@ export async function renderToHTMLOrFlight(
 
         try {
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
             element: content,
             streamOptions: {
               onError: htmlRendererErrorHandler,
@@ -1485,7 +1483,6 @@ export async function renderToHTMLOrFlight(
           }
 
           const renderStream = await renderToInitialStream({
-            ReactDOMServer,
             element: (
               <html id="__next_error__">
                 <head>

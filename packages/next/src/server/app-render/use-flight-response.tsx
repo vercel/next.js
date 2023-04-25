@@ -7,6 +7,7 @@ import {
 import { htmlEscapeJsonString } from '../htmlescape'
 import { isEdgeRuntime } from './app-render'
 import { FlightResponseRef } from './flight-response-ref'
+import { getPrecompiledReactChannelSuffix } from '../require-hook'
 
 /**
  * Render Flight stream.
@@ -25,7 +26,7 @@ export function useFlightResponse(
   }
   const {
     createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack/client.edge')
+  } = require(`next/dist/compiled/react-server-dom-webpack${getPrecompiledReactChannelSuffix()}/client.edge`)
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {

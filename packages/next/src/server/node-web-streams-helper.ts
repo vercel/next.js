@@ -162,14 +162,14 @@ export function createInsertedHTMLStream(
 }
 
 export function renderToInitialStream({
-  ReactDOMServer,
   element,
   streamOptions,
 }: {
-  ReactDOMServer: any
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {
+  const ReactDOMServer =
+    require('react-dom/server.browser') as typeof import('react-dom/server.browser')
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
