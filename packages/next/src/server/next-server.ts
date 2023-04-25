@@ -1380,27 +1380,31 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRouterWorker) {
           let page = pathname
-          let matched = false
+          let matchedExistingRoute = false
 
           if (!(await this.hasPage(page))) {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
-                matched = true
+                matchedExistingRoute = true
                 break
               }
             }
           } else {
-            matched = true
+            matchedExistingRoute = true
           }
 
-          let renderKind: 'app' | 'pages' = this.appPathRoutes?.[page]
-            ? 'app'
-            : 'pages'
+          let renderKind: 'app' | 'pages' =
+            this.appPathRoutes?.[page] ||
+            // Possible that it's a dynamic app route or behind routing rules
+            // such as i18n. In that case, we need to check the route kind directly.
+            match?.definition.kind === RouteKind.APP_PAGE
+              ? 'app'
+              : 'pages'
 
           // Handle app dir's /not-found feature: for 404 pages, they should be
           // routed to the app renderer.
-          if (!matched && this.appPathRoutes) {
+          if (!matchedExistingRoute && this.appPathRoutes) {
             if (
               this.appPathRoutes[
                 this.renderOpts.dev ? '/not-found' : '/_not-found'
