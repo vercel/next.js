@@ -17,6 +17,7 @@ mod path_visitor;
 pub(crate) mod references;
 pub mod resolve;
 pub(crate) mod special_cases;
+pub mod text;
 pub(crate) mod transform;
 pub mod tree_shake;
 pub mod typescript;

@@ -10,6 +10,8 @@
 
 #![feature(min_specialization)]
 
+pub mod fixed;
+
 use anyhow::{anyhow, Result};
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileContent;
