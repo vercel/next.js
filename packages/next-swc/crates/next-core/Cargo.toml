@@ -21,6 +21,7 @@ mime = { workspace = true }
 indoc = { workspace = true }
 allsorts = { workspace = true }
 futures = { workspace = true }
+lazy_static = { workspace = true }
 turbo-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__feature_auto_hash_map",

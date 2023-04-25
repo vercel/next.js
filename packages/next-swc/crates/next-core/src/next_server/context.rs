@@ -35,6 +35,7 @@ use crate::{
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
     next_config::NextConfigVc,
     next_import_map::get_next_server_import_map,
+    next_shared::resolve::UnsupportedModulesResolvePluginVc,
     transform_options::{
         get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
@@ -79,7 +80,10 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![external_cjs_modules_plugin.into()],
+                plugins: vec![
+                    external_cjs_modules_plugin.into(),
+                    UnsupportedModulesResolvePluginVc::new(project_path).into(),
+                ],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -100,6 +104,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
+                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -120,6 +125,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
+                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -138,6 +144,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
+                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -156,6 +163,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 module: true,
                 custom_conditions: vec!["development".to_string()],
+                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
