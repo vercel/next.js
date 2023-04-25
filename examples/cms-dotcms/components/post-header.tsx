@@ -21,7 +21,7 @@ export default function PostHeader({ title, coverImage, author }) {
           height={1000}
           src={coverImage.idPath}
           objectFit="cover"
-          layout={'intrinsic'}
+          layout="intrinsic"
         />
       </div>
     </>

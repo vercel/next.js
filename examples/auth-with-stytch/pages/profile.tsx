@@ -33,7 +33,7 @@ const Profile = (props: Props) => {
         <div />
       ) : (
         <StytchContainer>
-          <h2>{'Welcome!'}</h2>
+          <h2>Welcome!</h2>
           <p className={styles.profileSubHeader}>
             Thank you for using Stytch! Here’s your user info.
           </p>
