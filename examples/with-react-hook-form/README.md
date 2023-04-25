@@ -8,7 +8,7 @@ Form handling doesn't have to be painful. React Hook Form will help you write le
 
 Deploy the example using [Vercel](https://vercel.com/now) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-react-hook-form)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-hook-form&project-name=with-react-hook-form&repository-name=with-react-hook-form)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-hook-form&project-name=with-react-hook-form&repository-name=with-react-hook-form)
 
 ## How to use
 

@@ -6,7 +6,7 @@ An example using [Postgres.js](https://github.com/porsager/postgres) in a Next.j
 
 Once you have access to [the environment variables you'll need](#configure-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-postgres&project-name=with-postgres&repository-name=with-postgres&env=DATABASE_URL&envDescription=Required%20to%20connect%20the%20app%20with%20Postgres)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-postgres&project-name=with-postgres&repository-name=with-postgres&env=DATABASE_URL&envDescription=Required%20to%20connect%20the%20app%20with%20Postgres)
 
 ## How to use
 
