@@ -82,7 +82,7 @@
   },
   "dependencies": {
     "@next/env": "13.3.2-canary.5",
-    "@swc/helpers": "0.5.0",
+    "@swc/helpers": "0.5.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
