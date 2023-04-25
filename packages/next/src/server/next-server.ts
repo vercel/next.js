@@ -1,5 +1,6 @@
 import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-form'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
