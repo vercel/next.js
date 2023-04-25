@@ -52,7 +52,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test')
+      }, '/header?name=test&constructor=FormData')
     })
 
     it('should support notFound', async () => {

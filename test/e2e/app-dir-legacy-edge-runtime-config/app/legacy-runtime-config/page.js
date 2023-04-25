@@ -1,3 +1,5 @@
+/*global globalThis*/
+
 export default function Page() {
   if ('EdgeRuntime' in globalThis) {
     return <p>Edge!</p>
