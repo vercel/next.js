@@ -169,17 +169,15 @@ export async function handleAction({
         res.statusCode = 404
         return 'not-found'
       }
-      // To avoid exposing internal error messages to the client, we throw a
-      // generic error message and log the original error here.
-      console.error(err)
-      const publicError = new Error('Internal Server Error')
 
       if (isFetchAction) {
         res.statusCode = 500
-        return new RenderResult(publicError.message)
+        return new RenderResult(
+          (err as Error)?.message ?? 'Internal Server Error'
+        )
       }
 
-      throw publicError
+      throw err
     }
   }
 }
