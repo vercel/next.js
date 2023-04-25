@@ -266,7 +266,6 @@ static STATIC_GLOBAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str
     Lazy::new(|| {
         HashMap::from([
             ("favicon", &["ico"] as &'static [&'static str]),
-            ("manifest", &["webmanifest", "json"]),
             ("robots", &["txt"]),
             ("sitemap", &["xml"]),
         ])
