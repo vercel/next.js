@@ -713,15 +713,6 @@ export async function renderToHTMLOrFlight(
             `The default export of notFound is not a React Component in ${segment}`
           )
         }
-
-        if (
-          !isClientReference(layoutOrPageMod) &&
-          layoutOrPageMod?.config?.amp
-        ) {
-          throw new Error(
-            'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
-          )
-        }
       }
 
       // Handle dynamic segment params.

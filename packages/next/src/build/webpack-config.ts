@@ -186,6 +186,9 @@ export function getDefineEnv({
   isEdgeServer,
   middlewareMatchers,
   clientRouterFilters,
+  previewModeId,
+  fetchCacheKeyPrefix,
+  allowedRevalidateHeaderKeys,
 }: {
   dev?: boolean
   distDir: string
@@ -198,6 +201,9 @@ export function getDefineEnv({
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
+  previewModeId?: string
+  fetchCacheKeyPrefix?: string
+  allowedRevalidateHeaderKeys?: string[]
 }) {
   return {
     // internal field to identify the plugin config
@@ -236,6 +242,12 @@ export function getDefineEnv({
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+    ),
+    'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
+      JSON.stringify(fetchCacheKeyPrefix),
+    'process.env.__NEXT_PREVIEW_MODE_ID': JSON.stringify(previewModeId),
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
+      allowedRevalidateHeaderKeys
     ),
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': JSON.stringify(
       middlewareMatchers || []
@@ -643,6 +655,9 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
+    previewModeId,
+    fetchCacheKeyPrefix,
+    allowedRevalidateHeaderKeys,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -670,6 +685,9 @@ export default async function getBaseWebpackConfig(
         import('../shared/lib/bloom-filter').BloomFilter['export']
       >
     }
+    previewModeId?: string
+    fetchCacheKeyPrefix?: string
+    allowedRevalidateHeaderKeys?: string[]
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -687,7 +705,10 @@ export default async function getBaseWebpackConfig(
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
-    if (isEdgeRuntime(config.experimental.runtime)) {
+    if (
+      // @ts-expect-error: experimental.runtime is deprecated
+      isEdgeRuntime(config.experimental.runtime)
+    ) {
       Log.warn(
         'You are using `experimental.runtime` which was removed. Check https://nextjs.org/docs/api-routes/edge-api-routes on how to use edge runtime.'
       )
@@ -953,8 +974,6 @@ export default async function getBaseWebpackConfig(
     ]
   }
 
-  const reactDir = path.dirname(require.resolve('react/package.json'))
-  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
   let hasExternalOtelApiPackage = false
   try {
     require.resolve('@opentelemetry/api')
@@ -1020,26 +1039,6 @@ export default async function getBaseWebpackConfig(
         : undefined),
 
       next: NEXT_PROJECT_ROOT,
-
-      ...(hasServerComponents
-        ? {
-            // For react and react-dom, alias them dynamically for server layer
-            // and others in the loaders configuration
-            'react-dom/client$': 'next/dist/compiled/react-dom/client',
-            'react-dom/server$': 'next/dist/compiled/react-dom/server',
-            'react-dom/server.browser$':
-              'next/dist/compiled/react-dom/server.browser',
-            'react/jsx-dev-runtime$':
-              'next/dist/compiled/react/jsx-dev-runtime',
-            'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
-          }
-        : {
-            react: reactDir,
-            'react-dom$': reactDomDir,
-            'react-dom/server$': `${reactDomDir}/server`,
-            'react-dom/server.browser$': `${reactDomDir}/server.browser`,
-            'react-dom/client$': `${reactDomDir}/client`,
-          }),
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1212,8 +1211,27 @@ export default async function getBaseWebpackConfig(
       return `commonjs next/dist/lib/import-next-warning`
     }
 
+    const isAppLayer = [
+      WEBPACK_LAYERS.server,
+      WEBPACK_LAYERS.client,
+      WEBPACK_LAYERS.appClient,
+      WEBPACK_LAYERS.action,
+    ].includes(layer!)
+
+    if (
+      request === 'react/jsx-dev-runtime' ||
+      request === 'react/jsx-runtime'
+    ) {
+      if (isAppLayer) {
+        return `commonjs next/dist/compiled/${request}`
+      }
+      return
+    }
+
     // Special internal modules that must be bundled for Server Components.
     if (layer === WEBPACK_LAYERS.server) {
+      // React needs to be bundled for Server Components so the special
+      // `react-server` export condition can be used.
       if (
         reactPackagesRegex.test(request) ||
         request === 'next/dist/compiled/react-server-dom-webpack/server.edge'
@@ -1235,11 +1253,13 @@ export default async function getBaseWebpackConfig(
         // override react-dom to server-rendering-stub for server
         if (
           request === 'react-dom' &&
-          (layer === WEBPACK_LAYERS.client || layer === WEBPACK_LAYERS.server)
+          (layer === WEBPACK_LAYERS.client ||
+            layer === WEBPACK_LAYERS.server ||
+            layer === WEBPACK_LAYERS.action)
         ) {
           request = 'react-dom/server-rendering-stub'
         }
-        return `commonjs ${hasAppDir ? 'next/dist/compiled/' : ''}${request}`
+        return `commonjs ${isAppLayer ? 'next/dist/compiled/' : ''}${request}`
       }
 
       const notExternalModules =
@@ -1741,6 +1761,38 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(hasAppDir
+          ? [
+              {
+                test: codeCondition.test,
+                issuerLayer: {
+                  or: [
+                    WEBPACK_LAYERS.server,
+                    WEBPACK_LAYERS.client,
+                    WEBPACK_LAYERS.appClient,
+                    WEBPACK_LAYERS.action,
+                    WEBPACK_LAYERS.shared,
+                  ],
+                },
+                resolve: {
+                  alias: {
+                    // Alias next/head component to noop for RSC
+                    [require.resolve('next/head')]: require.resolve(
+                      'next/dist/client/components/noop-head'
+                    ),
+                    // Alias next/dynamic
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/shared/lib/app-dynamic'
+                    ),
+                    'react/jsx-runtime$':
+                      'next/dist/compiled/react/jsx-runtime',
+                    'react/jsx-dev-runtime$':
+                      'next/dist/compiled/react/jsx-dev-runtime',
+                  },
+                },
+              },
+            ]
+          : []),
         ...(hasAppDir && !isClient
           ? [
               {
@@ -1808,29 +1860,6 @@ export default async function getBaseWebpackConfig(
           : []),
         ...(hasServerComponents
           ? [
-              {
-                test: codeCondition.test,
-                issuerLayer: {
-                  or: [
-                    WEBPACK_LAYERS.server,
-                    WEBPACK_LAYERS.client,
-                    WEBPACK_LAYERS.appClient,
-                    WEBPACK_LAYERS.action,
-                  ],
-                },
-                resolve: {
-                  alias: {
-                    // Alias next/head component to noop for RSC
-                    [require.resolve('next/head')]: require.resolve(
-                      'next/dist/client/components/noop-head'
-                    ),
-                    // Alias next/dynamic
-                    [require.resolve('next/dynamic')]: require.resolve(
-                      'next/dist/shared/lib/app-dynamic'
-                    ),
-                  },
-                },
-              },
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
@@ -2125,6 +2154,9 @@ export default async function getBaseWebpackConfig(
           isEdgeServer,
           middlewareMatchers,
           clientRouterFilters,
+          previewModeId,
+          fetchCacheKeyPrefix,
+          allowedRevalidateHeaderKeys,
         })
       ),
       isClient &&

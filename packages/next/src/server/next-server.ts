@@ -1,5 +1,6 @@
-import './initialize-require-hook'
+import './require-hook'
 import './node-polyfill-fetch'
+import './node-polyfill-form'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
@@ -89,7 +90,6 @@ import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render/app-render'
 import { setHttpClientAndAgentOptions } from './config'
 import { RouteKind } from './future/route-kind'
 
@@ -340,8 +340,7 @@ export default class NextNodeServer extends BaseServer {
           'server',
           INSTRUMENTATION_HOOK_FILENAME
         ))
-
-        instrumentationHook.register?.()
+        await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
           err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -370,8 +369,10 @@ export default class NextNodeServer extends BaseServer {
 
   protected getIncrementalCache({
     requestHeaders,
+    requestProtocol,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
+    requestProtocol: 'http' | 'https'
   }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
@@ -383,6 +384,7 @@ export default class NextNodeServer extends BaseServer {
         : incrementalCacheHandlerPath)
       CacheHandler = CacheHandler.default || CacheHandler
     }
+
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -390,7 +392,10 @@ export default class NextNodeServer extends BaseServer {
       fs: this.getCacheFilesystem(),
       dev,
       requestHeaders,
+      requestProtocol,
       appDir: this.hasAppDir,
+      allowedRevalidateHeaderKeys:
+        this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
       fetchCache: this.nextConfig.experimental.appDir,
@@ -405,7 +410,9 @@ export default class NextNodeServer extends BaseServer {
             routes: {},
             dynamicRoutes: {},
             notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
+            preview: {
+              previewModeId: 'development-id',
+            } as any, // `preview` is special case read in next-dev-server
           }
         } else {
           return this.getPrerenderManifest()
@@ -956,6 +963,8 @@ export default class NextNodeServer extends BaseServer {
     renderOpts.nextFontManifest = this.nextFontManifest
 
     if (this.hasAppDir && renderOpts.isAppPath) {
+      const { renderToHTMLOrFlight: appRenderToHTMLOrFlight } =
+        require('./app-render/app-render') as typeof import('./app-render/app-render')
       return appRenderToHTMLOrFlight(
         req.originalRequest,
         res.originalResponse,
@@ -1373,17 +1382,39 @@ export default class NextNodeServer extends BaseServer {
 
         if (this.isRouterWorker) {
           let page = pathname
+          let matchedExistingRoute = false
 
           if (!(await this.hasPage(page))) {
             for (const route of this.dynamicRoutes || []) {
               if (route.match(pathname)) {
                 page = route.page
+                matchedExistingRoute = true
                 break
               }
             }
+          } else {
+            matchedExistingRoute = true
           }
 
-          const renderKind = this.appPathRoutes?.[page] ? 'app' : 'pages'
+          let renderKind: 'app' | 'pages' =
+            this.appPathRoutes?.[page] ||
+            // Possible that it's a dynamic app route or behind routing rules
+            // such as i18n. In that case, we need to check the route kind directly.
+            match?.definition.kind === RouteKind.APP_PAGE
+              ? 'app'
+              : 'pages'
+
+          // Handle app dir's /not-found feature: for 404 pages, they should be
+          // routed to the app renderer.
+          if (!matchedExistingRoute && this.appPathRoutes) {
+            if (
+              this.appPathRoutes[
+                this.renderOpts.dev ? '/not-found' : '/_not-found'
+              ]
+            ) {
+              renderKind = 'app'
+            }
+          }
 
           if (this.renderWorkersPromises) {
             await this.renderWorkersPromises

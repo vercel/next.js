@@ -46,5 +46,6 @@ pub fn register() {
     turbopack::dev_server::register();
     turbopack::node::register();
     turbopack::turbopack::register();
+    turbopack::image::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

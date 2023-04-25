@@ -71,14 +71,17 @@ export function patchFetch({
         }
 
         let revalidate: number | undefined | false = undefined
+        const getNextField = (field: 'revalidate' | 'tags') => {
+          return typeof init?.next?.[field] !== 'undefined'
+            ? init?.next?.[field]
+            : isRequestInput
+            ? (input as any).next?.[field]
+            : undefined
+        }
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
-        let curRevalidate =
-          typeof init?.next?.revalidate !== 'undefined'
-            ? init?.next?.revalidate
-            : isRequestInput
-            ? (input as any).next?.revalidate
-            : undefined
+        let curRevalidate = getNextField('revalidate')
+        const tags: undefined | string[] = getNextField('tags')
 
         const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
         const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
@@ -129,6 +132,15 @@ export function patchFetch({
           revalidate = 0
         }
 
+        if (isOnlyNoStore) {
+          if (_cache === 'force-cache' || revalidate === 0) {
+            throw new Error(
+              `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
+            )
+          }
+          revalidate = 0
+        }
+
         if (typeof revalidate === 'undefined') {
           if (isOnlyCache && _cache === 'no-store') {
             throw new Error(
@@ -136,15 +148,7 @@ export function patchFetch({
             )
           }
 
-          if (isOnlyNoStore) {
-            revalidate = 0
-
-            if (_cache === 'force-cache') {
-              throw new Error(
-                `cache: 'force-cache' used on fetch for ${input.toString()} with 'export const fetchCache = 'only-no-store'`
-              )
-            }
-          } else if (autoNoCache) {
+          if (autoNoCache) {
             revalidate = 0
           } else if (isDefaultNoStore) {
             revalidate = 0
@@ -253,6 +257,7 @@ export function patchFetch({
                       headers: Object.fromEntries(res.headers.entries()),
                       body: bodyBuffer.toString('base64'),
                       status: res.status,
+                      tags,
                     },
                     revalidate,
                   },
@@ -286,15 +291,39 @@ export function patchFetch({
               )
 
           if (entry?.value && entry.value.kind === 'FETCH') {
+            const currentTags = entry.value.data.tags
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
-            if (!staticGenerationStore.isRevalidate || !entry.isStale) {
+            if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
               if (entry.isStale) {
                 if (!staticGenerationStore.pendingRevalidates) {
                   staticGenerationStore.pendingRevalidates = []
                 }
                 staticGenerationStore.pendingRevalidates.push(
                   doOriginalFetch().catch(console.error)
+                )
+              } else if (
+                tags &&
+                !tags.every((tag) => currentTags?.includes(tag))
+              ) {
+                // if new tags are being added we need to set even if
+                // the data isn't stale
+                if (!entry.value.data.tags) {
+                  entry.value.data.tags = []
+                }
+
+                for (const tag of tags) {
+                  if (!entry.value.data.tags.includes(tag)) {
+                    entry.value.data.tags.push(tag)
+                  }
+                }
+                staticGenerationStore.incrementalCache?.set(
+                  cacheKey,
+                  entry.value,
+                  revalidate,
+                  true,
+                  fetchUrl,
+                  fetchIdx
                 )
               }
 
@@ -376,6 +405,9 @@ export function patchFetch({
         return doOriginalFetch()
       }
     )
+  }
+  ;(fetch as any).__nextGetStaticStore = () => {
+    return staticGenerationAsyncStorage
   }
   ;(fetch as any).__nextPatched = true
 }

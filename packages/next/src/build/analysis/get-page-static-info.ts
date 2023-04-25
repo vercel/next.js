@@ -312,8 +312,8 @@ function warnAboutUnsupportedValue(
  * Related discussion: https://github.com/vercel/next.js/discussions/34179
  */
 export async function getPageStaticInfo(params: {
-  nextConfig: Partial<NextConfig>
   pageFilePath: string
+  nextConfig: Partial<NextConfig>
   isDev?: boolean
   page?: string
   pageType: 'pages' | 'app' | 'root'
@@ -342,9 +342,12 @@ export async function getPageStaticInfo(params: {
     }
     if (pageType === 'app') {
       if (config) {
-        Log.warnOnce(
-          `\`export const config\` in ${pageFilePath} is deprecated. Please change it to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
-        )
+        const message = `\`export const config\` in ${pageFilePath} is deprecated. Please change \`runtime\` property to segment export config. See https://beta.nextjs.org/docs/api-reference/segment-config`
+        if (isDev) {
+          Log.warnOnce(message)
+        } else {
+          throw new Error(message)
+        }
         config = {}
       }
     }
@@ -382,11 +385,10 @@ export async function getPageStaticInfo(params: {
 
     const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
 
-    resolvedRuntime = isEdgeRuntime(resolvedRuntime)
-      ? resolvedRuntime
-      : requiresServerRuntime
-      ? resolvedRuntime || nextConfig.experimental?.runtime
-      : undefined
+    resolvedRuntime =
+      isEdgeRuntime(resolvedRuntime) || requiresServerRuntime
+        ? resolvedRuntime
+        : undefined
 
     if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
       warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
@@ -425,6 +427,6 @@ export async function getPageStaticInfo(params: {
     ssr: false,
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
-    runtime: nextConfig.experimental?.runtime,
+    runtime: undefined,
   }
 }

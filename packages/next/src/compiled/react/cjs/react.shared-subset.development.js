@@ -302,7 +302,7 @@ function generateCacheKey(request) {
   }
 }
 
-var ReactVersion = '18.3.0-next-85de6fde5-20230328';
+var ReactVersion = '18.3.0-next-c8369527e-20230420';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -742,7 +742,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 

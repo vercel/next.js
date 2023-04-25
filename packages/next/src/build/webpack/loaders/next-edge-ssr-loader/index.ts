@@ -90,6 +90,7 @@ export default async function edgeSSRLoader(this: any) {
   const transformed = `
     import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
+    import {IncrementalCache} from 'next/dist/esm/server/lib/incremental-cache'
 
     enhanceGlobals()
     
@@ -164,6 +165,7 @@ export default async function edgeSSRLoader(this: any) {
     export default function(opts) {
       return adapter({
         ...opts,
+        IncrementalCache,
         handler: render
       })
     }`
