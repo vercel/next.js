@@ -114,7 +114,6 @@ export class ClientReferenceEntryPlugin {
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
-        // console.log({ modResource, modLayer: mod.layer, modId })
         if (mod.layer !== WEBPACK_LAYERS.client) {
           return
         }
