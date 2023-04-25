@@ -82,6 +82,7 @@ impl ComponentsVc {
     }
 }
 
+/// A single metadata file plus an optional "alt" text file.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub enum MetadataWithAltItem {
     Static {
@@ -93,12 +94,14 @@ pub enum MetadataWithAltItem {
     },
 }
 
+/// A single metadata file.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub enum MetadataItem {
     Static { path: FileSystemPathVc },
     Dynamic { path: FileSystemPathVc },
 }
 
+/// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -150,6 +153,7 @@ impl Metadata {
     }
 }
 
+/// Metadata files that can be placed in the root of the app directory.
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
@@ -277,7 +281,7 @@ fn match_metadata_file<'a>(
 ) -> Option<(&'a str, bool)> {
     let (stem, ext) = basename.split_once('.')?;
     static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("^(.*?)\\d*$").unwrap());
-    let captures = REGEX.captures(stem).unwrap();
+    let captures = REGEX.captures(stem).expect("the regex will always match");
     let stem = captures.get(1).unwrap().as_str();
     if page_extensions.iter().any(|e| e == ext) {
         return Some((stem, true));
@@ -366,7 +370,7 @@ async fn get_directory_tree(
                 let result = get_directory_tree(dir, page_extensions);
                 subdirectories.insert(basename.to_string(), result);
             }
-            // TODO handle symlinks in app dir
+            // TODO(WEB-952) handle symlinks in app dir
             _ => {}
         }
     }
@@ -668,6 +672,7 @@ async fn directory_tree_to_entrypoints_internal(
     Ok(EntrypointsVc::cell(result))
 }
 
+/// Returns the global metadata for an app directory.
 #[turbo_tasks::function]
 pub async fn get_global_metadata(
     app_dir: FileSystemPathVc,

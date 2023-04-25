@@ -470,27 +470,27 @@ async fn create_global_metadata_source(
     let metadata = metadata.await?;
     let mut unsupported_metadata = Vec::new();
     let mut sources = Vec::new();
-    let mut handle = |server_path, item| {
-        if let Some(item) = item {
-            match item {
-                MetadataItem::Static { path } => {
-                    let asset = FixedStaticAssetVc::new(
-                        server_root.join(server_path),
-                        SourceAssetVc::new(path).into(),
-                    );
-                    sources.push(
-                        AssetGraphContentSourceVc::new_eager(server_root, asset.into()).into(),
-                    )
-                }
-                MetadataItem::Dynamic { path } => {
-                    unsupported_metadata.push(path);
-                }
+    for (server_path, item) in [
+        ("robots.txt", metadata.robots),
+        ("favicon.ico", metadata.favicon),
+        ("sitemap.xml", metadata.sitemap),
+    ] {
+        let Some(item) = item else {
+            continue;
+        };
+        match item {
+            MetadataItem::Static { path } => {
+                let asset = FixedStaticAssetVc::new(
+                    server_root.join(server_path),
+                    SourceAssetVc::new(path).into(),
+                );
+                sources.push(AssetGraphContentSourceVc::new_eager(server_root, asset.into()).into())
+            }
+            MetadataItem::Dynamic { path } => {
+                unsupported_metadata.push(path);
             }
         }
-    };
-    handle("robots.txt", metadata.robots);
-    handle("favicon.ico", metadata.favicon);
-    handle("sitemap.xml", metadata.sitemap);
+    }
     if !unsupported_metadata.is_empty() {
         UnsupportedDynamicMetadataIssue {
             app_dir,
@@ -630,6 +630,14 @@ impl AppRendererVc {
             unsupported_metadata: Vec<FileSystemPathVc>,
         }
 
+        impl State {
+            fn unique_number(&mut self) -> usize {
+                let i = self.counter;
+                self.counter += 1;
+                i
+            }
+        }
+
         let mut state = State {
             inner_assets: IndexMap::new(),
             counter: 0,
@@ -647,8 +655,7 @@ impl AppRendererVc {
             use std::fmt::Write;
 
             if let Some(component) = component {
-                let i = state.counter;
-                state.counter += 1;
+                let i = state.unique_number();
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let chunks_identifier = magic_identifier::mangle(&format!("chunks of {name} #{i}"));
                 writeln!(
@@ -708,8 +715,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             match manifest {
                 MetadataItem::Static { path } => {
                     use std::fmt::Write;
-                    let i = state.counter;
-                    state.counter += 1;
+                    let i = state.unique_number();
                     let identifier = magic_identifier::mangle(&format!("manifest #{i}"));
                     let inner_module_id = format!("METADATA_{i}");
                     state
@@ -754,8 +760,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             item: &MetadataWithAltItem,
         ) -> Result<()> {
             use std::fmt::Write;
-            let i = state.counter;
-            state.counter += 1;
+            let i = state.unique_number();
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
             let inner_module_id = format!("METADATA_{i}");
             state
