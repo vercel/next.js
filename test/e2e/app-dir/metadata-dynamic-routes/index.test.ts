@@ -347,6 +347,20 @@ createNextDescribe(
           /\/\(group\)\/twitter-image-\w{6}\/\[\[\.\.\.__metadata_id__\]\]\/route/
         )
       })
+
+      it('should include default og font files in file trace', async () => {
+        const fileTrace = JSON.parse(
+          await next.readFile(
+            '.next/server/app/opengraph-image/[[...__metadata_id__]]/route.js.nft.json'
+          )
+        )
+
+        // @vercel/og default font should be traced
+        const isTraced = fileTrace.files.some((filePath) =>
+          /\/noto-sans-v27-latin-regular\.\w+\.ttf/.test(filePath)
+        )
+        expect(isTraced).toBe(true)
+      })
     }
   }
 )
