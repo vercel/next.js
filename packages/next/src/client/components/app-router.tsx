@@ -60,20 +60,13 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   return urlWithoutFlightParameters
 }
 
-const HotReloader:
-  | typeof import('./react-dev-overlay/hot-reloader-client').default
-  | null =
-  process.env.NODE_ENV === 'production'
-    ? null
-    : (require('./react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
-
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
   initialHead: ReactNode
   assetPrefix: string
+  HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default
   // Top level boundaries props
   notFound: React.ReactNode | undefined
   notFoundStyles?: React.ReactNode | undefined
@@ -131,6 +124,7 @@ function Router({
   notFound,
   notFoundStyles,
   asNotFound,
+  HotReloader,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>

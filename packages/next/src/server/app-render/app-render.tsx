@@ -1185,6 +1185,8 @@ export async function renderToHTMLOrFlight(
     // AppRouter is provided by next-app-loader
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../../client/components/app-router').default
+    const HotReloader =
+      ComponentMod.HotReloader as typeof import('../../client/components/react-dev-overlay/hot-reloader-client').default
 
     const GlobalError = interopDefault(
       /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
@@ -1279,6 +1281,7 @@ export async function renderToHTMLOrFlight(
               assetPrefix={assetPrefix}
               initialCanonicalUrl={initialCanonicalUrl}
               initialTree={initialTree}
+              HotReloader={HotReloader}
               initialHead={
                 <>
                   {/* Adding key={requestId} to make metadata remount for each render */}

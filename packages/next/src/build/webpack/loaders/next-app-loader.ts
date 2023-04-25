@@ -572,6 +572,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export ${pageListCode}
 
     export { default as AppRouter } from 'next/dist/esm/client/components/app-router'
+    export { default as HotReloader } from 'next/dist/esm/client/components/react-dev-overlay/hot-reloader-client'
     export { default as LayoutRouter } from 'next/dist/esm/client/components/layout-router'
     export { default as RenderFromTemplateContext } from 'next/dist/esm/client/components/render-from-template-context'
     export { default as GlobalError } from ${JSON.stringify(

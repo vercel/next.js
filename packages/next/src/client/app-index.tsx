@@ -216,49 +216,6 @@ function RSCComponent(props: any): JSX.Element {
 }
 
 export function hydrate() {
-  if (process.env.NODE_ENV !== 'production') {
-    const rootLayoutMissingTagsError = (self as any)
-      .__next_root_layout_missing_tags_error
-    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
-      require('./components/react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
-
-    // Don't try to hydrate if root layout is missing required tags, render error instead
-    if (rootLayoutMissingTagsError) {
-      const reactRootElement = document.createElement('div')
-      document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
-        onRecoverableError,
-      })
-
-      reactRoot.render(
-        <GlobalLayoutRouterContext.Provider
-          value={{
-            tree: rootLayoutMissingTagsError.tree,
-            changeByServerResponse: () => {},
-            focusAndScrollRef: {
-              apply: false,
-              hashFragment: null,
-              segmentPaths: [],
-            },
-            nextUrl: null,
-          }}
-        >
-          <HotReload
-            assetPrefix={rootLayoutMissingTagsError.assetPrefix}
-            // initialState={{
-            //   rootLayoutMissingTagsError: {
-            //     missingTags: rootLayoutMissingTagsError.missingTags,
-            //   },
-            // }}
-          />
-        </GlobalLayoutRouterContext.Provider>
-      )
-
-      return
-    }
-  }
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider
