@@ -19,7 +19,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-1f248bdd7-20230419';
+var ReactVersion = '18.3.0-next-c8369527e-20230420';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -1130,7 +1130,7 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    } // We can't rely on the event system being injected on the server.
+    }
 
 
     if (eventRegistry != null) {
@@ -1556,14 +1556,14 @@ function escapeHtml(string) {
     }
 
     if (lastIndex !== index) {
-      html += str.substring(lastIndex, index);
+      html += str.slice(lastIndex, index);
     }
 
     lastIndex = index + 1;
     html += escape;
   }
 
-  return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+  return lastIndex !== index ? html + str.slice(lastIndex, index) : html;
 } // end code copied and modified from escape-html
 
 /**
@@ -2345,6 +2345,36 @@ function pushStringAttribute(target, name, value) // not null or undefined
   if (typeof value !== 'function' && typeof value !== 'symbol' && typeof value !== 'boolean') {
     target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
   }
+} // Since this will likely be repeated a lot in the HTML, we use a more concise message
+// than on the client and hopefully it's googleable.
+
+
+stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
+"javascript:throw new Error('A React form was unexpectedly submitted.')"));
+
+function pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name) {
+  {
+    // Plain form actions support all the properties, so we have to emit them.
+    if (name !== null) {
+      pushAttribute(target, 'name', name);
+    }
+
+    if (formAction !== null) {
+      pushAttribute(target, 'formAction', formAction);
+    }
+
+    if (formEncType !== null) {
+      pushAttribute(target, 'formEncType', formEncType);
+    }
+
+    if (formMethod !== null) {
+      pushAttribute(target, 'formMethod', formMethod);
+    }
+
+    if (formTarget !== null) {
+      pushAttribute(target, 'formTarget', formTarget);
+    }
+  }
 }
 
 function pushAttribute(target, name, value) // not null or undefined
@@ -2383,12 +2413,12 @@ function pushAttribute(target, name, value) // not null or undefined
 
     case 'src':
     case 'href':
-    case 'action':
-
     // Fall through to the last case which shouldn't remove empty strings.
 
+    case 'action':
     case 'formAction':
       {
+        // TODO: Consider only special casing these for each tag.
         if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
           return;
         }
@@ -2627,6 +2657,7 @@ var didWarnDefaultTextareaValue = false;
 var didWarnInvalidOptionChildren = false;
 var didWarnInvalidOptionInnerHTML = false;
 var didWarnSelectedSetOnOption = false;
+var didWarnFormActionType = false;
 
 function checkSelectProp(props, propName) {
   {
@@ -2827,24 +2858,98 @@ function pushStartOption(target, props, formatContext) {
   return children;
 }
 
-function pushInput(target, props) {
-  {
-    checkControlledValueProps('input', props);
+function pushStartForm(target, props) {
+  target.push(startChunkForTag('form'));
+  var children = null;
+  var innerHTML = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
 
-    if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnDefaultChecked) {
-      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
 
-      didWarnDefaultChecked = true;
-    }
+      if (propValue == null) {
+        continue;
+      }
 
-    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultInputValue) {
-      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
 
-      didWarnDefaultInputValue = true;
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'action':
+          formAction = propValue;
+          break;
+
+        case 'encType':
+          formEncType = propValue;
+          break;
+
+        case 'method':
+          formMethod = propValue;
+          break;
+
+        case 'target':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
     }
   }
 
+  {
+    // Plain form actions support all the properties, so we have to emit them.
+    if (formAction !== null) {
+      pushAttribute(target, 'action', formAction);
+    }
+
+    if (formEncType !== null) {
+      pushAttribute(target, 'encType', formEncType);
+    }
+
+    if (formMethod !== null) {
+      pushAttribute(target, 'method', formMethod);
+    }
+
+    if (formTarget !== null) {
+      pushAttribute(target, 'target', formTarget);
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushInput(target, props) {
+  {
+    checkControlledValueProps('input', props);
+  }
+
   target.push(startChunkForTag('input'));
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
   var value = null;
   var defaultValue = null;
   var checked = null;
@@ -2862,6 +2967,26 @@ function pushInput(target, props) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('input' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
 
         case 'defaultChecked':
           defaultChecked = propValue;
@@ -2886,6 +3011,30 @@ function pushInput(target, props) {
     }
   }
 
+  {
+    if (formAction !== null && props.type !== 'image' && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('An input can only specify a formAction along with type="submit" or type="image".');
+    }
+  }
+
+  pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name);
+
+  {
+    if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultChecked = true;
+    }
+
+    if (value !== null && defaultValue !== null && !didWarnDefaultInputValue) {
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultInputValue = true;
+    }
+  }
+
   if (checked !== null) {
     pushBooleanAttribute(target, 'checked', checked);
   } else if (defaultChecked !== null) {
@@ -2900,6 +3049,82 @@ function pushInput(target, props) {
 
   target.push(endOfStartTagSelfClosing);
   return null;
+}
+
+function pushStartButton(target, props) {
+  target.push(startChunkForTag('button'));
+  var children = null;
+  var innerHTML = null;
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  {
+    if (formAction !== null && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('A button can only specify a formAction along with type="submit" or no type.');
+    }
+  }
+
+  pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
 }
 
 function pushStartTextArea(target, props) {
@@ -3954,6 +4179,12 @@ function pushStartInstance(target, type, props, resources, responseState, format
     case 'input':
       return pushInput(target, props);
 
+    case 'button':
+      return pushStartButton(target, props);
+
+    case 'form':
+      return pushStartForm(target, props);
+
     case 'menuitem':
       return pushStartMenuItem(target, props);
 
@@ -4007,7 +4238,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
     case 'font-face-name':
     case 'missing-glyph':
       {
-        return pushStartGenericElement(target, props, type);
+        break;
       }
     // Preamble start tags
 
