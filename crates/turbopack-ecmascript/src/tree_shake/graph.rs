@@ -370,9 +370,6 @@ impl DepGraph {
             global_done: &mut FxHashSet<u32>,
             group_done: &mut FxHashSet<u32>,
         ) -> bool {
-            // TODO(WEB-706): Consider cycles
-            //
-
             let mut changed = false;
 
             // Check deps of `start`.
@@ -413,6 +410,24 @@ impl DepGraph {
             if let ItemId::Group(_) = id {
                 groups.push((vec![id.clone()], FxHashSet::default()));
                 global_done.insert(ix);
+            }
+        }
+
+        // Cycles should form a separate group
+        for id in self.g.graph_ix.iter() {
+            let ix = self.g.get_node(id);
+
+            if let Some(cycle) = cycles.iter().find(|v| v.contains(&ix)) {
+                if cycle.iter().all(|v| !global_done.contains(v)) {
+                    let ids = cycle
+                        .iter()
+                        .map(|&ix| self.g.graph_ix[ix as usize].clone())
+                        .collect::<Vec<_>>();
+
+                    global_done.extend(cycle.iter().copied());
+
+                    groups.push((ids, Default::default()));
+                }
             }
         }
 
