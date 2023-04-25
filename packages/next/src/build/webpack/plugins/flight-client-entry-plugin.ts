@@ -26,7 +26,7 @@ import {
 import {
   generateActionId,
   getActions,
-  isClientComponentModule,
+  isClientComponentEntryModule,
   isCSSMod,
 } from '../loaders/utils'
 import { traverseModules, forEachEntryModule } from '../utils'
@@ -521,7 +521,7 @@ export class ClientReferenceEntryPlugin {
       }
       visitedBySegment[entryRequest].add(storeKey)
 
-      const isClientComponent = isClientComponentModule(mod)
+      const isClientComponent = isClientComponentEntryModule(mod)
 
       const actions = getActions(mod)
       if (actions) {

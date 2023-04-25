@@ -1931,6 +1931,25 @@ if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 let handler
 
+const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || 'localhost'
+const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
+const nextConfig = ${JSON.stringify({
+      ...serverConfig,
+      distDir: `./${path.relative(dir, distDir)}`,
+    })}
+
+${
+  // In standalone mode, we don't have separated render workers so if both
+  // app and pages are used, we need to resolve to the prebundled React
+  // to ensure the correctness of the version for app.
+  `\
+if (nextConfig && nextConfig.experimental && nextConfig.experimental.appDir) {
+  process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '1'
+}
+`
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     await handler(req, res)
@@ -1940,9 +1959,6 @@ const server = http.createServer(async (req, res) => {
     res.end('internal server error')
   }
 })
-const currentPort = parseInt(process.env.PORT, 10) || 3000
-const hostname = process.env.HOSTNAME || 'localhost'
-const keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10);
 
 if (
   !Number.isNaN(keepAliveTimeout) &&
@@ -1962,10 +1978,7 @@ server.listen(currentPort, (err) => {
     dir: path.join(__dirname),
     dev: false,
     customServer: false,
-    conf: ${JSON.stringify({
-      ...serverConfig,
-      distDir: `./${path.relative(dir, distDir)}`,
-    })},
+    conf: nextConfig,
   })
   handler = nextServer.getRequestHandler()
 
