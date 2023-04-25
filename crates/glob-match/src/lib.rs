@@ -24,13 +24,13 @@ struct Wildcard {
 
 type Capture = Range<usize>;
 
-pub fn glob_match(glob: &str, path: &str) -> bool {
+pub fn glob_match(glob: &str, path: &str) -> Option<bool> {
   glob_match_internal(glob, path, None)
 }
 
 pub fn glob_match_with_captures<'a>(glob: &str, path: &'a str) -> Option<Vec<Capture>> {
   let mut captures = Vec::new();
-  if glob_match_internal(glob, path, Some(&mut captures)) {
+  if let Some(true) = glob_match_internal(glob, path, Some(&mut captures)) {
     return Some(captures);
   }
   None
@@ -41,7 +41,7 @@ fn glob_match_internal<'a>(
   glob_str: &str,
   path_str: &'a str,
   mut captures: Option<&mut Vec<Capture>>,
-) -> bool {
+) -> Option<bool> {
   let glob = glob_str.as_bytes();
   let path = path_str.as_bytes();
 
@@ -137,10 +137,7 @@ fn glob_match_internal<'a>(
             && state.glob_index < glob.len()
             && matches!(glob[state.glob_index], b',' | b'}')
           {
-            if state.skip_braces(glob, &mut captures, false) == BraceState::Invalid {
-              // invalid pattern!
-              return false;
-            }
+            state.skip_braces(glob, &mut captures, false)?;
           }
 
           continue;
@@ -148,20 +145,14 @@ fn glob_match_internal<'a>(
         b'?' if state.path_index < path.len() => {
           if !is_separator(path[state.path_index] as char) {
             state.glob_index += 1;
-            let cap = match get_char_slice(path_str, path, &mut state.path_index) {
-              Some(c) => c,
-              None => return false,
-            };
+            let cap = get_char_slice(path_str, path, &mut state.path_index)?;
             state.add_char_capture(&mut captures, cap);
             continue;
           }
         }
         b'[' if state.path_index < path.len() => {
           state.glob_index += 1;
-          let c = match get_char_slice(path_str, path, &mut state.path_index) {
-            Some(c) => c,
-            None => return false,
-          };
+          let c = get_char_slice(path_str, path, &mut state.path_index)?;
 
           // Check if the character class is negated.
           let mut negated = false;
@@ -174,10 +165,7 @@ fn glob_match_internal<'a>(
           let mut first = true;
           let mut is_match = false;
           while state.glob_index < glob.len() && (first || glob[state.glob_index] != b']') {
-            let low = match get_char_slice(glob_str, glob, &mut state.glob_index) {
-              Some(c) => c,
-              None => return false,
-            };
+            let low = get_char_slice(glob_str, glob, &mut state.glob_index)?;
 
             // If there is a - and the following character is not ], read the range end character.
             let high = if state.glob_index + 1 < glob.len()
@@ -185,10 +173,7 @@ fn glob_match_internal<'a>(
               && glob[state.glob_index + 1] != b']'
             {
               state.glob_index += 1;
-              match get_char_slice(glob_str, glob, &mut state.glob_index) {
-                Some(c) => c,
-                None => return false,
-              }
+              get_char_slice(glob_str, glob, &mut state.glob_index)?
             } else {
               low
             };
@@ -200,7 +185,7 @@ fn glob_match_internal<'a>(
           }
           if state.glob_index >= glob.len() {
             // invalid pattern!
-            return false;
+            return None;
           }
           state.glob_index += 1;
           if is_match != negated {
@@ -211,7 +196,7 @@ fn glob_match_internal<'a>(
         b'{' if state.path_index < path.len() => {
           if brace_stack.length as usize >= brace_stack.stack.len() {
             // Invalid pattern! Too many nested braces.
-            return false;
+            return None;
           }
 
           state.end_capture(&mut captures);
@@ -244,7 +229,7 @@ fn glob_match_internal<'a>(
           // Match escaped characters as literals.
           if !unescape(&mut c, glob, &mut state.glob_index) {
             // Invalid pattern!
-            return false;
+            return None;
           }
 
           let is_match = if c == b'/' {
@@ -283,13 +268,9 @@ fn glob_match_internal<'a>(
 
     if brace_stack.length > 0 {
       // If in braces, find next option and reset path to index where we saw the '{'
-      match state.skip_braces(glob, &mut captures, true) {
-        BraceState::Invalid => return false,
-        BraceState::Comma => {
-          state.path_index = brace_stack.last().path_index;
-          continue;
-        }
-        BraceState::EndBrace => {}
+      if let BraceState::Comma = state.skip_braces(glob, &mut captures, true)? {
+        state.path_index = brace_stack.last().path_index;
+        continue;
       }
 
       // Hit the end. Pop the stack.
@@ -311,7 +292,7 @@ fn glob_match_internal<'a>(
       }
     }
 
-    return negated;
+    return Some(negated);
   }
 
   if brace_stack.length > 0 && state.glob_index > 0 && glob[state.glob_index - 1] == b'}' {
@@ -319,7 +300,7 @@ fn glob_match_internal<'a>(
     brace_stack.pop(&state, &mut captures);
   }
 
-  !negated
+  Some(!negated)
 }
 
 /// gets a slice to a unicode grapheme at the given index
@@ -395,7 +376,6 @@ fn unescape(c: &mut u8, glob: &[u8], glob_index: &mut usize) -> bool {
 
 #[derive(PartialEq)]
 enum BraceState {
-  Invalid,
   Comma,
   EndBrace,
 }
@@ -460,7 +440,7 @@ impl State {
     glob: &[u8],
     captures: &mut Option<&mut Vec<Capture>>,
     stop_on_comma: bool,
-  ) -> BraceState {
+  ) -> Option<BraceState> {
     let mut braces = 1;
     let mut in_brackets = false;
     let mut capture_index = self.capture_index + 1;
@@ -471,7 +451,7 @@ impl State {
         b'}' if !in_brackets => braces -= 1,
         b',' if stop_on_comma && braces == 1 && !in_brackets => {
           self.glob_index += 1;
-          return BraceState::Comma;
+          return Some(BraceState::Comma);
         }
         c @ (b'*' | b'?' | b'[') if !in_brackets => {
           if c == b'[' {
@@ -502,10 +482,10 @@ impl State {
     }
 
     if braces != 0 {
-      return BraceState::Invalid;
+      return None;
     }
 
-    BraceState::EndBrace
+    Some(BraceState::EndBrace)
   }
 }
 
@@ -642,8 +622,9 @@ mod tests {
   #[test_case("🇩🇪?z", "🇩🇪🇩🇪z" ; "Germany flag wildcard emoji")]
   #[test_case("j[🇬🇧-🇳🇴]", "j🇬🇧" ; "latin letter with flag emoji range match")]
   fn unicode(glob: &str, path: &str) {
-    assert!(
+    assert_eq!(
       glob_match(glob, path),
+      Some(true),
       "`{}` doesn't match `{}`",
       path,
       glob
@@ -716,8 +697,9 @@ mod tests {
     "some/foo/a/bigger/path/to/the/crazy/needle.txt"
   )]
   fn basic(path: &str, glob: &str) {
-    assert!(
+    assert_eq!(
       glob_match(path, glob),
+      Some(true),
       "`{}` doesn't match `{}`",
       path,
       glob
@@ -755,7 +737,13 @@ mod tests {
     "some/foo/d/bigger/path/to/the/crazy/needle.txt"
   )]
   fn basic_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   // The below tests are based on Bash and micromatch.
@@ -772,8 +760,9 @@ mod tests {
   #[test_case("\\a*", "abd")]
   #[test_case("\\a*", "abe")]
   fn bash(glob: &str, path: &str) {
-    assert!(
+    assert_eq!(
       glob_match(glob, path),
+      Some(true),
       "`{}` doesn't match `{}`",
       path,
       glob
@@ -805,13 +794,20 @@ mod tests {
   #[test_case("\\a*", "dd")]
   #[test_case("\\a*", "de")]
   fn bash_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   #[test_case("b*/", "bdir/")]
   fn bash_directories(glob: &str, path: &str) {
-    assert!(
+    assert_eq!(
       glob_match(glob, path),
+      Some(true),
       "`{}` doesn't match `{}`",
       path,
       glob
@@ -837,7 +833,13 @@ mod tests {
   #[test_case("b*/", "dd")]
   #[test_case("b*/", "de")]
   fn bash_directories_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   #[test_case("\\*", "*" ; "escaped star")]
@@ -846,8 +848,9 @@ mod tests {
   #[test_case("\\**", "*" ; "escaped double star")]
   #[test_case("\\**", "**" ; "escaped double star 2")]
   fn bash_escaping(glob: &str, path: &str) {
-    assert!(
+    assert_eq!(
       glob_match(glob, path),
+      Some(true),
       "`{}` doesn't match `{}`",
       path,
       glob
@@ -947,7 +950,13 @@ mod tests {
   #[test_case("\\**", "dd")]
   #[test_case("\\**", "de")]
   fn bash_escaping_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   #[test_case("a*[^c]", "abd")]
@@ -991,9 +1000,10 @@ mod tests {
   #[test_case("[^a-c]*", "BZZ")]
   #[test_case("[^a-c]*", "BewAre")]
   fn bash_classes(glob: &str, path: &str) {
-    assert!(
+    assert_eq!(
       glob_match(glob, path),
-      "`{}` does not match `{}`",
+      Some(true),
+      "`{}` doesn't match `{}`",
       path,
       glob
     );
@@ -1189,7 +1199,13 @@ mod tests {
   #[test_case("[^a-c]*", "bzz")]
   #[test_case("[^a-c]*", "beware" ; "not a to c beware")]
   fn bash_classes_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   #[test_case("]", "]")]
@@ -1200,24 +1216,30 @@ mod tests {
   #[test_case("t[a-g]n", "ten")]
   #[test_case("t[^a-g]n", "ton")]
   fn bash_wildmatch(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("a[]-]b", "aab")]
   #[test_case("[ten]", "ten")]
   fn bash_wildmatch_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   #[test_case("foo[/]bar", "foo/bar")]
   #[test_case("f[^eiu][^eiu][^eiu][^eiu][^eiu]r", "foo-bar")]
   fn bash_slashmatch(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   // #[test_case("f[^eiu][^eiu][^eiu][^eiu][^eiu]r", "f[^eiu][^eiu][^eiu][^eiu][^eiu]r")]
   // fn bash_slashmatch_not(glob: &str, path: &str) {
-  //   assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+  //   assert_eq!(glob_match(glob, path), Some(false), "`{}` matches `{}`", path, glob);
   // }
 
   #[test_case("a**c", "abc" ; "a doublestar")]
@@ -1246,7 +1268,7 @@ mod tests {
   #[test_case("a**?**cd**?**??***k**", "abcdecdhjk")]
   #[test_case("a****c**?**??*****", "abcdecdhjk")]
   fn bash_extra_stars(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("a**c", "bbc")]
@@ -1256,7 +1278,13 @@ mod tests {
   #[test_case("a*****?c", "bbc" ; "a 5 star qmark c")]
   #[test_case("?***?****c", "bbd")]
   fn bash_extra_stars_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path), "`{}` matches `{}`", path, glob);
+    assert_eq!(
+      glob_match(glob, path),
+      Some(false),
+      "`{}` matches `{}`",
+      path,
+      glob
+    );
   }
 
   #[test_case("*.js", "z.js")]
@@ -1391,7 +1419,7 @@ mod tests {
   #[test_case("foo/**/bar", "foo/baz/bar" ; "foo doublestar bar")]
   #[test_case("**/foo", "XXX/foo")]
   fn stars(glob: &str, path: &str) {
-    assert!(glob_match(glob, path))
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("*.js", "a/b/c/z.js")]
@@ -1504,7 +1532,7 @@ mod tests {
   #[test_case("foo**bar", "foo/baz/bar" ; "foo doublestar bar")]
   #[test_case("foo*bar", "foo/baz/bar" ; "foo star bar")]
   fn stars_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path))
+    assert_eq!(glob_match(glob, path), Some(false));
   }
 
   #[test_case("**/*.js", "a/b/c/d.js")]
@@ -1628,7 +1656,7 @@ mod tests {
   #[test_case("a/**/*", "a/b/c/d" ; "a doublestar star a/b/c/d")]
   #[test_case("a/**/**/*", "a/b/c/d" ; "a doublestar doublestar star a/b/c/d")]
   fn globstars(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("a/b/**/*.js", "a/d.js")]
@@ -1677,7 +1705,7 @@ mod tests {
   #[test_case("**/d/*", "a/b/c/d")]
   #[test_case("b/**", "a/b/c/d")]
   fn globstars_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(false));
   }
 
   #[test_case("フ*/**/*", "フォルダ/aaa.js")]
@@ -1686,7 +1714,7 @@ mod tests {
   #[test_case("フ*ル*/**/*", "フォルダ/aaa.js")]
   #[test_case("フォルダ/**/*", "フォルダ/aaa.js")]
   fn utf8(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("*!*.md", "!foo!.md" ; "not star")]
@@ -1796,7 +1824,7 @@ mod tests {
   #[test_case("!*.md", "a/b.md")]
   #[test_case("!**/*.md", "c.txt")]
   fn negation(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("!*", "abc")]
@@ -1874,7 +1902,7 @@ mod tests {
   #[test_case("!*.md", "a.md")]
   // #[test_case("!**/*.md", "b.md")]
   fn negation_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(false));
   }
 
   #[test_case("?", "a")]
@@ -1892,7 +1920,7 @@ mod tests {
   #[test_case("a/???/c.md", "a/bbb/c.md")]
   #[test_case("a/????/c.md", "a/bbbb/c.md")]
   fn question_mark(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("?", "aa")]
@@ -1918,7 +1946,7 @@ mod tests {
   #[test_case("a/?/c/???/e.md", "a/b/c/d/e.md")]
   #[test_case("a/?/c.md", "a/bb/c.md")]
   fn question_mark_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(false));
   }
 
   #[test_case("{a,b,c}", "a")]
@@ -2020,7 +2048,7 @@ mod tests {
   // #[test_case("a{,.*{foo,db},\\(bar\\)}", "a")]
   // #[test_case("a{,*.{foo,db},\\(bar\\)}", "a")]
   fn braces(glob: &str, path: &str) {
-    assert!(glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(true));
   }
 
   #[test_case("{a,b,c}", "aa")]
@@ -2059,7 +2087,7 @@ mod tests {
   #[test_case("a/?/e.md", "a/bb/e.md" ; "a qmark e.md")]
   #[test_case("a/?/**/e.md", "a/bb/e.md" ; "a qmark doublestar e.md")]
   fn braces_not(glob: &str, path: &str) {
-    assert!(!glob_match(glob, path));
+    assert_eq!(glob_match(glob, path), Some(false));
   }
 
   #[test_case("a/*[a-z]x/c", "a/yybx/c" => Some(vec!["yy", "b"]))]
@@ -2110,6 +2138,6 @@ mod tests {
   #[test_case("{*{??*{??**,Uz*zz}w**{*{**a,z***b*[!}w??*azzzzzzzz*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!z[za,z&zz}w**z*z*}")]
   #[test_case("**** *{*{??*{??***\u{5} *{*{??*{??***\u{5},\0U\0}]*****\u{1},\0***\0,\0\0}w****,\0U\0}]*****\u{1},\0***\0,\0\0}w*****\u{1}***{}*.*\0\0*\0")]
   fn fuzz_tests(fuzz: &str) {
-    assert!(!glob_match(fuzz, fuzz));
+    assert_eq!(glob_match(fuzz, fuzz), None);
   }
 }
