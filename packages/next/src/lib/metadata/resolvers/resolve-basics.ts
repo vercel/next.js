@@ -83,7 +83,7 @@ function resolveUrlValuesOfObject(
     if (typeof value === 'string' || value instanceof URL) {
       result[key] = [
         {
-          url: resolveAlternateUrl(value, metadataBase, pathname), // metadataBase ? resolveUrl(value, metadataBase)! : value,
+          url: resolveAlternateUrl(value, metadataBase, pathname),
         },
       ]
     } else {
