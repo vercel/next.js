@@ -9,7 +9,21 @@ export interface RequestStore {
   readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
   readonly previewData: PreviewData
-  readonly draftMode: boolean
+  readonly draftMode: {
+    /**
+     * Get the current value of Draft Mode.
+     * True when enabled, false when disabled.
+     */
+    enabled: boolean
+    /**
+     * Set the value of Draft Mode to true.
+     */
+    enable: () => void
+    /**
+     * Set the value of Draft Mode to false.
+     */
+    disable: () => void
+  }
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

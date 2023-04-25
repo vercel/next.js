@@ -76,6 +76,32 @@ createNextDescribe(
       }
     })
 
+    describe('useDraftMode', () => {
+      it('should draft mode be disabled', async () => {
+        const $ = await next.render$('/hooks/use-draft-mode')
+        expect($('#draft-mode-disabled').text()).toBe('DISABLED')
+      })
+
+      it('should draft mode be enabled after cookie is set', async () => {
+        const res = await next.fetch('/api/enable')
+        const cookie = res.headers
+          .get('set-cookie')
+          .split(';')
+          .find((str) => str.startsWith('__prerender_bypass'))
+        console.log({ cookie })
+        const $ = await next.render$(
+          '/hooks/use-draft-mode',
+          {},
+          {
+            headers: {
+              Cookie: cookie,
+            },
+          }
+        )
+        expect($('#draft-mode-enabled').text()).toBe('ENABLED')
+      })
+    })
+
     describe('useRouter', () => {
       it('should allow access to the router', async () => {
         const browser = await next.browser('/hooks/use-router')

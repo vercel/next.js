@@ -411,6 +411,13 @@ createNextDescribe(
           'route-handler-edge/revalidate-360/route.js',
           'route-handler/post/route.js',
           'route-handler/revalidate-360/route.js',
+          'ssg-draft-mode.html',
+          'ssg-draft-mode.rsc',
+          'ssg-draft-mode/[[...route]]/page.js',
+          'ssg-draft-mode/test-2.html',
+          'ssg-draft-mode/test-2.rsc',
+          'ssg-draft-mode/test.html',
+          'ssg-draft-mode/test.rsc',
           'ssg-preview.html',
           'ssg-preview.rsc',
           'ssg-preview/[[...route]]/page.js',
@@ -603,6 +610,21 @@ createNextDescribe(
             initialRevalidateSeconds: false,
             srcRoute: '/partial-gen-params-no-additional-slug/[lang]/[slug]',
           },
+          '/ssg-draft-mode': {
+            dataRoute: '/ssg-draft-mode.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test': {
+            dataRoute: '/ssg-draft-mode/test.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
+          '/ssg-draft-mode/test-2': {
+            dataRoute: '/ssg-draft-mode/test-2.rsc',
+            initialRevalidateSeconds: false,
+            srcRoute: '/ssg-draft-mode/[[...route]]',
+          },
           '/force-static/first': {
             dataRoute: '/force-static/first.rsc',
             initialRevalidateSeconds: false,
@@ -733,6 +755,12 @@ createNextDescribe(
             routeRegex: normalizeRegEx(
               '^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'
             ),
+          },
+          '/ssg-draft-mode/[[...route]]': {
+            dataRoute: '/ssg-draft-mode/[[...route]].rsc',
+            dataRouteRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$',
+            fallback: null,
+            routeRegex: '^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$',
           },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
@@ -1332,6 +1360,16 @@ createNextDescribe(
         .text()
 
       expect(content).toContain('previewData')
+    })
+
+    it('should not throw Dynamic Server Usage error when using generateStaticParams with draftMode', async () => {
+      const browserOnIndexPage = await next.browser('/ssg-draft-mode')
+
+      const content = await browserOnIndexPage
+        .elementByCss('#draft-mode')
+        .text()
+
+      expect(content).toBe('{"result":{"enabled":false}}')
     })
 
     it('should force SSR correctly for headers usage', async () => {

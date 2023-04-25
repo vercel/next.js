@@ -113,24 +113,35 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
         return cache.cookies
       },
       previewData,
-      get draftMode(): boolean {
+      get draftMode() {
         // The logic for draftMode() is very similar to tryGetPreviewData()
         // but Draft Mode does not have any data associated with it.
-        if (
+        const isOnDemandRevalidate =
           previewProps &&
           checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
-        ) {
-          return false
-        }
 
         const cookieValue = this.cookies.get(
           COOKIE_NAME_PRERENDER_BYPASS
         )?.value
-        return Boolean(
-          cookieValue &&
+
+        const enabled = Boolean(
+          !isOnDemandRevalidate &&
+            cookieValue &&
             previewProps &&
             cookieValue === previewProps.previewModeId
         )
+
+        return {
+          enabled,
+          enable: () => {
+            // TODO: implement draftMode().enable()
+            // once cookies().set() is implemented
+          },
+          disable: () => {
+            // TODO: implement draftMode().disable()
+            // once cookies().set() is implemented
+          },
+        }
       },
     }
 
