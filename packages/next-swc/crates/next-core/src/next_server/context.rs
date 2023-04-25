@@ -65,6 +65,7 @@ pub async fn get_server_resolve_options_context(
         get_next_server_import_map(project_path, ty, next_config, execution_context);
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let root_dir = project_path.root().resolve().await?;
+    let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePluginVc::new(project_path);
 
     Ok(match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -82,7 +83,7 @@ pub async fn get_server_resolve_options_context(
                 import_map: Some(next_server_import_map),
                 plugins: vec![
                     external_cjs_modules_plugin.into(),
-                    UnsupportedModulesResolvePluginVc::new(project_path).into(),
+                    unsupported_modules_resolve_plugin.into(),
                 ],
                 ..Default::default()
             };
@@ -104,7 +105,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -125,7 +126,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -144,7 +145,7 @@ pub async fn get_server_resolve_options_context(
                 module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
@@ -163,7 +164,7 @@ pub async fn get_server_resolve_options_context(
                 enable_node_externals: true,
                 module: true,
                 custom_conditions: vec!["development".to_string()],
-                plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
+                plugins: vec![unsupported_modules_resolve_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {

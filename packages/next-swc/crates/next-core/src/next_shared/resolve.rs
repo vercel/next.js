@@ -17,8 +17,8 @@ use turbo_binding::{
 use turbo_tasks_fs::glob::GlobVc;
 
 lazy_static! {
-    static ref UNSUPPORTED_PACKAGES: HashSet<String> = ["@vercel/og".to_owned()].into();
-    static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(String, String)> = [].into();
+    static ref UNSUPPORTED_PACKAGES: HashSet<&'static str> = ["@vercel/og"].into();
+    static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(&'static str, &'static str)> = [].into();
 }
 
 #[turbo_tasks::value]
@@ -55,7 +55,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
         } = &*request.await?
         {
             // Warn if the package is known not to be supported by Turbopack at the moment.
-            if UNSUPPORTED_PACKAGES.contains(module) {
+            if UNSUPPORTED_PACKAGES.contains(module.as_str()) {
                 UnsupportedModuleIssue {
                     context,
                     package: module.into(),
@@ -67,7 +67,7 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
             }
 
             if let Pattern::Constant(path) = path {
-                if UNSUPPORTED_PACKAGE_PATHS.contains(&(module.to_string(), path.to_owned())) {
+                if UNSUPPORTED_PACKAGE_PATHS.contains(&(module, path)) {
                     UnsupportedModuleIssue {
                         context,
                         package: module.into(),
