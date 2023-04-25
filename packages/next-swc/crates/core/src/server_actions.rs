@@ -855,59 +855,47 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // If it's a "use server" file, all exports need to be annotated as actions.
         if self.in_action_file {
+            // If it's compiled in the client layer, each export field needs to be
+            // wrapped by a reference creation call.
+            let create_ref_ident = private_ident!("createServerReference");
+            if !self.config.is_server {
+                // Ensure that the exports are valid by appending a check
+                // import { ensureServerEntryExports } from 'private-next-rsc-action-proxy'
+                // ensureServerEntryExports([action1, action2, ...])
+                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                        span: DUMMY_SP,
+                        local: create_ref_ident.clone(),
+                    })],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: "private-next-rsc-action-client-wrapper".into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    asserts: None,
+                })));
+            }
+
             for (id, export_name) in self.exported_idents.iter() {
                 let ident = Ident::new(id.0.clone(), DUMMY_SP.with_ctxt(id.1));
-                annotate_ident_as_action(
-                    &mut self.annotations,
-                    ident.clone(),
-                    Vec::new(),
-                    self.file_name.to_string(),
-                    export_name.to_string(),
-                    false,
-                    None,
-                );
+
                 if !self.config.is_server {
-                    let params_ident = private_ident!("args");
-                    let noop_fn = Box::new(Function {
-                        params: vec![Param {
-                            span: DUMMY_SP,
-                            decorators: Default::default(),
-                            pat: Pat::Rest(RestPat {
-                                span: DUMMY_SP,
-                                dot3_token: DUMMY_SP,
-                                arg: Box::new(Pat::Ident(params_ident.clone().into())),
-                                type_ann: None,
-                            }),
-                        }],
-                        decorators: Vec::new(),
-                        span: DUMMY_SP,
-                        body: Some(BlockStmt {
-                            span: DUMMY_SP,
-                            stmts: vec![Stmt::Return(ReturnStmt {
-                                span: DUMMY_SP,
-                                arg: Some(Box::new(Expr::Call(CallExpr {
-                                    span: DUMMY_SP,
-                                    callee: Callee::Expr(Box::new(Expr::Ident(private_ident!(
-                                        "__build_action__"
-                                    )))),
-                                    args: vec![ident.clone().as_arg(), params_ident.as_arg()],
-                                    type_args: None,
-                                }))),
-                            })],
-                        }),
-                        is_generator: false,
-                        is_async: true,
-                        type_params: None,
-                        return_type: None,
-                    });
+                    let action_id =
+                        generate_action_id(self.file_name.to_string(), export_name.to_string());
 
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
-                                expr: Box::new(Expr::Fn(FnExpr {
-                                    ident: Some(ident),
-                                    function: noop_fn,
+                                expr: Box::new(Expr::Call(CallExpr {
+                                    span: DUMMY_SP,
+                                    callee: Callee::Expr(Box::new(Expr::Ident(
+                                        create_ref_ident.clone(),
+                                    ))),
+                                    args: vec![action_id.as_arg()],
+                                    type_args: None,
                                 })),
                             },
                         ));
@@ -916,66 +904,92 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                                 span: DUMMY_SP,
-                                decl: Decl::Fn(FnDecl {
-                                    ident,
+                                decl: Decl::Var(Box::new(VarDecl {
+                                    span: DUMMY_SP,
+                                    kind: VarDeclKind::Const,
                                     declare: false,
-                                    function: noop_fn,
-                                }),
+                                    decls: vec![VarDeclarator {
+                                        span: DUMMY_SP,
+                                        name: Pat::Ident(ident.into()),
+                                        init: Some(Box::new(Expr::Call(CallExpr {
+                                            span: DUMMY_SP,
+                                            callee: Callee::Expr(Box::new(Expr::Ident(
+                                                create_ref_ident.clone(),
+                                            ))),
+                                            args: vec![action_id.as_arg()],
+                                            type_args: None,
+                                        }))),
+                                        definite: false,
+                                    }],
+                                })),
                             }));
                         new.push(export_expr);
                     }
+                } else {
+                    annotate_ident_as_action(
+                        &mut self.annotations,
+                        ident.clone(),
+                        Vec::new(),
+                        self.file_name.to_string(),
+                        export_name.to_string(),
+                        false,
+                        None,
+                    );
                 }
             }
-            new.append(&mut self.extra_items);
 
-            // Ensure that the exports are valid by appending a check
-            // import { ensureServerEntryExports } from 'private-next-rsc-action-proxy'
-            // ensureServerEntryExports([action1, action2, ...])
-            let ensure_ident = private_ident!("ensureServerEntryExports");
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+            if self.config.is_server {
+                new.append(&mut self.extra_items);
+
+                // Ensure that the exports are valid by appending a check
+                // import { ensureServerEntryExports } from 'private-next-rsc-action-proxy'
+                // ensureServerEntryExports([action1, action2, ...])
+                let ensure_ident = private_ident!("ensureServerEntryExports");
+                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    local: ensure_ident.clone(),
-                })],
-                src: Box::new(Str {
+                    specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                        span: DUMMY_SP,
+                        local: ensure_ident.clone(),
+                    })],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: "private-next-rsc-action-proxy".into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    asserts: None,
+                })));
+                new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
-                    value: "private-next-rsc-action-proxy".into(),
-                    raw: None,
-                }),
-                type_only: false,
-                asserts: None,
-            })));
-            new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                span: DUMMY_SP,
-                expr: Box::new(Expr::Call(CallExpr {
-                    span: DUMMY_SP,
-                    callee: Callee::Expr(Box::new(Expr::Ident(ensure_ident))),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Array(ArrayLit {
-                            span: DUMMY_SP,
-                            elems: self
-                                .exported_idents
-                                .iter()
-                                .map(|e| {
-                                    Some(ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(Expr::Ident(Ident::new(
-                                            e.0 .0.clone(),
-                                            DUMMY_SP.with_ctxt(e.0 .1),
-                                        ))),
+                    expr: Box::new(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: Callee::Expr(Box::new(Expr::Ident(ensure_ident))),
+                        args: vec![ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Array(ArrayLit {
+                                span: DUMMY_SP,
+                                elems: self
+                                    .exported_idents
+                                    .iter()
+                                    .map(|e| {
+                                        Some(ExprOrSpread {
+                                            spread: None,
+                                            expr: Box::new(Expr::Ident(Ident::new(
+                                                e.0 .0.clone(),
+                                                DUMMY_SP.with_ctxt(e.0 .1),
+                                            ))),
+                                        })
                                     })
-                                })
-                                .collect(),
-                        })),
-                    }],
-                    type_args: None,
-                })),
-            })));
+                                    .collect(),
+                            })),
+                        }],
+                        type_args: None,
+                    })),
+                })));
 
-            // Append annotations to the end of the file.
-            new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
+                // Append annotations to the end of the file.
+                new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
+            }
         }
 
         *stmts = new;
@@ -1149,6 +1163,18 @@ fn pat_to_assign_pat(
     }
 }
 
+fn generate_action_id(file_name: String, export_name: String) -> String {
+    // Attach a checksum to the action using sha1:
+    // $$id = sha1('file_name' + ':' + 'export_name');
+    let mut hasher = Sha1::new();
+    hasher.update(file_name.as_bytes());
+    hasher.update(b":");
+    hasher.update(export_name.as_bytes());
+    let result = hasher.finalize();
+
+    hex_encode(result).into()
+}
+
 fn annotate_ident_as_action(
     annotations: &mut Vec<Stmt>,
     ident: Ident,
@@ -1173,16 +1199,12 @@ fn annotate_ident_as_action(
         .into(),
     ));
 
-    // Attach a checksum to the action using sha1:
-    // myAction.$$id = sha1('file_name' + ':' + 'export_name');
-    let mut hasher = Sha1::new();
-    hasher.update(file_name.as_bytes());
-    hasher.update(b":");
-    hasher.update(export_name.as_bytes());
-    let result = hasher.finalize();
-
     // Convert result to hex string
-    annotations.push(annotate(&ident, "$$id", hex_encode(result).into()));
+    annotations.push(annotate(
+        &ident,
+        "$$id",
+        generate_action_id(file_name, export_name).into(),
+    ));
 
     // myAction.$$bound = [];
     annotations.push(annotate(
