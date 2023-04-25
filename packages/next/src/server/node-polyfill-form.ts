@@ -3,6 +3,7 @@
  */
 
 if (!(global as any).FormData) {
-  const undici = require('next/dist/compiled/undici')
-  ;(global as any).FormData = undici.FormData
+  const { FormData } =
+    require('next/dist/compiled/@edge-runtime/primitives/fetch') as typeof import('next/dist/compiled/@edge-runtime/primitives/fetch')
+  ;(global as any).FormData = FormData
 }
