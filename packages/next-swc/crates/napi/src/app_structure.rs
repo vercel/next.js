@@ -106,11 +106,11 @@ async fn prepare_components_for_js(
     add(&mut map, project_path, "default", default).await?;
     add(&mut map, project_path, "route", route).await?;
     let mut meta = serde_json::value::Map::new();
-    async fn add_meta(
+    async fn add_meta<'a>(
         meta: &mut serde_json::value::Map<String, serde_json::Value>,
         project_path: FileSystemPathVc,
         key: &str,
-        value: impl Iterator<Item = MetadataWithAltItem>,
+        value: impl Iterator<Item = &'a MetadataWithAltItem>,
     ) -> Result<()> {
         let mut value = value.peekable();
         if value.peek().is_some() {
@@ -118,12 +118,22 @@ async fn prepare_components_for_js(
                 key.to_string(),
                 value
                     .map(|value| async move {
-                        let path = fs_path_to_path(project_path, value.path).await?;
                         let mut map = serde_json::value::Map::new();
-                        map.insert("path".to_string(), path.into());
-                        if let Some(alt_path) = value.alt_path {
-                            let alt_path = fs_path_to_path(project_path, alt_path).await?;
-                            map.insert("altPath".to_string(), alt_path.into());
+                        match value {
+                            MetadataWithAltItem::Static { path, alt_path } => {
+                                map.insert("type".to_string(), "static".into());
+                                let path = fs_path_to_path(project_path, *path).await?;
+                                map.insert("path".to_string(), path.into());
+                                if let Some(alt_path) = alt_path {
+                                    let alt_path = fs_path_to_path(project_path, *alt_path).await?;
+                                    map.insert("altPath".to_string(), alt_path.into());
+                                }
+                            }
+                            MetadataWithAltItem::Dynamic { path } => {
+                                map.insert("type".to_string(), "dynamic".into());
+                                let path = fs_path_to_path(project_path, *path).await?;
+                                map.insert("path".to_string(), path.into());
+                            }
                         }
                         Ok(serde_json::Value::from(map))
                     })
@@ -134,53 +144,17 @@ async fn prepare_components_for_js(
         }
         Ok::<_, anyhow::Error>(())
     }
-    add_meta(
-        &mut meta,
-        project_path,
-        "icon",
-        metadata
-            .icon
-            .iter()
-            .copied()
-            .map(MetadataWithAltItem::from_path),
-    )
-    .await?;
-    add_meta(
-        &mut meta,
-        project_path,
-        "apple",
-        metadata
-            .apple
-            .iter()
-            .copied()
-            .map(MetadataWithAltItem::from_path),
-    )
-    .await?;
-    add_meta(
-        &mut meta,
-        project_path,
-        "twitter",
-        metadata.twitter.iter().copied(),
-    )
-    .await?;
+    add_meta(&mut meta, project_path, "icon", metadata.icon.iter()).await?;
+    add_meta(&mut meta, project_path, "apple", metadata.apple.iter()).await?;
+    add_meta(&mut meta, project_path, "twitter", metadata.twitter.iter()).await?;
     add_meta(
         &mut meta,
         project_path,
         "openGraph",
-        metadata.open_graph.iter().copied(),
+        metadata.open_graph.iter(),
     )
     .await?;
-    add_meta(
-        &mut meta,
-        project_path,
-        "favicon",
-        metadata
-            .favicon
-            .iter()
-            .copied()
-            .map(MetadataWithAltItem::from_path),
-    )
-    .await?;
+    add_meta(&mut meta, project_path, "favicon", metadata.favicon.iter()).await?;
     map.insert("metadata".to_string(), meta.into());
     Ok(map.into())
 }
