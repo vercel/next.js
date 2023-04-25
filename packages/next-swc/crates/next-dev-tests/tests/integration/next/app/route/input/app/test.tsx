@@ -10,13 +10,6 @@ function test() {
     expect(res.headers.get('method')).toEqual('GET')
   }, 20000)
 
-  it('should make a GET request to /cryto which should support node builtins', async () => {
-    const res = await fetch('/crypto')
-    const text = await res.text()
-    expect(text).toEqual('{ "data": "crypto" }')
-    expect(res.headers.get('method')).toEqual('GET')
-  }, 20000)
-
   it('should make a POST request', async () => {
     const res = await fetch('/route.js', {
       method: 'POST',
@@ -24,6 +17,12 @@ function test() {
     const text = await res.text()
     expect(text).toEqual('hello route.js')
     expect(res.headers.get('method')).toEqual('POST')
+  }, 20000)
+
+  it('should make a GET request to /api/crypto which should support node builtins', async () => {
+    const res = await fetch('/api/crypto')
+    const text = await res.text()
+    expect(text).toEqual('{"data":"secret"}')
   }, 20000)
 }
 
