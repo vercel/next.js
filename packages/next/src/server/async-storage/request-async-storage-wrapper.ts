@@ -1,6 +1,8 @@
+import type { tryGetPreviewData as TryGetPreviewData } from '../api-utils/node'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
+import type { PreviewData } from '../../../types'
 import type { RequestStore } from '../../client/components/request-async-storage'
 import type { RenderOpts } from '../app-render/types'
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
@@ -38,6 +40,15 @@ function getCookies(
   return RequestCookiesAdapter.seal(cookies)
 }
 
+/**
+ * Tries to get the preview data on the request for the given route. This
+ * isn't enabled in the edge runtime yet.
+ */
+const tryGetPreviewData: typeof TryGetPreviewData | null =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? require('../api-utils/node').tryGetPreviewData
+    : null
+
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest | NextRequest
   res?: ServerResponse | BaseNextResponse
@@ -59,7 +70,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
    */
   wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
-    { req, renderOpts }: RequestContext,
+    { req, res, renderOpts }: RequestContext,
     callback: (store: RequestStore) => Result
   ): Result {
     let previewProps: __ApiPreviewProps | undefined = undefined
@@ -68,6 +79,14 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       // TODO: investigate why previewProps isn't on RenderOpts
       previewProps = (renderOpts as any).previewProps
     }
+
+    // Reads of this are cached on the `req` object, so this should resolve
+    // instantly. There's no need to pass this data down from a previous
+    // invoke.
+    const previewData: PreviewData =
+      previewProps && tryGetPreviewData && res
+        ? tryGetPreviewData(req, res, previewProps)
+        : false
 
     const cache: {
       headers?: ReadonlyHeaders
@@ -93,6 +112,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
         return cache.cookies
       },
+      previewData,
       get draftMode(): boolean {
         // The logic for draftMode() is very similar to tryGetPreviewData()
         // but Draft Mode does not have any data associated with it.
