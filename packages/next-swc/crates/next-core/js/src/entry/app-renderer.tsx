@@ -252,8 +252,7 @@ async function runOperation(renderData: RenderData) {
     headers: headersFromEntries(renderData.rawHeaders),
   } as any
   const res: ServerResponse = new ServerResponseShim(req) as any
-  const parsedQuery = parse(renderData.rawQuery)
-  const query = { ...parsedQuery, ...renderData.params }
+  const query = parse(renderData.rawQuery)
   const renderOpt: Omit<
     RenderOpts,
     'App' | 'Document' | 'Component' | 'pathname'

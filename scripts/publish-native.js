@@ -84,7 +84,8 @@ const cwd = process.cwd()
     )
 
     // Update name/version of wasm packages and publish
-    let wasmDir = path.join(cwd, 'packages/next-swc/crates/wasm')
+    const pkgDirectory = 'packages/next-swc/crates/wasm'
+    let wasmDir = path.join(cwd, pkgDirectory)
 
     await Promise.all(
       ['web', 'nodejs'].map(async (wasmTarget) => {
@@ -95,6 +96,11 @@ const cwd = process.cwd()
         )
         wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
         wasmPkg.version = version
+        wasmPkg.repository = {
+          type: 'git',
+          url: 'https://github.com/vercel/next.js',
+          directory: pkgDirectory,
+        }
 
         await writeFile(
           path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
