@@ -82,18 +82,37 @@ impl ComponentsVc {
     }
 }
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
+pub enum MetadataWithAltItem {
+    Static {
+        path: FileSystemPathVc,
+        alt_path: Option<FileSystemPathVc>,
+    },
+    Dynamic {
+        path: FileSystemPathVc,
+    },
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
+pub enum MetadataItem {
+    Static { path: FileSystemPathVc },
+    Dynamic { path: FileSystemPathVc },
+}
+
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub icon: Vec<FileSystemPathVc>,
+    pub icon: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub apple: Vec<FileSystemPathVc>,
+    pub apple: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub twitter: Vec<FileSystemPathVc>,
+    pub twitter: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub open_graph: Vec<FileSystemPathVc>,
+    pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub favicon: Vec<FileSystemPathVc>,
+    pub favicon: Vec<MetadataWithAltItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifest: Option<MetadataItem>,
 }
 
 impl Metadata {
@@ -104,12 +123,14 @@ impl Metadata {
             twitter,
             open_graph,
             favicon,
+            manifest,
         } = self;
         icon.is_empty()
             && apple.is_empty()
             && twitter.is_empty()
             && open_graph.is_empty()
             && favicon.is_empty()
+            && manifest.is_none()
     }
 
     fn merge(a: &Self, b: &Self) -> Self {
@@ -124,7 +145,30 @@ impl Metadata {
                 .copied()
                 .collect(),
             favicon: a.favicon.iter().chain(b.favicon.iter()).copied().collect(),
+            manifest: a.manifest.or(b.manifest),
         }
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Default, Clone, Debug)]
+pub struct GlobalMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub favicon: Option<MetadataItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub robots: Option<MetadataItem>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sitemap: Option<MetadataItem>,
+}
+
+impl GlobalMetadata {
+    pub fn is_empty(&self) -> bool {
+        let GlobalMetadata {
+            favicon,
+            robots,
+            sitemap,
+        } = self;
+        favicon.is_none() && robots.is_none() && sitemap.is_none()
     }
 }
 
@@ -203,7 +247,7 @@ pub async fn find_app_dir_if_enabled(
     Ok(find_app_dir(project_path))
 }
 
-static STATIC_METADATA_IMAGES: Lazy<HashMap<&'static str, &'static [&'static str]>> =
+static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
         HashMap::from([
             (
@@ -211,18 +255,36 @@ static STATIC_METADATA_IMAGES: Lazy<HashMap<&'static str, &'static [&'static str
                 &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
             ),
             ("apple-icon", &["jpg", "jpeg", "png"]),
-            ("favicon", &["ico"]),
             ("opengraph-image", &["jpg", "jpeg", "png", "gif"]),
             ("twitter-image", &["jpg", "jpeg", "png", "gif"]),
+            ("favicon", &["ico"]),
+            ("manifest", &["webmanifest", "json"]),
         ])
     });
 
-fn match_metadata_file(basename: &str) -> Option<&'static str> {
+static STATIC_GLOBAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
+    Lazy::new(|| {
+        HashMap::from([
+            ("favicon", &["ico"] as &'static [&'static str]),
+            ("manifest", &["webmanifest", "json"]),
+            ("robots", &["txt"]),
+            ("sitemap", &["xml"]),
+        ])
+    });
+
+fn match_metadata_file<'a>(
+    basename: &'a str,
+    page_extensions: &Vec<String>,
+) -> Option<(&'a str, bool)> {
     let (stem, ext) = basename.split_once('.')?;
-    static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("\\d*$").unwrap());
-    let stem = REGEX.replace(stem, "");
-    let (key, exts) = STATIC_METADATA_IMAGES.get_key_value(stem.as_ref())?;
-    exts.contains(&ext).then_some(key)
+    static REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("^(.*?)\\d*$").unwrap());
+    let captures = REGEX.captures(stem).unwrap();
+    let stem = captures.get(1).unwrap().as_str();
+    if page_extensions.iter().any(|e| e == ext) {
+        return Some((stem, true));
+    }
+    let exts = STATIC_LOCAL_METADATA.get(stem)?;
+    exts.contains(&ext).then_some((stem, false))
 }
 
 #[turbo_tasks::function]
@@ -233,6 +295,8 @@ async fn get_directory_tree(
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
     };
+    let page_extensions_value = page_extensions.await?;
+
     let mut subdirectories = BTreeMap::new();
     let mut components = Components::default();
 
@@ -240,7 +304,7 @@ async fn get_directory_tree(
         match *entry {
             DirectoryEntry::File(file) => {
                 if let Some((stem, ext)) = basename.split_once('.') {
-                    if page_extensions.await?.iter().any(|e| e == ext) {
+                    if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
                             "page" => components.page = Some(file),
                             "layout" => components.layout = Some(file),
@@ -249,12 +313,25 @@ async fn get_directory_tree(
                             "template" => components.template = Some(file),
                             "default" => components.default = Some(file),
                             "route" => components.route = Some(file),
+                            "manifest" => {
+                                components.metadata.manifest =
+                                    Some(MetadataItem::Dynamic { path: file });
+                                continue;
+                            }
                             _ => {}
                         }
                     }
                 }
-                if let Some(metadata_type) = match_metadata_file(basename.as_str()) {
+
+                if let Some((metadata_type, dynamic)) =
+                    match_metadata_file(basename.as_str(), &page_extensions_value)
+                {
                     let metadata = &mut components.metadata;
+
+                    if metadata_type == "manifest" {
+                        components.metadata.manifest = Some(MetadataItem::Static { path: file });
+                        continue;
+                    }
 
                     let entry = match metadata_type {
                         "icon" => Some(&mut metadata.icon),
@@ -266,7 +343,23 @@ async fn get_directory_tree(
                     };
 
                     if let Some(entry) = entry {
-                        entry.push(file)
+                        if dynamic {
+                            entry.push(MetadataWithAltItem::Dynamic { path: file });
+                        } else {
+                            let file_value = file.await?;
+                            let file_name = file_value.file_name();
+                            let basename = file_name
+                                .rsplit_once('.')
+                                .map_or(file_name, |(basename, _)| basename);
+                            let alt_path = file.parent().join(&format!("{}.alt.txt", basename));
+                            let alt_path =
+                                matches!(&*alt_path.get_type().await?, FileSystemEntryType::File)
+                                    .then_some(alt_path);
+                            entry.push(MetadataWithAltItem::Static {
+                                path: file,
+                                alt_path,
+                            });
+                        }
                     }
                 }
             }
@@ -574,6 +667,44 @@ async fn directory_tree_to_entrypoints_internal(
         }
     }
     Ok(EntrypointsVc::cell(result))
+}
+
+#[turbo_tasks::function]
+pub async fn get_global_metadata(
+    app_dir: FileSystemPathVc,
+    page_extensions: StringsVc,
+) -> Result<GlobalMetadataVc> {
+    let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
+        bail!("app_dir must be a directory")
+    };
+    let mut metadata = GlobalMetadata::default();
+
+    for (basename, entry) in entries {
+        match *entry {
+            DirectoryEntry::File(file) => {
+                if let Some((stem, ext)) = basename.split_once('.') {
+                    let list = match stem {
+                        "favicon" => Some(&mut metadata.favicon),
+                        "sitemap" => Some(&mut metadata.sitemap),
+                        "robots" => Some(&mut metadata.robots),
+                        _ => None,
+                    };
+                    if let Some(list) = list {
+                        if page_extensions.await?.iter().any(|e| e == ext) {
+                            *list = Some(MetadataItem::Dynamic { path: file });
+                        }
+                        if STATIC_GLOBAL_METADATA.get(stem).unwrap().contains(&ext) {
+                            *list = Some(MetadataItem::Static { path: file });
+                        }
+                    }
+                }
+            }
+            // TODO handle symlinks in app dir
+            _ => {}
+        }
+    }
+
+    Ok(metadata.cell())
 }
 
 #[turbo_tasks::value(shared)]

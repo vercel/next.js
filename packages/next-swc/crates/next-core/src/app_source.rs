@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Write};
+use std::{collections::HashMap, io::Write, iter::once};
 
 use anyhow::Result;
 use async_recursion::async_recursion;
@@ -30,6 +30,7 @@ use turbo_binding::{
         dev_server::{
             html::DevHtmlAssetVc,
             source::{
+                asset_graph::AssetGraphContentSourceVc,
                 combined::CombinedContentSource,
                 specificity::{Specificity, SpecificityElementType, SpecificityVc},
                 ContentSourceData, ContentSourceVc, NoContentSourceVc,
@@ -37,6 +38,7 @@ use turbo_binding::{
         },
         ecmascript::{
             magic_identifier,
+            text::TextContentSourceAssetVc,
             utils::{FormatIter, StringifyJs},
             EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
             InnerAssetsVc,
@@ -50,6 +52,7 @@ use turbo_binding::{
             },
             NodeEntry, NodeEntryVc, NodeRenderingEntry, NodeRenderingEntryVc,
         },
+        r#static::{fixed::FixedStaticAssetVc, StaticModuleAssetVc},
         turbopack::{
             ecmascript::EcmascriptInputTransform,
             transition::{TransitionVc, TransitionsByNameVc},
@@ -62,8 +65,10 @@ use turbo_tasks::{TryJoinIterExt, ValueToString};
 use crate::{
     app_render::next_layout_entry_transition::NextServerComponentTransition,
     app_structure::{
-        get_entrypoints, Components, Entrypoint, LoaderTree, LoaderTreeVc, Metadata, OptionAppDirVc,
+        get_entrypoints, get_global_metadata, Components, Entrypoint, GlobalMetadataVc, LoaderTree,
+        LoaderTreeVc, Metadata, MetadataItem, MetadataWithAltItem, OptionAppDirVc,
     },
+    asset_helpers::as_es_module_asset,
     embed_js::{next_js_file, next_js_file_path},
     env::env_for_js,
     fallback::get_fallback_page,
@@ -85,6 +90,7 @@ use crate::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
         transition::NextEdgeTransition,
     },
+    next_image::module::StructuredImageModuleType,
     next_route_matcher::NextParamsMatcherVc,
     next_server::context::{
         get_server_compile_time_info, get_server_module_options_context,
@@ -370,6 +376,7 @@ pub async fn create_app_source(
         return Ok(NoContentSourceVc::new().into());
     };
     let entrypoints = get_entrypoints(app_dir, next_config.page_extensions());
+    let metadata = get_global_metadata(app_dir, next_config.page_extensions());
 
     let client_compile_time_info = get_client_compile_time_info(browserslist_query);
 
@@ -444,8 +451,55 @@ pub async fn create_app_source(
                 output_path,
             ),
         })
+        .chain(once(create_global_metadata_source(
+            app_dir,
+            metadata,
+            server_root,
+        )))
         .collect();
 
+    Ok(CombinedContentSource { sources }.cell().into())
+}
+
+#[turbo_tasks::function]
+async fn create_global_metadata_source(
+    app_dir: FileSystemPathVc,
+    metadata: GlobalMetadataVc,
+    server_root: FileSystemPathVc,
+) -> Result<ContentSourceVc> {
+    let metadata = metadata.await?;
+    let mut unsupported_metadata = Vec::new();
+    let mut sources = Vec::new();
+    let mut handle = |server_path, item| {
+        if let Some(item) = item {
+            match item {
+                MetadataItem::Static { path } => {
+                    let asset = FixedStaticAssetVc::new(
+                        server_root.join(server_path),
+                        SourceAssetVc::new(path).into(),
+                    );
+                    sources.push(
+                        AssetGraphContentSourceVc::new_eager(server_root, asset.into()).into(),
+                    )
+                }
+                MetadataItem::Dynamic { path } => {
+                    unsupported_metadata.push(path);
+                }
+            }
+        }
+    };
+    handle("robots.txt", metadata.robots);
+    handle("favicon.ico", metadata.favicon);
+    handle("sitemap.xml", metadata.sitemap);
+    if !unsupported_metadata.is_empty() {
+        UnsupportedDynamicMetadataIssue {
+            app_dir,
+            files: unsupported_metadata,
+        }
+        .cell()
+        .as_issue()
+        .emit();
+    }
     Ok(CombinedContentSource { sources }.cell().into())
 }
 
@@ -622,10 +676,138 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             Ok(())
         }
 
-        fn emit_metadata_warning(state: &mut State, files: &[FileSystemPathVc]) {
-            for file in files {
-                state.unsupported_metadata.push(*file);
+        fn write_metadata(state: &mut State, metadata: &Metadata) -> Result<()> {
+            if metadata.is_empty() {
+                return Ok(());
             }
+            let Metadata {
+                icon,
+                apple,
+                twitter,
+                open_graph,
+                favicon,
+                manifest,
+            } = metadata;
+            state.loader_tree_code += "  metadata: {";
+            write_metadata_items(state, "icon", favicon.iter().chain(icon.iter()))?;
+            write_metadata_items(state, "apple", apple.iter())?;
+            write_metadata_items(state, "twitter", twitter.iter())?;
+            write_metadata_items(state, "openGraph", open_graph.iter())?;
+            write_metadata_manifest(state, *manifest)?;
+            state.loader_tree_code += "  },";
+            Ok(())
+        }
+
+        fn write_metadata_manifest(
+            state: &mut State,
+            manifest: Option<MetadataItem>,
+        ) -> Result<()> {
+            let Some(manifest) = manifest else {
+                return Ok(());
+            };
+            match manifest {
+                MetadataItem::Static { path } => {
+                    use std::fmt::Write;
+                    let i = state.counter;
+                    state.counter += 1;
+                    let identifier = magic_identifier::mangle(&format!("manifest #{i}"));
+                    let inner_module_id = format!("METADATA_{i}");
+                    state
+                        .imports
+                        .push(format!("import {identifier} from \"{inner_module_id}\";"));
+                    state.inner_assets.insert(
+                        inner_module_id,
+                        StaticModuleAssetVc::new(SourceAssetVc::new(path).into(), state.context)
+                            .into(),
+                    );
+                    writeln!(state.loader_tree_code, "    manifest: {identifier},")?;
+                }
+                MetadataItem::Dynamic { path } => {
+                    state.unsupported_metadata.push(path);
+                }
+            }
+
+            Ok(())
+        }
+
+        fn write_metadata_items<'a>(
+            state: &mut State,
+            name: &str,
+            it: impl Iterator<Item = &'a MetadataWithAltItem>,
+        ) -> Result<()> {
+            use std::fmt::Write;
+            let mut it = it.peekable();
+            if it.peek().is_none() {
+                return Ok(());
+            }
+            writeln!(state.loader_tree_code, "    {name}: [")?;
+            for item in it {
+                write_metadata_item(state, name, item)?;
+            }
+            writeln!(state.loader_tree_code, "    ],")?;
+            Ok(())
+        }
+
+        fn write_metadata_item(
+            state: &mut State,
+            name: &str,
+            item: &MetadataWithAltItem,
+        ) -> Result<()> {
+            use std::fmt::Write;
+            let i = state.counter;
+            state.counter += 1;
+            let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
+            let inner_module_id = format!("METADATA_{i}");
+            state
+                .imports
+                .push(format!("import {identifier} from \"{inner_module_id}\";"));
+            let s = "      ";
+            match item {
+                MetadataWithAltItem::Static { path, alt_path } => {
+                    state.inner_assets.insert(
+                        inner_module_id,
+                        StructuredImageModuleType::create_module(
+                            SourceAssetVc::new(*path).into(),
+                            state.context,
+                        )
+                        .into(),
+                    );
+                    writeln!(state.loader_tree_code, "{s}(async (props) => [{{")?;
+                    writeln!(state.loader_tree_code, "{s}  url: {identifier}.src,")?;
+                    let numeric_sizes = name == "twitter" || name == "openGraph";
+                    if numeric_sizes {
+                        writeln!(state.loader_tree_code, "{s}  width: {identifier}.width,")?;
+                        writeln!(state.loader_tree_code, "{s}  height: {identifier}.height,")?;
+                    } else {
+                        writeln!(
+                            state.loader_tree_code,
+                            "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
+                        )?;
+                    }
+                    if let Some(alt_path) = alt_path {
+                        let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
+                        let inner_module_id = format!("METADATA_ALT_{i}");
+                        state
+                            .imports
+                            .push(format!("import {identifier} from \"{inner_module_id}\";"));
+                        state.inner_assets.insert(
+                            inner_module_id,
+                            as_es_module_asset(
+                                TextContentSourceAssetVc::new(SourceAssetVc::new(*alt_path).into())
+                                    .into(),
+                                state.context,
+                            )
+                            .into(),
+                        );
+                        writeln!(state.loader_tree_code, "{s}  alt: {identifier},")?;
+                    }
+                    writeln!(state.loader_tree_code, "{s}}}]),")?;
+                }
+                MetadataWithAltItem::Dynamic { path, .. } => {
+                    state.unsupported_metadata.push(*path);
+                }
+            }
+            Ok(())
         }
 
         #[async_recursion]
@@ -658,14 +840,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
                 layout,
                 loading,
                 template,
-                metadata:
-                    Metadata {
-                        icon,
-                        apple,
-                        twitter,
-                        open_graph,
-                        favicon,
-                    },
+                metadata,
                 route: _,
             } = &*components.await?;
             write_component(state, "page", *page)?;
@@ -674,12 +849,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
             write_component(state, "layout", *layout)?;
             write_component(state, "loading", *loading)?;
             write_component(state, "template", *template)?;
-            // TODO something useful for metadata
-            emit_metadata_warning(state, icon);
-            emit_metadata_warning(state, apple);
-            emit_metadata_warning(state, twitter);
-            emit_metadata_warning(state, open_graph);
-            emit_metadata_warning(state, favicon);
+            write_metadata(state, metadata)?;
             write!(state.loader_tree_code, "}}]")?;
             Ok(())
         }
@@ -695,7 +865,7 @@ import {}, {{ chunks as {} }} from "COMPONENT_{}";
         } = state;
 
         if !unsupported_metadata.is_empty() {
-            UnsupportedImplicitMetadataIssue {
+            UnsupportedDynamicMetadataIssue {
                 app_dir,
                 files: unsupported_metadata,
             }
@@ -877,13 +1047,13 @@ impl NodeEntry for AppRoute {
 }
 
 #[turbo_tasks::value]
-struct UnsupportedImplicitMetadataIssue {
+struct UnsupportedDynamicMetadataIssue {
     app_dir: FileSystemPathVc,
     files: Vec<FileSystemPathVc>,
 }
 
 #[turbo_tasks::value_impl]
-impl Issue for UnsupportedImplicitMetadataIssue {
+impl Issue for UnsupportedDynamicMetadataIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> IssueSeverityVc {
         IssueSeverity::Warning.into()
@@ -902,7 +1072,7 @@ impl Issue for UnsupportedImplicitMetadataIssue {
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
         StringVc::cell(
-            "Implicit metadata from filesystem is currently not supported in Turbopack".to_string(),
+            "Dynamic metadata from filesystem is currently not supported in Turbopack".to_string(),
         )
     }
 

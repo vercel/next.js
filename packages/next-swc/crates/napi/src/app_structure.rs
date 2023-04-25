@@ -8,7 +8,7 @@ use napi::{
 };
 use next_core::app_structure::{
     find_app_dir, get_entrypoints as get_entrypoints_impl, Components, ComponentsVc, Entrypoint,
-    EntrypointsVc, LoaderTree, LoaderTreeVc,
+    EntrypointsVc, LoaderTree, LoaderTreeVc, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
 use turbo_binding::{
@@ -110,17 +110,22 @@ async fn prepare_components_for_js(
         meta: &mut serde_json::value::Map<String, serde_json::Value>,
         project_path: FileSystemPathVc,
         key: &str,
-        value: &Vec<FileSystemPathVc>,
+        value: impl Iterator<Item = MetadataWithAltItem>,
     ) -> Result<()> {
-        if !value.is_empty() {
+        let mut value = value.peekable();
+        if value.peek().is_some() {
             meta.insert(
                 key.to_string(),
                 value
-                    .iter()
                     .map(|value| async move {
-                        Ok(serde_json::Value::from(
-                            fs_path_to_path(project_path, *value).await?,
-                        ))
+                        let path = fs_path_to_path(project_path, value.path).await?;
+                        let mut map = serde_json::value::Map::new();
+                        map.insert("path".to_string(), path.into());
+                        if let Some(alt_path) = value.alt_path {
+                            let alt_path = fs_path_to_path(project_path, alt_path).await?;
+                            map.insert("altPath".to_string(), alt_path.into());
+                        }
+                        Ok(serde_json::Value::from(map))
                     })
                     .try_join()
                     .await?
@@ -129,11 +134,53 @@ async fn prepare_components_for_js(
         }
         Ok::<_, anyhow::Error>(())
     }
-    add_meta(&mut meta, project_path, "icon", &metadata.icon).await?;
-    add_meta(&mut meta, project_path, "apple", &metadata.apple).await?;
-    add_meta(&mut meta, project_path, "twitter", &metadata.twitter).await?;
-    add_meta(&mut meta, project_path, "openGraph", &metadata.open_graph).await?;
-    add_meta(&mut meta, project_path, "favicon", &metadata.favicon).await?;
+    add_meta(
+        &mut meta,
+        project_path,
+        "icon",
+        metadata
+            .icon
+            .iter()
+            .copied()
+            .map(MetadataWithAltItem::from_path),
+    )
+    .await?;
+    add_meta(
+        &mut meta,
+        project_path,
+        "apple",
+        metadata
+            .apple
+            .iter()
+            .copied()
+            .map(MetadataWithAltItem::from_path),
+    )
+    .await?;
+    add_meta(
+        &mut meta,
+        project_path,
+        "twitter",
+        metadata.twitter.iter().copied(),
+    )
+    .await?;
+    add_meta(
+        &mut meta,
+        project_path,
+        "openGraph",
+        metadata.open_graph.iter().copied(),
+    )
+    .await?;
+    add_meta(
+        &mut meta,
+        project_path,
+        "favicon",
+        metadata
+            .favicon
+            .iter()
+            .copied()
+            .map(MetadataWithAltItem::from_path),
+    )
+    .await?;
     map.insert("metadata".to_string(), meta.into());
     Ok(map.into())
 }
