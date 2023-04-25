@@ -15,10 +15,13 @@ use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
 
-use crate::source::{
-    request::SourceRequest,
-    resolve::{resolve_source_request, ResolveSourceRequestResult},
-    Body, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
+use crate::{
+    handle_issues,
+    source::{
+        request::SourceRequest,
+        resolve::{resolve_source_request, ResolveSourceRequestResult},
+        Body, ContentSourceVc, HeaderListReadRef, ProxyResultReadRef,
+    },
 };
 
 #[turbo_tasks::value(serialization = "none")]
@@ -75,6 +78,7 @@ pub async fn process_request_with_content_source(
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result = get_from_source(source, TransientInstance::new(request), issue_reporter);
+    handle_issues(result, &original_path, "get_from_source", issue_reporter).await?;
     match &*result.strongly_consistent().await? {
         GetFromSourceResult::Static {
             content,
