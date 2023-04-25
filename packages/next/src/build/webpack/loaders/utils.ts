@@ -1,7 +1,5 @@
 import { createHash } from 'crypto'
 
-import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
-
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
@@ -9,7 +7,7 @@ export function isClientComponentModule(mod: {
   resource: string
   buildInfo: any
 }) {
-  const hasClientDirective = mod.buildInfo.rsc?.type === RSC_MODULE_TYPES.client
+  const hasClientDirective = mod.buildInfo.rsc?.isClientRef
   return hasClientDirective || imageRegex.test(mod.resource)
 }
 
