@@ -1067,10 +1067,6 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
 
-      '@swc/helpers': path.dirname(
-        require.resolve('@swc/helpers/package.json')
-      ),
-
       setimmediate: 'next/dist/compiled/setimmediate',
     },
     ...(isClient || isEdgeServer
