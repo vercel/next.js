@@ -4,6 +4,8 @@ import startHandler from '../../internal/api-server-handler'
 
 import '../../polyfill/app-polyfills'
 
+import { parse as parseUrl } from 'node:url'
+
 import {
   NodeNextRequest,
   NodeNextResponse,
@@ -11,18 +13,12 @@ import {
 import { sendResponse } from 'next/dist/server/send-response'
 import { NextRequestAdapter } from 'next/dist/server/web/spec-extension/adapters/next-request'
 import { RouteHandlerManagerContext } from 'next/dist/server/future/route-handler-managers/route-handler-manager'
-import { parse } from 'url'
+
+import { attachRequestMeta } from "../../internal/next-request-helpers";
 
 import RouteModule from 'ROUTE_MODULE'
 import * as userland from 'ENTRY'
 import { PAGE, PATHNAME } from 'BOOTSTRAP_CONFIG'
-import { BaseNextRequest } from 'next/dist/server/base-http'
-import {
-  addRequestMeta,
-  NextUrlWithParsedQuery,
-} from 'next/dist/server/request-meta'
-import { TLSSocket } from 'tls'
-import { getCloneableBody } from 'next/dist/server/body-streams'
 
 const routeModule = new RouteModule({
   userland,
@@ -35,8 +31,8 @@ startHandler(async ({ request, response, query, params, path }) => {
   const req = new NodeNextRequest(request)
   const res = new NodeNextResponse(response)
 
-  const parsedUrl = parse(req.url!, true)
-  attachRequestMeta(req, parsedUrl, 'localhost', 3000)
+  const parsedUrl = parseUrl(req.url!, true)
+  attachRequestMeta(req, parsedUrl, request.headers.host!)
 
   const context: RouteHandlerManagerContext = {
     params,
@@ -52,23 +48,3 @@ startHandler(async ({ request, response, query, params, path }) => {
 
   await sendResponse(req, res, routeResponse)
 })
-
-function attachRequestMeta(
-  req: BaseNextRequest,
-  parsedUrl: NextUrlWithParsedQuery,
-  hostname: string,
-  port: number
-) {
-  const protocol = (
-    (req as NodeNextRequest).originalRequest?.socket as TLSSocket
-  )?.encrypted
-    ? 'https'
-    : 'http'
-
-  const initUrl = `${protocol}://${hostname}:${port}${req.url}`
-
-  addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
-  addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
-  addRequestMeta(req, '_protocol', protocol)
-  addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req.body))
-}
