@@ -3,7 +3,7 @@ import { createHash } from 'crypto'
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
-export function isClientComponentModule(mod: {
+export function isClientComponentEntryModule(mod: {
   resource: string
   buildInfo: any
 }) {
