@@ -150,12 +150,28 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
         return {
           enabled,
           enable: () => {
-            // TODO: implement draftMode().enable()
-            // once cookies().set() is implemented
+            this.mutableCookies.set({
+              name: COOKIE_NAME_PRERENDER_BYPASS,
+              value: previewProps?.previewModeId || 'no value found',
+              httpOnly: true,
+              sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+              secure: process.env.NODE_ENV !== 'development',
+              path: '/',
+            })
           },
           disable: () => {
-            // TODO: implement draftMode().disable()
-            // once cookies().set() is implemented
+            // To delete a cookie, set `expires` to a date in the past:
+            // https://tools.ietf.org/html/rfc6265#section-4.1.1
+            // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+            this.mutableCookies.set({
+              name: COOKIE_NAME_PRERENDER_BYPASS,
+              value: '',
+              httpOnly: true,
+              sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+              secure: process.env.NODE_ENV !== 'development',
+              path: '/',
+              expires: new Date(0),
+            })
           },
         }
       },
