@@ -158,6 +158,23 @@ createNextDescribe(
         ])
       })
 
+      it('should support generate multi sitemaps with generateSitemaps', async () => {
+        const ids = [0, 1, 2, 3]
+        const sitemaps = await Promise.all(
+          ids.map((id) =>
+            next
+              .fetch(`/dynamic/small/sitemap.xml/${id}`)
+              .then((res) => res.text())
+          )
+        )
+
+        sitemaps.forEach((sitemap, index) => {
+          expect(sitemap).toContain(
+            `<loc>https://example.com/dynamic/${index}</loc>`
+          )
+        })
+      })
+
       it('should fill params into dynamic routes url of metadata images', async () => {
         const $ = await next.render$('/dynamic/big')
         const ogImageUrl = $('meta[property="og:image"]').attr('content')
