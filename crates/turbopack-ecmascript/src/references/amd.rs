@@ -251,7 +251,7 @@ fn transform_amd_factory(
             let f = private_ident!("f");
             let call_f = Expr::Call(CallExpr {
                 args: deps,
-                callee: Callee::Expr(box Expr::Ident(f.clone())),
+                callee: Callee::Expr(Box::new(Expr::Ident(f.clone()))),
                 span: DUMMY_SP,
                 type_args: None,
             });
@@ -274,12 +274,12 @@ fn transform_amd_factory(
                 "r => r !== undefined && __turbopack_export_value__(r)"
             ));
             args.push(ExprOrSpread {
-                expr: box Expr::Call(CallExpr {
+                expr: Box::new(Expr::Call(CallExpr {
                     args: deps,
                     callee: Callee::Expr(factory),
                     span: DUMMY_SP,
                     type_args: None,
-                }),
+                })),
                 spread: None,
             });
         }

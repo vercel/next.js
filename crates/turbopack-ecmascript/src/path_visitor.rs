@@ -190,7 +190,7 @@ mod tests {
 
     impl VisitorFactory for Box<StrReplacer<'_>> {
         fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a> {
-            box &**self
+            Box::new(&**self)
         }
     }
 
@@ -202,7 +202,7 @@ mod tests {
     }
 
     fn replacer(from: &'static str, to: &'static str) -> impl VisitorFactory {
-        box StrReplacer { from, to }
+        Box::new(StrReplacer { from, to })
     }
 
     fn to_js(m: &Module, cm: &Arc<SourceMap>) -> String {

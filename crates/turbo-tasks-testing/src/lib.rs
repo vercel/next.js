@@ -1,7 +1,5 @@
 //! Testing utilities and macros for turbo-tasks and applications based on it.
 
-#![feature(box_syntax)]
-
 mod macros;
 pub mod retry;
 

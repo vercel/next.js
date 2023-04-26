@@ -57,7 +57,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => path_resolve(*cwd, args),
         WellKnownFunctionKind::Import => JsValue::unknown(
-            JsValue::call(box JsValue::WellKnownFunction(kind), args),
+            JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
             "import() is not supported",
         ),
         WellKnownFunctionKind::Require => require(args),
@@ -90,7 +90,7 @@ pub async fn well_known_function_call(
                 cwd.clone().into()
             } else {
                 JsValue::unknown(
-                    JsValue::call(box JsValue::WellKnownFunction(kind), args),
+                    JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
                     "process.cwd is not specified in the environment",
                 )
             }
@@ -111,7 +111,7 @@ pub async fn well_known_function_call(
         }
 
         _ => JsValue::unknown(
-            JsValue::call(box JsValue::WellKnownFunction(kind), args),
+            JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
             "unsupported function",
         ),
     })
@@ -138,7 +138,9 @@ pub fn object_assign(args: Vec<JsValue>) -> JsValue {
         } else {
             JsValue::unknown(
                 JsValue::call(
-                    box JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+                    Box::new(JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::ObjectAssign,
+                    )),
                     vec![],
                 ),
                 "empty arguments for Object.assign",
@@ -147,7 +149,9 @@ pub fn object_assign(args: Vec<JsValue>) -> JsValue {
     } else {
         JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+                Box::new(JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::ObjectAssign,
+                )),
                 args,
             ),
             "only const object assign is supported",
@@ -302,7 +306,9 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     }
     JsValue::unknown(
         JsValue::call(
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
+            Box::new(JsValue::WellKnownFunction(
+                WellKnownFunctionKind::PathDirname,
+            )),
             args,
         ),
         "path.dirname with unsupported arguments",
@@ -319,7 +325,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
         } else {
             JsValue::unknown(
                 JsValue::call(
-                    box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                    Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require)),
                     args,
                 ),
                 "only constant argument is supported",
@@ -328,7 +334,7 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
     } else {
         JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require)),
                 args,
             ),
             "only a single argument is supported",
@@ -344,7 +350,9 @@ pub async fn require_context_require(
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
+                Box::new(JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireContextRequire(val),
+                )),
                 args,
             ),
             "require.context(...).require() requires an argument specifying the module path",
@@ -354,7 +362,7 @@ pub async fn require_context_require(
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
+                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val))),
                 args,
             ),
             "require.context(...).require() only accepts a single, constant string argument",
@@ -365,7 +373,7 @@ pub async fn require_context_require(
     let Some(m) = map.get(s) else {
        return Ok(JsValue::unknown(
            JsValue::call(
-               box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
+               Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val))),
                args,
            ),
            "require.context(...).require() can only be called with an argument that's in the context",
@@ -389,8 +397,8 @@ pub async fn require_context_require_keys(
     } else {
         JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireKeys(
-                    val,
+                Box::new(JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireContextRequireKeys(val),
                 )),
                 args,
             ),
@@ -407,9 +415,9 @@ pub async fn require_context_require_resolve(
     if args.len() != 1 {
         return Ok(JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(
+                Box::new(JsValue::WellKnownFunction(
                     WellKnownFunctionKind::RequireContextRequireResolve(val),
-                ),
+                )),
                 args,
             ),
             "require.context(...).resolve() only accepts a single, constant string argument",
@@ -419,9 +427,9 @@ pub async fn require_context_require_resolve(
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(
+                Box::new(JsValue::WellKnownFunction(
                     WellKnownFunctionKind::RequireContextRequireResolve(val),
-                ),
+                )),
                 args,
             ),
             "require.context(...).resolve() only accepts a single, constant string argument",
@@ -432,9 +440,9 @@ pub async fn require_context_require_resolve(
     let Some(m) = map.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(
+                Box::new(JsValue::WellKnownFunction(
                     WellKnownFunctionKind::RequireContextRequireResolve(val),
-                ),
+                )),
                 args,
             ),
             "require.context(...).resolve() can only be called with an argument that's in the context",
@@ -452,7 +460,9 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
                 .unwrap_or_else(|_| {
                     JsValue::unknown(
                         JsValue::call(
-                            box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
+                            Box::new(JsValue::WellKnownFunction(
+                                WellKnownFunctionKind::PathToFileUrl,
+                            )),
                             args,
                         ),
                         "url not parseable: path is relative or has an invalid prefix",
@@ -461,7 +471,9 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
         } else {
             JsValue::unknown(
                 JsValue::call(
-                    box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
+                    Box::new(JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::PathToFileUrl,
+                    )),
                     args,
                 ),
                 "only constant argument is supported",
@@ -470,7 +482,9 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     } else {
         JsValue::unknown(
             JsValue::call(
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
+                Box::new(JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::PathToFileUrl,
+                )),
                 args,
             ),
             "only a single argument is supported",
@@ -504,7 +518,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         #[allow(unreachable_patterns)]
         (kind, _) => {
             return (
-                JsValue::member(box JsValue::WellKnownFunction(kind), box prop),
+                JsValue::member(Box::new(JsValue::WellKnownFunction(kind)), Box::new(prop)),
                 false,
             )
         }
@@ -541,7 +555,7 @@ pub async fn well_known_object_member(
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((
-                JsValue::member(box JsValue::WellKnownObject(kind), box prop),
+                JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
                 false,
             ))
         }
@@ -554,8 +568,8 @@ fn global_object(prop: JsValue) -> JsValue {
         Some("assign") => JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject)),
+                Box::new(prop),
             ),
             "unsupported property on global Object",
         ),
@@ -568,15 +582,17 @@ pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
             // cwd is added while resolving in refernces.rs
-            JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(box JsValue::from("")))
+            JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(JsValue::from(
+                "",
+            ))))
         }
         (WellKnownObjectKind::PathModule, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::PathModuleDefault)
         }
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::PathModule)),
+                Box::new(prop),
             ),
             "unsupported property on Node.js path module",
         ),
@@ -606,8 +622,8 @@ pub fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     }
     JsValue::unknown(
         JsValue::member(
-            box JsValue::WellKnownObject(WellKnownObjectKind::FsModule),
-            box prop,
+            Box::new(JsValue::WellKnownObject(WellKnownObjectKind::FsModule)),
+            Box::new(prop),
         ),
         "unsupported property on Node.js fs module",
     )
@@ -623,8 +639,8 @@ pub fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         }
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::UrlModule),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::UrlModule)),
+                Box::new(prop),
             ),
             "unsupported property on Node.js url module",
         ),
@@ -645,8 +661,8 @@ pub fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> 
         }
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::ChildProcess)),
+                Box::new(prop),
             ),
             "unsupported property on Node.js child_process module",
         ),
@@ -663,8 +679,8 @@ fn os_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         }
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::OsModule),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::OsModule)),
+                Box::new(prop),
             ),
             "unsupported property on Node.js os module",
         ),
@@ -694,8 +710,8 @@ async fn node_process_member(
         Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv),
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess)),
+                Box::new(prop),
             ),
             "unsupported property on Node.js process object",
         ),
@@ -707,8 +723,8 @@ fn node_pre_gyp(prop: JsValue) -> JsValue {
         Some("find") => JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind),
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp),
-                box prop,
+                Box::new(JsValue::WellKnownObject(WellKnownObjectKind::NodePreGyp)),
+                Box::new(prop),
             ),
             "unsupported property on @mapbox/node-pre-gyp module",
         ),
@@ -720,8 +736,10 @@ fn express(prop: JsValue) -> JsValue {
         Some("set") => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet),
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::NodeExpressApp),
-                box prop,
+                Box::new(JsValue::WellKnownObject(
+                    WellKnownObjectKind::NodeExpressApp,
+                )),
+                Box::new(prop),
             ),
             "unsupported property on require('express')() object",
         ),
@@ -735,8 +753,10 @@ fn protobuf_loader(prop: JsValue) -> JsValue {
         }
         _ => JsValue::unknown(
             JsValue::member(
-                box JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
-                box prop,
+                Box::new(JsValue::WellKnownObject(
+                    WellKnownObjectKind::NodeProtobufLoader,
+                )),
+                Box::new(prop),
             ),
             "unsupported property on require('@grpc/proto-loader') object",
         ),

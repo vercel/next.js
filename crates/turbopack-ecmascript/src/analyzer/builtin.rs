@@ -74,7 +74,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 *value = JsValue::alternatives(
                     take(alts)
                         .into_iter()
-                        .map(|alt| JsValue::member(box alt, prop.clone()))
+                        .map(|alt| JsValue::member(Box::new(alt), prop.clone()))
                         .collect(),
                 );
                 true
@@ -87,7 +87,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             } => {
                 fn items_to_alternatives(items: &mut Vec<JsValue>, prop: &mut JsValue) -> JsValue {
                     items.push(JsValue::unknown(
-                        JsValue::member(box JsValue::array(Vec::new()), box take(prop)),
+                        JsValue::member(Box::new(JsValue::array(Vec::new())), Box::new(take(prop))),
                         "unknown array prototype methods or values",
                     ));
                     JsValue::alternatives(take(items))
@@ -105,7 +105,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 true
                             } else {
                                 *value = JsValue::unknown(
-                                    JsValue::member(box take(obj), box take(prop)),
+                                    JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
                                     "invalid index",
                                 );
                                 true
@@ -127,7 +127,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         *value = JsValue::alternatives(
                             take(alts)
                                 .into_iter()
-                                .map(|alt| JsValue::member(box obj.clone(), box alt))
+                                .map(|alt| JsValue::member(Box::new(obj.clone()), Box::new(alt)))
                                 .collect(),
                         );
                         true
@@ -160,7 +160,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             ObjectPart::Spread(_) => {
                                 values.push(JsValue::unknown(
                                     JsValue::member(
-                                        box JsValue::object(vec![take(part)]),
+                                        Box::new(JsValue::object(vec![take(part)])),
                                         prop.clone(),
                                     ),
                                     "spreaded object",
@@ -170,7 +170,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                     if include_unknown {
                         values.push(JsValue::unknown(
-                            JsValue::member(box JsValue::object(Vec::new()), box take(prop)),
+                            JsValue::member(
+                                Box::new(JsValue::object(Vec::new())),
+                                Box::new(take(prop)),
+                            ),
                             "unknown object prototype methods or values",
                         ));
                     }
@@ -262,7 +265,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         *value = JsValue::alternatives(
                             take(alts)
                                 .into_iter()
-                                .map(|alt| JsValue::member(box obj.clone(), box alt))
+                                .map(|alt| JsValue::member(Box::new(obj.clone()), Box::new(alt)))
                                 .collect(),
                         );
                         true
@@ -336,7 +339,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             .enumerate()
                                             .map(|(i, item)| {
                                                 JsValue::call(
-                                                    box func.clone(),
+                                                    Box::new(func.clone()),
                                                     vec![
                                                         item,
                                                         JsValue::Constant(ConstantValue::Num(
@@ -361,7 +364,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         take(alts)
                             .into_iter()
                             .map(|alt| {
-                                JsValue::member_call(box alt, box prop.clone(), args.clone())
+                                JsValue::member_call(
+                                    Box::new(alt),
+                                    Box::new(prop.clone()),
+                                    args.clone(),
+                                )
                             })
                             .collect(),
                     );
@@ -372,7 +379,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // without special handling, we convert it into a normal call like
             // `(obj.prop)(arg1, arg2, ...)`
             *value = JsValue::call(
-                box JsValue::member(box take(obj), box take(prop)),
+                Box::new(JsValue::member(Box::new(take(obj)), Box::new(take(prop)))),
                 take(args),
             );
             true
@@ -383,7 +390,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             *value = JsValue::alternatives(
                 take(alts)
                     .into_iter()
-                    .map(|alt| JsValue::call(box alt, args.clone()))
+                    .map(|alt| JsValue::call(Box::new(alt), args.clone()))
                     .collect(),
             );
             true

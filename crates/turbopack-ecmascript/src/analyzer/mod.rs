@@ -722,36 +722,36 @@ impl JsValue {
     pub fn equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            box a,
+            Box::new(a),
             BinaryOperator::Equal,
-            box b,
+            Box::new(b),
         )
     }
 
     pub fn not_equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            box a,
+            Box::new(a),
             BinaryOperator::NotEqual,
-            box b,
+            Box::new(b),
         )
     }
 
     pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            box a,
+            Box::new(a),
             BinaryOperator::StrictEqual,
-            box b,
+            Box::new(b),
         )
     }
 
     pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            box a,
+            Box::new(a),
             BinaryOperator::StrictNotEqual,
-            box b,
+            Box::new(b),
         )
     }
 
@@ -3363,7 +3363,7 @@ mod tests {
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
-                                    JsValue::call(box func, new_args),
+                                    JsValue::call(Box::new(func), new_args),
                                 ));
                             }
                             Effect::FreeVar { var, .. } => {
@@ -3377,7 +3377,7 @@ mod tests {
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
-                                    JsValue::member_call(box obj, box prop, new_args),
+                                    JsValue::member_call(Box::new(obj), Box::new(prop), new_args),
                                 ));
                             }
                             _ => {}

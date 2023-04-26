@@ -343,7 +343,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::logical_not(box arg)
+                JsValue::logical_not(Box::new(arg))
             }
 
             Expr::Bin(BinExpr {
@@ -474,7 +474,7 @@ impl EvalContext {
                 ..
             }) => {
                 let obj = self.eval(obj);
-                JsValue::member(box obj, box prop.sym.clone().into())
+                JsValue::member(Box::new(obj), Box::new(prop.sym.clone().into()))
             }
 
             Expr::Member(MemberExpr {
@@ -484,7 +484,7 @@ impl EvalContext {
             }) => {
                 let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
-                JsValue::member(box obj, box prop)
+                JsValue::member(Box::new(obj), Box::new(prop))
             }
 
             Expr::Call(CallExpr {
@@ -499,8 +499,8 @@ impl EvalContext {
 
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
-                    let obj = box self.eval(obj);
-                    let prop = box match prop {
+                    let obj = Box::new(self.eval(obj));
+                    let prop = Box::new(match prop {
                         // TODO avoid clone
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
@@ -509,10 +509,10 @@ impl EvalContext {
                             );
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
-                    };
+                    });
                     JsValue::member_call(obj, prop, args)
                 } else {
-                    let callee = box self.eval(callee);
+                    let callee = Box::new(self.eval(callee));
 
                     JsValue::call(callee, args)
                 }
@@ -529,7 +529,7 @@ impl EvalContext {
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-                let callee = box JsValue::FreeVar(js_word!("import"));
+                let callee = Box::new(JsValue::FreeVar(js_word!("import")));
 
                 JsValue::call(callee, args)
             }
@@ -928,9 +928,9 @@ impl Analyzer<'_> {
         let values = self.cur_fn_return_values.take().unwrap();
 
         match values.len() {
-            0 => box JsValue::FreeVar(js_word!("undefined")),
-            1 => box values.into_iter().next().unwrap(),
-            _ => box JsValue::alternatives(values),
+            0 => Box::new(JsValue::FreeVar(js_word!("undefined"))),
+            1 => Box::new(values.into_iter().next().unwrap()),
+            _ => Box::new(JsValue::alternatives(values)),
         }
     }
 }
@@ -1302,7 +1302,7 @@ impl VisitAstPath for Analyzer<'_> {
                 expr.visit_children_with_path(self, ast_path);
                 let return_value = self.eval_context.eval(inner_expr);
 
-                let fn_val = JsValue::function(self.cur_fn_ident, box return_value);
+                let fn_val = JsValue::function(self.cur_fn_ident, Box::new(return_value));
                 self.cur_fn_ident = old_ident;
                 fn_val
             }
@@ -1407,9 +1407,9 @@ impl VisitAstPath for Analyzer<'_> {
                         ast_path.with(AstParentNodeRef::Pat(pat, PatField::Array), |ast_path| {
                             for (idx, elem) in arr.elems.iter().enumerate() {
                                 self.current_value = Some(JsValue::member(
-                                    box value.clone(),
-                                    box JsValue::Constant(ConstantValue::Num(ConstantNumber(
-                                        idx as f64,
+                                    Box::new(value.clone()),
+                                    Box::new(JsValue::Constant(ConstantValue::Num(
+                                        ConstantNumber(idx as f64),
                                     ))),
                                 ));
                                 ast_path.with(
@@ -1609,7 +1609,7 @@ impl<'a> Analyzer<'a> {
         } else {
             self.add_effect(Effect::Conditional {
                 condition,
-                kind: box cond_kind,
+                kind: Box::new(cond_kind),
                 ast_path: as_parent_path_with(ast_path, ast_kind),
                 span,
                 in_try: is_in_try(ast_path),
@@ -1645,8 +1645,8 @@ impl<'a> Analyzer<'a> {
                                         },
                                     );
                                     self.current_value = Some(JsValue::member(
-                                        box current_value.clone(),
-                                        box key_value,
+                                        Box::new(current_value.clone()),
+                                        Box::new(key_value),
                                     ));
                                     ast_path.with(
                                         AstParentNodeRef::KeyValuePatProp(
@@ -1681,15 +1681,15 @@ impl<'a> Analyzer<'a> {
                                             let value = self.eval_context.eval(value);
                                             JsValue::alternatives(vec![
                                                 JsValue::member(
-                                                    box current_value.clone(),
-                                                    box key_value,
+                                                    Box::new(current_value.clone()),
+                                                    Box::new(key_value),
                                                 ),
                                                 value,
                                             ])
                                         } else {
                                             JsValue::member(
-                                                box current_value.clone(),
-                                                box key_value,
+                                                Box::new(current_value.clone()),
+                                                Box::new(key_value),
                                             )
                                         },
                                     );

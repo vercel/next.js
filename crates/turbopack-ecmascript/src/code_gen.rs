@@ -87,7 +87,7 @@ macro_rules! create_visitor {
             for Box<Visitor<T>>
         {
             fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
-                box &**self
+                Box::new(&**self)
             }
         }
 
@@ -101,9 +101,9 @@ macro_rules! create_visitor {
 
         (
             $ast_path,
-            box box Visitor {
+            Box::new(Box::new(Visitor {
                 $name: move |$arg: &mut swc_core::ecma::ast::$ty| $b,
-            } as Box<dyn $crate::code_gen::VisitorFactory>,
+            })) as Box<dyn $crate::code_gen::VisitorFactory>,
         )
     }};
     (visit_mut_program($arg:ident: &mut Program) $b:block) => {{
@@ -115,7 +115,7 @@ macro_rules! create_visitor {
             for Box<Visitor<T>>
         {
             fn create<'a>(&'a self) -> Box<dyn swc_core::ecma::visit::VisitMut + Send + Sync + 'a> {
-                box &**self
+                Box::new(&**self)
             }
         }
 
@@ -129,9 +129,9 @@ macro_rules! create_visitor {
 
         (
             Vec::new(),
-            box box Visitor {
+            Box::new(Box::new(Visitor {
                 visit_mut_program: move |$arg: &mut swc_core::ecma::ast::Program| $b,
-            } as Box<dyn $crate::code_gen::VisitorFactory>,
+            })) as Box<dyn $crate::code_gen::VisitorFactory>,
         )
     }};
 }

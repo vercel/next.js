@@ -464,7 +464,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
 
             context_map
                 .props
-                .push(PropOrSpread::Prop(box Prop::KeyValue(prop)));
+                .push(PropOrSpread::Prop(Box::new(Prop::KeyValue(prop))));
         }
 
         let expr = quote_expr!(

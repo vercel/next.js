@@ -1,6 +1,5 @@
 #![feature(hash_drain_filter)]
 #![feature(option_get_or_insert_default)]
-#![feature(box_syntax)]
 #![feature(type_alias_impl_trait)]
 #![feature(lint_reasons)]
 #![feature(box_patterns)]

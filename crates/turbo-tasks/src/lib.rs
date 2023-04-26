@@ -28,7 +28,6 @@
 #![feature(hash_drain_filter)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
-#![feature(box_syntax)]
 #![feature(error_generic_member_access)]
 #![feature(provide_any)]
 #![feature(new_uninit)]

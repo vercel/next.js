@@ -179,7 +179,7 @@ impl CodeGenerateableWithAvailabilityInfo for EsmAsyncAssetReference {
                         ];
                     } else {
                         call_expr.args = vec![
-                            ExprOrSpread { spread: None, expr: box expr }
+                            ExprOrSpread { spread: None, expr: Box::new(expr) }
                         ]
                     }
                 })

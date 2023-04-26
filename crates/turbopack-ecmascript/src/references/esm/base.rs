@@ -288,7 +288,7 @@ pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                 body.insert(
                     0,
                     ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        expr: box Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into())),
+                        expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
                         span: DUMMY_SP,
                     })),
                 );
@@ -313,7 +313,7 @@ pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
                 body.insert(
                     0,
                     Stmt::Expr(ExprStmt {
-                        expr: box Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into())),
+                        expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
                         span: DUMMY_SP,
                     }),
                 );

@@ -58,11 +58,11 @@ pub async fn analyze_css_stylesheet(
         let handler = Handler::with_emitter(
             true,
             false,
-            box IssueEmitter {
+            Box::new(IssueEmitter {
                 source,
                 source_map: source_map.clone(),
                 title: None,
-            },
+            }),
         );
         let globals = Globals::new();
         HANDLER.set(&handler, || {

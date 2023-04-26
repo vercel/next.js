@@ -161,11 +161,11 @@ async fn parse_content(
     let handler = Handler::with_emitter(
         true,
         false,
-        box IssueEmitter {
+        Box::new(IssueEmitter {
             source,
             source_map: source_map.clone(),
             title: Some("Parsing css source code failed".to_string()),
-        },
+        }),
     );
 
     let fm = source_map.new_source_file(FileName::Custom(ident_str.to_string()), string);

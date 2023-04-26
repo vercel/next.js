@@ -296,9 +296,9 @@ impl DepGraph {
                     .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
                         specifiers,
-                        src: box uri_of_module.clone().into(),
+                        src: Box::new(uri_of_module.clone().into()),
                         type_only: false,
-                        asserts: Some(box create_turbopack_chunk_id_assert(dep)),
+                        asserts: Some(Box::new(create_turbopack_chunk_id_assert(dep))),
                     })));
             }
 
@@ -312,10 +312,11 @@ impl DepGraph {
                 // Emit `export { foo }`
                 for var in data.write_vars.iter() {
                     if required_vars.remove(var) {
-                        let assertion_prop = PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-                            key: quote_ident!("__turbopack_var__").into(),
-                            value: box true.into(),
-                        }));
+                        let assertion_prop =
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: quote_ident!("__turbopack_var__").into(),
+                                value: Box::new(true.into()),
+                            })));
 
                         chunk
                             .body
@@ -332,10 +333,10 @@ impl DepGraph {
                                     )],
                                     src: None,
                                     type_only: false,
-                                    asserts: Some(box ObjectLit {
+                                    asserts: Some(Box::new(ObjectLit {
                                         span: DUMMY_SP,
                                         props: vec![assertion_prop],
-                                    }),
+                                    })),
                                 },
                             )));
                     }
@@ -841,10 +842,10 @@ const ASSERT_CHUNK_KEY: &str = "__turbopack_chunk__";
 fn create_turbopack_chunk_id_assert(dep: u32) -> ObjectLit {
     ObjectLit {
         span: DUMMY_SP,
-        props: vec![PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+        props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(Ident::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
             value: (dep as f64).into(),
-        }))],
+        })))],
     }
 }
 
