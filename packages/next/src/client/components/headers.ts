@@ -2,6 +2,7 @@ import { RequestCookiesAdapter } from '../../server/web/spec-extension/adapters/
 import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
+import { actionAsyncStorage } from './action-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
 
 export function headers() {
@@ -40,6 +41,14 @@ export function cookies() {
     throw new Error(
       `Invariant: Method expects to have requestAsyncStorage, none available`
     )
+  }
+
+  const asyncActionStore = actionAsyncStorage.getStore()
+  if (
+    asyncActionStore &&
+    (asyncActionStore.isAction || asyncActionStore.isAppRoute)
+  ) {
+    return requestStore.mutableCookies
   }
 
   return requestStore.cookies

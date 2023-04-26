@@ -2,7 +2,12 @@
 
 import { useState } from 'react'
 
-export default function UI({ getCookie, getHeader, getAuthedUppercase }) {
+export default function UI({
+  getCookie,
+  getHeader,
+  setCookie,
+  getAuthedUppercase,
+}) {
   const [result, setResult] = useState('')
 
   return (
@@ -19,6 +24,23 @@ export default function UI({ getCookie, getHeader, getAuthedUppercase }) {
         }}
       >
         getCookie
+      </button>
+      <button
+        id="setCookie"
+        onClick={async () => {
+          // set cookie on server side
+          const random = Math.random()
+          const res = await setCookie('random-server', random)
+          setResult(
+            random +
+              ':' +
+              res.value +
+              ':' +
+              document.cookie.match(/random-server=([^;]+)/)?.[1]
+          )
+        }}
+      >
+        setCookie
       </button>
       <button
         id="header"
