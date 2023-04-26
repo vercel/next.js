@@ -134,8 +134,9 @@ function createIpc<TIncoming, TOutgoing>(
         });
       } catch (err) {
         // ignore and exit anyway
+        process.exit(1);
       }
-      process.exit(1);
+      process.exit(0);
     },
   };
 }
