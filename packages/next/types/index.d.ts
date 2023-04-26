@@ -249,7 +249,7 @@ export type GetServerSidePropsContext<
  * @link https://nextjs.org/docs/api-reference/data-fetching/get-server-side-props#getserversideprops-return-values
  */
 export type GetServerSidePropsResult<Props> =
-  | { props: Props | Promise<Props> }
+  | { props: Props }
   | { redirect: Redirect }
   | { notFound: true }
 
