@@ -3239,6 +3239,7 @@ dependencies = [
  "futures",
  "indexmap",
  "indoc",
+ "lazy_static",
  "mime",
  "next-transform-dynamic",
  "next-transform-font",
