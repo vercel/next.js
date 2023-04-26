@@ -271,8 +271,12 @@ async fn get_directory_tree(
                 }
             }
             DirectoryEntry::Directory(dir) => {
-                let result = get_directory_tree(dir, page_extensions);
-                subdirectories.insert(basename.to_string(), result);
+                // appDir ignores paths starting with an underscore
+                if !basename.starts_with('_') {
+                    let result = get_directory_tree(dir, page_extensions);
+                    subdirectories
+                        .insert(get_underscore_normalized_path(basename).to_string(), result);
+                }
             }
             // TODO handle symlinks in app dir
             _ => {}
@@ -574,6 +578,12 @@ async fn directory_tree_to_entrypoints_internal(
         }
     }
     Ok(EntrypointsVc::cell(result))
+}
+
+/// ref: https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119
+/// if path contains %5F, replace it with _.
+fn get_underscore_normalized_path(path: &str) -> String {
+    path.replace("%5F", "_")
 }
 
 #[turbo_tasks::value(shared)]
