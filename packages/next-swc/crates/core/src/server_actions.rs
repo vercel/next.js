@@ -1171,7 +1171,7 @@ fn generate_action_id(file_name: String, export_name: String) -> String {
     hasher.update(export_name.as_bytes());
     let result = hasher.finalize();
 
-    hex_encode(result).into()
+    hex_encode(result)
 }
 
 fn annotate_ident_as_action(
