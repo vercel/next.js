@@ -25,7 +25,10 @@ declare global {
   }
 }
 
+let once = false
 function runTests(harness: Harness, iframe: HTMLIFrameElement) {
+  if (once) return
+  once = true
   const TIMEOUT = 40000
 
   it(
@@ -38,9 +41,44 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
       )
       expect(link).not.toBeNull()
       expect(getComputedStyle(link).color).toEqual('rgb(0, 0, 255)')
+      const buttonA = await harness.waitForSelector(
+        iframe.contentWindow!.document,
+        'button.a'
+      )
+      expect(buttonA).not.toBeNull()
+      expect(getComputedStyle(buttonA).color).toEqual('rgb(255, 0, 0)')
+      const buttonB = await harness.waitForSelector(
+        iframe.contentWindow!.document,
+        'button.a'
+      )
+      expect(buttonB).not.toBeNull()
+      expect(getComputedStyle(buttonB).color).toEqual('rgb(255, 0, 0)')
     },
     TIMEOUT
   )
+
+  it('should have the correct style when loading dynamic styles', async () => {
+    const link = await harness.waitForSelector(
+      iframe.contentWindow!.document,
+      'a'
+    )
+    const buttonA = await harness.waitForSelector(
+      iframe.contentWindow!.document,
+      'button.a'
+    )
+    const buttonB = await harness.waitForSelector(
+      iframe.contentWindow!.document,
+      'button.b'
+    )
+    await iframe.contentWindow!.eval('DYNAMIC_IMPORT1()')
+    expect(getComputedStyle(buttonA).color).toEqual('rgb(0, 0, 255)')
+    expect(getComputedStyle(buttonB).color).toEqual('rgb(255, 0, 0)')
+    expect(getComputedStyle(link).color).toEqual('rgb(0, 0, 255)')
+    await iframe.contentWindow!.eval('DYNAMIC_IMPORT2()')
+    expect(getComputedStyle(buttonA).color).toEqual('rgb(0, 0, 255)')
+    expect(getComputedStyle(buttonB).color).toEqual('rgb(0, 0, 255)')
+    expect(getComputedStyle(link).color).toEqual('rgb(0, 0, 255)')
+  })
 
   it(
     'should have the correct style when navigating to B and back',

@@ -1,5 +1,5 @@
 @import './common.css';
 
-a {
+button.a {
   color: blue;
 }
