@@ -1,7 +1,6 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
-import { SERVER_RUNTIME } from '../lib/constants'
 
 const configSchema = {
   type: 'object',
@@ -287,9 +286,6 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        experimentalReact: {
-          type: 'boolean',
-        },
         extensionAlias: {
           type: 'object',
         },
@@ -375,11 +371,6 @@ const configSchema = {
         proxyTimeout: {
           minimum: 0,
           type: 'number',
-        },
-        runtime: {
-          // automatic typing doesn't like enum
-          enum: Object.values(SERVER_RUNTIME) as any,
-          type: 'string',
         },
         serverComponentsExternalPackages: {
           items: {

@@ -59,31 +59,45 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     import { getNamedRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
     import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
 
-    const exportedImageData = { ...exported }
-    export default (props) => {
+    const imageModule = { ...exported }
+    export default async function (props) {
       const pathname = ${JSON.stringify(route)}
       const routeRegex = getNamedRouteRegex(pathname, false)
       const segment = ${JSON.stringify(segment)}
-      const route = interpolateDynamicPath(pathname, props.params, routeRegex)
+      const { __metadata_id__: _, ...params } = props.params
+      const route = interpolateDynamicPath(pathname, params, routeRegex)
       const suffix = getMetadataRouteSuffix(segment)
       const routeSuffix = suffix ? \`-\${suffix}\` : ''
+      const imageRoute = ${JSON.stringify(pageRoute)} + routeSuffix
 
-      const imageData = {
-        alt: exportedImageData.alt,
-        type: exportedImageData.contentType || 'image/png',
-        url: path.join(route, ${JSON.stringify(
-          pageRoute
-        )} + routeSuffix + ${JSON.stringify(hashQuery)}),
-      }
-      const { size } = exportedImageData
-      if (size) {
-        ${
-          type === 'twitter' || type === 'openGraph'
-            ? 'imageData.width = size.width; imageData.height = size.height;'
-            : 'imageData.sizes = size.width + "x" + size.height;'
+      const { generateImageMetadata } = imageModule
+
+      function getImageMetadata(imageMetadata, segment) {
+        const data = {
+          alt: imageMetadata.alt,
+          type: imageMetadata.contentType || 'image/png',
+          url: path.join(route, segment + ${JSON.stringify(hashQuery)}),
         }
+        const { size } = imageMetadata
+        if (size) {
+          ${
+            type === 'twitter' || type === 'openGraph'
+              ? 'data.width = size.width; data.height = size.height;'
+              : 'data.sizes = size.width + "x" + size.height;'
+          }
+        }
+        return data
       }
-      return imageData
+
+      if (generateImageMetadata) {
+        const imageMetadataArray = await generateImageMetadata({ params })
+        return imageMetadataArray.map((imageMetadata, index) => {
+          const segment = path.join(imageRoute, (imageMetadata.id || index) + '')
+          return getImageMetadata(imageMetadata, segment)
+        })
+      } else {
+        return [getImageMetadata(imageModule, imageRoute)]
+      }
     }`
   }
 
@@ -139,12 +153,12 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
     const imageData = ${JSON.stringify(imageData)};
 
-    return {
+    return [{
       ...imageData,
       url: path.join(route, name + routeSuffix + ext + ${JSON.stringify(
-        hashQuery
+        type === 'favicon' ? '' : hashQuery
       )}),
-    }
+    }]
   }`
 }
 

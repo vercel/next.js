@@ -14,11 +14,11 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require('react');
+var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-next-b14f8da15-20230403';
+var ReactVersion = '18.3.0-next-c8369527e-20230420';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -251,275 +251,23 @@ function isAttributeNameSafe(attributeName) {
   return false;
 }
 
-// A simple string attribute.
-// Attributes that aren't in the filter are presumed to have this type.
-var STRING = 1; // A string attribute that accepts booleans in React. In HTML, these are called
-// "enumerated" attributes with "true" and "false" as possible values.
-// When true, it should be set to a "true" string.
-// When false, it should be set to a "false" string.
-
-var BOOLEANISH_STRING = 2; // A real boolean attribute.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-
-var BOOLEAN = 3; // An attribute that can be used as a flag as well as with a value.
-// When true, it should be present (set either to an empty string or its name).
-// When false, it should be omitted.
-// For any other value, should be present with that value.
-
-var OVERLOADED_BOOLEAN = 4; // An attribute that must be numeric or parse as a numeric.
-// When falsy, it should be removed.
-
-var NUMERIC = 5; // An attribute that must be positive numeric or parse as a positive numeric.
-// When falsy, it should be removed.
-
-var POSITIVE_NUMERIC = 6;
-function getPropertyInfo(name) {
-  return properties.hasOwnProperty(name) ? properties[name] : null;
-} // $FlowFixMe[missing-this-annot]
-
-function PropertyInfoRecord(type, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
-  this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
-  this.attributeName = attributeName;
-  this.attributeNamespace = attributeNamespace;
-  this.type = type;
-  this.sanitizeURL = sanitizeURL;
-  this.removeEmptyString = removeEmptyString;
-} // When adding attributes to this list, be sure to also add them to
-// the `possibleStandardNames` module to ensure casing and incorrect
-// name warnings.
-
-
-var properties = {}; // A few React string attributes have a different name.
-// This is a mapping from React prop names to the attribute names.
-
-[['acceptCharset', 'accept-charset'], ['className', 'class'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv']].forEach(function (_ref) {
-  var name = _ref[0],
-      attributeName = _ref[1];
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" HTML attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-
-['contentEditable', 'draggable', 'spellCheck', 'value'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are "enumerated" SVG attributes that accept "true" and "false".
-// In React, we let users pass `true` and `false` even though technically
-// these aren't boolean attributes (they are coerced to strings).
-// Since these are SVG attributes, their attribute names are case-sensitive.
-
-['autoReverse', 'externalResourcesRequired', 'focusable', 'preserveAlpha'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEANISH_STRING, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML boolean attributes.
-
-['allowFullScreen', 'async', // Note: there is a special case that prevents it from being written to the DOM
-// on the client side because the browsers are inconsistent. Instead we call focus().
-'autoFocus', 'autoPlay', 'controls', 'default', 'defer', 'disabled', 'disablePictureInPicture', 'disableRemotePlayback', 'formNoValidate', 'hidden', 'loop', 'noModule', 'noValidate', 'open', 'playsInline', 'readOnly', 'required', 'reversed', 'scoped', 'seamless', // Microdata
-'itemScope'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(BOOLEAN, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that are "overloaded booleans": they behave like
-// booleans, but can also accept a string value.
-
-['capture', 'download' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(OVERLOADED_BOOLEAN, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be positive numbers.
-
-['cols', 'rows', 'size', 'span' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(POSITIVE_NUMERIC, name, // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These are HTML attributes that must be numbers.
-
-['rowSpan', 'start'].forEach(function (name) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[name] = new PropertyInfoRecord(NUMERIC, name.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-});
-var CAMELIZE = /[\-\:]([a-z])/g;
-
-var capitalize = function (token) {
-  return token[1].toUpperCase();
-}; // This is a list of all SVG attributes that need special casing, namespacing,
-// or boolean value assignment. Regular attributes that just accept strings
-// and have the same names are omitted, just like in the HTML attribute filter.
-// Some of these attributes can be hard to find. This list was created by
-// scraping the MDN documentation.
-
-
-['accent-height', 'alignment-baseline', 'arabic-form', 'baseline-shift', 'cap-height', 'clip-path', 'clip-rule', 'color-interpolation', 'color-interpolation-filters', 'color-profile', 'color-rendering', 'dominant-baseline', 'enable-background', 'fill-opacity', 'fill-rule', 'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'glyph-name', 'glyph-orientation-horizontal', 'glyph-orientation-vertical', 'horiz-adv-x', 'horiz-origin-x', 'image-rendering', 'letter-spacing', 'lighting-color', 'marker-end', 'marker-mid', 'marker-start', 'overline-position', 'overline-thickness', 'paint-order', 'panose-1', 'pointer-events', 'rendering-intent', 'shape-rendering', 'stop-color', 'stop-opacity', 'strikethrough-position', 'strikethrough-thickness', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor', 'text-decoration', 'text-rendering', 'transform-origin', 'underline-position', 'underline-thickness', 'unicode-bidi', 'unicode-range', 'units-per-em', 'v-alphabetic', 'v-hanging', 'v-ideographic', 'v-mathematical', 'vector-effect', 'vert-adv-y', 'vert-origin-x', 'vert-origin-y', 'word-spacing', 'writing-mode', 'xmlns:xlink', 'x-height' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xlink namespace.
-
-['xlink:actuate', 'xlink:arcrole', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/1999/xlink', false, // sanitizeURL
-  false);
-}); // String SVG attributes with the xml namespace.
-
-['xml:base', 'xml:lang', 'xml:space' // NOTE: if you add a camelCased prop to this list,
-// you'll need to set attributeName to name.toLowerCase()
-// instead in the assignment below.
-].forEach(function (attributeName) {
-  var name = attributeName.replace(CAMELIZE, capitalize); // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-  properties[name] = new PropertyInfoRecord(STRING, attributeName, 'http://www.w3.org/XML/1998/namespace', false, // sanitizeURL
-  false);
-}); // These attribute exists both in HTML and SVG.
-// The attribute name is case-sensitive in SVG so we can't just use
-// the React name like we do for attributes that exist only in HTML.
-
-['tabIndex', 'crossOrigin'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  false, // sanitizeURL
-  false);
-}); // These attributes accept URLs. These must not allow javascript: URLS.
-// These will also need to accept Trusted Types object in the future.
-
-var xlinkHref = 'xlinkHref'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[xlinkHref] = new PropertyInfoRecord(STRING, 'xlink:href', 'http://www.w3.org/1999/xlink', true, // sanitizeURL
-false);
-var formAction = 'formAction'; // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-
-properties[formAction] = new PropertyInfoRecord(STRING, 'formaction', // attributeName
-null, // attributeNamespace
-true, // sanitizeURL
-false);
-['src', 'href', 'action'].forEach(function (attributeName) {
-  // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  properties[attributeName] = new PropertyInfoRecord(STRING, attributeName.toLowerCase(), // attributeName
-  null, // attributeNamespace
-  true, // sanitizeURL
-  true);
-});
-
 /**
  * CSS properties which accept numbers but are not in units of "px".
  */
+var unitlessNumbers = new Set(['animationIterationCount', 'aspectRatio', 'borderImageOutset', 'borderImageSlice', 'borderImageWidth', 'boxFlex', 'boxFlexGroup', 'boxOrdinalGroup', 'columnCount', 'columns', 'flex', 'flexGrow', 'flexPositive', 'flexShrink', 'flexNegative', 'flexOrder', 'gridArea', 'gridRow', 'gridRowEnd', 'gridRowSpan', 'gridRowStart', 'gridColumn', 'gridColumnEnd', 'gridColumnSpan', 'gridColumnStart', 'fontWeight', 'lineClamp', 'lineHeight', 'opacity', 'order', 'orphans', 'scale', 'tabSize', 'widows', 'zIndex', 'zoom', 'fillOpacity', // SVG-related properties
+'floodOpacity', 'stopOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeMiterlimit', 'strokeOpacity', 'strokeWidth', 'MozAnimationIterationCount', // Known Prefixed Properties
+'MozBoxFlex', // TODO: Remove these since they shouldn't be used in modern code
+'MozBoxFlexGroup', 'MozLineClamp', 'msAnimationIterationCount', 'msFlex', 'msZoom', 'msFlexGrow', 'msFlexNegative', 'msFlexOrder', 'msFlexPositive', 'msFlexShrink', 'msGridColumn', 'msGridColumnSpan', 'msGridRow', 'msGridRowSpan', 'WebkitAnimationIterationCount', 'WebkitBoxFlex', 'WebKitBoxFlexGroup', 'WebkitBoxOrdinalGroup', 'WebkitColumnCount', 'WebkitColumns', 'WebkitFlex', 'WebkitFlexGrow', 'WebkitFlexPositive', 'WebkitFlexShrink', 'WebkitLineClamp']);
 function isUnitlessNumber (name) {
-  switch (name) {
-    case 'animationIterationCount':
-    case 'aspectRatio':
-    case 'borderImageOutset':
-    case 'borderImageSlice':
-    case 'borderImageWidth':
-    case 'boxFlex':
-    case 'boxFlexGroup':
-    case 'boxOrdinalGroup':
-    case 'columnCount':
-    case 'columns':
-    case 'flex':
-    case 'flexGrow':
-    case 'flexPositive':
-    case 'flexShrink':
-    case 'flexNegative':
-    case 'flexOrder':
-    case 'gridArea':
-    case 'gridRow':
-    case 'gridRowEnd':
-    case 'gridRowSpan':
-    case 'gridRowStart':
-    case 'gridColumn':
-    case 'gridColumnEnd':
-    case 'gridColumnSpan':
-    case 'gridColumnStart':
-    case 'fontWeight':
-    case 'lineClamp':
-    case 'lineHeight':
-    case 'opacity':
-    case 'order':
-    case 'orphans':
-    case 'scale':
-    case 'tabSize':
-    case 'widows':
-    case 'zIndex':
-    case 'zoom':
-    case 'fillOpacity': // SVG-related properties
+  return unitlessNumbers.has(name);
+}
 
-    case 'floodOpacity':
-    case 'stopOpacity':
-    case 'strokeDasharray':
-    case 'strokeDashoffset':
-    case 'strokeMiterlimit':
-    case 'strokeOpacity':
-    case 'strokeWidth':
-    case 'MozAnimationIterationCount': // Known Prefixed Properties
-
-    case 'MozBoxFlex': // TODO: Remove these since they shouldn't be used in modern code
-
-    case 'MozBoxFlexGroup':
-    case 'MozLineClamp':
-    case 'msAnimationIterationCount':
-    case 'msFlex':
-    case 'msZoom':
-    case 'msFlexGrow':
-    case 'msFlexNegative':
-    case 'msFlexOrder':
-    case 'msFlexPositive':
-    case 'msFlexShrink':
-    case 'msGridColumn':
-    case 'msGridColumnSpan':
-    case 'msGridRow':
-    case 'msGridRowSpan':
-    case 'WebkitAnimationIterationCount':
-    case 'WebkitBoxFlex':
-    case 'WebKitBoxFlexGroup':
-    case 'WebkitBoxOrdinalGroup':
-    case 'WebkitColumnCount':
-    case 'WebkitColumns':
-    case 'WebkitFlex':
-    case 'WebkitFlexGrow':
-    case 'WebkitFlexPositive':
-    case 'WebkitFlexShrink':
-    case 'WebkitLineClamp':
-      return true;
-
-    default:
-      return false;
-  }
+var aliases = new Map([['acceptCharset', 'accept-charset'], ['htmlFor', 'for'], ['httpEquiv', 'http-equiv'], // HTML and SVG attributes, but the SVG attribute is case sensitive.],
+['crossOrigin', 'crossorigin'], // This is a list of all SVG attributes that need special casing.
+// Regular attributes that just accept strings.],
+['accentHeight', 'accent-height'], ['alignmentBaseline', 'alignment-baseline'], ['arabicForm', 'arabic-form'], ['baselineShift', 'baseline-shift'], ['capHeight', 'cap-height'], ['clipPath', 'clip-path'], ['clipRule', 'clip-rule'], ['colorInterpolation', 'color-interpolation'], ['colorInterpolationFilters', 'color-interpolation-filters'], ['colorProfile', 'color-profile'], ['colorRendering', 'color-rendering'], ['dominantBaseline', 'dominant-baseline'], ['enableBackground', 'enable-background'], ['fillOpacity', 'fill-opacity'], ['fillRule', 'fill-rule'], ['floodColor', 'flood-color'], ['floodOpacity', 'flood-opacity'], ['fontFamily', 'font-family'], ['fontSize', 'font-size'], ['fontSizeAdjust', 'font-size-adjust'], ['fontStretch', 'font-stretch'], ['fontStyle', 'font-style'], ['fontVariant', 'font-variant'], ['fontWeight', 'font-weight'], ['glyphName', 'glyph-name'], ['glyphOrientationHorizontal', 'glyph-orientation-horizontal'], ['glyphOrientationVertical', 'glyph-orientation-vertical'], ['horizAdvX', 'horiz-adv-x'], ['horizOriginX', 'horiz-origin-x'], ['imageRendering', 'image-rendering'], ['letterSpacing', 'letter-spacing'], ['lightingColor', 'lighting-color'], ['markerEnd', 'marker-end'], ['markerMid', 'marker-mid'], ['markerStart', 'marker-start'], ['overlinePosition', 'overline-position'], ['overlineThickness', 'overline-thickness'], ['paintOrder', 'paint-order'], ['panose-1', 'panose-1'], ['pointerEvents', 'pointer-events'], ['renderingIntent', 'rendering-intent'], ['shapeRendering', 'shape-rendering'], ['stopColor', 'stop-color'], ['stopOpacity', 'stop-opacity'], ['strikethroughPosition', 'strikethrough-position'], ['strikethroughThickness', 'strikethrough-thickness'], ['strokeDasharray', 'stroke-dasharray'], ['strokeDashoffset', 'stroke-dashoffset'], ['strokeLinecap', 'stroke-linecap'], ['strokeLinejoin', 'stroke-linejoin'], ['strokeMiterlimit', 'stroke-miterlimit'], ['strokeOpacity', 'stroke-opacity'], ['strokeWidth', 'stroke-width'], ['textAnchor', 'text-anchor'], ['textDecoration', 'text-decoration'], ['textRendering', 'text-rendering'], ['transformOrigin', 'transform-origin'], ['underlinePosition', 'underline-position'], ['underlineThickness', 'underline-thickness'], ['unicodeBidi', 'unicode-bidi'], ['unicodeRange', 'unicode-range'], ['unitsPerEm', 'units-per-em'], ['vAlphabetic', 'v-alphabetic'], ['vHanging', 'v-hanging'], ['vIdeographic', 'v-ideographic'], ['vMathematical', 'v-mathematical'], ['vectorEffect', 'vector-effect'], ['vertAdvY', 'vert-adv-y'], ['vertOriginX', 'vert-origin-x'], ['vertOriginY', 'vert-origin-y'], ['wordSpacing', 'word-spacing'], ['writingMode', 'writing-mode'], ['xmlnsXlink', 'xmlns:xlink'], ['xHeight', 'x-height']]);
+function getAttributeAlias (name) {
+  return aliases.get(name) || name;
 }
 
 var hasReadOnlyValue = {
@@ -1240,7 +988,7 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    } // We can't rely on the event system being injected on the server.
+    }
 
 
     if (eventRegistry != null) {
@@ -1309,9 +1057,8 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
       warnedProperties[name] = true;
       return true;
-    }
+    } // Known attributes should match the casing specified in the property config.
 
-    var propertyInfo = getPropertyInfo(name); // Known attributes should match the casing specified in the property config.
 
     if (possibleStandardNames.hasOwnProperty(lowerCasedName)) {
       var standardName = possibleStandardNames[lowerCasedName];
@@ -1353,10 +1100,43 @@ function validateProperty(tagName, name, value, eventRegistry) {
       case 'boolean':
         {
           switch (name) {
+            case 'autoFocus':
             case 'checked':
-            case 'selected':
             case 'multiple':
             case 'muted':
+            case 'selected':
+            case 'contentEditable':
+            case 'spellCheck':
+            case 'draggable':
+            case 'value':
+            case 'autoReverse':
+            case 'externalResourcesRequired':
+            case 'focusable':
+            case 'preserveAlpha':
+            case 'allowFullScreen':
+            case 'async':
+            case 'autoPlay':
+            case 'controls':
+            case 'default':
+            case 'defer':
+            case 'disabled':
+            case 'disablePictureInPicture':
+            case 'disableRemotePlayback':
+            case 'formNoValidate':
+            case 'hidden':
+            case 'loop':
+            case 'noModule':
+            case 'noValidate':
+            case 'open':
+            case 'playsInline':
+            case 'readOnly':
+            case 'required':
+            case 'reversed':
+            case 'scoped':
+            case 'seamless':
+            case 'itemScope':
+            case 'capture':
+            case 'download':
               {
                 // Boolean properties can accept boolean values
                 return true;
@@ -1364,13 +1144,9 @@ function validateProperty(tagName, name, value, eventRegistry) {
 
             default:
               {
-                if (propertyInfo === null) {
-                  var prefix = name.toLowerCase().slice(0, 5);
+                var prefix = name.toLowerCase().slice(0, 5);
 
-                  if (prefix === 'data-' || prefix === 'aria-') {
-                    return true;
-                  }
-                } else if (propertyInfo.acceptsBooleans) {
+                if (prefix === 'data-' || prefix === 'aria-') {
                   return true;
                 }
 
@@ -1402,15 +1178,35 @@ function validateProperty(tagName, name, value, eventRegistry) {
               case 'selected':
               case 'multiple':
               case 'muted':
+              case 'allowFullScreen':
+              case 'async':
+              case 'autoPlay':
+              case 'controls':
+              case 'default':
+              case 'defer':
+              case 'disabled':
+              case 'disablePictureInPicture':
+              case 'disableRemotePlayback':
+              case 'formNoValidate':
+              case 'hidden':
+              case 'loop':
+              case 'noModule':
+              case 'noValidate':
+              case 'open':
+              case 'playsInline':
+              case 'readOnly':
+              case 'required':
+              case 'reversed':
+              case 'scoped':
+              case 'seamless':
+              case 'itemScope':
                 {
                   break;
                 }
 
               default:
                 {
-                  if (propertyInfo === null || propertyInfo.type !== BOOLEAN) {
-                    return true;
-                  }
+                  return true;
                 }
             }
 
@@ -1618,14 +1414,14 @@ function escapeHtml(string) {
     }
 
     if (lastIndex !== index) {
-      html += str.substring(lastIndex, index);
+      html += str.slice(lastIndex, index);
     }
 
     lastIndex = index + 1;
     html += escape;
   }
 
-  return lastIndex !== index ? html + str.substring(lastIndex, index) : html;
+  return lastIndex !== index ? html + str.slice(lastIndex, index) : html;
 } // end code copied and modified from escape-html
 
 /**
@@ -2397,12 +2193,95 @@ function pushBooleanAttribute(target, name, value) // not null or undefined
   }
 }
 
+function pushStringAttribute(target, name, value) // not null or undefined
+{
+  if (typeof value !== 'function' && typeof value !== 'symbol' && typeof value !== 'boolean') {
+    target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+  }
+} // Since this will likely be repeated a lot in the HTML, we use a more concise message
+// than on the client and hopefully it's googleable.
+
+
+stringToPrecomputedChunk(escapeTextForBrowser( // eslint-disable-next-line no-script-url
+"javascript:throw new Error('A React form was unexpectedly submitted.')"));
+
+function pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name) {
+  {
+    // Plain form actions support all the properties, so we have to emit them.
+    if (name !== null) {
+      pushAttribute(target, 'name', name);
+    }
+
+    if (formAction !== null) {
+      pushAttribute(target, 'formAction', formAction);
+    }
+
+    if (formEncType !== null) {
+      pushAttribute(target, 'formEncType', formEncType);
+    }
+
+    if (formMethod !== null) {
+      pushAttribute(target, 'formMethod', formMethod);
+    }
+
+    if (formTarget !== null) {
+      pushAttribute(target, 'formTarget', formTarget);
+    }
+  }
+}
+
 function pushAttribute(target, name, value) // not null or undefined
 {
   switch (name) {
+    // These are very common props and therefore are in the beginning of the switch.
+    // TODO: aria-label is a very common prop but allows booleans so is not like the others
+    // but should ideally go in this list too.
+    case 'className':
+      {
+        pushStringAttribute(target, 'class', value);
+        break;
+      }
+
+    case 'tabIndex':
+      {
+        pushStringAttribute(target, 'tabindex', value);
+        break;
+      }
+
+    case 'dir':
+    case 'role':
+    case 'viewBox':
+    case 'width':
+    case 'height':
+      {
+        pushStringAttribute(target, name, value);
+        break;
+      }
+
     case 'style':
       {
         pushStyleAttribute(target, value);
+        return;
+      }
+
+    case 'src':
+    case 'href':
+    // Fall through to the last case which shouldn't remove empty strings.
+
+    case 'action':
+    case 'formAction':
+      {
+        // TODO: Consider only special casing these for each tag.
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          return;
+        }
+
+        {
+          checkAttributeStringCoercion(value, name);
+        }
+
+        var sanitizedValue = sanitizeURL('' + value);
+        target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(sanitizedValue)), attributeEnd);
         return;
       }
 
@@ -2416,102 +2295,184 @@ function pushAttribute(target, name, value) // not null or undefined
       // Ignored. These are built-in to React on the client.
       return;
 
+    case 'autoFocus':
     case 'multiple':
     case 'muted':
-      pushBooleanAttribute(target, name, value);
-      return;
-  }
-
-  if ( // shouldIgnoreAttribute
-  // We have already filtered out null/undefined and reserved words.
-  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
-    return;
-  }
-
-  var propertyInfo = getPropertyInfo(name);
-
-  if (propertyInfo !== null) {
-    // shouldRemoveAttribute
-    switch (typeof value) {
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
+      {
+        pushBooleanAttribute(target, name.toLowerCase(), value);
         return;
+      }
 
-      case 'boolean':
+    case 'xlinkHref':
+      {
+        if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          return;
+        }
+
         {
-          if (!propertyInfo.acceptsBooleans) {
-            return;
-          }
+          checkAttributeStringCoercion(value, name);
         }
-    }
 
-    var attributeName = propertyInfo.attributeName;
-    var attributeNameChunk = stringToChunk(attributeName); // TODO: If it's known we can cache the chunk.
+        var _sanitizedValue = sanitizeURL('' + value);
 
-    switch (propertyInfo.type) {
-      case BOOLEAN:
-        if (value) {
-          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
+        target.push(attributeSeparator, stringToChunk('xlink:href'), attributeAssign, stringToChunk(escapeTextForBrowser(_sanitizedValue)), attributeEnd);
+        return;
+      }
+
+    case 'contentEditable':
+    case 'spellCheck':
+    case 'draggable':
+    case 'value':
+    case 'autoReverse':
+    case 'externalResourcesRequired':
+    case 'focusable':
+    case 'preserveAlpha':
+      {
+        // Booleanish String
+        // These are "enumerated" attributes that accept "true" and "false".
+        // In React, we let users pass `true` and `false` even though technically
+        // these aren't boolean attributes (they are coerced to strings).
+        if (typeof value !== 'function' && typeof value !== 'symbol') {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
         }
 
         return;
+      }
 
-      case OVERLOADED_BOOLEAN:
+    case 'allowFullScreen':
+    case 'async':
+    case 'autoPlay':
+    case 'controls':
+    case 'default':
+    case 'defer':
+    case 'disabled':
+    case 'disablePictureInPicture':
+    case 'disableRemotePlayback':
+    case 'formNoValidate':
+    case 'hidden':
+    case 'loop':
+    case 'noModule':
+    case 'noValidate':
+    case 'open':
+    case 'playsInline':
+    case 'readOnly':
+    case 'required':
+    case 'reversed':
+    case 'scoped':
+    case 'seamless':
+    case 'itemScope':
+      {
+        // Boolean
+        if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+          target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
+        }
+
+        return;
+      }
+
+    case 'capture':
+    case 'download':
+      {
+        // Overloaded Boolean
         if (value === true) {
-          target.push(attributeSeparator, attributeNameChunk, attributeEmptyString);
-        } else if (value === false) ; else {
-          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+          target.push(attributeSeparator, stringToChunk(name), attributeEmptyString);
+        } else if (value === false) ; else if (typeof value !== 'function' && typeof value !== 'symbol') {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
         }
 
         return;
+      }
 
-      case NUMERIC:
-        if (!isNaN(value)) {
-          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+    case 'cols':
+    case 'rows':
+    case 'size':
+    case 'span':
+      {
+        // These are HTML attributes that must be positive numbers.
+        if (typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value) && value >= 1) {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
         }
 
-        break;
-
-      case POSITIVE_NUMERIC:
-        if (!isNaN(value) && value >= 1) {
-          target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
-        }
-
-        break;
-
-      default:
-        {
-          checkAttributeStringCoercion(value, attributeName);
-        }
-
-        if (propertyInfo.sanitizeURL) {
-          // We've already checked above.
-          // eslint-disable-next-line react-internal/safe-string-coercion
-          value = sanitizeURL('' + value);
-        }
-
-        target.push(attributeSeparator, attributeNameChunk, attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
-    }
-  } else if (isAttributeNameSafe(name)) {
-    // shouldRemoveAttribute
-    switch (typeof value) {
-      case 'function':
-      case 'symbol':
-        // eslint-disable-line
         return;
+      }
 
-      case 'boolean':
-        {
-          var prefix = name.toLowerCase().slice(0, 5);
+    case 'rowSpan':
+    case 'start':
+      {
+        // These are HTML attributes that must be numbers.
+        if (typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value)) {
+          target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+        }
 
-          if (prefix !== 'data-' && prefix !== 'aria-') {
+        return;
+      }
+
+    case 'xlinkActuate':
+      pushStringAttribute(target, 'xlink:actuate', value);
+      return;
+
+    case 'xlinkArcrole':
+      pushStringAttribute(target, 'xlink:arcrole', value);
+      return;
+
+    case 'xlinkRole':
+      pushStringAttribute(target, 'xlink:role', value);
+      return;
+
+    case 'xlinkShow':
+      pushStringAttribute(target, 'xlink:show', value);
+      return;
+
+    case 'xlinkTitle':
+      pushStringAttribute(target, 'xlink:title', value);
+      return;
+
+    case 'xlinkType':
+      pushStringAttribute(target, 'xlink:type', value);
+      return;
+
+    case 'xmlBase':
+      pushStringAttribute(target, 'xml:base', value);
+      return;
+
+    case 'xmlLang':
+      pushStringAttribute(target, 'xml:lang', value);
+      return;
+
+    case 'xmlSpace':
+      pushStringAttribute(target, 'xml:space', value);
+      return;
+
+    default:
+      if ( // shouldIgnoreAttribute
+      // We have already filtered out null/undefined and reserved words.
+      name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+        return;
+      }
+
+      var attributeName = getAttributeAlias(name);
+
+      if (isAttributeNameSafe(attributeName)) {
+        // shouldRemoveAttribute
+        switch (typeof value) {
+          case 'function':
+          case 'symbol':
+            // eslint-disable-line
             return;
-          }
-        }
-    }
 
-    target.push(attributeSeparator, stringToChunk(name), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+          case 'boolean':
+            {
+              var prefix = attributeName.toLowerCase().slice(0, 5);
+
+              if (prefix !== 'data-' && prefix !== 'aria-') {
+                return;
+              }
+            }
+        }
+
+        target.push(attributeSeparator, stringToChunk(attributeName), attributeAssign, stringToChunk(escapeTextForBrowser(value)), attributeEnd);
+      }
+
   }
 }
 
@@ -2549,6 +2510,7 @@ var didWarnDefaultTextareaValue = false;
 var didWarnInvalidOptionChildren = false;
 var didWarnInvalidOptionInnerHTML = false;
 var didWarnSelectedSetOnOption = false;
+var didWarnFormActionType = false;
 
 function checkSelectProp(props, propName) {
   {
@@ -2682,12 +2644,10 @@ function pushStartOption(target, props, formatContext) {
         case 'dangerouslySetInnerHTML':
           innerHTML = propValue;
           break;
-        // eslint-disable-next-line-no-fallthrough
 
         case 'value':
           value = propValue;
         // We intentionally fallthrough to also set the attribute on the node.
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           pushAttribute(target, propKey, propValue);
@@ -2751,24 +2711,98 @@ function pushStartOption(target, props, formatContext) {
   return children;
 }
 
-function pushInput(target, props) {
-  {
-    checkControlledValueProps('input', props);
+function pushStartForm(target, props) {
+  target.push(startChunkForTag('form'));
+  var children = null;
+  var innerHTML = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
 
-    if (props.checked !== undefined && props.defaultChecked !== undefined && !didWarnDefaultChecked) {
-      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
 
-      didWarnDefaultChecked = true;
-    }
+      if (propValue == null) {
+        continue;
+      }
 
-    if (props.value !== undefined && props.defaultValue !== undefined && !didWarnDefaultInputValue) {
-      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
 
-      didWarnDefaultInputValue = true;
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'action':
+          formAction = propValue;
+          break;
+
+        case 'encType':
+          formEncType = propValue;
+          break;
+
+        case 'method':
+          formMethod = propValue;
+          break;
+
+        case 'target':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
     }
   }
 
+  {
+    // Plain form actions support all the properties, so we have to emit them.
+    if (formAction !== null) {
+      pushAttribute(target, 'action', formAction);
+    }
+
+    if (formEncType !== null) {
+      pushAttribute(target, 'encType', formEncType);
+    }
+
+    if (formMethod !== null) {
+      pushAttribute(target, 'method', formMethod);
+    }
+
+    if (formTarget !== null) {
+      pushAttribute(target, 'target', formTarget);
+    }
+  }
+
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
+}
+
+function pushInput(target, props) {
+  {
+    checkControlledValueProps('input', props);
+  }
+
   target.push(startChunkForTag('input'));
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
   var value = null;
   var defaultValue = null;
   var checked = null;
@@ -2786,7 +2820,26 @@ function pushInput(target, props) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('input' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
 
         case 'defaultChecked':
           defaultChecked = propValue;
@@ -2811,6 +2864,30 @@ function pushInput(target, props) {
     }
   }
 
+  {
+    if (formAction !== null && props.type !== 'image' && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('An input can only specify a formAction along with type="submit" or type="image".');
+    }
+  }
+
+  pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name);
+
+  {
+    if (checked !== null && defaultChecked !== null && !didWarnDefaultChecked) {
+      error('%s contains an input of type %s with both checked and defaultChecked props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the checked prop, or the defaultChecked prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultChecked = true;
+    }
+
+    if (value !== null && defaultValue !== null && !didWarnDefaultInputValue) {
+      error('%s contains an input of type %s with both value and defaultValue props. ' + 'Input elements must be either controlled or uncontrolled ' + '(specify either the value prop, or the defaultValue prop, but not ' + 'both). Decide between using a controlled or uncontrolled input ' + 'element and remove one of these props. More info: ' + 'https://reactjs.org/link/controlled-components', 'A component', props.type);
+
+      didWarnDefaultInputValue = true;
+    }
+  }
+
   if (checked !== null) {
     pushBooleanAttribute(target, 'checked', checked);
   } else if (defaultChecked !== null) {
@@ -2825,6 +2902,82 @@ function pushInput(target, props) {
 
   target.push(endOfStartTagSelfClosing);
   return null;
+}
+
+function pushStartButton(target, props) {
+  target.push(startChunkForTag('button'));
+  var children = null;
+  var innerHTML = null;
+  var name = null;
+  var formAction = null;
+  var formEncType = null;
+  var formMethod = null;
+  var formTarget = null;
+
+  for (var propKey in props) {
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+
+      if (propValue == null) {
+        continue;
+      }
+
+      switch (propKey) {
+        case 'children':
+          children = propValue;
+          break;
+
+        case 'dangerouslySetInnerHTML':
+          innerHTML = propValue;
+          break;
+
+        case 'name':
+          name = propValue;
+          break;
+
+        case 'formAction':
+          formAction = propValue;
+          break;
+
+        case 'formEncType':
+          formEncType = propValue;
+          break;
+
+        case 'formMethod':
+          formMethod = propValue;
+          break;
+
+        case 'formTarget':
+          formTarget = propValue;
+          break;
+
+        default:
+          pushAttribute(target, propKey, propValue);
+          break;
+      }
+    }
+  }
+
+  {
+    if (formAction !== null && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
+      didWarnFormActionType = true;
+
+      error('A button can only specify a formAction along with type="submit" or no type.');
+    }
+  }
+
+  pushFormActionAttribute(target, formAction, formEncType, formMethod, formTarget, name);
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, children);
+
+  if (typeof children === 'string') {
+    // Special case children as a string to avoid the unnecessary comment.
+    // TODO: Remove this special case after the general optimization is in place.
+    target.push(stringToChunk(encodeHTMLTextNode(children)));
+    return null;
+  }
+
+  return children;
 }
 
 function pushStartTextArea(target, props) {
@@ -2866,7 +3019,6 @@ function pushStartTextArea(target, props) {
 
         case 'dangerouslySetInnerHTML':
           throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           pushAttribute(target, propKey, propValue);
@@ -3159,7 +3311,6 @@ function pushLinkImpl(target, props) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           pushAttribute(target, propKey, propValue);
@@ -3341,7 +3492,6 @@ function pushSelfClosing(target, props, tag) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error(tag + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           pushAttribute(target, propKey, propValue);
@@ -3369,7 +3519,6 @@ function pushStartMenuItem(target, props) {
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('menuitems cannot have `children` nor `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           pushAttribute(target, propKey, propValue);
@@ -3859,7 +4008,18 @@ function pushStartInstance(target, type, props, resources, responseState, format
   }
 
   switch (type) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      // Fast track very common tags
+      break;
     // Special tags
+
     case 'select':
       return pushStartSelect(target, props);
 
@@ -3871,6 +4031,12 @@ function pushStartInstance(target, type, props, resources, responseState, format
 
     case 'input':
       return pushInput(target, props);
+
+    case 'button':
+      return pushStartButton(target, props);
+
+    case 'form':
+      return pushStartForm(target, props);
 
     case 'menuitem':
       return pushStartMenuItem(target, props);
@@ -3925,7 +4091,7 @@ function pushStartInstance(target, type, props, resources, responseState, format
     case 'font-face-name':
     case 'missing-glyph':
       {
-        return pushStartGenericElement(target, props, type);
+        break;
       }
     // Preamble start tags
 
@@ -3939,15 +4105,15 @@ function pushStartInstance(target, type, props, resources, responseState, format
 
     default:
       {
-        if (type.indexOf('-') === -1) {
-          // Generic element
-          return pushStartGenericElement(target, props, type);
-        } else {
+        if (type.indexOf('-') !== -1) {
           // Custom element
           return pushStartCustomElement(target, props, type);
         }
       }
-  }
+  } // Generic element
+
+
+  return pushStartGenericElement(target, props, type);
 }
 var endTag1 = stringToPrecomputedChunk('</');
 var endTag2 = stringToPrecomputedChunk('>');
@@ -3962,7 +4128,6 @@ function pushEndInstance(target, type, props, responseState, formatContext) {
     // Omitted close tags
     // TODO: Instead of repeating this switch we could try to pass a flag from above.
     // That would require returning a tuple. Which might be ok if it gets inlined.
-    // eslint-disable-next-line-no-fallthrough
 
     case 'area':
     case 'base':
@@ -4992,7 +5157,6 @@ function writeStyleResourceDependencyInJS(destination, href, precedence, props) 
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           writeStyleResourceAttributeInJS(destination, propKey, propValue);
@@ -5027,49 +5191,62 @@ function writeStyleResourceAttributeInJS(destination, name, value) // not null o
     // Attribute renames
 
     case 'className':
-      attributeName = 'class';
-      break;
+      {
+        attributeName = 'class';
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
+        break;
+      }
     // Booleans
 
     case 'hidden':
-      if (value === false) {
-        return;
-      }
+      {
+        if (value === false) {
+          return;
+        }
 
-      attributeValue = '';
-      break;
+        attributeValue = '';
+        break;
+      }
     // Santized URLs
 
     case 'src':
     case 'href':
       {
+        value = sanitizeURL(value);
+
         {
           checkAttributeStringCoercion(value, attributeName);
         }
 
-        value = sanitizeURL(value);
+        attributeValue = '' + value;
         break;
       }
 
     default:
       {
+        if ( // unrecognized event handlers are not SSR'd and we (apparently)
+        // use on* as hueristic for these handler props
+        name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+          return;
+        }
+
         if (!isAttributeNameSafe(name)) {
           return;
         }
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
       }
   }
 
-  if ( // shouldIgnoreAttribute
-  // We have already filtered out null/undefined and reserved words.
-  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
-    return;
-  }
-
-  {
-    checkAttributeStringCoercion(value, attributeName);
-  }
-
-  attributeValue = '' + value;
   writeChunk(destination, arrayInterstitial);
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(attributeName)));
   writeChunk(destination, arrayInterstitial);
@@ -5150,7 +5327,6 @@ function writeStyleResourceDependencyInAttr(destination, href, precedence, props
         case 'children':
         case 'dangerouslySetInnerHTML':
           throw new Error('link' + " is a self-closing tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-        // eslint-disable-next-line-no-fallthrough
 
         default:
           writeStyleResourceAttributeInAttr(destination, propKey, propValue);
@@ -5185,49 +5361,62 @@ function writeStyleResourceAttributeInAttr(destination, name, value) // not null
     // Attribute renames
 
     case 'className':
-      attributeName = 'class';
-      break;
+      {
+        attributeName = 'class';
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
+        break;
+      }
     // Booleans
 
     case 'hidden':
-      if (value === false) {
-        return;
-      }
+      {
+        if (value === false) {
+          return;
+        }
 
-      attributeValue = '';
-      break;
+        attributeValue = '';
+        break;
+      }
     // Santized URLs
 
     case 'src':
     case 'href':
       {
+        value = sanitizeURL(value);
+
         {
           checkAttributeStringCoercion(value, attributeName);
         }
 
-        value = sanitizeURL(value);
+        attributeValue = '' + value;
         break;
       }
 
     default:
       {
+        if ( // unrecognized event handlers are not SSR'd and we (apparently)
+        // use on* as hueristic for these handler props
+        name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
+          return;
+        }
+
         if (!isAttributeNameSafe(name)) {
           return;
         }
+
+        {
+          checkAttributeStringCoercion(value, attributeName);
+        }
+
+        attributeValue = '' + value;
       }
   }
 
-  if ( // shouldIgnoreAttribute
-  // We have already filtered out null/undefined and reserved words.
-  name.length > 2 && (name[0] === 'o' || name[0] === 'O') && (name[1] === 'n' || name[1] === 'N')) {
-    return;
-  }
-
-  {
-    checkAttributeStringCoercion(value, attributeName);
-  }
-
-  attributeValue = '' + value;
   writeChunk(destination, arrayInterstitial);
   writeChunk(destination, stringToChunk(escapeTextForBrowser(JSON.stringify(attributeName))));
   writeChunk(destination, arrayInterstitial);
@@ -5828,7 +6017,7 @@ function getAsResourceDEV(resource) {
 function createResponseState(generateStaticMarkup, identifierPrefix, externalRuntimeConfig) {
   var responseState = createResponseState$1(identifierPrefix, undefined, undefined, undefined, undefined, externalRuntimeConfig);
   return {
-    // Keep this in sync with ReactDOMServerFormatConfig
+    // Keep this in sync with ReactFizzConfigDOM
     bootstrapChunks: responseState.bootstrapChunks,
     placeholderPrefix: responseState.placeholderPrefix,
     segmentPrefix: responseState.segmentPrefix,
@@ -6051,7 +6240,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 
@@ -8750,7 +8938,6 @@ function renderElement(request, task, prevThenableState, type, props, ref) {
 
         throw new Error('ReactDOMServer does not yet support scope components.');
       }
-    // eslint-disable-next-line-no-fallthrough
 
     case REACT_SUSPENSE_TYPE:
       {
@@ -8873,7 +9060,6 @@ function renderNodeDestructiveImpl(request, task, prevThenableState, node) {
 
       case REACT_PORTAL_TYPE:
         throw new Error('Portals are not currently supported by the server renderer. ' + 'Render them conditionally so that they only appear on the client render.');
-      // eslint-disable-next-line-no-fallthrough
 
       case REACT_LAZY_TYPE:
         {

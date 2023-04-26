@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require('react');
+var React = require("next/dist/compiled/react-experimental");
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -229,7 +229,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 

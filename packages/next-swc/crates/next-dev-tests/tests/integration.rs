@@ -153,9 +153,10 @@ fn test(resource: PathBuf) {
     };
 }
 
-#[testing::fixture("tests/integration/*/*/__skipped__/*")]
+#[testing::fixture("tests/integration/*/*/__skipped__/*/input")]
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
+    let resource = resource.parent().unwrap().to_path_buf();
     let run_result = run_async_test(run_test(resource));
 
     // Assert that this skipped test itself has at least one browser test which

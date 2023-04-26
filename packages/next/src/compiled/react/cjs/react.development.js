@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-b14f8da15-20230403';
+          var ReactVersion = '18.3.0-next-c8369527e-20230420';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -631,7 +631,6 @@ function getComponentNameFromType(type) {
           return (context2.displayName || context2._globalName) + '.Provider';
         }
 
-      // eslint-disable-next-line no-fallthrough
     }
   }
 

@@ -1,11 +1,8 @@
-import { PropTypes } from "react";
-
+import { PropTypes } from 'react';
 export default function Page() {
-  return __jsx("div", null);
+    return __jsx("div", null);
 }
-
 Page.propTypes = {
-  prop: PropTypes.bool,
+    prop: PropTypes.bool
 };
-
 export function otherExport() {}

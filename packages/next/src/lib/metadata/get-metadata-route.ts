@@ -1,4 +1,4 @@
-import { isMetadataRoute } from './is-metadata-route'
+import { isMetadataRoute, isMetadataRouteFile } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { djb2Hash } from '../../shared/lib/hash'
 
@@ -45,13 +45,21 @@ export function normalizeMetadataRoute(page: string) {
       route += '.webmanifest'
     }
     // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
-    // If it's a metadata file route, we need to append /route to the page.
+    // If it's a metadata file route, we need to append /[id]/route to the page.
     if (!route.endsWith('/route')) {
-      const { dir, name, ext } = path.parse(route)
+      const isStaticMetadataFile = isMetadataRouteFile(route, [], true)
+      const { dir, name: baseName, ext } = path.parse(route)
 
-      route = path.join(
+      const isSingleRoute =
+        page.startsWith('/sitemap') ||
+        page.startsWith('/robots') ||
+        page.startsWith('/manifest') ||
+        isStaticMetadataFile
+
+      route = path.posix.join(
         dir,
-        `${name}${suffix ? `-${suffix}` : ''}${ext}`,
+        `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
+        isSingleRoute ? '' : '[[...__metadata_id__]]',
         'route'
       )
     }

@@ -384,6 +384,9 @@ export class NextInstance {
   }
 
   // TODO: block these in deploy mode
+  public async hasFile(filename: string) {
+    return fs.pathExists(path.join(this.testDir, filename))
+  }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }

@@ -36,18 +36,30 @@ function parseModel(response, json) {
 // eslint-disable-next-line no-unused-vars
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    var resolvedModuleData = bundlerConfig[metadata.id][metadata.name];
+    var moduleExports = bundlerConfig[metadata.id];
+    var resolvedModuleData = moduleExports[metadata.name];
+    var name;
 
-    if (metadata.async) {
-      return {
-        id: resolvedModuleData.id,
-        chunks: resolvedModuleData.chunks,
-        name: resolvedModuleData.name,
-        async: true
-      };
+    if (resolvedModuleData) {
+      // The potentially aliased name.
+      name = resolvedModuleData.name;
     } else {
-      return resolvedModuleData;
+      // If we don't have this specific name, we might have the full module.
+      resolvedModuleData = moduleExports['*'];
+
+      if (!resolvedModuleData) {
+        throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+      }
+
+      name = metadata.name;
     }
+
+    return {
+      id: resolvedModuleData.id,
+      chunks: resolvedModuleData.chunks,
+      name: name,
+      async: !!metadata.async
+    };
   }
 
   return metadata;
@@ -151,6 +163,19 @@ function requireModule(metadata) {
 }
 
 var knownServerReferences = new WeakMap();
+function createServerReference(id, callServer) {
+  var proxy = function () {
+    // $FlowFixMe[method-unbinding]
+    var args = Array.prototype.slice.call(arguments);
+    return callServer(id, args);
+  };
+
+  knownServerReferences.set(proxy, {
+    id: id,
+    bound: null
+  });
+  return proxy;
+}
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -662,11 +687,39 @@ function parseModelString(response, parentObject, key, value) {
           }
         }
 
+      case 'I':
+        {
+          // $Infinity
+          return Infinity;
+        }
+
+      case '-':
+        {
+          // $-0 or $-Infinity
+          if (value === '$-0') {
+            return -0;
+          } else {
+            return -Infinity;
+          }
+        }
+
+      case 'N':
+        {
+          // $NaN
+          return NaN;
+        }
+
       case 'u':
         {
           // matches "$undefined"
           // Special encoding for `undefined` which can't be serialized as JSON otherwise.
           return undefined;
+        }
+
+      case 'D':
+        {
+          // Date
+          return new Date(Date.parse(value.substring(2)));
         }
 
       case 'n':
@@ -1287,8 +1340,37 @@ function serializeSymbolReference(name) {
   return '$S' + name;
 }
 
+function serializeFormDataReference(id) {
+  // Why K? F is "Function". D is "Date". What else?
+  return '$K' + id.toString(16);
+}
+
+function serializeNumber(number) {
+  if (Number.isFinite(number)) {
+    if (number === 0 && 1 / number === -Infinity) {
+      return '$-0';
+    } else {
+      return number;
+    }
+  } else {
+    if (number === Infinity) {
+      return '$Infinity';
+    } else if (number === -Infinity) {
+      return '$-Infinity';
+    } else {
+      return '$NaN';
+    }
+  }
+}
+
 function serializeUndefined() {
   return '$undefined';
+}
+
+function serializeDateFromDateJSON(dateJSON) {
+  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
+  // We need only tack on a $D prefix.
+  return '$D' + dateJSON;
 }
 
 function serializeBigInt(n) {
@@ -1305,19 +1387,19 @@ function escapeStringValue(value) {
   }
 }
 
-function processReply(root, resolve, reject) {
+function processReply(root, formFieldPrefix, resolve, reject) {
   var nextPartId = 1;
   var pendingParts = 0;
   var formData = null;
 
   function resolveToJSON(key, value) {
-    var parent = this;
+    var parent = this; // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
 
     {
       // $FlowFixMe[incompatible-use]
-      var originalValue = this[key];
+      var originalValue = parent[key];
 
-      if (typeof originalValue === 'object' && originalValue !== value) {
+      if (typeof originalValue === 'object' && originalValue !== value && !(originalValue instanceof Date)) {
         if (objectName(originalValue) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(originalValue), describeObjectForErrorMessage(parent, key));
         } else {
@@ -1348,7 +1430,7 @@ function processReply(root, resolve, reject) {
 
           var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-          data.append('' + promiseId, partJSON);
+          data.append(formFieldPrefix + promiseId, partJSON);
           pendingParts--;
 
           if (pendingParts === 0) {
@@ -1360,6 +1442,26 @@ function processReply(root, resolve, reject) {
           reject(reason);
         });
         return serializePromiseID(promiseId);
+      } // TODO: Should we the Object.prototype.toString.call() to test for cross-realm objects?
+
+
+      if (value instanceof FormData) {
+        if (formData === null) {
+          // Upgrade to use FormData to allow us to use rich objects as its values.
+          formData = new FormData();
+        }
+
+        var data = formData;
+        var refId = nextPartId++; // Copy all the form fields with a prefix for this reference.
+        // These must come first in the form order because we assume that all the
+        // fields are available before this is referenced.
+
+        var prefix = formFieldPrefix + refId + '_'; // $FlowFixMe[prop-missing]: FormData has forEach.
+
+        value.forEach(function (originalValue, originalKey) {
+          data.append(prefix + originalKey, originalValue);
+        });
+        return serializeFormDataReference(refId);
       }
 
       if (!isArray(value)) {
@@ -1398,11 +1500,26 @@ function processReply(root, resolve, reject) {
     }
 
     if (typeof value === 'string') {
+      // TODO: Maybe too clever. If we support URL there's no similar trick.
+      if (value[value.length - 1] === 'Z') {
+        // Possibly a Date, whose toJSON automatically calls toISOString
+        // $FlowFixMe[incompatible-use]
+        var _originalValue = parent[key]; // $FlowFixMe[method-unbinding]
+
+        if (_originalValue instanceof Date) {
+          return serializeDateFromDateJSON(value);
+        }
+      }
+
       return escapeStringValue(value);
     }
 
-    if (typeof value === 'boolean' || typeof value === 'number') {
+    if (typeof value === 'boolean') {
       return value;
+    }
+
+    if (typeof value === 'number') {
+      return serializeNumber(value);
     }
 
     if (typeof value === 'undefined') {
@@ -1421,10 +1538,11 @@ function processReply(root, resolve, reject) {
         } // The reference to this function came from the same client so we can pass it back.
 
 
-        var refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
+        var _refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
 
-        formData.set('' + refId, metaDataJSON);
-        return serializeServerReferenceID(refId);
+
+        formData.set(formFieldPrefix + _refId, metaDataJSON);
+        return serializeServerReferenceID(_refId);
       }
 
       throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
@@ -1457,7 +1575,7 @@ function processReply(root, resolve, reject) {
     resolve(json);
   } else {
     // Otherwise, we use FormData to let us stream in the result.
-    formData.set('0', json);
+    formData.set(formFieldPrefix + '0', json);
 
     if (pendingParts === 0) {
       // $FlowFixMe[incompatible-call] this has already been refined.
@@ -1541,13 +1659,14 @@ function encodeReply(value)
 /* We don't use URLSearchParams yet but maybe */
 {
   return new Promise(function (resolve, reject) {
-    processReply(value, resolve, reject);
+    processReply(value, '', resolve, reject);
   });
 }
 
 exports.createFromFetch = createFromFetch;
 exports.createFromReadableStream = createFromReadableStream;
 exports.createFromXHR = createFromXHR;
+exports.createServerReference = createServerReference;
 exports.encodeReply = encodeReply;
   })();
 }

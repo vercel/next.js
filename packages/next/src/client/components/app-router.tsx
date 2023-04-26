@@ -25,6 +25,7 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
+  PrefetchKind,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -81,6 +82,41 @@ type AppRouterProps = Omit<
 
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
+}
+
+function HistoryUpdater({ tree, pushRef, canonicalUrl, sync }: any) {
+  // @ts-ignore TODO-APP: useInsertionEffect is available
+  React.useInsertionEffect(() => {
+    // When mpaNavigation flag is set do a hard navigation to the new url.
+    if (pushRef.mpaNavigation) {
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
+      return
+    }
+    // Identifier is shortened intentionally.
+    // __NA is used to identify if the history entry can be handled by the app-router.
+    // __N is used to identify if the history entry can be handled by the old router.
+    const historyState = {
+      __NA: true,
+      tree,
+    }
+    if (
+      pushRef.pendingPush &&
+      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
+    ) {
+      // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
+      pushRef.pendingPush = false
+      window.history.pushState(historyState, '', canonicalUrl)
+    } else {
+      window.history.replaceState(historyState, '', canonicalUrl)
+    }
+    sync()
+  }, [tree, pushRef, canonicalUrl, sync])
+  return null
 }
 
 /**
@@ -199,7 +235,7 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: async (href) => {
+      prefetch: async (href, options) => {
         // If prefetch has already been triggered, don't trigger it again.
         if (isBot(window.navigator.userAgent)) {
           return
@@ -209,12 +245,12 @@ function Router({
         if (isExternalURL(url)) {
           return
         }
-
         // @ts-ignore startTransition exists
         React.startTransition(() => {
           dispatch({
             type: ACTION_PREFETCH,
             url,
+            kind: options?.kind ?? PrefetchKind.FULL,
           })
         })
       },
@@ -273,37 +309,6 @@ function Router({
 
     return routerInstance
   }, [dispatch])
-
-  useEffect(() => {
-    // When mpaNavigation flag is set do a hard navigation to the new url.
-    if (pushRef.mpaNavigation) {
-      const location = window.location
-      if (pushRef.pendingPush) {
-        location.assign(canonicalUrl)
-      } else {
-        location.replace(canonicalUrl)
-      }
-      return
-    }
-
-    // Identifier is shortened intentionally.
-    // __NA is used to identify if the history entry can be handled by the app-router.
-    // __N is used to identify if the history entry can be handled by the old router.
-    const historyState = { __NA: true, tree }
-    if (
-      pushRef.pendingPush &&
-      createHrefFromUrl(new URL(window.location.href)) !== canonicalUrl
-    ) {
-      // This intentionally mutates React state, pushRef is overwritten to ensure additional push/replace calls do not trigger an additional history entry.
-      pushRef.pendingPush = false
-
-      window.history.pushState(historyState, '', canonicalUrl)
-    } else {
-      window.history.replaceState(historyState, '', canonicalUrl)
-    }
-
-    sync()
-  }, [tree, pushRef, canonicalUrl, sync])
 
   // Add `window.nd` for debugging purposes.
   // This is not meant for use in applications as concurrent rendering will affect the cache/tree/router.
@@ -371,36 +376,44 @@ function Router({
   )
 
   return (
-    <PathnameContext.Provider value={pathname}>
-      <SearchParamsContext.Provider value={searchParams}>
-        <GlobalLayoutRouterContext.Provider
-          value={{
-            changeByServerResponse,
-            tree,
-            focusAndScrollRef,
-            nextUrl,
-          }}
-        >
-          <AppRouterContext.Provider value={appRouter}>
-            <LayoutRouterContext.Provider
-              value={{
-                childNodes: cache.parallelRoutes,
-                tree: tree,
-                // Root node always has `url`
-                // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                url: canonicalUrl,
-              }}
-            >
-              {HotReloader ? (
-                <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
-              ) : (
-                content
-              )}
-            </LayoutRouterContext.Provider>
-          </AppRouterContext.Provider>
-        </GlobalLayoutRouterContext.Provider>
-      </SearchParamsContext.Provider>
-    </PathnameContext.Provider>
+    <>
+      <HistoryUpdater
+        tree={tree}
+        pushRef={pushRef}
+        canonicalUrl={canonicalUrl}
+        sync={sync}
+      />
+      <PathnameContext.Provider value={pathname}>
+        <SearchParamsContext.Provider value={searchParams}>
+          <GlobalLayoutRouterContext.Provider
+            value={{
+              changeByServerResponse,
+              tree,
+              focusAndScrollRef,
+              nextUrl,
+            }}
+          >
+            <AppRouterContext.Provider value={appRouter}>
+              <LayoutRouterContext.Provider
+                value={{
+                  childNodes: cache.parallelRoutes,
+                  tree: tree,
+                  // Root node always has `url`
+                  // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+                  url: canonicalUrl,
+                }}
+              >
+                {HotReloader ? (
+                  <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+                ) : (
+                  content
+                )}
+              </LayoutRouterContext.Provider>
+            </AppRouterContext.Provider>
+          </GlobalLayoutRouterContext.Provider>
+        </SearchParamsContext.Provider>
+      </PathnameContext.Provider>
+    </>
   )
 }
 

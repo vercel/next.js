@@ -1,7 +1,9 @@
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
+import { CachedFetchValue } from '../../response-cache'
 import { CacheFs } from '../../../shared/lib/utils'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import { CACHE_ONE_YEAR } from '../../../lib/constants'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -11,13 +13,19 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
+type TagsManifest = {
+  version: 1
+  items: { [tag: string]: { keys: string[]; revalidatedAt: number } }
+}
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+let tagsManifest: TagsManifest | undefined
 
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
+  private tagsManifestPath?: string
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -47,6 +55,76 @@ export default class FileSystemCache implements CacheHandler {
         },
       })
     }
+    if (this.serverDistDir && this.fs) {
+      this.tagsManifestPath = path.join(
+        this.serverDistDir,
+        '..',
+        'cache',
+        'fetch-cache',
+        'tags-manifest.json'
+      )
+      this.loadTagsManifest()
+    }
+  }
+
+  private loadTagsManifest() {
+    if (!this.tagsManifestPath || !this.fs) return
+    try {
+      tagsManifest = JSON.parse(
+        this.fs.readFileSync(this.tagsManifestPath).toString('utf8')
+      )
+    } catch (err: any) {
+      tagsManifest = { version: 1, items: {} }
+    }
+  }
+
+  async setTags(key: string, tags: string[]) {
+    this.loadTagsManifest()
+    if (!tagsManifest || !this.tagsManifestPath) {
+      return
+    }
+
+    for (const tag of tags) {
+      const data = tagsManifest.items[tag] || { keys: [] }
+      if (!data.keys.includes(key)) {
+        data.keys.push(key)
+      }
+      tagsManifest.items[tag] = data
+    }
+
+    try {
+      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
+      await this.fs.writeFile(
+        this.tagsManifestPath,
+        JSON.stringify(tagsManifest || {})
+      )
+    } catch (err: any) {
+      console.warn('Failed to update tags manifest.', err)
+    }
+  }
+
+  public async revalidateTag(tag: string) {
+    // we need to ensure the tagsManifest is refreshed
+    // since separate workers can be updating it at the same
+    // time and we can't flush out of sync data
+    this.loadTagsManifest()
+    if (!tagsManifest || !this.tagsManifestPath) {
+      return
+    }
+
+    const data = tagsManifest.items[tag] || { keys: [] }
+    data.revalidatedAt = Date.now()
+    tagsManifest.items[tag] = data
+
+    try {
+      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
+      await this.fs.writeFile(
+        this.tagsManifestPath,
+        JSON.stringify(tagsManifest || {})
+      )
+    } catch (err: any) {
+      console.warn('Failed to update tags manifest.', err)
+    }
   }
 
   public async get(key: string, fetchCache?: boolean) {
@@ -63,14 +141,16 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         const meta = JSON.parse(
-          await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
+          (
+            await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
+          ).toString('utf8')
         )
 
         const cacheEntry: CacheHandlerValue = {
           lastModified: mtime.getTime(),
           value: {
             kind: 'ROUTE',
-            body: Buffer.from(fileData),
+            body: fileData,
             headers: meta.headers,
             status: meta.status,
           },
@@ -85,31 +165,39 @@ export default class FileSystemCache implements CacheHandler {
           pathname: fetchCache ? key : `${key}.html`,
           fetchCache,
         })
-        const fileData = await this.fs.readFile(filePath)
+        const fileData = (await this.fs.readFile(filePath)).toString('utf-8')
         const { mtime } = await this.fs.stat(filePath)
 
         if (fetchCache) {
           const lastModified = mtime.getTime()
+          const parsedData: CachedFetchValue = JSON.parse(fileData)
           data = {
             lastModified,
-            value: JSON.parse(fileData),
+            value: parsedData,
           }
         } else {
           const pageData = isAppPath
-            ? await this.fs.readFile(
-                (
-                  await this.getFsPath({ pathname: `${key}.rsc`, appDir: true })
-                ).filePath
-              )
-            : JSON.parse(
+            ? (
                 await this.fs.readFile(
-                  await (
+                  (
                     await this.getFsPath({
-                      pathname: `${key}.json`,
-                      appDir: false,
+                      pathname: `${key}.rsc`,
+                      appDir: true,
                     })
                   ).filePath
                 )
+              ).toString('utf8')
+            : JSON.parse(
+                (
+                  await this.fs.readFile(
+                    (
+                      await this.getFsPath({
+                        pathname: `${key}.json`,
+                        appDir: false,
+                      })
+                    ).filePath
+                  )
+                ).toString('utf8')
               )
           data = {
             lastModified: mtime.getTime(),
@@ -128,6 +216,22 @@ export default class FileSystemCache implements CacheHandler {
         // unable to get data from disk
       }
     }
+
+    if (data && data?.value?.kind === 'FETCH') {
+      this.loadTagsManifest()
+      const innerData = data.value.data
+      const isStale = innerData.tags?.some((tag) => {
+        return (
+          tagsManifest?.items[tag]?.revalidatedAt &&
+          tagsManifest?.items[tag].revalidatedAt >=
+            (data?.lastModified || Date.now())
+        )
+      })
+      if (isStale) {
+        data.lastModified = Date.now() - CACHE_ONE_YEAR
+      }
+    }
+
     return data || null
   }
 
@@ -177,6 +281,7 @@ export default class FileSystemCache implements CacheHandler {
       })
       await this.fs.mkdir(path.dirname(filePath))
       await this.fs.writeFile(filePath, JSON.stringify(data))
+      await this.setTags(key, data.data.tags || [])
     }
   }
 

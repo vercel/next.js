@@ -56,11 +56,37 @@ export type AdapterOptions = {
   handler: NextMiddleware
   page: string
   request: RequestData
+  IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
+}
+
+async function registerInstrumentation() {
+  if (
+    '_ENTRIES' in globalThis &&
+    _ENTRIES.middleware_instrumentation &&
+    _ENTRIES.middleware_instrumentation.register
+  ) {
+    try {
+      await _ENTRIES.middleware_instrumentation.register()
+    } catch (err: any) {
+      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+      throw err
+    }
+  }
+}
+
+let registerInstrumentationPromise: Promise<void> | null = null
+function ensureInstrumentationRegistered() {
+  if (!registerInstrumentationPromise) {
+    registerInstrumentationPromise = registerInstrumentation()
+  }
+  return registerInstrumentationPromise
 }
 
 export async function adapter(
   params: AdapterOptions
 ): Promise<FetchEventResult> {
+  await ensureInstrumentationRegistered()
+
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
 
@@ -139,6 +165,34 @@ export async function adapter(
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
+    })
+  }
+
+  if (
+    !(globalThis as any).__incrementalCache &&
+    (params as any).IncrementalCache
+  ) {
+    ;(globalThis as any).__incrementalCache = new (
+      params as any
+    ).IncrementalCache({
+      appDir: true,
+      fetchCache: true,
+      minimalMode: true,
+      fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
+      dev: process.env.NODE_ENV === 'development',
+      requestHeaders: params.request.headers as any,
+      requestProtocol: 'https',
+      getPrerenderManifest: () => {
+        return {
+          version: -1 as any, // letting us know this doesn't conform to spec
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: {
+            previewModeId: 'development-id',
+          } as any, // `preview` is special case read in next-dev-server
+        }
+      },
     })
   }
 
@@ -305,16 +359,6 @@ export function enhanceGlobals() {
     configurable: false,
   })
 
-  if (
-    '_ENTRIES' in globalThis &&
-    _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
-    try {
-      _ENTRIES.middleware_instrumentation.register()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
-    }
-  }
+  // Eagerly fire instrumentation hook to make the startup faster.
+  void ensureInstrumentationRegistered()
 }

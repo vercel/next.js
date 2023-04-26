@@ -1,7 +1,7 @@
-'use strict';
+'use strict'
 
 // comment
 
-'use server';
+'use server'
 
 export function bar() {}

@@ -109,6 +109,55 @@ createNextDescribe(
         )
       })
 
+      it('should support generate multi images with generateImageMetadata', async () => {
+        const $ = await next.render$('/dynamic/big')
+        const iconUrls = $('link[rel="icon"]')
+          .toArray()
+          .map((el) => {
+            return {
+              href: $(el).attr('href').split('?')[0],
+              sizes: $(el).attr('sizes'),
+              type: $(el).attr('type'),
+            }
+          })
+        // slug is id param from generateImageMetadata
+        expect(iconUrls).toMatchObject([
+          {
+            href: '/dynamic/big/icon-48jo90/small',
+            sizes: '48x48',
+            type: 'image/png',
+          },
+          {
+            href: '/dynamic/big/icon-48jo90/medium',
+            sizes: '72x72',
+            type: 'image/png',
+          },
+        ])
+
+        const appleTouchIconUrls = $('link[rel="apple-touch-icon"]')
+          .toArray()
+          .map((el) => {
+            return {
+              href: $(el).attr('href').split('?')[0],
+              sizes: $(el).attr('sizes'),
+              type: $(el).attr('type'),
+            }
+          })
+        // slug is index by default
+        expect(appleTouchIconUrls).toEqual([
+          {
+            href: '/dynamic/big/apple-icon-48jo90/0',
+            sizes: '48x48',
+            type: 'image/png',
+          },
+          {
+            href: '/dynamic/big/apple-icon-48jo90/1',
+            sizes: '64x64',
+            type: 'image/png',
+          },
+        ])
+      })
+
       it('should fill params into dynamic routes url of metadata images', async () => {
         const $ = await next.render$('/dynamic/big')
         const ogImageUrl = $('meta[property="og:image"]').attr('content')
@@ -188,6 +237,12 @@ createNextDescribe(
       expect(resTwitter.status).toBe(200)
     })
 
+    it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
+      const $ = await next.render$('/')
+      const canonicalUrl = $('link[rel="canonical"]').attr('href')
+      expect(canonicalUrl).toBe('https://mydomain.com/')
+    })
+
     it('should inject dynamic metadata properly to head', async () => {
       const $ = await next.render$('/')
       const $icon = $('link[rel="icon"]')
@@ -220,21 +275,24 @@ createNextDescribe(
       expect(twitterTitle).toBe('Twitter - Next.js App')
       expect(twitterDescription).toBe('Twitter - This is a Next.js App')
 
+      // Should prefer to pick up deployment url for metadata routes
+      let ogImageUrlPattern
+      let twitterImageUrlPattern
       if (isNextDeploy) {
         // absolute urls
-        expect(ogImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/opengraph-image\?/
-        )
-        expect(twitterImageUrl).toMatch(
-          /https:\/\/\w+.vercel.app\/twitter-image\?/
-        )
+        ogImageUrlPattern = /https:\/\/\w+.vercel.app\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/\w+.vercel.app\/twitter-image\?/
+      } else if (isNextStart) {
+        // configured metadataBase for next start
+        ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/mydomain.com\/twitter-image\?/
       } else {
-        // absolute urls
-        expect(ogImageUrl).toMatch(/http:\/\/localhost:\d+\/opengraph-image\?/)
-        expect(twitterImageUrl).toMatch(
-          /http:\/\/localhost:\d+\/twitter-image\?/
-        )
+        // localhost for dev
+        ogImageUrlPattern = /http:\/\/localhost:\d+\/opengraph-image\?/
+        twitterImageUrlPattern = /http:\/\/localhost:\d+\/twitter-image\?/
       }
+      expect(ogImageUrl).toMatch(ogImageUrlPattern)
+      expect(twitterImageUrl).toMatch(twitterImageUrlPattern)
       expect(ogImageUrl).toMatch(hashRegex)
       expect(twitterImageUrl).toMatch(hashRegex)
 
@@ -247,6 +305,21 @@ createNextDescribe(
       )
     })
 
+    it('should use localhost for local prod and fallback to deployment url when metadataBase is falsy', async () => {
+      const $ = await next.render$('/metadata-base/unset')
+      const twitterImage = $('meta[name="twitter:image"]').attr('content')
+
+      if (isNextDeploy) {
+        expect(twitterImage).toMatch(
+          /https:\/\/\w+.vercel.app\/metadata-base\/unset\/twitter-image\.png/
+        )
+      } else {
+        expect(twitterImage).toMatch(
+          /http:\/\/localhost:\d+\/metadata-base\/unset\/twitter-image\.png/
+        )
+      }
+    })
+
     if (isNextStart) {
       it('should support edge runtime of image routes', async () => {
         const middlewareManifest = JSON.parse(
@@ -256,7 +329,9 @@ createNextDescribe(
         const edgeRoute = functionRoutes.find((route) =>
           route.startsWith('/(group)/twitter-image-')
         )
-        expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
+        expect(edgeRoute).toMatch(
+          /\/\(group\)\/twitter-image-\w{6}\/\[\[\.\.\.__metadata_id__\]\]\/route/
+        )
       })
     }
   }

@@ -18,35 +18,35 @@ You can import files with side effects in `instrumentation.ts`, which you might 
 
 import { init } from 'package-init'
 
-export const register() {
+export function register() {
   init()
 }
 ```
 
-However, we recommend importing files with side effects using `require` from within your `register` function instead. The following example demonstrates a basic usage of `require` in a `register` function:
+However, we recommend importing files with side effects using `import` from within your `register` function instead. The following example demonstrates a basic usage of `import` in a `register` function:
 
 ```ts
 // /instrumentation.ts
 
-export const register() {
-  require('package-with-side-effect')
+export async function register() {
+  await import('package-with-side-effect')
 }
 ```
 
 By doing this, you can colocate all of your side effects in one place in your code, and avoid any unintended consequences from importing files.
 
-We call `register` in all environments, so it's necessary to conditionally require any code that doesn't support both `edge` and `nodejs`. You can use the environment variable `NEXT_RUNTIME` to get the current environment. Importing an environment-specific code would look like this:
+We call `register` in all environments, so it's necessary to conditionally import any code that doesn't support both `edge` and `nodejs`. You can use the environment variable `NEXT_RUNTIME` to get the current environment. Importing an environment-specific code would look like this:
 
 ```ts
 // /instrumentation.ts
 
-export const register() {
+export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    require('./instrumentation-node')
+    await import('./instrumentation-node')
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {
-    require('./instrumentation-edge')
+    await import('./instrumentation-edge')
   }
 }
 ```

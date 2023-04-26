@@ -4,11 +4,15 @@ use turbo_binding::{
     turbopack::{
         core::{
             compile_time_defines,
-            compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
+            compile_time_info::{
+                CompileTimeDefines, CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc,
+                FreeVarReferencesVc,
+            },
             environment::{
                 EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
                 ServerAddrVc,
             },
+            free_var_references,
         },
         ecmascript::EcmascriptInputTransform,
         node::execution_context::ExecutionContextVc,
@@ -168,14 +172,25 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-pub fn next_server_defines() -> CompileTimeDefinesVc {
+fn defines() -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.NODE_ENV = "development",
         process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED = false,
         process.env.NEXT_RUNTIME = "nodejs"
     )
-    .cell()
+    // TODO(WEB-937) there are more defines needed, see
+    // packages/next/src/build/webpack-config.ts
+}
+
+#[turbo_tasks::function]
+pub fn next_server_defines() -> CompileTimeDefinesVc {
+    defines().cell()
+}
+
+#[turbo_tasks::function]
+pub async fn next_server_free_vars() -> Result<FreeVarReferencesVc> {
+    Ok(free_var_references!(..defines().into_iter()).cell())
 }
 
 #[turbo_tasks::function]
@@ -199,6 +214,7 @@ pub fn get_server_compile_time_info(
         },
     ))
     .defines(next_server_defines())
+    .free_var_references(next_server_free_vars())
     .cell()
 }
 
@@ -209,7 +225,7 @@ pub async fn get_server_module_options_context(
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let custom_rules = get_next_server_transforms_rules(ty.into_value()).await?;
+    let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value()).await?;
     let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
     let enable_postcss_transform = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -235,7 +251,7 @@ pub async fn get_server_module_options_context(
     let tsconfig = get_typescript_transform_options(project_path);
     let decorators_options = get_decorators_transform_options(project_path);
     let mdx_rs_options = *next_config.mdx_rs().await?;
-    let jsx_runtime_options = get_jsx_transform_options(project_path, mdx_rs_options);
+    let jsx_runtime_options = get_jsx_transform_options(project_path);
     let enable_emotion = *get_emotion_compiler_config(next_config).await?;
     let enable_styled_components = *get_styled_components_compiler_config(next_config).await?;
 

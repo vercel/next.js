@@ -1,12 +1,12 @@
-import * as React from "react";
+import * as React from 'react'
 
-import { clsx } from "../../helpers/clsx";
-import { noop as css } from "../../helpers/noop-template";
+import { clsx } from '../../helpers/clsx'
+import { noop as css } from '../../helpers/noop-template'
 
 export type DialogContentProps = {
-  className?: string;
-  children?: React.ReactNode;
-} & React.HTMLProps<HTMLDivElement>;
+  className?: string
+  children?: React.ReactNode
+} & React.HTMLProps<HTMLDivElement>
 
 export function DialogContent({
   className,
@@ -14,10 +14,10 @@ export function DialogContent({
   ...rest
 }: DialogContentProps) {
   return (
-    <div className={clsx("dialog-content", className)} {...rest}>
+    <div className={clsx('dialog-content', className)} {...rest}>
       {children}
     </div>
-  );
+  )
 }
 
 export const styles = css`
@@ -32,4 +32,4 @@ export const styles = css`
 
     height: 100%;
   }
-`;
+`

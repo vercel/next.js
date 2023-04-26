@@ -1,6 +1,8 @@
 // taskr babel plugin with Babel 7 support
 // https://github.com/lukeed/taskr/pull/305
 
+const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist-target')
+
 const path = require('path')
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -25,17 +27,18 @@ module.exports = function (task) {
       if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
 
       const isClient = serverOrClient === 'client'
-
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
         },
+        env: {
+          targets: MODERN_BROWSERSLIST_TARGET,
+        },
         jsc: {
           loose: true,
           externalHelpers: true,
-          target: 'es2016',
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
@@ -66,7 +69,7 @@ module.exports = function (task) {
         env: {
           targets: {
             // follow the version defined in packages/next/package.json#engine
-            node: '14.6.0',
+            node: '14.18.0',
           },
         },
         jsc: {
