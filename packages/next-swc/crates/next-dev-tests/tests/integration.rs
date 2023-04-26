@@ -130,6 +130,7 @@ fn test(resource: PathBuf) {
         !run_result.test_results.is_empty(),
         "Expected one or more tests to run."
     );
+    println!("test");
 
     let mut messages = vec![];
     for test_result in run_result.test_results {
