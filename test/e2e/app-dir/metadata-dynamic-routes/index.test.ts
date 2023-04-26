@@ -13,7 +13,6 @@ createNextDescribe(
   'app dir - metadata dynamic routes',
   {
     files: __dirname,
-    skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
@@ -109,97 +108,102 @@ createNextDescribe(
         )
       })
 
-      it('should support generate multi images with generateImageMetadata', async () => {
-        const $ = await next.render$('/dynamic/big')
-        const iconUrls = $('link[rel="icon"]')
-          .toArray()
-          .map((el) => {
-            return {
-              href: $(el).attr('href').split('?')[0],
-              sizes: $(el).attr('sizes'),
-              type: $(el).attr('type'),
-            }
-          })
-        // slug is id param from generateImageMetadata
-        expect(iconUrls).toMatchObject([
-          {
-            href: '/dynamic/big/icon-48jo90/small',
-            sizes: '48x48',
-            type: 'image/png',
-          },
-          {
-            href: '/dynamic/big/icon-48jo90/medium',
-            sizes: '72x72',
-            type: 'image/png',
-          },
-        ])
+      if (!isNextDeploy) {
+        // TODO-APP: investigate the dynamic routes failing in deployment tests
+        it('should support generate multi images with generateImageMetadata', async () => {
+          const $ = await next.render$('/dynamic/big')
+          const iconUrls = $('link[rel="icon"]')
+            .toArray()
+            .map((el) => {
+              return {
+                href: $(el).attr('href').split('?')[0],
+                sizes: $(el).attr('sizes'),
+                type: $(el).attr('type'),
+              }
+            })
+          // slug is id param from generateImageMetadata
+          expect(iconUrls).toMatchObject([
+            {
+              href: '/dynamic/big/icon-48jo90/small',
+              sizes: '48x48',
+              type: 'image/png',
+            },
+            {
+              href: '/dynamic/big/icon-48jo90/medium',
+              sizes: '72x72',
+              type: 'image/png',
+            },
+          ])
 
-        const appleTouchIconUrls = $('link[rel="apple-touch-icon"]')
-          .toArray()
-          .map((el) => {
-            return {
-              href: $(el).attr('href').split('?')[0],
-              sizes: $(el).attr('sizes'),
-              type: $(el).attr('type'),
-            }
-          })
-        // slug is index by default
-        expect(appleTouchIconUrls).toEqual([
-          {
-            href: '/dynamic/big/apple-icon-48jo90/0',
-            sizes: '48x48',
-            type: 'image/png',
-          },
-          {
-            href: '/dynamic/big/apple-icon-48jo90/1',
-            sizes: '64x64',
-            type: 'image/png',
-          },
-        ])
-      })
+          const appleTouchIconUrls = $('link[rel="apple-touch-icon"]')
+            .toArray()
+            .map((el) => {
+              return {
+                href: $(el).attr('href').split('?')[0],
+                sizes: $(el).attr('sizes'),
+                type: $(el).attr('type'),
+              }
+            })
+          // slug is index by default
+          expect(appleTouchIconUrls).toEqual([
+            {
+              href: '/dynamic/big/apple-icon-48jo90/0',
+              sizes: '48x48',
+              type: 'image/png',
+            },
+            {
+              href: '/dynamic/big/apple-icon-48jo90/1',
+              sizes: '64x64',
+              type: 'image/png',
+            },
+          ])
+        })
 
-      it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2, 3]
-        function fetchSitemap(id) {
-          return next
-            .fetch(`/dynamic/small/sitemap.xml/${id}`)
-            .then((res) => res.text())
-        }
+        it('should support generate multi sitemaps with generateSitemaps', async () => {
+          const ids = [0, 1, 2, 3]
+          function fetchSitemap(id) {
+            return next
+              .fetch(`/dynamic/small/sitemap.xml/${id}`)
+              .then((res) => res.text())
+          }
 
-        for (const id of ids) {
-          const text = await fetchSitemap(id)
-          expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
-        }
-      })
+          for (const id of ids) {
+            const text = await fetchSitemap(id)
+            expect(text).toContain(
+              `<loc>https://example.com/dynamic/${id}</loc>`
+            )
+          }
+        })
 
-      it('should fill params into dynamic routes url of metadata images', async () => {
-        const $ = await next.render$('/dynamic/big')
-        const ogImageUrl = $('meta[property="og:image"]').attr('content')
-        expect(ogImageUrl).toMatch(hashRegex)
-        expect(ogImageUrl).toMatch('/dynamic/big/opengraph-image')
-        // should already normalize the parallel routes segment to url
-        expect(ogImageUrl).not.toContain('(group)')
-      })
+        it('should fill params into dynamic routes url of metadata images', async () => {
+          const $ = await next.render$('/dynamic/big')
+          const ogImageUrl = $('meta[property="og:image"]').attr('content')
+          expect(ogImageUrl).toMatch(hashRegex)
+          expect(ogImageUrl).toMatch('/dynamic/big/opengraph-image')
+          // should already normalize the parallel routes segment to url
+          expect(ogImageUrl).not.toContain('(group)')
+        })
 
-      it('should support params as argument in dynamic routes', async () => {
-        const big$ = await next.render$('/dynamic/big')
-        const small$ = await next.render$('/dynamic/small')
-        const bigOgUrl = new URL(
-          big$('meta[property="og:image"]').attr('content')
-        )
-        const smallOgUrl = new URL(
-          small$('meta[property="og:image"]').attr('content')
-        )
-        const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
-        const bufferSmall = await (
-          await next.fetch(smallOgUrl.pathname)
-        ).buffer()
+        it('should support params as argument in dynamic routes', async () => {
+          const big$ = await next.render$('/dynamic/big')
+          const small$ = await next.render$('/dynamic/small')
+          const bigOgUrl = new URL(
+            big$('meta[property="og:image"]').attr('content')
+          )
+          const smallOgUrl = new URL(
+            small$('meta[property="og:image"]').attr('content')
+          )
+          const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
+          const bufferSmall = await (
+            await next.fetch(smallOgUrl.pathname)
+          ).buffer()
 
-        const sizeBig = imageSize(bufferBig)
-        const sizeSmall = imageSize(bufferSmall)
-        expect([sizeBig.width, sizeBig.height]).toEqual([1200, 630])
-        expect([sizeSmall.width, sizeSmall.height]).toEqual([600, 315])
-      })
+          const sizeBig = imageSize(bufferBig)
+          const sizeSmall = imageSize(bufferSmall)
+          expect([sizeBig.width, sizeBig.height]).toEqual([1200, 630])
+          expect([sizeSmall.width, sizeSmall.height]).toEqual([600, 315])
+        })
+      }
 
       it('should fill params into routes groups url of static images', async () => {
         const $ = await next.render$('/static')
