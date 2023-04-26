@@ -1,0 +1,93 @@
+import { useEffect, useRef } from 'react'
+
+export default function Page() {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
+
+  useEffect(() => {
+    // Only run on client
+    import('@turbo/pack-test-harness').then((mod) =>
+      runTests(mod, iframeRef.current!)
+    )
+  })
+
+  return (
+    <>
+      <iframe style={{ width: 800, height: 600 }} src="/a" ref={iframeRef} />
+    </>
+  )
+}
+
+type Harness = typeof import('@turbo/pack-test-harness')
+
+declare global {
+  interface Window {
+    __TEST_CONTEXT_KEY?: number
+  }
+}
+
+function runTests(harness: Harness, iframe: HTMLIFrameElement) {
+  const TIMEOUT = 40000
+
+  it(
+    'should have the correct style applied on initialization',
+    async () => {
+      await harness.waitForLoaded(iframe)
+      const link = await harness.waitForSelector(
+        iframe.contentWindow!.document,
+        'a'
+      )
+      expect(link).not.toBeNull()
+      expect(getComputedStyle(link).color).toEqual('rgb(0, 0, 255)')
+    },
+    TIMEOUT
+  )
+
+  it(
+    'should have the correct style when navigating to B and back',
+    async () => {
+      await harness.waitForLoaded(iframe)
+
+      const key = Math.random()
+      iframe.contentWindow!.__TEST_CONTEXT_KEY = key
+
+      const link = await harness.waitForSelector(
+        iframe.contentWindow!.document,
+        'a'
+      )
+      expect(link).toBeInstanceOf(
+        (iframe.contentWindow as any).HTMLAnchorElement
+      )
+      expect(link.textContent).toBe('B')
+      console.log('clickin b')
+      ;(link as HTMLAnchorElement).click()
+
+      await harness.waitForHydration(iframe, '/b')
+
+      console.log('clickin a')
+      const link2 = await harness.waitForSelector(
+        iframe.contentWindow!.document,
+        'a'
+      )
+      expect(link2).toBeInstanceOf(
+        (iframe.contentWindow as any).HTMLAnchorElement
+      )
+      expect(link2.textContent).toBe('A')
+      ;(link2 as HTMLAnchorElement).click()
+
+      await harness.waitForHydration(iframe, '/a')
+
+      const link3 = await harness.waitForSelector(
+        iframe.contentWindow!.document,
+        'a'
+      )
+      expect(link3).toBeInstanceOf(
+        (iframe.contentWindow as any).HTMLAnchorElement
+      )
+      expect(link3.textContent).toBe('B')
+      expect(getComputedStyle(link3).color).toEqual('rgb(0, 0, 255)')
+
+      expect(iframe.contentWindow!.__TEST_CONTEXT_KEY).toEqual(key)
+    },
+    TIMEOUT
+  )
+}
