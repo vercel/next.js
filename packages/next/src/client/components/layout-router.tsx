@@ -140,7 +140,7 @@ interface ScrollAndFocusHandlerProps {
 class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
-    const { focusAndScrollRef } = this.props
+    const { focusAndScrollRef, segmentPath } = this.props
 
     if (focusAndScrollRef.apply) {
       // segmentPaths is an array of segment paths that should be scrolled to
@@ -148,12 +148,10 @@ class ScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> 
       // unless the array is empty, in which case the scroll is always applied
       if (
         focusAndScrollRef.segmentPaths.length !== 0 &&
-        !focusAndScrollRef.segmentPaths.some(
-          (segmentPath) =>
-            segmentPath.length === this.props.segmentPath.length &&
-            segmentPath.every((segment, index) =>
-              matchSegment(segment, this.props.segmentPath[index])
-            )
+        !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
+          segmentPath.every((segment, index) =>
+            matchSegment(segment, scrollRefSegmentPath[index])
+          )
         )
       ) {
         return
