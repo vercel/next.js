@@ -6,7 +6,6 @@ use std::{
 use anyhow::{bail, Result};
 use hyper::Uri;
 use turbo_tasks::{TransientInstance, Value};
-use turbopack_core::issue::IssueReporterVc;
 
 use super::{
     headers::{HeaderValue, Headers},
@@ -15,10 +14,7 @@ use super::{
     ContentSourceContent, ContentSourceDataVary, ContentSourceResult, ContentSourceVc,
     HeaderListVc, ProxyResultVc, StaticContentVc,
 };
-use crate::{
-    handle_issues,
-    source::{ContentSource, ContentSourceData, GetContentSourceContent},
-};
+use crate::source::{ContentSource, ContentSourceData, GetContentSourceContent};
 
 /// The result of [`resolve_source_request`]. Similar to a
 /// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
@@ -36,7 +32,6 @@ pub enum ResolveSourceRequestResult {
 pub async fn resolve_source_request(
     source: ContentSourceVc,
     request: TransientInstance<SourceRequest>,
-    issue_reporter: IssueReporterVc,
 ) -> Result<ResolveSourceRequestResultVc> {
     let mut data = ContentSourceData::default();
     let mut current_source = source;
@@ -47,14 +42,6 @@ pub async fn resolve_source_request(
     let mut response_header_overwrites = Vec::new();
     loop {
         let result = current_source.get(&current_asset_path, Value::new(data));
-        handle_issues(
-            result,
-            &original_path,
-            "get content from source",
-            issue_reporter,
-        )
-        .await?;
-
         match &*result.strongly_consistent().await? {
             ContentSourceResult::NotFound => break Ok(ResolveSourceRequestResult::NotFound.cell()),
             ContentSourceResult::NeedData(needed) => {
