@@ -721,6 +721,10 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             throw new Error(
               `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received "${width}".`
             )
+          } else if (!Number.isFinite(widthInt)) {
+            throw new Error(
+              `Image with src "${src}" has invalid "width" property. Expected a numeric value in pixels but received not isFinite.`
+            )
           }
           if (typeof heightInt === 'undefined') {
             throw new Error(
@@ -729,6 +733,10 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
           } else if (Number.isNaN(heightInt)) {
             throw new Error(
               `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
+            )
+          } else if (!Number.isFinite(heightInt)) {
+            throw new Error(
+              `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received not isFinite.`
             )
           }
         }
