@@ -1339,7 +1339,7 @@ export default async function getBaseWebpackConfig(
       layer === WEBPACK_LAYERS.server &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
-      return `commonjs ${request}`
+      return `module ${request}`
     }
 
     const { res, isEsm } = resolveResult
