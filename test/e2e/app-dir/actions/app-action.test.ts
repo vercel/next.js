@@ -56,10 +56,12 @@ createNextDescribe(
 
     it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
-      const setCookieHeader = res.headers.get('set-cookie')
-      expect(setCookieHeader).toInclude('bar=bar2;')
-      expect(setCookieHeader).toInclude('baz=baz2;')
-      expect(setCookieHeader).toInclude('foo=foo1;')
+      const setCookieHeader = res.headers.get('set-cookie') as string[]
+      expect(setCookieHeader).toContain('bar=bar2; Path=/')
+      expect(setCookieHeader).toContain('baz=baz2; Path=/')
+      expect(setCookieHeader).toContain('foo=foo1; Path=/')
+      expect(setCookieHeader).toContain('test1=value1; Path=/; Secure')
+      expect(setCookieHeader).toContain('test2=value2; Path=/handler; HttpOnly')
     })
 
     it('should support formData and redirect', async () => {
