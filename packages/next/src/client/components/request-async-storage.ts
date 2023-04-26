@@ -1,6 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
-import type { PreviewData } from '../../../types'
+import type { DraftMode, PreviewData } from '../../../types'
 import type { ReadonlyHeaders } from '../../server/web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/adapters/request-cookies'
 
@@ -11,21 +11,7 @@ export interface RequestStore {
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly previewData: PreviewData
-  readonly draftMode: {
-    /**
-     * Get the current value of Draft Mode.
-     * True when enabled, false when disabled.
-     */
-    enabled: boolean
-    /**
-     * Set the value of Draft Mode to true.
-     */
-    enable: () => void
-    /**
-     * Set the value of Draft Mode to false.
-     */
-    disable: () => void
-  }
+  readonly draftMode: DraftMode
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

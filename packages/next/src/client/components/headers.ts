@@ -7,6 +7,7 @@ import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
 import { actionAsyncStorage } from './action-async-storage'
 import { staticGenerationBailout } from './static-generation-bailout'
+import { DraftMode } from '../../../types'
 
 export function headers() {
   if (staticGenerationBailout('headers')) {
@@ -59,7 +60,7 @@ export function cookies() {
   return requestStore.cookies
 }
 
-export function draftMode(): boolean {
+export function draftMode(): DraftMode {
   const requestStore = requestAsyncStorage.getStore()
   if (!requestStore) {
     throw new Error(
