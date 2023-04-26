@@ -1,4 +1,7 @@
-import { RequestCookiesAdapter } from '../../server/web/spec-extension/adapters/request-cookies'
+import {
+  type ReadonlyRequestCookies,
+  RequestCookiesAdapter,
+} from '../../server/web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
@@ -48,7 +51,9 @@ export function cookies() {
     asyncActionStore &&
     (asyncActionStore.isAction || asyncActionStore.isAppRoute)
   ) {
-    return requestStore.mutableCookies
+    // We can't conditionally return different types here based on the context.
+    // To avoid confusion, we always return the readonly type here.
+    return requestStore.mutableCookies as unknown as ReadonlyRequestCookies
   }
 
   return requestStore.cookies
