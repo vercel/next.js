@@ -50,7 +50,7 @@ type ResponseCookie = NonNullable<
 
 export class MutableRequestCookiesAdapter {
   public static seal(
-    cookies: ResponseCookies,
+    cookies: RequestCookies,
     res: ServerResponse | BaseNextResponse | undefined
   ): ResponseCookies {
     let modifiedValues: ResponseCookie[] = []
@@ -59,17 +59,22 @@ export class MutableRequestCookiesAdapter {
       const allCookies = cookies.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (res) {
-        const cookies: string[] = []
-        modifiedValues.map((cookie) => {
+        const serializedCookies: string[] = []
+        for (const cookie of modifiedValues) {
           const tempCookies = new ResponseCookies(new Headers())
           tempCookies.set(cookie)
-          cookies.push(tempCookies.toString())
-        })
-        res.setHeader('Set-Cookie', cookies)
+          serializedCookies.push(tempCookies.toString())
+        }
+        res.setHeader('Set-Cookie', serializedCookies)
       }
     }
 
-    return new Proxy(cookies, {
+    const responseCookes = new ResponseCookies(new Headers())
+    for (const cookie of cookies.getAll()) {
+      responseCookes.set(cookie)
+    }
+
+    return new Proxy(responseCookes, {
       get(target, prop, receiver) {
         switch (prop) {
           // A special symbol to get the modified cookie values
@@ -84,7 +89,7 @@ export class MutableRequestCookiesAdapter {
                 typeof args[0] === 'string' ? args[0] : args[0].name
               )
               try {
-                cookies.delete(...args)
+                target.delete(...args)
               } finally {
                 updateResponseCookies()
               }
@@ -99,7 +104,7 @@ export class MutableRequestCookiesAdapter {
                 typeof args[0] === 'string' ? args[0] : args[0].name
               )
               try {
-                return cookies.set(...args)
+                return target.set(...args)
               } finally {
                 updateResponseCookies()
               }

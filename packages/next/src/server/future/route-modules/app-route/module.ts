@@ -364,13 +364,13 @@ export class AppRouteRouteModule extends RouteModule<
                         const returnedCookies = resCookies.getAll()
 
                         // Set the modified cookies as fallbacks.
-                        modifiedCookieValues.forEach((cookie) =>
+                        for (const cookie of modifiedCookieValues) {
                           resCookies.set(cookie)
-                        )
+                        }
                         // Set the original cookies as the final values.
-                        returnedCookies.forEach((cookie) =>
+                        for (const cookie of returnedCookies) {
                           resCookies.set(cookie)
-                        )
+                        }
 
                         const responseHeaders = new Headers({})
                         // Set all the headers except for the cookies.

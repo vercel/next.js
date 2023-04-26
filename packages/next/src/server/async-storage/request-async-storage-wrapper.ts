@@ -40,7 +40,7 @@ function getMutableCookies(
   headers: Headers | IncomingHttpHeaders,
   res: ServerResponse | BaseNextResponse | undefined
 ): ResponseCookies {
-  const cookies = new ResponseCookies(HeadersAdapter.from(headers))
+  const cookies = new RequestCookies(HeadersAdapter.from(headers))
   return MutableRequestCookiesAdapter.seal(cookies, res)
 }
 
