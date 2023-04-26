@@ -581,6 +581,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
 
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+    export { actionAsyncStorage } from 'next/dist/client/components/action-async-storage'
 
     export { staticGenerationBailout } from 'next/dist/client/components/static-generation-bailout'
     export { default as StaticGenerationSearchParamsBailoutProvider } from 'next/dist/client/components/static-generation-searchparams-bailout-provider'
