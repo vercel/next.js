@@ -2113,7 +2113,8 @@ export default async function build(
               denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
-              middlewareManifest
+              middlewareManifest,
+              hasInstrumentationHook
             )
           })
       }

@@ -15,7 +15,7 @@ import {
 import { IconsMetadata } from './generate/icons'
 import { accumulateMetadata, resolveMetadata } from './resolve-metadata'
 import { LoaderTree } from '../../server/lib/app-dir-module'
-import { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 
 // Generate the actual React elements from the resolved metadata.
 export async function MetadataTree({

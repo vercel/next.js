@@ -1,6 +1,11 @@
 {
   "name": "@next/swc-win32-arm64-msvc",
   "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-swc/crates/napi/npm/win32-arm64-msvc"
+  },
   "os": [
     "win32"
   ],

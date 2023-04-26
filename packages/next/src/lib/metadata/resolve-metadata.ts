@@ -161,11 +161,12 @@ function merge({
       case 'archives':
       case 'assets':
       case 'bookmarks':
-      case 'keywords':
+      case 'keywords': {
+        target[key] = resolveAsArrayOrUndefined(source[key])
+        break
+      }
       case 'authors': {
-        // FIXME: type inferring
-        // @ts-ignore
-        target[key] = resolveAsArrayOrUndefined(source[key]) || null
+        target[key] = resolveAsArrayOrUndefined(source.authors)
         break
       }
       // directly assign fields that fallback to null

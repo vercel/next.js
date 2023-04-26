@@ -325,16 +325,12 @@ const nextDev: CliCommand = async (argv) => {
             return
           }
 
-          const startDir = dir
-          if (newDir) {
-            dir = newDir
-          }
-
           if (devServerTeardown) {
             await devServerTeardown()
             devServerTeardown = undefined
           }
 
+          const startDir = dir
           if (newDir) {
             dir = newDir
             process.env = Object.keys(process.env).reduce((newEnv, key) => {
@@ -378,14 +374,32 @@ const nextDev: CliCommand = async (argv) => {
             process[fd].write(chunk)
           }
 
-          devServerOptions.onStdout = (chunk) => {
-            filterForkErrors(chunk, 'stdout')
+          let resolveCleanup!: (cleanup: () => Promise<void>) => void
+          let cleanupPromise = new Promise<() => Promise<void>>((resolve) => {
+            resolveCleanup = resolve
+          })
+          const cleanupWrapper = async () => {
+            const promise = cleanupPromise
+            cleanupPromise = Promise.resolve(async () => {})
+            const cleanup = await promise
+            await cleanup()
           }
-          devServerOptions.onStderr = (chunk) => {
-            filterForkErrors(chunk, 'stderr')
+          cleanupFns.push(cleanupWrapper)
+          devServerTeardown = cleanupWrapper
+
+          try {
+            devServerOptions.onStdout = (chunk) => {
+              filterForkErrors(chunk, 'stdout')
+            }
+            devServerOptions.onStderr = (chunk) => {
+              filterForkErrors(chunk, 'stderr')
+            }
+            shouldFilter = false
+            resolveCleanup(await startServer(devServerOptions))
+          } finally {
+            // fallback to noop, if not provided
+            resolveCleanup(async () => {})
           }
-          shouldFilter = false
-          devServerTeardown = await startServer(devServerOptions)
 
           if (!config) {
             config = await loadConfig(
@@ -403,7 +417,6 @@ const nextDev: CliCommand = async (argv) => {
             )
           }
         }
-        cleanupFns.push(() => devServerTeardown?.())
 
         await setupFork()
         await preflight()
