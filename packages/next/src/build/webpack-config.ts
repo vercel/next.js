@@ -1334,7 +1334,8 @@ export default async function getBaseWebpackConfig(
       resolveResult.res = require.resolve(request)
     }
 
-    // Don't bundle @vercel/og nodejs bundle
+    // Don't bundle @vercel/og nodejs bundle for nodejs runtime
+    // TODO-APP: bundle route.js with different layer that externals common node_module deps
     if (
       layer === WEBPACK_LAYERS.server &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'

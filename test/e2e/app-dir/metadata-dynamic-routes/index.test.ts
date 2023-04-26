@@ -13,7 +13,7 @@ createNextDescribe(
   'app dir - metadata dynamic routes',
   {
     files: __dirname,
-    // skipDeployment: true,
+    skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
@@ -294,8 +294,8 @@ createNextDescribe(
       let twitterImageUrlPattern
       if (isNextDeploy) {
         // absolute urls
-        ogImageUrlPattern = /https:\/\/\w+.vercel.app\/opengraph-image\?/
-        twitterImageUrlPattern = /https:\/\/\w+.vercel.app\/twitter-image\?/
+        ogImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/opengraph-image\?/
+        twitterImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/twitter-image\?/
       } else if (isNextStart) {
         // configured metadataBase for next start
         ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
@@ -325,7 +325,7 @@ createNextDescribe(
 
       if (isNextDeploy) {
         expect(twitterImage).toMatch(
-          /https:\/\/\w+.vercel.app\/metadata-base\/unset\/twitter-image\.png/
+          /https:\/\/[\w-]+.vercel.app\/metadata-base\/unset\/twitter-image\.png/
         )
       } else {
         expect(twitterImage).toMatch(
