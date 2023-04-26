@@ -9,8 +9,3 @@ export async function getCookie(name) {
 export async function getHeader(name) {
   return headers().get(name)
 }
-
-export async function setCookie(name, value) {
-  cookies().set(name, value)
-  return cookies().get(name)
-}
