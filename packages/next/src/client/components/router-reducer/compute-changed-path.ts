@@ -33,7 +33,7 @@ export function extractPathFromFlightRouterState(
   )
     return undefined
 
-  if (segment === '__PAGE__') return ''
+  if (segment.startsWith('__PAGE__')) return ''
 
   const path = [segment]
 

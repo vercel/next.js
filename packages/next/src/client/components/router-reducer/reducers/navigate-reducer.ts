@@ -320,7 +320,7 @@ export function navigateReducer(
       for (const subSegment of generateSegmentsFromPatch(treePatch)) {
         scrollableSegments.push(
           [...flightSegmentPath, ...subSegment].filter(
-            (segment) => segment !== '__PAGE__'
+            (segment) => !segment.startsWith('__PAGE__')
           )
         )
       }
