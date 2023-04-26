@@ -22,7 +22,8 @@ use turbo_tasks::Value;
 
 use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
-    next_server::context::ServerContextType, util::foreign_code_context_condition,
+    next_server::context::ServerContextType,
+    next_shared::resolve::UnsupportedModulesResolvePluginVc, util::foreign_code_context_condition,
 };
 
 fn defines() -> CompileTimeDefines {
@@ -97,6 +98,7 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
+        plugins: vec![UnsupportedModulesResolvePluginVc::new(project_path).into()],
         ..Default::default()
     };
 
