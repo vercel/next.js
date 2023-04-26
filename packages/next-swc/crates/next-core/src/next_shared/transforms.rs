@@ -19,8 +19,8 @@ use turbo_binding::{
     turbopack::{
         core::reference_type::{ReferenceType, UrlReferenceSubType},
         ecmascript::{
-            CustomTransformVc, CustomTransformer, EcmascriptInputTransform,
-            EcmascriptInputTransformsVc, TransformContext,
+            CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+            TransformContext, TransformPluginVc,
         },
         turbopack::module_options::{
             ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType,
@@ -38,7 +38,7 @@ pub async fn get_next_pages_transforms_rule(
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform =
-        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsStripPageExports {
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsStripPageExports {
             export_filter,
         }));
     Ok(ModuleRule::new(
@@ -110,7 +110,7 @@ pub async fn get_next_dynamic_transform_rule(
     pages_dir: Option<FileSystemPathVc>,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsDynamic {
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsDynamic {
             is_development,
             is_server,
             is_server_components,
@@ -159,7 +159,7 @@ pub fn get_next_font_transform_rule() -> ModuleRule {
     ];
 
     let transformer =
-        EcmascriptInputTransform::Custom(CustomTransformVc::cell(box NextJsFont { font_loaders }));
+        EcmascriptInputTransform::Plugin(TransformPluginVc::cell(box NextJsFont { font_loaders }));
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(),
@@ -229,7 +229,7 @@ pub struct ModularizeImportPackageConfig {
 pub fn get_next_modularize_imports_rule(
     modularize_imports_config: &IndexMap<String, ModularizeImportPackageConfig>,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Custom(CustomTransformVc::cell(Box::new(
+    let transformer = EcmascriptInputTransform::Plugin(TransformPluginVc::cell(Box::new(
         ModularizeImportsTransformer::new(modularize_imports_config),
     )));
     ModuleRule::new(
