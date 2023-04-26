@@ -2,6 +2,7 @@ import type { RequestCookies } from '../cookies'
 import type { BaseNextResponse } from '../../../base-http'
 import type { ServerResponse } from 'http'
 
+import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
 
 /**
@@ -43,23 +44,28 @@ export class RequestCookiesAdapter {
 
 export const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
 
+type ResponseCookie = NonNullable<
+  ReturnType<InstanceType<typeof ResponseCookies>['get']>
+>
+
 export class MutableRequestCookiesAdapter {
   public static seal(
-    cookies: RequestCookies,
+    cookies: ResponseCookies,
     res: ServerResponse | BaseNextResponse | undefined
-  ): RequestCookies {
-    let modifiedValues: [string, string][] = []
+  ): ResponseCookies {
+    let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
       const allCookies = cookies.getAll()
-      modifiedValues = allCookies
-        .filter((c) => modifiedCookies.has(c.name))
-        .map((c) => [c.name, c.value])
+      modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (res) {
-        res.setHeader(
-          'Set-Cookie',
-          modifiedValues.map((c) => `${c[0]}=${c[1]}`)
-        )
+        const cookies: string[] = []
+        modifiedValues.map((cookie) => {
+          const tempCookies = new ResponseCookies(new Headers())
+          tempCookies.set(cookie)
+          cookies.push(tempCookies.toString())
+        })
+        res.setHeader('Set-Cookie', cookies)
       }
     }
 
@@ -72,26 +78,13 @@ export class MutableRequestCookiesAdapter {
 
           // TODO: Throw error if trying to set a cookie after the response
           // headers have been set.
-          case 'clear':
-            return function () {
-              for (const c of cookies.getAll()) {
-                modifiedCookies.add(c.name)
-              }
-              try {
-                return cookies.clear()
-              } finally {
-                updateResponseCookies()
-              }
-            }
           case 'delete':
-            return function (names: string | string[]) {
-              if (Array.isArray(names)) {
-                names.forEach((name) => modifiedCookies.add(name))
-              } else {
-                modifiedCookies.add(names)
-              }
+            return function (...args: [string] | [ResponseCookie]) {
+              modifiedCookies.add(
+                typeof args[0] === 'string' ? args[0] : args[0].name
+              )
               try {
-                return cookies.delete(names)
+                cookies.delete(...args)
               } finally {
                 updateResponseCookies()
               }
@@ -99,25 +92,14 @@ export class MutableRequestCookiesAdapter {
           case 'set':
             return function (
               ...args:
-                | [string, string]
-                | [
-                    options: NonNullable<
-                      ReturnType<InstanceType<typeof RequestCookies>['get']>
-                    >
-                  ]
+                | [key: string, value: string, cookie?: Partial<ResponseCookie>]
+                | [options: ResponseCookie]
             ) {
-              const [key, value] = args
-              if (typeof key === 'string') {
-                modifiedCookies.add(key)
-                try {
-                  return cookies.set(key, value!)
-                } finally {
-                  updateResponseCookies()
-                }
-              }
-              modifiedCookies.add(key.name)
+              modifiedCookies.add(
+                typeof args[0] === 'string' ? args[0] : args[0].name
+              )
               try {
-                return cookies.set(key)
+                return cookies.set(...args)
               } finally {
                 updateResponseCookies()
               }
