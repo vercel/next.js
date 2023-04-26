@@ -467,6 +467,14 @@ function runModuleExecutionHooks(module, executeModule) {
   cleanupReactRefreshIntercept();
 }
 
+// noop fns to prevent refresh runtime errors when trying to access the runtime outside of the initial module execution.
+globalThis.$RefreshReg$ = function () {};
+globalThis.$RefreshSig$ = function () {
+  return function (type) {
+    return type;
+  };
+};
+
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  *
