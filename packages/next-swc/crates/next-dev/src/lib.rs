@@ -522,68 +522,98 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         loop {
             let update_future = profile_timeout(
                 tt_clone.as_ref(),
-                tt_clone.aggregated_update_info(Duration::from_millis(100), Duration::MAX),
+                tt_clone.aggregated_update_info(
+                    Duration::from_millis(500),
+                    Duration::from_millis(1000),
+                ),
             );
 
-            if let Some(UpdateInfo {
-                duration: elapsed,
-                tasks: count,
-                reasons,
-                ..
-            }) = update_future.await
-            {
-                progress_counter = 0;
-                match (options.log_detail, !reasons.is_empty()) {
-                    (true, true) => {
-                        println!(
-                            "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks, {memory})",
-                            event_type = "event".purple(),
-                            elapsed = FormatDuration(elapsed),
-                            tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
-                        );
-                    }
-                    (true, false) => {
-                        println!(
-                            "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks, {memory})",
-                            event_type = "event".purple(),
-                            elapsed = FormatDuration(elapsed),
-                            tasks = count,
-                            memory = FormatBytes(TurboMalloc::memory_usage())
-                        );
-                    }
-                    (false, true) => {
-                        println!(
-                            "\x1b[2K{event_type} - {reasons} {elapsed}",
-                            event_type = "event".purple(),
-                            elapsed = FormatDuration(elapsed),
-                        );
-                    }
-                    (false, false) => {
-                        if elapsed > Duration::from_secs(1) {
+            match update_future.await {
+                Ok(UpdateInfo {
+                    duration: elapsed,
+                    tasks,
+                    reasons,
+                    ..
+                }) => {
+                    progress_counter = 0;
+                    match (options.log_detail, !reasons.is_empty()) {
+                        (true, true) => {
                             println!(
-                                "\x1b[2K{event_type} - compilation {elapsed}",
+                                "\x1b[2K{event_type} - {reasons} {elapsed} ({tasks} tasks, \
+                                 {memory})",
+                                event_type = "event".purple(),
+                                elapsed = FormatDuration(elapsed),
+                                memory = FormatBytes(TurboMalloc::memory_usage())
+                            );
+                        }
+                        (true, false) => {
+                            println!(
+                                "\x1b[2K{event_type} - compilation {elapsed} ({tasks} tasks, \
+                                 {memory})",
+                                event_type = "event".purple(),
+                                elapsed = FormatDuration(elapsed),
+                                memory = FormatBytes(TurboMalloc::memory_usage())
+                            );
+                        }
+                        (false, true) => {
+                            println!(
+                                "\x1b[2K{event_type} - {reasons} {elapsed}",
                                 event_type = "event".purple(),
                                 elapsed = FormatDuration(elapsed),
                             );
                         }
+                        (false, false) => {
+                            if elapsed > Duration::from_secs(1) {
+                                println!(
+                                    "\x1b[2K{event_type} - compilation {elapsed}",
+                                    event_type = "event".purple(),
+                                    elapsed = FormatDuration(elapsed),
+                                );
+                            }
+                        }
                     }
                 }
-            } else {
-                progress_counter += 1;
-                if options.log_detail {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s... ({memory})\r",
-                        event_type = "event".purple(),
-                        memory = FormatBytes(TurboMalloc::memory_usage())
-                    );
-                } else {
-                    print!(
-                        "\x1b[2K{event_type} - {progress_counter}s...\r",
-                        event_type = "event".purple(),
-                    );
+                Err(UpdateInfo {
+                    duration: elapsed,
+                    tasks,
+                    reasons,
+                    ..
+                }) => {
+                    progress_counter += 1;
+                    match (options.log_detail, !reasons.is_empty()) {
+                        (true, true) => {
+                            print!(
+                                "\x1b[2K{event_type} - {progress_counter}s... ({elapsed}, {tasks} \
+                                 tasks, {memory}, {reasons})\r",
+                                event_type = "event".purple(),
+                                elapsed = FormatDuration(elapsed),
+                                memory = FormatBytes(TurboMalloc::memory_usage())
+                            );
+                        }
+                        (true, false) => {
+                            print!(
+                                "\x1b[2K{event_type} - {progress_counter}s... ({elapsed}, {tasks} \
+                                 tasks, {memory})\r",
+                                event_type = "event".purple(),
+                                elapsed = FormatDuration(elapsed),
+                                memory = FormatBytes(TurboMalloc::memory_usage())
+                            );
+                        }
+                        (false, true) => {
+                            print!(
+                                "\x1b[2K{event_type} - {progress_counter}s... ({reasons})\r",
+                                event_type = "event".purple(),
+                            );
+                        }
+                        (false, false) => {
+                            print!(
+                                "\x1b[2K{event_type} - {progress_counter}s...\r",
+                                event_type = "event".purple(),
+                            );
+                        }
+                    }
+                    let _ = stdout().lock().flush();
                 }
-                let _ = stdout().lock().flush();
             }
         }
     };
