@@ -160,18 +160,16 @@ createNextDescribe(
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
         const ids = [0, 1, 2, 3]
-        const promises = ids.map((id) =>
-          next
+        function fetchSitemap(id) {
+          return next
             .fetch(`/dynamic/small/sitemap.xml/${id}`)
             .then((res) => res.text())
-            .then((text) => {
-              expect(text).toContain(
-                `<loc>https://example.com/dynamic/${id}</loc>`
-              )
-            })
-        )
+        }
 
-        await Promise.all(promises)
+        for (const id of ids) {
+          const text = await fetchSitemap(id)
+          expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
+        }
       })
 
       it('should fill params into dynamic routes url of metadata images', async () => {
