@@ -101,7 +101,7 @@ const imageModule = { ..._imageModule }
 const handler = imageModule.default
 const generateImageMetadata = imageModule.generateImageMetadata
 
-export async function GET(req, ctx) {
+export async function GET(_, ctx) {
   const { __metadata_id__ = [], ...params } = ctx.params
   const id = __metadata_id__[0]
   const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params }) : null
@@ -118,6 +118,46 @@ export async function GET(req, ctx) {
 `
 }
 
+function getDynamicSiteMapRouteCode(resourcePath: string) {
+  // generateSitemaps
+  return `\
+import { NextResponse } from 'next/server'
+import * as _sitemapModule from ${JSON.stringify(resourcePath)}
+import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+
+const sitemapModule = { ..._sitemapModule }
+const handler = sitemapModule.default
+const generateSitemaps = sitemapModule.generateSitemaps
+const contentType = ${JSON.stringify(getContentType(resourcePath))}
+const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
+
+export async function GET(_, ctx) {
+  const sitemaps = generateSitemaps ? await generateSitemaps() : null
+  let id = undefined
+
+  if (sitemaps) {
+    const { __metadata_id__ = [] } = ctx.params
+    const targetId = __metadata_id__[0]
+    id = sitemaps.find((item) => item.id.toString() === targetId)?.id
+    if (id == null) {
+      return new NextResponse(null, {
+        status: 404,
+      })
+    }
+  }
+
+  const data = await handler({ id })
+  const content = resolveRouteData(data, fileType)
+
+  return new NextResponse(content, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
+    },
+  })
+}
+`
+}
 // `import.meta.url` is the resource name of the current module.
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
@@ -131,12 +171,10 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
 
     let code = ''
     if (isDynamic) {
-      if (
-        fileBaseName === 'sitemap' ||
-        fileBaseName === 'robots' ||
-        fileBaseName === 'manifest'
-      ) {
+      if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(resourcePath)
+      } else if (fileBaseName === 'sitemap') {
+        code = getDynamicSiteMapRouteCode(resourcePath)
       } else {
         code = getDynamicImageRouteCode(resourcePath)
       }
