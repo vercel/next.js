@@ -53,10 +53,15 @@ export class MutableRequestCookiesAdapter {
     cookies: RequestCookies,
     res: ServerResponse | BaseNextResponse | undefined
   ): ResponseCookies {
+    const responseCookes = new ResponseCookies(new Headers())
+    for (const cookie of cookies.getAll()) {
+      responseCookes.set(cookie)
+    }
+
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
-      const allCookies = cookies.getAll()
+      const allCookies = responseCookes.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (res) {
         const serializedCookies: string[] = []
@@ -67,11 +72,6 @@ export class MutableRequestCookiesAdapter {
         }
         res.setHeader('Set-Cookie', serializedCookies)
       }
-    }
-
-    const responseCookes = new ResponseCookies(new Headers())
-    for (const cookie of cookies.getAll()) {
-      responseCookes.set(cookie)
     }
 
     return new Proxy(responseCookes, {
