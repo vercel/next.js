@@ -275,7 +275,7 @@ async fn get_directory_tree(
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
                     subdirectories
-                        .insert(get_underscore_normalized_path(basename).to_string(), result);
+                        .insert(get_underscore_normalized_path(basename), result);
                 }
             }
             // TODO handle symlinks in app dir
