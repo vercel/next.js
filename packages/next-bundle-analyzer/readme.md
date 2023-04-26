@@ -44,6 +44,8 @@ ANALYZE=true yarn build
 
 When enabled two HTML files (client.html and server.html) will be outputted to `<distDir>/analyze/`. One will be for the server bundle, one for the browser bundle.
 
+Optionally you can set analyzerMode: 'json', which will output .json files instead of HTML files.
+
 #### Options
 
 To disable automatically opening the report in your default browser, set `openAnalyzer` to false:
@@ -55,6 +57,8 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 })
 module.exports = withBundleAnalyzer({})
 ```
+
+For a full list of options, see the [webpack-bundle-analyzer options](https://github.com/webpack-contrib/webpack-bundle-analyzer#options-for-plugin)
 
 ### Usage with next-compose-plugins
 
