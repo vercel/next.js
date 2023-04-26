@@ -167,7 +167,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  let cookie = request.cookies.get('nextjs')?.value
+  let cookie = request.cookies.get('nextjs')
   console.log(cookie) // => 'fast'
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
