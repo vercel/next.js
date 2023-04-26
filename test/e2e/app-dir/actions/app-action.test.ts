@@ -54,7 +54,7 @@ createNextDescribe(
       }, 'same')
     })
 
-    it.only('should support setting cookies in route handlers with the correct overrides', async () => {
+    it('should support setting cookies in route handlers with the correct overrides', async () => {
       const res = await next.fetch('/handler')
       const setCookieHeader = res.headers.get('set-cookie') as string[]
       expect(setCookieHeader).toContain('bar=bar2; Path=/')
