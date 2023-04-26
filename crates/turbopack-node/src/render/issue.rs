@@ -38,7 +38,9 @@ impl Issue for RenderingIssue {
         let mut details = vec![];
 
         if let Some(status) = self.status {
-            details.push(format!("Node.js exit code: {status}"));
+            if status != 0 {
+                details.push(format!("Node.js exit code: {status}"));
+            }
         }
 
         Ok(StringVc::cell(details.join("\n")))
