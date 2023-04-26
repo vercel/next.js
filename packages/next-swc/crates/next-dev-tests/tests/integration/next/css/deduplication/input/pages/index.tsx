@@ -96,12 +96,10 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
         (iframe.contentWindow as any).HTMLAnchorElement
       )
       expect(link.textContent).toBe('B')
-      console.log('clickin b')
       ;(link as HTMLAnchorElement).click()
 
       await harness.waitForHydration(iframe, '/b')
 
-      console.log('clickin a')
       const link2 = await harness.waitForSelector(
         iframe.contentWindow!.document,
         'a'
