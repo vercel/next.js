@@ -47,5 +47,7 @@ pub fn register() {
     turbopack::node::register();
     turbopack::turbopack::register();
     turbopack::image::register();
+    turbopack::ecmascript::register();
+    turbopack::ecmascript_plugin::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

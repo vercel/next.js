@@ -23,6 +23,7 @@ use turbo_binding::{
         ecmascript::{
             EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
         },
+        ecmascript_plugin::transform::emotion::EmotionTransformConfig,
         node::{
             evaluate::evaluate,
             execution_context::{ExecutionContext, ExecutionContextVc},
@@ -30,7 +31,7 @@ use turbo_binding::{
         },
         turbopack::{
             evaluate_context::node_evaluate_asset_context,
-            module_options::{EmotionTransformConfig, StyledComponentsTransformConfig},
+            module_options::StyledComponentsTransformConfig,
         },
     },
 };

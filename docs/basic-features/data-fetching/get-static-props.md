@@ -27,7 +27,7 @@ You should use `getStaticProps` if:
 
 ## When does getStaticProps run
 
-`getStaticProps` always runs on the server and never on the client. You can validate code written inside `getStaticProps` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
+`getStaticProps` always runs on the server and never on the client. You can validate that code written inside `getStaticProps` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
 
 - `getStaticProps` always runs during `next build`
 - `getStaticProps` runs in the background when using [`fallback: true`](/docs/api-reference/data-fetching/get-static-paths#fallback-true)
