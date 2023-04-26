@@ -11,6 +11,7 @@ bench = false
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = "1.0.2"
+async-trait = { workspace = true }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -48,6 +49,7 @@ next-transform-strip-page-exports = { workspace = true }
 next-transform-font = { workspace = true }
 next-transform-dynamic = { workspace = true }
 
+swc_relay = { workspace = true }
 swc_core = { workspace = true, features = [
   "ecma_ast",
   "common",
