@@ -297,12 +297,9 @@ const nextDev: CliCommand = async (argv) => {
   } else {
     let cleanupFns: (() => Promise<void> | void)[] = []
     const runDevServer = async () => {
-      const id = Math.random()
-      console.log('Starting ', id)
       const oldCleanupFns = cleanupFns
       cleanupFns = []
       await Promise.allSettled(oldCleanupFns.map((fn) => fn()))
-      console.log('finish cleanup ', id)
 
       try {
         let shouldFilter = false
