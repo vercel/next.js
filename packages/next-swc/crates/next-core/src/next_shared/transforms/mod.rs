@@ -2,11 +2,13 @@ mod modularize_imports;
 mod next_dynamic;
 mod next_font;
 mod next_strip_page_exports;
+mod relay;
 
 pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportPackageConfig};
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
+pub use relay::get_relay_transform_plugin;
 use swc_core::{
     common::util::take::Take,
     ecma::ast::{Module, ModuleItem, Program},
