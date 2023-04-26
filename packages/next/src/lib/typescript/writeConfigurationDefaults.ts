@@ -241,6 +241,7 @@ export async function writeConfigurationDefaults(
     if (
       hasPagesDir &&
       isAppDirEnabled &&
+      userTsConfig.compilerOptions &&
       !userTsConfig.compilerOptions.strict &&
       !('strictNullChecks' in userTsConfig.compilerOptions)
     ) {
