@@ -44,7 +44,10 @@ export function cookies() {
   }
 
   const asyncActionStore = actionAsyncStorage.getStore()
-  if (asyncActionStore && asyncActionStore.isAction) {
+  if (
+    asyncActionStore &&
+    (asyncActionStore.isAction || asyncActionStore.isAppRoute)
+  ) {
     return requestStore.mutableCookies
   }
 

@@ -41,26 +41,35 @@ export class RequestCookiesAdapter {
   }
 }
 
+export const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
+
 export class MutableRequestCookiesAdapter {
   public static seal(
     cookies: RequestCookies,
     res: ServerResponse | BaseNextResponse | undefined
   ): RequestCookies {
+    let modifiedValues: [string, string][] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
       const allCookies = cookies.getAll()
-      const values = allCookies
+      modifiedValues = allCookies
         .filter((c) => modifiedCookies.has(c.name))
-        .map((c) => `${c.name}=${c.value}`)
-      if (!res) {
-        throw new Error('invariant: Cannot modify the response cookie')
+        .map((c) => [c.name, c.value])
+      if (res) {
+        res.setHeader(
+          'Set-Cookie',
+          modifiedValues.map((c) => `${c[0]}=${c[1]}`)
+        )
       }
-      res.setHeader('Set-Cookie', values)
     }
 
     return new Proxy(cookies, {
       get(target, prop, receiver) {
         switch (prop) {
+          // A special symbol to get the modified cookie values
+          case SYMBOL_MODIFY_COOKIE_VALUES:
+            return modifiedValues
+
           // TODO: Throw error if trying to set a cookie after the response
           // headers have been set.
           case 'clear':
