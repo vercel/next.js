@@ -1,13 +1,7 @@
 mod server_to_client_proxy;
 mod util;
 
-use std::{
-    collections::hash_map::DefaultHasher,
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fmt::Debug, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use swc_core::{
@@ -43,13 +37,7 @@ pub enum EcmascriptInputTransform {
     ClientDirective(StringVc),
     ServerDirective(StringVc),
     CommonJs,
-    Custom(CustomTransformVc),
-    Emotion {
-        #[serde(default)]
-        sourcemap: bool,
-        label_format: OptionStringVc,
-        auto_label: Option<bool>,
-    },
+    Plugin(TransformPluginVc),
     PresetEnv(EnvironmentVc),
     React {
         #[serde(default)]
@@ -93,7 +81,7 @@ pub trait CustomTransformer: Debug {
     fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program>;
 }
 
-/// A wrapper around a CustomTransformer instance, allowing it to operate with
+/// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
 #[turbo_tasks::value(
     transparent,
@@ -103,9 +91,9 @@ pub trait CustomTransformer: Debug {
     cell = "new"
 )]
 #[derive(Debug)]
-pub struct CustomTransform(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
+pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
-impl CustomTransformer for CustomTransform {
+impl CustomTransformer for TransformPlugin {
     fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Option<Program> {
         self.0.transform(program, ctx)
     }
@@ -211,35 +199,6 @@ impl EcmascriptInputTransform {
                     Some(comments.clone()),
                 ));
             }
-            EcmascriptInputTransform::Emotion {
-                sourcemap,
-                label_format,
-                auto_label,
-            } => {
-                let options = swc_emotion::EmotionOptions {
-                    // this should be always enabled if match arrives here:
-                    // since moduleoptions expect to push emotion transform only if
-                    // there are valid, enabled config values.
-                    enabled: Some(true),
-                    sourcemap: Some(*sourcemap),
-                    label_format: label_format.await?.clone_value(),
-                    auto_label: *auto_label,
-                    ..Default::default()
-                };
-                let p = std::mem::replace(program, Program::Module(Module::dummy()));
-                let hash = {
-                    let mut hasher = DefaultHasher::new();
-                    p.hash(&mut hasher);
-                    hasher.finish()
-                };
-                *program = p.fold_with(&mut swc_emotion::emotion(
-                    options,
-                    Path::new(file_name_str),
-                    hash as u32,
-                    source_map.clone(),
-                    comments.clone(),
-                ))
-            }
             EcmascriptInputTransform::PresetEnv(env) => {
                 let versions = env.runtime_versions().await?;
                 let config = swc_core::ecma::preset_env::Config {
@@ -283,14 +242,14 @@ impl EcmascriptInputTransform {
                 }
 
                 let top_level_import_paths = &*top_level_import_paths.await?;
-                if top_level_import_paths.len() > 0 {
+                if !top_level_import_paths.is_empty() {
                     options.top_level_import_paths = top_level_import_paths
                         .iter()
                         .map(|s| JsWord::from(s.clone()))
                         .collect();
                 }
                 let meaningless_file_names = &*meaningless_file_names.await?;
-                if meaningless_file_names.len() > 0 {
+                if !meaningless_file_names.is_empty() {
                     options.meaningless_file_names = meaningless_file_names.clone();
                 }
 
@@ -361,7 +320,7 @@ impl EcmascriptInputTransform {
                         .emit();
                 }
             }
-            EcmascriptInputTransform::Custom(transform) => {
+            EcmascriptInputTransform::Plugin(transform) => {
                 if let Some(output) = transform.await?.transform(program, ctx) {
                     *program = output;
                 }

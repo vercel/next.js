@@ -15,8 +15,9 @@ use turbopack_core::{
 };
 use turbopack_css::{CssInputTransform, CssInputTransformsVc};
 use turbopack_ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptOptions,
+    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptOptions, TransformPluginVc,
 };
+use turbopack_ecmascript_plugins::transform::emotion::build_emotion_transformer;
 use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::transforms::{postcss::PostCssTransformVc, webpack::WebpackLoadersVc};
 
@@ -99,23 +100,13 @@ impl ModuleOptionsVc {
         if enable_styled_jsx {
             transforms.push(EcmascriptInputTransform::StyledJsx);
         }
-        if let Some(enable_emotion) = enable_emotion {
-            let emotion_transform = enable_emotion.await?;
-            transforms.push(EcmascriptInputTransform::Emotion {
-                sourcemap: emotion_transform.sourcemap.unwrap_or(false),
-                label_format: OptionStringVc::cell(emotion_transform.label_format.clone()),
-                auto_label: if let Some(auto_label) = emotion_transform.auto_label.as_ref() {
-                    match auto_label {
-                        EmotionLabelKind::Always => Some(true),
-                        EmotionLabelKind::Never => Some(false),
-                        // [TODO]: this is not correct coerece, need to be fixed
-                        EmotionLabelKind::DevOnly => None,
-                    }
-                } else {
-                    None
-                },
-            });
+
+        if let Some(transformer) = build_emotion_transformer(enable_emotion).await? {
+            transforms.push(EcmascriptInputTransform::Plugin(TransformPluginVc::cell(
+                transformer,
+            )));
         }
+
         if let Some(enable_styled_components) = enable_styled_components {
             let styled_components_transform = &*enable_styled_components.await?;
             transforms.push(EcmascriptInputTransform::StyledComponents {

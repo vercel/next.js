@@ -1,0 +1,26 @@
+[package]
+name = "turbopack-ecmascript-plugins"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+transform_emotion = []
+
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+
+turbo-tasks = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+
+swc_core = { workspace = true, features = ["ecma_ast", "ecma_visit", "common"] }
+swc_emotion = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

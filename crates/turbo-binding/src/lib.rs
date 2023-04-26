@@ -70,6 +70,8 @@ pub mod turbopack {
     pub use turbopack_dev_server as dev_server;
     #[cfg(feature = "__turbopack_ecmascript")]
     pub use turbopack_ecmascript as ecmascript;
+    #[cfg(feature = "__turbopack_ecmascript_plugin")]
+    pub use turbopack_ecmascript_plugins as ecmascript_plugin;
     #[cfg(feature = "__turbopack_env")]
     pub use turbopack_env as env;
     #[cfg(feature = "__turbopack_image")]

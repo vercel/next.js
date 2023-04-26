@@ -8,8 +8,8 @@ use turbopack::{
     condition::ContextCondition,
     ecmascript::EcmascriptModuleAssetVc,
     module_options::{
-        EmotionTransformConfigVc, JsxTransformOptions, ModuleOptionsContext,
-        ModuleOptionsContextVc, StyledComponentsTransformConfigVc,
+        JsxTransformOptions, ModuleOptionsContext, ModuleOptionsContextVc,
+        StyledComponentsTransformConfigVc,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
@@ -35,6 +35,7 @@ use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
+use turbopack_ecmascript_plugins::transform::emotion::EmotionTransformConfigVc;
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::embed_js::embed_file_path;

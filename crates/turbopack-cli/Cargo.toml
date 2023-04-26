@@ -57,6 +57,9 @@ turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-dev = { workspace = true }
 turbopack-dev-server = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, features = [
+  "transform_emotion",
+] }
 turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
 webbrowser = { workspace = true }
