@@ -119,6 +119,21 @@ fn write_resolved(
                 ))
             )?;
         }
+        Ok(ResolvedSourceMapping::MappedLibrary {
+            frame,
+            project_path,
+        }) => {
+            // There is a mapping to a file in the project directory, but to library code
+            write!(
+                writable,
+                "{PADDING}{}",
+                formatting_mode.lowlight(&format_args!(
+                    "at {} [{}]",
+                    frame.with_path(&project_path.path),
+                    original_frame.with_name(None)
+                ))
+            )?;
+        }
         Ok(ResolvedSourceMapping::MappedProject {
             frame,
             project_path,
@@ -175,6 +190,10 @@ enum ResolvedSourceMapping {
         project_path: FileSystemPathReadRef,
         lines: FileLinesContentReadRef,
     },
+    MappedLibrary {
+        frame: StackFrame<'static>,
+        project_path: FileSystemPathReadRef,
+    },
 }
 
 async fn resolve_source_mapping(
@@ -212,6 +231,7 @@ async fn resolve_source_mapping(
         .await?;
     match &*trace {
         TraceResult::Found(frame) => {
+            let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
                 "/",
                 SOURCE_MAP_ROOT_NAME,
@@ -220,12 +240,19 @@ async fn resolve_source_mapping(
                 "]/"
             )) {
                 let fs_path = project_dir.join(project_path);
-                let lines = fs_path.read().lines().await?;
-                return Ok(ResolvedSourceMapping::MappedProject {
-                    frame: frame.clone(),
-                    project_path: fs_path.await?,
-                    lines,
-                });
+                if lib_code {
+                    return Ok(ResolvedSourceMapping::MappedLibrary {
+                        frame: frame.clone(),
+                        project_path: fs_path.await?,
+                    });
+                } else {
+                    let lines = fs_path.read().lines().await?;
+                    return Ok(ResolvedSourceMapping::MappedProject {
+                        frame: frame.clone(),
+                        project_path: fs_path.await?,
+                        lines,
+                    });
+                }
             }
             Ok(ResolvedSourceMapping::Mapped {
                 frame: frame.clone(),
