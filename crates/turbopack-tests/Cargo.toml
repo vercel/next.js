@@ -26,6 +26,9 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbopack-core = { workspace = true, features = ["issue_path"] }
 turbopack-dev = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, features = [
+  "transform_emotion",
+] }
 turbopack-env = { workspace = true }
 turbopack-test-utils = { workspace = true }
 

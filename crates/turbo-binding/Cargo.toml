@@ -108,6 +108,12 @@ __turbopack_dev_dynamic_embed_contents = [
 ]
 __turbopack_dev_server = ["__turbopack", "turbopack-dev-server"]
 __turbopack_ecmascript = ["__turbopack", "turbopack-ecmascript"]
+# [Note]: currently all of the transform features are enabled by default
+__turbopack_ecmascript_plugin = [
+  "__turbopack",
+  "turbopack-ecmascript-plugins",
+  "turbopack-ecmascript-plugins/transform_emotion",
+]
 __turbopack_env = ["__turbopack", "turbopack-env"]
 __turbopack_image = ["__turbopack", "turbopack-image"]
 __turbopack_image_avif = ["turbopack-image/avif"]
@@ -185,6 +191,7 @@ turbopack-css = { optional = true, workspace = true }
 turbopack-dev = { optional = true, workspace = true }
 turbopack-dev-server = { optional = true, workspace = true }
 turbopack-ecmascript = { optional = true, workspace = true }
+turbopack-ecmascript-plugins = { optional = true, workspace = true }
 turbopack-env = { optional = true, workspace = true }
 turbopack-image = { optional = true, workspace = true }
 turbopack-json = { optional = true, workspace = true }

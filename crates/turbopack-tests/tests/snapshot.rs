@@ -21,7 +21,7 @@ use turbopack::{
     condition::ContextCondition,
     ecmascript::EcmascriptModuleAssetVc,
     module_options::{
-        EmotionTransformConfig, JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
+        JsxTransformOptions, JsxTransformOptionsVc, ModuleOptionsContext,
         StyledComponentsTransformConfigVc,
     },
     resolve_options_context::ResolveOptionsContext,
@@ -43,12 +43,14 @@ use turbopack_core::{
     source_asset::SourceAssetVc,
 };
 use turbopack_dev::DevChunkingContextVc;
+use turbopack_ecmascript_plugins::transform::emotion::EmotionTransformConfig;
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_test_utils::snapshot::{diff, expected, matches_expected, snapshot_issues};
 
 fn register() {
     turbopack::register();
     turbopack_dev::register();
+    turbopack_ecmascript_plugins::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
 }
 
