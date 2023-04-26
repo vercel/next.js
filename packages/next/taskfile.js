@@ -151,22 +151,6 @@ export async function copy_vercel_og(task, opts) {
     )
     .target('src/compiled/@vercel/og')
 
-  const nodeSource = await fs.readFile(
-    join(
-      dirname(require.resolve('@vercel/og/package.json')),
-      'dist/index.node.js'
-    ),
-    'utf8'
-  )
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/@vercel/og/index.node.js'),
-    nodeSource +
-      `
-function __traceRequiredFiles() { fetch(new URL("./noto-sans-v27-latin-regular.ttf", import.meta.url)); }
-__traceRequiredFiles;
-`
-  )
-
   // Types are not bundled, include satori types here
   await task
     .source(

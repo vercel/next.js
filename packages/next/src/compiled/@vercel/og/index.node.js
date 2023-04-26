@@ -18146,5 +18146,3 @@ export {
  */
 /*! Copyright Twitter Inc. and other contributors. Licensed under MIT */
 //# sourceMappingURL=index.node.js.map
-function __traceRequiredFiles() { fetch(new URL("./noto-sans-v27-latin-regular.ttf", import.meta.url)); }
-__traceRequiredFiles;

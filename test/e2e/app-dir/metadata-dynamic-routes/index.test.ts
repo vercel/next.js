@@ -13,7 +13,7 @@ createNextDescribe(
   'app dir - metadata dynamic routes',
   {
     files: __dirname,
-    skipDeployment: true,
+    // skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart, isNextDeploy }) => {
     describe('text routes', () => {
