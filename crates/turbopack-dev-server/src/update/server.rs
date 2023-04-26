@@ -67,12 +67,11 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                                     let source = source_provider.get_source();
                                     resolve_source_request(
                                         source,
-                                        TransientInstance::new(request),
-                                        self.issue_reporter
+                                        TransientInstance::new(request)
                                     )
                                 }
                             };
-                            match UpdateStream::new(TransientInstance::new(Box::new(get_content))).await {
+                            match UpdateStream::new(resource.to_string(), TransientInstance::new(Box::new(get_content))).await {
                                 Ok(stream) => {
                                     streams.insert(resource, stream);
                                 }
@@ -94,7 +93,14 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                     }
                 }
                 Some((resource, update)) = streams.next() => {
-                    Self::send_update(&mut client, &mut streams, resource, &update).await?;
+                    match update {
+                        Ok(update) => {
+                            Self::send_update(&mut client, &mut streams, resource, &update).await?;
+                        }
+                        Err(err) => {
+                            eprintln!("Failed to get update for {resource}: {}", PrettyPrintError(&err));
+                        }
+                    }
                 }
                 else => break
             }

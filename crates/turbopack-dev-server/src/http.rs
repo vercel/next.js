@@ -42,30 +42,27 @@ enum GetFromSourceResult {
 async fn get_from_source(
     source: ContentSourceVc,
     request: TransientInstance<SourceRequest>,
-    issue_repoter: IssueReporterVc,
 ) -> Result<GetFromSourceResultVc> {
-    Ok(
-        match &*resolve_source_request(source, request, issue_repoter).await? {
-            ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
-                let static_content = static_content_vc.await?;
-                if let AssetContent::File(file) = &*static_content.content.content().await? {
-                    GetFromSourceResult::Static {
-                        content: file.await?,
-                        status_code: static_content.status_code,
-                        headers: static_content.headers.await?,
-                        header_overwrites: header_overwrites.await?,
-                    }
-                } else {
-                    GetFromSourceResult::NotFound
+    Ok(match &*resolve_source_request(source, request).await? {
+        ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
+            let static_content = static_content_vc.await?;
+            if let AssetContent::File(file) = &*static_content.content.content().await? {
+                GetFromSourceResult::Static {
+                    content: file.await?,
+                    status_code: static_content.status_code,
+                    headers: static_content.headers.await?,
+                    header_overwrites: header_overwrites.await?,
                 }
+            } else {
+                GetFromSourceResult::NotFound
             }
-            ResolveSourceRequestResult::HttpProxy(proxy) => {
-                GetFromSourceResult::HttpProxy(proxy.await?)
-            }
-            ResolveSourceRequestResult::NotFound => GetFromSourceResult::NotFound,
         }
-        .cell(),
-    )
+        ResolveSourceRequestResult::HttpProxy(proxy) => {
+            GetFromSourceResult::HttpProxy(proxy.await?)
+        }
+        ResolveSourceRequestResult::NotFound => GetFromSourceResult::NotFound,
+    }
+    .cell())
 }
 
 /// Processes an HTTP request within a given content source and returns the
@@ -77,7 +74,7 @@ pub async fn process_request_with_content_source(
 ) -> Result<Response<hyper::Body>> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
-    let result = get_from_source(source, TransientInstance::new(request), issue_reporter);
+    let result = get_from_source(source, TransientInstance::new(request));
     handle_issues(result, &original_path, "get_from_source", issue_reporter).await?;
     match &*result.strongly_consistent().await? {
         GetFromSourceResult::Static {
