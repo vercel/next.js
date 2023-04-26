@@ -215,6 +215,13 @@ function createHeadInsertionTransformStream(
         })
       }
     },
+    async flush(controller) {
+      // Check before closing if there's anything remaining to insert.
+      const insertion = await insert()
+      if (insertion) {
+        controller.enqueue(encodeText(insertion))
+      }
+    },
   })
 }
 
