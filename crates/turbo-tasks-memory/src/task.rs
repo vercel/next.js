@@ -528,10 +528,10 @@ impl Task {
         Self {
             id,
             ty,
-            state: RwLock::new(TaskMetaState::Full(box TaskState::new(
+            state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new(
                 description,
                 stats_type,
-            ))),
+            )))),
         }
     }
 
@@ -546,10 +546,8 @@ impl Task {
         Self {
             id,
             ty,
-            state: RwLock::new(TaskMetaState::Full(box TaskState::new_scheduled_in_scope(
-                description,
-                scope,
-                stats_type,
+            state: RwLock::new(TaskMetaState::Full(Box::new(
+                TaskState::new_scheduled_in_scope(description, scope, stats_type),
             ))),
         }
     }
@@ -565,10 +563,8 @@ impl Task {
         Self {
             id,
             ty,
-            state: RwLock::new(TaskMetaState::Full(box TaskState::new_scheduled_in_scope(
-                description,
-                scope,
-                stats_type,
+            state: RwLock::new(TaskMetaState::Full(Box::new(
+                TaskState::new_scheduled_in_scope(description, scope, stats_type),
             ))),
         }
     }
@@ -579,18 +575,18 @@ impl Task {
         trait_type_id: TraitTypeId,
         stats_type: StatsType,
     ) -> Self {
-        let ty = TaskType::ReadScopeCollectibles(box ReadScopeCollectiblesTaskType {
+        let ty = TaskType::ReadScopeCollectibles(Box::new(ReadScopeCollectiblesTaskType {
             scope: target_scope,
             trait_type: trait_type_id,
-        });
+        }));
         let description = Self::get_event_description_static(id, &ty);
         Self {
             id,
             ty,
-            state: RwLock::new(TaskMetaState::Full(box TaskState::new(
+            state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new(
                 description,
                 stats_type,
-            ))),
+            )))),
         }
     }
 
@@ -601,19 +597,19 @@ impl Task {
         trait_type_id: TraitTypeId,
         stats_type: StatsType,
     ) -> Self {
-        let ty = TaskType::ReadTaskCollectibles(box ReadTaskCollectiblesTaskType {
+        let ty = TaskType::ReadTaskCollectibles(Box::new(ReadTaskCollectiblesTaskType {
             task: target_task,
             trait_type: trait_type_id,
-        });
+        }));
         let description = Self::get_event_description_static(id, &ty);
         Self {
             id,
             ty,
-            state: RwLock::new(TaskMetaState::Full(box TaskState::new_root_scoped(
+            state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new_root_scoped(
                 description,
                 scope,
                 stats_type,
-            ))),
+            )))),
         }
     }
 
@@ -2787,7 +2783,7 @@ impl Task {
         if unset {
             *state = TaskMetaState::Unloaded(UnloadedTaskState { stats_type });
         } else {
-            *state = TaskMetaState::Partial(box PartialTaskState { scopes, stats_type });
+            *state = TaskMetaState::Partial(Box::new(PartialTaskState { scopes, stats_type }));
         }
         drop(state);
 

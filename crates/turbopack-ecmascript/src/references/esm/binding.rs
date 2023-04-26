@@ -58,14 +58,14 @@ impl CodeGenerateable for EsmBinding {
             if let Some(export) = export {
                 Expr::Member(MemberExpr {
                     span: DUMMY_SP,
-                    obj: box Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP)),
+                    obj: Box::new(Expr::Ident(Ident::new(imported_module.into(), DUMMY_SP))),
                     prop: MemberProp::Computed(ComputedPropName {
                         span: DUMMY_SP,
-                        expr: box Expr::Lit(Lit::Str(Str {
+                        expr: Box::new(Expr::Lit(Lit::Str(Str {
                             span: DUMMY_SP,
                             value: export.into(),
                             raw: None,
-                        })),
+                        }))),
                     }),
                 })
             } else {
@@ -99,7 +99,7 @@ impl CodeGenerateable for EsmBinding {
                             if let Prop::Shorthand(ident) = prop {
                                 // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
                                 if let Some(imported_ident) = imported_module.as_deref() {
-                                    *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: box make_expr(imported_ident, this.export.as_deref())});
+                                    *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: Box::new(make_expr(imported_ident, this.export.as_deref()))});
                                 }
                             }
                         }),

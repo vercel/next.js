@@ -3,7 +3,6 @@
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
-#![feature(box_syntax)]
 #![feature(round_char_boundary)]
 
 pub mod attach;
@@ -1683,9 +1682,9 @@ impl FileContent {
                 let de = &mut serde_json::Deserializer::from_reader(file.read());
                 match serde_path_to_error::deserialize(de) {
                     Ok(data) => FileJsonContent::Content(data),
-                    Err(e) => FileJsonContent::Unparseable(
-                        box UnparseableJson::from_serde_path_to_error(e),
-                    ),
+                    Err(e) => FileJsonContent::Unparseable(Box::new(
+                        UnparseableJson::from_serde_path_to_error(e),
+                    )),
                 }
             }
             FileContent::NotFound => FileJsonContent::NotFound,
@@ -1709,9 +1708,8 @@ impl FileContent {
                             "text content doesn't contain any json data",
                         ),
                     },
-                    Err(e) => FileJsonContent::Unparseable(box UnparseableJson::from_jsonc_error(
-                        e,
-                        string.as_ref(),
+                    Err(e) => FileJsonContent::Unparseable(Box::new(
+                        UnparseableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
                 Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),

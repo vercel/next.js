@@ -191,14 +191,14 @@ impl CodeGenerateable for EsmExports {
                             "(() => $expr)" as Expr,
                             expr: Expr = Expr::Member(MemberExpr {
                                 span: DUMMY_SP,
-                                obj: box Expr::Ident(Ident::new(ident.into(), DUMMY_SP)),
+                                obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP))),
                                 prop: MemberProp::Computed(ComputedPropName {
                                     span: DUMMY_SP,
-                                    expr: box Expr::Lit(Lit::Str(Str {
+                                    expr: Box::new(Expr::Lit(Lit::Str(Str {
                                         span: DUMMY_SP,
                                         value: (name as &str).into(),
                                         raw: None,
-                                    }))
+                                    })))
                                 })
                             })
                         )
@@ -215,14 +215,14 @@ impl CodeGenerateable for EsmExports {
                 }
             };
             if let Some(expr) = expr {
-                props.push(PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+                props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_ref().into(),
                         raw: None,
                     }),
-                    value: box expr,
-                })));
+                    value: Box::new(expr),
+                }))));
             }
         }
         let getters = Expr::Object(ObjectLit {

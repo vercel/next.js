@@ -196,11 +196,11 @@ async fn parse_content(
     let handler = Handler::with_emitter(
         true,
         false,
-        box IssueEmitter {
+        Box::new(IssueEmitter {
             source,
             source_map: source_map.clone(),
             title: Some("Parsing ecmascript source code failed".to_string()),
-        },
+        }),
     );
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;

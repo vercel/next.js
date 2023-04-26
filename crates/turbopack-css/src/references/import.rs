@@ -110,7 +110,7 @@ impl ImportAttributes {
         }
 
         // something random that's never gonna be in real css
-        let mut rule = Rule::ListOfComponentValues(box ListOfComponentValues {
+        let mut rule = Rule::ListOfComponentValues(Box::new(ListOfComponentValues {
             span: DUMMY_SP,
             children: vec![ComponentValue::PreservedToken(Box::new(token(
                 Token::String {
@@ -118,23 +118,23 @@ impl ImportAttributes {
                     raw: r#""""__turbopack_placeholder__""""#.into(),
                 },
             )))],
-        });
+        }));
 
         fn at_rule(name: &str, prelude: AtRulePrelude, inner_rule: Rule) -> Rule {
-            Rule::AtRule(box AtRule {
+            Rule::AtRule(Box::new(AtRule {
                 span: DUMMY_SP,
                 name: AtRuleName::Ident(Ident {
                     span: DUMMY_SP,
                     value: name.into(),
                     raw: None,
                 }),
-                prelude: Some(box prelude),
+                prelude: Some(Box::new(prelude)),
                 block: Some(SimpleBlock {
                     span: DUMMY_SP,
                     name: token(Token::LBrace),
                     value: vec![ComponentValue::from(inner_rule)],
                 }),
-            })
+            }))
         }
 
         if let Some(media) = &self.media {

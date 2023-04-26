@@ -147,7 +147,7 @@ where
                     }
                     total_nodes += 1;
                     done.push(JsValue::unknown(
-                        JsValue::call(box JsValue::function(func_ident, return_value), args),
+                        JsValue::call(Box::new(JsValue::function(func_ident, return_value)), args),
                         "recursive function call",
                     ));
                 }
