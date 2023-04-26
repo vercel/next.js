@@ -357,7 +357,7 @@ createNextDescribe(
 
         // @vercel/og default font should be traced
         const isTraced = fileTrace.files.some((filePath) =>
-          /\/noto-sans-v27-latin-regular\.\w+\.ttf/.test(filePath)
+          filePath.includes('/noto-sans-v27-latin-regular.ttf')
         )
         expect(isTraced).toBe(true)
       })
