@@ -339,7 +339,7 @@ impl Asset for EcmascriptChunk {
             let need_root = if let [(_, main_entry)] = &assets[..] {
                 main_entry.resolve().await? != ident.resolve().await?
             } else {
-                false
+                true
             };
             if need_root {
                 let availability_root_key = StringVc::cell("current_availability_root".to_string());
