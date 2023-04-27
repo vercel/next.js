@@ -7,3 +7,4 @@ export { requestAsyncStorage } from 'next/dist/client/components/request-async-s
 import * as serverHooks from 'next/dist/client/components/hooks-server-context.js'
 export { serverHooks }
 export { renderToReadableStream } from 'next/dist/compiled/react-server-dom-webpack/server.edge'
+export { preloadStyle } from 'next/dist/server/app-render/rsc/preloads'
