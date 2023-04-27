@@ -32,6 +32,7 @@ module.exports = function (task) {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
+          exportInteropAnnotation: true,
         },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
@@ -65,6 +66,7 @@ module.exports = function (task) {
         module: {
           type: esm ? 'es6' : 'commonjs',
           ignoreDynamic: true,
+          exportInteropAnnotation: true,
         },
         env: {
           targets: {
