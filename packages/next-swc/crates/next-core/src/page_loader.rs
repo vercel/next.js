@@ -14,7 +14,7 @@ use turbo_binding::{
             reference_type::{EntryReferenceSubType, ReferenceType},
             virtual_asset::VirtualAssetVc,
         },
-        dev::ChunkData,
+        dev::{ChunkDataVc, ChunksDataVc},
         dev_server::source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
         ecmascript::{
             utils::StringifyJs, EcmascriptInputTransform, EcmascriptInputTransformsVc,
@@ -106,6 +106,15 @@ impl PageLoaderAssetVc {
             EvaluatableAssetsVc::one(asset.into()),
         ))
     }
+
+    #[turbo_tasks::function]
+    async fn chunks_data(self) -> Result<ChunksDataVc> {
+        let this = self.await?;
+        Ok(ChunkDataVc::from_assets(
+            this.server_root,
+            self.get_page_chunks(),
+        ))
+    }
 }
 
 #[turbo_tasks::function]
@@ -128,16 +137,11 @@ impl Asset for PageLoaderAsset {
     async fn content(self_vc: PageLoaderAssetVc) -> Result<AssetContentVc> {
         let this = &*self_vc.await?;
 
-        let chunks = self_vc.get_page_chunks().await?;
-        let server_root = this.server_root.await?;
-
-        let chunks_data: Vec<_> = chunks
+        let chunks_data = self_vc.chunks_data().await?;
+        let chunks_data = chunks_data.iter().try_join().await?;
+        let chunks_data: Vec<_> = chunks_data
             .iter()
-            .map(|&chunk| ChunkData::from_asset(&server_root, chunk))
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
+            .map(|chunk_data| chunk_data.runtime_chunk_data())
             .collect();
 
         let content = format!(
@@ -159,6 +163,10 @@ impl Asset for PageLoaderAsset {
                 SingleAssetReferenceVc::new(*chunk, page_loader_chunk_reference_description())
                     .into(),
             );
+        }
+
+        for chunk_data in &*self_vc.chunks_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
         }
 
         Ok(AssetReferencesVc::cell(references))
