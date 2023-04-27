@@ -824,12 +824,30 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when Infinity width prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-notFinite-width')
+
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received not isFinite.`
+      )
+    })
+
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
 
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
+      )
+    })
+
+    it('should show error when Infinity height prop', async () => {
+      const browser = await webdriver(appPort, '/invalid-notFinite-height')
+
+      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received not isFinite.`
       )
     })
 
