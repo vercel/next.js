@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.css"],"sourcesContent":[".foo-style { color: green; }\n"],"names":[],"mappings":"AAAA,CAAC,SAAS,CAAC,CAAC;EAAC,KAAK,EAAE,KAAK;AAAE,CAAC"}},
+    {"offset": {"line": 3, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

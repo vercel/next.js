@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css"],"sourcesContent":[".foo {\n  background-color: red;\n}\n"],"names":[],"mappings":"AAAA,CAAC,GAAG,CAAC,CAAC;EACJ,gBAAgB,EAAE,GAAG;AACvB,CAAC"}},
+    {"offset": {"line": 3, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

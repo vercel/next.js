@@ -19,7 +19,7 @@ use turbopack_ecmascript::{
 };
 
 use super::chunk_asset::DevManifestChunkAssetVc;
-use crate::ecmascript::chunk_data::ChunkData;
+use crate::{ChunkDataOptionVc, ChunkDataVc};
 
 #[turbo_tasks::function]
 fn modifier() -> StringVc {
@@ -49,6 +49,17 @@ impl DevManifestLoaderItemVc {
     pub fn new(manifest: DevManifestChunkAssetVc) -> Self {
         Self::cell(DevManifestLoaderItem { manifest })
     }
+
+    #[turbo_tasks::function]
+    pub async fn chunk_data(self) -> Result<ChunkDataOptionVc> {
+        let this = self.await?;
+        let chunk = this.manifest.manifest_chunk();
+        let manifest = this.manifest.await?;
+        Ok(ChunkDataVc::from_asset(
+            manifest.chunking_context.output_root(),
+            chunk,
+        ))
+    }
 }
 
 #[turbo_tasks::function]
@@ -64,12 +75,20 @@ impl ChunkItem for DevManifestLoaderItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
-        Ok(AssetReferencesVc::cell(vec![SingleAssetReferenceVc::new(
-            self.manifest.manifest_chunk(),
+    async fn references(self_vc: DevManifestLoaderItemVc) -> Result<AssetReferencesVc> {
+        let this = self_vc.await?;
+
+        let mut references = vec![SingleAssetReferenceVc::new(
+            this.manifest.manifest_chunk(),
             dev_manifest_loader_chunk_reference_description(),
         )
-        .into()]))
+        .into()];
+
+        if let Some(chunk_data) = &*self_vc.chunk_data().await? {
+            references.extend(chunk_data.references().await?.iter().copied());
+        }
+
+        Ok(AssetReferencesVc::cell(references))
     }
 }
 
@@ -86,25 +105,20 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
         let mut code = Vec::new();
 
         let manifest = this.manifest.await?;
-
         let asset = manifest.asset.as_asset();
-        let chunk = this.manifest.manifest_chunk();
-
-        let output_root = manifest.chunking_context.output_root().await?;
 
         // We need several items in order for a dynamic import to fully load. First, we
         // need the chunk path of the manifest chunk, relative from the output root. The
         // chunk is a servable file, which will contain the manifest chunk item, which
         // will perform the actual chunk traversal and generate load statements.
-        let chunk_server_data =
-            if let Some(data) = ChunkData::from_asset(&output_root, chunk).await? {
-                data
-            } else {
-                bail!(
-                    "chunk {} doesn't have chunk data",
-                    chunk.ident().to_string().await?,
-                );
-            };
+        let chunk_server_data = if let Some(data) = &*self_vc.chunk_data().await? {
+            data.await?
+        } else {
+            bail!(
+                "chunk {} doesn't have chunk data",
+                this.manifest.manifest_chunk().ident().to_string().await?,
+            );
+        };
 
         // We also need the manifest chunk item's id, which points to a CJS module that
         // exports a promise for all of the necessary chunk loads.
@@ -143,7 +157,7 @@ impl EcmascriptChunkItem for DevManifestLoaderItem {
                     }});
                 }});
             "#,
-            chunk_server_data = StringifyJs(&chunk_server_data),
+            chunk_server_data = StringifyJs(&chunk_server_data.runtime_chunk_data()),
             item_id = StringifyJs(item_id),
             dynamic_id = StringifyJs(dynamic_id),
         )?;

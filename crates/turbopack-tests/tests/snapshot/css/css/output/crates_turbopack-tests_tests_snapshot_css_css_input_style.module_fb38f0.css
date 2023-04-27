@@ -1,0 +1,15 @@
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css (css, css module) */
+.module-style__style__9bcf751c {
+  color: magenta;
+}
+.module-style__style__9bcf751c > h1, 
+.module-style__style__9bcf751c + .inner__style__9bcf751c {
+  background: purple;
+}
+.composed-module-style__style__9bcf751c {
+  color: green;
+}
+.another-composed-module-style__style__9bcf751c {
+  color: yellow;
+}
+/*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_css_input_style.module_fb38f0.css.map*/
