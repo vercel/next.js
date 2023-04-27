@@ -17,8 +17,6 @@ import React from 'react'
 import { NotFound as DefaultNotFound } from '../../client/components/error'
 import { createServerComponentRenderer } from './create-server-components-renderer'
 
-// this needs to be required lazily so that `next-server` can set
-// the env before we require
 import { ParsedUrlQuery } from 'querystring'
 import { NextParsedUrlQuery } from '../request-meta'
 import RenderResult, { type RenderResultMetadata } from '../render-result'
@@ -468,26 +466,30 @@ export async function renderToHTMLOrFlight(
       )
 
       const styles = stylesheets
-        ? stylesheets.map((href, index) => (
-            <link
-              rel="stylesheet"
-              // In dev, Safari and Firefox will cache the resource during HMR:
-              // - https://github.com/vercel/next.js/issues/5860
-              // - https://bugs.webkit.org/show_bug.cgi?id=187726
-              // Because of this, we add a `?v=` query to bypass the cache during
-              // development. We need to also make sure that the number is always
-              // increasing.
-              href={`${assetPrefix}/_next/${href}${
-                process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
-              }`}
-              // `Precedence` is an opt-in signal for React to handle
-              // resource loading and deduplication, etc:
-              // https://github.com/facebook/react/pull/25060
-              // @ts-ignore
-              precedence="next.js"
-              key={index}
-            />
-          ))
+        ? stylesheets.map((href, index) => {
+            const fullHref = `${assetPrefix}/_next/${href}${
+              process.env.NODE_ENV === 'development' ? `?v=${Date.now()}` : ''
+            }`
+            ComponentMod.preloadStyle(fullHref)
+            return (
+              <link
+                rel="stylesheet"
+                // In dev, Safari and Firefox will cache the resource during HMR:
+                // - https://github.com/vercel/next.js/issues/5860
+                // - https://bugs.webkit.org/show_bug.cgi?id=187726
+                // Because of this, we add a `?v=` query to bypass the cache during
+                // development. We need to also make sure that the number is always
+                // increasing.
+                href={fullHref}
+                // `Precedence` is an opt-in signal for React to handle
+                // resource loading and deduplication, etc:
+                // https://github.com/facebook/react/pull/25060
+                // @ts-ignore
+                precedence="next.js"
+                key={index}
+              />
+            )
+          })
         : null
 
       return {

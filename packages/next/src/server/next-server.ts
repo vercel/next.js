@@ -1,3 +1,4 @@
+import './node-environment'
 import './require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-form'
@@ -319,10 +320,6 @@ export default class NextNodeServer extends BaseServer {
         }
       }
     }
-
-    // expose AsyncLocalStorage on global for react usage
-    const { AsyncLocalStorage } = require('async_hooks')
-    ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)

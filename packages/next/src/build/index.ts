@@ -283,6 +283,15 @@ export default async function build(
 
       if (isAppDirEnabled) {
         process.env.NEXT_PREBUNDLED_REACT = '1'
+
+        if (!process.env.__NEXT_TEST_MODE && ciEnvironment.hasNextSupport) {
+          const requireHook = require.resolve('../server/require-hook')
+          const contents = await promises.readFile(requireHook, 'utf8')
+          await promises.writeFile(
+            requireHook,
+            `process.env.__NEXT_PRIVATE_PREBUNDLED_REACT = '1'\n${contents}`
+          )
+        }
       }
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)

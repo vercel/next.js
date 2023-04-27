@@ -81,6 +81,10 @@ function overrideReact() {
           `next/dist/compiled/react-server-dom-webpack${channel}/server.edge`
         ),
       ],
+      [
+        'react-dom/server.edge',
+        require.resolve(`next/dist/compiled/react-dom/server.edge`),
+      ],
     ])
   } else {
     addHookAliases([

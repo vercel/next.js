@@ -250,7 +250,7 @@
     "@types/react-dom": "18.0.11"
   },
   "engines": {
-    "node": ">=14.18.0"
+    "node": ">=16"
   },
   "packageManager": "pnpm@7.24.3"
 }
