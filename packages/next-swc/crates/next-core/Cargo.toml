@@ -21,6 +21,7 @@ mime = { workspace = true }
 indoc = { workspace = true }
 allsorts = { workspace = true }
 futures = { workspace = true }
+lazy_static = { workspace = true }
 turbo-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__feature_auto_hash_map",
@@ -35,6 +36,7 @@ turbo-binding = { workspace = true, features = [
   "__turbopack_dev",
   "__turbopack_dev_server",
   "__turbopack_ecmascript",
+  "__turbopack_ecmascript_plugin",
   "__turbopack_env",
   "__turbopack_static",
   "__turbopack_image",

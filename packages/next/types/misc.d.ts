@@ -20,6 +20,7 @@ declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 declare module 'react-dom/server.browser'
+declare module 'react-dom/server.edge'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'

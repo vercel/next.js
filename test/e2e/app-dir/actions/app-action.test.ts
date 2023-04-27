@@ -42,6 +42,26 @@ createNextDescribe(
         const res = (await browser.elementByCss('h1').text()) || ''
         return res.includes('Mozilla') ? 'UA' : ''
       }, 'UA')
+
+      // Set cookies
+      await browser.elementByCss('#setCookie').click()
+      await check(async () => {
+        const res = (await browser.elementByCss('h1').text()) || ''
+        const id = res.split(':')
+        return id[0] === id[1] && id[0] === id[2] && id[0]
+          ? 'same'
+          : 'different'
+      }, 'same')
+    })
+
+    it('should support setting cookies in route handlers with the correct overrides', async () => {
+      const res = await next.fetch('/handler')
+      const setCookieHeader = res.headers.get('set-cookie') as string[]
+      expect(setCookieHeader).toContain('bar=bar2; Path=/')
+      expect(setCookieHeader).toContain('baz=baz2; Path=/')
+      expect(setCookieHeader).toContain('foo=foo1; Path=/')
+      expect(setCookieHeader).toContain('test1=value1; Path=/; Secure')
+      expect(setCookieHeader).toContain('test2=value2; Path=/handler; HttpOnly')
     })
 
     it('should support formData and redirect', async () => {
