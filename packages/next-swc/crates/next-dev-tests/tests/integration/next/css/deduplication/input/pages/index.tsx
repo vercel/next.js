@@ -35,6 +35,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
     'should have the correct style applied on initialization',
     async () => {
       await harness.waitForLoaded(iframe)
+      await harness.waitForHydration(iframe, '/a')
       const link = await harness.waitForSelector(
         iframe.contentWindow!.document,
         'a'
@@ -58,6 +59,8 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
   )
 
   it('should have the correct style when loading dynamic styles', async () => {
+    await harness.waitForLoaded(iframe)
+    await harness.waitForHydration(iframe, '/a')
     const link = await harness.waitForSelector(
       iframe.contentWindow!.document,
       'a'
@@ -84,6 +87,7 @@ function runTests(harness: Harness, iframe: HTMLIFrameElement) {
     'should have the correct style when navigating to B and back',
     async () => {
       await harness.waitForLoaded(iframe)
+      await harness.waitForHydration(iframe, '/a')
 
       const key = Math.random()
       iframe.contentWindow!.__TEST_CONTEXT_KEY = key
