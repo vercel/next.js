@@ -45,6 +45,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::{
+    asset_helpers::as_es_module_asset,
     embed_js::{next_asset, next_js_file},
     next_config::NextConfigVc,
     next_edge::{
@@ -154,19 +155,6 @@ async fn get_config(
         FindContextFileResult::NotFound(_) => None,
     };
     Ok(OptionEcmascriptModuleAssetVc::cell(config_asset))
-}
-
-fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModuleAssetVc {
-    EcmascriptModuleAssetVc::new(
-        asset,
-        context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
-        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript {
-            use_define_for_class_fields: false,
-        }]),
-        Default::default(),
-        context.compile_time_info(),
-    )
 }
 
 #[turbo_tasks::function]
