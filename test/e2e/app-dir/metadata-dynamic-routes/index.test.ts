@@ -328,6 +328,7 @@ createNextDescribe(
       const twitterImage = $('meta[name="twitter:image"]').attr('content')
       const ogImages = $('meta[property="og:image"]')
 
+      expect(ogImages.length).toBe(2)
       ogImages.each((_, ogImage) => {
         const ogImageUrl = $(ogImage).attr('content')
         expect(ogImageUrl).toMatch(
